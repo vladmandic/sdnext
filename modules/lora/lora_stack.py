@@ -73,15 +73,25 @@ def active_dense(n_contrib):
     return mode() in DENSE_MODES and n_contrib >= 2
 
 
+def select_possible(n_loaded):
+    """True when the loaded set could engage a select mode; silent, for the fuse gate."""
+    return mode() in SELECT_MODES and n_loaded == 2 and not select_blocked()
+
+
+def select_engaged():
+    """True while selection schedules are live on model layers."""
+    return bool(state['entries'])
+
+
 def active_select(n_loaded):
     m = mode()
     if m not in SELECT_MODES:
         return False
     if n_loaded != 2:
-        warn_once('select-count', f'Network stack: mode={m} networks={n_loaded} required=2 fallback=sum')
+        log.warning(f'Network stack: mode={m} networks={n_loaded} required=2 fallback=sum')
         return False
     if select_blocked():
-        warn_once('select-compile', f'Network stack: mode={m} compile=model fallback=sum')
+        log.warning(f'Network stack: mode={m} compile=model fallback=sum')
         return False
     return True
 

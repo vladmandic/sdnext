@@ -107,9 +107,10 @@ def disable_fuse():
     round-trips it through its storage format. On quantized weights that is a
     dequantize-add-requantize cycle per network swap whose error compounds.
     """
+    from modules.lora import lora_common as l
     from modules.lora import lora_stack
-    if lora_stack.mode() in lora_stack.SELECT_MODES:
-        return True # select stack modes flip per-layer winners against the pristine backup
+    if lora_stack.select_possible(len(l.loaded_networks)) or lora_stack.select_engaged():
+        return True # select flips per-layer winners against the pristine backup; a dormant select mode leaves fuse alone
     sd_model = getattr(shared.sd_model, 'pipe', shared.sd_model)
     if is_quantized(sd_model):
         return True

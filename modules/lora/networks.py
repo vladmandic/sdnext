@@ -70,6 +70,7 @@ def network_activate(include=None, exclude=None):
                         if task is not None:
                             pbar.update(task, advance=1)
                         continue
+                    lora_stack.drop(network_layer_name) # re-application invalidates any live selection schedule; the select branch re-registers
                     if select_active and component_wanted and not network_layer_name.startswith('lora_te'):
                         if lora_sdnq.host_candidate(module, network_layer_name, component_wanted): # sub-8-bit SDNQ pairs ride the channel as separate segments
                             weights_backup = getattr(module, "network_weights_backup", None)
