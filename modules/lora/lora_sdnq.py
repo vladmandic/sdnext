@@ -47,7 +47,7 @@ a low-rank delta hosts exactly however fat it is.
 import torch
 
 from modules import devices, shared
-from modules.lora import lora_calib, lora_factor_cache
+from modules.lora import lora_calib, lora_factor_cache, lora_stack
 from modules.lora import lora_common as l
 from modules.logger import log
 
@@ -137,6 +137,9 @@ def factor_candidate(self, network_layer_name, wanted_names):
         return False # declined layers with factors still attached are stripped by the activate fallthrough
     if getattr(self, 'sdnq_dequantizer', None) is None or self.__class__.__name__ != 'SDNQLinear':
         return False
+    if wanted_names != () and lora_stack.mode() in lora_stack.DENSE_MODES and not network_layer_name.startswith('lora_te'):
+        if sum(1 for net in l.loaded_networks if net.modules.get(network_layer_name, None) is not None) >= 2:
+            return False # dense stack modes combine dense deltas; the factor concat would sum
     if hasattr(self, 'sdnq_lora_svd_stash'):
         return True
     if wanted_names == ():  # nothing attached, nothing to remove
@@ -277,14 +280,16 @@ def apply_cached(self, network_layer_name, wanted_names):
     deq = self.sdnq_dequantizer
     dtype = deq.result_dtype
     remove_factors(self) # before the rule: the svd-channel check must see the checkpoint's own state, and a declined layer must fall through pristine
+    stack_dense = lora_stack.mode() in lora_stack.DENSE_MODES and not network_layer_name.startswith('lora_te')
     members = []
-    for net in l.loaded_networks:
-        module = net.modules.get(network_layer_name, None)
-        if module is None:
-            continue
-        factors = get_module_factors(module, devices.device, dtype, original_shape=deq.original_shape)
-        if factors is not None:
-            members.append(factors)
+    if not stack_dense:
+        for net in l.loaded_networks:
+            module = net.modules.get(network_layer_name, None)
+            if module is None:
+                continue
+            factors = get_module_factors(module, devices.device, dtype, original_shape=deq.original_shape)
+            if factors is not None:
+                members.append(factors)
     if len(members) == 0 and self.svd_up is None:
         step = float(self.scale.detach().float().mean())
         if step > 0 and rms / step > REQUANT_RATIO and energy < REQUANT_ENERGY:
@@ -328,13 +333,15 @@ def apply_hosted(self, network_layer_name, updown, wanted_names):
     dtype = deq.result_dtype
 
     members = []
-    for net in l.loaded_networks:
-        module = net.modules.get(network_layer_name, None)
-        if module is None:
-            continue
-        factors = get_module_factors(module, devices.device, dtype, original_shape=deq.original_shape)
-        if factors is not None:
-            members.append(factors)
+    stack_dense = lora_stack.mode() in lora_stack.DENSE_MODES and not network_layer_name.startswith('lora_te')
+    if not stack_dense: # dense stack modes host the combined delta wholesale; the members' content is already inside it
+        for net in l.loaded_networks:
+            module = net.modules.get(network_layer_name, None)
+            if module is None:
+                continue
+            factors = get_module_factors(module, devices.device, dtype, original_shape=deq.original_shape)
+            if factors is not None:
+                members.append(factors)
 
     # requantize keeps a delta the grid can resolve and that truncation would genuinely
     # cut: both terms must agree, since a thin delta rounds away on the grid however

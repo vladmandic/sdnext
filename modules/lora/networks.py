@@ -5,6 +5,7 @@ from modules.errorlimiter import limit_errors
 from modules.lora import lora_common as l
 from modules.lora import lora_overrides
 from modules.lora import lora_sdnq
+from modules.lora import lora_stack
 from modules.lora.lora_apply import network_apply_weights, network_apply_direct, network_backup_weights, network_calc_weights
 from modules import shared, devices, sd_models
 from modules.logger import log, console
@@ -89,7 +90,7 @@ def network_activate(include=None, exclude=None):
         refused = 0
         with devices.inference_context(), pbar:
             wanted_names = tuple((x.name, x.te_multiplier, x.unet_multiplier, x.dyn_dim) for x in l.loaded_networks) if len(l.loaded_networks) > 0 else ()
-            stack_sig = lora_sdnq.signature() # apply-mechanism token tracked beside network_current_names so a settings-only flip re-applies
+            stack_sig = lora_stack.signature() + lora_sdnq.signature() # tracked beside network_current_names so settings-only stack or mechanism changes re-apply
             applied_layers.clear()
             lora_sdnq.fallback_layers.clear() # a raise mid-pass leaves stale entries behind
             lora_sdnq.hosted_layers.clear()
@@ -100,7 +101,7 @@ def network_activate(include=None, exclude=None):
                 for _, module in modules[component]:
                     network_layer_name = getattr(module, 'network_layer_name', None)
                     current_names = getattr(module, "network_current_names", ())
-                    if getattr(module, 'weight', None) is None or shared.state.interrupted or (network_layer_name is None) or (current_names == component_wanted and getattr(module, 'network_current_stack', '') == stack_sig):
+                    if getattr(module, 'weight', None) is None or shared.state.interrupted or (network_layer_name is None) or (current_names == component_wanted and getattr(module, 'network_current_stack', 'sum') == stack_sig):
                         if task is not None:
                             pbar.update(task, advance=1)
                         continue

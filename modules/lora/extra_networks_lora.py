@@ -178,8 +178,8 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
         return [f'{name}:{te}:{unet}' for name, te, unet in zip(names, te_multipliers, unet_multipliers, strict=False)]
 
     def changed(self, requested: list[str], include: list[str] | None = None, exclude: list[str] | None = None) -> tuple[bool, str]:
-        from modules.lora import lora_sdnq
-        requested = requested + [f'stack={lora_sdnq.signature()}'] # settings-only mechanism changes must re-trigger activation
+        from modules.lora import lora_sdnq, lora_stack
+        requested = requested + [f'stack={lora_stack.signature()}{lora_sdnq.signature()}'] # settings-only stack or mechanism changes must re-trigger activation
         if shared.opts.lora_force_reload:
             debug_log(f'Network check: type=LoRA requested={requested} status="forced"')
             return True, "forced"
