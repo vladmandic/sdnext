@@ -42,6 +42,8 @@ class PatchIn(nn.Module):
     ) -> torch.Tensor:
         t, h, w = self.patch_size
         vid = rearrange(vid, "b c (T t) (H h) (W w) -> b T H W (t h w c)", t=t, h=h, w=w)
+        if vid.dtype != self.proj.weight.dtype:
+            vid = vid.to(self.proj.weight.dtype)
         vid = self.proj(vid)
         return vid
 
@@ -63,30 +65,40 @@ class PatchOut(nn.Module):
         vid: torch.Tensor,
     ) -> torch.Tensor:
         t, h, w = self.patch_size
+        if vid.dtype != self.proj.weight.dtype:
+            vid = vid.to(self.proj.weight.dtype)
         vid = self.proj(vid)
         vid = rearrange(vid, "b T H W (t h w c) -> b c (T t) (H h) (W w)", t=t, h=h, w=w)
         return vid
 
 
 class NaPatchIn(PatchIn):
-    def forward(
+    def forward( # pylint: disable=arguments-differ
         self,
         vid: torch.Tensor,  # l c
         vid_shape: torch.LongTensor,
     ) -> torch.Tensor:
         t, h, w = self.patch_size
-        if not (t == h == w == 1):
+        if not t == h == w == 1:
             vid, vid_shape = na.rearrange(
                 vid, vid_shape, "(T t) (H h) (W w) c -> T H W (t h w c)", t=t, h=h, w=w
             )
+            for i in range(len(vid)):
+                if h > 1 and vid_shape[i, 1] % h != 0:
+                    vid[i] = torch.cat([vid[i][:, :1]] * (h - vid[i].size(1) % h) + [vid[i]], dim=1)
+                if w > 1 and vid_shape[i, 2] % w != 0:
+                    vid[i] = torch.cat([vid[i][:, :, :1]] * (w - vid[i].size(2) % w) + [vid[i]], dim=2)
+            vid, vid_shape = na.flatten(vid)
         # slice vid after patching in when using sequence parallelism
         vid = slice_inputs(vid, dim=0)
+        if vid.dtype != self.proj.weight.dtype:
+            vid = vid.to(self.proj.weight.dtype)
         vid = self.proj(vid)
         return vid, vid_shape
 
 
 class NaPatchOut(PatchOut):
-    def forward(
+    def forward( # pylint: disable=arguments-differ
         self,
         vid: torch.FloatTensor,  # l c
         vid_shape: torch.LongTensor,
@@ -96,8 +108,10 @@ class NaPatchOut(PatchOut):
         torch.LongTensor,
     ]:
         t, h, w = self.patch_size
+        if vid.dtype != self.proj.weight.dtype:
+            vid = vid.to(self.proj.weight.dtype)
         vid = self.proj(vid)
-        # gather vid before patching out when enabling sequence parallelism
+        # gather vid before patchting out when enabling sequence parallelism
         vid = gather_outputs(
             vid,
             gather_dim=0,
@@ -105,8 +119,13 @@ class NaPatchOut(PatchOut):
             unpad_shape=vid_shape,
             cache=cache.namespace("vid"),
         )
-        if not (t == h == w == 1):
+        if not t == h == w == 1:
             vid, vid_shape = na.rearrange(
                 vid, vid_shape, "T H W (t h w c) -> (T t) (H h) (W w) c", t=t, h=h, w=w
             )
+            for i in range(len(vid)):
+                if h > 1 and vid_shape[i, 1] % h != 0:
+                    vid[i] = vid[i][:, (h - vid_shape[i, 1] % h) :]
+                if w > 1 and vid_shape[i, 2] % w != 0:
+                    vid[i] = vid[i][:, :, (w - vid_shape[i, 2] % w) :]
         return vid, vid_shape

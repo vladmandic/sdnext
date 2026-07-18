@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-07-16
+## Update for 2026-07-18
 
 - **Compute**
   - torch: update to `2.13.0` for CUDA, ROCm, IPEX
@@ -10,9 +10,12 @@
   - sdnq quantization optimizations
   - sdnq attention optimizations
   - sdnq separate dit/te settings
+- **Features**
+  - SeedVR enhanced support
 - **Fixes**
   - upscaler auto-refresh to catch chainner upscalers that are not loaded on first attempt  
-  - lora loader support diffusers trainer
+  - lora support diffusers trainer
+  - flux1 load t5
 
 ## Update for 2026-07-14
 

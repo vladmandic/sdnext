@@ -106,7 +106,7 @@ def cut_videos(videos):
     return result
 
 
-def generation_loop(runner, images, cfg_scale=1.0, seed=666, res_w=720, batch_size=90, temporal_overlap=0, progress_callback=None, device:str='cpu'):
+def generation_loop(runner, images, cfg_scale=1.0, cfg_rescale=0.0, steps=1, seed=666, res_w=720, batch_size=90, temporal_overlap=0, progress_callback=None, device:str='cpu'):
     """
     Main generation loop with context-aware temporal processing
 
@@ -137,9 +137,9 @@ def generation_loop(runner, images, cfg_scale=1.0, seed=666, res_w=720, batch_si
 
     # Configure classifier-free guidance
     runner.config.diffusion.cfg.scale = cfg_scale
-    runner.config.diffusion.cfg.rescale = 0.0
+    runner.config.diffusion.cfg.rescale = cfg_rescale
     # Configure sampling steps
-    runner.config.diffusion.timesteps.sampling.steps = 1
+    runner.config.diffusion.timesteps.sampling.steps = steps
     runner.configure_diffusion()
 
     # Set random seed

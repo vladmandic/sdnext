@@ -28,6 +28,8 @@ class UpscalerSeedVR(Upscaler):
         ]
         self.model = None
         self.model_loaded = None
+        self.tile_size = 1024
+        self.tile_overlap = 0.25
         self.device = devices.device
 
     def load_model(self, path: str):
@@ -60,8 +62,9 @@ class UpscalerSeedVR(Upscaler):
             }
             t1 = time.time()
             self.model.dit.config = self.model.config.dit
-            self.model.vae.tile_sample_min_size = 1024
-            self.model.vae.tile_latent_min_size = 128
+            self.model.vae.tile_sample_min_size = self.tile_size
+            self.model.vae.tile_latent_min_size = self.tile_size // 8
+            self.model.vae.tile_overlap_factor = self.tile_overlap
 
             self.model = do_post_load_quant(self.model, allow=True)
 
@@ -136,26 +139,34 @@ class UpscalerSeedVR(Upscaler):
         devices.torch_gc()
         return result
 
-    def do_upscale(self, img: Image.Image, selected_file):
+    def do_upscale(self, img: Image.Image, selected_file, cfg_scale: float = 3.5, cfg_rescale: float = 0.0, steps: int = 1, seed: int = -1, scale: float | None = None, tile_size: int = 1024, tile_overlap: float = 0.25):
         self.load_model(selected_file)
         if self.model is None:
             return img
 
         from modules.seedvr.src.core import generation
 
+        self.scale = self.scale if scale is None else scale
+        self.tile_size = tile_size if tile_size is not None else self.tile_size
+        self.tile_overlap = tile_overlap if tile_overlap is not None else self.tile_overlap
+        self.model.vae.tile_sample_min_size = self.tile_size
+        self.model.vae.tile_latent_min_size = self.tile_size // 8
+        self.model.vae.tile_overlap_factor = self.tile_overlap
         width = int(self.scale * img.width) // 8 * 8
         image_tensor = np.array(img)
         image_tensor = torch.from_numpy(image_tensor).to(device=devices.device, dtype=devices.dtype).unsqueeze(0) / 255.0
 
         random.seed()
-        seed = int(random.randrange(4294967294))
+        seed = int(random.randrange(4294967294)) if seed == -1 else int(seed)
 
         t0 = time.time()
         with devices.inference_context():
             result_tensor = generation.generation_loop(
                 runner=self.model,
                 images=image_tensor,
-                cfg_scale=opts.seedvr_cfg_scale,
+                cfg_scale=cfg_scale,
+                cfg_rescale=cfg_rescale,
+                steps=steps,
                 seed=seed,
                 res_w=width,
                 batch_size=1,
@@ -163,7 +174,8 @@ class UpscalerSeedVR(Upscaler):
                 device=devices.device,
             )
         t1 = time.time()
-        log.info(f'Upscaler: type="{self.name}" model="{selected_file}" scale={self.scale} cfg={opts.seedvr_cfg_scale} seed={seed} time={t1 - t0:.2f}')
+        tiles = getattr(self.model.vae, "tiles", None)
+        log.info(f'Upscaler: type="{self.name}" model="{selected_file}" scale={self.scale} cfg={cfg_scale} seed={seed} tiles={tiles} time={t1 - t0:.2f}')
         img = convert.to_pil(result_tensor.squeeze())
 
         if opts.upscaler_unload:

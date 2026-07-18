@@ -631,9 +631,6 @@ def create_settings(cmd_opts):
         "detailer_unload": OptionInfo(False, "Move detailer model to CPU when complete"),
         "detailer_augment": OptionInfo(False, "Detailer use model augment"),
 
-        "postprocessing_sep_seedvr": OptionInfo("<h2>SeedVR</h2>", "", gr.HTML),
-        "seedvr_cfg_scale": OptionInfo(3.5, "SeedVR CFG Scale", gr.Slider, {"minimum": 1, "maximum": 15, "step": 1}),
-
         "postprocessing_sep_upscalers": OptionInfo("<h2>Upscaling</h2>", "", gr.HTML),
         "upscaler_unload": OptionInfo(False, "Unload upscaler after processing"),
         "upscaler_latent_steps": OptionInfo(20, "Upscaler latent steps", gr.Slider, {"minimum": 4, "maximum": 100, "step": 1}),

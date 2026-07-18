@@ -309,10 +309,7 @@ class SeedVRPipeline():
                     timestep=args.t.repeat(batch_size),
                 ).vid_sample,
                 scale=(
-                    cfg_scale
-                    if (args.i + 1) / len(self.sampler.timesteps)
-                    <= self.config.diffusion.cfg.get("partial", 1)
-                    else 1.0
+                    cfg_scale if (args.i + 1) / len(self.sampler.timesteps) <= self.config.diffusion.cfg.get("partial", 1) else 1.0
                 ),
                 rescale=self.config.diffusion.cfg.rescale,
             ),
