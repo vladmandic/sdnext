@@ -248,12 +248,21 @@ def layer_flip_step(scores, total_steps):
     return total_steps
 
 
+def materialize_model():
+    """Weight-kind selection rewrites module weights outside the activation walk; rebuild balanced-offload modules real first (mirrors network_activate)."""
+    from modules import sd_models
+    if getattr(shared.opts, 'diffusers_offload_mode', None) == 'balanced' and getattr(shared, 'sd_model', None) is not None:
+        sd_models.apply_balanced_offload(shared.sd_model, force=True)
+
+
 def finalize(total_steps):
     """Build the inverted flip map for the pass; select-mode layers start at their step-0 winner."""
     state['total_steps'] = int(total_steps)
     state['gamma'] = (state['gamma_num'] / state['gamma_den']) if state['gamma_den'] > 0 else 1.0
     state['flips'] = {}
-    for layer_name, entry in state['entries'].items():
+    if any(e['kind'] == 'weight' for e in state['entries'].values()):
+        materialize_model()
+    for layer_name, entry in list(state['entries'].items()): # snapshot: apply_selection drops entries whose module died
         flip_at = layer_flip_step(entry['scores'], state['total_steps'])
         initial = 1 if flip_at == 0 else 0
         apply_selection(layer_name, entry, initial)
@@ -298,6 +307,9 @@ def apply_selection(layer_name, entry, winner):
 def weight_selection(module, entry, winner):
     from modules.lora import lora_common as l
     from modules.lora.lora_apply import network_apply_weights
+    if getattr(module, 'sdnq_dequantizer', None) is not None:
+        warn_once('select-sdnq-weight', 'Network stack: flip=skipped layer=quantized') # quantized backups are packed tensors; only the segment path can flip them
+        return
     backup = getattr(module, 'network_weights_backup', None)
     if not isinstance(backup, torch.Tensor): # fuse mode keeps a bool sentinel, not a pristine copy
         warn_once('select-nobackup', 'Network stack: flip=skipped backup=none')
@@ -306,6 +318,10 @@ def weight_selection(module, entry, winner):
     net_module = net.modules.get(entry['layer'], None) if net is not None else None
     if net_module is None:
         return
-    device = module.weight.device
+    weight = getattr(module, 'weight', None)
+    if weight is None or weight.is_meta:
+        warn_once('select-offloaded', 'Network stack: flip=skipped weight=offloaded')
+        return
+    device = weight.device
     updown = net_module.calc_updown(backup.to(device))[0]
     network_apply_weights(module, updown, None, device=device) # recomputes from the pristine backup, requantizing where the layer needs it
