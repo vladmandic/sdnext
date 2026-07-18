@@ -165,6 +165,32 @@ def post_skip():
     shared.state.skip()
     return Response(status_code=204)
 
+def get_model_placement():
+    import torch
+    from modules.modeldata import model_data
+    pipe = model_data.sd_model # raw slot: the shared.sd_model property can trigger a model load
+    if pipe is None:
+        return {}
+    components = getattr(pipe, 'components', None) or ({ 'model': pipe } if isinstance(pipe, torch.nn.Module) else {})
+    placement = {}
+    seen = set()
+    for name, component in components.items():
+        if not isinstance(component, torch.nn.Module):
+            continue
+        devmap = {}
+        for tensors in (component.parameters(), component.buffers()):
+            for t in tensors:
+                ptr = 0 if t.is_meta else t.untyped_storage().data_ptr()
+                if ptr:
+                    if ptr in seen:
+                        continue
+                    seen.add(ptr)
+                devmap[t.device.type] = devmap.get(t.device.type, 0) + t.numel() * t.element_size()
+        if devmap:
+            placement[name] = devmap
+    return placement
+
+
 def get_memory():
     try:
         import psutil
@@ -197,4 +223,8 @@ def get_memory():
             cuda = { 'error': 'unavailable' }
     except Exception as err:
         cuda = { 'error': f'{err}' }
-    return models.ResMemory(ram = ram, cuda = cuda)
+    try:
+        model = get_model_placement() # walk can race a model reload or offload rewrap; report the error and keep the endpoint alive
+    except Exception as err:
+        model = { 'error': f'{err}' }
+    return models.ResMemory(ram = ram, cuda = cuda, model = model)
