@@ -260,7 +260,9 @@ def apply_hosted(self, network_layer_name, updown, wanted_names, use_previous=Fa
     # svd_lowrank draws random projections; fork so user generation seeds are untouched and re-applies are deterministic
     with torch.random.fork_rng(devices=[D.device] if D.device.type == 'cuda' else []):
         torch.manual_seed(0)
-        U, S, V = torch.svd_lowrank(D, q=q, niter=4)
+        # oversampled sketch with extra power iterations lands within noise of exact svd; only the top q columns are kept
+        U, S, V = torch.svd_lowrank(D, q=min(q + 64, *D.shape), niter=8)
+    U, S, V = U[:, :q], S[:q], V[:, :q]
     energy = float(S.square().sum() / D.square().sum().clamp(min=1e-30)) # captured fraction, in the weighted domain when calibrated
     up_h = (U * S).to(dtype=dtype)
     down_h = V.t()
