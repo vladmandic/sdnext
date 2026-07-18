@@ -699,7 +699,6 @@ def create_settings(cmd_opts):
         "lora_apply_tags": OptionInfo(0, "LoRA auto-apply tags", gr.Slider, {"minimum": -1, "maximum": 32, "step": 1}),
 
         "lora_apply_sep": OptionInfo("<h2>Apply method</h2>", "", gr.HTML),
-        "lora_apply_te": OptionInfo(False, "LoRA native apply to text encoder"),
         "lora_fuse_native": OptionInfo(True, "LoRA native fuse with model"),
         "lora_fuse_diffusers": OptionInfo(False, "LoRA diffusers fuse with model"),
 

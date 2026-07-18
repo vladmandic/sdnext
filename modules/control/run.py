@@ -403,7 +403,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                 sequential_seed: bool | None = None,
                 # prompt/attention overrides
                 prompt_attention: str | None = None, prompt_mean_norm: bool | None = None, diffusers_zeros_prompt_pad: bool | None = None,
-                te_pooled_embeds: bool | None = None, lora_apply_te: bool | None = None, te_complex_human_instruction: str | None = None, te_use_mask: bool | None = None,
+                te_pooled_embeds: bool | None = None, te_complex_human_instruction: str | None = None, te_use_mask: bool | None = None,
                 # generation modifier overrides (hijack)
                 freeu_enabled: bool | None = None, freeu_b1: float | None = None, freeu_b2: float | None = None, freeu_s1: float | None = None, freeu_s2: float | None = None,
                 hypertile_unet_enabled: bool | None = None, hypertile_hires_only: bool | None = None, hypertile_unet_tile: int | None = None, hypertile_unet_min_tile: int | None = None,
@@ -586,7 +586,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
         # prompt/attention overrides
         prompt_attention=prompt_attention, prompt_mean_norm=prompt_mean_norm,
         diffusers_zeros_prompt_pad=diffusers_zeros_prompt_pad, te_pooled_embeds=te_pooled_embeds,
-        lora_apply_te=lora_apply_te, te_complex_human_instruction=te_complex_human_instruction, te_use_mask=te_use_mask,
+        te_complex_human_instruction=te_complex_human_instruction, te_use_mask=te_use_mask,
         # generation modifier overrides (hijack)
         freeu_enabled=freeu_enabled, freeu_b1=freeu_b1, freeu_b2=freeu_b2, freeu_s1=freeu_s1, freeu_s2=freeu_s2,
         hypertile_unet_enabled=hypertile_unet_enabled, hypertile_hires_only=hypertile_hires_only,

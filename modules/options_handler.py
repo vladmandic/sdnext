@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     import builtins
 
 cmd_opts = cmd_args.parse_args()
-compatibility_opts = ['clip_skip', 'uni_pc_lower_order_final', 'uni_pc_order', 'xformers_options']
+compatibility_opts = ['clip_skip', 'uni_pc_lower_order_final', 'uni_pc_order', 'xformers_options', 'lora_apply_te']
 removed_values = { # a stored choice that no longer exists is kept by validate, so it has to be rewritten or it selects nothing
     'cross_attention_optimization': (['Batch matrix-matrix', 'Dynamic Attention BMM'], 'Scaled-Dot-Product'),
 }
