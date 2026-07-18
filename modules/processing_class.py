@@ -254,7 +254,6 @@ class StableDiffusionProcessing:
                  prompt_mean_norm: bool | None = None,
                  diffusers_zeros_prompt_pad: bool | None = None,
                  te_pooled_embeds: bool | None = None,
-                 lora_apply_te: bool | None = None,
                  te_complex_human_instruction: str | None = None,
                  te_use_mask: bool | None = None,
                  # generation modifier overrides (hijack)
@@ -543,7 +542,6 @@ class StableDiffusionProcessing:
         self.prompt_mean_norm = prompt_mean_norm
         self.diffusers_zeros_prompt_pad = diffusers_zeros_prompt_pad
         self.te_pooled_embeds = te_pooled_embeds
-        self.lora_apply_te = lora_apply_te
         self.te_complex_human_instruction = te_complex_human_instruction
         self.te_use_mask = te_use_mask
         # generation modifier overrides (hijack)

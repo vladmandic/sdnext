@@ -685,7 +685,6 @@ def create_settings(cmd_opts):
         "lora_force_reload": OptionInfo(False, "LoRA force reload always"),
         "lora_force_diffusers": OptionInfo(False if not cmd_opts.use_openvino else True, "LoRA load using Diffusers method"),
 
-        "lora_apply_te": OptionInfo(False, "LoRA native apply to text encoder"),
         "lora_fuse_native": OptionInfo(True, "LoRA native fuse with model"),
         "lora_fuse_diffusers": OptionInfo(False, "LoRA diffusers fuse with model"),
         "lora_sdnq_host_rank": OptionInfo(256, "LoRA quantized host rank", gr.Slider, {"minimum": 0, "maximum": 1024, "step": 32}),

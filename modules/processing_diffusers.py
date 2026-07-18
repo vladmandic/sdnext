@@ -148,7 +148,7 @@ def process_base(p: processing.StableDiffusionProcessing):
     if 'detailer' in p.ops:
         desc = 'Detail'
     p.prompts, p.network_data = extra_networks.parse_prompts(p.prompts, p.network_data)
-    extra_networks.activate_filtered(p) # networks must patch weights before prompt encode so te loras affect embeds
+    extra_networks.activate(p) # networks must patch weights before prompt encode so te loras affect embeds
     base_args = set_pipeline_args(
         p=p,
         model=shared.sd_model,
@@ -310,7 +310,7 @@ def process_hires(p: processing.StableDiffusionProcessing, output):
                 prompts, p.network_data = extra_networks.parse_prompts(prompts)
                 reset_prompts = True
             if reset_prompts or ('base' in p.skip):
-                extra_networks.activate_filtered(p)
+                extra_networks.activate(p)
 
             hires_args = set_pipeline_args(
                 p=p,

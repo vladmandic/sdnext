@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from typing import Any
 
 cmd_opts = cmd_args.parse_args()
-compatibility_opts = ['clip_skip', 'uni_pc_lower_order_final', 'uni_pc_order']
+compatibility_opts = ['clip_skip', 'uni_pc_lower_order_final', 'uni_pc_order', 'lora_apply_te']
 secrets_pattern = ['_version', '_token', '_key', '_secret', '_password']
 
 
