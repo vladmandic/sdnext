@@ -1749,6 +1749,42 @@ def test_select_gated_off_when_compiled():
     return True
 
 
+def test_select_gate_dormant_without_pair():
+    with select_mode('klora'):
+        assert lora_stack.select_possible(1) is False, 'a single network must leave the fuse gate alone'
+        assert lora_stack.select_possible(2) is True
+        assert lora_stack.select_possible(3) is False
+        old_compile = getattr(shared.opts, 'cuda_compile', None)
+        try:
+            shared.opts.cuda_compile = ['Model']
+            assert lora_stack.select_possible(2) is False, 'compile block must keep the gate down'
+        finally:
+            shared.opts.cuda_compile = old_compile
+        assert lora_stack.select_engaged() is False
+    with select_mode('sum'):
+        assert lora_stack.select_possible(2) is False
+    return True
+
+
+def test_stale_schedule_dropped_on_reapply():
+    layer = build_layer('uint4')
+    n1, n2, D1, _D2 = select_pair(layer, seed0=64, seed1=65)
+    with mock_model(lin=layer), select_mode('klora'):
+        Wdq0 = dq(layer)
+        activate(n1, n2)
+        assert lora_stack.select_engaged(), 'the pair must register schedules'
+        lora_stack.reset(20)
+        activate(n1) # same mode still set, but a single net cannot select
+        assert not lora_stack.select_engaged(), 're-application must drop the stale schedule'
+        w_single = dq(layer)
+        assert rho_of(w_single - Wdq0, D1) > 0.99, 'the single net must apply exactly'
+        lora_stack.reset(20) # a later pass reset must find nothing to replay
+        assert torch.equal(dq(layer), w_single), 'a stale schedule must never overwrite a fresh apply'
+        activate()
+        assert torch.equal(dq(layer), Wdq0)
+    return True
+
+
 def test_est_energy_matches_full_frobenius():
     torch.manual_seed(60)
     up = torch.randn(64, 8, device=DEVICE)
@@ -1973,6 +2009,7 @@ def run_tests():
     for fn in [test_select_flip_schedule_end_to_end, test_select_initial_style_when_ramp_starts_won, test_select_flip_is_inplace_and_shape_stable,
                test_select_matmul_transposed_layout, test_select_per_net_hosted_pair, test_select_reset_restores_initial_state,
                test_select_deactivate_from_midflip, test_select_requires_exactly_two_nets, test_select_gated_off_when_compiled,
+               test_select_gate_dormant_without_pair, test_stale_schedule_dropped_on_reapply,
                test_est_energy_matches_full_frobenius, test_select_weight_kind_plain_layer]:
         run_test(CAT_SELECT, fn)
     log.warning('=== Compile ===')

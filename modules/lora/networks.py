@@ -107,6 +107,7 @@ def network_activate(include=None, exclude=None):
                         if task is not None:
                             pbar.update(task, advance=1)
                         continue
+                    lora_stack.drop(network_layer_name) # re-application invalidates any live selection schedule; the select branch re-registers
                     if group_offload and component not in group_stripped and group_will_mutate(module, network_layer_name, l.loaded_networks):
                         device = group_offload_strip(sd_model, component, group_stripped)
                     calced = False # tracks whether this iteration assembled the delta, so the fallthrough reuses it instead of recomputing
