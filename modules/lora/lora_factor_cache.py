@@ -96,7 +96,7 @@ def begin_pass(wanted_names):
             from safetensors import safe_open
             with safe_open(path, framework='pt', device='cpu') as f:
                 meta = f.metadata() or {}
-                if meta.get('sig') == sig and meta.get('fmt') == '2':
+                if meta.get('sig') == sig and meta.get('fmt') == '3':
                     for k in f.keys():
                         entries[k] = f.get_tensor(k)
             os.utime(path, None) # freshness for LRU eviction
@@ -190,7 +190,7 @@ def flush():
         from safetensors.torch import save_file
         os.makedirs(cache_root, exist_ok=True)
         tmp = state['path'] + '.tmp'
-        save_file(state['store'], tmp, metadata={'sig': state['sig'], 'fmt': '2'})
+        save_file(state['store'], tmp, metadata={'sig': state['sig'], 'fmt': '3'})
         os.replace(tmp, state['path'])
         evict()
     except Exception as e:

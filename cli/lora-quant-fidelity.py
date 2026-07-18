@@ -315,8 +315,8 @@ def analyze_module(W_dq, deq_params, mods, calib_rms=None):
                 Dw = D * rms if rms is not None else D
                 with torch.random.fork_rng(devices=[D.device] if D.device.type == 'cuda' else []):
                     torch.manual_seed(0)
-                    U, S, V = torch.svd_lowrank(Dw, q=q, niter=4)
-                Dk = (U * S) @ V.t()
+                    U, S, V = torch.svd_lowrank(Dw, q=min(q + 64, *D.shape), niter=8)
+                Dk = (U[:, :q] * S[:q]) @ V[:, :q].t()
                 if rms is not None:
                     Dk = Dk / rms
                 base16 = W_dq.to(torch.bfloat16).float()
