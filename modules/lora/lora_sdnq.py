@@ -55,6 +55,7 @@ from modules.logger import log
 fallback_layers: list[str] = []
 hosted_layers: list[tuple[str, float, bool]] = []
 hosted_ranks: list[int] = []
+factor_layers: list[str] = []
 routed_layers: list[str] = []
 
 REQUANT_RATIO = 0.30 # delta rms over mean grid step above which requantize can retain the delta
@@ -211,6 +212,7 @@ def apply_factors(self, network_layer_name, wanted_names):
     if not ups:
         return changed
     append_factors(self, ups, downs)
+    factor_layers.append(network_layer_name)
     return True
 
 
@@ -496,6 +498,7 @@ def apply_select(self, network_layer_name, per_net, wanted_names):
     del d0, d1
     segments, transposed = append_factors(self, [pairs[0][0], pairs[1][0]], [pairs[0][1], pairs[1][1]])
     lora_stack.register(network_layer_name, self, 'factor', scores, segments=(segments[0], segments[1], transposed), abs_sums=abs_sums)
+    factor_layers.append(network_layer_name)
     return True
 
 
@@ -509,6 +512,9 @@ def report_fallbacks():
     hits, misses = lora_factor_cache.flush()
     if hits > 0 or misses > 0:
         log.info(f'Network load: type=LoRA quant=sdnq cache hits={hits} misses={misses}')
+    if len(factor_layers) > 0:
+        log.info(f'Network load: type=LoRA quant=sdnq apply=exact layers={len(factor_layers)}')
+    factor_layers.clear()
     if len(hosted_layers) > 0:
         energies = sorted(e for _name, e, _c in hosted_layers)
         median = energies[len(energies) // 2]
@@ -517,7 +523,7 @@ def report_fallbacks():
         if len(hosted_ranks) > 0 and min(hosted_ranks) < int(shared.opts.lora_sdnq_host_rank):
             rs = sorted(hosted_ranks)
             ranks = f' k={rs[0]}-{rs[len(rs) // 2]}-{rs[-1]}' # realized rank spread; shown only when a spectrum collapsed below the cap
-        log.info(f'Network load: type=LoRA quant=sdnq hosted={len(hosted_layers)} rank={int(shared.opts.lora_sdnq_host_rank)}{ranks}{f" calib={calibrated}" if calibrated else ""} energy={median:.2f} min={energies[0]:.2f} non-factorable networks hosted on the svd side-channel')
+        log.info(f'Network load: type=LoRA quant=sdnq apply=hosted layers={len(hosted_layers)} rank={int(shared.opts.lora_sdnq_host_rank)}{ranks}{f" calib={calibrated}" if calibrated else ""} energy={median:.2f} min={energies[0]:.2f}')
         if l.debug:
             log.debug(f'Network load: type=LoRA quant=sdnq hosted={[(n, round(e, 3)) for n, e, _c in hosted_layers[:8]]}{"..." if len(hosted_layers) > 8 else ""}')
     hosted_layers.clear()
@@ -529,7 +535,7 @@ def report_fallbacks():
     routed_layers.clear()
     if len(fallback_layers) > 0:
         if enabled():
-            log.warning(f'Network load: type=LoRA quant=sdnq layers={len(fallback_layers)} non-factorable networks requantized in place (reduced fidelity on quantized weights)')
+            log.warning(f'Network load: type=LoRA quant=sdnq apply=requantize layers={len(fallback_layers)} fidelity=reduced')
         else:
             log.info(f'Network load: type=LoRA quant=sdnq apply=requantize layers={len(fallback_layers)} reason=setting')
         if l.debug:
