@@ -258,8 +258,8 @@ def append_factors(self, ups, downs):
     return segments, deq.use_quantized_matmul
 
 
-def host_candidate(self, network_layer_name, wanted_names):
-    """True when a non-factorable set on this layer should be hosted as a truncated svd."""
+def select_candidate(self, network_layer_name, wanted_names):
+    """True when this layer can carry a set on the svd channel; select pairs ride it at any bit width."""
     if not enabled():
         return False
     if int(getattr(shared.opts, 'lora_sdnq_host_rank', 0) or 0) <= 0:
@@ -268,11 +268,17 @@ def host_candidate(self, network_layer_name, wanted_names):
         return False
     if wanted_names == ():
         return False
+    return any(net.modules.get(network_layer_name, None) is not None for net in l.loaded_networks)
+
+
+def host_candidate(self, network_layer_name, wanted_names):
+    """True when a non-factorable set on this layer should be hosted as a truncated svd."""
+    if not select_candidate(self, network_layer_name, wanted_names):
+        return False
     from sdnq.common import dtype_dict
     if dtype_dict[self.sdnq_dequantizer.weights_dtype]['num_bits'] >= 8:
         return False # requantize retains most of the delta at 8 bits and above; truncation would lose more than it saves
-
-    return any(net.modules.get(network_layer_name, None) is not None for net in l.loaded_networks)
+    return True
 
 
 def apply_cached(self, network_layer_name, wanted_names):

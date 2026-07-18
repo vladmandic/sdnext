@@ -1749,6 +1749,38 @@ def test_select_gated_off_when_compiled():
     return True
 
 
+def test_select_finalize_drops_dead_module():
+    import weakref
+    layer = build_layer('uint4')
+    n1, n2, _D1, _D2 = select_pair(layer, seed0=61, seed1=62)
+    with mock_model(lin=layer), select_mode('klora'):
+        activate(n1, n2)
+        entry = lora_stack.state['entries'].get('lora_transformer_test')
+        assert entry is not None, 'pair must register before the module dies'
+        entry['module'] = weakref.ref(torch.nn.Linear(2, 2)) # referent dies immediately: simulates offload re-wraps replacing a registered module
+        assert entry['module']() is None
+        lora_stack.reset(12)
+        assert 'lora_transformer_test' not in lora_stack.state['entries'], 'a dead module must drop its entry without breaking finalize'
+        activate()
+    return True
+
+
+def test_select_int8_pair_rides_segments():
+    layer = build_layer('int8')
+    n1, n2, D1, D2 = select_pair(layer, seed0=63, seed1=64)
+    with mock_model(lin=layer), select_mode('klora'):
+        Wdq0 = dq(layer)
+        activate(n1, n2)
+        entry = lora_stack.state['entries'].get('lora_transformer_test')
+        assert entry is not None and entry['kind'] == 'factor', 'an int8 pair must ride svd segments, not weight rewrites'
+        lora_stack.reset(16)
+        eff = dq(layer) - Wdq0
+        assert max(rho_of(eff, D1), rho_of(eff, D2)) > 0.99, 'initial selection must deliver one exact per-net delta'
+        activate()
+        assert torch.equal(dq(layer), Wdq0), 'removal must restore bit-exact'
+    return True
+
+
 def test_select_gate_dormant_without_pair():
     with select_mode('klora'):
         assert lora_stack.select_possible(1) is False, 'a single network must leave the fuse gate alone'
@@ -2009,7 +2041,7 @@ def run_tests():
     for fn in [test_select_flip_schedule_end_to_end, test_select_initial_style_when_ramp_starts_won, test_select_flip_is_inplace_and_shape_stable,
                test_select_matmul_transposed_layout, test_select_per_net_hosted_pair, test_select_reset_restores_initial_state,
                test_select_deactivate_from_midflip, test_select_requires_exactly_two_nets, test_select_gated_off_when_compiled,
-               test_select_gate_dormant_without_pair, test_stale_schedule_dropped_on_reapply,
+               test_select_finalize_drops_dead_module, test_select_int8_pair_rides_segments, test_select_gate_dormant_without_pair, test_stale_schedule_dropped_on_reapply,
                test_est_energy_matches_full_frobenius, test_select_weight_kind_plain_layer]:
         run_test(CAT_SELECT, fn)
     log.warning('=== Compile ===')
