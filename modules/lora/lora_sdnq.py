@@ -174,6 +174,7 @@ def remove_factors(self):
     self.svd_up = svd_up
     self.svd_down = svd_down
     del self.sdnq_lora_svd_stash
+    lora_stack.drop(getattr(self, 'network_layer_name', None)) # a selection schedule must not outlive the segments it points into
     return True
 
 
@@ -214,11 +215,23 @@ def apply_factors(self, network_layer_name, wanted_names):
 
 
 def append_factors(self, ups, downs):
-    """Concatenate ``[out, r]`` / ``[r, in]`` factor pairs onto the layer's svd channel and stash the originals."""
+    """Concatenate ``[out, r]`` / ``[r, in]`` factor pairs onto the layer's svd channel and stash the originals.
+
+    Returns the appended parts' rank ranges plus the transposed-layout flag; the
+    checkpoint's own factors occupy the range before the first entry and bucket
+    padding lands after the last, so the ranges stay valid on the live buffers.
+    """
     deq = self.sdnq_dequantizer
     device = self.scale.device
     dtype = deq.result_dtype
     orig_up, orig_down = self.svd_up, self.svd_down
+    orig_rank = 0
+    if orig_up is not None:
+        orig_rank = orig_up.shape[0] if deq.use_quantized_matmul else orig_up.shape[1]
+    segments, offset = [], orig_rank
+    for u in ups:
+        segments.append((offset, offset + u.shape[1]))
+        offset += u.shape[1]
     if deq.use_quantized_matmul:
         # matmul layout stores factors transposed: svd_up [r, out], svd_down [in, r]
         parts_up = ([orig_up.to(device=devices.device, dtype=dtype)] if orig_up is not None else []) + [u.t() for u in ups]
@@ -240,6 +253,7 @@ def append_factors(self, ups, downs):
     self.sdnq_lora_svd_stash = (orig_up, orig_down)
     self.svd_up = torch.nn.Parameter(new_up.to(device=device), requires_grad=False)
     self.svd_down = torch.nn.Parameter(new_down.to(device=device), requires_grad=False)
+    return segments, deq.use_quantized_matmul
 
 
 def host_candidate(self, network_layer_name, wanted_names):
@@ -432,6 +446,57 @@ def truncate_delta(self, D, dtype):
         down_h = rotate_hadamard(down_h, group_size=deq.hadamard_group_size)
     down_h = down_h.to(dtype=dtype)
     return up_h, down_h, energy, rms is not None
+
+
+def apply_select(self, network_layer_name, per_net, wanted_names):
+    """Attach two networks' contributions as separate side-channel segments for per-layer selection.
+
+    Factorable members ride exactly; the rest host as their own truncated svd
+    with per-net cache entries. Segment ranges and selection scores register
+    with ``lora_stack``; the flip schedule executes from the step callback.
+    Returns None when the pair cannot ride the channel; the caller falls back.
+    """
+    from sdnq.quant_utils import rotate_hadamard
+    deq = self.sdnq_dequantizer
+    changed = remove_factors(self)
+    if wanted_names == ():
+        return changed
+    if per_net is None or len(per_net) != 2:
+        return None
+    dtype = deq.result_dtype
+    lora_factor_cache.begin_pass(wanted_names)
+    pairs, ranks = [], []
+    for i, (net_name, D) in enumerate(per_net):
+        if D is None or D.ndim != 2 or tuple(D.shape) != tuple(deq.original_shape):
+            return None
+        net = next((n for n in l.loaded_networks if n.name == net_name), None)
+        module = net.modules.get(network_layer_name, None) if net is not None else None
+        if module is None:
+            return None
+        ranks.append(int(getattr(module, 'dim', 0) or 0) or min(int(shared.opts.lora_sdnq_host_rank), *deq.original_shape))
+        factors = get_module_factors(module, devices.device, dtype, original_shape=deq.original_shape)
+        if factors is not None:
+            up_i, down_i = factors
+            if deq.use_hadamard:
+                down_i = rotate_hadamard(down_i.to(dtype=torch.float32), group_size=deq.hadamard_group_size).to(dtype=dtype)
+        else:
+            key = f'{network_layer_name}#{i}'
+            cached = lora_factor_cache.fetch(key)
+            if cached is not None:
+                up_i, down_i = cached[0].to(device=devices.device, dtype=dtype), cached[1].to(device=devices.device, dtype=dtype)
+                hosted_layers.append((key, cached[2], cached[3]))
+            else:
+                up_i, down_i, energy, calibrated = truncate_delta(self, D.detach().to(devices.device, torch.float32), dtype)
+                up_i, down_i = lora_factor_cache.store(key, up_i, down_i, energy, calibrated, float(D.detach().float().square().mean().sqrt()))
+                hosted_layers.append((key, energy, calibrated))
+        pairs.append((up_i, down_i))
+    d0 = per_net[0][1].detach().to(devices.device, torch.float32)
+    d1 = per_net[1][1].detach().to(devices.device, torch.float32)
+    scores, abs_sums = lora_stack.score_pair(d0, d1, ranks[0], ranks[1])
+    del d0, d1
+    segments, transposed = append_factors(self, [pairs[0][0], pairs[1][0]], [pairs[0][1], pairs[1][1]])
+    lora_stack.register(network_layer_name, self, 'factor', scores, segments=(segments[0], segments[1], transposed), abs_sums=abs_sums)
+    return True
 
 
 def note_fallback(self, network_layer_name):
