@@ -46,6 +46,22 @@ from modules.logger import log
 fallback_layers: list[str] = []
 hosted_layers: list[tuple[str, float, bool]] = []
 
+def rank_bucket(r):
+    """Fixed rank ladder for compiled-graph reuse: powers of two up to 256, multiples of 64 above (hosted rank plus exact members)."""
+    if r <= 8:
+        return 8
+    if r <= 256:
+        return 1 << (r - 1).bit_length()
+    return -(-r // 64) * 64
+
+
+def pad_rank(t, dim, bucket):
+    if t.shape[dim] >= bucket:
+        return t
+    shape = list(t.shape)
+    shape[dim] = bucket - t.shape[dim]
+    return torch.cat([t, t.new_zeros(shape)], dim=dim)
+
 
 def get_module_factors(module, device, dtype, original_shape=None):
     """Return ``(up_eff, down)`` reproducing ``calc_updown`` exactly, or None.
@@ -175,6 +191,13 @@ def append_factors(self, ups, downs):
         parts_down = ([orig_down.to(device=devices.device, dtype=dtype)] if orig_down is not None else []) + downs
         new_up = torch.cat(parts_up, dim=1).contiguous()
         new_down = torch.cat(parts_down, dim=0).contiguous()
+    from modules.sdnq.common import use_torch_compile
+    if use_torch_compile:
+        # the compiled dequant specializes per factor rank; pad to a fixed bucket so set switches inside a bucket reuse the graph (zero columns contribute exactly nothing)
+        dim_up, dim_down = (0, 1) if deq.use_quantized_matmul else (1, 0)
+        bucket = rank_bucket(new_up.shape[dim_up])
+        new_up = pad_rank(new_up, dim_up, bucket)
+        new_down = pad_rank(new_down, dim_down, bucket)
     self.sdnq_lora_svd_stash = (orig_up, orig_down)
     self.svd_up = torch.nn.Parameter(new_up.to(device=device), requires_grad=False)
     self.svd_down = torch.nn.Parameter(new_down.to(device=device), requires_grad=False)
