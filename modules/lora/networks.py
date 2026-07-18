@@ -54,6 +54,7 @@ def network_activate(include=None, exclude=None):
         with devices.inference_context(), pbar:
             wanted_names = tuple((x.name, x.te_multiplier, x.unet_multiplier, x.dyn_dim) for x in l.loaded_networks) if len(l.loaded_networks) > 0 else ()
             stack_sig = lora_stack.signature() # tracked beside network_current_names so stack-setting changes re-apply
+            select_active = lora_stack.active_select(len(l.loaded_networks))
             applied_layers.clear()
             lora_sdnq.fallback_layers.clear() # a raise mid-pass leaves stale entries behind
             lora_sdnq.hosted_layers.clear()
@@ -68,6 +69,37 @@ def network_activate(include=None, exclude=None):
                         if task is not None:
                             pbar.update(task, advance=1)
                         continue
+                    if select_active and component_wanted and not network_layer_name.startswith('lora_te'):
+                        if lora_sdnq.host_candidate(module, network_layer_name, component_wanted): # sub-8-bit SDNQ pairs ride the channel as separate segments
+                            weights_backup = getattr(module, "network_weights_backup", None)
+                            if weights_backup is not None and not isinstance(weights_backup, bool):
+                                network_apply_weights(module, None, None, device=device)
+                            per_net, sel_bias = network_calc_weights(module, network_layer_name, elimit=elimit, per_net=True)
+                            if sel_bias is None:
+                                applied = lora_sdnq.apply_select(module, network_layer_name, per_net, component_wanted)
+                                if applied is not None:
+                                    if applied and component_wanted:
+                                        applied_layers.append(network_layer_name)
+                                        applied_weight += 1
+                                    module.network_current_names = component_wanted
+                                    module.network_current_stack = stack_sig
+                                    if task is not None:
+                                        pbar.update(task, advance=1)
+                                    continue
+                        else: # other layers select by recomputing the winner from the pristine backup at schedule time
+                            backup_size += network_backup_weights(module, network_layer_name, component_wanted, fuse)
+                            weights_backup = getattr(module, "network_weights_backup", None)
+                            if weights_backup is not None and not isinstance(weights_backup, bool):
+                                per_net, sel_bias = network_calc_weights(module, network_layer_name, elimit=elimit, per_net=True)
+                                if sel_bias is None and lora_stack.register_weight_pair(network_layer_name, module, per_net):
+                                    network_apply_weights(module, None, None, device=device) # pristine until the schedule applies the winner
+                                    applied_layers.append(network_layer_name)
+                                    applied_weight += 1
+                                    module.network_current_names = component_wanted
+                                    module.network_current_stack = stack_sig
+                                    if task is not None:
+                                        pbar.update(task, advance=1)
+                                    continue
                     if lora_sdnq.factor_candidate(module, network_layer_name, component_wanted):
                         weights_backup = getattr(module, "network_weights_backup", None)
                         if weights_backup is not None and not isinstance(weights_backup, bool):
@@ -104,6 +136,7 @@ def network_activate(include=None, exclude=None):
                         del batch_updown, batch_ex_bias
                     backup_size += network_backup_weights(module, network_layer_name, component_wanted, fuse)
                     if not component_wanted:
+                        lora_stack.drop(network_layer_name) # a restored layer must leave the selection schedule
                         weights_backup = getattr(module, "network_weights_backup", None)
                         if weights_backup is None or isinstance(weights_backup, bool): # fuse mode has no tensor backup, restore stays with network_deactivate
                             if task is not None:

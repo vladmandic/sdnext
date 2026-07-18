@@ -30,7 +30,7 @@ KLORA_BETA = 0.5 # the paper's fixed ramp offset; only the slope is user-tunable
 ROW_CHUNK = 512 # fp32 interiors run in first-dim slices; also fixes the DARE draw sequence
 SAMPLE_CAP = 1 << 22 # strided subsample bound for magnitude quantiles (full-size quantile exceeds torch limits)
 
-state: dict = {'entries': {}, 'flips': {}, 'gamma': 1.0, 'total_steps': 0, 'finalized': False}
+state: dict = {'entries': {}, 'flips': {}, 'gamma': 1.0, 'gamma_num': 0.0, 'gamma_den': 0.0, 'total_steps': 0, 'finalized': False}
 warned: set = set()
 
 
@@ -134,6 +134,45 @@ def combine(named_deltas, layer_name):
     return result.to(out_dtype)
 
 
+def score_pair(d0, d1, rank0, rank1):
+    """Selection scores for a dense delta pair: klora top-K sums (K = rank product) or est energies; plus abs-sums for the global balance."""
+    abs_sums = (float(d0.abs().sum()), float(d1.abs().sum()))
+    if mode() == 'klora':
+        k = max(1, int(rank0) * int(rank1))
+        s0 = float(torch.topk(d0.abs().flatten(), min(k, d0.numel()), sorted=False).values.sum())
+        s1 = float(torch.topk(d1.abs().flatten(), min(k, d1.numel()), sorted=False).values.sum())
+    else:
+        s0 = float(d0.float().square().sum())
+        s1 = float(d1.float().square().sum())
+    return (s0, s1), abs_sums
+
+
+def register_weight_pair(layer_name, module, per_net):
+    """Score and register a weight-kind selection pair; True when the layer is scheduled."""
+    from modules.lora import lora_common as l
+    if per_net is None or len(per_net) != 2:
+        return False
+    ranks, names = [], []
+    for net_name, d in per_net:
+        if d is None:
+            return False
+        net = next((n for n in l.loaded_networks if n.name == net_name), None)
+        net_module = net.modules.get(layer_name, None) if net is not None else None
+        if net_module is None:
+            return False
+        names.append(net_name)
+        ranks.append(int(getattr(net_module, 'dim', 0) or 0) or 64)
+    scores, abs_sums = score_pair(per_net[0][1].float(), per_net[1][1].float(), ranks[0], ranks[1])
+    register(layer_name, module, 'weight', scores, nets=tuple(names), abs_sums=abs_sums)
+    return True
+
+
+def drop(layer_name):
+    """Forget a layer's selection entry (its factors were removed or restored)."""
+    if layer_name is not None and state['entries'].pop(layer_name, None) is not None:
+        state['finalized'] = False
+
+
 def score_topk(up, down, k):
     """K-LoRA layer score: sum of the top-K absolute delta entries (one dense materialization)."""
     d = (up.to(torch.float32) @ down.to(torch.float32)).abs().flatten()
@@ -152,22 +191,28 @@ def clear():
     state['entries'] = {}
     state['flips'] = {}
     state['gamma'] = 1.0
+    state['gamma_num'] = 0.0
+    state['gamma_den'] = 0.0
     state['total_steps'] = 0
     state['finalized'] = False
 
 
-def register(layer_name, module, kind, segments, scores, factors=None):
-    """Record a select-mode layer: its two segments (or bf16 factor pairs) and static scores.
+def register(layer_name, module, kind, scores, segments=None, nets=None, abs_sums=None):
+    """Record a select-mode layer for schedule finalization.
 
-    kind 'factor': segments = [(start, stop), (start, stop)] column ranges in svd_up/svd_down
-    with the transposed-layout flag appended; stashes both segments' values for flips.
-    kind 'weight': factors = [(up0, down0), (up1, down1)] kept for recompute-from-backup.
+    kind 'factor': segments = ((s0, s1), (t0, t1), transposed) column ranges on the svd
+    channel; both segments' pristine values are stashed for flips. kind 'weight': nets =
+    the two network names; the winner delta is recomputed from the layer backup at
+    selection time. abs_sums feeds the global magnitude balance (klora gamma).
     """
-    entry = {'module': weakref.ref(module), 'kind': kind, 'segments': segments, 'scores': scores, 'factors': factors, 'stash': None}
+    entry = {'layer': layer_name, 'module': weakref.ref(module), 'kind': kind, 'segments': segments, 'scores': scores, 'nets': nets, 'stash': None}
     if kind == 'factor':
         (s0, s1), (t0, t1), transposed = segments
         up = module.svd_up.data
         entry['stash'] = (segment_view(up, s0, s1, transposed).clone(), segment_view(up, t0, t1, transposed).clone())
+    if abs_sums is not None:
+        state['gamma_num'] += abs_sums[0]
+        state['gamma_den'] += abs_sums[1]
     state['entries'][layer_name] = entry
     state['finalized'] = False
 
@@ -196,6 +241,7 @@ def layer_flip_step(scores, total_steps):
 def finalize(total_steps):
     """Build the inverted flip map for the pass; select-mode layers start at their step-0 winner."""
     state['total_steps'] = int(total_steps)
+    state['gamma'] = (state['gamma_num'] / state['gamma_den']) if state['gamma_den'] > 0 else 1.0
     state['flips'] = {}
     for layer_name, entry in state['entries'].items():
         flip_at = layer_flip_step(entry['scores'], state['total_steps'])
@@ -208,7 +254,7 @@ def finalize(total_steps):
 
 def reset(total_steps):
     """Per-pass reset from set_callbacks_p: restore initial selections and reschedule for this pass's step count."""
-    if mode() not in SELECT_MODES or not state['entries']:
+    if mode() not in SELECT_MODES or not state['entries'] or int(total_steps) <= 0:
         return
     finalize(total_steps)
 
@@ -231,20 +277,25 @@ def apply_selection(layer_name, entry, winner):
     if entry['kind'] == 'factor':
         (s0, s1), (t0, t1), transposed = entry['segments']
         up = module.svd_up.data
-        keep, drop = ((t0, t1), (s0, s1)) if winner == 1 else ((s0, s1), (t0, t1))
+        keep_seg, drop_seg = ((t0, t1), (s0, s1)) if winner == 1 else ((s0, s1), (t0, t1))
         stash = entry['stash'][winner]
-        segment_view(up, keep[0], keep[1], transposed).copy_(stash.to(device=up.device, dtype=up.dtype))
-        segment_view(up, drop[0], drop[1], transposed).zero_()
+        segment_view(up, keep_seg[0], keep_seg[1], transposed).copy_(stash.to(device=up.device, dtype=up.dtype))
+        segment_view(up, drop_seg[0], drop_seg[1], transposed).zero_()
     else:
         weight_selection(module, entry, winner)
 
 
 def weight_selection(module, entry, winner):
+    from modules.lora import lora_common as l
+    from modules.lora.lora_apply import network_apply_weights
     backup = getattr(module, 'network_weights_backup', None)
     if not isinstance(backup, torch.Tensor): # fuse mode keeps a bool sentinel, not a pristine copy
         warn_once('select-nobackup', 'Network stack: select flip skipped, no weight backup')
         return
-    up, down = entry['factors'][winner]
-    weight = backup.to(device=module.weight.device, dtype=torch.float32)
-    delta = up.to(device=module.weight.device, dtype=torch.float32) @ down.to(device=module.weight.device, dtype=torch.float32)
-    module.weight.data.copy_((weight + delta.reshape(weight.shape)).to(module.weight.dtype))
+    net = next((n for n in l.loaded_networks if n.name == entry['nets'][winner]), None)
+    net_module = net.modules.get(entry['layer'], None) if net is not None else None
+    if net_module is None:
+        return
+    device = module.weight.device
+    updown = net_module.calc_updown(backup.to(device))[0]
+    network_apply_weights(module, updown, None, device=device) # recomputes from the pristine backup, requantizing where the layer needs it

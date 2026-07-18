@@ -1069,6 +1069,228 @@ def test_sum_mode_keeps_exact_stacking():
     return True
 
 
+CAT_SELECT = category('stack-select')
+
+
+@contextmanager
+def select_mode(name, alpha=None, disc=None):
+    old = {k: getattr(shared.opts, k, None) for k in ('lora_stack_mode', 'lora_stack_alpha', 'lora_stack_discrepancy')}
+    shared.opts.lora_stack_mode = name
+    if alpha is not None:
+        shared.opts.lora_stack_alpha = alpha
+    if disc is not None:
+        shared.opts.lora_stack_discrepancy = disc
+    lora_stack.clear()
+    lora_stack.warned.clear()
+    try:
+        yield
+    finally:
+        for k, v in old.items():
+            setattr(shared.opts, k, v)
+        lora_stack.clear()
+
+
+def select_pair(layer, seed0=41, seed1=42, scale1=1.0):
+    A1, B1, D1 = make_delta(seed=seed0, sigma=1e-2)
+    A2, B2, D2 = make_delta(seed=seed1, sigma=1e-2)
+    if scale1 != 1.0:
+        A2, D2 = A2 * scale1, D2 * scale1
+    n1 = make_net('subject', layer, A1, B1)
+    n2 = make_net('style', layer, A2, B2)
+    return n1, n2, D1, D2
+
+
+def test_select_flip_schedule_end_to_end():
+    layer = build_layer('uint4')
+    n1, n2, D1, D2 = select_pair(layer)
+    with mock_model(lin=layer), select_mode('klora', alpha=1.5):
+        Wdq0 = dq(layer)
+        activate(n1, n2)
+        entry = lora_stack.state['entries'].get('lora_transformer_test')
+        assert entry is not None and entry['kind'] == 'factor', 'a factorable pair must register factor segments'
+        assert entry['segments'][0] == (0, 8) and entry['segments'][1] == (8, 16), f'segments {entry["segments"]}'
+        total = 20
+        lora_stack.reset(total)
+        flips = [s for s, layers in lora_stack.state['flips'].items() for _ in layers]
+        assert len(flips) <= 1, 'a monotone ramp allows at most one flip per layer'
+        eff0 = dq(layer) - Wdq0
+        winner0 = 0 if rho_of(eff0, D1) > rho_of(eff0, D2) else 1
+        for s in range(total):
+            lora_stack.on_step(s)
+        eff1 = dq(layer) - Wdq0
+        if flips:
+            assert rho_of(eff1, D2) > 0.99, 'after the flip the style delta must be selected'
+            assert rho_of(eff0, D1) > 0.99, 'before the flip the subject delta must be selected'
+        else:
+            assert rho_of(eff1, [D1, D2][winner0]) > 0.99
+        activate()
+        assert torch.equal(dq(layer), Wdq0), 'removal from an end-of-schedule state must restore bit-exact'
+    return True
+
+
+def test_select_initial_style_when_ramp_starts_won():
+    layer = build_layer('uint4')
+    n1, n2, _D1, D2 = select_pair(seed0=43, seed1=44, scale1=8.0, layer=layer) # style delta dominates
+    with mock_model(lin=layer), select_mode('estlora', alpha=1.0, disc=0.5):
+        Wdq0 = dq(layer)
+        activate(n1, n2)
+        lora_stack.reset(20)
+        eff = dq(layer) - Wdq0
+        assert rho_of(eff, D2) > 0.99, 'a layer whose style side wins at step 0 must start style-selected'
+    return True
+
+
+def test_select_flip_is_inplace_and_shape_stable():
+    layer = build_layer('uint4')
+    n1, n2, _D1, _D2 = select_pair(layer, seed0=45, seed1=46)
+    with mock_model(lin=layer), select_mode('klora'):
+        activate(n1, n2)
+        param_id = id(layer.svd_up)
+        shape = tuple(layer.svd_up.shape)
+        lora_stack.reset(20)
+        entry = lora_stack.state['entries']['lora_transformer_test']
+        (s0, s1), (t0, t1), transposed = entry['segments']
+        zeroed = lora_stack.segment_view(layer.svd_up.data, t0, t1, transposed)
+        kept = lora_stack.segment_view(layer.svd_up.data, s0, s1, transposed)
+        assert float(zeroed.abs().sum()) == 0.0 or float(kept.abs().sum()) == 0.0, 'exactly one segment must be zeroed initially'
+        for s in range(20):
+            lora_stack.on_step(s)
+        assert id(layer.svd_up) == param_id and tuple(layer.svd_up.shape) == shape, 'flips must mutate in place, never reassign'
+    return True
+
+
+def test_select_matmul_transposed_layout():
+    layer = build_layer('uint4', use_quantized_matmul=True)
+    n1, n2, D1, D2 = select_pair(layer, seed0=47, seed1=48)
+    with mock_model(lin=layer), select_mode('klora'):
+        Wdq0 = dq(layer)
+        activate(n1, n2)
+        entry = lora_stack.state['entries']['lora_transformer_test']
+        assert entry['segments'][2] is True, 'quantized-matmul layout must register as transposed'
+        lora_stack.reset(20)
+        eff = dq(layer) - Wdq0
+        assert max(rho_of(eff, D1), rho_of(eff, D2)) > 0.99, 'initial selection must realize one delta exactly'
+        activate()
+        assert torch.equal(dq(layer), Wdq0)
+    return True
+
+
+def test_select_per_net_hosted_pair():
+    layer = build_layer('uint4')
+    torch.manual_seed(49)
+    Dd1 = (torch.randn(OUT_F, 24, device=DEVICE) @ torch.randn(24, IN_F, device=DEVICE)) * 1e-3 # rank inside the host cap so truncation is near-lossless
+    Dd2 = (torch.randn(OUT_F, 24, device=DEVICE) @ torch.randn(24, IN_F, device=DEVICE)) * 1e-3
+    n1 = make_dense_net('lk1', layer, Dd1)
+    n2 = make_dense_net('lk2', layer, Dd2)
+    with host_rank(32), mock_model(lin=layer), select_mode('klora'):
+        Wdq0 = dq(layer)
+        activate(n1, n2)
+        entry = lora_stack.state['entries'].get('lora_transformer_test')
+        assert entry is not None, 'non-factorable pairs must register through per-net hosting'
+        assert entry['segments'][0] == (0, 32) and entry['segments'][1] == (32, 64), f'segments {entry["segments"]}'
+        lora_stack.reset(20)
+        eff = dq(layer) - Wdq0
+        best = max(rho_of(eff, Dd1), rho_of(eff, Dd2))
+        assert best > 0.9, f'initial selection must realize one hosted delta, rho={best:.3f}'
+        activate()
+        assert torch.equal(dq(layer), Wdq0)
+    return True
+
+
+def test_select_reset_restores_initial_state():
+    layer = build_layer('uint4')
+    n1, n2, _D1, _D2 = select_pair(layer, seed0=51, seed1=52)
+    with mock_model(lin=layer), select_mode('klora'):
+        activate(n1, n2)
+        lora_stack.reset(20)
+        initial = dq(layer)
+        for s in range(20):
+            lora_stack.on_step(s)
+        lora_stack.reset(20)
+        assert torch.equal(dq(layer), initial), 'a fresh pass must restore the initial selection without re-activation'
+    return True
+
+
+def test_select_deactivate_from_midflip():
+    layer = build_layer('uint4')
+    n1, n2, _D1, _D2 = select_pair(layer, seed0=53, seed1=54)
+    with mock_model(lin=layer), select_mode('klora'):
+        Wdq0 = dq(layer)
+        activate(n1, n2)
+        lora_stack.reset(20)
+        for s in range(10):
+            lora_stack.on_step(s)
+        activate()
+        assert torch.equal(dq(layer), Wdq0), 'removal mid-schedule must restore bit-exact'
+        assert not lora_stack.state['entries'], 'removal must drop the selection entry'
+    return True
+
+
+def test_select_requires_exactly_two_nets():
+    layer = build_layer('uint4')
+    A3, B3, _D3 = make_delta(seed=55)
+    n1, n2, _D1, _D2 = select_pair(layer, seed0=56, seed1=57)
+    n3 = make_net('third', layer, A3, B3)
+    with mock_model(lin=layer), select_mode('klora'):
+        activate(n1, n2, n3)
+        assert hasattr(layer, 'sdnq_lora_svd_stash'), 'three nets must fall back to the exact concat path'
+        assert not lora_stack.state['entries'], 'no selection entries outside the two-net case'
+        activate()
+    return True
+
+
+def test_select_gated_off_when_compiled():
+    layer = build_layer('uint4')
+    n1, n2, _D1, _D2 = select_pair(layer, seed0=58, seed1=59)
+    old_compile = getattr(shared.opts, 'cuda_compile', None)
+    try:
+        shared.opts.cuda_compile = ['Model']
+        with mock_model(lin=layer), select_mode('klora'):
+            activate(n1, n2)
+            assert not lora_stack.state['entries'], 'select must gate off under model compile'
+            assert hasattr(layer, 'sdnq_lora_svd_stash'), 'gated select behaves as sum'
+            activate()
+    finally:
+        shared.opts.cuda_compile = old_compile
+    return True
+
+
+def test_est_energy_matches_full_frobenius():
+    torch.manual_seed(60)
+    up = torch.randn(64, 8, device=DEVICE)
+    down = torch.randn(8, 96, device=DEVICE)
+    gram = lora_stack.score_energy(up, down)
+    full = float((up @ down).square().sum())
+    assert abs(gram - full) / full < 1e-5, f'{gram} vs {full}'
+    return True
+
+
+def test_select_weight_kind_plain_layer():
+    lin = torch.nn.Linear(IN_F, OUT_F, bias=False, dtype=torch.bfloat16, device=DEVICE)
+    with torch.no_grad():
+        lin.weight.copy_(torch.randn(OUT_F, IN_F, device=DEVICE) * 0.02)
+    lin.network_layer_name = 'lora_transformer_plain'
+    lin.network_current_names = ()
+    A1, B1, D1 = make_delta(seed=61, sigma=1e-2)
+    A2, B2, D2 = make_delta(seed=62, sigma=1e-2)
+    n1 = make_net('w1', lin, A1, B1)
+    n2 = make_net('w2', lin, A2, B2)
+    W0 = lin.weight.detach().float().clone()
+    with mock_model(lin=lin), select_mode('klora'):
+        activate(n1, n2)
+        entry = lora_stack.state['entries'].get('lora_transformer_plain')
+        assert entry is not None and entry['kind'] == 'weight', 'plain layers must register weight-kind selection'
+        assert torch.equal(lin.weight.detach().float(), W0), 'weights stay pristine until the schedule applies a winner'
+        lora_stack.reset(20)
+        eff = lin.weight.detach().float() - W0
+        assert max(rho_of(eff, D1), rho_of(eff, D2)) > 0.95, 'initial selection must apply one delta from backup'
+        for s in range(20):
+            lora_stack.on_step(s)
+        activate()
+        assert torch.equal(lin.weight.detach().float(), W0), 'restore-only pass must return the pristine weight'
+    return True
+
+
 CAT_COMPILE = category('compile')
 
 
@@ -1245,6 +1467,12 @@ def run_tests():
                test_magnitude_prune_keeps_top_density, test_dense_two_plain_loras_hosted_not_summed, test_single_net_ignores_dense_mode,
                test_te_layer_stays_plain_sum, test_sum_mode_keeps_exact_stacking]:
         run_test(CAT_STACK, fn)
+    log.warning('=== Stack modes: select ===')
+    for fn in [test_select_flip_schedule_end_to_end, test_select_initial_style_when_ramp_starts_won, test_select_flip_is_inplace_and_shape_stable,
+               test_select_matmul_transposed_layout, test_select_per_net_hosted_pair, test_select_reset_restores_initial_state,
+               test_select_deactivate_from_midflip, test_select_requires_exactly_two_nets, test_select_gated_off_when_compiled,
+               test_est_energy_matches_full_frobenius, test_select_weight_kind_plain_layer]:
+        run_test(CAT_SELECT, fn)
     log.warning('=== Compile ===')
     for fn in [test_factor_add_inside_compiled_graph, test_rank_bucket_graph_reuse]:
         run_test(CAT_COMPILE, fn)

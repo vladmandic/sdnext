@@ -223,6 +223,9 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
         reason = ''
 
         load_method, load_reason = lora_overrides.get_method()
+        from modules.lora import lora_stack
+        if load_method != 'native' and lora_stack.mode() != 'sum':
+            lora_stack.warn_once(f'method-{load_method}', f'Network stack: mode={lora_stack.mode()} method={load_method} unsupported, using sum')
         if debug:
             import sys
             fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
