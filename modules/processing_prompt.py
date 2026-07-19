@@ -23,7 +23,7 @@ def fix_prompt_batch(p, prompts, negative_prompts, prompts_2, negative_prompts_2
     if type(negative_prompts) is str:
         negative_prompts = [negative_prompts]
 
-    if hasattr(p, 'init_images') and p.init_images is not None and len(p.init_images) > 1:
+    if hasattr(p, 'init_images') and (p.init_images is not None) and (len(p.init_images) > 1) and not getattr(p, 'skip_processing', False):
         while len(prompts) < len(p.init_images):
             prompts.append(prompts[-1] if prompts else '')
         while len(negative_prompts) < len(p.init_images):
