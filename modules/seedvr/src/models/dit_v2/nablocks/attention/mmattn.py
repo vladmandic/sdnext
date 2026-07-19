@@ -13,12 +13,11 @@
 # // limitations under the License.
 
 from typing import Optional, Tuple, Union
+from itertools import chain
 import torch
 from einops import rearrange
 from torch import nn
-from torch.nn import functional as F
 from torch.nn.modules.utils import _triple
-
 from .....common.cache import Cache
 from .....common.distributed.ops import gather_heads_scatter_seq, gather_seq_scatter_heads_qkv
 from .....common.half_precision_fixes import safe_pad_operation
@@ -29,7 +28,6 @@ from ...mm import MMArg, MMModule
 from ...normalization import norm_layer_type
 from ...rope import get_na_rope
 from ...window import get_window_op
-from itertools import chain
 
 
 class NaMMAttention(nn.Module):

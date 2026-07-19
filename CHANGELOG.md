@@ -12,6 +12,7 @@
   - sdnq separate dit/te settings
 - **Features**
   - SeedVR enhanced support
+  - Propagate server tracebacks to client
 - **Fixes**
   - upscaler auto-refresh to catch chainner upscalers that are not loaded on first attempt  
   - lora support diffusers trainer

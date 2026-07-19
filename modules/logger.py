@@ -108,15 +108,29 @@ def setup_logging(debug=None, trace=None, filename=None):
             return ansi_escape.sub('', str(line))
 
         def emit(self, record):
-            if record.msg is not None and not isinstance(record.msg, str):
-                record.msg = str(record.msg)
+            if record.msg is None:
+                record.msg = ""
+            msg = record.getMessage()
+            msg = msg.replace('"', "'")
+            msg = self.strip(msg)
             try:
-                record.msg = record.msg.replace('"', "'")
+                if '❱ ' in msg: # only last 3 lines of traceback
+                    lines = [l.strip() for l in msg.splitlines() if l.strip() and not l.startswith(' ')]
+                    if len(lines) > 3:
+                        lines = lines[-3:]
+                    lines = [l.replace('│   ', '').strip() for l in lines]
+                    lines.insert(0, 'Exception traceback:')
+                    msg = '\n'.join(lines)
             except Exception:
                 pass
-            line = self.format(record)
-            line = self.strip(line)
-            self.buffer.append(line[:1024])
+            try:
+                if len(msg) > 1024:
+                    msg = msg[:1024] + '...'
+            except Exception:
+                pass
+            record.msg = msg
+            formatted = self.format(record)
+            self.buffer.append(formatted)
             if len(self.buffer) > self.capacity:
                 self.buffer.pop(0)
 

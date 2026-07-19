@@ -1,5 +1,8 @@
+from typing import TYPE_CHECKING
 import gradio as gr
 from modules import scripts_postprocessing
+if TYPE_CHECKING:
+    from modules.postprocess.seedvr_model import UpscalerSeedVR
 
 
 class ScriptSeedVR(scripts_postprocessing.ScriptPostprocessing):
@@ -17,7 +20,7 @@ class ScriptSeedVR(scripts_postprocessing.ScriptPostprocessing):
                 seedvr_seed = gr.Number(step=1, value=-1, label="SeedVR seed", elem_id="extras_seedvr_seed")
                 seedvr_steps = gr.Number(step=1, value=1, minimum=1, maximum=99, label="SeedVR steps", elem_id="extras_seedvr_steps", visible=False)
             with gr.Row():
-                seedvr_cfg_scale = gr.Slider(minimum=0.0, maximum=15.0, step=0.01, value=3.5, label="SeedVR guidance scale", elem_id="extras_seedvr_cfg_scale")
+                seedvr_cfg_scale = gr.Slider(minimum=0.0, maximum=15.0, step=0.01, value=1.5, label="SeedVR guidance scale", elem_id="extras_seedvr_cfg_scale")
                 seedvr_cfg_rescale = gr.Slider(minimum=0.0, maximum=15.0, step=0.01, value=0.0, label="SeedVR guidance rescale", elem_id="extras_seedvr_cfg_rescale")
             with gr.Row():
                 seedvr_tile_size = gr.Slider(minimum=64, maximum=4096, step=8, value=1024, label="SeedVR tile size", elem_id="extras_seedvr_tile_size")
@@ -52,7 +55,7 @@ class ScriptSeedVR(scripts_postprocessing.ScriptPostprocessing):
         from modules.logger import log
         image = pp.image
         instance: upscaler.UpscalerData = next(iter([x for x in shared.sd_upscalers if x.name == seedvr_selected]), None)
-        scaler: upscaler.Upscaler = instance.scaler
+        scaler: UpscalerSeedVR = instance.scaler
 
         log.info(f'Upscaler: type="SeedVR" model="{seedvr_selected}" scale={seedvr_scale} seed={seedvr_seed} steps={seedvr_steps} cfg_scale={seedvr_cfg_scale} cfg_rescale={seedvr_cfg_rescale} tile_size={seedvr_tile_size} tile_overlap={seedvr_tile_overlap}')
 
