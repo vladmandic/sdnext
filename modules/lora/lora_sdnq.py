@@ -272,12 +272,15 @@ def select_candidate(self, network_layer_name, wanted_names):
 
 
 def host_candidate(self, network_layer_name, wanted_names):
-    """True when a non-factorable set on this layer should be hosted as a truncated svd."""
+    """True when this layer's set should ride the svd channel as a truncated svd: non-factorable sets below 8 bits, dense-combined sets at any width."""
     if not select_candidate(self, network_layer_name, wanted_names):
         return False
+    if lora_stack.mode() in lora_stack.DENSE_MODES and not network_layer_name.startswith('lora_te'):
+        if sum(1 for net in l.loaded_networks if net.modules.get(network_layer_name, None) is not None) >= 2:
+            return True # combined deltas host at any width: requantizing them is checkpoint-fragile, while single-adapter requantize is well retained
     from sdnq.common import dtype_dict
     if dtype_dict[self.sdnq_dequantizer.weights_dtype]['num_bits'] >= 8:
-        return False # requantize retains most of the delta at 8 bits and above; truncation would lose more than it saves
+        return False # requantize retains most of a single set's delta at 8 bits and above; truncation would lose more than it saves
     return True
 
 
@@ -312,7 +315,7 @@ def apply_cached(self, network_layer_name, wanted_names):
             factors = get_module_factors(module, devices.device, dtype, original_shape=deq.original_shape)
             if factors is not None:
                 members.append(factors)
-    if len(members) == 0 and self.svd_up is None:
+    if not stack_dense and len(members) == 0 and self.svd_up is None:
         step = float(self.scale.detach().float().mean())
         if step > 0 and rms / step > REQUANT_RATIO and energy < REQUANT_ENERGY:
             return None # routed to the grid: the caller assembles the delta and requantizes
@@ -369,9 +372,9 @@ def apply_hosted(self, network_layer_name, updown, wanted_names):
     # cut: both terms must agree, since a thin delta rounds away on the grid however
     # low its capture, and a low-rank delta hosts exactly however fat it is. Scoped to
     # sets the side-channel would otherwise carry whole: factorable members ride
-    # exactly.
+    # exactly and dense-combined deltas stay hosted at any magnitude.
     delta_rms = float(updown.detach().float().square().mean().sqrt())
-    maybe_requant = len(members) == 0 and self.svd_up is None
+    maybe_requant = not stack_dense and len(members) == 0 and self.svd_up is None
     if maybe_requant:
         step = float(self.scale.detach().float().mean())
         maybe_requant = step > 0 and delta_rms / step > REQUANT_RATIO

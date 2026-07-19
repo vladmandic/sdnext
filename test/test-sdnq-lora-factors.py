@@ -872,6 +872,19 @@ def test_route_svd_checkpoint_keeps_hosting():
     return True
 
 
+def test_route_dense_stack_keeps_hosting():
+    layer = build_layer('uint4')
+    torch.manual_seed(27)
+    D1 = torch.randn(OUT_F, IN_F, device=DEVICE) * 1e-2
+    D2 = torch.randn(OUT_F, IN_F, device=DEVICE) * 1e-2
+    net1, net2 = make_dense_net('df1', layer, D1), make_dense_net('df2', layer, D2)
+    with host_rank(256), stack_mode('ties'), mock_model(lin=layer):
+        activate(net1, net2)
+        assert hasattr(layer, 'sdnq_lora_svd_stash'), 'dense-combined deltas host at any magnitude'
+        activate()
+    return True
+
+
 def test_route_replay_from_cache():
     import tempfile
     layer = build_layer('uint4')
@@ -1515,6 +1528,39 @@ def test_dense_two_plain_loras_hosted_not_summed():
     return True
 
 
+def test_dense_pair_hosts_at_int8():
+    layer = build_layer('int8')
+    A1, B1, D1 = make_delta(seed=41, sigma=1e-2)
+    A2, B2, D2 = make_delta(seed=42, sigma=1e-2)
+    n1 = make_net('ti1', layer, A1, B1)
+    n2 = make_net('ti2', layer, A2, B2)
+    with host_rank(64), mock_model(lin=layer):
+        Wdq0 = dq(layer)
+        with stack_mode('ties', dens=0.5):
+            activate(n1, n2)
+            assert hasattr(layer, 'sdnq_lora_svd_stash'), 'dense pair at int8 must host, not requantize'
+            assert getattr(layer, 'network_weights_backup', None) is None, 'hosted dense pair must not take a weight backup'
+            eff = dq(layer) - Wdq0
+            activate()
+        assert torch.equal(dq(layer), Wdq0), 'removal must restore bit-exact'
+        with stack_mode('ties', dens=0.5):
+            ref = lora_stack.combine([('ti1', D1), ('ti2', D2)], 'lora_transformer_test')
+    assert rho_of(eff, ref) > 0.8, f'hosted int8 ties delta must track the ties reference, rho={rho_of(eff, ref):.3f}'
+    return True
+
+
+def test_dense_single_nonfactorable_int8_keeps_requantize():
+    layer = build_layer('int8')
+    _A, _B, D = make_delta(sigma=3e-3)
+    net = make_dense_net('ti8solo', layer, D)
+    with host_rank(256), mock_model(lin=layer), stack_mode('ties', dens=0.5):
+        activate(net)
+        assert not hasattr(layer, 'sdnq_lora_svd_stash'), 'a single non-factorable set at int8 must keep the requantize path even under a dense mode'
+        assert isinstance(getattr(layer, 'network_weights_backup', None), torch.Tensor), 'the requantize fallback must take the backup'
+        activate()
+    return True
+
+
 def test_single_net_ignores_dense_mode():
     layer = build_layer('uint4')
     A, B, D = make_delta(seed=33)
@@ -2018,7 +2064,7 @@ def run_tests():
     for fn in [test_hosted_low_rank_delta_is_kept, test_hosted_dense_delta_beats_requant, test_hosted_skips_int8,
                test_hosted_disabled_by_option, test_hosted_transitions_and_rng_isolation,
                test_route_fat_dense_delta_requantizes, test_route_rule_terms_gate_both_ways, test_route_low_rank_fat_delta_stays_hosted,
-               test_route_mixed_set_keeps_hosting, test_route_svd_checkpoint_keeps_hosting,
+               test_route_mixed_set_keeps_hosting, test_route_svd_checkpoint_keeps_hosting, test_route_dense_stack_keeps_hosting,
                test_route_replay_from_cache, test_hosted_null_tail_collapses_to_effective_rank, test_hosted_flat_spectrum_keeps_cap]:
         run_test(CAT_HOST, fn)
     log.warning('=== Calibration ===')
@@ -2034,7 +2080,8 @@ def run_tests():
         run_test(CAT_FCACHE, fn)
     log.warning('=== Stack modes: dense ===')
     for fn in [test_ties_sign_consensus_drops_conflicts, test_dare_mask_is_deterministic_across_calls, test_dare_rescales_by_inverse_density,
-               test_magnitude_prune_keeps_top_density, test_dense_two_plain_loras_hosted_not_summed, test_single_net_ignores_dense_mode,
+               test_magnitude_prune_keeps_top_density, test_dense_two_plain_loras_hosted_not_summed,
+               test_dense_pair_hosts_at_int8, test_dense_single_nonfactorable_int8_keeps_requantize, test_single_net_ignores_dense_mode,
                test_te_layer_stays_plain_sum, test_sum_mode_keeps_exact_stacking]:
         run_test(CAT_STACK, fn)
     log.warning('=== Stack modes: select ===')
