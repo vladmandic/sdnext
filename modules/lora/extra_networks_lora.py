@@ -257,7 +257,7 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
             if has_changed:
                 jobid = shared.state.begin('LoRA')
                 if len(l.previously_loaded_networks) > 0:
-                    log.info(f'Network unload: type=LoRA networks={[n.name for n in l.previously_loaded_networks]} mode={"fuse" if lora_overrides.fuse_native() else "backup"}')
+                    log.info(f'Network unload: type=LoRA networks={[n.name for n in l.previously_loaded_networks]} mode={networks.effective_mode()}')
                     networks.network_deactivate(include, exclude)
                 networks.network_activate(include, exclude)
                 debug_log(f'Network change: type=LoRA previous={[n.name for n in l.previously_loaded_networks]} current={[n.name for n in l.loaded_networks]}')
@@ -270,7 +270,7 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
             prompt(p)
             if has_changed and len(include) == 0: # print only once
                 actual_method = 'native' if any(len(n.modules) > 0 for n in l.loaded_networks) else load_method
-                log.info(f'Network load: type=LoRA networks={[n.name for n in l.loaded_networks]} load={load_method}({load_reason}) method={actual_method} mode={"fuse" if lora_overrides.fuse_native() else "backup"} te={te_multipliers} unet={unet_multipliers} time={l.timer.summary} reason={reason}')
+                log.info(f'Network load: type=LoRA networks={[n.name for n in l.loaded_networks]} load={load_method}({load_reason}) method={actual_method} mode={networks.effective_mode()} te={te_multipliers} unet={unet_multipliers} time={l.timer.summary} reason={reason}')
 
     def deactivate(self, p, force=False):
         if len(lora_diffusers.diffuser_loaded) > 0 and (shared.opts.lora_force_reload or force):

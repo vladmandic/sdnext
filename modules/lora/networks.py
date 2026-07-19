@@ -170,12 +170,22 @@ def network_activate(include=None, exclude=None):
     lora_sdnq.report_fallbacks()
     global native_active # pylint: disable=global-statement
     native_active = len(l.loaded_networks) > 0
+    l.last_backup_size = backup_size
     l.timer.activate += time.time() - t0
     if l.debug and len(l.loaded_networks) > 0:
         log.debug(f'Network load: type=LoRA networks={[n.name for n in l.loaded_networks]} modules={active_components} layers={total} weights={applied_weight} bias={applied_bias} backup={round(backup_size/1024/1024/1024, 2)} fuse={fuse}:{shared.opts.lora_fuse_diffusers} device={device} time={l.timer.summary}')
     modules.clear()
     if len(applied_layers) > 0 or shared.opts.diffusers_offload_mode == "sequential":
         sd_models.set_diffuser_offload(sd_model, op="model")
+
+
+def effective_mode():
+    """Weight-state label for load logs: backup and fuse say how touched weights restore, factor means the whole load rode the svd channel and unload just drops factors."""
+    if getattr(l, 'last_backup_size', 0) > 0:
+        return 'backup'
+    if lora_overrides.fuse_native():
+        return 'fuse'
+    return 'factor'
 
 
 def network_deactivate(include=None, exclude=None):
