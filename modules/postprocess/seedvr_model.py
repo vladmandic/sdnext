@@ -139,7 +139,7 @@ class UpscalerSeedVR(Upscaler):
         devices.torch_gc()
         return result
 
-    def do_upscale(self, img: Image.Image, selected_file, cfg_scale: float = 3.5, cfg_rescale: float = 0.0, steps: int = 1, seed: int = -1, scale: float | None = None, tile_size: int = 1024, tile_overlap: float = 0.25):
+    def do_upscale(self, img: Image.Image, selected_file, cfg_scale: float = 1.5, cfg_rescale: float = 0.0, steps: int = 1, seed: int = -1, scale: float | None = None, tile_size: int = 1024, tile_overlap: float = 0.25):
         self.load_model(selected_file)
         if self.model is None:
             return img
