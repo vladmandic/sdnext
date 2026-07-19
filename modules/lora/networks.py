@@ -222,6 +222,7 @@ def network_activate(include=None, exclude=None):
     lora_sdnq.report_fallbacks()
     native_active = len(l.loaded_networks) > 0
     refused_writes = refused
+    l.last_backup_size = backup_size
     l.timer.activate += time.time() - t0
     if refused > 0:
         log.error(f'Network load: type=LoRA networks={[n.name for n in l.loaded_networks]} weights={applied_weight} bias={applied_bias} refused={refused} network partially applied')
@@ -230,6 +231,15 @@ def network_activate(include=None, exclude=None):
     modules.clear()
     if len(applied_layers) > 0 or shared.opts.diffusers_offload_mode == "sequential" or len(group_stripped) > 0:
         sd_models.set_diffuser_offload(sd_model, op="model")
+
+
+def effective_mode():
+    """Weight-state label for load logs: backup and fuse say how touched weights restore, factor means the whole load rode the svd channel and unload just drops factors."""
+    if getattr(l, 'last_backup_size', 0) > 0:
+        return 'backup'
+    if lora_overrides.fuse_native():
+        return 'fuse'
+    return 'factor'
 
 
 def network_deactivate(include=None, exclude=None):
