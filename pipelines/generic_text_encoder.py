@@ -16,7 +16,13 @@ def get_shared(cls, repo_id, subfolder=None, variant=None):
     if variant is not None:
         args['variant'] = variant
     for name, item in shared_te_map.items():
-        if item['cls'] == cls and (item.get('identifier', None) is None or item.get('identifier', None).lower() in repo_id.lower()):
+        identifiers = item.get('identifier', [])
+        if identifiers is None:
+            identifiers = []
+        if isinstance(identifiers, str):
+            identifiers = [identifiers]
+        identifiers = [identifier.lower() for identifier in identifiers if identifier is not None]
+        if item['cls'] == cls and (not identifiers or any(identifier in repo_id.lower() for identifier in identifiers)):
             if item.get('config_class', None) is not None and item.get('config_path', None) is not None:
                 with open(item['config_path'], encoding='utf8') as f:
                     args['config'] = item['config_class'](**json.load(f))
