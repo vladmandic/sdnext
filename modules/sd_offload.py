@@ -183,7 +183,7 @@ def set_diffuser_offload(sd_model, op:str='model', quiet:bool=False, force:bool=
 
 
 class OffloadHook(accelerate.hooks.ModelHook):
-    def __init__(self, checkpoint_name):
+    def __init__(self, checkpoint_name, silent=False):
         if shared.opts.diffusers_offload_max_gpu_memory > 1:
             shared.opts.diffusers_offload_max_gpu_memory = 0.75
         if shared.opts.diffusers_offload_max_cpu_memory > 1:
@@ -201,8 +201,9 @@ class OffloadHook(accelerate.hooks.ModelHook):
         self.last_pre = None
         self.last_post = None
         self.last_cls = None
-        gpu = f'{(shared.gpu_memory * shared.opts.diffusers_offload_min_gpu_memory):.2f}-{(shared.gpu_memory * shared.opts.diffusers_offload_max_gpu_memory):.2f}:{shared.gpu_memory:.2f}'
-        log.info(f'Offload: type=balanced op=init watermark={self.min_watermark}-{self.max_watermark} gpu={gpu} cpu={shared.cpu_memory:.3f} limit={shared.opts.cuda_mem_fraction:.2f} always={self.offload_always} never={self.offload_never} pre={shared.opts.diffusers_offload_pre} streams={shared.opts.diffusers_offload_streams}')
+        if not silent:
+            gpu = f'{(shared.gpu_memory * shared.opts.diffusers_offload_min_gpu_memory):.2f}-{(shared.gpu_memory * shared.opts.diffusers_offload_max_gpu_memory):.2f}:{shared.gpu_memory:.2f}'
+            log.info(f'Offload: type=balanced op=init watermark={self.min_watermark}-{self.max_watermark} gpu={gpu} cpu={shared.cpu_memory:.3f} limit={shared.opts.cuda_mem_fraction:.2f} always={self.offload_always} never={self.offload_never} pre={shared.opts.diffusers_offload_pre} streams={shared.opts.diffusers_offload_streams}')
         self.validate()
         super().__init__()
 
@@ -538,7 +539,7 @@ def apply_balanced_offload(sd_model=None, exclude: list[str] | None = None, forc
     checkpoint_name = sd_model.sd_checkpoint_info.name if getattr(sd_model, "sd_checkpoint_info", None) is not None else sd_model.__class__.__name__
     if force or (offload_hook_instance is None) or (offload_hook_instance.min_watermark != shared.opts.diffusers_offload_min_gpu_memory) or (offload_hook_instance.max_watermark != shared.opts.diffusers_offload_max_gpu_memory) or (checkpoint_name != offload_hook_instance.checkpoint_name):
         cached = False
-        offload_hook_instance = OffloadHook(checkpoint_name)
+        offload_hook_instance = OffloadHook(checkpoint_name, silent=silent)
 
     if cached and shared.opts.diffusers_offload_pre:
         debug_move('Offload: type=balanced op=apply skip')
@@ -560,6 +561,6 @@ def apply_balanced_offload(sd_model=None, exclude: list[str] | None = None, forc
     process_timer.add('offload', t)
     fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
     debug_move(f'Apply offload: time={t:.2f} type=balanced fn={fn}')
-    if not cached:
+    if not cached and not silent:
         log.info(f'Model class={sd_model.__class__.__name__} modules={len(offload_hook_instance.offload_map)} size={offload_hook_instance.model_size():.3f}')
     return sd_model
