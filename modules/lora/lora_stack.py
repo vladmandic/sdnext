@@ -252,7 +252,7 @@ def materialize_model():
     """Weight-kind selection rewrites module weights outside the activation walk; rebuild balanced-offload modules real first (mirrors network_activate)."""
     from modules import sd_models
     if getattr(shared.opts, 'diffusers_offload_mode', None) == 'balanced' and getattr(shared, 'sd_model', None) is not None:
-        sd_models.apply_balanced_offload(shared.sd_model, force=True)
+        sd_models.apply_balanced_offload(shared.sd_model, force=True, silent=True)
 
 
 def finalize(total_steps):
