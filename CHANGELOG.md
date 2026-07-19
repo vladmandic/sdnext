@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-07-18
+## Update for 2026-07-19
 
 - **Compute**
   - torch: update to `2.13.0` for CUDA, ROCm, IPEX
@@ -11,8 +11,9 @@
   - sdnq attention optimizations
   - sdnq separate dit/te settings
 - **Features**
-  - SeedVR enhanced support
-  - Propagate server tracebacks to client
+  - seedvr: enhanced upscaler support
+  - process: read video properties metadata
+  - logs: propagate server tracebacks to client
 - **Fixes**
   - upscaler auto-refresh to catch chainner upscalers that are not loaded on first attempt  
   - lora support diffusers trainer

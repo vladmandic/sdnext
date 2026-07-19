@@ -1,3 +1,4 @@
+import os
 import gradio as gr
 from modules import scripts_manager, shared, ui_common, postprocessing, call_queue, generation_parameters_copypaste
 from modules.logger import log
@@ -12,9 +13,26 @@ def submit_info(image):
     return infotext_to_html(geninfo), info, geninfo
 
 
-def submit_process(tab_index, extras_image, image_batch, extras_batch_input_dir, extras_batch_output_dir, show_extras_results, save_output, *script_inputs):
+def submit_video(video):
+    if not video or not isinstance(video, str) or not os.path.isfile(video):
+        return '', '', ''
+    from modules.video import get_video_info, get_video_metadata
+    info = get_video_info(video)
+    metadata = get_video_metadata(video)
+    if metadata:
+        info['metadata'] = metadata
+    text = ''
+    html = ''
+    html = [f'<b>{k}</b>: {v}' for k, v in info.items()]
+    html = '<br>'.join(html)
+    text = [f'{k}: {v}' for k, v in info.items()]
+    text = ', '.join(text)
+    return html, '', text
+
+
+def submit_process(tab_index, extras_image, image_batch, extras_batch_input_dir, extras_batch_output_dir, extras_video, show_extras_results, save_output, *script_inputs):
     from modules.ui_common import infotext_to_html
-    result_images, geninfo, _js_info = postprocessing.run_postprocessing(tab_index, extras_image, image_batch, extras_batch_input_dir, extras_batch_output_dir, show_extras_results, *script_inputs, save_output=save_output)
+    result_images, geninfo, _js_info = postprocessing.run_postprocessing(tab_index, extras_image, image_batch, extras_batch_input_dir, extras_batch_output_dir, extras_video, show_extras_results, *script_inputs, save_output=save_output)
     return result_images, geninfo, infotext_to_html(geninfo)
 
 
@@ -25,14 +43,15 @@ def create_ui():
         with gr.Column(variant='compact'):
             with gr.Tabs(elem_id="mode_extras"):
                 with gr.Tab('Process Image', id="single_image", elem_id="extras_single_tab") as tab_single:
-                    with gr.Row():
-                        extras_image = gr.Image(label="Source", interactive=True, type="pil", elem_id="extras_image")
+                    extras_image = gr.Image(label="Source", interactive=True, type="pil", elem_id="extras_image")
                 with gr.Tab('Process Batch', id="batch_process", elem_id="extras_batch_process_tab") as tab_batch:
                     image_batch = gr.Files(label="Batch process", interactive=True, elem_id="extras_image_batch")
                 with gr.Tab('Process Folder', id="batch_from_directory", elem_id="extras_batch_directory_tab") as tab_batch_dir:
                     extras_batch_input_dir = gr.Textbox(label="Input directory", **shared.hide_dirs, placeholder="A directory on the same machine where the server is running.", elem_id="extras_batch_input_dir")
                     extras_batch_output_dir = gr.Textbox(label="Output directory", **shared.hide_dirs, placeholder="Leave blank to save images to the default path.", elem_id="extras_batch_output_dir")
                     show_extras_results = gr.Checkbox(label='Show result images', value=True, elem_id="extras_show_extras_results")
+                with gr.Tab('Process Video', id="process_video", elem_id="extras_process_video_tab") as tab_process_video:
+                    extras_video = gr.Video(label="Input Video", show_label=False, interactive=True, elem_id="extras_video")
             with gr.Row():
                 save_output = gr.Checkbox(label='Save output', value=True, elem_id="extras_save_output")
 
@@ -60,7 +79,11 @@ def create_ui():
     tab_single.select(fn=lambda: 0, inputs=[], outputs=[tab_index])
     tab_batch.select(fn=lambda: 1, inputs=[], outputs=[tab_index])
     tab_batch_dir.select(fn=lambda: 2, inputs=[], outputs=[tab_index])
+    tab_process_video.select(fn=lambda: 3, inputs=[], outputs=[tab_index])
+
     extras_image.change(fn=submit_info, inputs=[extras_image], outputs=[html_info_formatted, exif_info, generation_info])
+    extras_video.change(fn=submit_video, inputs=[extras_video], outputs=[html_info_formatted, exif_info, generation_info])
+
     submit.click(
         _js="submit_postprocessing",
         fn=call_queue.wrap_gradio_gpu_call(submit_process, extra_outputs=[None, ''], name='Postprocess'),
@@ -70,6 +93,7 @@ def create_ui():
             image_batch,
             extras_batch_input_dir,
             extras_batch_output_dir,
+            extras_video,
             show_extras_results,
             save_output,
             *script_inputs,

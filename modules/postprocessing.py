@@ -9,12 +9,19 @@ from modules.shared import opts
 from modules.paths import resolve_output_path
 
 
-def run_postprocessing(extras_mode, image, image_folder: list[tempfile.NamedTemporaryFile], input_dir, output_dir, show_extras_results, *args, save_output: bool = True):
+def run_postprocessing(extras_mode,
+                       image,
+                       image_folder: list[tempfile.NamedTemporaryFile],
+                       input_dir,
+                       output_dir,
+                       extras_video,
+                       show_extras_results,
+                       *args,
+                       save_output: bool = True):
     devices.torch_gc()
     shared.state.begin('Extras')
     image_data = []
     image_names = []
-    image_fullnames = []
     image_ext = []
     outputs = []
     params = {}
@@ -32,7 +39,6 @@ def run_postprocessing(extras_mode, image, image_folder: list[tempfile.NamedTemp
                     log.error(f'Failed to open image: file="{img.name}" {e}')
                     continue
                 fn, ext = os.path.splitext(img.orig_name)
-                image_fullnames.append(img.name)
             image_data.append(image)
             image_names.append(fn)
             image_ext.append(ext)
@@ -47,11 +53,12 @@ def run_postprocessing(extras_mode, image, image_folder: list[tempfile.NamedTemp
             except Exception as e:
                 log.error(f'Failed to open image: file="{fn}" {e}')
                 continue
-            image_fullnames.append(fn)
             image_data.append(image)
             image_names.append(fn)
             image_ext.append(None)
         log.debug(f'Process: mode=folder inputs={input_dir} files={len(image_list)} images={len(image_data)}')
+    elif extras_mode == 3:
+        log.error(f'Process: mode=video file="{extras_video}" not implemented yet')
     else:
         image_data.append(image)
         image_names.append(None)
@@ -60,6 +67,7 @@ def run_postprocessing(extras_mode, image, image_folder: list[tempfile.NamedTemp
         outpath = output_dir
     else:
         outpath = resolve_output_path(opts.outdir_samples, opts.outdir_extras_samples)
+
     processed_images = []
     for image, name, ext in zip(image_data, image_names, image_ext, strict=False): # pylint: disable=redefined-argument-from-local
         log.debug(f'Process: image={image} {args}')
@@ -67,6 +75,12 @@ def run_postprocessing(extras_mode, image, image_folder: list[tempfile.NamedTemp
         if shared.state.interrupted:
             log.debug('Postprocess interrupted')
             break
+        if isinstance(image, str):
+            try:
+                image = Image.open(image)
+            except Exception as e:
+                log.error(f'Failed to open image: file="{image}" {e}')
+                continue
         if image is None:
             continue
         shared.state.textinfo = name
@@ -100,7 +114,7 @@ def run_postprocessing(extras_mode, image, image_folder: list[tempfile.NamedTemp
     return outputs, info, params
 
 
-def run_extras(extras_mode, resize_mode, image, image_folder, input_dir, output_dir, show_extras_results, upscaling_resize, upscaling_resize_w, upscaling_resize_h, upscaling_crop, extras_upscaler_1, extras_upscaler_2, extras_upscaler_2_visibility, save_output: bool = True, script_args: dict | None = None):
+def run_extras(extras_mode, resize_mode, image, image_folder, input_dir, output_dir, video, show_extras_results, upscaling_resize, upscaling_resize_w, upscaling_resize_h, upscaling_crop, extras_upscaler_1, extras_upscaler_2, extras_upscaler_2_visibility, save_output: bool = True, script_args: dict | None = None):
     """old handler for API"""
 
     merged = {
@@ -120,4 +134,4 @@ def run_extras(extras_mode, resize_mode, image, image_folder, input_dir, output_
             merged.setdefault(name, {}).update(kvs or {})
     args = scripts_manager.scripts_postproc.create_args_for_run(merged)
 
-    return run_postprocessing(extras_mode, image, image_folder, input_dir, output_dir, show_extras_results, *args, save_output=save_output)
+    return run_postprocessing(extras_mode, image, image_folder, input_dir, output_dir, video, show_extras_results, *args, save_output=save_output)

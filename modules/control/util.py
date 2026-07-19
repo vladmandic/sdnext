@@ -161,6 +161,8 @@ def blend(images):
 
 
 def decode_fourcc(cc):
+    if cc is None:
+        return None
     cc_bytes = int(cc).to_bytes(4, byteorder=sys.byteorder) # convert code to a bytearray
     cc_str = cc_bytes.decode() # decode byteaarray to a string
     return cc_str
