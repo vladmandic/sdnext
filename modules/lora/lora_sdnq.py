@@ -236,12 +236,16 @@ def select_candidate(self, network_layer_name, wanted_names, use_previous=False)
 
 
 def host_candidate(self, network_layer_name, wanted_names, use_previous=False):
-    """True when a non-factorable set on this layer should be hosted as a truncated svd."""
+    """True when this layer's set should ride the svd channel as a truncated svd: non-factorable sets below 8 bits, dense-combined sets at any width."""
     if not select_candidate(self, network_layer_name, wanted_names, use_previous):
         return False
+    if lora_stack.mode() in lora_stack.DENSE_MODES and not network_layer_name.startswith('lora_te'):
+        loaded = l.loaded_networks if not use_previous else l.previously_loaded_networks
+        if sum(1 for net in loaded if net.modules.get(network_layer_name, None) is not None) >= 2:
+            return True # combined deltas host at any width: requantizing them is checkpoint-fragile, while single-adapter requantize is well retained
     from modules.sdnq.common import dtype_dict
     if dtype_dict[self.sdnq_dequantizer.weights_dtype]['num_bits'] >= 8:
-        return False # requantize retains most of the delta at 8 bits and above; truncation would lose more than it saves
+        return False # requantize retains most of a single set's delta at 8 bits and above; truncation would lose more than it saves
     return True
 
 
