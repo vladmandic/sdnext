@@ -30,7 +30,7 @@ KLORA_BETA = 0.5 # the paper's fixed ramp offset; only the slope is user-tunable
 ROW_CHUNK = 512 # fp32 interiors run in first-dim slices; also fixes the DARE draw sequence
 SAMPLE_CAP = 1 << 22 # strided subsample bound for magnitude quantiles (full-size quantile exceeds torch limits)
 
-state: dict = {'entries': {}, 'flips': {}, 'gamma': 1.0, 'gamma_num': 0.0, 'gamma_den': 0.0, 'total_steps': 0, 'finalized': False}
+state: dict = {'entries': {}, 'flips': {}, 'gamma': 1.0, 'gamma_num': 0.0, 'gamma_den': 0.0, 'gamma_e': 1.0, 'gamma_e_num': 0.0, 'gamma_e_den': 0.0, 'total_steps': 0, 'finalized': False}
 warned: set = set()
 
 
@@ -203,6 +203,9 @@ def clear():
     state['gamma'] = 1.0
     state['gamma_num'] = 0.0
     state['gamma_den'] = 0.0
+    state['gamma_e'] = 1.0
+    state['gamma_e_num'] = 0.0
+    state['gamma_e_den'] = 0.0
     state['total_steps'] = 0
     state['finalized'] = False
 
@@ -223,6 +226,9 @@ def register(layer_name, module, kind, scores, segments=None, nets=None, abs_sum
     if abs_sums is not None:
         state['gamma_num'] += abs_sums[0]
         state['gamma_den'] += abs_sums[1]
+    if mode() == 'estlora': # est scores ARE the per-layer energies; their totals give the scale-invariant balance
+        state['gamma_e_num'] += scores[0]
+        state['gamma_e_den'] += scores[1]
     state['entries'][layer_name] = entry
     state['finalized'] = False
 
@@ -242,8 +248,10 @@ def layer_flip_step(scores, total_steps):
             if ss * ramp > sc:
                 return step
         else: # estlora: content keeps the layer while sc >= gamma_t * ss
+            # est energies are ||dW||^2, so a magnitude gap enters squared; balance the style side by
+            # the total-energy ratio (mirrors klora's gamma) so the louder adapter cannot win on scale alone
             ramp = ramp_alpha() * t + (1.0 - manual_discrepancy())
-            if sc < ramp * ss:
+            if sc < ramp * ss * state['gamma_e']:
                 return step
     return total_steps
 
@@ -259,6 +267,7 @@ def finalize(total_steps):
     """Build the inverted flip map for the pass; select-mode layers start at their step-0 winner."""
     state['total_steps'] = int(total_steps)
     state['gamma'] = (state['gamma_num'] / state['gamma_den']) if state['gamma_den'] > 0 else 1.0
+    state['gamma_e'] = (state['gamma_e_num'] / state['gamma_e_den']) if state['gamma_e_den'] > 0 else 1.0
     state['flips'] = {}
     if any(e['kind'] == 'weight' for e in state['entries'].values()):
         materialize_model()
