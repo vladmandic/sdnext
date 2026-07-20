@@ -1669,14 +1669,45 @@ def test_select_flip_schedule_end_to_end():
 
 
 def test_select_initial_style_when_ramp_starts_won():
+    # scale-invariant selection means no single isolated layer starts style-won on magnitude alone
+    # (that is the balance working), so force flip_step 0 directly and assert the initial selection honors it
     layer = build_layer('uint4')
-    n1, n2, _D1, D2 = select_pair(seed0=43, seed1=44, scale1=8.0, layer=layer) # style delta dominates
+    n1, n2, _D1, D2 = select_pair(seed0=43, seed1=44, layer=layer)
     with mock_model(lin=layer), select_mode('estlora', alpha=1.0, disc=0.5):
         Wdq0 = dq(layer)
         activate(n1, n2)
-        lora_stack.reset(20)
+        orig = lora_stack.layer_flip_step
+        lora_stack.layer_flip_step = lambda scores, total: 0 # this layer's crossover is step 0
+        try:
+            lora_stack.reset(20)
+        finally:
+            lora_stack.layer_flip_step = orig
         eff = dq(layer) - Wdq0
-        assert rho_of(eff, D2) > 0.99, 'a layer whose style side wins at step 0 must start style-selected'
+        assert rho_of(eff, D2) > 0.99, 'a layer whose flip step is 0 must start style-selected'
+    return True
+
+
+def test_estlora_energy_balance_defeats_magnitude():
+    layer = build_layer('uint4')
+    n1, n2, _D1, D2 = select_pair(layer, seed0=51, seed1=52, scale1=0.33) # content ~3x louder than style
+    with mock_model(lin=layer), select_mode('estlora', alpha=1.5, disc=0.5):
+        Wdq0 = dq(layer)
+        activate(n1, n2)
+        lora_stack.reset(20)
+        entry = lora_stack.state['entries']['lora_transformer_test']
+        assert lora_stack.state['gamma_e'] > 1.5, f'content-louder pair must give gamma_e>1: {lora_stack.state["gamma_e"]:.2f}'
+        balanced = lora_stack.layer_flip_step(entry['scores'], 20)
+        saved = lora_stack.state['gamma_e']
+        lora_stack.state['gamma_e'] = 1.0 # paper-faithful est: energies compared raw
+        raw = lora_stack.layer_flip_step(entry['scores'], 20)
+        lora_stack.state['gamma_e'] = saved
+        assert raw == 20, f'without balance the squared magnitude gap keeps content the whole schedule, got {raw}'
+        assert 0 < balanced < 20, f'the energy balance must let the quieter style win mid-schedule, got {balanced}'
+        for s in range(20):
+            lora_stack.on_step(s)
+        assert rho_of(dq(layer) - Wdq0, D2) > 0.99, 'after the balanced flip the style delta must be selected'
+        activate()
+        assert torch.equal(dq(layer), Wdq0)
     return True
 
 
@@ -2085,7 +2116,7 @@ def run_tests():
                test_te_layer_stays_plain_sum, test_sum_mode_keeps_exact_stacking]:
         run_test(CAT_STACK, fn)
     log.warning('=== Stack modes: select ===')
-    for fn in [test_select_flip_schedule_end_to_end, test_select_initial_style_when_ramp_starts_won, test_select_flip_is_inplace_and_shape_stable,
+    for fn in [test_select_flip_schedule_end_to_end, test_select_initial_style_when_ramp_starts_won, test_estlora_energy_balance_defeats_magnitude, test_select_flip_is_inplace_and_shape_stable,
                test_select_matmul_transposed_layout, test_select_per_net_hosted_pair, test_select_reset_restores_initial_state,
                test_select_deactivate_from_midflip, test_select_requires_exactly_two_nets, test_select_gated_off_when_compiled,
                test_select_finalize_drops_dead_module, test_select_int8_pair_rides_segments, test_select_gate_dormant_without_pair, test_stale_schedule_dropped_on_reapply,
