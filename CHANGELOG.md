@@ -14,6 +14,7 @@
   - seedvr: enhanced upscaler support
   - process: read video properties metadata
   - logs: propagate server tracebacks to client
+  - networks: improve search and filtering to allow multi-words  
 - **Fixes**
   - upscaler: auto-refresh to catch chainner upscalers that are not loaded on first attempt  
   - lora: support diffusers trainer
