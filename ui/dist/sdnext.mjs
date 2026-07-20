@@ -11015,17 +11015,16 @@ function setProgress(res) {
   document.title = `SD.Next ${perc}`;
   for (const elId of elements) {
     const el2 = document.getElementById(elId);
-    if (el2) {
-      const jobLabel = (res ? `${job} ${perc}${eta}` : "Generate").trim();
-      el2.innerText = jobLabel;
-      if (!window.waitForUiReady) {
-        const gradient = perc !== "" ? perc : "100%";
-        if (jobLabel === "Generate") el2.style.background = "var(--primary-500)";
-        else if (jobLabel.endsWith("Decode")) continue;
-        else if (jobLabel.endsWith("Start") || jobLabel.endsWith("Finishing")) el2.style.background = "var(--primary-800)";
-        else if (res && progress > 0 && progress < 1) el2.style.background = `linear-gradient(to right, var(--primary-500) 0%, var(--primary-800) ${gradient}, var(--neutral-700) ${gradient})`;
-        else el2.style.background = "var(--primary-500)";
-      }
+    if (!el2) continue;
+    const jobLabel = (res ? `${job} ${perc}${eta}` : "Generate").trim();
+    el2.innerText = jobLabel;
+    if (!window.waitForUiReady) {
+      const gradient = perc !== "" ? perc : "100%";
+      if (jobLabel === "Generate") el2.style.background = "var(--primary-500)";
+      else if (jobLabel.endsWith("Decode")) continue;
+      else if (jobLabel.endsWith("Start") || jobLabel.endsWith("Finishing")) el2.style.background = "var(--primary-800)";
+      else if (res && progress > 0 && progress < 1) el2.style.background = `linear-gradient(to right, var(--primary-500) 0%, var(--primary-800) ${gradient}, var(--neutral-700) ${gradient})`;
+      else el2.style.background = "var(--primary-500)";
     }
   }
 }
@@ -11118,7 +11117,7 @@ function requestProgress(id_task = "undefined", progressEl = null, galleryEl = n
         return;
       }
       if (elapsedFromStart > progressTimeout && !res.queued && res.progress === prevProgress) {
-        debug("progress", { end: res, reason: "progressSimeout" });
+        debug("progress", { end: res, reason: "progressTimeout" });
         if (!res.paused) removeLivePreview(false);
         return;
       }

@@ -61,17 +61,16 @@ export function setProgress(res?: any) {
   document.title = `SD.Next ${perc}`;
   for (const elId of elements) {
     const el = document.getElementById(elId);
-    if (el) {
-      const jobLabel = (res ? `${job} ${perc}${eta}` : 'Generate').trim();
-      el.innerText = jobLabel;
-      if (!window.waitForUiReady) {
-        const gradient = perc !== '' ? perc : '100%';
-        if (jobLabel === 'Generate') el.style.background = 'var(--primary-500)';
-        else if (jobLabel.endsWith('Decode')) continue;
-        else if (jobLabel.endsWith('Start') || jobLabel.endsWith('Finishing')) el.style.background = 'var(--primary-800)';
-        else if (res && progress > 0 && progress < 1) el.style.background = `linear-gradient(to right, var(--primary-500) 0%, var(--primary-800) ${gradient}, var(--neutral-700) ${gradient})`;
-        else el.style.background = 'var(--primary-500)';
-      }
+    if (!el) continue;
+    const jobLabel = (res ? `${job} ${perc}${eta}` : 'Generate').trim();
+    el.innerText = jobLabel;
+    if (!window.waitForUiReady) {
+      const gradient = perc !== '' ? perc : '100%';
+      if (jobLabel === 'Generate') el.style.background = 'var(--primary-500)';
+      else if (jobLabel.endsWith('Decode')) continue;
+      else if (jobLabel.endsWith('Start') || jobLabel.endsWith('Finishing')) el.style.background = 'var(--primary-800)';
+      else if (res && progress > 0 && progress < 1) el.style.background = `linear-gradient(to right, var(--primary-500) 0%, var(--primary-800) ${gradient}, var(--neutral-700) ${gradient})`;
+      else el.style.background = 'var(--primary-500)';
     }
   }
 }
@@ -175,7 +174,7 @@ export function requestProgress(id_task = 'undefined', progressEl = null, galler
         return;
       }
       if (elapsedFromStart > progressTimeout && !res.queued && res.progress === prevProgress) {
-        debug('progress', { end: res, reason: 'progressSimeout' });
+        debug('progress', { end: res, reason: 'progressTimeout' });
         if (!res.paused) removeLivePreview(false); // only abort if not paused
         return;
       }

@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-07-19
+## Update for 2026-07-30
 
 - **Compute**
   - torch: update to `2.13.0` for CUDA, ROCm, IPEX
@@ -15,9 +15,10 @@
   - process: read video properties metadata
   - logs: propagate server tracebacks to client
 - **Fixes**
-  - upscaler auto-refresh to catch chainner upscalers that are not loaded on first attempt  
-  - lora support diffusers trainer
-  - flux1 load t5
+  - upscaler: auto-refresh to catch chainner upscalers that are not loaded on first attempt  
+  - lora: support diffusers trainer
+  - load: flux1 t5
+  - preview: cache image for reuse
 
 ## Update for 2026-07-14
 
