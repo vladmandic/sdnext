@@ -32,8 +32,10 @@ def submit_video(video):
 
 def submit_process(tab_index, extras_image, image_batch, extras_batch_input_dir, extras_batch_output_dir, extras_video, show_extras_results, save_output, *script_inputs):
     from modules.ui_common import infotext_to_html
-    result_images, geninfo, _js_info = postprocessing.run_postprocessing(tab_index, extras_image, image_batch, extras_batch_input_dir, extras_batch_output_dir, extras_video, show_extras_results, *script_inputs, save_output=save_output)
-    return result_images, geninfo, infotext_to_html(geninfo)
+    result_images, result_video, geninfo, _js_info = postprocessing.run_postprocessing(tab_index, extras_image, image_batch, extras_batch_input_dir, extras_batch_output_dir, extras_video, show_extras_results, *script_inputs, save_output=save_output)
+    gr_result_image = gr.update(value=result_images, visible=tab_index != 3)
+    gr_result_video = gr.update(value=result_video, visible=tab_index == 3)
+    return gr_result_image, gr_result_video, geninfo, infotext_to_html(geninfo)
 
 
 def create_ui():
@@ -51,12 +53,12 @@ def create_ui():
                     extras_batch_output_dir = gr.Textbox(label="Output directory", **shared.hide_dirs, placeholder="Leave blank to save images to the default path.", elem_id="extras_batch_output_dir")
                     show_extras_results = gr.Checkbox(label='Show result images', value=True, elem_id="extras_show_extras_results")
                 with gr.Tab('Process Video', id="process_video", elem_id="extras_process_video_tab") as tab_process_video:
-                    extras_video = gr.Video(label="Input Video", show_label=False, interactive=True, elem_id="extras_video")
+                    extras_video = gr.Video(label="Input Video", show_label=False, height=512, interactive=True, elem_id="extras_video")
             with gr.Row():
                 save_output = gr.Checkbox(label='Save output', value=True, elem_id="extras_save_output")
 
             script_inputs = scripts_manager.scripts_postproc.setup_ui()
-        with gr.Column():
+        with gr.Column(elem_id="extras_output_column"):
             id_part = 'extras'
             with gr.Row(elem_id=f"{id_part}_generate_box", elem_classes="generate-box"):
                 submit = gr.Button('Generate', elem_id=f"{id_part}_generate", variant='primary')
@@ -66,9 +68,16 @@ def create_ui():
                 skip.click(fn=shared.state.skip, inputs=[], outputs=[])
                 pause = gr.Button('Pause', elem_id=f"{id_part}_pause")
                 pause.click(fn=shared.state.pause, _js='checkPaused', inputs=[], outputs=[])
-            result_images, generation_info, _html_info, html_info_formatted, _html_log = ui_common.create_output_panel("extras")
+
+            with gr.Tabs(elem_id="extras_output_tabs"):
+                with gr.Tab('Image', id="process_output_image", elem_id="extras_output_image_tab"):
+                    result_images, generation_info, _html_info, html_info_formatted, _html_log = ui_common.create_output_panel("extras")
+                with gr.Tab('Video', id="process_output_video", elem_id="extras_output_video_tab"):
+                    result_video = gr.Video(label="Video", show_label=False, interactive=False, elem_id="extras_output_video", visible=False)
+
             gr.HTML('File metadata')
             exif_info = gr.HTML(elem_id="pnginfo_html_info")
+
             with gr.Row(elem_id='copy_buttons_process'):
                 copy_process_buttons = generation_parameters_copypaste.create_buttons(["txt2img", "img2img", "control", "caption"])
 
@@ -100,6 +109,7 @@ def create_ui():
         ],
         outputs=[
             result_images,
+            result_video,
             generation_info,
             html_info_formatted,
         ]

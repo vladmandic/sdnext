@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-07-30
+## Update for 2026-07-20
 
 - **Compute**
   - torch: update to `2.13.0` for CUDA, ROCm, IPEX
@@ -11,8 +11,11 @@
   - sdnq attention optimizations
   - sdnq separate dit/te settings
 - **Features**
+  - process: read video properties and metadata
+  - process: allow processing of video files  
+    *note*: currently only seedvr postprocessing is supported  
+    other workflows will be added in future releases  
   - seedvr: enhanced upscaler support
-  - process: read video properties metadata
   - logs: propagate server tracebacks to client
   - networks: improve search and filtering to allow multi-words  
 - **Fixes**

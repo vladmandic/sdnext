@@ -11713,7 +11713,7 @@ function updateImg2imgResizeToTextAfterChangingImage() {
 }
 async function toggleCompact(val, old) {
   if (val === old) return;
-  log("toggleCompact", val, old);
+  log("toggleCompact", val);
   if (val) {
     gradioApp().style.setProperty("--layout-gap", "var(--spacing-md)");
     gradioApp().querySelectorAll("input[type=range]").forEach((el2) => el2.classList.add("hidden"));

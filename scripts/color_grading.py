@@ -16,6 +16,8 @@ class ScriptPostprocessingColorGrading(scripts_postprocessing.ScriptPostprocessi
         grading_params = processing_grading.GradingParams(*args, **kwargs)
         if not processing_grading.is_active(grading_params):
             return
+        if pp.image is None:
+            return
         pp.image = processing_grading.grade_image(pp.image, grading_params)
         defaults = processing_grading.GradingParams()
         for f in fields(grading_params):

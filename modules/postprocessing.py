@@ -14,104 +14,132 @@ def run_postprocessing(extras_mode,
                        image_folder: list[tempfile.NamedTemporaryFile],
                        input_dir,
                        output_dir,
-                       extras_video,
+                       video,
                        show_extras_results,
                        *args,
                        save_output: bool = True):
     devices.torch_gc()
-    shared.state.begin('Extras')
-    image_data = []
-    image_names = []
-    image_ext = []
-    outputs = []
-    params = {}
-    info = ''
-    if extras_mode == 1:
-        for img in image_folder:
-            if isinstance(img, Image.Image):
-                image = img
-                fn = ''
-                ext = None
-            else:
+    shared.state.begin('Process')
+
+    def prepare_inputs(image):
+        image_data = []
+        image_names = []
+        image_ext = []
+        if extras_mode == 1: # process batch
+            for img in image_folder:
+                if isinstance(img, Image.Image):
+                    image = img
+                    fn = ''
+                    ext = None
+                else:
+                    try:
+                        image = Image.open(os.path.abspath(img.name))
+                    except Exception as e:
+                        log.error(f'Failed to open image: file="{img.name}" {e}')
+                        continue
+                    fn, ext = os.path.splitext(img.orig_name)
+                image_data.append(image)
+                image_names.append(fn)
+                image_ext.append(ext)
+            log.debug(f'Process: mode=batch inputs={len(image_folder)} images={len(image_data)}')
+        elif extras_mode == 2: # process folder
+            assert input_dir, 'input directory not selected'
+            image_list = os.listdir(input_dir)
+            for filename in image_list:
+                fn = os.path.join(input_dir, filename)
                 try:
-                    image = Image.open(os.path.abspath(img.name))
+                    image = Image.open(fn)
                 except Exception as e:
-                    log.error(f'Failed to open image: file="{img.name}" {e}')
+                    log.error(f'Failed to open image: file="{fn}" {e}')
                     continue
-                fn, ext = os.path.splitext(img.orig_name)
+                image_data.append(image)
+                image_names.append(fn)
+                image_ext.append(None)
+            log.debug(f'Process: mode=folder inputs={input_dir} files={len(image_list)} images={len(image_data)}')
+        elif extras_mode == 3: # process video
+            pass
+        else: # process image
             image_data.append(image)
-            image_names.append(fn)
-            image_ext.append(ext)
-        log.debug(f'Process: mode=batch inputs={len(image_folder)} images={len(image_data)}')
-    elif extras_mode == 2:
-        assert input_dir, 'input directory not selected'
-        image_list = os.listdir(input_dir)
-        for filename in image_list:
-            fn = os.path.join(input_dir, filename)
-            try:
-                image = Image.open(fn)
-            except Exception as e:
-                log.error(f'Failed to open image: file="{fn}" {e}')
-                continue
-            image_data.append(image)
-            image_names.append(fn)
+            image_names.append(None)
             image_ext.append(None)
-        log.debug(f'Process: mode=folder inputs={input_dir} files={len(image_list)} images={len(image_data)}')
-    elif extras_mode == 3:
-        log.error(f'Process: mode=video file="{extras_video}" not implemented yet')
-    else:
-        image_data.append(image)
-        image_names.append(None)
-        image_ext.append(None)
+        return image_data, image_names, image_ext
+
+    image_data, image_names, image_ext = prepare_inputs(image)
+
     if extras_mode == 2 and output_dir != '':
         outpath = output_dir
     else:
         outpath = resolve_output_path(opts.outdir_samples, opts.outdir_extras_samples)
 
-    processed_images = []
-    for image, name, ext in zip(image_data, image_names, image_ext, strict=False): # pylint: disable=redefined-argument-from-local
-        log.debug(f'Process: image={image} {args}')
+    def process_images():
+        outputs = []
+        params = {}
         info = ''
-        if shared.state.interrupted:
-            log.debug('Postprocess interrupted')
-            break
-        if isinstance(image, str):
-            try:
-                image = Image.open(image)
-            except Exception as e:
-                log.error(f'Failed to open image: file="{image}" {e}')
+        processed_images = []
+        for image, name, ext in zip(image_data, image_names, image_ext, strict=False): # pylint: disable=redefined-argument-from-local
+            log.debug(f'Process: image={image} {args}')
+            info = ''
+            if shared.state.interrupted:
+                log.debug('Postprocess interrupted')
+                break
+            if isinstance(image, str):
+                try:
+                    image = Image.open(image)
+                except Exception as e:
+                    log.error(f'Failed to open image: file="{image}" {e}')
+                    continue
+            if image is None:
                 continue
-        if image is None:
-            continue
-        shared.state.textinfo = name
-        pp = scripts_postprocessing.PostprocessedImage(image.convert("RGB"))
+            shared.state.textinfo = name
+            pp = scripts_postprocessing.PostprocessedImage(image.convert("RGB"))
+            scripts_manager.scripts_postproc.run(pp, args)
+            geninfo, items = images.read_info_from_image(image)
+            params = infotext.parse(geninfo)
+            for k, v in items.items():
+                pp.image.info[k] = v
+            if 'parameters' in items:
+                info = items['parameters'] + ', '
+            if (params.get('size-1', 0) != pp.image.width) or (params.get('size-2', 0) != pp.image.height):
+                params['size-1'] = pp.image.width
+                params['size-2'] = pp.image.height
+                info += f"Size: {pp.image.width}x{pp.image.height}, "
+            info = info + ", ".join([k if k == v else f'{k}: {infotext.quote(v)}' for k, v in pp.info.items() if v is not None])
+            pp.image.info["postprocessing"] = info
+            processed_images.append(pp.image)
+            if save_output:
+                if opts.use_original_name_batch and name is not None:
+                    forced_filename = os.path.splitext(os.path.basename(name))[0]
+                    images.save_image(pp.image, path=outpath, extension=ext or opts.samples_format, info=info, grid=False, pnginfo_section_name="extras", existing_info=pp.image.info, forced_filename=forced_filename)
+                else:
+                    images.save_image(pp.image, path=outpath, extension=ext or opts.samples_format, info=info, grid=False, pnginfo_section_name="extras", existing_info=pp.image.info)
+            if extras_mode != 2 or show_extras_results:
+                outputs.append(pp.image)
+            image.close()
+        scripts_manager.scripts_postproc.postprocess(processed_images, args)
+        return outputs, info, params
+
+    def process_video():
+        outputs = []
+        params = {}
+        info = '' # TODO process: video add infotext
+        if not video or not isinstance(video, str) or not os.path.isfile(video):
+            log.error(f'Process: mode=video file="{video}" not found')
+            return outputs, video, info, params
+        log.debug(f'Process: video={video} {args}')
+        shared.state.textinfo = video
+        pp = scripts_postprocessing.PostprocessedImage(video=video)
         scripts_manager.scripts_postproc.run(pp, args)
-        geninfo, items = images.read_info_from_image(image)
-        params = infotext.parse(geninfo)
-        for k, v in items.items():
-            pp.image.info[k] = v
-        if 'parameters' in items:
-            info = items['parameters'] + ', '
-        if (params.get('size-1', 0) != pp.image.width) or (params.get('size-2', 0) != pp.image.height):
-            params['size-1'] = pp.image.width
-            params['size-2'] = pp.image.height
-            info += f"Size: {pp.image.width}x{pp.image.height}, "
-        info = info + ", ".join([k if k == v else f'{k}: {infotext.quote(v)}' for k, v in pp.info.items() if v is not None])
-        pp.image.info["postprocessing"] = info
-        processed_images.append(pp.image)
-        if save_output:
-            if opts.use_original_name_batch and name is not None:
-                forced_filename = os.path.splitext(os.path.basename(name))[0]
-                images.save_image(pp.image, path=outpath, extension=ext or opts.samples_format, info=info, grid=False, pnginfo_section_name="extras", existing_info=pp.image.info, forced_filename=forced_filename)
-            else:
-                images.save_image(pp.image, path=outpath, extension=ext or opts.samples_format, info=info, grid=False, pnginfo_section_name="extras", existing_info=pp.image.info)
-        if extras_mode != 2 or show_extras_results:
-            outputs.append(pp.image)
-        image.close()
-    scripts_manager.scripts_postproc.postprocess(processed_images, args)
+        return pp.video, info, params
+
+    if extras_mode == 3:
+        video, info, params = process_video()
+        outputs = []
+    else:
+        outputs, info, params = process_images()
+        video = None
 
     devices.torch_gc()
-    return outputs, info, params
+    return outputs, video, info, params
 
 
 def run_extras(extras_mode, resize_mode, image, image_folder, input_dir, output_dir, video, show_extras_results, upscaling_resize, upscaling_resize_w, upscaling_resize_h, upscaling_crop, extras_upscaler_1, extras_upscaler_2, extras_upscaler_2_visibility, save_output: bool = True, script_args: dict | None = None):

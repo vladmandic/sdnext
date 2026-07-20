@@ -729,7 +729,7 @@ function createThemeElement(): HTMLImageElement {
 
 export async function toggleCompact(val, old) {
   if (val === old) return;
-  log('toggleCompact', val, old);
+  log('toggleCompact', val);
   if (val) {
     gradioApp().style.setProperty('--layout-gap', 'var(--spacing-md)');
     gradioApp().querySelectorAll('input[type=range]').forEach((el) => el.classList.add('hidden'));

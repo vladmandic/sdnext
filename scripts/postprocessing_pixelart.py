@@ -31,6 +31,8 @@ class ScriptPixelArt(scripts_postprocessing.ScriptPostprocessing):
             return
         from modules.postprocess.pixelart import img_to_pixelart, edge_detect_for_pixelart
         pixel_image = pp.image
+        if pixel_image is None:
+            return
 
         if pixelart_use_edge_detection:
             pixel_image = edge_detect_for_pixelart(pixel_image, image_weight=pixelart_image_weight, block_size=pixelart_edge_block_size, device=devices.device)

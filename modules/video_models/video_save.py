@@ -256,6 +256,7 @@ def save_video(
     stream=None,  # async progress reporting stream
     metadata: dict | None = None,  # metadata for video
     pbar=None,  # progress bar for video
+    reclamp: bool = True,  # reclamp pixels to [-1, 1] range
 ):
     if metadata is None:
         metadata = {}
@@ -288,6 +289,8 @@ def save_video(
         log.error(f'Video: type={type(pixels)} not a tensor')
         return 0, output_video, None
     t_save = time.time()
+    if pixels.ndim == 4:
+        pixels = pixels.unsqueeze(0)
     n, _c, t, h, w = pixels.shape
     size = pixels.element_size() * pixels.numel()
     log.debug(f'Video: video={mp4_video} export={mp4_frames} safetensors={mp4_sf} interpolate={mp4_interpolate}')
@@ -304,8 +307,10 @@ def save_video(
             pixels = pixels.permute(1, 2, 0, 3, 4)
             pixels = pixels * 2.0 - 1.0
 
-        n, _c, t, h, w = pixels.shape
-        x = torch.clamp(pixels.float(), -1., 1.) * 127.5 + 127.5
+        if reclamp:
+            x = torch.clamp(pixels.float(), -1., 1.) * 127.5 + 127.5
+        else:
+            x = pixels.float() * 255.0
         x = x.detach().cpu().to(torch.uint8)
         x = einops.rearrange(x, '(m n) c t h w -> t (m h) (n w) c', n=n)
         x = x.contiguous()
