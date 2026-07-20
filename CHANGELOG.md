@@ -20,6 +20,7 @@
   - lora: support diffusers trainer
   - load: flux1 t5
   - preview: cache image for reuse
+  - kanvas: fix paint combined with zoom
 
 ## Update for 2026-07-14
 
