@@ -155,13 +155,12 @@ def run_extension_installer(ext_dir): # compatibility function
 
 
 def get_memory_stats(detailed:bool=False):
-    from modules.memstats import ram_stats, memory_stats
+    from modules.memstats import ram_stats, memory_stats, model_stats
     if not detailed:
         res = ram_stats()
         return f'{res["used"]}/{res["total"]}'
     else:
-        res = memory_stats()
-        return res
+        return { **memory_stats(), 'model': model_stats(as_gb=True) } # fresh dict: memory_stats returns a module global that the per-generation log also prints
 
 
 def clean_server():
