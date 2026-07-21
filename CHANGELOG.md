@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-07-20
+## Update for 2026-07-21
 
 - **Compute**
   - torch: update to `2.13.0` for CUDA, ROCm, IPEX
@@ -23,7 +23,8 @@
   - lora: support diffusers trainer
   - load: flux1 t5
   - preview: cache image for reuse
-  - kanvas: fix paint combined with zoom
+  - kanvas: paint combined with zoom
+  - rembg: numba dependencies
 
 ## Update for 2026-07-14
 

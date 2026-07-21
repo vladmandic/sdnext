@@ -18,6 +18,12 @@ models = [
 ]
 
 
+def dependencies():
+    from installer import install
+    for pkg in ["dctorch==0.1.2", "pymatting", "pooch", "rembg", "numba"]:
+        install(pkg, no_deps=True, ignore=False)
+
+
 class ScriptPostprocessingRembg(scripts_postprocessing.ScriptPostprocessing):
     name = "Remove background"
     order = 20000
@@ -81,9 +87,7 @@ class ScriptPostprocessingRembg(scripts_postprocessing.ScriptPostprocessing):
                 return pp
         else:
             try:
-                from installer import install
-                for pkg in ["dctorch==0.1.2", "pymatting", "pooch", "rembg"]:
-                    install(pkg, no_deps=True, ignore=False)
+                dependencies()
                 import rembg
                 if "U2NET_HOME" not in os.environ:
                     from modules.paths import models_path
