@@ -2,8 +2,9 @@ import torch
 from PIL import Image
 from torch import Tensor
 from torch.nn import functional as F
-from modules.seedvr.src.common.half_precision_fixes import safe_pad_operation, safe_interpolate_operation
 from torchvision.transforms import ToTensor, ToPILImage
+from modules.seedvr.src.common.half_precision_fixes import safe_pad_operation, safe_interpolate_operation
+
 
 def adain_color_fix(target: Image.Image, source: Image.Image):
     # Convert images to tensors
@@ -117,6 +118,10 @@ def wavelet_reconstruction(content_feat:Tensor, style_feat:Tensor):
                 mode='bilinear',
                 align_corners=False
             )
+
+    # align devices so reconstruction does not mix CPU and GPU tensors
+    if style_feat.device != content_feat.device:
+        style_feat = style_feat.to(content_feat.device)
 
     # calculate the wavelet decomposition of the content feature
     content_high_freq, content_low_freq = wavelet_decomposition(content_feat)

@@ -121,14 +121,17 @@ def run_postprocessing(extras_mode,
     def process_video():
         outputs = []
         params = {}
-        info = '' # TODO process: video add infotext
         if not video or not isinstance(video, str) or not os.path.isfile(video):
             log.error(f'Process: mode=video file="{video}" not found')
-            return outputs, video, info, params
+            return outputs, video, '', params
         log.debug(f'Process: video={video} {args}')
         shared.state.textinfo = video
         pp = scripts_postprocessing.PostprocessedImage(video=video)
         scripts_manager.scripts_postproc.run(pp, args)
+
+        from modules.video import get_video_info
+        params = get_video_info(pp.video)
+        info = ', '.join([f'{k}: {v}' for k, v in params.items()])
         return pp.video, info, params
 
     if extras_mode == 3:

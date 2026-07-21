@@ -7,6 +7,7 @@ from modules.seedvr.src.models.dit_v2 import na
 
 if TYPE_CHECKING:
     from modules.seedvr.src.models.dit_v2.nadit import NaDiT
+    from modules.seedvr.src.models.video_vae_v3.modules.attn_video_vae import VideoAutoencoderKLWrapper
 
 
 def optimized_channels_to_last(tensor: torch.Tensor) -> torch.Tensor:
@@ -49,7 +50,7 @@ class SeedVRPipeline():
         self.config = config
         self.device = device
         self.dtype = dtype
-        self.vae = None
+        self.vae: VideoAutoencoderKLWrapper = None
         self.dit: NaDiT = None
         self.sampler = None
         self.schedule = None
@@ -132,6 +133,7 @@ class SeedVRPipeline():
                 latent = rearrange(latent, "b c ... -> b ... c")
                 #latent = optimized_channels_to_last(latent)
                 latent = (latent - shift) * scale
+                latent = latent.contiguous()
                 latents.append(latent)
 
             # Ungroup back to individual latent with the original order.
@@ -174,10 +176,11 @@ class SeedVRPipeline():
                 latent = latent / scale + shift
                 latent = rearrange(latent, "b ... c -> b c ...")
                 #latent = optimized_channels_to_second(latent)
-                latent = latent.squeeze(2)
+                latent = latent.squeeze(2).contiguous()
 
                 # 🚀 OPTIMISATION 3: Décodage direct SANS autocast (utilise l'autocast externe)
                 sample = self.vae.decode(latent).sample
+                del latent
                 #sample = self.vae.decode(latent).sample
                 #sample = self.vae.decode(latent).sample
 
@@ -186,6 +189,7 @@ class SeedVRPipeline():
                     sample = self.vae.postprocess(sample)
 
                 samples.append(sample)
+                del sample
 
             # Ungroup back to individual sample with the original order.
             if self.config.vae.grouping:
@@ -277,9 +281,9 @@ class SeedVRPipeline():
             text_neg_embeds, text_neg_shapes = na.flatten(texts_neg)
 
         # Adapter les embeddings texte au dtype cible (compatible avec FP8)
-        if isinstance(text_pos_embeds, torch.Tensor):
+        if isinstance(text_pos_embeds, torch.Tensor) and text_pos_embeds.dtype != target_dtype:
             text_pos_embeds = text_pos_embeds.to(target_dtype)
-        if isinstance(text_neg_embeds, torch.Tensor):
+        if isinstance(text_neg_embeds, torch.Tensor) and text_neg_embeds.dtype != target_dtype:
             text_neg_embeds = text_neg_embeds.to(target_dtype)
 
         # Flatten.
@@ -289,7 +293,9 @@ class SeedVRPipeline():
         # Adapter les latents au dtype cible (compatible avec FP8)
         latents = latents.to(target_dtype) if latents.dtype != target_dtype else latents
         latents_cond = latents_cond.to(target_dtype) if latents_cond.dtype != target_dtype else latents_cond
-        self.dit = self.dit.to(device=self.device, dtype=target_dtype)
+        current_dit_param = next(self.dit.parameters())
+        if current_dit_param.dtype != target_dtype or current_dit_param.device != torch.device(self.device):
+            self.dit = self.dit.to(device=self.device, dtype=target_dtype)
 
         latents = self.sampler.sample(
             x=latents,
@@ -321,6 +327,7 @@ class SeedVRPipeline():
         vae_dtype = self.vae.dtype
         decode_dtype = torch.float16 if (vae_dtype == torch.float16 or target_dtype == torch.float16) else vae_dtype
         samples = self.vae_decode(latents, target_dtype=decode_dtype)
+        del latents
 
         if samples and len(samples) > 0 and samples[0].dtype != torch.float16:
             samples = [sample.to(torch.float16, non_blocking=True) for sample in samples]

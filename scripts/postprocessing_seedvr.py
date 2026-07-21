@@ -16,20 +16,36 @@ class ScriptSeedVR(scripts_postprocessing.ScriptPostprocessing):
                 seedvr_offload = gr.Checkbox(label="Offload model", value=True, elem_id="extras_seedvr_offload")
             with gr.Row():
                 seedvr_selected = gr.Dropdown(label="SeedVR model", choices=list(MODELS_MAP.keys()), value=list(MODELS_MAP.keys())[0], elem_id="extras_seedvr_model")
-            with gr.Row():
                 seedvr_scale = gr.Slider(minimum=1, maximum=16, step=0.1, value=2, label="SeedVR scale", elem_id="extras_seedvr_scale")
-                seedvr_steps = gr.Slider(step=1, value=1, minimum=1, maximum=99, label="SeedVR steps", elem_id="extras_seedvr_steps")
-            with gr.Row():
-                seedvr_seed = gr.Number(step=1, value=-1, label="SeedVR seed", elem_id="extras_seedvr_seed")
-            with gr.Row():
-                seedvr_cfg_scale = gr.Slider(minimum=0.0, maximum=15.0, step=0.01, value=1.5, label="SeedVR guidance scale", elem_id="extras_seedvr_cfg_scale")
-                seedvr_cfg_rescale = gr.Slider(minimum=0.0, maximum=15.0, step=0.01, value=0.0, label="SeedVR guidance rescale", elem_id="extras_seedvr_cfg_rescale")
-            with gr.Row():
-                seedvr_tile_size = gr.Slider(minimum=64, maximum=4096, step=8, value=1024, label="SeedVR tile size", elem_id="extras_seedvr_tile_size")
-                seedvr_tile_overlap = gr.Slider(minimum=0, maximum=1.0, step=0.01, value=0.25, label="SeedVR tile overlap", elem_id="extras_seedvr_tile_overlap")
-            with gr.Row():
-                seedvr_batch_size = gr.Slider(minimum=1, maximum=64, step=1, value=1, label="SeedVR batch size", elem_id="extras_seedvr_batch_size")
-                seedvr_batch_overlap = gr.Slider(minimum=0, maximum=16, step=1, value=0, label="SeedVR batch overlap", elem_id="extras_seedvr_batch_overlap")
+            with gr.Accordion('SeedVR advanced', open = False, elem_id="postprocess_seedvr_advanced_accordion"):
+                with gr.Row():
+                    seedvr_steps = gr.Slider(step=1, value=1, minimum=1, maximum=99, label="SeedVR steps", elem_id="extras_seedvr_steps")
+                    seedvr_seed = gr.Number(step=1, value=-1, label="SeedVR seed", elem_id="extras_seedvr_seed")
+                with gr.Row():
+                    seedvr_cfg_scale = gr.Slider(minimum=0.0, maximum=15.0, step=0.01, value=1.5, label="SeedVR guidance scale", elem_id="extras_seedvr_cfg_scale")
+                    seedvr_cfg_rescale = gr.Slider(minimum=0.0, maximum=15.0, step=0.01, value=0.0, label="SeedVR guidance rescale", elem_id="extras_seedvr_cfg_rescale")
+            with gr.Accordion('SeedVR VAE', open = False, elem_id="postprocess_seedvr_vae_accordion"):
+                with gr.Row():
+                    seedvr_vae_tile_encode = gr.Checkbox(label="VAE tiled encode", value=True, elem_id="extras_seedvr_vae_tile_encode")
+                    seedvr_vae_tile_decode = gr.Checkbox(label="VAE tiled decode", value=True, elem_id="extras_seedvr_vae_tile_decode")
+                with gr.Row():
+                    seedvr_tile_size = gr.Slider(minimum=64, maximum=4096, step=8, value=1024, label="SeedVR tile size", elem_id="extras_seedvr_tile_size")
+                    seedvr_tile_overlap = gr.Slider(minimum=0, maximum=1.0, step=0.01, value=0.25, label="SeedVR tile overlap", elem_id="extras_seedvr_tile_overlap")
+                with gr.Row():
+                    seedvr_vae_memory = gr.Slider(minimum=0.1, maximum=1.0, step=0.01, value=1.0, label="SeedVR VAE memory", elem_id="extras_seedvr_vae_memory")
+            with gr.Accordion('SeedVR video', open = False, elem_id="postprocess_seedvr_video_accordion"):
+                with gr.Row():
+                    seedvr_batch_size = gr.Slider(minimum=1, maximum=64, step=1, value=1, label="SeedVR batch size", elem_id="extras_seedvr_batch_size")
+                    seedvr_batch_overlap = gr.Slider(minimum=0, maximum=16, step=1, value=0, label="SeedVR batch overlap", elem_id="extras_seedvr_batch_overlap")
+                with gr.Row():
+                    seedvr_interpolate = gr.Slider(label="RIFE interpolate frames", minimum=0, maximum=4, step=1, value=0, elem_id="extras_seedvr_interpolate")
+                with gr.Row():
+                    from modules.video_models.video_utils import get_codecs
+                    from modules.ui_common import create_refresh_button
+                    seedvr_codec = gr.Dropdown(label="Video codec", choices=['none', 'libx264'], value='libx264', type='value')
+                    create_refresh_button(seedvr_codec, get_codecs, elem_id="video_mp4_codec_refresh")
+                    seedvr_codec_opt = gr.Textbox(label="Video options", value='crf:16', elem_id="video_mp4_opt")
+
         return {
             "seedvr_enabled": seedvr_enabled,
             "seedvr_selected": seedvr_selected,
@@ -43,6 +59,12 @@ class ScriptSeedVR(scripts_postprocessing.ScriptPostprocessing):
             "seedvr_batch_size": seedvr_batch_size,
             "seedvr_batch_overlap": seedvr_batch_overlap,
             "seedvr_offload": seedvr_offload,
+            "seedvr_interpolate": seedvr_interpolate,
+            "seedvr_codec": seedvr_codec,
+            "seedvr_codec_opt": seedvr_codec_opt,
+            "seedvr_vae_memory": seedvr_vae_memory,
+            "seedvr_vae_tile_encode": seedvr_vae_tile_encode,
+            "seedvr_vae_tile_decode": seedvr_vae_tile_decode,
         }
 
     def process(self,
@@ -58,19 +80,22 @@ class ScriptSeedVR(scripts_postprocessing.ScriptPostprocessing):
                 seedvr_tile_overlap: float,
                 seedvr_batch_size: int,
                 seedvr_batch_overlap: int,
-                seedvr_offload: bool
+                seedvr_offload: bool,
+                seedvr_interpolate: int,
+                seedvr_codec: str,
+                seedvr_codec_opt: str,
+                seedvr_vae_memory: float,
+                seedvr_vae_tile_encode: bool,
+                seedvr_vae_tile_decode: bool,
                ): # pylint: disable=arguments-differ
         if not seedvr_enabled:
             return
         from modules import shared, upscaler
-        from modules.logger import log
         _input = pp.image or pp.video
         if _input is None:
             return
         instance: upscaler.UpscalerData = next(iter([x for x in shared.sd_upscalers if x.name == seedvr_selected]), None)
         scaler: UpscalerSeedVR = instance.scaler
-
-        log.info(f'Upscaler: type="SeedVR" model="{seedvr_selected}" scale={seedvr_scale} seed={seedvr_seed} steps={seedvr_steps} cfg_scale={seedvr_cfg_scale} cfg_rescale={seedvr_cfg_rescale} tile_size={seedvr_tile_size} tile_overlap={seedvr_tile_overlap} batch_size={seedvr_batch_size} batch_overlap={seedvr_batch_overlap}')
 
         jobid = shared.state.begin('Upscale')
 
@@ -85,7 +110,13 @@ class ScriptSeedVR(scripts_postprocessing.ScriptPostprocessing):
                                      tile_overlap=seedvr_tile_overlap,
                                      batch_size=seedvr_batch_size,
                                      batch_overlap=seedvr_batch_overlap,
-                                     offload=seedvr_offload
+                                     offload=seedvr_offload,
+                                     interpolate=seedvr_interpolate,
+                                     codec=seedvr_codec,
+                                     codec_opt=seedvr_codec_opt,
+                                     vae_memory=seedvr_vae_memory,
+                                     vae_tile_encode=seedvr_vae_tile_encode,
+                                     vae_tile_decode=seedvr_vae_tile_decode,
                                     )
         shared.state.end(jobid)
 

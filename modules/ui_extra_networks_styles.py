@@ -77,8 +77,8 @@ class ExtraNetworksPageStyles(ui_extra_networks.ExtraNetworksPage):
             name = getattr(style, 'name', '')
             if name == '':
                 return item
-            txt = f'Prompt: {getattr(style, "prompt", "")}'
-            if len(getattr(style, 'negative_prompt', '')) > 0:
+            txt = f'Prompt: {getattr(style, "prompt", "") or ""}'
+            if len(getattr(style, 'negative_prompt', '') or '') > 0:
                 txt += f'\nNegative: {style.negative_prompt}'
             item = {
                 "type": 'Style',

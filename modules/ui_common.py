@@ -62,14 +62,18 @@ def infotext_to_html(text):
     res.pop('Negative template', None)
 
     runtime = {}
-    runtime['App'] = res.get('App', '')
-    res.pop('App', None)
-    runtime['Version'] = res.get('Version', '')
-    res.pop('Version', None)
-    runtime['Pipeline'] = res.get('Pipeline', '')
-    res.pop('Pipeline', None)
-    runtime['Operations'] = res.get('Operations', '')
-    res.pop('Operations', None)
+    if 'App' in res:
+        runtime['App'] = res.get('App', '')
+        res.pop('App', None)
+    if 'Version' in res:
+        runtime['Version'] = res.get('Version', '')
+        res.pop('Version', None)
+    if 'Pipeline' in res:
+        runtime['Pipeline'] = res.get('Pipeline', '')
+        res.pop('Pipeline', None)
+    if 'Operations' in res:
+        runtime['Operations'] = res.get('Operations', '')
+        res.pop('Operations', None)
 
     params = [f'{k}: {v}' for k, v in res.items() if v is not None and not k.endswith('-1') and not k.endswith('-2')]
     params = '| '.join(params) if len(params) > 0 else ''

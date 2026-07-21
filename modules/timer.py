@@ -28,6 +28,13 @@ class Timer:
             self.records[name] = 0
         self.records[name] += t
 
+    def rm(self, name):
+        if name in self.records:
+            del self.records[name]
+
+    def get(self, name):
+        return self.records.get(name, 0)
+
     def ts(self, name, t):
         elapsed = time.time() - t
         self.add(name, elapsed)

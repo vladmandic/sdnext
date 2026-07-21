@@ -114,14 +114,26 @@ class Upsample3D(Upsample2D):
             hidden_states = [hidden_states]
         # ADD BY NUMZ
         for i in range(len(hidden_states)):
-            hidden_states[i] = self.upscale_conv(hidden_states[i])
-            hidden_states[i] = rearrange(
-                hidden_states[i],
-                "b (x y z c) f h w -> b c (f z) (h x) (w y)",
-                x=self.spatial_ratio,
-                y=self.spatial_ratio,
-                z=self.temporal_ratio,
-            )
+            if self.use_conv and hasattr(self, "upscale_conv") and self.upscale_conv.kernel_size == (1, 1, 1):
+                hidden_states[i] = hidden_states[i].repeat_interleave(self.temporal_ratio, dim=2)
+                if self.spatial_ratio != 1:
+                    hidden_states[i] = hidden_states[i].repeat_interleave(self.spatial_ratio, dim=3)
+                    hidden_states[i] = hidden_states[i].repeat_interleave(self.spatial_ratio, dim=4)
+            elif self.use_conv:
+                hidden_states[i] = self.upscale_conv(hidden_states[i])
+                hidden_states[i] = rearrange(
+                    hidden_states[i],
+                    "b (x y z c) f h w -> b c (f z) (h x) (w y)",
+                    x=self.spatial_ratio,
+                    y=self.spatial_ratio,
+                    z=self.temporal_ratio,
+                ).contiguous()
+            else:
+                if self.temporal_ratio != 1:
+                    hidden_states[i] = hidden_states[i].repeat_interleave(self.temporal_ratio, dim=2)
+                if self.spatial_ratio != 1:
+                    hidden_states[i] = hidden_states[i].repeat_interleave(self.spatial_ratio, dim=3)
+                    hidden_states[i] = hidden_states[i].repeat_interleave(self.spatial_ratio, dim=4)
 
         # [Overridden] For causal temporal conv
         if self.temporal_up and memory_state != MemoryState.ACTIVE:
@@ -1146,9 +1158,13 @@ class VideoAutoencoderKL(diffusers.AutoencoderKL):
 
     @apply_forward_hook
     def encode(self, x: torch.FloatTensor, return_dict: bool = True) -> AutoencoderKLOutput:
-        # h = self.slicing_encode(x)
-        h = self.tiled_encode(x)
-        posterior = DiagonalGaussianDistribution(h)
+        if self.use_slicing_encode:
+            encoded = self.slicing_encode(x)
+        elif self.use_tiling_encode:
+            encoded = self.tiled_encode(x)
+        else:
+            encoded = self._encode(x)
+        posterior = DiagonalGaussianDistribution(encoded)
 
         if not return_dict:
             return (posterior,)
@@ -1159,8 +1175,12 @@ class VideoAutoencoderKL(diffusers.AutoencoderKL):
     def decode(
         self, z: torch.Tensor, return_dict: bool = True
     ) -> Union[DecoderOutput, torch.Tensor]:
-        # decoded = self.slicing_decode(z)
-        decoded = self.tiled_decode(z)
+        if self.use_slicing_decode:
+            decoded = self.slicing_decode(z)
+        elif self.use_tiling_decode:
+            decoded = self.tiled_decode(z)
+        else:
+            decoded = self._decode(z)
 
         if not return_dict:
             return (decoded,)
@@ -1170,8 +1190,7 @@ class VideoAutoencoderKL(diffusers.AutoencoderKL):
     def _encode(
         self, x: torch.Tensor, memory_state: MemoryState = MemoryState.DISABLED
     ) -> torch.Tensor:
-        _x = x.to(self.device)
-        _x = causal_conv_slice_inputs(_x, self.slicing_sample_min_size, memory_state=memory_state)
+        _x = causal_conv_slice_inputs(x.to(self.device), self.slicing_sample_min_size, memory_state=memory_state)
         h = self.encoder(_x, memory_state=memory_state)
         if self.quant_conv is not None:
             output = self.quant_conv(h, memory_state=memory_state)
@@ -1243,53 +1262,109 @@ class VideoAutoencoderKL(diffusers.AutoencoderKL):
         overlap_size = int(self.tile_sample_min_size * (1 - self.tile_overlap_factor))
         blend_extent = int(self.tile_latent_min_size * self.tile_overlap_factor)
         row_limit = self.tile_latent_min_size - blend_extent
-        rows = []
+        prev_row = None
         self.tiles = 0
-        for i in range(0, x.shape[3], overlap_size):
-            row = []
-            for j in range(0, x.shape[4], overlap_size):
+
+        row_positions = list(range(0, x.shape[3], overlap_size))
+        col_positions = list(range(0, x.shape[4], overlap_size))
+        enc = None
+        output_width = 0
+        h_cursor = 0
+
+        for _row_idx, i in enumerate(row_positions):
+            row_tiles = []
+            for tile_idx, j in enumerate(col_positions):
                 tile = x[:, :, :, i : i + self.tile_sample_min_size, j : j + self.tile_sample_min_size]
                 tile = self._encode(tile)
-                row.append(tile)
+                if tile.ndim == 4:
+                    tile = tile.unsqueeze(0)
+                if prev_row is not None:
+                    tile = self.blend_v(prev_row[tile_idx], tile, blend_extent)
+                if tile_idx > 0:
+                    tile = self.blend_h(row_tiles[-1], tile, blend_extent)
+                row_tiles.append(tile)
                 self.tiles += 1
-            rows.append(row)
-        result_rows = []
-        for i, row in enumerate(rows):
-            result_row = []
-            for j, tile in enumerate(row):
-                if i > 0:
-                    tile = self.blend_v(rows[i - 1][j], tile, blend_extent)
-                if j > 0:
-                    tile = self.blend_h(row[j - 1], tile, blend_extent)
-                result_row.append(tile[:, :, :, :row_limit, :row_limit])
-            result_rows.append(torch.cat(result_row, dim=4))
-        enc = torch.cat(result_rows, dim=3)
-        return enc
+
+            cropped_tiles = [tile[:, :, :, :row_limit, :row_limit] for tile in row_tiles]
+            row_width = 0
+            for cropped in cropped_tiles:
+                row_width += cropped.shape[-1]
+                if output_width < cropped.shape[-1]:
+                    output_width = cropped.shape[-1]
+
+            if enc is None:
+                enc = torch.empty(
+                    cropped_tiles[0].shape[0],
+                    cropped_tiles[0].shape[1],
+                    cropped_tiles[0].shape[2],
+                    len(row_positions) * row_limit,
+                    len(col_positions) * row_limit,
+                    dtype=cropped_tiles[0].dtype,
+                    device=cropped_tiles[0].device,
+                )
+
+            w_cursor = 0
+            for cropped in cropped_tiles:
+                enc[:, :, :, h_cursor : h_cursor + cropped.shape[-2], w_cursor : w_cursor + cropped.shape[-1]] = cropped
+                w_cursor += cropped.shape[-1]
+
+            h_cursor += cropped_tiles[0].shape[-2]
+            prev_row = row_tiles
+
+        return enc[:, :, :, :h_cursor, :w_cursor]
 
     def tiled_decode(self, z: torch.Tensor) -> torch.Tensor:
         overlap_size = int(self.tile_latent_min_size * (1 - self.tile_overlap_factor))
         blend_extent = int(self.tile_sample_min_size * self.tile_overlap_factor)
         row_limit = self.tile_sample_min_size - blend_extent
-        rows = []
-        for i in range(0, z.shape[3], overlap_size):
-            row = []
-            for j in range(0, z.shape[4], overlap_size):
+        prev_row = None
+
+        row_positions = list(range(0, z.shape[3], overlap_size))
+        col_positions = list(range(0, z.shape[4], overlap_size))
+        dec = None
+        output_width = 0
+        h_cursor = 0
+
+        for _row_idx, i in enumerate(row_positions):
+            row_tiles = []
+            for tile_idx, j in enumerate(col_positions):
                 tile = z[:, :, :, i : i + self.tile_latent_min_size, j : j + self.tile_latent_min_size]
                 decoded = self.decoder(tile)
-                row.append(decoded)
-            rows.append(row)
-        result_rows = []
-        for i, row in enumerate(rows):
-            result_row = []
-            for j, tile in enumerate(row):
-                if i > 0:
-                    tile = self.blend_v(rows[i - 1][j], tile, blend_extent)
-                if j > 0:
-                    tile = self.blend_h(row[j - 1], tile, blend_extent)
-                result_row.append(tile[:, :, :, :row_limit, :row_limit])
-            result_rows.append(torch.cat(result_row, dim=4))
-        dec = torch.cat(result_rows, dim=3)
-        return dec
+                if decoded.ndim == 4:
+                    decoded = decoded.unsqueeze(0)
+                if prev_row is not None:
+                    decoded = self.blend_v(prev_row[tile_idx], decoded, blend_extent)
+                if tile_idx > 0:
+                    decoded = self.blend_h(row_tiles[-1], decoded, blend_extent)
+                row_tiles.append(decoded)
+
+            cropped_tiles = [tile[:, :, :, :row_limit, :row_limit] for tile in row_tiles]
+            row_width = 0
+            for cropped in cropped_tiles:
+                row_width += cropped.shape[-1]
+                if output_width < cropped.shape[-1]:
+                    output_width = cropped.shape[-1]
+
+            if dec is None:
+                dec = torch.empty(
+                    cropped_tiles[0].shape[0],
+                    cropped_tiles[0].shape[1],
+                    cropped_tiles[0].shape[2],
+                    len(row_positions) * row_limit,
+                    len(col_positions) * row_limit,
+                    dtype=cropped_tiles[0].dtype,
+                    device=cropped_tiles[0].device,
+                )
+
+            w_cursor = 0
+            for cropped in cropped_tiles:
+                dec[:, :, :, h_cursor : h_cursor + cropped.shape[-2], w_cursor : w_cursor + cropped.shape[-1]] = cropped
+                w_cursor += cropped.shape[-1]
+
+            h_cursor += cropped_tiles[0].shape[-2]
+            prev_row = row_tiles
+
+        return dec[:, :, :, :h_cursor, :w_cursor]
 
     def forward(
         self, x: torch.FloatTensor, mode: Literal["encode", "decode", "all"] = "all", **kwargs
@@ -1330,7 +1405,6 @@ class VideoAutoencoderKLWrapper(VideoAutoencoderKL):
     ):
         self.spatial_downsample_factor = spatial_downsample_factor
         self.temporal_downsample_factor = temporal_downsample_factor
-        self.freeze_encoder = freeze_encoder
         self.freeze_encoder = True
         super().__init__(*args, **kwargs)
 
