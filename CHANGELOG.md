@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-07-21
+## Update for 2026-07-22
 
 - **Compute**
   - torch: update to `2.13.0` for CUDA, ROCm, IPEX
@@ -18,6 +18,7 @@
   - seedvr: enhanced upscaler support
   - logs: propagate server tracebacks to client
   - networks: improve search and filtering to allow multi-words  
+  - hotkeys: add alt+0-9 to switch to tab 0-9
 - **Fixes**
   - upscaler: auto-refresh to catch chainner upscalers that are not loaded on first attempt  
   - lora: support diffusers trainer
@@ -25,6 +26,7 @@
   - preview: cache image for reuse
   - kanvas: paint combined with zoom
   - rembg: numba dependencies
+  - hotkeys: legacy-vs-modernui
 
 ## Update for 2026-07-14
 
