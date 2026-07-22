@@ -1,6 +1,6 @@
 from functools import wraps
 import torch
-from modules import rocm, errors
+from modules import rocm, errors, devices
 from modules.logger import log
 from installer import install, installed, torch_info
 
@@ -262,7 +262,7 @@ def set_diffusers_attention(pipe, quiet = False):
     if shared.opts.cross_attention_optimization == "Disabled":
         torch_info.set(attention="disabled")
     elif shared.opts.cross_attention_optimization == "Scaled-Dot-Product":  # The default set by Diffusers
-        torch_info.set(attention="sdpa")
+        devices.set_sdpa_params()
         # set_attn(pipe, p.AttnProcessor2_0(), name="Scaled-Dot-Product")
     elif shared.opts.cross_attention_optimization == "xFormers":
         if hasattr(pipe, 'enable_xformers_memory_efficient_attention'):
