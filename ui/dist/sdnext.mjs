@@ -11469,8 +11469,12 @@ function submit_video_wrapper(...args) {
   if (btn) btn.click();
 }
 function submit_postprocessing(...args) {
-  log("SubmitExtras");
+  const id = randomId();
+  log("SubmitProcess", id);
   clearGallery("extras");
+  requestProgress(id, null, null);
+  window.submit_state = "";
+  args[0] = id;
   return args;
 }
 window.submit_state = "";

@@ -1,6 +1,6 @@
 import os
 import gradio as gr
-from modules import scripts_manager, shared, ui_common, postprocessing, call_queue, generation_parameters_copypaste
+from modules import scripts_manager, shared, progress, ui_common, postprocessing, call_queue, generation_parameters_copypaste
 from modules.logger import log
 
 
@@ -30,9 +30,12 @@ def submit_video(video):
     return html, '', text
 
 
-def submit_process(tab_index, extras_image, image_batch, extras_batch_input_dir, extras_batch_output_dir, extras_video, show_extras_results, save_output, *script_inputs):
+def submit_process(job_id, tab_index, extras_image, image_batch, extras_batch_input_dir, extras_batch_output_dir, extras_video, show_extras_results, save_output, *script_inputs):
+    progress.start_task(job_id)
     from modules.ui_common import infotext_to_html
     result_images, result_video, geninfo, _js_info = postprocessing.run_postprocessing(tab_index, extras_image, image_batch, extras_batch_input_dir, extras_batch_output_dir, extras_video, show_extras_results, *script_inputs, save_output=save_output)
+    progress.finish_task(job_id)
+
     gr_result_image = gr.update(value=result_images, visible=tab_index != 3)
     gr_result_video = gr.update(value=result_video, visible=tab_index == 3)
     return gr_result_image, gr_result_video, geninfo, infotext_to_html(geninfo)
@@ -61,7 +64,7 @@ def create_ui():
         with gr.Column(elem_id="extras_output_column"):
             id_part = 'extras'
             with gr.Row(elem_id=f"{id_part}_generate_box", elem_classes="generate-box"):
-                submit = gr.Button('Generate', elem_id=f"{id_part}_generate", variant='primary')
+                submit = gr.Button('Process', elem_id=f"{id_part}_generate", variant='primary')
                 interrupt = gr.Button('Stop', elem_id=f"{id_part}_interrupt", variant='secondary')
                 interrupt.click(fn=shared.state.interrupt, inputs=[], outputs=[])
                 skip = gr.Button('Skip', elem_id=f"{id_part}_skip", variant='secondary')
@@ -85,6 +88,7 @@ def create_ui():
             generation_parameters_copypaste.register_paste_params_button(generation_parameters_copypaste.ParamBinding(paste_button=button, tabname=tabname, source_text_component=generation_info, source_image_component=extras_image))
         generation_parameters_copypaste.add_paste_fields("extras", extras_image, None)
 
+    job_id = gr.Textbox(value='none', visible=False)
     tab_single.select(fn=lambda: 0, inputs=[], outputs=[tab_index])
     tab_batch.select(fn=lambda: 1, inputs=[], outputs=[tab_index])
     tab_batch_dir.select(fn=lambda: 2, inputs=[], outputs=[tab_index])
@@ -97,6 +101,7 @@ def create_ui():
         _js="submit_postprocessing",
         fn=call_queue.wrap_gradio_gpu_call(submit_process, extra_outputs=[None, None, ''], name='Postprocess'),
         inputs=[
+            job_id,
             tab_index,
             extras_image,
             image_batch,

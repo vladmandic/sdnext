@@ -3,7 +3,7 @@ import tempfile
 
 from PIL import Image
 
-from modules import shared, images, devices, scripts_manager, scripts_postprocessing, infotext
+from modules import shared, images, devices, errors, scripts_manager, scripts_postprocessing, infotext
 from modules.logger import log
 from modules.shared import opts
 from modules.paths import resolve_output_path
@@ -19,7 +19,7 @@ def run_postprocessing(extras_mode,
                        *args,
                        save_output: bool = True):
     devices.torch_gc()
-    shared.state.begin('Process')
+    job_id = shared.state.begin('Process')
 
     def prepare_inputs(image):
         image_data = []
@@ -135,13 +135,28 @@ def run_postprocessing(extras_mode,
         return pp.video, info, params
 
     if extras_mode == 3:
-        video, info, params = process_video()
+        try:
+            video, info, params = process_video()
+        except Exception as e:
+            log.error(f'Process: mode=video {e}')
+            errors.display(e, 'postprocessing video')
+            video = None
+            info = str(e)
+            params = {}
         outputs = []
     else:
-        outputs, info, params = process_images()
+        try:
+            outputs, info, params = process_images()
+        except Exception as e:
+            log.error(f'Process: mode=image {e}')
+            errors.display(e, 'postprocessing image')
+            outputs = []
+            info = str(e)
+            params = {}
         video = None
 
     devices.torch_gc()
+    shared.state.end(job_id)
     return outputs, video, info, params
 
 

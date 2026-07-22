@@ -14,10 +14,10 @@
 - Video processing add/verify full API support, @CalamitousFelicitousness
 - Storage analyzer, @vladmandic
 - Lora: new handler, @CalamitousFelicitousness
+- Vide: full prompt enhance
 - Processing -> Video capabilities, @vladmandic
   - `NudeNet` in processing
   - `RIFE` in processing
-  - `SeedVR2` in processing
 
 ### Unassigned
 

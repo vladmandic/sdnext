@@ -27,6 +27,7 @@
   - kanvas: paint combined with zoom
   - rembg: numba dependencies
   - hotkeys: legacy-vs-modernui
+  - process: generate button busy tracking
 
 ## Update for 2026-07-14
 
