@@ -47,6 +47,7 @@ if os.environ.get("SDNQ_USE_TRITON_MM", None) is None:
     use_triton_mm = bool(not is_alchemist_or_igpu and (devices.backend in {"cuda", "rocm", "ipex", "xpu", "zluda"}))
 else:
     use_triton_mm = bool(os.environ.get("SDNQ_USE_TRITON_MM", "0").lower() not in {"0", "false", "no"})
+use_triton_scaled_mm = use_triton_mm and os.environ.get("SDNQ_USE_TRITON_SCALED_MM", "1").lower() not in {"0", "false", "no"}
 
 if os.environ.get("SDNQ_USE_TENSORWISE_FP8_MM", None) is None:
     # row-wise FP8 only exist on H100 hardware, sdnq will use software row-wise with tensorwise hardware with this setting
@@ -96,17 +97,20 @@ if use_openvino_mm:
 elif use_triton_mm:
     try:
         from .kernels.triton_mm import sdnq_triton_mm
-        from .kernels.triton_scaled_mm import sdnq_scaled_mm
         int_mm_func = sdnq_triton_mm
         fp_mm_func = sdnq_triton_mm
-        int_scaled_mm_func = sdnq_scaled_mm
-        fp_scaled_mm_func = sdnq_scaled_mm
         if is_fp8_mm_supported:
             fp8_mm_func = sdnq_triton_mm
-            fp8_scaled_mm_func = sdnq_scaled_mm
             use_tensorwise_fp8_matmul = True
+        if use_triton_scaled_mm:
+            from .kernels.triton_scaled_mm import sdnq_scaled_mm
+            int_scaled_mm_func = sdnq_scaled_mm
+            fp_scaled_mm_func = sdnq_scaled_mm
+            if is_fp8_mm_supported:
+                fp8_scaled_mm_func = sdnq_scaled_mm
     except Exception as e:
         use_triton_mm = False
+        use_triton_scaled_mm = False
         shared.log.warning(f"SDNQ: Triton kernels are not available! Falling back to PyTorch Eager kernels. Error message: {e}")
 
 
@@ -117,11 +121,13 @@ if (
 ):
     try:
         from .kernels.triton_mm import sdnq_triton_mm
-        from .kernels.triton_scaled_mm import sdnq_scaled_mm
         fp_mm_func = sdnq_triton_mm
-        fp_scaled_mm_func = sdnq_scaled_mm
+        if use_triton_scaled_mm:
+            from .kernels.triton_scaled_mm import sdnq_scaled_mm
+            fp_scaled_mm_func = sdnq_scaled_mm
     except Exception:
         use_triton_mm = False
+        use_triton_scaled_mm = False
 
 
 if int_mm_func is None:

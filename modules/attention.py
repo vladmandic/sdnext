@@ -27,7 +27,7 @@ def set_sdnq_attention():
             if (
                 query.device.type != "cpu"
                 and (query.shape[-2] >= 32 and key.shape[-2] >= 32)
-                and (query.shape[-2] >= 512 or key.shape[-2] >= 512) # Skip TE
+                and (query.shape[-2] > 512 or key.shape[-2] > 512) # Skip TE
                 and query.shape[-3] > 1 # Skip VAE
             ):
                 return sdnq_triton_atten(
