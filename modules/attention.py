@@ -45,7 +45,7 @@ def set_sdnq_attention():
                 return sdpa_pre_sdnq_atten(query=query, key=key, value=value, attn_mask=attn_mask, dropout_p=dropout_p, is_causal=is_causal, scale=scale, **kwargs)
         torch.nn.functional.scaled_dot_product_attention = sdpa_sdnq_atten
         torch_info.set(attention='sdnq')
-        log.debug('Torch attention: type="SDNQ attention"')
+        log.debug(f'Torch attention: type="SDNQ attention" matmul={shared.opts.sdnq_attention_matmul_type}:{shared.opts.sdnq_attention_pv_matmul_type} smooth={shared.opts.sdnq_attention_smooth_k} hadamard={shared.opts.sdnq_attention_use_hadamard}')
     except Exception as err:
         log.error(f'Torch attention: type="SDNQ attention" {err}')
 
