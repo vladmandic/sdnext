@@ -11112,7 +11112,8 @@ function requestProgress(id_task = "undefined", progressEl = null, galleryEl = n
   const startLivePreview = (taskId, id_live_preview) => {
     if (window.opts.live_preview_refresh_period === 0) return;
     let request_id = -1;
-    if (document.hidden || !previewVisible()) {
+    const hidden = document.hidden || !previewVisible();
+    if (hidden) {
       if (!window.opts.live_preview_require_focus) request_id = id_live_preview;
     } else {
       request_id = id_live_preview;
@@ -11124,7 +11125,7 @@ function requestProgress(id_task = "undefined", progressEl = null, galleryEl = n
       hasStarted = hasStarted || res.active;
       if (res.completed || !res.active && (hasStarted || once)) {
         debug("progress", { end: res, reason: res.completed ? "completed" : "inactive" });
-        if (!res.paused) removeLivePreview(true);
+        if (!res.paused) removeLivePreview(!hidden);
         return;
       }
       if (elapsedFromStart > progressTimeout && !res.queued && res.progress === prevProgress) {
@@ -12221,7 +12222,7 @@ async function updateOpts(json_string) {
   for (const op of monitoredOpts) {
     const [key, callback] = Object.entries(op)[0];
     if (Object.hasOwn(opts, key) && opts[key] !== new_opts[key]) {
-      log("updateOpt", key, opts[key], new_opts[key]);
+      log("updateOpt", { key, val: new_opts[key] });
       if (callback) callback(new_opts[key], opts[key]);
     }
   }

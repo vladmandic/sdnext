@@ -157,7 +157,8 @@ export function requestProgress(id_task = 'undefined', progressEl = null, galler
     if (window.opts.live_preview_refresh_period === 0) return;
 
     let request_id = -1;
-    if (document.hidden || !previewVisible()) {
+    const hidden = document.hidden || !previewVisible();
+    if (hidden) {
       if (!window.opts.live_preview_require_focus) request_id = id_live_preview;
     } else {
       request_id = id_live_preview;
@@ -170,7 +171,7 @@ export function requestProgress(id_task = 'undefined', progressEl = null, galler
       hasStarted = hasStarted || res.active;
       if (res.completed || (!res.active && (hasStarted || once))) {
         debug('progress', { end: res, reason: res.completed ? 'completed' : 'inactive' });
-        if (!res.paused) removeLivePreview(true); // only abort if not paused
+        if (!res.paused) removeLivePreview(!hidden); // only abort if not paused
         return;
       }
       if (elapsedFromStart > progressTimeout && !res.queued && res.progress === prevProgress) {

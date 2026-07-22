@@ -40,7 +40,7 @@ async function updateOpts(json_string) {
   for (const op of monitoredOpts) {
     const [key, callback] = Object.entries(op)[0];
     if (Object.hasOwn(opts, key) && opts[key] !== new_opts[key]) {
-      log('updateOpt', key, opts[key], new_opts[key]);
+      log('updateOpt', { key, val: new_opts[key] });
       if (callback) callback(new_opts[key], opts[key]);
     }
   }

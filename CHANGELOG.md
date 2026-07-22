@@ -20,17 +20,18 @@
   - networks: improve search and filtering to allow multi-words  
   - hotkeys: add alt+0-9 to switch to tab 0-9
 - **Fixes**
-  - upscaler: auto-refresh to catch chainner upscalers that are not loaded on first attempt  
-  - lora: support diffusers trainer
-  - load: flux1 t5
-  - preview: cache image for reuse
-  - kanvas: paint combined with zoom
-  - rembg: numba dependencies
-  - hotkeys: legacy-vs-modernui
-  - process: generate button busy tracking
-  - logger: handle invalid subsystem log messages
   - attention: skip reapply
   - gallery: send to caption
+  - hotkeys: legacy-vs-modernui
+  - kanvas: paint combined with zoom
+  - load: flux1 t5
+  - logger: handle invalid subsystem log messages
+  - lora: support diffusers trainer
+  - preview: acknowledge visible/hidden on finish
+  - preview: cache image for reuse
+  - process: generate button busy tracking
+  - rembg: numba dependencies
+  - upscaler: auto-refresh to catch chainner upscalers that are not loaded on first attempt  
 
 ## Update for 2026-07-14
 
