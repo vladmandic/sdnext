@@ -28,6 +28,7 @@
   - rembg: numba dependencies
   - hotkeys: legacy-vs-modernui
   - process: generate button busy tracking
+  - logger: handle invalid subsystem log messages
 
 ## Update for 2026-07-14
 

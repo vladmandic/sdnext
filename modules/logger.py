@@ -110,7 +110,10 @@ def setup_logging(debug=None, trace=None, filename=None):
         def emit(self, record):
             if record.msg is None:
                 record.msg = ""
-            msg = record.getMessage()
+            try:
+                msg = record.getMessage()
+            except Exception:
+                return
             msg = msg.replace('"', "'")
             msg = self.strip(msg)
             try:
@@ -129,8 +132,11 @@ def setup_logging(debug=None, trace=None, filename=None):
             except Exception:
                 pass
             record.msg = msg
-            formatted = self.format(record)
-            self.buffer.append(formatted)
+            try:
+                formatted = self.format(record)
+                self.buffer.append(formatted)
+            except Exception:
+                pass
             if len(self.buffer) > self.capacity:
                 self.buffer.pop(0)
 
@@ -142,7 +148,10 @@ def setup_logging(debug=None, trace=None, filename=None):
             super().__init__()
 
         def filter(self, record):
-            return len(record.getMessage()) > 2
+            try:
+                return len(record.getMessage()) > 2
+            except Exception:
+                return False
 
     def override_padding(self, console, options): # pylint: disable=redefined-outer-name
         style = console.get_style(self.style)
