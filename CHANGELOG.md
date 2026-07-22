@@ -29,6 +29,8 @@
   - hotkeys: legacy-vs-modernui
   - process: generate button busy tracking
   - logger: handle invalid subsystem log messages
+  - attention: skip reapply
+  - gallery: send to caption
 
 ## Update for 2026-07-14
 
