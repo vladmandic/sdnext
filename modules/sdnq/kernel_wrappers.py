@@ -47,7 +47,7 @@ if os.environ.get("SDNQ_USE_TRITON_MM", None) is None:
     use_triton_mm = bool(not is_alchemist_or_igpu and (devices.backend in {"cuda", "rocm", "ipex", "xpu", "zluda"}))
 else:
     use_triton_mm = bool(os.environ.get("SDNQ_USE_TRITON_MM", "0").lower() not in {"0", "false", "no"})
-use_triton_scaled_mm = use_triton_mm and os.environ.get("SDNQ_USE_TRITON_SCALED_MM", "1").lower() not in {"0", "false", "no"}
+use_triton_scaled_mm = bool(use_triton_mm and os.environ.get("SDNQ_USE_TRITON_SCALED_MM", "1").lower() not in {"0", "false", "no"})
 
 if os.environ.get("SDNQ_USE_TENSORWISE_FP8_MM", None) is None:
     # row-wise FP8 only exist on H100 hardware, sdnq will use software row-wise with tensorwise hardware with this setting
@@ -63,20 +63,6 @@ else:
     use_contiguous_int8_mm = bool(os.environ.get("SDNQ_USE_CONTIGUOUS_MM", "0").lower() not in {"0", "false", "no"})
     use_contiguous_fp16_mm = use_contiguous_int8_mm
     use_contiguous_fp8_mm = use_contiguous_fp16_mm
-
-
-def fp_mm_torch_cuda(a: torch.Tensor, b: torch.Tensor, out_dtype: torch.dtype = torch.float32) -> torch.FloatTensor:
-    return torch.mm(a,b, out_dtype=out_dtype)
-
-def fp_mm_torch(a: torch.Tensor, b: torch.Tensor, out_dtype: torch.dtype = torch.float32) -> torch.FloatTensor:
-    if b.dtype == torch.float8_e4m3fn:
-        fp16_scale = 4 * b.shape[-2]
-    else:
-        fp16_scale = 65536 * b.shape[-2]
-    in_scale = fp16_scale**0.5
-    a = a.to(dtype=torch.float32).div_(in_scale).to(dtype=torch.float16)
-    b = b.to(dtype=torch.float32).div_(in_scale).to(dtype=torch.float16)
-    return torch.mm(a,b).to(dtype=torch.float32).mul_(fp16_scale).to(dtype=out_dtype)
 
 
 int_mm_func = None
@@ -128,6 +114,26 @@ if (
     except Exception:
         use_triton_mm = False
         use_triton_scaled_mm = False
+
+
+if os.environ.get("SDNQ_INCLUDE_MM_KERNEL_IN_COMPILE", None) is None:
+    include_mm_kernel_in_compile = bool(not use_triton_scaled_mm)
+else:
+    include_mm_kernel_in_compile = bool(os.environ.get("SDNQ_INCLUDE_MM_KERNEL_IN_COMPILE", "0").lower() not in {"0", "false", "no"})
+
+
+def fp_mm_torch_cuda(a: torch.Tensor, b: torch.Tensor, out_dtype: torch.dtype = torch.float32) -> torch.FloatTensor:
+    return torch.mm(a,b, out_dtype=out_dtype)
+
+def fp_mm_torch(a: torch.Tensor, b: torch.Tensor, out_dtype: torch.dtype = torch.float32) -> torch.FloatTensor:
+    if b.dtype == torch.float8_e4m3fn:
+        fp16_scale = 4 * b.shape[-2]
+    else:
+        fp16_scale = 65536 * b.shape[-2]
+    in_scale = fp16_scale**0.5
+    a = a.to(dtype=torch.float32).div_(in_scale).to(dtype=torch.float16)
+    b = b.to(dtype=torch.float32).div_(in_scale).to(dtype=torch.float16)
+    return torch.mm(a,b).to(dtype=torch.float32).mul_(fp16_scale).to(dtype=out_dtype)
 
 
 if int_mm_func is None:

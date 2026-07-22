@@ -6,7 +6,7 @@ import torch
 
 from modules import shared
 
-sdnq_version = "0.2.2"
+sdnq_version = "0.2.3"
 sdnq_keys = {"weight", "scale", "zero_point", "svd_up", "svd_down"}
 
 torch_version = torch.__version__[:4]
