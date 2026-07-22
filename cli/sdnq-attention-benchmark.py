@@ -2886,16 +2886,47 @@ def build_dequant_recommendations(dequant_results, weight_dequant_result, varian
     table.add_column("reason")
 
     rows = []
-    int8_eager, int8_compiled = entry("int8").get("eager_ms"), entry("int8").get("compiled_ms")
-    if int8_eager and int8_compiled:
-        compile_test = speed_verdict(int8_compiled, int8_eager, sigma=pair_sigma(entry("int8"), "compiled_ms", entry("int8"), "eager_ms"))
-        compile_reason = f"int8 dequant measured {ratio_text(int8_eager, int8_compiled)} compiled vs eager"
-        fwd_eager, fwd_compiled = entry("int8").get("fwd_eager_ms"), entry("int8").get("fwd_compiled_ms")
+    weights_mode = str(getattr(shared.opts, "sdnq_quantize_weights_mode", "int8"))
+    mode_ids = {cfg["weights_dtype"]: dtype_id for dtype_id, _label, cfg in dequant_dtype_configs}
+    mm_id = mode_ids.get(weights_mode, "int8")
+
+    # the compile toggle is output-neutral (dequant drift is checked separately), so its verdict
+    # is a symmetric faster/slower test (margin 1.0) at the layer-forward scope the option gates,
+    # voted across every measured shape; the standalone kernel can lose to eager on small layers
+    # from launch overhead alone, which is why it never decides this row
+    compile_id = mm_id if entry(mm_id).get("fwd_eager_ms") and entry(mm_id).get("fwd_compiled_ms") else "int8"
+    fwd_votes = []
+    for shape_label in dequant_results:
+        vote_row = (dequant_results.get(shape_label) or {}).get(compile_id) or {}
+        fwd_eager, fwd_compiled = vote_row.get("fwd_eager_ms"), vote_row.get("fwd_compiled_ms")
         if fwd_eager and fwd_compiled:
-            compile_reason += f"; layer forward {fwd_compiled:.3f} vs {fwd_eager:.3f} ms"
+            test = speed_verdict(fwd_compiled, fwd_eager, sigma=pair_sigma(vote_row, "fwd_compiled_ms", vote_row, "fwd_eager_ms"), margin=1.0)
+            fwd_votes.append((fwd_eager / fwd_compiled, test))
+    int8_eager, int8_compiled = entry("int8").get("eager_ms"), entry("int8").get("compiled_ms")
+    if fwd_votes:
+        ratios = sorted(ratio for ratio, _test in fwd_votes)
+        span = f"x{ratios[0]:.2f}" if len(ratios) == 1 else f"x{ratios[0]:.2f}-x{ratios[-1]:.2f}"
+        scope_text = f"{compile_id} layer forward measured {span} compiled vs eager across {len(fwd_votes)} shape{'s' if len(fwd_votes) > 1 else ''}"
+        kinds = {test for _ratio, test in fwd_votes}
+        if "faster" in kinds and "not_faster" not in kinds:
+            compile_choice, compile_reason = "True", scope_text
+        elif "not_faster" in kinds and "faster" not in kinds:
+            compile_choice, compile_reason = "False", scope_text
+        elif "faster" in kinds:
+            n_faster = sum(1 for _ratio, test in fwd_votes if test == "faster")
+            n_slower = sum(1 for _ratio, test in fwd_votes if test == "not_faster")
+            compile_choice = current("sdnq_dequantize_compile")
+            compile_reason = f"{scope_text}; split verdict ({n_faster} faster, {n_slower} slower), keeping the current setting"
+        else:
+            compile_choice = current("sdnq_dequantize_compile")
+            compile_reason = f"{scope_text}, within this run's noise; keeping the current setting"
+        rows.append(("Dequantize using torch.compile", current("sdnq_dequantize_compile"), compile_choice, compile_reason))
+    elif int8_eager and int8_compiled:
+        compile_test = speed_verdict(int8_compiled, int8_eager, sigma=pair_sigma(entry("int8"), "compiled_ms", entry("int8"), "eager_ms"), margin=1.0)
+        compile_reason = f"int8 dequant kernel measured {ratio_text(int8_eager, int8_compiled)} compiled vs eager, no layer forward data"
         if compile_test == "inconclusive":
             compile_choice = current("sdnq_dequantize_compile")
-            compile_reason += "; too close to the margin to call at this run's noise, keeping the current setting"
+            compile_reason += "; within this run's noise, keeping the current setting"
         else:
             compile_choice = str(compile_test == "faster")
         rows.append(("Dequantize using torch.compile", current("sdnq_dequantize_compile"), compile_choice, compile_reason))
@@ -2904,9 +2935,6 @@ def build_dequant_recommendations(dequant_results, weight_dequant_result, varian
 
     # judge quantized matmul on the dtype the current config would quantize with, falling back to int8;
     # speed never wins alone: the faster path must also hold output error within recommend_error_cap
-    weights_mode = str(getattr(shared.opts, "sdnq_quantize_weights_mode", "int8"))
-    mode_ids = {cfg["weights_dtype"]: dtype_id for dtype_id, _label, cfg in dequant_dtype_configs}
-    mm_id = mode_ids.get(weights_mode, "int8")
     mm_entry = entry(mm_id)
     # explicit MatMul type rows are measured at the first dequant shape only; ignore them when
     # the recommendation reference fell back to another shape
@@ -3093,7 +3121,7 @@ def build_dequant_recommendations(dequant_results, weight_dequant_result, varian
         if text:
             speedups.append(f"{label} {text}")
     if speedups:
-        notes.append(f"compiled dequant speedup vs eager at {reference}: {', '.join(speedups)}")
+        notes.append(f"compiled dequant speedup vs eager at {reference}: {', '.join(speedups)}; standalone kernel scope, the compile verdict uses the layer forward")
     fp8_entry, fp8sdnq_entry = entry("fp8"), entry("fp8sdnq")
     if fp8_entry.get("compiled_ms") and fp8sdnq_entry.get("compiled_ms"):
         notes.append(f"fp8 storage: native e4m3 compiled {ratio_text(fp8sdnq_entry['compiled_ms'], fp8_entry['compiled_ms'])} vs the float8_e4m3fn_sdnq uint8 view")
