@@ -183,8 +183,8 @@ async function selectHotKeyElement(e: KeyboardEvent, id: string) {
   log('hotkey', { key: e.key, meta: e.metaKey, ctrl: e.ctrlKey, alt: e.altKey, id, elid: elem?.id, elnode: elem?.nodeName });
   if (elem) {
     e.preventDefault();
-    if (elem.nodeName === 'BUTTON') elem.click();
-    else elem.focus();
+    if (elem.nodeName === 'BUTTON') (elem as HTMLButtonElement).click();
+    else (elem as HTMLElement).focus();
   }
 }
 
