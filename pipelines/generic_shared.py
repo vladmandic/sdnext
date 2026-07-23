@@ -98,6 +98,18 @@ shared_te_map = {
         'target_repo': 'Qwen/Qwen3-VL-8B-Instruct',
     },
 
+    'Qwen3-VL 2B Conditional': {
+        'cls': transformers.Qwen3VLForConditionalGeneration,
+        'target_repo': 'SeFi-Image/SeFi-Image-1B-Base',
+        'identifier': ['1b', '2b'],
+        'target_subfolder': 'Qwen3-VL-2B-Instruct',
+    },
+    'Qwen3-VL 4B Conditional': {
+        'cls': transformers.Qwen3VLForConditionalGeneration,
+        'target_repo': 'SeFi-Image/SeFi-Image-5B-Base',
+        'identifier': ['5b'],
+        'target_subfolder': 'Qwen3-VL-4B-Instruct',
+    },
     'Qwen3-VL 8B Conditional': {
         'cls': transformers.Qwen3VLForConditionalGeneration,
         'target_repo': 'Boogu/Boogu-Image-0.1-Base',

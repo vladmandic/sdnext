@@ -51,6 +51,7 @@ import logging
 import argparse
 import tempfile
 import importlib.metadata
+import importlib.import_module
 from contextlib import contextmanager
 
 import torch
@@ -1754,7 +1755,6 @@ mm_swap_targets = [
 def mm_backend_bindings():
     # {backend: {(module, attr): func}} for the backends bindable in this process, plus a
     # note for any that are not
-    import importlib
     bound = {}
     for module_path, attr in mm_swap_targets:
         try:
@@ -1779,7 +1779,6 @@ def mm_backend_bindings():
 
 
 def apply_mm_backend(binding):
-    import importlib
     for (module_path, attr), func in binding.items():
         setattr(importlib.import_module(module_path), attr, func)
     torch._dynamo.reset() # pylint: disable=protected-access # layer forwards are compiled: the traced graph pins the previous function

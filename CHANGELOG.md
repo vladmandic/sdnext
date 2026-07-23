@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-07-22
+## Update for 2026-07-23
 
 - **Compute**
   - torch: update to `2.13.0` for CUDA, ROCm, IPEX
@@ -21,6 +21,7 @@
   - hotkeys: add alt+0-9 to switch to tab 0-9
 - **Fixes**
   - attention: skip reapply
+  - download: better matching of shared components
   - gallery: send to caption
   - hotkeys: legacy-vs-modernui
   - kanvas: paint combined with zoom

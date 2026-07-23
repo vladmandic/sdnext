@@ -602,6 +602,10 @@ def load_diffuser_force(detected_model_type: str, checkpoint_info: CheckpointInf
             from pipelines.model_sdxs import load_sdxs
             sd_model = load_sdxs(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
+        elif model_type in ['SeFi']:
+            from pipelines.model_sefi import load_sefi
+            sd_model = load_sefi(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
     except Exception as e:
         log.error(f'Load {op}: path="{checkpoint_info.path}" {e}')
         errors.display(e, 'Load')
