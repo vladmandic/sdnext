@@ -2,6 +2,12 @@
 
 ## Update for 2026-07-23
 
+Primarily a service release with updates to compute packages: torch, CUDA, ROCm, etc.
+Plus optimizations to SDNQ quantization and attention  
+And update to process tab, several quality-of-life improvements and bug-fixes  
+
+[Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
+
 - **Compute**
   - torch: update to `2.13.0` for CUDA, ROCm, IPEX
   - torch: explicitly set inductor and triton cache locations
