@@ -14,8 +14,8 @@ matmul_configs = [
     triton.Config({"BLOCK_SIZE_M": BM, "BLOCK_SIZE_N": BN}, num_warps=w, num_stages=s)
     for BM in [int(BM) for BM in os.environ.get("SDNQ_TRITON_ATTEN_BLOCK_SIZE_M_LIST", "64,128").replace(" ","").split(",")]
     for BN in [int(BN) for BN in os.environ.get("SDNQ_TRITON_ATTEN_BLOCK_SIZE_N_LIST", "32,64").replace(" ","").split(",")]
-    for w in [int(w) for w in os.environ.get("SDNQ_TRITON_ATTEN_NUM_WARPS_LIST", "4,8").replace(" ","").split(",")]
-    for s in [int(s) for s in os.environ.get("SDNQ_TRITON_ATTEN_NUM_STAGES_LIST", "1,2,4").replace(" ","").split(",")]
+    for w in [int(w) for w in os.environ.get("SDNQ_TRITON_ATTEN_NUM_WARPS_LIST", "8,16" if torch.xpu.is_available() else "4,8").replace(" ","").split(",")]
+    for s in [int(s) for s in os.environ.get("SDNQ_TRITON_ATTEN_NUM_STAGES_LIST", "1" if (torch.cuda.is_available() and torch.version.hip) else "2").replace(" ","").split(",")]
 ]
 
 
@@ -91,7 +91,7 @@ def sdnq_attn_kernel(
     tl.assume(qk_is_quantized == 0 or qk_is_quantized == 1) # pylint: disable=consider-using-in
     tl.assume(pv_is_quantized == 0 or pv_is_quantized == 1) # pylint: disable=consider-using-in
 
-    do_k_mask: tl.constexpr = KN % BLOCK_SIZE_N != 0
+    do_k_mask = KN % BLOCK_SIZE_N != 0
     start_m_block = start_m * BLOCK_SIZE_M
     offs_m = start_m_block + tl.arange(0, BLOCK_SIZE_M)
     offs_n = tl.arange(0, BLOCK_SIZE_N)
@@ -139,9 +139,9 @@ def sdnq_attn_kernel(
             if qk_is_quantized:
                 k_scale = k_scale_desc.load([start_n])[None, :]
                 if q.dtype == tl.int8:
-                    qk = tl.dot(q, k, out_dtype=tl.int32).to(tl.float32) * q_scale * k_scale
+                    qk = tl.mul(tl.mul(tl.dot(q, k, out_dtype=tl.int32).to(tl.float32), q_scale), k_scale)
                 else:
-                    qk = tl.dot(q, k, out_dtype=tl.float32) * q_scale * k_scale
+                    qk = tl.mul(tl.mul(tl.dot(q, k, out_dtype=tl.float32), q_scale), k_scale)
             else:
                 qk = tl.dot(q, k, out_dtype=tl.float32)
 
@@ -171,14 +171,14 @@ def sdnq_attn_kernel(
                 v_scale = v_scale_desc.load([start_n])[None, :]
                 p *= v_scale
                 if v.dtype == tl.int8:
-                    p_scale = tl.max(p, 1)[:, None] * (1 / 127.0)
+                    p_scale = tl.mul(tl.max(p, 1)[:, None], (1 / 127.0))
                     p_scale = tl.where(p_scale <= 2e-38, 1.0, p_scale)
-                    p = tl.floor(p * (1 / p_scale) + 0.5).to(tl.int8)
+                    p = tl.floor(tl.fma(p, (1 / p_scale), 0.5)).to(tl.int8)
                     acc = tl.fma(tl.dot(p, v, out_dtype=tl.int32).to(tl.float32), p_scale, acc)
                 else:
-                    p_scale = tl.max(p, 1)[:, None] * (1 / (65504.0 if v.dtype == tl.float16 else 448.0))
+                    p_scale = tl.mul(tl.max(p, 1)[:, None], (1 / (65504.0 if v.dtype == tl.float16 else 448.0)))
                     p_scale = tl.where(p_scale <= 2e-38, 1.0, p_scale)
-                    p = (p * (1 / p_scale)).to(v.dtype)
+                    p = tl.mul(p, (1 / p_scale)).to(v.dtype)
                     acc = tl.fma(tl.dot(p, v, out_dtype=tl.float32), p_scale, acc)
             else:
                 p = p.to(v.dtype)
@@ -201,9 +201,9 @@ def quantize_attn(
     matmul_dtype: str = "int8",
     pv_matmul_dtype: str | None = None,
 ) -> tuple[torch.Tensor]:
-    if matmul_dtype in {"auto", "uint8"}:
+    if matmul_dtype in {"auto", "enabled", "uint8"}:
         matmul_dtype = "int8"
-    if pv_matmul_dtype == "uint8":
+    if pv_matmul_dtype in {"enabled", "uint8"}:
         pv_matmul_dtype = "int8"
     if scale is None:
         scale = q.shape[-1] ** -0.5
@@ -213,7 +213,7 @@ def quantize_attn(
             k = k.sub_(k.mean(dim=2, keepdim=True))
         else:
             k = k.sub(k.mean(dim=2, keepdim=True))
-    if matmul_dtype not in {None, "none", "no"}:
+    if matmul_dtype not in {None, "none", "no", "disabled"}:
         if hadamard is not None:
             q, use_hadamard, hadamard_group_size = apply_hadamard(q, group_size=hadamard_group_size, hadamard=hadamard, layer_class_name="Linear")
             if use_hadamard:
@@ -228,7 +228,7 @@ def quantize_attn(
         k_q = k.contiguous().to(dtype=q.dtype)
         q_scale = None
         k_scale = None
-    if pv_matmul_dtype not in {None, "auto", "none", "no"}:
+    if pv_matmul_dtype not in {None, "auto", "none", "no", "disabled"}:
         quantize_mm_func_pv = quantize_int_mm if pv_matmul_dtype.startswith("int") else quantize_fp_mm
         v_q, v_scale = quantize_mm_func_pv(v.contiguous().to(dtype=torch.float32), dim=-1, matmul_dtype=pv_matmul_dtype)
         v_scale = v_scale.squeeze(-1)
@@ -280,8 +280,8 @@ def get_attn_inputs(
         smooth_k=smooth_k,
         hadamard=hadamard,
         hadamard_group_size=hadamard_group_size,
-        matmul_dtype=matmul_dtype if do_quantize else "no",
-        pv_matmul_dtype=pv_matmul_dtype if do_quantize else "no",
+        matmul_dtype=matmul_dtype if do_quantize else "disabled",
+        pv_matmul_dtype=pv_matmul_dtype if do_quantize else "disabled",
     )
     return query, query_scale, key, key_scale, value, value_scale, attn_mask, scale, out_dtype
 
@@ -308,7 +308,7 @@ def sdnq_triton_atten(
     _, _, VN, VHD = value.shape
 
     hadamard = None
-    if use_hadamard and do_quantize and matmul_dtype not in {None, "none", "no"}:
+    if use_hadamard and do_quantize and matmul_dtype not in {None, "none", "no", "disabled"}:
         hadamard_channel_size = next_power_of_2(min(QHD, KHD))
         hadamard_group_size = min(hadamard_group_size, hadamard_channel_size)
         use_hadamard, hadamard_group_size = get_hadamard_group_size(hadamard_channel_size, hadamard_group_size)

@@ -13,10 +13,6 @@ from .packed_float import unpack_float
 from .layers import SDNQLayer
 
 
-def skip_fp8_compile(weights_dtype: str) -> bool: # triton has no e4m3 conversions before sm_89, compiled dequant would crash
-    return not is_fp8_compile_supported and dtype_dict[weights_dtype]["storage_dtype"] == torch.float8_e4m3fn
-
-
 @devices.inference_context()
 def dequantize_asymmetric(
     weight: torch.Tensor,
@@ -300,7 +296,12 @@ class SDNQDequantizer:
     ) -> tuple[torch.Tensor, torch.FloatTensor]: # pylint: disable=unused-argument
         if hadamard is None and self.use_hadamard and not non_hadamard:
             hadamard = get_hadamard(self.hadamard_group_size, dtype=self.result_dtype, device=weight.device)
-        re_quantize_matmul_func = re_quantize_matmul if skip_compile or skip_fp8_compile(self.weights_dtype) else re_quantize_matmul_compiled
+        if skip_compile:
+            re_quantize_matmul_func = re_quantize_matmul
+        else:
+            re_quantize_matmul_func = re_quantize_matmul_compiled
+            if not is_fp8_compile_supported and weight.dtype == torch.float8_e4m3fn:
+                weight = weight.to(dtype=scale.dtype)
         return re_quantize_matmul_func(
             self.weights_dtype,
             weight,
@@ -333,7 +334,12 @@ class SDNQDequantizer:
         if hadamard is None and self.use_hadamard and not non_hadamard:
             hadamard = get_hadamard(self.hadamard_group_size, dtype=dtype, device=weight.device)
         re_quantize_for_matmul = self.re_quantize_for_matmul or self.is_packed
-        dequantize_weight_func = dequantize_weight if skip_compile or skip_fp8_compile(self.weights_dtype) else dequantize_weight_compiled
+        if skip_compile:
+            dequantize_weight_func = dequantize_weight
+        else:
+            dequantize_weight_func = dequantize_weight_compiled
+            if not is_fp8_compile_supported and weight.dtype == torch.float8_e4m3fn:
+                weight = weight.to(dtype=scale.dtype)
         return dequantize_weight_func(
             self.weights_dtype,
             weight,

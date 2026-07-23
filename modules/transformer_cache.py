@@ -19,15 +19,15 @@ def set_cache(faster_cache=None, pyramid_attention_broadcast=None):
         return
     try:
         if faster_cache: # https://github.com/huggingface/diffusers/pull/10163
-            distilled = shared.opts.fc_guidance_distilled or shared.sd_model_type == 'f1'
+            distilled = shared.opts.fc_guidance_distilled
             config = diffusers.FasterCacheConfig(
                 spatial_attention_block_skip_range=shared.opts.fc_spacial_skip_range,
                 spatial_attention_timestep_skip_range=(int(shared.opts.fc_spacial_skip_start), int(shared.opts.fc_spacial_skip_end)),
                 unconditional_batch_skip_range=shared.opts.fc_uncond_skip_range,
                 unconditional_batch_timestep_skip_range=(int(shared.opts.fc_uncond_skip_start), int(shared.opts.fc_uncond_skip_end)),
                 attention_weight_callback=lambda _: shared.opts.fc_attention_weight,
-                tensor_format=shared.opts.fc_tensor_format, # TODO fc: autodetect tensor format based on model
-                is_guidance_distilled=distilled, # TODO fc: autodetect distilled based on model
+                tensor_format=shared.opts.fc_tensor_format,
+                is_guidance_distilled=distilled,
                 current_timestep_callback=lambda: shared.sd_model.current_timestep,
             )
             shared.sd_model.transformer.disable_cache()

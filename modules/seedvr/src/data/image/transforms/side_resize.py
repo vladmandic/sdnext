@@ -50,5 +50,6 @@ class SideResize:
             size = min(width, height)
         else:
             size = self.size
-
-        return TVF.resize(image, size, self.interpolation)
+        size_w = int(size) // 8 * 8
+        size_h = int(size * height / width) // 8 * 8
+        return TVF.resize(image, (size_h, size_w), self.interpolation)

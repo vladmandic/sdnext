@@ -678,6 +678,7 @@ def get_vqa_prompts(model: str | None = None):
     - **promptgen**: Analyze, Generate Tags, Mixed Caption, Mixed Caption+ (MiaoshouAI PromptGen fine-tunes only)
     - **moondream**: Point at..., Detect all... (Moondream 2 and 3)
     - **moondream2_only**: Detect Gaze (Moondream 2 only)
+    - **toriigate**: Long Thoughts, Structured Markdown, JSON Caption, Comic Markdown, Chroma Style and other native caption formats (ToriiGate 0.5 only)
     """
     from modules.caption import vqa
     if model:
@@ -688,7 +689,8 @@ def get_vqa_prompts(model: str | None = None):
         "florence": vqa.vlm_prompts_florence,
         "promptgen": vqa.vlm_prompts_promptgen,
         "moondream": vqa.vlm_prompts_moondream,
-        "moondream2_only": vqa.vlm_prompts_moondream2
+        "moondream2_only": vqa.vlm_prompts_moondream2,
+        "toriigate": vqa.vlm_prompts_toriigate
     }
 
 

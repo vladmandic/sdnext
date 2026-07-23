@@ -38,7 +38,7 @@ class State:
     current_sigma = None
     current_sigma_next = None
     current_image = None
-    current_image_sampling_step = 0
+    current_image_sampling_step = -1
     id_live_preview = 0
     textinfo = None
     prediction_type = "epsilon"
@@ -92,7 +92,7 @@ class State:
         self.do_set_current_image()
         self.job_no += 1
         # self.sampling_step = 0
-        self.current_image_sampling_step = 0
+        self.current_image_sampling_step = -1
         if debug_output:
             log.trace(f'State next: {self}')
         modules.devices.torch_gc()
@@ -202,7 +202,7 @@ class State:
         self.job_history += 1
         self.total_jobs += 1
         self.current_image = None
-        self.current_image_sampling_step = 0
+        self.current_image_sampling_step = -1
         self.current_latent = None
         self.current_noise_pred = None
         self.current_sigma = None
@@ -271,7 +271,7 @@ class State:
 
     def do_set_current_image(self):
         from modules import shared, images, sd_samplers_common
-        if self.disable_preview or (self.preview_job == self.job_no):
+        if self.disable_preview or (self.preview_job == self.job_no) or (self.current_image_sampling_step == self.sampling_step):
             return False
 
         if (shared.opts.show_progress_type == "None") and (shared.history.last_image is not None):

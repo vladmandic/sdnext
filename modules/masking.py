@@ -264,7 +264,7 @@ def run_segment(input_image: gr.Image, input_mask: np.ndarray):
 def run_rembg(input_image: Image.Image, input_mask: np.ndarray):
     try:
         from installer import install
-        for pkg in ["dctorch==0.1.2", "pymatting", "pooch", "rembg"]:
+        for pkg in ["dctorch==0.1.2", "pymatting", "pooch", "rembg", "numba"]:
             install(pkg, no_deps=True, ignore=False)
         import rembg
     except Exception as e:

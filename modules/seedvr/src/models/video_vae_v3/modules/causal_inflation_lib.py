@@ -150,6 +150,8 @@ class InflatedCausalConv3d(Conv3d):
         assert memory_state != MemoryState.UNSET
         if memory_state != MemoryState.ACTIVE:
             self.memory = None
+        if torch.is_tensor(input) and memory_state == MemoryState.DISABLED:
+            return self.basic_forward(input, memory_state)
         if (
             math.isinf(self.memory_limit)
             and torch.is_tensor(input)

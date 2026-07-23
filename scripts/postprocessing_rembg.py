@@ -18,6 +18,12 @@ models = [
 ]
 
 
+def dependencies():
+    from installer import install
+    for pkg in ["dctorch==0.1.2", "pymatting", "pooch", "rembg", "numba"]:
+        install(pkg, no_deps=True, ignore=False)
+
+
 class ScriptPostprocessingRembg(scripts_postprocessing.ScriptPostprocessing):
     name = "Remove background"
     order = 20000
@@ -69,7 +75,8 @@ class ScriptPostprocessingRembg(scripts_postprocessing.ScriptPostprocessing):
         else:
             image = pp.image
             info = pp.info
-
+        if image is None:
+            return pp
         log.info(f'RemoveBackground: model={model} merge_alpha={merge_alpha} refine={refine} mask_only={mask_only} postprocess_mask={postprocess_mask} alpha_matting={alpha_matting} alpha_matting_foreground_threshold={alpha_matting_foreground_threshold} alpha_matting_background_threshold={alpha_matting_background_threshold} alpha_matting_erode_size={alpha_matting_erode_size}')
         if model == 'ben2':
             try:
@@ -80,9 +87,7 @@ class ScriptPostprocessingRembg(scripts_postprocessing.ScriptPostprocessing):
                 return pp
         else:
             try:
-                from installer import install
-                for pkg in ["dctorch==0.1.2", "pymatting", "pooch", "rembg"]:
-                    install(pkg, no_deps=True, ignore=False)
+                dependencies()
                 import rembg
                 if "U2NET_HOME" not in os.environ:
                     from modules.paths import models_path

@@ -1,10 +1,50 @@
 # Change Log for SD.Next
 
+## Update for 2026-07-23
+
+Primarily a service release with updates to compute packages: torch, CUDA, ROCm, etc.
+Plus optimizations to SDNQ quantization and attention  
+And update to process tab, several quality-of-life improvements and bug-fixes  
+
+[Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
+
+- **Compute**
+  - torch: update to `2.13.0` for CUDA, ROCm, IPEX
+  - torch: explicitly set inductor and triton cache locations
+  - torch: log triton/dynamo/inductor timer stats
+  - cuda: update to `13.2`
+  - sdnq quantization optimizations
+  - sdnq attention optimizations
+  - sdnq separate dit/te settings
+- **Features**
+  - process: read video properties and metadata
+  - process: allow processing of video files  
+    *note*: currently only seedvr postprocessing is supported  
+    other workflows will be added in future releases  
+  - seedvr: enhanced upscaler support
+  - logs: propagate server tracebacks to client
+  - networks: improve search and filtering to allow multi-words  
+  - hotkeys: add alt+0-9 to switch to tab 0-9
+- **Fixes**
+  - attention: skip reapply
+  - download: better matching of shared components
+  - gallery: send to caption
+  - hotkeys: legacy-vs-modernui
+  - kanvas: paint combined with zoom
+  - load: flux1 t5
+  - logger: handle invalid subsystem log messages
+  - lora: support diffusers trainer
+  - preview: acknowledge visible/hidden on finish
+  - preview: cache image for reuse
+  - process: generate button busy tracking
+  - rembg: numba dependencies
+  - upscaler: auto-refresh to catch chainner upscalers that are not loaded on first attempt  
+
 ## Update for 2026-07-14
 
 ### Highlights for 2026-07-14
 
-*What's New?* Full week(!) since there release, we're bringing a service pack update:  
+*What's New?* Full week(!) since the last release, we're bringing a service pack update:  
 **Anima** has new *Aesthetic* and *Turbo* variants, **Joy Image Edit** has new *Plus* variant  
 *And also*:  
 - UI updates to *Server info* and *Log viewer*, more informative and allows easier sharing of info

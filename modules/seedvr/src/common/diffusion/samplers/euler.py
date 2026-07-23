@@ -18,16 +18,10 @@ Euler ODE solver.
 """
 
 from typing import Callable
+import itertools
 import torch
-from einops import rearrange
-from torch.nn import functional as F
-
-#from ....models.dit_v2 import na
-
-from ..types import PredictionType
 from ..utils import expand_dims
 from .base import Sampler, SamplerModelArgs
-import itertools
 
 
 class EulerSampler(Sampler):

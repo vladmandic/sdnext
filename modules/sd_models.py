@@ -194,10 +194,17 @@ def set_diffuser_options(sd_model, vae=None, op:str='model', offload:bool=True, 
     for module_name in get_module_names(sd_model):
         module = getattr(sd_model, module_name, None)
         if hasattr(module, "quantization_config") and getattr(module.quantization_config, "quant_method", None) == "sdnq":
-            if module.quantization_config.use_quantized_matmul != shared.opts.sdnq_use_quantized_matmul:
+            if module_name.startswith("text_encoder"):
+                if shared.opts.sdnq_quantize_matmul_mode_te == "Same as model":
+                    sdnq_use_quantized_matmul = shared.opts.sdnq_quantize_matmul_mode != "disabled"
+                else:
+                    sdnq_use_quantized_matmul = shared.opts.sdnq_quantize_matmul_mode_te != "disabled"
+            else:
+                sdnq_use_quantized_matmul = shared.opts.sdnq_quantize_matmul_mode != "disabled"
+            if module.quantization_config.use_quantized_matmul != sdnq_use_quantized_matmul:
                 from modules.sdnq.loader import apply_sdnq_options_to_model
-                # log.debug(f'Setting {op} {module_name}: sdnq_use_quantized_matmul={shared.opts.sdnq_use_quantized_matmul}')
-                module = apply_sdnq_options_to_model(module, use_quantized_matmul=shared.opts.sdnq_use_quantized_matmul)
+                # log.debug(f'Setting {op} {module_name}: sdnq_use_quantized_matmul={sdnq_use_quantized_matmul}')
+                module = apply_sdnq_options_to_model(module, use_quantized_matmul=sdnq_use_quantized_matmul)
                 setattr(sd_model, module_name, module)
 
     if offload:
@@ -594,6 +601,10 @@ def load_diffuser_force(detected_model_type: str, checkpoint_info: CheckpointInf
         elif model_type in ['SDXS']:
             from pipelines.model_sdxs import load_sdxs
             sd_model = load_sdxs(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
+        elif model_type in ['SeFi']:
+            from pipelines.model_sefi import load_sefi
+            sd_model = load_sefi(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
     except Exception as e:
         log.error(f'Load {op}: path="{checkpoint_info.path}" {e}')

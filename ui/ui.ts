@@ -356,8 +356,12 @@ function submit_video_wrapper(...args) {
 }
 
 function submit_postprocessing(...args) {
-  log('SubmitExtras');
+  const id = randomId();
+  log('SubmitProcess', id);
   clearGallery('extras');
+  requestProgress(id, null, null);
+  window.submit_state = '';
+  args[0] = id;
   return args;
 }
 
@@ -729,7 +733,7 @@ function createThemeElement(): HTMLImageElement {
 
 export async function toggleCompact(val, old) {
   if (val === old) return;
-  log('toggleCompact', val, old);
+  log('toggleCompact', val);
   if (val) {
     gradioApp().style.setProperty('--layout-gap', 'var(--spacing-md)');
     gradioApp().querySelectorAll('input[type=range]').forEach((el) => el.classList.add('hidden'));

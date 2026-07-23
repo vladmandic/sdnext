@@ -35,6 +35,7 @@ export function getUICurrentTab() {
 }
 
 export function getUICurrentTabContent() {
+  if (window.waitForUiReady) return gradioApp().querySelector('.xtabs-item:not(.hidden) > .split');
   return gradioApp().querySelector('.tabitem[id^=tab_]:not([style*="display: none"])');
 }
 
@@ -177,26 +178,28 @@ document.addEventListener('DOMContentLoaded', () => {
   gradioObserver.observe(gradioApp(), { childList: true, subtree: true, attributes: false });
 });
 
+async function selectHotKeyElement(e: KeyboardEvent, id: string) {
+  const elem = getUICurrentTabContent().querySelector(id);
+  log('hotkey', { key: e.key, meta: e.metaKey, ctrl: e.ctrlKey, alt: e.altKey, id, elid: elem?.id, elnode: elem?.nodeName });
+  if (elem) {
+    e.preventDefault();
+    if (elem.nodeName === 'BUTTON') (elem as HTMLButtonElement).click();
+    else (elem as HTMLElement).focus();
+  }
+}
+
 /**
  * Add a listener to the document for keydown events
  */
 document.addEventListener('keydown', (e) => {
-  let elem;
-  if (e.key === 'Escape') elem = getUICurrentTabContent().querySelector('button[id$=_interrupt]');
-  if (e.key === 'Enter' && e.ctrlKey) elem = getUICurrentTabContent().querySelector('button[id$=_generate]');
-  if (e.key === 'i' && e.ctrlKey) elem = getUICurrentTabContent().querySelector('button[id$=_reprocess]');
-  if (e.key === ' ' && e.ctrlKey) elem = getUICurrentTabContent().querySelector('button[id$=_extra_networks_btn]');
-  if (e.key === 'n' && e.ctrlKey) elem = getUICurrentTabContent().querySelector('button[id$=_extra_networks_btn]');
-  if (e.key === 's' && e.ctrlKey) elem = getUICurrentTabContent().querySelector('button[id^=save_]');
-  if (e.key === 'Insert' && e.ctrlKey) elem = getUICurrentTabContent().querySelector('button[id^=save_]');
-  if (e.key === 'd' && e.ctrlKey) elem = getUICurrentTabContent().querySelector('button[id^=delete_]');
-  // if (e.key === 'm' && e.ctrlKey) elem = gradioApp().getElementById('setting_sd_model_checkpoint');
-  if (elem) {
-    e.preventDefault();
-    log('hotkey', { key: e.key, meta: e.metaKey, ctrl: e.ctrlKey, alt: e.altKey }, elem?.id, elem.nodeName);
-    if (elem.nodeName === 'BUTTON') elem.click();
-    else elem.focus();
-  }
+  if (e.key === 'Escape') selectHotKeyElement(e, 'button[id$=_interrupt]');
+  if (e.key === 'Enter' && e.ctrlKey) selectHotKeyElement(e, 'button[id$=_generate]');
+  if (e.key === 'i' && e.ctrlKey) selectHotKeyElement(e, 'button[id$=_reprocess]');
+  if (e.key === ' ' && e.ctrlKey) selectHotKeyElement(e, 'button[id$=_extra_networks_btn]');
+  if (e.key === 'n' && e.ctrlKey) selectHotKeyElement(e, 'button[id$=_extra_networks_btn]');
+  if (e.key === 's' && e.ctrlKey) selectHotKeyElement(e, 'button[id^=save_]');
+  if (e.key === 'Insert' && e.ctrlKey) selectHotKeyElement(e, 'button[id^=save_]');
+  if (e.key === 'd' && e.ctrlKey) selectHotKeyElement(e, 'button[id^=delete_]');
 });
 
 function getSortableCellValue(cell, sortType) {

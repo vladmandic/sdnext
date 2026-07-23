@@ -84,27 +84,12 @@ def clear_rope_cache(runner) -> None:
         runner: The model runner containing the cache
     """
     if hasattr(runner, 'cache') and hasattr(runner.cache, 'cache'):
-        # Count entries before cleanup
-        len(runner.cache.cache)
-
-        # Free all tensors from cache
-        for _key, value in runner.cache.cache.items():
-            if isinstance(value, (tuple, list)):
-                for item in value:
-                    if hasattr(item, 'cpu'):
-                        item.cpu()
-                        del item
-            elif hasattr(value, 'cpu'):
-                value.cpu()
-                del value
-
-        # Clear the cache
-        runner.cache.cache.clear()
+        runner.cache.clear()
 
     if hasattr(runner, 'dit'):
-        cleared_lru_count = 0
         for module in runner.dit.modules():
             if isinstance(module, RotaryEmbeddingBase):
                 if hasattr(module.get_axial_freqs, 'cache_clear'):
                     module.get_axial_freqs.cache_clear()
-                    cleared_lru_count += 1
+            if hasattr(module, 'cache') and hasattr(module.cache, 'clear'):
+                module.cache.clear()

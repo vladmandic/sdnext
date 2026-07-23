@@ -307,6 +307,8 @@ class Detailer():
         via detailer_opt(). The seed is resolved here so restore()'s inpaint passes are reproducible and the
         effective value can be reported back.
         """
+        if image is None:
+            return None
         from modules.processing_helpers import get_fixed_seed
         from modules.paths import resolve_output_path
         seed = int(get_fixed_seed(seed))

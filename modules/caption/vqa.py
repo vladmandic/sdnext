@@ -12,9 +12,9 @@ from PIL import Image
 from modules import shared, devices, errors, model_quant, sd_models, sd_models_compile
 from modules.sd_offload_aux import register_aux, deregister_aux, move_aux_to_gpu, offload_aux
 from modules.logger import log, console
-from modules.caption import vqa_detection, helpers
+from modules.caption import vqa_detection, helpers, toriigate
 from modules.caption.attention import set_attention
-from modules.caption.models_def import vlm_models, vlm_system, vlm_analyze, vlm_default, vlm_prefill, vlm_prompts, vlm_prompt_mapping, vlm_prompt_reverse_mapping, vlm_prompt_placeholders, vlm_prompts_common, vlm_prompts_florence, vlm_prompts_moondream, vlm_prompts_moondream2, vlm_prompts_promptgen, analyze_question, get_vlm_repo # pylint: disable=unused-import
+from modules.caption.models_def import vlm_models, vlm_system, vlm_analyze, vlm_default, vlm_prefill, vlm_prompts, vlm_prompt_mapping, vlm_prompt_reverse_mapping, vlm_prompt_placeholders, vlm_prompts_common, vlm_prompts_florence, vlm_prompts_moondream, vlm_prompts_moondream2, vlm_prompts_promptgen, vlm_prompts_toriigate, analyze_question, get_vlm_repo # pylint: disable=unused-import
 
 
 debug_enabled = os.environ.get('SD_CAPTION_DEBUG', None) is not None
@@ -72,6 +72,10 @@ def get_prompts_for_model(model_name: str) -> list:
     # Check for Florence-2 base / CogFlorence models (no PromptGen-specific prompts)
     if 'florence' in model_lower:
         return vlm_prompts_common + vlm_prompts_florence
+
+    # Check for ToriiGate 0.5 (native caption formats first, Normal Caption has no equivalent format)
+    if toriigate.is_toriigate(model_name):
+        return vlm_prompts_toriigate + [p for p in vlm_prompts_common if p != 'Normal Caption']
 
     # Check for Moondream models (Moondream 2 has gaze detection, Moondream 3 does not)
     if 'moondream' in model_lower:
@@ -138,6 +142,16 @@ def is_thinking_model(model_name: str) -> bool:
         'qwen 3.5',  # Qwen3.5 native thinking (display names)
     ]
     return any(indicator in model_lower for indicator in thinking_indicators)
+
+
+def check_linear_attention(model):
+    """Warn when a hybrid linear-attention model lacks its kernels and falls back to a per-token torch loop."""
+    model_type = getattr(getattr(model, 'config', None), 'model_type', '') or ''
+    if not model_type.startswith('qwen3_5'):
+        return
+    from transformers.utils.import_utils import is_flash_linear_attention_available
+    if not is_flash_linear_attention_available():
+        log.warning(f'LLM: cls={model.__class__.__name__} linear attention kernels missing: install="flash-linear-attention" impact="generation runs a slow torch fallback"')
 
 
 def truncate_b64_in_conversation(conversation, front_chars=50, tail_chars=50, threshold=200):
@@ -561,6 +575,7 @@ class VQA:
                 self.model = sd_models_compile.compile_torch(self.model, apply_to_components=False, op="VQA")
             register_aux('vqa', self.model)
             set_attention(self.model)
+            check_linear_attention(self.model)
             self.loaded = repo
             devices.torch_gc()
 
@@ -571,13 +586,18 @@ class VQA:
         cls_name = self.model.__class__.__name__
         debug(f'LLM: handler=qwen model_name="{model_name}" model_class="{cls_name}" repo="{repo}" question="{question}" system_prompt="{system_prompt}" image_size={image.size if image else None}')
 
-        question = question.replace('<', '').replace('>', '').replace('_', ' ')
-        if question is not None and len(question) > 4:
-            if question in vlm_prompt_reverse_mapping:
-                debug(f'LLM: handler=gemma mapping friendly question="{question}" to internal="{vlm_prompt_reverse_mapping[question]}"')
-                question = vlm_prompt_reverse_mapping[question]
-
         system_prompt = system_prompt or shared.opts.caption_vlm_system
+        if toriigate.is_toriigate(repo):
+            # ToriiGate 0.5 is trained on one system prompt and one query structure and degrades on anything else,
+            # so its own prompts replace both the user system prompt and the generic token cleanup
+            system_prompt, question = toriigate.build_query(question)
+            debug(f'LLM: handler=qwen toriigate system="{system_prompt}" query="{question}"')
+        else:
+            question = question.replace('<', '').replace('>', '').replace('_', ' ')
+            if question is not None and len(question) > 4:
+                if question in vlm_prompt_reverse_mapping:
+                    debug(f'LLM: handler=gemma mapping friendly question="{question}" to internal="{vlm_prompt_reverse_mapping[question]}"')
+                    question = vlm_prompt_reverse_mapping[question]
         conversation = [
             {
                 "role": "system",

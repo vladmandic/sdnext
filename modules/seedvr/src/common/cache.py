@@ -21,6 +21,9 @@ class Cache:
             self.cache[key] = result
         return result
 
+    def clear(self):
+        self.cache.clear()
+
     def namespace(self, namespace: str):
         return Cache(
             disable=self.disable,
@@ -31,3 +34,15 @@ class Cache:
     def get(self, key: str):
         key = self.prefix + key
         return self.cache[key]
+
+    def size(self):
+        num = len(self.cache)
+        total_size = 0
+        for value in self.cache.values():
+            if hasattr(value, "element_size") and hasattr(value, "nelement"):
+                total_size += value.element_size() * value.nelement()
+            elif isinstance(value, (list, tuple)):
+                for item in value:
+                    if hasattr(item, "element_size") and hasattr(item, "nelement"):
+                        total_size += item.element_size() * item.nelement()
+        return num, total_size

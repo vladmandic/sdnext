@@ -10,11 +10,11 @@ except Exception:
 
 
 class Timer:
-    def __init__(self):
+    def __init__(self, profile=False):
         self.start = time.time()
         self.records = {}
         self.total = 0
-        self.profile = False
+        self.profile = profile
 
     def elapsed(self, reset=True):
         end = time.time()
@@ -27,6 +27,13 @@ class Timer:
         if name not in self.records:
             self.records[name] = 0
         self.records[name] += t
+
+    def rm(self, name):
+        if name in self.records:
+            del self.records[name]
+
+    def get(self, name):
+        return self.records.get(name, 0)
 
     def ts(self, name, t):
         elapsed = time.time() - t
@@ -60,9 +67,12 @@ class Timer:
     def get_total(self):
         return sum(self.records.values())
 
-    def dct(self, min_time=default_min_time):
+    def dct(self, min_time=default_min_time, no_total=False):
         self.total = sum(self.records.values())
-        self.records['total'] = self.total
+        if no_total:
+            self.records.pop('total', None)
+        else:
+            self.records['total'] = self.total
         if self.profile:
             res = {k: round(v, 4) for k, v in self.records.items()}
         else:
@@ -71,10 +81,13 @@ class Timer:
         return res
 
     def reset(self):
-        self.__init__()
+        self.records.clear()
+        self.__init__(self.profile)
 
 startup = Timer()
 process = Timer()
 launch = Timer()
 init = Timer()
 load = Timer()
+dynamo = Timer()
+autotune = Timer(profile=True)

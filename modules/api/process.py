@@ -292,7 +292,7 @@ class APIProcess:
         reqDict, script_args = self.set_upscalers(req)
         reqDict['image'] = helpers.decode_base64_to_image(reqDict['image'])
         with self.queue_lock:
-            result = postprocessing.run_extras(extras_mode=0, image_folder="", input_dir="", output_dir="", save_output=False, script_args=script_args, **reqDict)
+            result = postprocessing.run_extras(extras_mode=0, image_folder="", input_dir="", output_dir="", video="", save_output=False, script_args=script_args, **reqDict)
         return models.ResProcessImage(image=helpers.encode_pil_to_base64(result[0][0]), html_info=result[1])
 
     def extras_batch_images_api(self, req: models.ReqProcessBatch):
@@ -301,5 +301,5 @@ class APIProcess:
         image_list = reqDict.pop('imageList', [])
         image_folder = [helpers.decode_base64_to_image(x.data) for x in image_list]
         with self.queue_lock:
-            result = postprocessing.run_extras(extras_mode=1, image_folder=image_folder, image="", input_dir="", output_dir="", save_output=False, script_args=script_args, **reqDict)
+            result = postprocessing.run_extras(extras_mode=1, image_folder=image_folder, image="", input_dir="", output_dir="", video="", save_output=False, script_args=script_args, **reqDict)
         return models.ResProcessBatch(images=list(map(helpers.encode_pil_to_base64, result[0])), html_info=result[1])

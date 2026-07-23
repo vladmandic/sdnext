@@ -5,14 +5,15 @@ from modules.logger import log
 
 
 class PostprocessedImage:
-    def __init__(self, image, info = None):
+    def __init__(self, image = None, video = None, info = None):
         if info is None:
             info = {}
         self.image = image
+        self.video = video
         self.info = info
 
     def __str__(self):
-        return f'PostprocessedImage(image={self.image} info={self.info})'
+        return f'PostprocessedImage(image={self.image} video={self.video} info={self.info})'
 
 
 class ScriptPostprocessing:
@@ -160,6 +161,6 @@ class ScriptPostprocessingRunner:
             else:
                 for (name, _component), value in zip(script.controls.items(), script_args, strict=False):
                     process_kwargs[name] = value
-            log.debug(f'Postprocess: script={script.name} args={process_args} kwargs={process_kwargs}')
+            log.debug(f'Postprocess: script="{script.name}" args={process_args} kwargs={process_kwargs}')
             script.postprocess(filenames, *process_args, **process_kwargs)
             shared.state.end(jobid)

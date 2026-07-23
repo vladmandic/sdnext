@@ -28,6 +28,10 @@ class ScriptPostprocessingDetailer(scripts_postprocessing.ScriptPostprocessing):
                 sampler='Default', prediction='default', shift=3.0, cfg_scale=6.0, options=None, seed=-1):
         if not enabled:
             return pp
+        if not shared.sd_loaded:
+            log.warning('Detailer postprocess: SD model not loaded')
+            pp.info["Detailer"] = "skipped (SD model not loaded)"
+            return pp
         if shared.sd_model is None or not hasattr(shared.sd_model, 'sd_checkpoint_info'):
             log.warning('Detailer postprocess: no base model selected')
             pp.info["Detailer"] = "skipped (no base model selected)"

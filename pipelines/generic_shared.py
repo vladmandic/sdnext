@@ -9,6 +9,7 @@ shared_te_map = {
         'cls': transformers.T5EncoderModel,
         'identifier': 'sdnq-uint4',
         'target_repo': 'Disty0/FLUX.1-dev-SDNQ-uint4-svd-r32',
+        'target_subfolder': 'text_encoder_2',
     },
     'T5-XXL Base': { # template
         'cls': transformers.T5EncoderModel, # desired model class, used as primary matching criteria
@@ -33,13 +34,7 @@ shared_te_map = {
 
     'Qwen-2.5 SDNQ-4Bit': {
         'cls': transformers.Qwen2_5_VLForConditionalGeneration,
-        'identifier': 'sdnq-4bit',
-        'target_repo': 'Disty0/Qwen-Image-2512-SDNQ-uint4-svd-r32',
-        'target_subfolder': 'text_encoder',
-    },
-    'Qwen-2.5 SDNQ-UInt4': {
-        'cls': transformers.Qwen2_5_VLForConditionalGeneration,
-        'identifier': 'sdnq-uint4',
+        'identifier': ['sdnq-4bit', 'sdnq-uint4'],
         'target_repo': 'Disty0/Qwen-Image-2512-SDNQ-uint4-svd-r32',
         'target_subfolder': 'text_encoder',
     },
@@ -51,13 +46,7 @@ shared_te_map = {
 
     'Qwen-3 9B SDNQ-4bit': {
         'cls': transformers.Qwen3ForCausalLM,
-        'identifier': '9b-sdnq-4bit',
-        'target_repo': 'Disty0/FLUX.2-klein-9B-SDNQ-4bit-dynamic-svd-r32',
-        'target_subfolder': 'text_encoder',
-    },
-    'Qwen-3 9B SDNQ-UInt4': {
-        'cls': transformers.Qwen3ForCausalLM,
-        'identifier': '9b-sdnq-uint4',
+        'identifier': ['9b-sdnq-4bit', '9b-sdnq-uint4', '9b-sdnq-hadamard-uint4', '9b-kv-merge-sdnq-hadamard-uint4'],
         'target_repo': 'Disty0/FLUX.2-klein-9B-SDNQ-4bit-dynamic-svd-r32',
         'target_subfolder': 'text_encoder',
     },
@@ -68,15 +57,9 @@ shared_te_map = {
         'target_subfolder': 'text_encoder',
     },
 
-    'Qwen-3 4B SDNQ-4Bit': { # match after 9b
+    'Qwen-3 4B SDNQ-4Bit': {
         'cls': transformers.Qwen3ForCausalLM,
-        'identifier': 'sdnq-4bit',
-        'target_repo': 'Disty0/Z-Image-Turbo-SDNQ-uint4-svd-r32',
-        'target_subfolder': 'text_encoder',
-    },
-    'Qwen-3 4B SDNQ-UInt4': {
-        'cls': transformers.Qwen3ForCausalLM,
-        'identifier': 'sdnq-uint4',
+        'identifier': ['sdnq-4bit', 'sdnq-uint4'],
         'target_repo': 'Disty0/Z-Image-Turbo-SDNQ-uint4-svd-r32',
         'target_subfolder': 'text_encoder',
     },
@@ -103,6 +86,7 @@ shared_te_map = {
         'identifier': 'krea',
         'target_repo': 'Qwen/Qwen3-VL-4B-Instruct',
     },
+
     'Qwen3-VL 8B SDNQ-UInt4': {
         'cls': transformers.Qwen3VLModel,
         'identifier': 'uint4',
@@ -114,6 +98,18 @@ shared_te_map = {
         'target_repo': 'Qwen/Qwen3-VL-8B-Instruct',
     },
 
+    'Qwen3-VL 2B Conditional': {
+        'cls': transformers.Qwen3VLForConditionalGeneration,
+        'target_repo': 'SeFi-Image/SeFi-Image-1B-Base',
+        'identifier': ['1b', '2b'],
+        'target_subfolder': 'Qwen3-VL-2B-Instruct',
+    },
+    'Qwen3-VL 4B Conditional': {
+        'cls': transformers.Qwen3VLForConditionalGeneration,
+        'target_repo': 'SeFi-Image/SeFi-Image-5B-Base',
+        'identifier': ['5b'],
+        'target_subfolder': 'Qwen3-VL-4B-Instruct',
+    },
     'Qwen3-VL 8B Conditional': {
         'cls': transformers.Qwen3VLForConditionalGeneration,
         'target_repo': 'Boogu/Boogu-Image-0.1-Base',

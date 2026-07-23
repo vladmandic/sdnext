@@ -432,7 +432,6 @@ def test_triton(early: bool = False):
         if triton_version is None:
             try:
                 import torch._inductor.triton as torch_triton
-
                 triton_version = torch_triton.__version__
             except Exception:
                 pass
@@ -542,10 +541,11 @@ def set_sdpa_params():
             sage = version('sageattention')
         except Exception:
             sage = False
-        log.debug(f'Torch attention installed: flashattn={flash} sageattention={sage}')
+        if flash or sage:
+            log.debug(f'Torch attention installed: flashattn={flash} sageattention={sage}')
 
         from diffusers.models import attention_dispatch as a
-        log.debug(f'Torch attention status: flash={a._CAN_USE_FLASH_ATTN} flash3={a._CAN_USE_FLASH_ATTN_3} aiter={a._CAN_USE_AITER_ATTN} sage={a._CAN_USE_SAGE_ATTN} flex={a._CAN_USE_FLEX_ATTN} npu={a._CAN_USE_NPU_ATTN} xla={a._CAN_USE_XLA_ATTN} xformers={a._CAN_USE_XFORMERS_ATTN} kernels={a.is_kernels_available()}') # pylint: disable=protected-access
+        log.debug(f'Torch attention available: flash={a._CAN_USE_FLASH_ATTN} flash3={a._CAN_USE_FLASH_ATTN_3} aiter={a._CAN_USE_AITER_ATTN} sage={a._CAN_USE_SAGE_ATTN} flex={a._CAN_USE_FLEX_ATTN} npu={a._CAN_USE_NPU_ATTN} xla={a._CAN_USE_XLA_ATTN} xformers={a._CAN_USE_XFORMERS_ATTN} kernels={a.is_kernels_available()} sdnq=True') # pylint: disable=protected-access
 
     except Exception as e:
         log.warning(f'Torch SDPA: {e}')
@@ -625,7 +625,23 @@ def set_cuda_params():
     except Exception:
         tunable = [False, False]
     log.info(f'Torch parameters: backend={backend} device={device_name} config={opts.cuda_dtype} dtype={dtype} fp16={"pass" if fp16_ok else "fail"} bf16={"pass" if bf16_ok else "fail"} triton={"pass" if triton_ok else "fail"} optimization="{opts.cross_attention_optimization}"')
-    log.info(f'Torch compute: context={inference_context.__name__} nohalf={opts.no_half} nohalfvae={opts.no_half_vae} upcast={opts.upcast_sampling} deterministic={opts.cudnn_deterministic} tunable={tunable}')
+    try:
+        num_threads = torch._inductor.config.compile_threads # pylint: disable=protected-access
+    except Exception:
+        num_threads = None
+    log.info(f'Torch compute: context={inference_context.__name__} nohalf={opts.no_half} nohalfvae={opts.no_half_vae} upcast={opts.upcast_sampling} deterministic={opts.cudnn_deterministic} tunable={tunable} threads={num_threads}')
+
+    try:
+        from torch._inductor.runtime.runtime_utils import cache_dir
+        inductor_cache = cache_dir()
+    except Exception:
+        inductor_cache = os.getenv("TORCHINDUCTOR_CACHE_DIR", None)
+    try:
+        from triton import knobs
+        triton_cache = knobs.cache.dir
+    except Exception:
+        triton_cache = os.getenv("TRITON_CACHE_DIR", None)
+    log.info(f'Torch cache: inductor="{inductor_cache}" triton="{triton_cache}"')
 
 
 def randn(seed, shape=None):

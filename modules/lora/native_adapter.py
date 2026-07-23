@@ -56,9 +56,9 @@ KNOWN_PREFIXES_DEFAULT = ("diffusion_model.", "transformer.", "lora_unet_", "lor
 
 
 # Sentinel ``prefix_used`` value emitted by :func:`parse_key` when a bare path
-# starting with a member of ``bare_diffusers_prefixes`` matches. Loader
-# ``resolve_targets`` callables dispatch on this string to pass the base path
-# through verbatim (no rename required, the path is already in diffusers form).
+# starting with a member of ``bare_diffusers_prefixes`` matches. A loader
+# ``resolve_targets`` may dispatch on this string to rewrite the base path;
+# when it declines, :func:`resolve_group_targets` binds the path verbatim.
 BARE_DIFFUSERS_PREFIX_USED = "bare_diffusers"
 
 
@@ -69,10 +69,12 @@ BARE_DIFFUSERS_PREFIX_USED = "bare_diffusers"
 NETWORK_PREFIX_DEFAULT = "lora_transformer_"
 
 
-# Prefixes whose parsed ``base`` is already a network-key tail (``arch_prefix +
-# base.replace(".", "_")`` matches the stamped module name), so the loader binds
-# them directly with no per-arch rewrite. ``lycoris_`` bases are already
-# underscored, so the loader's ``.replace(".", "_")`` is a no-op on them.
+# Prefixes whose parsed ``base`` is normally already a network-key tail
+# (``arch_prefix + base.replace(".", "_")`` matches the stamped module name).
+# :func:`resolve_group_targets` binds them verbatim unless the arch's
+# ``resolve_targets`` claims the group first (needed when the arch's module
+# tree diverges from the names these formats carry). ``lycoris_`` bases are
+# already underscored, so the loader's ``.replace(".", "_")`` is a no-op on them.
 PASSTHROUGH_PREFIXES_DEFAULT = ("transformer.", BARE_DIFFUSERS_PREFIX_USED, "lora_transformer_", "lycoris_")
 
 
@@ -438,12 +440,15 @@ read_state_dict = sd_models.read_state_dict
 def resolve_group_targets(resolve_targets, prefix_used, base):
     """Map a parsed ``(prefix_used, base)`` group to ``[(diffusers_path, chunk), ...]``.
 
-    Passthrough prefixes (:data:`PASSTHROUGH_PREFIXES_DEFAULT`) bind verbatim;
-    everything else defers to the arch's ``resolve_targets``. Centralizing the
-    passthrough keeps each arch's resolver to the prefixes it actually rewrites.
+    The arch's ``resolve_targets`` is consulted first for every group.
+    Passthrough prefixes (:data:`PASSTHROUGH_PREFIXES_DEFAULT`) fall back to
+    verbatim binding when the resolver declines (returns empty), so arches
+    whose module tree matches the stamped names need no rewrite branch, while
+    arches with a divergent tree (e.g. krea2, whose transformer keeps checkpoint
+    names that differ from the ecosystem's diffusers names) can rewrite them.
     """
     if prefix_used in PASSTHROUGH_PREFIXES_DEFAULT:
-        return [(base, None)]
+        return resolve_targets(prefix_used, base) or [(base, None)]
     return resolve_targets(prefix_used, base)
 
 

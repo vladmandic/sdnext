@@ -3,8 +3,8 @@
 import torch
 
 from modules import devices
-from .common import dtype_dict, conv_types, conv_transpose_types
-from .kernel_wrappers import use_contiguous_int8_mm, use_contiguous_fp16_mm
+from .common import dtype_dict, compile_func, conv_types, conv_transpose_types
+from .kernel_wrappers import use_contiguous_int8_mm, use_contiguous_fp16_mm, use_contiguous_fp8_mm
 from .utils import is_pow2, is_pow4, next_power_of_2
 
 
@@ -170,7 +170,11 @@ def apply_hadamard(weight: torch.Tensor, group_size: int = 256, hadamard: torch.
 
 @devices.inference_context()
 def prepare_weight_for_matmul(weight: torch.Tensor, matmul_dtype: str | None = "int8") -> torch.Tensor:
-    if (use_contiguous_int8_mm and matmul_dtype in {"int8", "uint8"}) or (use_contiguous_fp16_mm and matmul_dtype == "float16"):
+    if (
+        (use_contiguous_int8_mm and matmul_dtype in {"int8", "uint8"})
+        or (use_contiguous_fp16_mm and matmul_dtype in {"fp16", "float16"})
+        or (use_contiguous_fp8_mm and matmul_dtype in {"fp8", "float8_e4m3fn"})
+    ):
         weight = weight.contiguous()
     elif weight.is_contiguous():
         weight = weight.t_().contiguous().t_()
@@ -225,3 +229,6 @@ def quantize_fp_mm(weight: torch.FloatTensor, dim: int = -1, hadamard: torch.Flo
         weight = weight.add_(torch.randint_like(weight, low=0, high=mantissa_difference, dtype=torch.int32)).bitwise_and_(-mantissa_difference).view(dtype=torch.float32)
     weight = torch.div(weight, scale).nan_to_num_().clamp_(dtype_dict[matmul_dtype]["min"], dtype_dict[matmul_dtype]["max"]).to(dtype=dtype_dict[matmul_dtype]["torch_dtype"])
     return weight, scale
+
+
+rotate_hadamard_compiled = compile_func(rotate_hadamard)

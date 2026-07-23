@@ -54,7 +54,7 @@ vae:
         - "modules.seedvr.src.models.video_vae_v3.modules.attn_video_vae"
       name: "VideoAutoencoderKLWrapper"
       args: "as_params"
-    freeze_encoder: False
+    freeze_encoder: True
     gradient_checkpoint: True # Disabled to prevent VRAM leaks in inference
   slicing:
     split_size: 4

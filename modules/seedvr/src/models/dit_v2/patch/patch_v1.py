@@ -45,6 +45,8 @@ class PatchIn(nn.Module):
             assert vid.size(2) % t == 1
             vid = torch.cat([vid[:, :, :1]] * (t - 1) + [vid], dim=2)
         vid = rearrange(vid, "b c (T t) (H h) (W w) -> b T H W (t h w c)", t=t, h=h, w=w)
+        if vid.dtype != self.proj.weight.dtype:
+            vid = vid.to(self.proj.weight.dtype)
         vid = self.proj(vid)
         return vid
 
@@ -83,16 +85,22 @@ class NaPatchIn(PatchIn):
         cache = cache.namespace("patch")
         vid_shape_before_patchify = cache("vid_shape_before_patchify", lambda: vid_shape)
         t, h, w = self.patch_size
-        if not (t == h == w == 1):
+        if not t == h == w == 1:
             vid = na.unflatten(vid, vid_shape)
             for i in range(len(vid)):
                 if t > 1 and vid_shape_before_patchify[i, 0] % t != 0:
                     vid[i] = torch.cat([vid[i][:1]] * (t - vid[i].size(0) % t) + [vid[i]], dim=0)
+                if h > 1 and vid_shape_before_patchify[i, 1] % h != 0:
+                    vid[i] = torch.cat([vid[i][:, :1]] * (h - vid[i].size(1) % h) + [vid[i]], dim=1)
+                if w > 1 and vid_shape_before_patchify[i, 2] % w != 0:
+                    vid[i] = torch.cat([vid[i][:, :, :1]] * (w - vid[i].size(2) % w) + [vid[i]], dim=2)
                 vid[i] = rearrange(vid[i], "(T t) (H h) (W w) c -> T H W (t h w c)", t=t, h=h, w=w)
             vid, vid_shape = na.flatten(vid)
 
         # slice vid after patching in when using sequence parallelism
         vid = slice_inputs(vid, dim=0)
+        if vid.dtype != self.proj.weight.dtype:
+            vid = vid.to(self.proj.weight.dtype)
         vid = self.proj(vid)
         return vid, vid_shape
 
@@ -111,17 +119,23 @@ class NaPatchOut(PatchOut):
         vid_shape_before_patchify = cache.get("vid_shape_before_patchify")
 
         t, h, w = self.patch_size
+        if vid.dtype != self.proj.weight.dtype:
+            vid = vid.to(self.proj.weight.dtype)
         vid = self.proj(vid)
         # gather vid before patching out when enabling sequence parallelism
         vid = gather_outputs(
             vid, gather_dim=0, padding_dim=0, unpad_shape=vid_shape, cache=cache.namespace("vid")
         )
-        if not (t == h == w == 1):
+        if not t == h == w == 1:
             vid = na.unflatten(vid, vid_shape)
             for i in range(len(vid)):
                 vid[i] = rearrange(vid[i], "T H W (t h w c) -> (T t) (H h) (W w) c", t=t, h=h, w=w)
                 if t > 1 and vid_shape_before_patchify[i, 0] % t != 0:
                     vid[i] = vid[i][(t - vid_shape_before_patchify[i, 0] % t) :]
+                if h > 1 and vid_shape_before_patchify[i, 1] % h != 0:
+                    vid[i] = vid[i][:, (h - vid_shape_before_patchify[i, 1] % h) :]
+                if w > 1 and vid_shape_before_patchify[i, 2] % w != 0:
+                    vid[i] = vid[i][:, :, (w - vid_shape_before_patchify[i, 2] % w) :]
             vid, vid_shape = na.flatten(vid)
 
         return vid, vid_shape

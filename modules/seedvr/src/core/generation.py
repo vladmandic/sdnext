@@ -84,6 +84,7 @@ def generation_step(runner, text_embeds_dict, cond_latents, temporal_overlap, de
 
     # Process samples with advanced optimization
     samples = optimized_video_rearrange(video_tensors)
+    del video_tensors
     noises = noises[0].to("cpu")
     aug_noises = aug_noises[0].to("cpu")
     cond_latents = cond_latents[0].to("cpu")
@@ -106,7 +107,7 @@ def cut_videos(videos):
     return result
 
 
-def generation_loop(runner, images, cfg_scale=1.0, seed=666, res_w=720, batch_size=90, temporal_overlap=0, progress_callback=None, device:str='cpu'):
+def generation_loop(runner, images, cfg_scale=1.0, cfg_rescale=0.0, steps=1, seed=666, res_w=720, batch_size=90, temporal_overlap=0, progress_callback=None, device:str='cpu', color_reconstruct=True):
     """
     Main generation loop with context-aware temporal processing
 
@@ -137,9 +138,9 @@ def generation_loop(runner, images, cfg_scale=1.0, seed=666, res_w=720, batch_si
 
     # Configure classifier-free guidance
     runner.config.diffusion.cfg.scale = cfg_scale
-    runner.config.diffusion.cfg.rescale = 0.0
+    runner.config.diffusion.cfg.rescale = cfg_rescale
     # Configure sampling steps
-    runner.config.diffusion.timesteps.sampling.steps = 1
+    runner.config.diffusion.timesteps.sampling.steps = steps
     runner.configure_diffusion()
 
     # Set random seed
@@ -159,7 +160,8 @@ def generation_loop(runner, images, cfg_scale=1.0, seed=666, res_w=720, batch_si
     ])
 
     # Initialize generation state
-    batch_samples = []
+    final_video_images = None
+    current_idx = 0
 
     # Load text embeddings with adaptive dtype
     text_embeds = {"texts_pos": [runner.text_pos_embeds], "texts_neg": [runner.text_neg_embeds]}
@@ -215,7 +217,8 @@ def generation_loop(runner, images, cfg_scale=1.0, seed=666, res_w=720, batch_si
 
         # Normal generation
         samples = generation_step(runner, text_embeds, cond_latents=cond_latents, temporal_overlap=temporal_overlap, device=device)
-        #del cond_latents
+        if samples is None:
+            return
         del cond_latents
 
         # Post-process samples
@@ -223,47 +226,35 @@ def generation_loop(runner, images, cfg_scale=1.0, seed=666, res_w=720, batch_si
         del samples
         #del samples
         if ori_lengths[0] < sample.shape[0]:
-            sample = sample[:ori_lengths[0]]
+            sample = sample[:ori_lengths[0]].contiguous()
 
         # Apply color correction if available
-        transformed_video = transformed_video.to(device)
-        input_video = [optimized_single_video_rearrange(transformed_video)]
-        del transformed_video
-        sample = wavelet_reconstruction(sample, input_video[0][:sample.size(0)])
-        del input_video
+        if color_reconstruct:
+            transformed_video = transformed_video.to(device)
+            input_video = [optimized_single_video_rearrange(transformed_video)]
+            del transformed_video
+            sample = wavelet_reconstruction(sample, input_video[0][:sample.size(0)])
+            del input_video
 
         # Convert to final image format
         sample = optimized_sample_to_image_format(sample)
         sample = sample.clip(-1, 1).mul_(0.5).add_(0.5)
-        sample_cpu = sample.to(torch.float16).to("cpu")
+        sample = sample.detach().to(torch.float16, non_blocking=True).cpu()
+        if final_video_images is None:
+            total_frames = len(images)
+            H, W, C = sample.shape[1], sample.shape[2], sample.shape[3]
+            final_video_images = torch.empty((total_frames, H, W, C), dtype=torch.float16)
+
+        batch_frames = sample.shape[0]
+        final_video_images[current_idx:current_idx + batch_frames] = sample
+        current_idx += batch_frames
         del sample
-        batch_samples.append(sample_cpu)
-        #del sample
 
         if progress_callback:
             progress_callback(batch_count+1, total_batches, current_frames, "Processing batch...")
 
 
-    # 1. Calculer la taille totale finale
-    total_frames = sum(batch.shape[0] for batch in batch_samples)
-    if len(batch_samples) > 0:
-        sample_shape = batch_samples[0].shape
-        H, W, C = sample_shape[1], sample_shape[2], sample_shape[3]
-        final_video_images = torch.empty((total_frames, H, W, C), dtype=torch.float16)
-        block_size = 500
-        current_idx = 0
-
-        for block_start in range(0, len(batch_samples), block_size):
-            block_end = min(block_start + block_size, len(batch_samples))
-            current_block = []
-            for i in range(block_start, block_end):
-                current_block.append(batch_samples[i].to(device))
-            block_result = torch.cat(current_block, dim=0)
-            block_frames = block_result.shape[0]
-            final_video_images[current_idx:current_idx + block_frames] = block_result.to("cpu")
-            current_idx += block_frames
-            del current_block, block_result
-    else:
+    if final_video_images is None:
         print("SeedVR2: No batch_samples to process")
         final_video_images = torch.empty((0, 0, 0, 0), dtype=torch.float16)
 

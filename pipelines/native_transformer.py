@@ -867,7 +867,7 @@ def build_component_prequantized(
         weights_dtype=weights_dtype,
         quantized_matmul_dtype=matmul_dtype,
         group_size=NVFP4_GROUP_SIZE if is_nvfp4 else -1,
-        use_quantized_matmul=shared.opts.sdnq_use_quantized_matmul,
+        use_quantized_matmul=(shared.opts.sdnq_quantize_matmul_mode != "disabled"),
         dequantize_fp32=shared.opts.sdnq_dequantize_fp32,
         add_skip_keys=False,
         modules_to_not_convert=[],
@@ -976,7 +976,7 @@ def build_component_prequantized(
         component,
         dtype=target_dtype,
         dequantize_fp32=shared.opts.sdnq_dequantize_fp32,
-        use_quantized_matmul=shared.opts.sdnq_use_quantized_matmul,
+        use_quantized_matmul=(shared.opts.sdnq_quantize_matmul_mode != "disabled"),
     )
     return component
 

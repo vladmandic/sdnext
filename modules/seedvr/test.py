@@ -36,6 +36,8 @@ def upscale_image(model_name:str, image_path:str):
         runner=runner,
         images=image_tensor,
         cfg_scale=cfg,
+        cfg_rescale=0.0,
+        steps=1,
         seed=seed,
         res_w=resolution,
         batch_size=1,

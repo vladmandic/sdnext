@@ -317,6 +317,14 @@ def torch_cuda_synchronize(device=None):
         return torch.xpu.synchronize(device)
 
 
+@wraps(torch.cuda.current_stream)
+def torch_cuda_current_stream(device=None):
+    if check_cuda(device):
+        return torch.xpu.current_stream(return_xpu(device))
+    else:
+        return torch.xpu.current_stream(device)
+
+
 @wraps(torch.cuda.device)
 def torch_cuda_device(device):
     if check_cuda(device):
@@ -342,7 +350,7 @@ def get_device_properties(device=None):
         "multi_processor_count": device_prop.gpu_subslice_count,
     }
     if not hasattr(device_prop, "L2_cache_size"):
-        new_keys["L2_cache_size"] = cache_size_dict.get(getattr(device_prop, "device_id", 0x56A0), cache_size_dict[0x0000])
+        new_keys["L2_cache_size"] = getattr(device_prop, "last_level_cache_size", cache_size_dict.get(getattr(device_prop, "device_id", 0x56A0), cache_size_dict[0x0000]))
     return DeviceProperties(device_prop, new_keys)
 
 
@@ -392,6 +400,7 @@ def ipex_hijacks():
     torch.load = torch_load
 
     torch.cuda.synchronize = torch_cuda_synchronize
+    torch.cuda.current_stream = torch_cuda_current_stream
     torch.cuda.device = torch_cuda_device
     torch.cuda.set_device = torch_cuda_set_device
     torch.cuda.get_device_properties = get_device_properties

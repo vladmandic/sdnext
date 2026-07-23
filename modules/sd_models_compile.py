@@ -370,3 +370,38 @@ def openvino_post_compile(op="base"): # delete unet after OpenVINO compile
             if not shared.opts.openvino_disable_memory_cleanup and hasattr(shared.sd_refiner, "unet"):
                 shared.sd_refiner.unet.apply(sd_models_utils.convert_to_faketensors)
                 devices.torch_gc(force=True)
+
+
+def update_compile_times():
+    from modules.timer import dynamo
+    dynamo.reset()
+    try:
+        from torch._dynamo.utils import compile_times, reset_frame_count
+        raw_str = compile_times()
+        reset_frame_count()
+    except Exception:
+        return
+    lines = raw_str.strip().split('\n')
+    # parsed = []
+    for line in lines:
+        if not line or 'TorchDynamo compilation metrics' in line or 'Function, Runtimes' in line:
+            continue
+        parts = line.split(',')
+        fn = parts[0].strip()
+        try:
+            times = [float(t.strip()) for t in parts[1:] if t.strip()]
+            if times:
+                # parsed.append((fn, sum(times), len(times), max(times)))
+                dynamo.add(fn, round(sum(times), 2))
+        except ValueError:
+            continue
+    """
+    parsed.sort(key=lambda x: x[1], reverse=True)
+    results = {}
+    min_time = 0.1
+    for fn, total, count, max_val in parsed:
+        if total > min_time:
+            dynamo.ts(fn, total)
+            results[fn] = { "total": round(total, 2), "count": count, "avg": round(total / count, 2), "max": round(max_val, 2) }
+    return results
+    """

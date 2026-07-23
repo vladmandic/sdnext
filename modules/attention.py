@@ -1,6 +1,6 @@
 from functools import wraps
 import torch
-from modules import rocm, errors
+from modules import rocm, errors, devices
 from modules.logger import log
 from installer import install, installed, torch_info
 
@@ -26,7 +26,8 @@ def set_sdnq_attention():
         def sdpa_sdnq_atten(query: torch.FloatTensor, key: torch.FloatTensor, value: torch.FloatTensor, attn_mask: torch.Tensor | None = None, dropout_p: float = 0.0, is_causal: bool = False, scale: float | None = None, enable_gqa: bool = False, **kwargs) -> torch.FloatTensor:
             if (
                 query.device.type != "cpu"
-                and (query.shape[-2] >= 512 or key.shape[-2] >= 512) # Skip TE
+                and (query.shape[-2] >= 32 and key.shape[-2] >= 32)
+                and (query.shape[-2] > 512 or key.shape[-2] > 512) # Skip TE
                 and query.shape[-3] > 1 # Skip VAE
             ):
                 return sdnq_triton_atten(
@@ -37,7 +38,6 @@ def set_sdnq_attention():
                     smooth_k=shared.opts.sdnq_attention_smooth_k,
                     use_hadamard=shared.opts.sdnq_attention_use_hadamard,
                     hadamard_group_size=shared.opts.sdnq_attention_hadamard_group_size,
-                    do_quantize=shared.opts.sdnq_attention_use_quantized_matmul,
                 )
             else:
                 if enable_gqa:
@@ -45,7 +45,7 @@ def set_sdnq_attention():
                 return sdpa_pre_sdnq_atten(query=query, key=key, value=value, attn_mask=attn_mask, dropout_p=dropout_p, is_causal=is_causal, scale=scale, **kwargs)
         torch.nn.functional.scaled_dot_product_attention = sdpa_sdnq_atten
         torch_info.set(attention='sdnq')
-        log.debug('Torch attention: type="SDNQ attention"')
+        log.debug(f'Torch attention: type="SDNQ attention" matmul={shared.opts.sdnq_attention_matmul_type}:{shared.opts.sdnq_attention_pv_matmul_type} smooth={shared.opts.sdnq_attention_smooth_k} hadamard={shared.opts.sdnq_attention_use_hadamard}')
     except Exception as err:
         log.error(f'Torch attention: type="SDNQ attention" {err}')
 
@@ -262,7 +262,7 @@ def set_diffusers_attention(pipe, quiet = False):
     if shared.opts.cross_attention_optimization == "Disabled":
         torch_info.set(attention="disabled")
     elif shared.opts.cross_attention_optimization == "Scaled-Dot-Product":  # The default set by Diffusers
-        torch_info.set(attention="sdpa")
+        devices.set_sdpa_params()
         # set_attn(pipe, p.AttnProcessor2_0(), name="Scaled-Dot-Product")
     elif shared.opts.cross_attention_optimization == "xFormers":
         if hasattr(pipe, 'enable_xformers_memory_efficient_attention'):

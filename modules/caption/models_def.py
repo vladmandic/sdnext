@@ -1,4 +1,5 @@
 from modules import ui_symbols
+from modules.caption.toriigate import prompt_list as vlm_prompts_toriigate
 
 
 vlm_models = {
@@ -17,6 +18,7 @@ vlm_models = {
     "Alibaba Qwen 3.5 4B": "Qwen/Qwen3.5-4B",
     "Alibaba Qwen 3.5 2B": "Qwen/Qwen3.5-2B",
     "Alibaba Qwen 3.5 0.8B": "Qwen/Qwen3.5-0.8B",
+    "ToriiGate 0.5": "Minthy/ToriiGate-0.5",
     "JoyTag": "fancyfeast/joytag",
     "JoyCaption Beta": "fancyfeast/llama-joycaption-beta-one-hf-llava",
     "JoyCaption Alpha": "fancyfeast/llama-joycaption-alpha-two-hf-llava",
@@ -173,10 +175,11 @@ vlm_prompt_placeholders = {
     "Point at...": "Enter objects to locate, e.g., 'the red car' or 'all the eyes'",
     "Detect all...": "Enter object type to detect, e.g., 'cars' or 'faces'",
     "Detect Gaze": "No input needed - auto-detects face and gaze direction",
+    **{task: "No input needed - ToriiGate uses the selected caption format" for task in vlm_prompts_toriigate},
 }
 
 # Legacy list for backwards compatibility
-vlm_prompts = vlm_prompts_common + vlm_prompts_florence + vlm_prompts_promptgen + vlm_prompts_moondream + vlm_prompts_moondream2
+vlm_prompts = vlm_prompts_common + vlm_prompts_florence + vlm_prompts_promptgen + vlm_prompts_moondream + vlm_prompts_moondream2 + vlm_prompts_toriigate
 
 vlm_prefill = 'Answer: the image shows'
 

@@ -54,7 +54,7 @@ def optimized_video_rearrange(video_tensors: List[torch.Tensor]) -> List[torch.T
         batch_3d = batch_3d.permute(0, 2, 1, 3, 4)  # [batch, 1, c, h, w]
 
         for i, idx in enumerate(indices_3d):
-            samples[idx] = batch_3d[i]  # [1, c, h, w]
+            samples[idx] = batch_3d[i].contiguous()  # [1, c, h, w]
 
     # 🚀 BATCH PROCESSING for 4D videos (c t h w -> t c h w)
     if videos_4d:
@@ -67,13 +67,12 @@ def optimized_video_rearrange(video_tensors: List[torch.Tensor]) -> List[torch.T
             batch_4d = batch_4d.permute(0, 2, 1, 3, 4)  # [batch, t, c, h, w]
 
             for i, idx in enumerate(indices_4d):
-                samples[idx] = batch_4d[i]  # [t, c, h, w]
+                samples[idx] = batch_4d[i].contiguous()  # [t, c, h, w]
         else:
             # 🔄 FALLBACK: Different shapes, optimized individual processing
             for i, idx in enumerate(indices_4d):
                 # Use permute instead of rearrange (faster)
-                samples[idx] = videos_4d[i].permute(1, 0, 2, 3)  # c t h w -> t c h w
-
+                samples[idx] = videos_4d[i].permute(1, 0, 2, 3).contiguous()  # c t h w -> t c h w
     return samples
 
 

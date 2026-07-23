@@ -9955,6 +9955,7 @@ function getUICurrentTab() {
   return gradioApp().querySelector("#tabs button.selected");
 }
 function getUICurrentTabContent() {
+  if (window.waitForUiReady) return gradioApp().querySelector(".xtabs-item:not(.hidden) > .split");
   return gradioApp().querySelector('.tabitem[id^=tab_]:not([style*="display: none"])');
 }
 var uiAfterUpdateCallbacks = [];
@@ -10076,22 +10077,24 @@ document.addEventListener("DOMContentLoaded", () => {
   gradioObserver = new MutationObserver(mutationCallback);
   gradioObserver.observe(gradioApp(), { childList: true, subtree: true, attributes: false });
 });
-document.addEventListener("keydown", (e) => {
-  let elem;
-  if (e.key === "Escape") elem = getUICurrentTabContent().querySelector("button[id$=_interrupt]");
-  if (e.key === "Enter" && e.ctrlKey) elem = getUICurrentTabContent().querySelector("button[id$=_generate]");
-  if (e.key === "i" && e.ctrlKey) elem = getUICurrentTabContent().querySelector("button[id$=_reprocess]");
-  if (e.key === " " && e.ctrlKey) elem = getUICurrentTabContent().querySelector("button[id$=_extra_networks_btn]");
-  if (e.key === "n" && e.ctrlKey) elem = getUICurrentTabContent().querySelector("button[id$=_extra_networks_btn]");
-  if (e.key === "s" && e.ctrlKey) elem = getUICurrentTabContent().querySelector("button[id^=save_]");
-  if (e.key === "Insert" && e.ctrlKey) elem = getUICurrentTabContent().querySelector("button[id^=save_]");
-  if (e.key === "d" && e.ctrlKey) elem = getUICurrentTabContent().querySelector("button[id^=delete_]");
+async function selectHotKeyElement(e, id) {
+  const elem = getUICurrentTabContent().querySelector(id);
+  log("hotkey", { key: e.key, meta: e.metaKey, ctrl: e.ctrlKey, alt: e.altKey, id, elid: elem?.id, elnode: elem?.nodeName });
   if (elem) {
     e.preventDefault();
-    log("hotkey", { key: e.key, meta: e.metaKey, ctrl: e.ctrlKey, alt: e.altKey }, elem?.id, elem.nodeName);
     if (elem.nodeName === "BUTTON") elem.click();
     else elem.focus();
   }
+}
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") selectHotKeyElement(e, "button[id$=_interrupt]");
+  if (e.key === "Enter" && e.ctrlKey) selectHotKeyElement(e, "button[id$=_generate]");
+  if (e.key === "i" && e.ctrlKey) selectHotKeyElement(e, "button[id$=_reprocess]");
+  if (e.key === " " && e.ctrlKey) selectHotKeyElement(e, "button[id$=_extra_networks_btn]");
+  if (e.key === "n" && e.ctrlKey) selectHotKeyElement(e, "button[id$=_extra_networks_btn]");
+  if (e.key === "s" && e.ctrlKey) selectHotKeyElement(e, "button[id^=save_]");
+  if (e.key === "Insert" && e.ctrlKey) selectHotKeyElement(e, "button[id^=save_]");
+  if (e.key === "d" && e.ctrlKey) selectHotKeyElement(e, "button[id^=delete_]");
 });
 function getSortableCellValue(cell, sortType) {
   const rawValue = cell?.dataset?.sortValue ?? cell?.textContent?.trim() ?? "";
@@ -10481,8 +10484,14 @@ async function filterExtraNetworksForTab(searchTerm) {
         elem.style.display = re.test(`filename: ${elem.dataset.filename}|name: ${elem.dataset.name}|tags: ${elem.dataset.tags}`) ? "" : "none";
       });
     } else {
-      const searchList = searchTerm.split("|").filter((s) => s !== "" && !s.startsWith("-")).map((s) => s.trim());
-      const excludeList = searchTerm.split("|").filter((s) => s !== "" && s.trim().startsWith("-")).map((s) => s.trim().substring(1).trim());
+      let multiStr = false;
+      let searchList = searchTerm.split("|").filter((s) => s !== "" && !s.startsWith("-")).map((s) => s.trim());
+      let excludeList = searchTerm.split("|").filter((s) => s !== "" && s.trim().startsWith("-")).map((s) => s.trim().substring(1).trim());
+      if (searchList.length === 1 && searchTerm.includes(" ")) {
+        searchList = searchTerm.split(" ").filter((s) => s !== "" && !s.startsWith("-")).map((s) => s.trim());
+        excludeList = searchTerm.split(" ").filter((s) => s !== "" && s.trim().startsWith("-")).map((s) => s.trim().substring(1).trim());
+        multiStr = true;
+      }
       const searchListAll = searchList.map((s) => s.split("&").map((t) => t.trim()));
       const excludeListAll = excludeList.map((s) => s.split("&").map((t) => t.trim()));
       cards.forEach((elem) => {
@@ -10491,7 +10500,9 @@ async function filterExtraNetworksForTab(searchTerm) {
         if (elem.dataset.name) text += `${elem.dataset.name} `;
         if (elem.dataset.tags) text += `${elem.dataset.tags} `;
         text = text.toLowerCase().replace("models--", "diffusers").replaceAll("\\", "/");
-        if (searchListAll.some((sl) => sl.every((st) => text.includes(st))) && !excludeListAll.some((el2) => el2.every((et) => text.includes(et)))) {
+        if (multiStr && searchListAll.every((sl) => sl.every((st) => text.includes(st))) && !excludeListAll.some((el2) => el2.every((et) => text.includes(et)))) {
+          elem.style.display = "";
+        } else if (!multiStr && searchListAll.some((sl) => sl.every((st) => text.includes(st))) && !excludeListAll.some((el2) => el2.every((et) => text.includes(et)))) {
           elem.style.display = "";
         } else {
           elem.style.display = "none";
@@ -11015,17 +11026,16 @@ function setProgress(res) {
   document.title = `SD.Next ${perc}`;
   for (const elId of elements) {
     const el2 = document.getElementById(elId);
-    if (el2) {
-      const jobLabel = (res ? `${job} ${perc}${eta}` : "Generate").trim();
-      el2.innerText = jobLabel;
-      if (!window.waitForUiReady) {
-        const gradient = perc !== "" ? perc : "100%";
-        if (jobLabel === "Generate") el2.style.background = "var(--primary-500)";
-        else if (jobLabel.endsWith("Decode")) continue;
-        else if (jobLabel.endsWith("Start") || jobLabel.endsWith("Finishing")) el2.style.background = "var(--primary-800)";
-        else if (res && progress > 0 && progress < 1) el2.style.background = `linear-gradient(to right, var(--primary-500) 0%, var(--primary-800) ${gradient}, var(--neutral-700) ${gradient})`;
-        else el2.style.background = "var(--primary-500)";
-      }
+    if (!el2) continue;
+    const jobLabel = (res ? `${job} ${perc}${eta}` : "Generate").trim();
+    el2.innerText = jobLabel;
+    if (!window.waitForUiReady) {
+      const gradient = perc !== "" ? perc : "100%";
+      if (jobLabel === "Generate") el2.style.background = "var(--primary-500)";
+      else if (jobLabel.endsWith("Decode")) continue;
+      else if (jobLabel.endsWith("Start") || jobLabel.endsWith("Finishing")) el2.style.background = "var(--primary-800)";
+      else if (res && progress > 0 && progress < 1) el2.style.background = `linear-gradient(to right, var(--primary-500) 0%, var(--primary-800) ${gradient}, var(--neutral-700) ${gradient})`;
+      else el2.style.background = "var(--primary-500)";
     }
   }
 }
@@ -11102,7 +11112,8 @@ function requestProgress(id_task = "undefined", progressEl = null, galleryEl = n
   const startLivePreview = (taskId, id_live_preview) => {
     if (window.opts.live_preview_refresh_period === 0) return;
     let request_id = -1;
-    if (document.hidden || !previewVisible()) {
+    const hidden = document.hidden || !previewVisible();
+    if (hidden) {
       if (!window.opts.live_preview_require_focus) request_id = id_live_preview;
     } else {
       request_id = id_live_preview;
@@ -11114,11 +11125,11 @@ function requestProgress(id_task = "undefined", progressEl = null, galleryEl = n
       hasStarted = hasStarted || res.active;
       if (res.completed || !res.active && (hasStarted || once)) {
         debug("progress", { end: res, reason: res.completed ? "completed" : "inactive" });
-        if (!res.paused) removeLivePreview(true);
+        if (!res.paused) removeLivePreview(!hidden);
         return;
       }
       if (elapsedFromStart > progressTimeout && !res.queued && res.progress === prevProgress) {
-        debug("progress", { end: res, reason: "progressSimeout" });
+        debug("progress", { end: res, reason: "progressTimeout" });
         if (!res.paused) removeLivePreview(false);
         return;
       }
@@ -11459,8 +11470,12 @@ function submit_video_wrapper(...args) {
   if (btn) btn.click();
 }
 function submit_postprocessing(...args) {
-  log("SubmitExtras");
+  const id = randomId();
+  log("SubmitProcess", id);
   clearGallery("extras");
+  requestProgress(id, null, null);
+  window.submit_state = "";
+  args[0] = id;
   return args;
 }
 window.submit_state = "";
@@ -11706,7 +11721,7 @@ function updateImg2imgResizeToTextAfterChangingImage() {
 }
 async function toggleCompact(val, old) {
   if (val === old) return;
-  log("toggleCompact", val, old);
+  log("toggleCompact", val);
   if (val) {
     gradioApp().style.setProperty("--layout-gap", "var(--spacing-md)");
     gradioApp().querySelectorAll("input[type=range]").forEach((el2) => el2.classList.add("hidden"));
@@ -12207,7 +12222,7 @@ async function updateOpts(json_string) {
   for (const op of monitoredOpts) {
     const [key, callback] = Object.entries(op)[0];
     if (Object.hasOwn(opts, key) && opts[key] !== new_opts[key]) {
-      log("updateOpt", key, opts[key], new_opts[key]);
+      log("updateOpt", { key, val: new_opts[key] });
       if (callback) callback(new_opts[key], opts[key]);
     }
   }
@@ -13774,7 +13789,6 @@ async function gallerySort(key) {
   rootFiles.forEach((node) => fragment.appendChild(node));
   const folderNames = Array.from(folderGroups.keys());
   const sortedFolderNames = currentSort.endsWith("A") ? folderNames.sort((a, b) => a.localeCompare(b)) : folderNames.sort((a, b) => b.localeCompare(a));
-  console.log("HERE", sortedFolderNames);
   for (const folderName of sortedFolderNames) {
     const files = folderGroups.get(folderName);
     files.sort(sortMode.func);
