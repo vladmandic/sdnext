@@ -462,7 +462,7 @@ def triton_dds(
         fuse_srgb: bool = False,
         clamp_output: bool = False,
         output_mt: bool = False,
-        output_slice: None | Tuple[int,int] = None
+        output_slice: Tuple[int, int] | None = None
     ):
     assert isinstance(lhs, torch.Tensor)
     assert isinstance(rhs, Matrix)
@@ -616,7 +616,7 @@ def triton_dds_sbsc(
         fuse_srgb: bool = False,
         clamp_output: bool = False,
         output_mt: bool = False,
-        output_slice: None | Tuple[int,int] = None
+        output_slice: Tuple[int, int] | None = None
     ):
     assert isinstance(lhs, torch.Tensor)
     assert isinstance(rhs, SBSCMatrix)
@@ -776,7 +776,7 @@ def triton_dds_zerorhs_sbsc(
         gamma_correction: str = 'fast',
         clamp_output: bool = False,
         output_mt: bool = False,
-        output_slice: None | Tuple[int,int] = None
+        output_slice: Tuple[int, int] | None = None
     ):
     assert isinstance(lhs, torch.Tensor)
 

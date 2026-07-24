@@ -276,7 +276,7 @@ def sdnq_quantize_layer_weight_dynamic(
     param_name: str | None = None,
     torch_dtype: torch.dtype | None = None,
     quantization_config: "SDNQConfig" = None,
-) -> None | tuple[SDNQDequantizer, dict[str, torch.Tensor]]:
+) -> tuple[SDNQDequantizer, dict[str, torch.Tensor]] | None:
     if torch_dtype is None:
         torch_dtype = weight.dtype
     if dynamic_loss_threshold is None or dynamic_loss_threshold < 0:

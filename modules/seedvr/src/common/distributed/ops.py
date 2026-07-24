@@ -357,7 +357,7 @@ def _broadcast_data(data, shape, dtype, src, group, async_op):
     return comms
 
 
-def _traverse(data: Any, op: Callable) -> Union[None, List, Dict, Any]:
+def _traverse(data: Any, op: Callable) -> Union[List, Dict, Any, None]:
     if isinstance(data, (list, tuple)):
         return [_traverse(sub_data, op) for sub_data in data]
     elif isinstance(data, dict):
