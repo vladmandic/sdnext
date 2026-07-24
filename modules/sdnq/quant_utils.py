@@ -130,6 +130,8 @@ def rotate_hadamard(weight: torch.Tensor, group_size: int = 256, hadamard: torch
         hadamard = get_hadamard(group_size, dtype=weight.dtype, device=weight.device)
     else:
         group_size = hadamard.shape[-1]
+        if hadamard.dtype != weight.dtype:
+            hadamard = hadamard.to(dtype=weight.dtype)
     if is_conv:
         weight_shape = list(weight.shape)[1:]
         weight = weight.flatten(1,-1)

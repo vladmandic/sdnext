@@ -375,7 +375,7 @@ def sdnq_quantize_layer_weight_dynamic(
         if quantization_loss <= dynamic_loss_threshold:
             del original_weight_fp32
             if quantization_config is not None:
-                if sdnq_dequantizer.weights_dtype not in quantization_config.modules_dtype_dict.keys():
+                if sdnq_dequantizer.weights_dtype not in quantization_config.modules_dtype_dict:
                     quantization_config.modules_dtype_dict[sdnq_dequantizer.weights_dtype] = [param_name]
                 else:
                     quantization_config.modules_dtype_dict[sdnq_dequantizer.weights_dtype].append(param_name)
@@ -570,7 +570,7 @@ class SDNQQuantize:
         missing_keys: list[str] | None = None,
         **kwargs,
     ) -> dict[str, torch.Tensor]:
-        _module_name, value = tuple(input_dict.items())[0]
+        _module_name, value = next(iter(input_dict.items()))
         value = value[0]
         self.hf_quantizer.create_quantized_param(model, value, full_layer_name, value.device)
         param, name = get_module_from_name(model, full_layer_name)
@@ -1001,7 +1001,7 @@ class SDNQConfig(QuantizationConfigMixin):
                     value = list(value)
                     self.modules_dtype_dict[key] = value
                 if not isinstance(key, str) or not isinstance(value, list):
-                    raise ValueError(f"modules_dtype_dict must be a dictionary of strings and lists but got {type(key)} and {type(value)}")
+                    raise TypeError(f"modules_dtype_dict must be a dictionary of strings and lists but got {type(key)} and {type(value)}")
 
         if self.modules_quant_config is None:
             self.modules_quant_config = {}

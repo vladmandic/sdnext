@@ -30,7 +30,7 @@ class SDNQLayer(torch.nn.Module):
         return self.forward_func(self, *args, **kwargs)
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(original_class={self.original_class} forward_func={self.forward_func} sdnq_dequantizer={repr(getattr(self, 'sdnq_dequantizer', None))})"
+        return f"{self.__class__.__name__}(original_class={self.original_class} forward_func={self.forward_func} sdnq_dequantizer={getattr(self, 'sdnq_dequantizer', None)})"
 
 
 class SDNQLinear(SDNQLayer, torch.nn.Linear):

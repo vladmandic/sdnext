@@ -19,7 +19,7 @@ def load_safetensors(files: list[str], state_dict: dict | None = None, key_mappi
         state_dict = {}
     for fn in files:
         with safe_open(fn, framework="pt", device=str(device)) as f:
-            for key in f.keys():
+            for key in f:
                 state_dict[map_keys(key, key_mapping)] = f.get_tensor(key)
 
 

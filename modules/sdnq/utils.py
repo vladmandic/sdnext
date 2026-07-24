@@ -80,7 +80,7 @@ def get_quant_args_from_config(quantization_config: dict) -> dict:
     quantization_config_dict.pop("is_training", None)
     quantization_config_dict.pop("sdnq_version", None)
     if quantization_config_dict.get("modules_quant_config", None) is not None:
-        for key in quantization_config_dict["modules_quant_config"].keys():
+        for key in quantization_config_dict["modules_quant_config"]:
             quantization_config_dict["modules_quant_config"][key] = get_quant_args_from_config(quantization_config_dict["modules_quant_config"][key])
     return quantization_config_dict
 
@@ -90,7 +90,7 @@ def get_minimum_dtype(weights_dtype: str, param_name: str, modules_dtype_dict: d
         for key, value in modules_dtype_dict.items():
             if check_param_name_in(param_name, value) is not None:
                 key = key.lower()
-                if key.startswith("minimum") or key.endswith("bit") or key.endswith("bits"):
+                if key.startswith("minimum") or key.endswith(("bit", "bits")):
                     minimum_bits_str = key.removeprefix("minimum").removeprefix("-").removeprefix("_").removesuffix("bits").removesuffix("bit").removesuffix("-").removesuffix("_")
                     if minimum_bits_str.startswith("uint"):
                         is_unsigned = True
@@ -189,7 +189,7 @@ def add_module_skip_keys(model: torch.nn.Module, quantization_config):
     if skip_key_list is not None:
         quantization_config.modules_to_not_convert.extend(skip_key_list[0])
         for key, value in skip_key_list[1].items():
-            if key in quantization_config.modules_dtype_dict.keys():
+            if key in quantization_config.modules_dtype_dict:
                 quantization_config.modules_dtype_dict[key].extend(value)
             else:
                 quantization_config.modules_dtype_dict[key] = value
