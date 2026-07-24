@@ -606,6 +606,10 @@ def load_diffuser_force(detected_model_type: str, checkpoint_info: CheckpointInf
             from pipelines.model_sefi import load_sefi
             sd_model = load_sefi(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
+        elif model_type in ['MageFlow']:
+            from pipelines.model_mageflow import load_mageflow
+            sd_model = load_mageflow(checkpoint_info, diffusers_load_config)
+            allow_post_quant = True
     except Exception as e:
         log.error(f'Load {op}: path="{checkpoint_info.path}" {e}')
         errors.display(e, 'Load')
@@ -1393,9 +1397,9 @@ def set_diffuser_pipe(pipe, new_pipe_type):
         add_noise_pred_to_diffusers_callback(new_pipe.pipe)
 
     fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
-    log.debug(f"Pipeline class change: source={cls} target={new_pipe.__class__.__name__} device={pipe.device} fn={fn}") # pylint: disable=protected-access
+    log.debug(f"Pipeline class change: source={cls} target={new_pipe.__class__.__name__} fn={fn}") # pylint: disable=protected-access
 
-    if shared.opts.diffusers_offload_mode == 'none':
+    if shared.opts.diffusers_offload_mode == 'none' and hasattr(pipe, 'device'):
         move_model(new_pipe, pipe.device)
     else:
         set_diffuser_offload(new_pipe, op='model')
@@ -1428,7 +1432,7 @@ def add_noise_pred_to_diffusers_callback(pipe):
 
 
 def get_native(pipe: diffusers.DiffusionPipeline):
-    if hasattr(pipe, "vae") and hasattr(pipe.vae.config, "sample_size"):
+    if hasattr(pipe, "vae") and hasattr(pipe.vae, "config") and hasattr(pipe.vae.config, "sample_size"):
         size = pipe.vae.config.sample_size # Stable Diffusion
     elif hasattr(pipe, "movq") and hasattr(pipe.movq.config, "sample_size"):
         size = pipe.movq.config.sample_size # Kandinsky

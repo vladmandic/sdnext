@@ -139,6 +139,8 @@ def get_model_type(pipe):
         model_type = 'sdxs'
     elif 'SeFi' in name:
         model_type = 'sefi'
+    elif 'Mage-Flow' in name:
+        model_type = 'mageflow'
     # video models
     elif "Kandinsky5" in name and '2V' in name:
         model_type = 'kandinsky5video'
