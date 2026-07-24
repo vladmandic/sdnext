@@ -164,10 +164,10 @@ def sdnq_attn_kernel(
                 qk = qk - m_ij[:, None]
             p = tl.exp2(qk)
             l_i = tl.fma(l_i, alpha, tl.sum(p, 1))
-            acc *= alpha[:, None]
 
             v = v_desc.load([start_n, 0])
             if pv_is_quantized:
+                acc *= alpha[:, None]
                 v_scale = v_scale_desc.load([start_n])[None, :]
                 p *= v_scale
                 if v.dtype == tl.int8:
@@ -182,7 +182,7 @@ def sdnq_attn_kernel(
                     acc = tl.fma(tl.dot(p, v, out_dtype=tl.float32), p_scale, acc)
             else:
                 p = p.to(v.dtype)
-                acc = tl.dot(p, v, acc, out_dtype=tl.float32)
+                acc = tl.fma(acc, alpha[:, None], tl.dot(p, v, out_dtype=tl.float32))
             m_i = m_ij
 
     l_i = 1 / l_i[:, None]
