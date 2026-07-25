@@ -59,6 +59,7 @@ def network_activate(include=None, exclude=None):
             lora_sdnq.fallback_layers.clear() # a raise mid-pass leaves stale entries behind
             lora_sdnq.hosted_layers.clear()
             lora_sdnq.factor_layers.clear()
+            lora_sdnq.select_layers.clear()
             backup_size = 0
             for component in modules.keys():
                 component_wanted = wanted_names if component in components else ()

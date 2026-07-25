@@ -46,6 +46,7 @@ from modules.logger import log
 fallback_layers: list[str] = []
 hosted_layers: list[tuple[str, float, bool]] = []
 factor_layers: list[str] = []
+select_layers: list[str] = []
 
 def rank_bucket(r):
     """Fixed rank ladder for compiled-graph reuse: powers of two up to 256, multiples of 64 above (hosted rank plus exact members)."""
@@ -397,7 +398,7 @@ def apply_select(self, network_layer_name, per_net, wanted_names, use_previous=F
     del d0, d1
     segments, transposed = append_factors(self, [pairs[0][0], pairs[1][0]], [pairs[0][1], pairs[1][1]])
     lora_stack.register(network_layer_name, self, 'factor', scores, segments=(segments[0], segments[1], transposed), abs_sums=abs_sums)
-    factor_layers.append(network_layer_name)
+    select_layers.append(network_layer_name) # counted apart from the plain concat: both ride the svd channel but only one is a summed set
     return True
 
 
@@ -414,6 +415,9 @@ def report_fallbacks():
     if len(factor_layers) > 0:
         log.info(f'Network load: type=LoRA quant=sdnq apply=exact layers={len(factor_layers)}')
     factor_layers.clear()
+    if len(select_layers) > 0:
+        log.info(f'Network load: type=LoRA quant=sdnq apply=select layers={len(select_layers)} mode={lora_stack.mode()}')
+    select_layers.clear()
     if len(hosted_layers) > 0:
         energies = sorted(e for _name, e, _c in hosted_layers)
         median = energies[len(energies) // 2]
