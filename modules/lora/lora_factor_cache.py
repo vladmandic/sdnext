@@ -52,7 +52,7 @@ def signature(wanted_names):
     parts = {
         'model': model_name,
         'rank': int(getattr(shared.opts, 'lora_sdnq_host_rank', 0) or 0),
-        'calib': int(os.path.getmtime(calib_path)) if os.path.isfile(calib_path) else None,
+        'calib': int(os.path.getmtime(calib_path)) if lora_calib.enabled() and os.path.isfile(calib_path) else None, # the toggle is part of the identity: factors computed under the other setting must not replay
         'stack': lora_stack.signature(),
         'nets': [],
     }
