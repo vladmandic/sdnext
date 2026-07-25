@@ -54,7 +54,7 @@ def network_activate(include=None, exclude=None):
         with devices.inference_context(), pbar:
             wanted_names = tuple((x.name, x.te_multiplier, x.unet_multiplier, x.dyn_dim) for x in l.loaded_networks) if len(l.loaded_networks) > 0 else ()
             stack_sig = lora_stack.signature() # tracked beside network_current_names so stack-setting changes re-apply
-            select_active = lora_stack.active_select(len(l.loaded_networks))
+            select_active = len(l.loaded_networks) > 0 and lora_stack.active_select(len(l.loaded_networks)) # restore-only walks have nothing to stack; the count warning would fire on every network-free generation
             applied_layers.clear()
             lora_sdnq.fallback_layers.clear() # a raise mid-pass leaves stale entries behind
             lora_sdnq.hosted_layers.clear()
