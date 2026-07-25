@@ -30,7 +30,7 @@ KLORA_BETA = 0.5 # the paper's fixed ramp offset; only the slope is user-tunable
 ROW_CHUNK = 512 # fp32 interiors run in first-dim slices; also fixes the DARE draw sequence
 SAMPLE_CAP = 1 << 22 # strided subsample bound for magnitude quantiles (full-size quantile exceeds torch limits)
 
-state: dict = {'entries': {}, 'flips': {}, 'gamma': 1.0, 'gamma_num': 0.0, 'gamma_den': 0.0, 'gamma_e': 1.0, 'gamma_e_num': 0.0, 'gamma_e_den': 0.0, 'total_steps': 0, 'finalized': False}
+state: dict = {'entries': {}, 'flips': {}, 'gamma': 1.0, 'gamma_num': 0.0, 'gamma_den': 0.0, 'gamma_e': 1.0, 'gamma_e_num': 0.0, 'gamma_e_den': 0.0, 'total_steps': 0, 'finalized': False, 'reported': None}
 warned: set = set()
 
 
@@ -208,6 +208,7 @@ def clear():
     state['gamma_e_den'] = 0.0
     state['total_steps'] = 0
     state['finalized'] = False
+    state['reported'] = None
 
 
 def register(layer_name, module, kind, scores, segments=None, nets=None, abs_sums=None):
@@ -271,13 +272,21 @@ def finalize(total_steps):
     state['flips'] = {}
     if any(e['kind'] == 'weight' for e in state['entries'].values()):
         materialize_model()
+    style_first = 0
     for layer_name, entry in list(state['entries'].items()): # snapshot: apply_selection drops entries whose module died
         flip_at = layer_flip_step(entry['scores'], state['total_steps'])
         initial = 1 if flip_at == 0 else 0
+        style_first += initial
         apply_selection(layer_name, entry, initial)
         if 0 < flip_at < state['total_steps']:
             state['flips'].setdefault(flip_at, []).append(layer_name)
     state['finalized'] = True
+    if len(state['entries']) > 0: # only a built schedule can carry a flip count, so this is the line that shows selection is live rather than requested
+        gamma = state['gamma_e'] if mode() == 'estlora' else state['gamma']
+        report = (mode(), len(state['entries']), style_first, sum(len(v) for v in state['flips'].values()), state['total_steps'], round(gamma, 3))
+        if report != state['reported']: # rebuilt every pass, so a batch would otherwise repeat one line per image
+            state['reported'] = report
+            log.info(f'Network load: type=LoRA stack={report[0]} layers={report[1]} style={report[2]} flips={report[3]} steps={report[4]} gamma={report[5]:.3f}')
 
 
 def reset(total_steps):
