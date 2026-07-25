@@ -30,7 +30,7 @@ KLORA_BETA = 0.5 # the paper's fixed ramp offset; only the slope is user-tunable
 ROW_CHUNK = 512 # fp32 interiors run in first-dim slices; also fixes the DARE draw sequence
 SAMPLE_CAP = 1 << 22 # strided subsample bound for magnitude quantiles (full-size quantile exceeds torch limits)
 
-state: dict = {'entries': {}, 'flips': {}, 'gamma': 1.0, 'gamma_num': 0.0, 'gamma_den': 0.0, 'gamma_e': 1.0, 'gamma_e_num': 0.0, 'gamma_e_den': 0.0, 'total_steps': 0, 'finalized': False, 'reported': None}
+state: dict = {'entries': {}, 'flips': {}, 'gamma': 1.0, 'gamma_e': 1.0, 'total_steps': 0, 'finalized': False, 'reported': None}
 warned: set = set()
 
 
@@ -183,13 +183,6 @@ def drop(layer_name):
         state['finalized'] = False
 
 
-def score_topk(up, down, k):
-    """K-LoRA layer score: sum of the top-K absolute delta entries (one dense materialization)."""
-    d = (up.to(torch.float32) @ down.to(torch.float32)).abs().flatten()
-    values = torch.topk(d, min(int(k), d.numel()), sorted=False).values
-    return float(values.sum()), float(d.sum())
-
-
 def score_energy(up, down):
     """EST layer score: squared Frobenius norm of up@down via the Gram identity, no materialization."""
     u = up.to(torch.float32)
@@ -201,11 +194,7 @@ def clear():
     state['entries'] = {}
     state['flips'] = {}
     state['gamma'] = 1.0
-    state['gamma_num'] = 0.0
-    state['gamma_den'] = 0.0
     state['gamma_e'] = 1.0
-    state['gamma_e_num'] = 0.0
-    state['gamma_e_den'] = 0.0
     state['total_steps'] = 0
     state['finalized'] = False
     state['reported'] = None
@@ -219,17 +208,11 @@ def register(layer_name, module, kind, scores, segments=None, nets=None, abs_sum
     the two network names; the winner delta is recomputed from the layer backup at
     selection time. abs_sums feeds the global magnitude balance (klora gamma).
     """
-    entry = {'layer': layer_name, 'module': weakref.ref(module), 'kind': kind, 'segments': segments, 'scores': scores, 'nets': nets, 'stash': None}
+    entry = {'layer': layer_name, 'module': weakref.ref(module), 'kind': kind, 'segments': segments, 'scores': scores, 'nets': nets, 'abs_sums': abs_sums, 'stash': None}
     if kind == 'factor':
         (s0, s1), (t0, t1), transposed = segments
         up = module.svd_up.data
         entry['stash'] = (segment_view(up, s0, s1, transposed).clone(), segment_view(up, t0, t1, transposed).clone())
-    if abs_sums is not None:
-        state['gamma_num'] += abs_sums[0]
-        state['gamma_den'] += abs_sums[1]
-    if mode() == 'estlora': # est scores ARE the per-layer energies; their totals give the scale-invariant balance
-        state['gamma_e_num'] += scores[0]
-        state['gamma_e_den'] += scores[1]
     state['entries'][layer_name] = entry
     state['finalized'] = False
 
@@ -267,8 +250,13 @@ def materialize_model():
 def finalize(total_steps):
     """Build the inverted flip map for the pass; select-mode layers start at their step-0 winner."""
     state['total_steps'] = int(total_steps)
-    state['gamma'] = (state['gamma_num'] / state['gamma_den']) if state['gamma_den'] > 0 else 1.0
-    state['gamma_e'] = (state['gamma_e_num'] / state['gamma_e_den']) if state['gamma_e_den'] > 0 else 1.0
+    # both balances derive from the live entries every time, so drops and re-registrations stay consistent by construction
+    num = sum(e['abs_sums'][0] for e in state['entries'].values() if e['abs_sums'] is not None)
+    den = sum(e['abs_sums'][1] for e in state['entries'].values() if e['abs_sums'] is not None)
+    state['gamma'] = (num / den) if den > 0 else 1.0
+    e_num = sum(e['scores'][0] for e in state['entries'].values()) # est scores ARE the per-layer energies; their totals give the scale-invariant balance
+    e_den = sum(e['scores'][1] for e in state['entries'].values())
+    state['gamma_e'] = (e_num / e_den) if e_den > 0 else 1.0
     state['flips'] = {}
     if any(e['kind'] == 'weight' for e in state['entries'].values()):
         materialize_model()
@@ -279,7 +267,7 @@ def finalize(total_steps):
         style_first += initial
         apply_selection(layer_name, entry, initial)
         if 0 < flip_at < state['total_steps']:
-            state['flips'].setdefault(flip_at, []).append(layer_name)
+            state['flips'].setdefault(flip_at - 1, []).append(layer_name) # step callbacks fire after the denoise, so the flip runs one step early to be live during the crossover step's forward
     state['finalized'] = True
     if len(state['entries']) > 0: # only a built schedule can carry a flip count, so this is the line that shows selection is live rather than requested
         gamma = state['gamma_e'] if mode() == 'estlora' else state['gamma']

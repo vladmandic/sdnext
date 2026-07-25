@@ -129,6 +129,9 @@ def network_activate(include=None, exclude=None):
                                     if task is not None:
                                         pbar.update(task, advance=1)
                                     continue
+                        elif getattr(module, 'sdnq_dequantizer', None) is not None: # hosting disabled: quantized layers have no side-channel to carry segments and packed backups cannot flip, so the sum paths below take the layer
+                            if any(net.modules.get(network_layer_name, None) is not None for net in l.loaded_networks):
+                                lora_stack.warn_once('select-host-disabled', f'Network stack: mode={lora_stack.mode()} quant=sdnq host=disabled fallback=sum')
                         else: # other layers select by recomputing the winner from the pristine backup at schedule time
                             backup_size += network_backup_weights(module, network_layer_name, component_wanted, fuse)
                             weights_backup = getattr(module, "network_weights_backup", None)

@@ -1930,6 +1930,79 @@ def test_select_weight_kind_plain_layer():
     return True
 
 
+def test_select_gamma_tracks_live_entries():
+    layer = build_layer('uint4')
+    n1, n2, _D1, _D2 = select_pair(layer, seed0=57, seed1=58)
+    with mock_model(lin=layer), select_mode('klora'):
+        activate(n1, n2)
+        lora_stack.reset(20)
+        entry = lora_stack.state['entries']['lora_transformer_test']
+        live = entry['abs_sums'][0] / entry['abs_sums'][1]
+        assert abs(lora_stack.state['gamma'] - live) < 1e-9, f'gamma {lora_stack.state["gamma"]} vs live ratio {live}'
+        n2.te_multiplier = 0.5
+        n2.unet_multiplier = [0.5] * 3
+        activate(n1, n2) # multiplier change re-applies the pair through the drop/re-register walk
+        lora_stack.reset(20)
+        entry = lora_stack.state['entries']['lora_transformer_test']
+        live2 = entry['abs_sums'][0] / entry['abs_sums'][1]
+        assert live2 > live * 1.5, f'halving the style multiplier must move the live ratio: {live} -> {live2}'
+        assert abs(lora_stack.state['gamma'] - live2) < 1e-9, f'gamma must equal the live-entry ratio, not blend with the previous registration: {lora_stack.state["gamma"]} vs {live2}'
+        activate()
+    with mock_model(lin=layer), select_mode('estlora'):
+        activate(n1, n2)
+        lora_stack.reset(20)
+        entry = lora_stack.state['entries']['lora_transformer_test']
+        live_e = entry['scores'][0] / entry['scores'][1]
+        assert abs(lora_stack.state['gamma_e'] - live_e) < 1e-9
+        n2.te_multiplier = 1.0
+        n2.unet_multiplier = [1.0] * 3
+        activate(n1, n2)
+        lora_stack.reset(20)
+        entry = lora_stack.state['entries']['lora_transformer_test']
+        live_e2 = entry['scores'][0] / entry['scores'][1]
+        assert abs(lora_stack.state['gamma_e'] - live_e2) < 1e-9, f'energy balance must track the live registration: {lora_stack.state["gamma_e"]} vs {live_e2}'
+        activate()
+    return True
+
+
+def test_select_host_disabled_falls_back_to_sum():
+    layer = build_layer('uint4')
+    n1, n2, D1, D2 = select_pair(layer, seed0=53, seed1=54)
+    with mock_model(lin=layer), select_mode('klora'), host_rank(0):
+        Wdq0 = dq(layer)
+        activate(n1, n2)
+        assert not lora_stack.select_engaged(), 'hosting disabled: quantized layers cannot carry segments, nothing must schedule'
+        assert 'select-host-disabled' in lora_stack.warned, 'the degradation must be said once'
+        eff = dq(layer) - Wdq0
+        assert rho_of(eff, D1 + D2) > 0.99, 'the pair must land as plain summation, not a pristine no-op'
+        activate()
+        assert torch.equal(dq(layer), Wdq0)
+    return True
+
+
+def test_flip_lands_before_crossover_step():
+    layer = build_layer('uint4')
+    n1, n2, D1, D2 = select_pair(layer, seed0=55, seed1=56)
+    with mock_model(lin=layer), select_mode('klora'):
+        Wdq0 = dq(layer)
+        activate(n1, n2)
+        total = 20
+        orig = lora_stack.layer_flip_step
+        lora_stack.layer_flip_step = lambda scores, t: t - 1 # crossover on the final step
+        try:
+            lora_stack.reset(total)
+        finally:
+            lora_stack.layer_flip_step = orig
+        assert list(lora_stack.state['flips'].keys()) == [total - 2], f'end-of-step callbacks: a crossover at step k must execute at the end of step k-1, got {list(lora_stack.state["flips"].keys())}'
+        assert rho_of(dq(layer) - Wdq0, D1) > 0.99, 'the subject holds the layer before the flip'
+        for s in range(total - 1): # the callback after the second-to-last denoise is the last one that can matter
+            lora_stack.on_step(s)
+        assert rho_of(dq(layer) - Wdq0, D2) > 0.99, 'the style side must be live for the final denoise'
+        activate()
+        assert torch.equal(dq(layer), Wdq0)
+    return True
+
+
 CAT_COMPILE = category('compile')
 
 
@@ -2120,7 +2193,8 @@ def run_tests():
                test_select_matmul_transposed_layout, test_select_per_net_hosted_pair, test_select_reset_restores_initial_state,
                test_select_deactivate_from_midflip, test_select_requires_exactly_two_nets, test_select_gated_off_when_compiled,
                test_select_finalize_drops_dead_module, test_select_int8_pair_rides_segments, test_select_gate_dormant_without_pair, test_stale_schedule_dropped_on_reapply,
-               test_est_energy_matches_full_frobenius, test_select_weight_kind_plain_layer]:
+               test_est_energy_matches_full_frobenius, test_select_weight_kind_plain_layer,
+               test_select_gamma_tracks_live_entries, test_select_host_disabled_falls_back_to_sum, test_flip_lands_before_crossover_step]:
         run_test(CAT_SELECT, fn)
     log.warning('=== Compile ===')
     for fn in [test_factor_add_inside_compiled_graph, test_rank_bucket_graph_reuse]:
