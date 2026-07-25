@@ -50,8 +50,8 @@ import signal
 import logging
 import argparse
 import tempfile
+import importlib
 import importlib.metadata
-import importlib.import_module
 from contextlib import contextmanager
 
 import torch
