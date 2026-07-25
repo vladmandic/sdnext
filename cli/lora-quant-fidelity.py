@@ -72,7 +72,7 @@ from safetensors import safe_open # pylint: disable=wrong-import-position
 from rich import print as rprint # pylint: disable=wrong-import-position
 
 from modules.lora import native_adapter, network, network_lora, network_lokr, network_hada, network_oft, network_full, network_ia3, network_glora, network_norm, lora_sdnq # pylint: disable=wrong-import-position
-from modules.lora.lora_load import _NATIVE_DISPATCH # pylint: disable=wrong-import-position
+from modules.lora.lora_load import NATIVE_DISPATCH # pylint: disable=wrong-import-position
 from modules.sdnq.quantizer import sdnq_quantize_layer_weight # pylint: disable=wrong-import-position
 from modules.sdnq.quant_utils import rotate_hadamard # pylint: disable=wrong-import-position
 
@@ -126,9 +126,9 @@ def resolve_arch(name):
     """Return the arch lora module for key resolution, or None for generic matching."""
     if name == 'generic':
         return None
-    path = _NATIVE_DISPATCH.get({'flux2': 'f2', 'ernie': 'ernieimage'}.get(name, name))
+    path = NATIVE_DISPATCH.get({'flux2': 'f2', 'ernie': 'ernieimage'}.get(name, name))
     if path is None:
-        raise SystemExit(f'unknown arch {name}; choices: {sorted(_NATIVE_DISPATCH)} or generic')
+        raise SystemExit(f'unknown arch {name}; choices: {sorted(NATIVE_DISPATCH)} or generic')
     import importlib
     return importlib.import_module(path)
 
