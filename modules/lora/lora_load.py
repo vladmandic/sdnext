@@ -21,7 +21,7 @@ exclude_errors = [
 # exposing ``try_load(name, network_on_disk, lora_scale)``. New archs add an
 # entry here and ship a per-arch ``try_load`` (either binding native_adapter's
 # generic helpers via try_load_chain, or rolling their own).
-_NATIVE_DISPATCH = {
+NATIVE_DISPATCH = {
     'zimage':     'pipelines.z_image.zimage_lora',
     'chroma':     'pipelines.chroma.chroma_lora',
     'ernieimage': 'pipelines.ernie.ernie_lora',
@@ -60,7 +60,7 @@ def load_safetensors(name, network_on_disk: network.NetworkOnDisk) -> network.Ne
     cached = lora_cache.get(name, None)
     if cached is not None:
         return cached
-    native_module = _NATIVE_DISPATCH.get(shared.sd_model_type)
+    native_module = NATIVE_DISPATCH.get(shared.sd_model_type)
     if native_module is not None:
         import importlib
         mod = importlib.import_module(native_module)
