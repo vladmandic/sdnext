@@ -129,15 +129,17 @@ def network_activate(include=None, exclude=None):
                                     if task is not None:
                                         pbar.update(task, advance=1)
                                     continue
+                            lora_stack.warn_once('select-unridable', f'Network stack: mode={lora_stack.mode()} layer="{network_layer_name}" fallback=sum') # a pair the channel cannot carry (bias delta or malformed member) sums like any unsupported set
                         elif getattr(module, 'sdnq_dequantizer', None) is not None: # hosting disabled: quantized layers have no side-channel to carry segments and packed backups cannot flip, so the sum paths below take the layer
                             if any(net.modules.get(network_layer_name, None) is not None for net in l.loaded_networks):
                                 lora_stack.warn_once('select-host-disabled', f'Network stack: mode={lora_stack.mode()} quant=sdnq host=disabled fallback=sum')
                         else: # other layers select by recomputing the winner from the pristine backup at schedule time
-                            backup_size += network_backup_weights(module, network_layer_name, component_wanted, fuse)
+                            sel_backup = network_backup_weights(module, network_layer_name, component_wanted, fuse)
                             weights_backup = getattr(module, "network_weights_backup", None)
                             if weights_backup is not None and not isinstance(weights_backup, bool):
                                 per_net, sel_bias = network_calc_weights(module, network_layer_name, elimit=elimit, per_net=True)
                                 if sel_bias is None and lora_stack.register_weight_pair(network_layer_name, module, per_net):
+                                    backup_size += sel_backup # counted only when this branch keeps the layer; the fallthrough re-enters the shared backup call below, which counts it then
                                     network_apply_weights(module, None, None, device=device) # pristine until the schedule applies the winner
                                     applied_layers.append(network_layer_name)
                                     applied_weight += 1
