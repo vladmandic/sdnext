@@ -139,6 +139,24 @@ def network_calc_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Grou
     return batch_updown, batch_ex_bias
 
 
+def assign_weight(self: torch.nn.Module, new_weight: torch.Tensor, device: torch.device, bias: bool = False):
+    """Install new values on a module, writing into the existing parameter when it can take them.
+
+    Replacing a parameter puts the tensor on a fresh allocation, and matmul kernel
+    selection is sensitive to operand placement, so a swap shifts otherwise
+    deterministic outputs bitwise; copying in place keeps the module on its
+    load-time allocation across apply and restore cycles.
+    """
+    target = self.bias if bias else self.weight
+    new_weight = new_weight.to(device)
+    if isinstance(target, torch.nn.Parameter) and target.shape == new_weight.shape and target.dtype == new_weight.dtype and target.device == new_weight.device:
+        target.data.copy_(new_weight)
+    elif bias:
+        self.bias = torch.nn.Parameter(new_weight, requires_grad=False)
+    else:
+        self.weight = torch.nn.Parameter(new_weight, requires_grad=False)
+
+
 def network_add_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.GroupNorm | torch.nn.LayerNorm | diffusers.models.lora.LoRACompatibleLinear | diffusers.models.lora.LoRACompatibleConv, model_weights: torch.Tensor | None = None, lora_weights: torch.Tensor = None, deactivate: bool = False, device: torch.device = None, bias: bool = False):
     if lora_weights is None:
         return
@@ -216,12 +234,7 @@ def network_add_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Group
                 new_weight = model_weights
             else:
                 new_weight = model_weights + lora_weights # try without device cast
-        weight = torch.nn.Parameter(new_weight.to(device), requires_grad=False)
-    if weight is not None:
-        if not bias:
-            self.weight = weight
-        else:
-            self.bias = weight
+        assign_weight(self, new_weight, device, bias=bias)
     del model_weights, lora_weights, new_weight, weight # required to avoid memory leak
 
 
@@ -260,13 +273,12 @@ def network_apply_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Gro
     t0 = time.time()
 
     if weights_backup is not None and not isinstance(weights_backup, bool):
-        self.weight = None
         if updown is not None and len(weights_backup.shape) == 4 and weights_backup.shape[1] == 9: # inpainting model. zero pad updown to make channel[1]  4 to 9
             updown = torch.nn.functional.pad(updown, (0, 0, 0, 0, 0, 5)) # pylint: disable=not-callable
         if updown is not None:
             network_add_weights(self, model_weights=weights_backup, lora_weights=updown, deactivate=deactivate, device=device, bias=False)
         else:
-            self.weight = torch.nn.Parameter(weights_backup.to(device), requires_grad=False)
+            assign_weight(self, weights_backup, device)
             if hasattr(self, "sdnq_dequantizer_backup"):
                 self.sdnq_dequantizer = self.sdnq_dequantizer_backup
                 self.scale = torch.nn.Parameter(self.sdnq_scale_backup.to(device), requires_grad=False)
@@ -282,11 +294,10 @@ def network_apply_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Gro
                 # del self.sdnq_dequantizer_backup, self.sdnq_scale_backup, self.sdnq_zero_point_backup, self.sdnq_svd_up_backup, self.sdnq_svd_down_backup
 
     if bias_backup is not None and not isinstance(bias_backup, bool):
-        self.bias = None
         if ex_bias is not None:
             network_add_weights(self, model_weights=bias_backup, lora_weights=ex_bias, deactivate=deactivate, device=device, bias=True)
         else:
-            self.bias = torch.nn.Parameter(bias_backup.to(device), requires_grad=False)
+            assign_weight(self, bias_backup, device, bias=True)
 
     if hasattr(self, "qweight") and hasattr(self, "freeze"):
         self.freeze()
