@@ -1,5 +1,6 @@
 import os
 import io
+from functools import lru_cache
 import random
 import re
 import time
@@ -196,8 +197,12 @@ class ExtraNetworksPage:
             errors.display(e, 'Network version')
         return all_versions[0]
 
+    @lru_cache(maxsize=2048, typed=False)
     def link_preview(self, filename: str):
-        if not os.path.exists(filename):
+        if filename == 'ui/assets/missing.png':
+            return f"{shared.opts.subpath}/sdapi/v1/network/thumb?filename={filename}"
+        just_file = not bool(os.path.dirname(filename))
+        if just_file or not os.path.exists(filename):
             ref = os.path.join(paths.reference_path, filename)
             if os.path.exists(ref):
                 filename = ref
@@ -456,6 +461,7 @@ class ExtraNetworksPage:
                 errors.display(e, 'Networks')
             return ""
 
+    @lru_cache(maxsize=2048, typed=False)
     def find_preview_file(self, path: str | None):
         if path is None:
             return 'ui/assets/missing.png'
@@ -477,6 +483,7 @@ class ExtraNetworksPage:
                 return file
         return 'ui/assets/missing.png'
 
+    @lru_cache(maxsize=2048, typed=False)
     def find_preview(self, filename: str):
         t0 = time.time()
         preview_file = self.find_preview_file(filename)

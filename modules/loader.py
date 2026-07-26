@@ -78,6 +78,9 @@ except Exception:
     pass
 
 try:
+    # del torch._C._c10d_init
+    import torch.distributed # pylint: disable=ungrouped-imports
+    torch.distributed.is_available = lambda: False
     import torch.distributed.distributed_c10d as _c10d # pylint: disable=unused-import,ungrouped-imports
 except Exception:
     log.warning('Loader: torch is not built with distributed support')
@@ -98,8 +101,9 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 warnings.filterwarnings(action="ignore", category=UserWarning, module="torchvision")
 torchvision = None
 try:
+    sys.modules['torchvision.samples'] = types.ModuleType("torchvision.samples") # monkey-patch to avoid torchvision sample download
     import torchvision # pylint: disable=W0611,C0411
-    import pytorch_lightning # pytorch_lightning should be imported after torch, but it re-enables warnings on import so import once to disable them # pylint: disable=W0611,C0411
+    # import pytorch_lightning # pytorch_lightning should be imported after torch, but it re-enables warnings on import so import once to disable them # pylint: disable=W0611,C0411
 except Exception as e:
     report(f'torchvision=={torchvision.__version__ if torchvision is not None else None}', e)
 

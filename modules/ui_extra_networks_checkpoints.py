@@ -63,6 +63,7 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
                     v['tags'].append(f'Size: {size} GB')
                 shared.reference_models[k] = v
 
+        models = []
         for k, v in shared.reference_models.items():
             count['total'] += 1
             url = v['path']
@@ -126,14 +127,14 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
             if ready:
                 count['ready'] += 1
 
-            yield {
+            model = {
                 "type": 'Model',
                 "name": name,
                 "title": name,
                 "filename": url,
                 "preview": self.find_preview(os.path.join(paths.reference_path, preview)),
                 "local_preview": preview_file,
-                "onclick": '"' + html.escape(f"selectReference({json.dumps(path)})") + '"',
+                "onclick": '"' + html.escape(f"selectReference({path})") + '"',
                 "hash": None,
                 "mtime": mtime,
                 "size": size,
@@ -143,7 +144,10 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
                 "version": version,
                 "tags": v.get('tags', []),
             }
+            models.append(model)
+            # yield model
         log.debug(f'Networks: type="reference" {count}')
+        return models
 
     def create_item(self, name):
         record = None
@@ -190,8 +194,7 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
                 item = future.result()
                 if item is not None:
                     items.append(item)
-        for record in self.list_reference():
-            items.append(record)
+        items += self.list_reference()
         self.update_all_previews(items)
         return items
 

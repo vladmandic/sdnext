@@ -3,7 +3,6 @@ import sys
 import html
 import threading
 import time
-import cProfile
 from modules import shared, progress, errors, timer
 from modules.logger import log
 
@@ -65,8 +64,9 @@ def wrap_gradio_call(func, extra_outputs=None, add_stats=False, name=None):
         jobid = shared.state.begin(job_name, task_id=task_id)
         try:
             if shared.cmd_opts.profile:
-                pr = cProfile.Profile()
-                pr.enable()
+                errors.profile_stop()
+                errors.profile_print('BeforeWrapGradioCall')
+                errors.profile_start()
             res = func(*args, **kwargs)
             if res is None:
                 msg = "No result returned from function"
@@ -76,8 +76,9 @@ def wrap_gradio_call(func, extra_outputs=None, add_stats=False, name=None):
             else:
                 res = list(res)
             if shared.cmd_opts.profile:
-                pr.disable()
-                errors.profile(pr, 'Wrap')
+                errors.profile_stop()
+                errors.profile_print('AfterWrapGradioCall')
+                errors.profile_start()
         except Exception as e:
             errors.display(e, 'gradio call')
             res = extra_outputs_array or []

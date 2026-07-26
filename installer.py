@@ -127,8 +127,8 @@ def env_flag(name: str, default: bool = False) -> bool:
 
 def print_profile(profiler: cProfile.Profile, msg: str):
     profiler.disable()
-    from modules.errors import profile
-    profile(profiler, msg)
+    from modules.errors import profile_print
+    profile_print(msg, local_profiler=profiler)
 
 
 def package_version(package):
@@ -942,6 +942,12 @@ def check_torch():
             install(torch_command, 'torch torchvision', quiet=False)
 
     try:
+        try:
+            # import torch pulls torch.distributed immediately which is slow and unnecessary
+            import torch.distributed.tensor._ops as dtensor_ops
+            dtensor_ops.single_dim_strategy._resolve_foreach_elementwise_overload = lambda *a, **kw: None # pylint: disable=protected-access
+        except Exception:
+            pass
         import torch
         try:
             import intel_extension_for_pytorch as ipex # pylint: disable=import-error, unused-import

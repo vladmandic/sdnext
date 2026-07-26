@@ -12,6 +12,7 @@ from threading import Thread
 from installer import git_commit, custom_excepthook, version
 from modules.logger import log
 from modules import timer
+import modules.errors
 import modules.loader
 import modules.hashes
 import modules.paths
@@ -155,6 +156,8 @@ def initialize():
     # make the program just exit at ctrl+c without waiting for anything
     def sigint_handler(_sig, _frame):
         log.trace(f'State history: uptime={round(time.time() - shared.state.server_start)} jobs={shared.state.job_history} tasks={shared.state.task_history} latents={shared.state.latent_history} images={shared.state.image_history}')
+        if modules.errors._profiler is not None: # pylint: disable=protected-access
+            modules.errors.profile_print('SIGINT')
         log.info('Exiting')
         try:
             for f in glob.glob("*.lock"):
@@ -393,7 +396,7 @@ def start_ui():
     return app
 
 
-def webui(restart=False, _exit=False):
+def webui(restart=False, _exit=False, profiler=None):
     if restart:
         modules.script_callbacks.app_reload_callback()
         modules.script_callbacks.script_unloaded_callback()
@@ -422,6 +425,7 @@ def webui(restart=False, _exit=False):
         log.info(f"Launch time: {timer.launch.summary(min_time=0)}")
         log.info(f"Installer time: {timer.init.summary(min_time=0)}")
         log.info(f"Startup time: {timer.startup.summary(min_time=0)}")
+        modules.errors._profiler = profiler # pylint: disable=protected-access
     else:
         timer.startup.add('launch', timer.launch.get_total())
         timer.startup.add('installer', timer.init.get_total())
