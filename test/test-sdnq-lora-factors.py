@@ -753,6 +753,129 @@ def test_hosted_transitions_and_rng_isolation():
     return True
 
 
+@contextmanager
+def requant_rule(ratio, energy):
+    old_r, old_e = lora_sdnq.REQUANT_RATIO, lora_sdnq.REQUANT_ENERGY
+    lora_sdnq.REQUANT_RATIO, lora_sdnq.REQUANT_ENERGY = ratio, energy
+    try:
+        yield
+    finally:
+        lora_sdnq.REQUANT_RATIO, lora_sdnq.REQUANT_ENERGY = old_r, old_e
+
+
+def test_route_fat_dense_delta_requantizes():
+    layer = build_layer('uint4')
+    torch.manual_seed(21)
+    D = torch.randn(OUT_F, IN_F, device=DEVICE) * 1e-2 # full-rank and well above the grid step: the grid retains it, truncation would cut it
+    net = make_dense_net('fatnet', layer, D)
+    with host_rank(256), mock_model(lin=layer):
+        Wdq0 = dq(layer)
+        activate(net)
+        assert not hasattr(layer, 'sdnq_lora_svd_stash'), 'a fat full-rank delta must route to requantize'
+        assert isinstance(getattr(layer, 'network_weights_backup', None), torch.Tensor), 'the routed layer takes the requantize backup'
+        rho = rho_of(dq(layer) - Wdq0, D)
+        assert rho > 0.7, f'the grid must retain the routed delta: rho={rho:.3f}'
+        activate()
+        assert torch.equal(dq(layer), Wdq0), 'restore from backup must be bit-exact'
+    return True
+
+
+def test_route_rule_terms_gate_both_ways():
+    layer = build_layer('uint4')
+    torch.manual_seed(23)
+    D = torch.randn(OUT_F, IN_F, device=DEVICE) * 1e-2 # sr about 0.8, capture about 0.8 at cap 256: each term alone can hold it hosted
+    net = make_dense_net('gatenet', layer, D)
+    with host_rank(256), mock_model(lin=layer):
+        with requant_rule(ratio=10.0, energy=0.90):
+            activate(net)
+            assert hasattr(layer, 'sdnq_lora_svd_stash'), 'sr below the ratio must host regardless of capture'
+            activate()
+        with requant_rule(ratio=0.30, energy=0.0):
+            activate(net)
+            assert hasattr(layer, 'sdnq_lora_svd_stash'), 'capture above the energy floor must host regardless of sr'
+            activate()
+        with requant_rule(ratio=0.30, energy=0.90):
+            activate(net)
+            assert not hasattr(layer, 'sdnq_lora_svd_stash'), 'both terms crossed must requantize'
+            activate()
+    return True
+
+
+def test_route_low_rank_fat_delta_stays_hosted():
+    layer = build_layer('uint4')
+    _A, _B, D = make_delta(seed=22, sigma=3e-3) # rank-8: fat against the grid, exact under the cap
+    net = make_dense_net('fatlow', layer, D)
+    with host_rank(64), mock_model(lin=layer):
+        Wdq0 = dq(layer)
+        activate(net)
+        assert hasattr(layer, 'sdnq_lora_svd_stash'), 'a low-rank delta hosts exactly at any magnitude'
+        rho = rho_of(dq(layer) - Wdq0, D)
+        assert rho > 0.95, f'rho={rho:.4f}'
+        activate()
+    return True
+
+
+def test_route_mixed_set_keeps_hosting():
+    layer = build_layer('uint4')
+    A, B, _D1 = make_delta(seed=24)
+    torch.manual_seed(25)
+    D2 = torch.randn(OUT_F, IN_F, device=DEVICE) * 1e-2
+    net1 = make_net('mixp', layer, A, B)
+    net2 = make_dense_net('mixf', layer, D2)
+    with host_rank(256), mock_model(lin=layer):
+        Wdq0 = dq(layer)
+        activate(net1, net2)
+        assert hasattr(layer, 'sdnq_lora_svd_stash'), 'a set with factorable members keeps the side-channel'
+        activate()
+        assert torch.equal(dq(layer), Wdq0)
+    return True
+
+
+def test_route_svd_checkpoint_keeps_hosting():
+    layer = build_layer('uint4', use_svd=True)
+    torch.manual_seed(26)
+    D = torch.randn(OUT_F, IN_F, device=DEVICE) * 1e-2
+    net = make_dense_net('svdfat', layer, D)
+    with host_rank(256), mock_model(lin=layer):
+        activate(net)
+        assert hasattr(layer, 'sdnq_lora_svd_stash'), 'svd checkpoints keep hosting; the rule is not grounded there'
+        activate()
+    return True
+
+
+def test_route_dense_stack_keeps_hosting():
+    layer = build_layer('uint4')
+    torch.manual_seed(27)
+    D1 = torch.randn(OUT_F, IN_F, device=DEVICE) * 1e-2
+    D2 = torch.randn(OUT_F, IN_F, device=DEVICE) * 1e-2
+    net1, net2 = make_dense_net('df1', layer, D1), make_dense_net('df2', layer, D2)
+    with host_rank(256), stack_mode('ties'), mock_model(lin=layer):
+        activate(net1, net2)
+        assert hasattr(layer, 'sdnq_lora_svd_stash'), 'dense-combined deltas host at any magnitude'
+        activate()
+    return True
+
+
+def test_route_replay_from_cache():
+    import tempfile
+    layer = build_layer('uint4')
+    with tempfile.TemporaryDirectory() as tmp:
+        with host_rank(256), host_cache(10, os.path.join(tmp, 'cache')), mock_model(lin=layer):
+            net, _D = cache_fixture(tmp, layer, name='fatcache', sigma=1e-2, seed=28)
+            activate(net)
+            assert not hasattr(layer, 'sdnq_lora_svd_stash'), 'fat delta must route on the fresh-sketch path'
+            activate()
+            real_svd = torch.svd_lowrank
+            torch.svd_lowrank = raise_no_svd
+            try:
+                activate(net) # the stored entry memoizes the routing: same decision, no sketch
+            finally:
+                torch.svd_lowrank = real_svd
+            assert not hasattr(layer, 'sdnq_lora_svd_stash'), 'cache replay must route the same way'
+            activate()
+    return True
+
+
 CAT_CALIB = category('calibration')
 
 
@@ -1294,7 +1417,10 @@ def run_tests():
         run_test(CAT_TRANS, fn)
     log.warning('=== Hosting ===')
     for fn in [test_hosted_low_rank_delta_is_kept, test_hosted_dense_delta_beats_requant, test_hosted_skips_int8,
-               test_hosted_disabled_by_option, test_hosted_transitions_and_rng_isolation]:
+               test_hosted_disabled_by_option, test_hosted_transitions_and_rng_isolation,
+               test_route_fat_dense_delta_requantizes, test_route_rule_terms_gate_both_ways, test_route_low_rank_fat_delta_stays_hosted,
+               test_route_mixed_set_keeps_hosting, test_route_svd_checkpoint_keeps_hosting, test_route_dense_stack_keeps_hosting,
+               test_route_replay_from_cache]:
         run_test(CAT_HOST, fn)
     log.warning('=== Calibration ===')
     for fn in [test_calibrated_hosting_beats_plain, test_calibrated_low_rank_delta_survives, test_calib_option_off_matches_plain,
