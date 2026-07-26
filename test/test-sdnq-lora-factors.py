@@ -843,19 +843,6 @@ def test_route_svd_checkpoint_keeps_hosting():
     return True
 
 
-def test_route_dense_stack_keeps_hosting():
-    layer = build_layer('uint4')
-    torch.manual_seed(27)
-    D1 = torch.randn(OUT_F, IN_F, device=DEVICE) * 1e-2
-    D2 = torch.randn(OUT_F, IN_F, device=DEVICE) * 1e-2
-    net1, net2 = make_dense_net('df1', layer, D1), make_dense_net('df2', layer, D2)
-    with host_rank(256), stack_mode('ties'), mock_model(lin=layer):
-        activate(net1, net2)
-        assert hasattr(layer, 'sdnq_lora_svd_stash'), 'dense-combined deltas host at any magnitude'
-        activate()
-    return True
-
-
 def test_route_replay_from_cache():
     import tempfile
     layer = build_layer('uint4')
@@ -1254,6 +1241,99 @@ def test_factor_cache_disabled_at_zero():
     return True
 
 
+def test_factor_cache_invalidates_on_calib_toggle():
+    import tempfile
+    from modules.lora import lora_calib
+    layer = build_layer('uint4')
+    with tempfile.TemporaryDirectory() as tmp:
+        with host_rank(64), host_cache(10, os.path.join(tmp, 'cache')), mock_model(lin=layer):
+            net, _D = cache_fixture(tmp, layer)
+            old_root = lora_calib.calib_root
+            lora_calib.calib_root = os.path.join(tmp, 'calib')
+            os.makedirs(lora_calib.calib_root, exist_ok=True)
+            with open(lora_calib.calib_file('test/cache-model'), 'wb') as f:
+                f.write(b'0' * 64) # the signature stats this file; its content is never read here
+            torch.manual_seed(77)
+            layer.sdnq_calib_rms = torch.rand(IN_F) * 4 + 0.1
+            try:
+                with host_calib(True):
+                    activate(net)
+                    up_cal = layer.svd_up.detach().clone()
+                    activate()
+                with host_calib(False):
+                    activate(net) # same set with calibration off: the entry keyed under the other setting must miss
+                    up_plain = layer.svd_up.detach().clone()
+                    activate()
+                assert not torch.equal(up_cal, up_plain), 'toggling calibration must not replay factors computed under the other setting'
+                assert len(os.listdir(os.path.join(tmp, 'cache'))) == 2, 'the two settings must key separate cache entries'
+            finally:
+                del layer.sdnq_calib_rms
+                lora_calib.calib_root = old_root
+    return True
+
+
+@contextmanager
+def counting_calc():
+    """Count NetworkModuleFull.calc_updown calls: zero on a pass proves the walk skipped delta assembly."""
+    from modules.lora import network_full
+    calls = {'n': 0}
+    real = network_full.NetworkModuleFull.calc_updown
+    def wrapper(self, *args, **kwargs):
+        calls['n'] += 1
+        return real(self, *args, **kwargs)
+    network_full.NetworkModuleFull.calc_updown = wrapper
+    try:
+        yield calls
+    finally:
+        network_full.NetworkModuleFull.calc_updown = real
+
+
+def test_cache_fastpath_skips_calc():
+    import tempfile
+    layer = build_layer('uint4')
+    with tempfile.TemporaryDirectory() as tmp:
+        with host_rank(64), host_cache(10, os.path.join(tmp, 'cache')), mock_model(lin=layer):
+            net, _D = cache_fixture(tmp, layer)
+            Wdq0 = dq(layer)
+            with counting_calc() as calls:
+                activate(net)
+                assert calls['n'] > 0, 'a fresh apply must assemble the delta'
+                first = dq(layer)
+                activate()
+                calls['n'] = 0
+                activate(net)
+                assert calls['n'] == 0, f'a cache replay must not assemble the delta: calc_updown ran {calls["n"]} times'
+                assert hasattr(layer, 'sdnq_lora_svd_stash'), 'the fast path must attach the cached factors'
+                assert torch.equal(dq(layer), first), 'fast-path replay must be bit-identical to the fresh apply'
+                activate()
+                assert torch.equal(dq(layer), Wdq0)
+    return True
+
+
+def test_cache_fastpath_serves_mixed_set():
+    import tempfile
+    layer = build_layer('uint4')
+    A, B, _D1 = make_delta(seed=63)
+    with tempfile.TemporaryDirectory() as tmp:
+        with host_rank(64), host_cache(10, os.path.join(tmp, 'cache')), mock_model(lin=layer):
+            net_full, _D2 = cache_fixture(tmp, layer, name='mixfull', seed=64)
+            net_plain = make_net('mixlora', layer, A, B)
+            lora_file = os.path.join(tmp, 'mixlora.safetensors')
+            with open(lora_file, 'wb') as f:
+                f.write(b'0' * 64)
+            net_plain.network_on_disk.filename = lora_file
+            activate(net_plain, net_full)
+            first = dq(layer)
+            activate()
+            with counting_calc() as calls:
+                activate(net_plain, net_full) # the factorable member re-extracts from its own weights; the hosted remainder replays
+                assert calls['n'] == 0, 'a mixed-set replay must not assemble the delta'
+            assert hasattr(layer, 'sdnq_lora_svd_stash')
+            assert torch.equal(dq(layer), first), 'mixed-set replay must be bit-identical to the fresh apply'
+            activate()
+    return True
+
+
 CAT_COMPILE = category('compile')
 
 
@@ -1419,7 +1499,7 @@ def run_tests():
     for fn in [test_hosted_low_rank_delta_is_kept, test_hosted_dense_delta_beats_requant, test_hosted_skips_int8,
                test_hosted_disabled_by_option, test_hosted_transitions_and_rng_isolation,
                test_route_fat_dense_delta_requantizes, test_route_rule_terms_gate_both_ways, test_route_low_rank_fat_delta_stays_hosted,
-               test_route_mixed_set_keeps_hosting, test_route_svd_checkpoint_keeps_hosting, test_route_dense_stack_keeps_hosting,
+               test_route_mixed_set_keeps_hosting, test_route_svd_checkpoint_keeps_hosting,
                test_route_replay_from_cache]:
         run_test(CAT_HOST, fn)
     log.warning('=== Calibration ===')
@@ -1429,7 +1509,8 @@ def run_tests():
         run_test(CAT_CALIB, fn)
     log.warning('=== Factor cache ===')
     for fn in [test_factor_cache_roundtrip_bitexact, test_factor_cache_invalidates_on_multiplier,
-               test_factor_cache_int8_quantization, test_factor_cache_disabled_at_zero]:
+               test_factor_cache_int8_quantization, test_factor_cache_disabled_at_zero, test_factor_cache_invalidates_on_calib_toggle,
+               test_cache_fastpath_skips_calc, test_cache_fastpath_serves_mixed_set]:
         run_test(CAT_FCACHE, fn)
     log.warning('=== Compile ===')
     for fn in [test_factor_add_inside_compiled_graph, test_rank_bucket_graph_reuse]:

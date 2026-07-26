@@ -242,6 +242,50 @@ def host_candidate(self, network_layer_name, wanted_names):
     return any(net.modules.get(network_layer_name, None) is not None for net in l.loaded_networks)
 
 
+def apply_cached(self, network_layer_name, wanted_names):
+    """Attach a hosted set straight from the factor cache, before the delta exists.
+
+    Probed by the walk ahead of delta assembly: on a usable entry the routing
+    rule is evaluated from the stored delta rms and the cached factors attach
+    exactly as a fetch inside ``apply_hosted`` would, so the pass skips
+    ``calc_updown`` for the layer entirely. Returns True when the layer was
+    served; None sends the caller down the assemble-and-host path (no entry,
+    or the rule wants the grid).
+    """
+    from sdnq.quant_utils import rotate_hadamard
+
+    lora_factor_cache.begin_pass(wanted_names)
+    entry = lora_factor_cache.lookup(network_layer_name)
+    if entry is None:
+        return None
+    up_h, down_h, energy, calibrated, rms = entry
+    deq = self.sdnq_dequantizer
+    dtype = deq.result_dtype
+    remove_factors(self) # before the rule: the svd-channel check must see the checkpoint's own state, and a declined layer must fall through pristine
+    members = []
+    for net in l.loaded_networks:
+        module = net.modules.get(network_layer_name, None)
+        if module is None:
+            continue
+        factors = get_module_factors(module, devices.device, dtype, original_shape=deq.original_shape)
+        if factors is not None:
+            members.append(factors)
+    if len(members) == 0 and self.svd_up is None:
+        step = float(self.scale.detach().float().mean())
+        if step > 0 and rms / step > REQUANT_RATIO and energy < REQUANT_ENERGY:
+            return None # routed to the grid: the caller assembles the delta and requantizes
+    ups, downs = [], []
+    for up_eff, down in members:
+        if deq.use_hadamard:
+            down = rotate_hadamard(down.to(dtype=torch.float32), group_size=deq.hadamard_group_size).to(dtype=dtype)
+        ups.append(up_eff)
+        downs.append(down)
+    lora_factor_cache.note_hit()
+    append_factors(self, ups + [up_h.to(device=devices.device, dtype=dtype)], downs + [down_h.to(device=devices.device, dtype=dtype)])
+    hosted_layers.append((network_layer_name, energy, calibrated))
+    return True
+
+
 def apply_hosted(self, network_layer_name, updown, wanted_names):
     """Host a set's delta on the svd channel: exact factors for factorable
     members, the top-k singular directions of the remainder for the rest.
@@ -281,11 +325,11 @@ def apply_hosted(self, network_layer_name, updown, wanted_names):
     # low its capture, and a low-rank delta hosts exactly however fat it is. Scoped to
     # sets the side-channel would otherwise carry whole: factorable members ride
     # exactly.
+    delta_rms = float(updown.detach().float().square().mean().sqrt())
     maybe_requant = len(members) == 0 and self.svd_up is None
     if maybe_requant:
         step = float(self.scale.detach().float().mean())
-        rms = float(updown.detach().float().square().mean().sqrt())
-        maybe_requant = step > 0 and rms / step > REQUANT_RATIO
+        maybe_requant = step > 0 and delta_rms / step > REQUANT_RATIO
 
     lora_factor_cache.begin_pass(wanted_names)
     cached = lora_factor_cache.fetch(network_layer_name)
@@ -301,7 +345,7 @@ def apply_hosted(self, network_layer_name, updown, wanted_names):
         downs.append(down)
 
     if cached is not None:
-        up_h, down_h, energy, calibrated = cached
+        up_h, down_h, energy, calibrated, _cached_rms = cached
         if maybe_requant and energy < REQUANT_ENERGY:
             routed_layers.append(network_layer_name)
             return None
@@ -310,7 +354,7 @@ def apply_hosted(self, network_layer_name, updown, wanted_names):
         return True
 
     up_h, down_h, energy, calibrated = truncate_delta(self, D, dtype)
-    up_h, down_h = lora_factor_cache.store(network_layer_name, up_h, down_h, energy, calibrated)
+    up_h, down_h = lora_factor_cache.store(network_layer_name, up_h, down_h, energy, calibrated, delta_rms)
     if maybe_requant and energy < REQUANT_ENERGY:
         routed_layers.append(network_layer_name) # the stored entry memoizes the routing; replays skip the sketch
         return None
