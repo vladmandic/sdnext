@@ -101,7 +101,7 @@ def get_module_factors(module, device, dtype, original_shape=None):
     return up_eff.to(dtype=dtype), down.to(device=device, dtype=dtype)
 
 
-def factor_candidate(self, network_layer_name, wanted_names, use_previous=False):
+def factor_candidate(self, network_layer_name, wanted_names):
     """True when this layer should take the exact svd-append path.
 
     Requires an SDNQ linear layer whose active networks all contribute plain
@@ -116,9 +116,8 @@ def factor_candidate(self, network_layer_name, wanted_names, use_previous=False)
         return True
     if wanted_names == ():  # nothing attached, nothing to remove
         return False
-    loaded = l.loaded_networks if not use_previous else l.previously_loaded_networks
     seen = False
-    for net in loaded:
+    for net in l.loaded_networks:
         module = net.modules.get(network_layer_name, None)
         if module is None:
             continue
@@ -150,7 +149,7 @@ def remove_factors(self):
     return True
 
 
-def apply_factors(self, network_layer_name, wanted_names, use_previous=False):
+def apply_factors(self, network_layer_name, wanted_names):
     """Attach the active networks' LoRA factors to this layer's svd side-channel.
 
     Replaces any previously attached factors (multiplier changes re-enter
@@ -166,9 +165,9 @@ def apply_factors(self, network_layer_name, wanted_names, use_previous=False):
 
     deq = self.sdnq_dequantizer
     dtype = deq.result_dtype
-    loaded = l.loaded_networks if not use_previous else l.previously_loaded_networks
+
     ups, downs = [], []
-    for net in loaded:
+    for net in l.loaded_networks:
         module = net.modules.get(network_layer_name, None)
         if module is None:
             continue
@@ -215,7 +214,7 @@ def append_factors(self, ups, downs):
     self.svd_down = torch.nn.Parameter(new_down.to(device=device), requires_grad=False)
 
 
-def host_candidate(self, network_layer_name, wanted_names, use_previous=False):
+def host_candidate(self, network_layer_name, wanted_names):
     """True when a non-factorable set on this layer should be hosted as a truncated svd."""
     if not enabled():
         return False
@@ -228,11 +227,11 @@ def host_candidate(self, network_layer_name, wanted_names, use_previous=False):
     from sdnq.common import dtype_dict
     if dtype_dict[self.sdnq_dequantizer.weights_dtype]['num_bits'] >= 8:
         return False # requantize retains most of the delta at 8 bits and above; truncation would lose more than it saves
-    loaded = l.loaded_networks if not use_previous else l.previously_loaded_networks
-    return any(net.modules.get(network_layer_name, None) is not None for net in loaded)
+
+    return any(net.modules.get(network_layer_name, None) is not None for net in l.loaded_networks)
 
 
-def apply_hosted(self, network_layer_name, updown, wanted_names, use_previous=False):
+def apply_hosted(self, network_layer_name, updown, wanted_names):
     """Host a set's delta on the svd channel: exact factors for factorable
     members, the top-k singular directions of the remainder for the rest.
 
@@ -256,15 +255,12 @@ def apply_hosted(self, network_layer_name, updown, wanted_names, use_previous=Fa
     if updown is None or updown.ndim != 2 or tuple(updown.shape) != tuple(deq.original_shape):
         return None
     dtype = deq.result_dtype
-    cached = None
-    if not use_previous:
-        lora_factor_cache.begin_pass(wanted_names)
-        cached = lora_factor_cache.fetch(network_layer_name)
+    lora_factor_cache.begin_pass(wanted_names)
+    cached = lora_factor_cache.fetch(network_layer_name)
     D = None if cached is not None else updown.detach().to(devices.device, torch.float32)
 
     ups, downs = [], []
-    loaded = l.loaded_networks if not use_previous else l.previously_loaded_networks
-    for net in loaded:
+    for net in l.loaded_networks:
         module = net.modules.get(network_layer_name, None)
         if module is None:
             continue
