@@ -13,11 +13,15 @@ MLP down projections whose inputs carry the largest outlier channels.
 Statistics come from the model's own forwards: when a sub-8-bit SDNQ model
 loads and no calibration is cached for it, streaming sum-of-squares hooks
 attach to its quantized linears, accumulate during normal generations,
-persist once enough tokens are seen, and go inert. Cached statistics load
-at model load and sit on each layer as ``sdnq_calib_rms``; the hosting path
-reads them through ``rms_for``. Capture is skipped when the model is
-compiled (hooks would break the graph) and everything is gated by the
-``lora_sdnq_host_calib`` option.
+persist, and go inert. Persist fires when every layer reaches the token
+quota, or at a bounded number of denoiser forwards for models where some
+projections take pooled or modulation vectors (a few tokens per forward)
+and could never reach an absolute quota; layers still under a small token
+floor at the deadline are omitted and stay on plain truncation. Cached
+statistics load at model load and sit on each layer as ``sdnq_calib_rms``;
+the hosting path reads them through ``rms_for``. Capture is skipped when
+the model is compiled (hooks would break the graph) and everything is
+gated by the ``lora_sdnq_host_calib`` option.
 """
 
 import os
@@ -29,8 +33,10 @@ from modules.logger import log
 
 
 TOKENS_DONE = 65536
+FORWARDS_DEADLINE = 48 # ~2 generations; token-rich layers normally finish their quota well inside it
+TOKENS_FLOOR = 32 # below this mass the rms estimate is noise; the layer is omitted and stays on plain truncation
 calib_root = os.path.join(paths.data_path, 'data', 'sdnq-calib')
-capture = {'model': None, 'recs': {}, 'handles': [], 'complete': False}
+capture = {'model': None, 'recs': {}, 'handles': [], 'forwards': 0, 'complete': False}
 
 
 def enabled():
@@ -47,14 +53,20 @@ def checkpoint_name(sd_model):
     return getattr(info, 'name', None)
 
 
+def denoiser_root(sd_model):
+    """The model's denoiser component, transformer first, unet otherwise."""
+    root = getattr(sd_model, 'transformer', None)
+    return root if root is not None else getattr(sd_model, 'unet', None)
+
+
 def eligible_modules(sd_model):
-    """Sub-8-bit 2-D SDNQ linears of the model's transformer: the layers hosting applies to."""
-    transformer = getattr(sd_model, 'transformer', None)
-    if transformer is None:
+    """Sub-8-bit 2-D SDNQ linears of the model's denoiser: the layers hosting applies to."""
+    root = denoiser_root(sd_model)
+    if root is None:
         return []
     from modules.sdnq.common import dtype_dict
     out = []
-    for name, m in transformer.named_modules():
+    for name, m in root.named_modules():
         deq = getattr(m, 'sdnq_dequantizer', None)
         if deq is None or len(deq.original_shape) != 2:
             continue
@@ -70,7 +82,22 @@ def detach_capture():
     capture['handles'].clear()
     capture['recs'].clear()
     capture['model'] = None
+    capture['forwards'] = 0
     capture['complete'] = False
+
+
+def deadline_hook(module, hook_args): # pylint: disable=unused-argument
+    """Count denoiser forwards and close capture at the deadline.
+
+    Layers taking pooled or modulation vectors see a few tokens per forward
+    and can never reach the token quota; a global forward count bounds
+    capture for them and for modules the generation path never runs.
+    """
+    if capture['complete']:
+        return
+    capture['forwards'] += 1
+    if capture['forwards'] >= FORWARDS_DEADLINE:
+        persist()
 
 
 def hook_for(rec, in_features):
@@ -96,10 +123,12 @@ def hook_for(rec, in_features):
 
 
 def persist():
-    """Write completed statistics and stamp them onto the layers.
+    """Write accumulated statistics and stamp them onto the layers.
 
-    Runs from the last completing hook, inside a forward; the write is a few
-    MB once per checkpoint ever. Handles stay registered but inert until the
+    Runs from the last hook to complete its quota or from the forward
+    deadline, inside a forward; the write is a few MB once per checkpoint
+    ever. Layers under the token floor are omitted rather than saved with
+    meaningless statistics. Handles stay registered but inert until the
     next safe point removes them (hook removal here would mutate the hook
     dict the forward is iterating).
     """
@@ -109,15 +138,20 @@ def persist():
     from safetensors.torch import save_file
     tensors, min_n = {}, None
     for name, rec in capture['recs'].items():
-        rms = (rec['ss'] / max(rec['n'], 1)).sqrt().float().cpu().contiguous().clone()
+        if rec['ss'] is None or rec['n'] < TOKENS_FLOOR:
+            continue
+        rms = (rec['ss'] / rec['n']).sqrt().float().cpu().contiguous().clone()
         tensors[name] = rms
         rec['m'].sdnq_calib_rms = rms
         min_n = rec['n'] if min_n is None else min(min_n, rec['n'])
+    if not tensors:
+        log.warning(f'Network calibration: model="{capture["model"]}" no layer reached {TOKENS_FLOOR} tokens; nothing saved')
+        return
     path = calib_file(capture['model'])
     try:
         os.makedirs(calib_root, exist_ok=True)
         save_file(tensors, path, metadata={'version': '1', 'model': capture['model'], 'tokens': str(min_n)})
-        log.info(f'Network calibration: model="{capture["model"]}" layers={len(tensors)} tokens={min_n} saved="{path}"')
+        log.info(f'Network calibration: model="{capture["model"]}" layers={len(tensors)}/{len(capture["recs"])} tokens={min_n} saved="{path}"')
     except Exception as e:
         log.warning(f'Network calibration: save failed path="{path}" {e}')
 
@@ -157,6 +191,7 @@ def on_model_loaded(sd_model):
     if 'Model' in (getattr(shared.opts, 'cuda_compile', None) or []):
         return # hooks inside a compiled module graph-break or misbehave; skip capture entirely
     capture['model'] = name
+    capture['handles'].append(denoiser_root(sd_model).register_forward_pre_hook(deadline_hook))
     for mod_name, m in modules_list:
         rec = {'m': m, 'ss': None, 'n': 0, 'done': False}
         capture['recs'][mod_name] = rec

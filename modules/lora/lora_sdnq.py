@@ -93,7 +93,7 @@ def get_module_factors(module, device, dtype, original_shape=None):
     return up_eff.to(dtype=dtype), down.to(device=device, dtype=dtype)
 
 
-def factor_candidate(self, network_layer_name, wanted_names, use_previous=False):
+def factor_candidate(self, network_layer_name, wanted_names):
     """True when this layer should take the exact svd-append path.
 
     Requires an SDNQ linear layer whose active networks all contribute plain
@@ -103,16 +103,14 @@ def factor_candidate(self, network_layer_name, wanted_names, use_previous=False)
     if getattr(self, 'sdnq_dequantizer', None) is None or self.__class__.__name__ != 'SDNQLinear':
         return False
     if wanted_names != () and lora_stack.mode() in lora_stack.DENSE_MODES and not network_layer_name.startswith('lora_te'):
-        loaded = l.loaded_networks if not use_previous else l.previously_loaded_networks
-        if sum(1 for net in loaded if net.modules.get(network_layer_name, None) is not None) >= 2:
+        if sum(1 for net in l.loaded_networks if net.modules.get(network_layer_name, None) is not None) >= 2:
             return False # dense stack modes combine dense deltas; the factor concat would sum
     if hasattr(self, 'sdnq_lora_svd_stash'):
         return True
     if wanted_names == ():  # nothing attached, nothing to remove
         return False
-    loaded = l.loaded_networks if not use_previous else l.previously_loaded_networks
     seen = False
-    for net in loaded:
+    for net in l.loaded_networks:
         module = net.modules.get(network_layer_name, None)
         if module is None:
             continue
@@ -145,7 +143,7 @@ def remove_factors(self):
     return True
 
 
-def apply_factors(self, network_layer_name, wanted_names, use_previous=False):
+def apply_factors(self, network_layer_name, wanted_names):
     """Attach the active networks' LoRA factors to this layer's svd side-channel.
 
     Replaces any previously attached factors (multiplier changes re-enter
@@ -161,9 +159,8 @@ def apply_factors(self, network_layer_name, wanted_names, use_previous=False):
 
     deq = self.sdnq_dequantizer
     dtype = deq.result_dtype
-    loaded = l.loaded_networks if not use_previous else l.previously_loaded_networks
     ups, downs = [], []
-    for net in loaded:
+    for net in l.loaded_networks:
         module = net.modules.get(network_layer_name, None)
         if module is None:
             continue
@@ -224,7 +221,7 @@ def append_factors(self, ups, downs):
     return segments, deq.use_quantized_matmul
 
 
-def select_candidate(self, network_layer_name, wanted_names, use_previous=False):
+def select_candidate(self, network_layer_name, wanted_names):
     """True when this layer can carry a set on the svd channel; select pairs ride it at any bit width."""
     if int(getattr(shared.opts, 'lora_sdnq_host_rank', 0) or 0) <= 0:
         return False
@@ -232,17 +229,15 @@ def select_candidate(self, network_layer_name, wanted_names, use_previous=False)
         return False
     if wanted_names == ():
         return False
-    loaded = l.loaded_networks if not use_previous else l.previously_loaded_networks
-    return any(net.modules.get(network_layer_name, None) is not None for net in loaded)
+    return any(net.modules.get(network_layer_name, None) is not None for net in l.loaded_networks)
 
 
-def host_candidate(self, network_layer_name, wanted_names, use_previous=False):
+def host_candidate(self, network_layer_name, wanted_names):
     """True when this layer's set should ride the svd channel as a truncated svd: non-factorable sets below 8 bits, dense-combined sets at any width."""
-    if not select_candidate(self, network_layer_name, wanted_names, use_previous):
+    if not select_candidate(self, network_layer_name, wanted_names):
         return False
     if lora_stack.mode() in lora_stack.DENSE_MODES and not network_layer_name.startswith('lora_te'):
-        loaded = l.loaded_networks if not use_previous else l.previously_loaded_networks
-        if sum(1 for net in loaded if net.modules.get(network_layer_name, None) is not None) >= 2:
+        if sum(1 for net in l.loaded_networks if net.modules.get(network_layer_name, None) is not None) >= 2:
             return True # combined deltas host at any width: requantizing them is checkpoint-fragile, while single-adapter requantize is well retained
     from modules.sdnq.common import dtype_dict
     if dtype_dict[self.sdnq_dequantizer.weights_dtype]['num_bits'] >= 8:
@@ -250,7 +245,7 @@ def host_candidate(self, network_layer_name, wanted_names, use_previous=False):
     return True
 
 
-def apply_hosted(self, network_layer_name, updown, wanted_names, use_previous=False):
+def apply_hosted(self, network_layer_name, updown, wanted_names):
     """Host a set's delta on the svd channel: exact factors for factorable
     members, the top-k singular directions of the remainder for the rest.
 
@@ -274,17 +269,14 @@ def apply_hosted(self, network_layer_name, updown, wanted_names, use_previous=Fa
     if updown is None or updown.ndim != 2 or tuple(updown.shape) != tuple(deq.original_shape):
         return None
     dtype = deq.result_dtype
-    cached = None
-    if not use_previous:
-        lora_factor_cache.begin_pass(wanted_names)
-        cached = lora_factor_cache.fetch(network_layer_name)
+    lora_factor_cache.begin_pass(wanted_names)
+    cached = lora_factor_cache.fetch(network_layer_name)
     D = None if cached is not None else updown.detach().to(devices.device, torch.float32)
 
     ups, downs = [], []
-    loaded = l.loaded_networks if not use_previous else l.previously_loaded_networks
     stack_dense = lora_stack.mode() in lora_stack.DENSE_MODES and not network_layer_name.startswith('lora_te')
     if not stack_dense: # dense stack modes host the combined delta wholesale; the members' content is already inside it
-        for net in loaded:
+        for net in l.loaded_networks:
             module = net.modules.get(network_layer_name, None)
             if module is None:
                 continue
@@ -348,7 +340,7 @@ def truncate_delta(self, D, dtype):
     return up_h, down_h, energy, rms is not None
 
 
-def apply_select(self, network_layer_name, per_net, wanted_names, use_previous=False):
+def apply_select(self, network_layer_name, per_net, wanted_names):
     """Attach two networks' contributions as separate side-channel segments for per-layer selection.
 
     Factorable members ride exactly; the rest host as their own truncated svd
@@ -364,14 +356,12 @@ def apply_select(self, network_layer_name, per_net, wanted_names, use_previous=F
     if per_net is None or len(per_net) != 2:
         return None
     dtype = deq.result_dtype
-    loaded = l.loaded_networks if not use_previous else l.previously_loaded_networks
-    if not use_previous:
-        lora_factor_cache.begin_pass(wanted_names)
+    lora_factor_cache.begin_pass(wanted_names)
     pairs, ranks = [], []
     for i, (net_name, D) in enumerate(per_net):
         if D is None or D.ndim != 2 or tuple(D.shape) != tuple(deq.original_shape):
             return None
-        net = next((n for n in loaded if n.name == net_name), None)
+        net = next((n for n in l.loaded_networks if n.name == net_name), None)
         module = net.modules.get(network_layer_name, None) if net is not None else None
         if module is None:
             return None
@@ -383,7 +373,7 @@ def apply_select(self, network_layer_name, per_net, wanted_names, use_previous=F
                 down_i = rotate_hadamard(down_i.to(dtype=torch.float32), group_size=deq.hadamard_group_size).to(dtype=dtype)
         else:
             key = f'{network_layer_name}#{i}'
-            cached = lora_factor_cache.fetch(key) if not use_previous else None
+            cached = lora_factor_cache.fetch(key)
             if cached is not None:
                 up_i, down_i = cached[0].to(device=devices.device, dtype=dtype), cached[1].to(device=devices.device, dtype=dtype)
                 hosted_layers.append((key, cached[2], cached[3]))

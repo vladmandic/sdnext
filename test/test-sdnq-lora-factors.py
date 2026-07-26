@@ -770,7 +770,7 @@ def test_calib_capture_persist_roundtrip():
             lora_calib.calib_root = tmp
             lora_calib.TOKENS_DONE = 2048
             lora_calib.on_model_loaded(sd)
-            assert len(lora_calib.capture['handles']) == 2, 'both sub-8-bit linears must hook'
+            assert len(lora_calib.capture['handles']) == 3, 'both sub-8-bit linears plus the root forward counter must hook'
             torch.manual_seed(51)
             scale = torch.linspace(0.1, 4.0, IN_F, device=DEVICE)
             xs = []
@@ -814,6 +814,119 @@ def test_calib_capture_gates():
         finally:
             shared.opts.cuda_compile = old_compile
     lora_calib.detach_capture()
+    return True
+
+
+class MockCalibDenoiser(torch.nn.Module):
+    """Denoiser whose forward feeds one token-rich linear and one token-starved one, like a DiT block beside its modulation projection."""
+    def __init__(self, rich, starved, starved_tokens):
+        super().__init__()
+        self.rich = rich
+        self.starved = starved
+        self.starved_tokens = starved_tokens
+
+    def forward(self, x):
+        self.rich(x)
+        self.starved(x[:self.starved_tokens])
+        return x
+
+
+def test_calib_deadline_persists_starved_layers():
+    import tempfile
+    from safetensors import safe_open
+    from modules.lora import lora_calib
+    rich = build_layer('uint4', seed=45)
+    starved = build_layer('uint4', seed=46)
+    root = MockCalibDenoiser(rich, starved, starved_tokens=8)
+    sd = MockCalibSd('test/calib-deadline')
+    sd.transformer = root
+    old = (lora_calib.calib_root, lora_calib.TOKENS_DONE, lora_calib.FORWARDS_DEADLINE)
+    with tempfile.TemporaryDirectory() as tmp, host_calib(True):
+        try:
+            lora_calib.calib_root = tmp
+            lora_calib.TOKENS_DONE = 2048
+            lora_calib.FORWARDS_DEADLINE = 6
+            lora_calib.on_model_loaded(sd)
+            assert len(lora_calib.capture['handles']) == 3, 'two layer hooks plus the root forward counter must attach'
+            torch.manual_seed(52)
+            xs = []
+            for i in range(6):
+                x = torch.randn(1024, IN_F, device=DEVICE).to(torch.bfloat16)
+                if i < 5: # the deadline fires at the start of the sixth forward, before its layer hooks run
+                    xs.append(x[:8].float())
+                root(x)
+            assert lora_calib.capture['complete'], 'the forward deadline must close capture'
+            assert lora_calib.capture['forwards'] == 6, f'root counter must track denoiser forwards, got {lora_calib.capture["forwards"]}'
+            path = lora_calib.calib_file('test/calib-deadline')
+            assert os.path.isfile(path), 'deadline persist must write the statistics file'
+            assert getattr(starved, 'sdnq_calib_rms', None) is not None, 'the starved layer must carry statistics'
+            expected = torch.cat(xs).square().mean(dim=0).sqrt().cpu()
+            assert torch.allclose(starved.sdnq_calib_rms, expected, rtol=1e-3, atol=1e-5), 'starved rms must match exactly the tokens it saw'
+            with safe_open(path, framework='pt', device='cpu') as f:
+                assert set(f.keys()) == {'rich', 'starved'}, f'both layers must persist, got {sorted(f.keys())}'
+                assert f.metadata()['tokens'] == '40', f'metadata must report the weakest saved layer, got {f.metadata()["tokens"]}'
+        finally:
+            lora_calib.calib_root, lora_calib.TOKENS_DONE, lora_calib.FORWARDS_DEADLINE = old
+            lora_calib.detach_capture()
+    return True
+
+
+def test_calib_deadline_omits_subfloor_layers():
+    import tempfile
+    from safetensors import safe_open
+    from modules.lora import lora_calib
+    rich = build_layer('uint4', seed=48)
+    starved = build_layer('uint4', seed=49)
+    root = MockCalibDenoiser(rich, starved, starved_tokens=2) # 2 tokens x 5 counted forwards = 10, under the floor of 32
+    sd = MockCalibSd('test/calib-subfloor')
+    sd.transformer = root
+    old = (lora_calib.calib_root, lora_calib.TOKENS_DONE, lora_calib.FORWARDS_DEADLINE)
+    with tempfile.TemporaryDirectory() as tmp, host_calib(True):
+        try:
+            lora_calib.calib_root = tmp
+            lora_calib.TOKENS_DONE = 2048
+            lora_calib.FORWARDS_DEADLINE = 6
+            lora_calib.on_model_loaded(sd)
+            torch.manual_seed(53)
+            for _ in range(6):
+                root(torch.randn(1024, IN_F, device=DEVICE).to(torch.bfloat16))
+            assert lora_calib.capture['complete'], 'the forward deadline must close capture'
+            path = lora_calib.calib_file('test/calib-subfloor')
+            with safe_open(path, framework='pt', device='cpu') as f:
+                assert set(f.keys()) == {'rich'}, f'a layer under the token floor must be omitted, got {sorted(f.keys())}'
+            assert getattr(starved, 'sdnq_calib_rms', None) is None, 'an omitted layer must not carry statistics'
+            del rich.sdnq_calib_rms
+            lora_calib.on_model_loaded(sd) # second load takes the cached path with the partial file
+            assert len(lora_calib.capture['handles']) == 0, 'a partial file still counts as cached; capture must not re-attach'
+            assert getattr(rich, 'sdnq_calib_rms', None) is not None, 'the saved layer must reload from the partial file'
+            assert getattr(starved, 'sdnq_calib_rms', None) is None, 'the omitted layer must stay on plain truncation after reload'
+        finally:
+            lora_calib.calib_root, lora_calib.TOKENS_DONE, lora_calib.FORWARDS_DEADLINE = old
+            lora_calib.detach_capture()
+    return True
+
+
+def test_calib_unet_root_walk():
+    import tempfile
+    from modules.lora import lora_calib
+    layer = build_layer('uint4', seed=47)
+    sd = MockCalibSd('test/calib-unet', lin=layer)
+    sd.unet = sd.transformer
+    sd.transformer = None
+    mods = lora_calib.eligible_modules(sd)
+    assert [n for n, _ in mods] == ['lin'], f'the unet root must be walked when no transformer exists, got {[n for n, _ in mods]}'
+    both = MockCalibSd('test/calib-both')
+    both.unet = sd.unet
+    assert lora_calib.eligible_modules(both) == [], 'a transformer root wins even when it holds no eligible linears'
+    old_root = lora_calib.calib_root
+    with tempfile.TemporaryDirectory() as tmp, host_calib(True):
+        try:
+            lora_calib.calib_root = tmp
+            lora_calib.on_model_loaded(sd)
+            assert len(lora_calib.capture['handles']) == 2, 'the layer hook plus the root counter must attach on a unet model'
+        finally:
+            lora_calib.calib_root = old_root
+            lora_calib.detach_capture()
     return True
 
 
@@ -1693,7 +1806,8 @@ def run_tests():
         run_test(CAT_HOST, fn)
     log.warning('=== Calibration ===')
     for fn in [test_calibrated_hosting_beats_plain, test_calibrated_low_rank_delta_survives, test_calib_option_off_matches_plain,
-               test_calib_capture_persist_roundtrip, test_calib_capture_gates]:
+               test_calib_capture_persist_roundtrip, test_calib_capture_gates, test_calib_deadline_persists_starved_layers,
+               test_calib_deadline_omits_subfloor_layers, test_calib_unet_root_walk]:
         run_test(CAT_CALIB, fn)
     log.warning('=== Factor cache ===')
     for fn in [test_factor_cache_roundtrip_bitexact, test_factor_cache_invalidates_on_multiplier,
