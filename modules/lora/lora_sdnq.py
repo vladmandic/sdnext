@@ -417,6 +417,54 @@ def truncate_delta(self, D, dtype):
     return up_h, down_h, energy, rms is not None
 
 
+def apply_select_cached(self, network_layer_name, wanted_names):
+    """Serve a select pair from cache and live factors before the walk assembles deltas.
+
+    A cached score record plus a factor pair per network (exact factors for
+    factorable members, cached truncations otherwise) rebuild the segments and
+    the selection registration without any ``calc_updown``. Returns None when
+    any piece is missing; the caller assembles and ``apply_select`` recomputes
+    and stores.
+    """
+    from modules.sdnq.quant_utils import rotate_hadamard
+    deq = self.sdnq_dequantizer
+    changed = remove_factors(self)
+    if wanted_names == ():
+        return changed
+    if len(l.loaded_networks) != 2:
+        return None
+    dtype = deq.result_dtype
+    lora_factor_cache.begin_pass(wanted_names)
+    rec = lora_factor_cache.lookup_scores(network_layer_name)
+    if rec is None:
+        return None
+    pairs, notes = [], []
+    for i, net in enumerate(l.loaded_networks):
+        module = net.modules.get(network_layer_name, None)
+        if module is None:
+            return None
+        factors = get_module_factors(module, devices.device, dtype, original_shape=deq.original_shape)
+        if factors is not None:
+            up_i, down_i = factors
+            if deq.use_hadamard:
+                down_i = rotate_hadamard(down_i.to(dtype=torch.float32), group_size=deq.hadamard_group_size).to(dtype=dtype)
+        else:
+            cached = lora_factor_cache.lookup(f'{network_layer_name}#{i}')
+            if cached is None:
+                return None
+            up_i, down_i = cached[0].to(device=devices.device, dtype=dtype), cached[1].to(device=devices.device, dtype=dtype)
+            notes.append((f'{network_layer_name}#{i}', cached[2], cached[3]))
+        pairs.append((up_i, down_i))
+    scores, abs_sums = rec
+    segments, transposed = append_factors(self, [pairs[0][0], pairs[1][0]], [pairs[0][1], pairs[1][1]])
+    lora_stack.register(network_layer_name, self, 'factor', scores, segments=(segments[0], segments[1], transposed), abs_sums=abs_sums)
+    for note in notes:
+        lora_factor_cache.note_hit()
+        hosted_layers.append(note)
+    select_layers.append(network_layer_name)
+    return True
+
+
 def apply_select(self, network_layer_name, per_net, wanted_names):
     """Attach two networks' contributions as separate side-channel segments for per-layer selection.
 
@@ -459,10 +507,8 @@ def apply_select(self, network_layer_name, per_net, wanted_names):
                 up_i, down_i = lora_factor_cache.store(key, up_i, down_i, energy, calibrated, float(D.detach().float().square().mean().sqrt()))
                 hosted_layers.append((key, energy, calibrated))
         pairs.append((up_i, down_i))
-    d0 = per_net[0][1].detach().to(devices.device, torch.float32)
-    d1 = per_net[1][1].detach().to(devices.device, torch.float32)
-    scores, abs_sums = lora_stack.score_pair(d0, d1, ranks[0], ranks[1])
-    del d0, d1
+    scores, abs_sums = lora_stack.score_pair(per_net[0][1].detach(), per_net[1][1].detach(), ranks[0], ranks[1])
+    lora_factor_cache.store_scores(network_layer_name, scores, abs_sums)
     segments, transposed = append_factors(self, [pairs[0][0], pairs[1][0]], [pairs[0][1], pairs[1][1]])
     lora_stack.register(network_layer_name, self, 'factor', scores, segments=(segments[0], segments[1], transposed), abs_sums=abs_sums)
     select_layers.append(network_layer_name) # counted apart from the plain concat: both ride the svd channel but only one is a summed set

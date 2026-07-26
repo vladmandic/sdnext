@@ -145,6 +145,30 @@ def fetch(network_layer_name):
     return entry
 
 
+def lookup_scores(network_layer_name):
+    """Cached select scores for a layer as ((s0, s1), (a0, a1)), or None.
+
+    Score records ride the same signature-keyed entry as factors, and the
+    signature already pins everything the scores depend on (pair, multipliers,
+    stack mode and params). No hit/miss accounting: a record saves scoring and
+    delta assembly, not a sketch.
+    """
+    if state['sig'] is None:
+        return None
+    t = state['store'].get(f'{network_layer_name}.sel')
+    if t is None:
+        return None
+    return (float(t[0]), float(t[1])), (float(t[2]), float(t[3]))
+
+
+def store_scores(network_layer_name, scores, abs_sums):
+    """Persist a select-mode score record; additive to the entry, older files upgrade on their next pass."""
+    if state['sig'] is None:
+        return
+    state['store'][f'{network_layer_name}.sel'] = torch.tensor([scores[0], scores[1], abs_sums[0], abs_sums[1]], dtype=torch.float64)
+    state['dirty'] = True
+
+
 def store(network_layer_name, up, down, energy, calibrated, rms):
     """Quantize-before-use: returns the pair the caller must apply.
 

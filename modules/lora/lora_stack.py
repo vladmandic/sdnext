@@ -145,20 +145,43 @@ def combine(named_deltas, layer_name):
 
 
 def score_pair(d0, d1, rank0, rank1):
-    """Selection scores for a dense delta pair: klora top-K sums (K = rank product) or est energies; plus abs-sums for the global balance."""
-    abs_sums = (float(d0.abs().sum()), float(d1.abs().sum()))
-    if mode() == 'klora':
-        k = max(1, int(rank0) * int(rank1))
-        s0 = float(torch.topk(d0.abs().flatten(), min(k, d0.numel()), sorted=False).values.sum())
-        s1 = float(torch.topk(d1.abs().flatten(), min(k, d1.numel()), sorted=False).values.sum())
-    else:
-        s0 = float(d0.float().square().sum())
-        s1 = float(d1.float().square().sum())
-    return (s0, s1), abs_sums
+    """Selection scores for a dense delta pair: klora top-K sums (K = rank product) or est energies; plus abs-sums for the global balance.
+
+    Row-chunked fp32 interiors with fp64 accumulators and one device sync for
+    all four reductions. Full-tensor staging (fp32 copy, abs copy, top-k
+    workspace) peaks hundreds of MB per large layer, which collides with block
+    swapping on offloaded denoisers; chunking bounds the transient to the
+    chunk. The global top-K over per-chunk top-K candidates selects the same
+    element set as a whole-tensor top-K.
+    """
+    k = max(1, int(rank0) * int(rank1)) if mode() == 'klora' else 0
+    accs = []
+    for d in (d0, d1):
+        score = torch.zeros((), device=d.device, dtype=torch.float64)
+        abs_sum = torch.zeros((), device=d.device, dtype=torch.float64)
+        cands = []
+        for start in range(0, d.shape[0], ROW_CHUNK):
+            c = d[start:start + ROW_CHUNK].to(torch.float32).abs() # out-of-place abs: to() may alias a caller-owned fp32 tensor
+            abs_sum += c.sum(dtype=torch.float64)
+            if k:
+                flat = c.flatten()
+                cands.append(torch.topk(flat, min(k, flat.numel()), sorted=False).values)
+            else:
+                score += c.square().sum(dtype=torch.float64)
+        if k and cands:
+            allc = torch.cat(cands) if len(cands) > 1 else cands[0]
+            score = torch.topk(allc, min(k, allc.numel()), sorted=False).values.sum(dtype=torch.float64)
+        accs.append((score, abs_sum))
+    packed = torch.stack([accs[0][0], accs[0][1], accs[1][0], accs[1][1]]).cpu()
+    return (float(packed[0]), float(packed[2])), (float(packed[1]), float(packed[3]))
 
 
-def register_weight_pair(layer_name, module, per_net):
-    """Score and register a weight-kind selection pair; True when the layer is scheduled."""
+def register_weight_pair(layer_name, module, per_net, wanted_names=None):
+    """Score and register a weight-kind selection pair; True when the layer is scheduled.
+
+    The scores persist in the factor cache when a pass identity is given, so a
+    later apply of the same configuration registers from the record alone.
+    """
     from modules.lora import lora_common as l
     if per_net is None or len(per_net) != 2:
         return False
@@ -172,8 +195,32 @@ def register_weight_pair(layer_name, module, per_net):
             return False
         names.append(net_name)
         ranks.append(int(getattr(net_module, 'dim', 0) or 0) or 64)
-    scores, abs_sums = score_pair(per_net[0][1].float(), per_net[1][1].float(), ranks[0], ranks[1])
+    scores, abs_sums = score_pair(per_net[0][1], per_net[1][1], ranks[0], ranks[1])
+    if wanted_names is not None:
+        from modules.lora import lora_factor_cache
+        lora_factor_cache.begin_pass(wanted_names)
+        lora_factor_cache.store_scores(layer_name, scores, abs_sums)
     register(layer_name, module, 'weight', scores, nets=tuple(names), abs_sums=abs_sums)
+    return True
+
+
+def register_weight_pair_cached(layer_name, module, wanted_names):
+    """Register a weight-kind pair from its cached score record; True when served.
+
+    The record was stored under the same configuration signature, which pins
+    the loaded pair, multipliers and stack settings, so both networks are known
+    to target the layer and the prompt-order roles are unchanged.
+    """
+    from modules.lora import lora_common as l
+    from modules.lora import lora_factor_cache
+    if len(l.loaded_networks) != 2:
+        return False
+    lora_factor_cache.begin_pass(wanted_names)
+    rec = lora_factor_cache.lookup_scores(layer_name)
+    if rec is None:
+        return False
+    scores, abs_sums = rec
+    register(layer_name, module, 'weight', scores, nets=tuple(n.name for n in l.loaded_networks), abs_sums=abs_sums)
     return True
 
 
