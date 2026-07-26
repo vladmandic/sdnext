@@ -15,6 +15,7 @@ EST-LoRA arXiv:2508.02165 (its measured style-discrepancy estimate is
 exposed as an option instead of being derived from probe generations).
 """
 
+import time
 import weakref
 import hashlib
 
@@ -305,9 +306,16 @@ def finalize(total_steps):
     e_den = sum(e['scores'][1] for e in state['entries'].values())
     state['gamma_e'] = (e_num / e_den) if e_den > 0 else 1.0
     state['flips'] = {}
-    if any(e['kind'] == 'weight' for e in state['entries'].values()):
+    stats = {'weight_n': 0, 'factor_n': 0, 'materialize': 0.0, 'select': 0.0, 'w_move': 0.0, 'w_calc': 0.0, 'w_apply': 0.0}
+    state['stats'] = stats
+    stats['weight_n'] = sum(1 for e in state['entries'].values() if e['kind'] == 'weight')
+    stats['factor_n'] = len(state['entries']) - stats['weight_n']
+    if stats['weight_n'] > 0:
+        t0 = time.time()
         materialize_model()
+        stats['materialize'] = time.time() - t0
     style_first = 0
+    t0 = time.time()
     for layer_name, entry in list(state['entries'].items()): # snapshot: apply_selection drops entries whose module died
         flip_at = layer_flip_step(entry['scores'], state['total_steps'])
         initial = 1 if flip_at == 0 else 0
@@ -315,6 +323,7 @@ def finalize(total_steps):
         apply_selection(layer_name, entry, initial)
         if 0 < flip_at < state['total_steps']:
             state['flips'].setdefault(flip_at - 1, []).append(layer_name) # step callbacks fire after the denoise, so the flip runs one step early to be live during the crossover step's forward
+    stats['select'] = time.time() - t0
     state['finalized'] = True
     if len(state['entries']) > 0: # only a built schedule can carry a flip count, so this is the line that shows selection is live rather than requested
         gamma = state['gamma_e'] if mode() == 'estlora' else state['gamma']
@@ -322,6 +331,8 @@ def finalize(total_steps):
         if report != state['reported']: # rebuilt every pass, so a batch would otherwise repeat one line per image
             state['reported'] = report
             log.info(f'Network load: type=LoRA stack={report[0]} layers={report[1]} style={report[2]} flips={report[3]} steps={report[4]} gamma={report[5]:.3f}')
+        # logged every pass: the reset runs outside the activate walk, so its cost is invisible to the load timers
+        log.debug(f'Network select: type=LoRA reset weight={stats["weight_n"]} factor={stats["factor_n"]} time={{materialize: {stats["materialize"]:.2f}, select: {stats["select"]:.2f}, move: {stats["w_move"]:.2f}, calc: {stats["w_calc"]:.2f}, apply: {stats["w_apply"]:.2f}}}')
 
 
 def reset(total_steps):
@@ -335,10 +346,15 @@ def on_step(step):
     """Flip the layers whose crossover is this step; non-flip steps are a dict miss."""
     if not state['finalized']:
         return
-    for layer_name in state['flips'].get(int(step), ()):
+    layers = state['flips'].get(int(step), ())
+    if not layers:
+        return
+    t0 = time.time()
+    for layer_name in layers:
         entry = state['entries'].get(layer_name)
         if entry is not None:
             apply_selection(layer_name, entry, 1)
+    log.debug(f'Network select: type=LoRA flip step={int(step)} layers={len(layers)} time={time.time() - t0:.2f}')
 
 
 def apply_selection(layer_name, entry, winner):
@@ -375,6 +391,15 @@ def weight_selection(module, entry, winner):
     if weight is None or weight.is_meta:
         warn_once('select-offloaded', 'Network stack: flip=skipped weight=offloaded')
         return
+    from modules import devices
+    stats = state.get('stats') or {}
     device = weight.device
-    updown = net_module.calc_updown(backup.to(device))[0]
+    t0 = time.time()
+    base = backup.to(devices.device) # a swapped-out layer keeps its weight on cpu; the delta matmul belongs on the accelerator regardless
+    t1 = time.time()
+    updown = net_module.calc_updown(base)[0].to(device)
+    t2 = time.time()
     network_apply_weights(module, updown, None, device=device) # recomputes from the pristine backup, requantizing where the layer needs it
+    stats['w_move'] = stats.get('w_move', 0.0) + (t1 - t0)
+    stats['w_calc'] = stats.get('w_calc', 0.0) + (t2 - t1)
+    stats['w_apply'] = stats.get('w_apply', 0.0) + (time.time() - t2)

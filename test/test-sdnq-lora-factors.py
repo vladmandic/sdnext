@@ -1961,6 +1961,66 @@ def test_select_weight_replay_from_cache_skips_calc():
     return True
 
 
+def test_select_reset_reports_timing():
+    lin = torch.nn.Linear(IN_F, OUT_F, bias=False, dtype=torch.bfloat16, device=DEVICE)
+    with torch.no_grad():
+        lin.weight.copy_(torch.randn(OUT_F, IN_F, device=DEVICE) * 0.02)
+    lin.network_layer_name = 'lora_transformer_timed'
+    lin.network_current_names = ()
+    A1, B1, _D1 = make_delta(seed=77, sigma=1e-2)
+    A2, B2, _D2 = make_delta(seed=78, sigma=1e-2)
+    n1 = make_net('t1', lin, A1, B1)
+    n2 = make_net('t2', lin, A2, B2)
+    with mock_model(lin=lin), select_mode('klora'):
+        activate(n1, n2)
+        lora_stack.reset(20)
+        stats = lora_stack.state.get('stats')
+        assert stats is not None, 'a reset must publish its timing stats'
+        assert stats['weight_n'] == 1 and stats['factor_n'] == 0, f'weight-kind counts wrong: {stats}'
+        assert stats['w_calc'] > 0.0, 'the weight-kind winner apply must account its calc time'
+        assert stats['select'] > 0.0
+        activate()
+    layer = build_layer('uint4')
+    f1, f2, _Df1, _Df2 = select_pair(layer, seed0=79, seed1=80)
+    with mock_model(lin=layer), select_mode('klora'):
+        activate(f1, f2)
+        lora_stack.reset(20)
+        stats = lora_stack.state.get('stats')
+        assert stats is not None and stats['factor_n'] == 1 and stats['weight_n'] == 0, f'factor-kind counts wrong: {stats}'
+        assert stats['w_calc'] == 0.0, 'factor-kind resets flip segments and must not touch the weight path'
+        activate()
+    return True
+
+
+def test_select_weight_flip_calcs_on_accelerator():
+    from modules.lora import network_lora
+    lin = torch.nn.Linear(IN_F, OUT_F, bias=False, dtype=torch.bfloat16, device='cpu') # a swapped-out layer: weight lives on cpu
+    with torch.no_grad():
+        lin.weight.copy_(torch.randn(OUT_F, IN_F) * 0.02)
+    lin.network_layer_name = 'lora_transformer_swapped'
+    lin.network_current_names = ()
+    A1, B1, _D1 = make_delta(seed=81, sigma=1e-2)
+    A2, B2, _D2 = make_delta(seed=82, sigma=1e-2)
+    n1 = make_net('s1', lin, A1, B1)
+    n2 = make_net('s2', lin, A2, B2)
+    seen = []
+    real = network_lora.NetworkModuleLora.calc_updown
+    def spy(self, target, *args, **kwargs):
+        seen.append(target.device.type)
+        return real(self, target, *args, **kwargs)
+    with mock_model(lin=lin), select_mode('klora'):
+        activate(n1, n2)
+        lin.to('cpu') # the offload dispatch swaps blocks back out after the walk; the reset must not follow the weight onto the cpu
+        network_lora.NetworkModuleLora.calc_updown = spy
+        try:
+            lora_stack.reset(20)
+        finally:
+            network_lora.NetworkModuleLora.calc_updown = real
+        assert seen and all(d == DEVICE.type for d in seen), f'winner materialization must calc on the accelerator, saw {seen}'
+        activate()
+    return True
+
+
 CAT_COMPILE = category('compile')
 
 
@@ -2177,7 +2237,8 @@ def run_tests():
                test_select_finalize_drops_dead_module, test_select_int8_pair_rides_segments, test_select_gate_dormant_without_pair, test_stale_schedule_dropped_on_reapply,
                test_est_energy_matches_full_frobenius, test_select_weight_kind_plain_layer,
                test_select_gamma_tracks_live_entries, test_select_host_disabled_falls_back_to_sum, test_flip_lands_before_crossover_step,
-               test_score_pair_chunked_precision, test_select_replay_from_cache_skips_calc, test_select_weight_replay_from_cache_skips_calc]:
+               test_score_pair_chunked_precision, test_select_replay_from_cache_skips_calc, test_select_weight_replay_from_cache_skips_calc,
+               test_select_reset_reports_timing, test_select_weight_flip_calcs_on_accelerator]:
         run_test(CAT_SELECT, fn)
     log.warning('=== Compile ===')
     for fn in [test_factor_add_inside_compiled_graph, test_rank_bucket_graph_reuse, test_recompile_wall_resets_on_unload]:
