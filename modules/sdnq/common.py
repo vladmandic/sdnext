@@ -368,6 +368,22 @@ else:
         return fn
 
 
+def reset_compile_caches():
+    """Drop compiled graphs and dynamo's lifetime recompile counters at model unload.
+
+    Freed layers leave their guards invalid, so the dead graphs cannot be
+    reused, but the per-frame lifetime compile counter keeps climbing and a
+    fullgraph compile hard-fails (FailOnRecompileLimitHit) once it crosses the
+    accumulated limit; enough model or quant switches in one process get there.
+    The reset is global, so call it only when the compiled graphs' owner is
+    being discarded.
+    """
+    if check_torch_compile():
+        from modules.logger import log
+        torch._dynamo.reset()
+        log.debug('SDNQ compile: dynamo reset')
+
+
 common_skip_keys = (
     ".time_embed",
     ".context_embedder",

@@ -1573,6 +1573,8 @@ def unload_model_weights(op='model'):
             disable_offload(model_data.sd_model)
             move_model(model_data.sd_model, 'meta')
         model_data.sd_model = None
+        from modules.sdnq.common import reset_compile_caches
+        reset_compile_caches() # dead compiled-dequant graphs and their lifetime recompile counters otherwise accumulate across switches
         devices.torch_gc(force=True, reason='unload')
         log.debug(f'Unload {op}: {memory_stats()} fn={fn}')
     elif (op == 'refiner') and model_data.sd_refiner:

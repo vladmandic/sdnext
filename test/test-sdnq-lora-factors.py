@@ -1941,6 +1941,33 @@ def test_rank_bucket_graph_reuse():
     return True
 
 
+def test_recompile_wall_resets_on_unload():
+    import modules.sdnq.common as sdnq_common
+    if not sdnq_common.use_torch_compile:
+        return True
+    import torch._dynamo
+    import torch._dynamo.config as dcfg
+    from torch._dynamo.exc import FailOnRecompileLimitHit
+    old_acc = dcfg.accumulated_recompile_limit
+    dcfg.accumulated_recompile_limit = 4
+    try:
+        fn = sdnq_common.compile_func(lambda w, s: w.to(torch.float32) * s)
+        hit = False
+        for i in range(8): # fresh shapes stand in for model switches: the lifetime counter climbs even when old guards are dead
+            try:
+                fn(torch.randint(0, 255, (32 + 16 * i, 8), dtype=torch.uint8, device=DEVICE), torch.rand(32 + 16 * i, 1, device=DEVICE))
+            except FailOnRecompileLimitHit:
+                hit = True
+                break
+        assert hit, 'the lowered lifetime wall must trip on fullgraph recompiles'
+        sdnq_common.reset_compile_caches() # the unload-seam hook: counters and dead graphs cleared
+        fn(torch.randint(0, 255, (1024, 8), dtype=torch.uint8, device=DEVICE), torch.rand(1024, 1, device=DEVICE))
+    finally:
+        dcfg.accumulated_recompile_limit = old_acc
+        torch._dynamo.reset() # leave no wall residue for later tests
+    return True
+
+
 CAT_ROBUST = category('robustness')
 
 
@@ -2036,7 +2063,7 @@ def run_tests():
                test_select_gamma_tracks_live_entries, test_select_host_disabled_falls_back_to_sum, test_flip_lands_before_crossover_step]:
         run_test(CAT_SELECT, fn)
     log.warning('=== Compile ===')
-    for fn in [test_factor_add_inside_compiled_graph, test_rank_bucket_graph_reuse]:
+    for fn in [test_factor_add_inside_compiled_graph, test_rank_bucket_graph_reuse, test_recompile_wall_resets_on_unload]:
         run_test(CAT_COMPILE, fn)
     log.warning('=== Robustness ===')
     for fn in [test_remove_factors_after_device_move, test_stacked_shape_mismatch_falls_back]:
