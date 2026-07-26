@@ -252,7 +252,7 @@ class Bf16Repo:
         return f.get_tensor(key)
 
 
-def analyze_module(W_dq, deq_params, mods, calib_rms=None):
+def analyze_module(W_dq, deq_params, mods, calib_rms=None, step_live=None):
     """Return fidelity metrics for one quantized module and the adapters targeting it.
 
     Deltas come from each module's production calc_updown and sum the way the
@@ -260,6 +260,9 @@ def analyze_module(W_dq, deq_params, mods, calib_rms=None):
     is measured as applied. A module is factor-path eligible only when every
     contribution is a plain additive lora. With ``calib_rms``, hosting mirrors
     the calibrated production path and its rho is scored in the weighted norm.
+    With ``step_live`` (the layer's own pre-add scale), the production routing
+    rule applies: a delta fat against the grid whose truncation capture is low
+    reports the requantize path, the way the loader would route it.
     """
     D = None
     for mod in mods:
@@ -316,17 +319,23 @@ def analyze_module(W_dq, deq_params, mods, calib_rms=None):
                 with torch.random.fork_rng(devices=[D.device] if D.device.type == 'cuda' else []):
                     torch.manual_seed(0)
                     U, S, V = torch.svd_lowrank(Dw, q=min(q + 64, *D.shape), niter=8)
-                Dk = (U[:, :q] * S[:q]) @ V[:, :q].t()
-                if rms is not None:
-                    Dk = Dk / rms
-                base16 = W_dq.to(torch.bfloat16).float()
-                realized = (W_dq.to(torch.bfloat16) + Dk.to(torch.bfloat16)).float() - base16
-                if rms is not None: # weighted norm: the diagonal-covariance output-error proxy the calibrated truncation optimizes
-                    Dr = D * rms
-                    applied_rho = float((realized * rms).flatten() @ Dr.flatten() / Dr.square().sum())
-                else:
-                    applied_rho = float(realized.flatten() @ D.flatten() / nD.square())
-                hosted = True
+                energy = float(S[:q].square().sum() / Dw.square().sum().clamp(min=1e-30))
+                routed = False
+                if step_live is not None and not deq_params.get('use_svd', False):
+                    sr = float(D.square().mean().sqrt() / step_live.float().mean())
+                    routed = sr > lora_sdnq.REQUANT_RATIO and energy < lora_sdnq.REQUANT_ENERGY
+                if not routed: # the loader routes fat, genuinely-truncated deltas back to requantize
+                    Dk = (U[:, :q] * S[:q]) @ V[:, :q].t()
+                    if rms is not None:
+                        Dk = Dk / rms
+                    base16 = W_dq.to(torch.bfloat16).float()
+                    realized = (W_dq.to(torch.bfloat16) + Dk.to(torch.bfloat16)).float() - base16
+                    if rms is not None: # weighted norm: the diagonal-covariance output-error proxy the calibrated truncation optimizes
+                        Dr = D * rms
+                        applied_rho = float((realized * rms).flatten() @ Dr.flatten() / Dr.square().sum())
+                    else:
+                        applied_rho = float(realized.flatten() @ D.flatten() / nD.square())
+                    hosted = True
     return dict(rank=getattr(mods[0], 'dim', None), rms_delta=float(D.pow(2).mean().sqrt()), rms_weight=float(W_dq.pow(2).mean().sqrt()),
                 step_ratio=step_ratio, crossers=crossers, requant_rho=rho, requant_resid=resid,
                 factor_eligible=factor_eligible, hosted=hosted, applied_rho=applied_rho,
@@ -398,6 +407,7 @@ def main():
                                skip_quantized_matmul=deq.use_quantized_matmul, dtype=torch.float32, skip_compile=True).to(device)
                     params = dict(weights_dtype=deq.weights_dtype, group_size=deq.group_size, hadamard_group_size=deq.hadamard_group_size,
                                   use_hadamard=deq.use_hadamard, use_svd=layer.svd_up is not None, svd_rank=deq.svd_rank, svd_steps=deq.svd_steps)
+                    step_live = layer.scale.detach().to(device)
                     sd_module = layer
                 else:
                     W = bf16_repo.get(f'{path}.weight')
@@ -412,16 +422,18 @@ def main():
                     if args.dtype == 'bf16':
                         W_dq = W.to(device, torch.bfloat16).float()
                         params = dict(weights_dtype='bf16', group_size=0, hadamard_group_size=0, use_hadamard=False)
+                        step_live = None
                     else:
                         deq0, data0 = sdnq_quantize_layer_weight(W.to(device, torch.float32), layer_class_name='Linear', weights_dtype=args.dtype,
                                                                  group_size=args.group, hadamard_group_size=args.hadamard_group, use_hadamard=args.hadamard_group > 0,
                                                                  use_svd=False, use_quantized_matmul=False, dequantize_fp32=False, torch_dtype=torch.bfloat16)
                         W_dq = deq0(data0['weight'], data0['scale'], zero_point=data0['zero_point'], svd_up=None, svd_down=None, dtype=torch.float32, skip_compile=True)
                         params = dict(weights_dtype=args.dtype, group_size=deq0.group_size, hadamard_group_size=deq0.hadamard_group_size, use_hadamard=deq0.use_hadamard)
+                        step_live = data0['scale'].detach()
                     sd_module = make_stub(W.shape)
                 try:
                     mods = [build_module(fam, path, w, net, sd_module) for fam, w in entries]
-                    row = analyze_module(W_dq, params, mods, calib_rms=calib_stats.get(lname))
+                    row = analyze_module(W_dq, params, mods, calib_rms=calib_stats.get(lname), step_live=step_live)
                 except Exception as e: # a family the tool cannot rebuild must not read as a clean module
                     failed.append(f'{path}: {type(e).__name__}: {e}')
                     del W_dq
