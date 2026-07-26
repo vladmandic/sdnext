@@ -59,6 +59,7 @@ def signature(wanted_names):
         'stack': lora_stack.signature(),
         'nets': [],
     }
+    from modules.lora import lora_blocks
     for name, te, unet, dyn in wanted_names:
         net = next((n for n in l.loaded_networks if n.name == name), None)
         filename = getattr(getattr(net, 'network_on_disk', None), 'filename', None)
@@ -66,7 +67,11 @@ def signature(wanted_names):
             st = os.stat(filename)
         except Exception:
             return None
-        parts['nets'].append([name, repr(te), repr(unet), repr(dyn), filename, int(st.st_mtime), st.st_size])
+        entry = [name, repr(te), repr(unet), repr(dyn), filename, int(st.st_mtime), st.st_size]
+        spec = lora_blocks.net_signature(net)
+        if spec is not None: # appended only when set so existing cache files stay valid without block weights
+            entry.append(spec)
+        parts['nets'].append(entry)
     return parts
 
 
