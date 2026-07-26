@@ -560,6 +560,33 @@ def test_partial_coverage_layers_stay_independent():
     return True
 
 
+def test_apply_restore_preserves_weight_storage():
+    """Apply and restore write into the existing parameter storage: kernel selection is
+    placement-sensitive, so a swapped-in Parameter shifts deterministic outputs bitwise."""
+    lin = torch.nn.Linear(IN_F, OUT_F, bias=True, dtype=torch.bfloat16, device=DEVICE)
+    with torch.no_grad():
+        lin.weight.copy_(torch.randn(OUT_F, IN_F, device=DEVICE) * 0.02)
+        lin.bias.copy_(torch.randn(OUT_F, device=DEVICE) * 0.01)
+    lin.network_layer_name = 'lora_transformer_storage'
+    lin.network_current_names = ()
+    W0 = lin.weight.detach().clone()
+    B0 = lin.bias.detach().clone()
+    wptr, bptr = lin.weight.data_ptr(), lin.bias.data_ptr()
+    A, B, _D = make_delta(seed=91, sigma=1e-2)
+    net = make_net('storage', lin, A, B)
+    with mock_model(lin=lin):
+        activate(net)
+        assert not torch.equal(lin.weight.detach(), W0), 'apply must change the weight'
+        assert lin.weight.data_ptr() == wptr, 'apply must write into the existing weight storage'
+        assert lin.bias.data_ptr() == bptr, 'apply must keep the bias storage'
+        activate()
+        assert torch.equal(lin.weight.detach(), W0), 'restore must be bit-exact'
+        assert torch.equal(lin.bias.detach(), B0), 'restore must be bit-exact on bias'
+        assert lin.weight.data_ptr() == wptr, 'restore must write into the existing weight storage'
+        assert lin.bias.data_ptr() == bptr, 'restore must write into the existing bias storage'
+    return True
+
+
 CAT_HOST = category('hosting')
 
 
@@ -2205,7 +2232,7 @@ def run_tests():
     for fn in [test_network_activate_roundtrip]:
         run_test(CAT_E2E, fn)
     log.warning('=== Set transitions ===')
-    for fn in [test_mixed_family_transition_restores_base, test_partial_coverage_layers_stay_independent]:
+    for fn in [test_mixed_family_transition_restores_base, test_partial_coverage_layers_stay_independent, test_apply_restore_preserves_weight_storage]:
         run_test(CAT_TRANS, fn)
     log.warning('=== Hosting ===')
     for fn in [test_hosted_low_rank_delta_is_kept, test_hosted_dense_delta_beats_requant, test_hosted_skips_int8,
