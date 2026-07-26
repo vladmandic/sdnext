@@ -32,6 +32,7 @@ from modules.logger import log
 
 cache_root = os.path.join(paths.data_path, 'data', 'lora-factor-cache')
 state = {'wn': None, 'sig': None, 'path': None, 'store': {}, 'dirty': False, 'hits': 0, 'misses': 0}
+FMT = '5' # bump on entry-layout changes so older files recompute instead of replaying short
 
 
 def budget_gb():
@@ -87,7 +88,7 @@ def begin_pass(wanted_names):
             from safetensors import safe_open
             with safe_open(path, framework='pt', device='cpu') as f:
                 meta = f.metadata() or {}
-                if meta.get('sig') == sig and meta.get('fmt') == '4':
+                if meta.get('sig') == sig and meta.get('fmt') == FMT:
                     for k in f.keys():
                         entries[k] = f.get_tensor(k)
             os.utime(path, None) # freshness for LRU eviction
@@ -110,8 +111,12 @@ def dequantize_rowwise(q, scale):
     return q.to(torch.float32) * scale
 
 
-def fetch(network_layer_name):
-    """Cached (up, down, energy, calibrated) for a layer, or None; factors return as fp32."""
+def lookup(network_layer_name):
+    """Cached (up, down, energy, calibrated, rms) for a layer, or None; factors return as fp32.
+
+    Pure lookup with no hit/miss accounting: the fast-path probe uses it so a
+    layer is only counted once, by whichever caller consumes the answer.
+    """
     if state['sig'] is None:
         return None
     st = state['store']
@@ -119,20 +124,35 @@ def fetch(network_layer_name):
     down_q, down_s = st.get(f'{network_layer_name}.down_q'), st.get(f'{network_layer_name}.down_s')
     energy = st.get(f'{network_layer_name}.energy')
     calib = st.get(f'{network_layer_name}.calib')
-    if up_q is None or up_s is None or down_q is None or down_s is None or energy is None or calib is None:
-        state['misses'] += 1
+    rms = st.get(f'{network_layer_name}.rms')
+    if up_q is None or up_s is None or down_q is None or down_s is None or energy is None or calib is None or rms is None:
+        return None
+    return dequantize_rowwise(up_q, up_s), dequantize_rowwise(down_q, down_s), float(energy), bool(calib), float(rms)
+
+
+def note_hit():
+    state['hits'] += 1
+
+
+def fetch(network_layer_name):
+    """``lookup`` with accounting: a usable entry counts a hit, anything else a miss."""
+    entry = lookup(network_layer_name)
+    if entry is None:
+        if state['sig'] is not None:
+            state['misses'] += 1
         return None
     state['hits'] += 1
-    return dequantize_rowwise(up_q, up_s), dequantize_rowwise(down_q, down_s), float(energy), bool(calib)
+    return entry
 
 
-def store(network_layer_name, up, down, energy, calibrated):
+def store(network_layer_name, up, down, energy, calibrated, rms):
     """Quantize-before-use: returns the pair the caller must apply.
 
     With caching inactive the inputs pass through untouched. Otherwise the
     factors are stored as rowwise int8 and the dequantized round-trip comes
     back, so the factors applied now and the factors a later hit replays are
-    the same tensors.
+    the same tensors. ``rms`` is the assembled delta's rms, kept so replays
+    can evaluate the requantize routing rule without assembling the delta.
     """
     if state['sig'] is None:
         return up, down
@@ -145,6 +165,7 @@ def store(network_layer_name, up, down, energy, calibrated):
     st[f'{network_layer_name}.down_s'] = down_s.to('cpu').contiguous()
     st[f'{network_layer_name}.energy'] = torch.tensor(float(energy))
     st[f'{network_layer_name}.calib'] = torch.tensor(1 if calibrated else 0, dtype=torch.uint8)
+    st[f'{network_layer_name}.rms'] = torch.tensor(float(rms))
     state['dirty'] = True
     return dequantize_rowwise(up_q, up_s).to(up.dtype), dequantize_rowwise(down_q, down_s).to(down.dtype)
 
@@ -180,7 +201,7 @@ def flush():
         from safetensors.torch import save_file
         os.makedirs(cache_root, exist_ok=True)
         tmp = state['path'] + '.tmp'
-        save_file(state['store'], tmp, metadata={'sig': state['sig'], 'fmt': '4'})
+        save_file(state['store'], tmp, metadata={'sig': state['sig'], 'fmt': FMT})
         os.replace(tmp, state['path'])
         evict()
     except Exception as e:

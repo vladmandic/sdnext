@@ -1197,6 +1197,87 @@ def test_factor_cache_invalidates_on_calib_toggle():
     return True
 
 
+@contextmanager
+def counting_calc():
+    """Count NetworkModuleFull.calc_updown calls: zero on a pass proves the walk skipped delta assembly."""
+    from modules.lora import network_full
+    calls = {'n': 0}
+    real = network_full.NetworkModuleFull.calc_updown
+    def wrapper(self, *args, **kwargs):
+        calls['n'] += 1
+        return real(self, *args, **kwargs)
+    network_full.NetworkModuleFull.calc_updown = wrapper
+    try:
+        yield calls
+    finally:
+        network_full.NetworkModuleFull.calc_updown = real
+
+
+def test_cache_fastpath_skips_calc():
+    import tempfile
+    layer = build_layer('uint4')
+    with tempfile.TemporaryDirectory() as tmp:
+        with host_rank(64), host_cache(10, os.path.join(tmp, 'cache')), mock_model(lin=layer):
+            net, _D = cache_fixture(tmp, layer)
+            Wdq0 = dq(layer)
+            with counting_calc() as calls:
+                activate(net)
+                assert calls['n'] > 0, 'a fresh apply must assemble the delta'
+                first = dq(layer)
+                activate()
+                calls['n'] = 0
+                activate(net)
+                assert calls['n'] == 0, f'a cache replay must not assemble the delta: calc_updown ran {calls["n"]} times'
+                assert hasattr(layer, 'sdnq_lora_svd_stash'), 'the fast path must attach the cached factors'
+                assert torch.equal(dq(layer), first), 'fast-path replay must be bit-identical to the fresh apply'
+                activate()
+                assert torch.equal(dq(layer), Wdq0)
+    return True
+
+
+def test_cache_fastpath_serves_mixed_set():
+    import tempfile
+    layer = build_layer('uint4')
+    A, B, _D1 = make_delta(seed=63)
+    with tempfile.TemporaryDirectory() as tmp:
+        with host_rank(64), host_cache(10, os.path.join(tmp, 'cache')), mock_model(lin=layer):
+            net_full, _D2 = cache_fixture(tmp, layer, name='mixfull', seed=64)
+            net_plain = make_net('mixlora', layer, A, B)
+            lora_file = os.path.join(tmp, 'mixlora.safetensors')
+            with open(lora_file, 'wb') as f:
+                f.write(b'0' * 64)
+            net_plain.network_on_disk.filename = lora_file
+            activate(net_plain, net_full)
+            first = dq(layer)
+            activate()
+            with counting_calc() as calls:
+                activate(net_plain, net_full) # the factorable member re-extracts from its own weights; the hosted remainder replays
+                assert calls['n'] == 0, 'a mixed-set replay must not assemble the delta'
+            assert hasattr(layer, 'sdnq_lora_svd_stash')
+            assert torch.equal(dq(layer), first), 'mixed-set replay must be bit-identical to the fresh apply'
+            activate()
+    return True
+
+
+def test_cache_fastpath_serves_dense_pair():
+    import tempfile
+    layer = build_layer('uint4')
+    with tempfile.TemporaryDirectory() as tmp:
+        with host_rank(64), host_cache(10, os.path.join(tmp, 'cache')), stack_mode('ties'), mock_model(lin=layer):
+            net1, _D1 = cache_fixture(tmp, layer, name='densea', seed=65)
+            net2, _D2 = cache_fixture(tmp, layer, name='denseb', seed=66)
+            activate(net1, net2)
+            first = dq(layer)
+            activate()
+            with counting_calc() as calls:
+                activate(net1, net2) # the dense combine lives inside delta assembly; the replay skips both
+                assert calls['n'] == 0, 'a dense-pair replay must not assemble or combine deltas'
+            assert hasattr(layer, 'sdnq_lora_svd_stash')
+            assert torch.equal(dq(layer), first), 'dense-pair replay must be bit-identical to the fresh apply'
+            activate()
+    return True
+
+
 CAT_STACK = category('stack-dense')
 
 
@@ -1937,7 +2018,8 @@ def run_tests():
         run_test(CAT_CALIB, fn)
     log.warning('=== Factor cache ===')
     for fn in [test_factor_cache_roundtrip_bitexact, test_factor_cache_invalidates_on_multiplier,
-               test_factor_cache_int8_quantization, test_factor_cache_disabled_at_zero, test_factor_cache_invalidates_on_calib_toggle]:
+               test_factor_cache_int8_quantization, test_factor_cache_disabled_at_zero, test_factor_cache_invalidates_on_calib_toggle,
+               test_cache_fastpath_skips_calc, test_cache_fastpath_serves_mixed_set, test_cache_fastpath_serves_dense_pair]:
         run_test(CAT_FCACHE, fn)
     log.warning('=== Stack modes: dense ===')
     for fn in [test_ties_sign_consensus_drops_conflicts, test_dare_mask_is_deterministic_across_calls, test_dare_rescales_by_inverse_density,

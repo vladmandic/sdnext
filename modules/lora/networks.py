@@ -72,6 +72,7 @@ def network_activate(include=None, exclude=None):
                             pbar.update(task, advance=1)
                         continue
                     lora_stack.drop(network_layer_name) # re-application invalidates any live selection schedule; the select branch re-registers
+                    calced = False # tracks whether this iteration assembled the delta, so the fallthrough reuses it instead of recomputing
                     if select_active and component_wanted and not network_layer_name.startswith('lora_te'):
                         if lora_sdnq.select_candidate(module, network_layer_name, component_wanted): # SDNQ pairs ride the channel as separate segments at any bit width; weight rewrites cannot flip a quantized layer
                             weights_backup = getattr(module, "network_weights_backup", None)
@@ -126,22 +127,24 @@ def network_activate(include=None, exclude=None):
                         weights_backup = getattr(module, "network_weights_backup", None)
                         if weights_backup is not None and not isinstance(weights_backup, bool):
                             network_apply_weights(module, None, None, device=device) # the hosted delta is measured against the pristine base
-                        batch_updown, batch_ex_bias = network_calc_weights(module, network_layer_name, elimit=elimit)
-                        if batch_ex_bias is None: # bias deltas need the plain path; weight-only sets ride the side-channel without a weight backup
-                            hosted = lora_sdnq.apply_hosted(module, network_layer_name, batch_updown, component_wanted)
+                        hosted = lora_sdnq.apply_cached(module, network_layer_name, component_wanted) # a stored entry serves the layer before the delta is assembled
+                        if hosted is None:
+                            batch_updown, batch_ex_bias = network_calc_weights(module, network_layer_name, elimit=elimit)
+                            calced = True
+                            if batch_ex_bias is None: # bias deltas need the plain path; weight-only sets ride the side-channel without a weight backup
+                                hosted = lora_sdnq.apply_hosted(module, network_layer_name, batch_updown, component_wanted)
                             if hosted is not None:
-                                if hosted and component_wanted:
-                                    applied_layers.append(network_layer_name)
-                                    applied_weight += 1
-                                module.network_current_names = component_wanted
-                                module.network_current_stack = stack_sig
                                 batch_updown, batch_ex_bias = None, None
                                 del batch_updown, batch_ex_bias
-                                if task is not None:
-                                    pbar.update(task, advance=1)
-                                continue
-                        batch_updown, batch_ex_bias = None, None
-                        del batch_updown, batch_ex_bias
+                        if hosted is not None:
+                            if hosted and component_wanted:
+                                applied_layers.append(network_layer_name)
+                                applied_weight += 1
+                            module.network_current_names = component_wanted
+                            module.network_current_stack = stack_sig
+                            if task is not None:
+                                pbar.update(task, advance=1)
+                            continue
                     backup_size += network_backup_weights(module, network_layer_name, component_wanted, fuse)
                     if not component_wanted:
                         lora_stack.drop(network_layer_name) # a restored layer must leave the selection schedule
@@ -152,7 +155,8 @@ def network_activate(include=None, exclude=None):
                             continue
                         batch_updown, batch_ex_bias = None, None # restore-only pass, apply with no weights reverts to backup
                     else:
-                        batch_updown, batch_ex_bias = network_calc_weights(module, network_layer_name, elimit=elimit)
+                        if not calced: # the host branch may have assembled the delta already; a declined layer reuses it
+                            batch_updown, batch_ex_bias = network_calc_weights(module, network_layer_name, elimit=elimit)
                         if batch_updown is not None:
                             lora_sdnq.note_fallback(module, network_layer_name) # only layers whose quantized weight actually takes a delta
                     if fuse:
