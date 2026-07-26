@@ -587,6 +587,66 @@ def test_apply_restore_preserves_weight_storage():
     return True
 
 
+def fuse_fixture(te0):
+    """A plain bf16 Linear (unquantized, so fuse stays allowed) with one attached net at strength te0."""
+    lin = torch.nn.Linear(IN_F, OUT_F, bias=False, dtype=torch.bfloat16, device=DEVICE)
+    with torch.no_grad():
+        lin.weight.copy_(torch.randn(OUT_F, IN_F, device=DEVICE) * 0.02)
+    lin.network_layer_name = 'lora_transformer_fusefix'
+    lin.network_current_names = ()
+    A, B, D = make_delta(seed=17, sigma=1e-2)
+    net = make_net('fusefix', lin, A, B, te_mult=te0)
+    return lin, net, D
+
+
+def edit_strength(net, te):
+    """The production order for a strength edit: network_load stages the new values on the
+    shared net object, deactivate runs against the applied ones, activate promotes."""
+    l_common.previously_loaded_networks[:] = l_common.loaded_networks
+    net.pending_config = {'te': te, 'unet': [te] * 3, 'dyn': None}
+    networks.network_deactivate()
+    networks.network_activate()
+
+
+def test_fuse_promote_applies_new_multiplier():
+    """Fuse removal subtracts a recomputed delta, so the multipliers it reads must be the
+    applied ones: staged values promote only in network_activate, after the removal pass."""
+    lin, net, D = fuse_fixture(te0=0.5)
+    with mock_model(lin=lin):
+        shared.opts.lora_fuse_native = True
+        W0 = lin.weight.detach().float().clone()
+        activate(net)
+        assert isinstance(getattr(lin, 'network_weights_backup', None), bool), 'fuse mode must not take a tensor backup'
+        rho0 = rho_of(lin.weight.detach().float() - W0, D)
+        assert abs(rho0 - 0.5) < 0.05, f'rho={rho0:.3f} expected the initial strength'
+        edit_strength(net, 1.0)
+        assert net.te_multiplier == 1.0, 'activate must promote the staged multiplier'
+        rho1 = rho_of(lin.weight.detach().float() - W0, D)
+        assert abs(rho1 - 1.0) < 0.05, f'rho={rho1:.3f} expected the edited strength to apply, not the first one'
+    return True
+
+
+def test_fuse_change_then_remove_restores_pristine():
+    """Apply, edit, remove: the final subtraction must use the strength that was applied.
+    Pins the promote-after-deactivate ordering; a promote that runs before the removal
+    pass leaves half the delta baked into the weights."""
+    lin, net, D = fuse_fixture(te0=0.5)
+    with mock_model(lin=lin):
+        shared.opts.lora_fuse_native = True
+        W0 = lin.weight.detach().float().clone()
+        activate(net)
+        edit_strength(net, 1.0)
+        l_common.previously_loaded_networks[:] = l_common.loaded_networks
+        l_common.loaded_networks.clear()
+        networks.network_deactivate()
+        networks.network_activate()
+        resid = lin.weight.detach().float() - W0
+        rho2 = rho_of(resid, D)
+        assert abs(rho2) < 0.05, f'rho={rho2:.3f} removal must subtract the strength that was applied'
+        assert float(resid.abs().max()) < 2e-3, f'max={float(resid.abs().max()):.2e} removal must leave only rounding residue'
+    return True
+
+
 CAT_HOST = category('hosting')
 
 
@@ -2232,7 +2292,8 @@ def run_tests():
     for fn in [test_network_activate_roundtrip]:
         run_test(CAT_E2E, fn)
     log.warning('=== Set transitions ===')
-    for fn in [test_mixed_family_transition_restores_base, test_partial_coverage_layers_stay_independent, test_apply_restore_preserves_weight_storage]:
+    for fn in [test_mixed_family_transition_restores_base, test_partial_coverage_layers_stay_independent, test_apply_restore_preserves_weight_storage,
+               test_fuse_promote_applies_new_multiplier, test_fuse_change_then_remove_restores_pristine]:
         run_test(CAT_TRANS, fn)
     log.warning('=== Hosting ===')
     for fn in [test_hosted_low_rank_delta_is_kept, test_hosted_dense_delta_beats_requant, test_hosted_skips_int8,

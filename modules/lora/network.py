@@ -148,6 +148,7 @@ class Network:  # LoraModule
         self.te_multiplier = 1.0
         self.unet_multiplier = [1.0] * 3
         self.dyn_dim = None
+        self.pending_config = None # staged multipliers; network_activate promotes them after the removal pass so fuse removal subtracts the delta that was applied
         self.modules = {}
         self.bundle_embeddings = {}
         self.mtime = None

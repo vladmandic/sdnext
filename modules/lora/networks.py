@@ -21,6 +21,12 @@ def network_activate(include=None, exclude=None):
         exclude = []
     if include is None:
         include = []
+    for net in l.loaded_networks: # promote staged multipliers only now: the deactivate pass ran against the previous values, which fuse-mode removal recomputes with
+        pending = getattr(net, 'pending_config', None)
+        if pending is not None:
+            net.te_multiplier = pending['te']
+            net.unet_multiplier = pending['unet']
+            net.dyn_dim = pending['dyn']
     t0 = time.time()
     fuse = lora_overrides.fuse_native() # resolve once: backup and apply passes must agree
     with limit_errors("network_activate") as elimit:
