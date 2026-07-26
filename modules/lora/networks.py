@@ -2,6 +2,7 @@ from contextlib import nullcontext
 import time
 import rich.progress as rp
 from modules.errorlimiter import limit_errors
+from modules.lora import lora_blocks
 from modules.lora import lora_common as l
 from modules.lora import lora_overrides
 from modules.lora import lora_sdnq
@@ -27,6 +28,7 @@ def network_activate(include=None, exclude=None):
             net.te_multiplier = pending['te']
             net.unet_multiplier = pending['unet']
             net.dyn_dim = pending['dyn']
+            net.block_spec = pending.get('blocks', None)
     t0 = time.time()
     fuse = lora_overrides.fuse_native() # resolve once: backup and apply passes must agree
     with limit_errors("network_activate") as elimit:
@@ -59,7 +61,7 @@ def network_activate(include=None, exclude=None):
         applied_bias = 0
         with devices.inference_context(), pbar:
             wanted_names = tuple((x.name, x.te_multiplier, x.unet_multiplier, x.dyn_dim) for x in l.loaded_networks) if len(l.loaded_networks) > 0 else ()
-            stack_sig = lora_stack.signature() # tracked beside network_current_names so stack-setting changes re-apply
+            stack_sig = lora_stack.signature() + lora_blocks.signature() # tracked beside network_current_names so stack-setting and block-weight changes re-apply
             select_active = len(l.loaded_networks) > 0 and lora_stack.active_select(len(l.loaded_networks)) # restore-only walks have nothing to stack; the count warning would fire on every network-free generation
             applied_layers.clear()
             lora_sdnq.fallback_layers.clear() # a raise mid-pass leaves stale entries behind

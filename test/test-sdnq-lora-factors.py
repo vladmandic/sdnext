@@ -76,7 +76,7 @@ modules.cmd_args.parsed, _ = modules.cmd_args.parser.parse_known_args([])
 
 from modules.errors import log   # pylint: disable=wrong-import-position
 from modules import shared, sd_models        # pylint: disable=wrong-import-position
-from modules.lora import network, network_lora, lora_sdnq, lora_stack, networks  # pylint: disable=wrong-import-position
+from modules.lora import network, network_lora, lora_blocks, lora_sdnq, lora_stack, networks  # pylint: disable=wrong-import-position
 from modules.lora import lora_common as l_common   # pylint: disable=wrong-import-position
 from modules.sdnq.quantizer import sdnq_quantize_layer, SDNQConfig  # pylint: disable=wrong-import-position
 
@@ -2277,6 +2277,392 @@ def test_stacked_shape_mismatch_falls_back():
     return True
 
 
+# ============================================================
+# Tests - per-block strength (lbw)
+# ============================================================
+
+CAT_BLOCKS = category('block-weights')
+
+
+def block_fixture_keys(arch):
+    """Sparse network_layer_mapping keys per arch: the layout scan only needs each chain's max index."""
+    if arch == 'sd':
+        return ['lora_unet_down_blocks_3_resnets_1_conv1', 'lora_unet_up_blocks_3_resnets_2_conv1']
+    if arch == 'sdxl':
+        return ['lora_unet_down_blocks_2_resnets_1_conv1', 'lora_unet_up_blocks_2_resnets_2_conv1']
+    if arch in ('f1', 'chroma'):
+        return ['lora_transformer_transformer_blocks_18_attn_to_q', 'lora_transformer_single_transformer_blocks_37_attn_to_q']
+    if arch == 'krea2':
+        return ['lora_transformer_blocks_27_attn_wq', 'lora_transformer_txtfusion_layerwise_blocks_1_attn_wq', 'lora_transformer_txtfusion_refiner_blocks_1_mlp_down']
+    if arch == 'anima':
+        return ['lora_transformer_transformer_blocks_27_attn1_to_q', 'lora_llm_adapter_blocks_5_self_attn_q_proj', 'lora_te_layers_3_mlp_gate_proj']
+    if arch == 'zimage':
+        return ['lora_transformer_layers_29_attention_to_q', 'lora_transformer_noise_refiner_1_attention_to_q']
+    if arch == 'sd3':
+        return ['lora_transformer_transformer_blocks_23_attn_to_q']
+    return []
+
+
+@contextmanager
+def block_model(arch, keys=None, **layers):
+    """mock_model plus a synthetic arch and network_layer_mapping for block classification."""
+    from modules import modeldata
+    real_type = modeldata.get_model_type
+    modeldata.get_model_type = lambda _pipe: arch
+    try:
+        with mock_model(**layers):
+            shared.sd_model.network_layer_mapping = {k: None for k in (keys or block_fixture_keys(arch))}
+            lora_blocks.state.update(stamp=None, layout=None)
+            lora_blocks.state['index'].clear()
+            lora_blocks.state['vectors'].clear()
+            lora_blocks.warned.clear()
+            yield
+    finally:
+        modeldata.get_model_type = real_type
+        lora_blocks.state.update(stamp=None, layout=None)
+        lora_blocks.state['index'].clear()
+        lora_blocks.state['vectors'].clear()
+        lora_blocks.warned.clear()
+
+
+def sd3_spec(n=25, **slots):
+    """A 25-slot sd3 vector as a spec string with named slot overrides."""
+    vals = [1.0] * n
+    for slot, v in slots.items():
+        vals[int(slot[1:])] = v
+    return ','.join(str(v) for v in vals)
+
+
+def test_block_index_sd_unet_layout():
+    with block_model('sd'):
+        lay = lora_blocks.layout()
+        assert lay is not None and lay['n'] == 26 and lay['kind'] == 'unet', f'layout={lay}'
+        cases = {
+            'lora_unet_conv_in': 1,
+            'lora_unet_down_blocks_0_attentions_0_transformer_blocks_0_attn1_to_q': 2,
+            'lora_unet_down_blocks_0_resnets_1_conv1': 3,
+            'lora_unet_down_blocks_0_downsamplers_0_conv': 4,
+            'lora_unet_down_blocks_2_downsamplers_0_conv': 10,
+            'lora_unet_down_blocks_3_resnets_1_conv1': 12,
+            'lora_unet_mid_block_attentions_0_transformer_blocks_0_attn2_to_k': 13,
+            'lora_unet_up_blocks_0_resnets_0_conv1': 14,
+            'lora_unet_up_blocks_1_attentions_2_transformer_blocks_0_ff_net_0_proj': 19,
+            'lora_unet_up_blocks_2_upsamplers_0_conv': 22,
+            'lora_unet_up_blocks_3_resnets_2_conv1': 25,
+            'lora_unet_conv_out': 25,
+            'lora_unet_conv_norm_out': 25,
+            'lora_unet_time_embedding_linear_1': 0,
+            'lora_te_text_model_encoder_layers_0_self_attn_q_proj': 0,
+        }
+        for key, expected in cases.items():
+            got = lora_blocks.block_index(key)
+            assert got == expected, f'{key}: got {got} expected {expected}'
+    return True
+
+
+def test_block_index_sdxl_unet_layout():
+    with block_model('sdxl'):
+        lay = lora_blocks.layout()
+        assert lay is not None and lay['n'] == 20, f'layout={lay}'
+        cases = {
+            'lora_unet_down_blocks_1_attentions_0_transformer_blocks_3_attn1_to_v': 5,
+            'lora_unet_mid_block_attentions_0_transformer_blocks_9_norm3': 10,
+            'lora_unet_up_blocks_0_resnets_0_conv1': 11,
+            'lora_unet_up_blocks_2_resnets_2_conv1': 19,
+            'lora_unet_add_embedding_linear_1': 0,
+            'lora_te1_text_model_encoder_layers_0_self_attn_k_proj': 0,
+            'lora_te2_text_projection': 0,
+        }
+        for key, expected in cases.items():
+            got = lora_blocks.block_index(key)
+            assert got == expected, f'{key}: got {got} expected {expected}'
+    return True
+
+
+def test_block_index_flux_chains_concatenate():
+    with block_model('f1'):
+        lay = lora_blocks.layout()
+        assert lay is not None and lay['n'] == 58, f'layout={lay}' # 19 double + 38 single + BASE
+        cases = {
+            'lora_transformer_transformer_blocks_0_attn_to_q': 1,
+            'lora_transformer_transformer_blocks_18_ff_net_0_proj': 19,
+            'lora_transformer_single_transformer_blocks_0_attn_to_q': 20,
+            'lora_transformer_single_transformer_blocks_37_proj_out': 57,
+            'lora_transformer_x_embedder': 0,
+            'lora_transformer_proj_out': 0,
+        }
+        for key, expected in cases.items():
+            got = lora_blocks.block_index(key)
+            assert got == expected, f'{key}: got {got} expected {expected}'
+    return True
+
+
+def test_block_index_anchoring_krea2_and_chroma():
+    with block_model('krea2'):
+        lay = lora_blocks.layout()
+        assert lay is not None and lay['n'] == 29, f'layout={lay}' # txtfusion chains stay uncounted
+        assert lora_blocks.block_index('lora_transformer_blocks_5_attn_wq') == 6
+        assert lora_blocks.block_index('lora_transformer_txtfusion_layerwise_blocks_0_attn_wq') == 0
+        assert lora_blocks.block_index('lora_transformer_txtfusion_refiner_blocks_1_mlp_down') == 0
+    with block_model('chroma'):
+        assert lora_blocks.block_index('lora_transformer_transformer_blocks_0_attn_to_q') == 1
+        assert lora_blocks.block_index('lora_transformer_single_transformer_blocks_0_attn_to_q') == 20 # anchored: not the double chain's slot
+        assert lora_blocks.block_index('lora_transformer_distilled_guidance_layer_layers_0_linear_1') == 0
+    return True
+
+
+def test_block_index_namespace_collisions():
+    with block_model('anima'):
+        assert lora_blocks.block_index('lora_transformer_transformer_blocks_5_attn1_to_q') == 6
+        assert lora_blocks.block_index('lora_te_layers_0_self_attn_q_proj') is None, 'anima TE strips to the zimage pattern; the namespace must win'
+        assert lora_blocks.block_index('lora_llm_adapter_blocks_0_self_attn_q_proj') is None, 'anima llm_adapter strips to the krea2 pattern; the namespace must win'
+        from types import SimpleNamespace
+        muted = SimpleNamespace(name='m', block_spec='NONE')
+        assert lora_blocks.factor('lora_te_layers_0_self_attn_q_proj', muted) == 1.0, 'namespaces outside the vector stay neutral even under an all-zero spec'
+    return True
+
+
+def test_unet_arithmetic_matches_conversion_map():
+    from modules.lora import lora_convert
+    with block_model('sd'):
+        n_in = lora_blocks.layout()['n_in']
+        checked = 0
+        for sd_key, hf_key in lora_convert.make_unet_conversion_map().items():
+            if sd_key.startswith('input_blocks'):
+                expected = 1 + int(sd_key.split('_')[2])
+            elif sd_key.startswith('output_blocks'):
+                expected = 2 + n_in + int(sd_key.split('_')[2])
+            elif sd_key.startswith('middle_block'):
+                expected = 1 + n_in
+            elif sd_key.startswith('time_embed') or sd_key.startswith('label_emb'):
+                expected = 0
+            elif sd_key.startswith('out_'):
+                expected = 25
+            else:
+                continue
+            got = lora_blocks.block_index('lora_unet_' + hf_key)
+            assert got == expected, f'{sd_key} -> {hf_key}: got {got} expected {expected}'
+            checked += 1
+        assert checked > 60, f'the map cross-check covered only {checked} entries'
+    return True
+
+
+def test_resolve_preset_case_and_arch_guard():
+    from modules.merging.merge_presets import BLOCK_WEIGHTS_PRESETS, SDXL_BLOCK_WEIGHTS_PRESETS
+    with block_model('sd'):
+        v = lora_blocks.resolve('grad_v')
+        assert v is not None and len(v) == 26 and v[0] == 1.0, 'preset BASE must be forced neutral'
+        assert v[1:] == [float(x) for x in BLOCK_WEIGHTS_PRESETS['GRAD_V'][1:]]
+        assert lora_blocks.resolve('SDXL_GRAD_V') is None, 'arch-tagged presets must not resolve elsewhere'
+    with block_model('sdxl'):
+        v = lora_blocks.resolve('GRAD_V')
+        assert v is not None and len(v) == 20 and v[0] == 1.0
+        assert v[1:] == [float(x) for x in SDXL_BLOCK_WEIGHTS_PRESETS['SDXL_GRAD_V'][1:]], 'the SDXL_ table must serve the unprefixed name'
+        v = lora_blocks.resolve('RING08_5')
+        assert v is not None and len(v) == 20 and v[0] == 1.0, 'a 26-slot preset must resample onto the sdxl layout'
+    return True
+
+
+def test_resolve_dit_resample_drops_base():
+    from modules.merging.merge_presets import BLOCK_WEIGHTS_PRESETS
+    src = BLOCK_WEIGHTS_PRESETS['GRAD_A']
+    with block_model('f1'):
+        v = lora_blocks.resolve('GRAD_A')
+        assert v is not None and len(v) == 58
+        assert v[0] == 1.0, 'BASE is a unet concept and must not inherit the merge slot'
+        assert v[1] == float(src[1]) and v[-1] == float(src[-1]), 'resampling must keep the endpoints'
+        assert min(v[1:]) >= min(src[1:]) - 1e-9 and max(v[1:]) <= max(src[1:]) + 1e-9
+    return True
+
+
+def test_resolve_vector_length_policy():
+    with block_model('sd'):
+        full = [round(0.01 * i, 2) for i in range(26)]
+        v = lora_blocks.resolve(','.join(str(x) for x in full))
+        assert v == full, 'a canonical-length vector must pass through verbatim'
+        v = lora_blocks.resolve(','.join(str(x) for x in full[1:]))
+        assert v == [1.0] + full[1:], 'a base-less vector must gain a neutral BASE'
+        v = lora_blocks.resolve(','.join(['0.5'] * 17))
+        assert v is not None and len(v) == 26 and v[0] == 0.5 and v[2] == 0.5 and v[13] == 0.5 and v[25] == 0.5, 'the a1111 17-slot layout must expand'
+        assert v[1] == 1.0 and v[14] == 1.0, 'slots the a1111 layout omits stay neutral'
+        assert lora_blocks.resolve(','.join(['1'] * 24)) is None, 'an unmatched length must be rejected'
+    with block_model('sdxl'):
+        v = lora_blocks.resolve(','.join(['0.25'] * 12))
+        assert v is not None and len(v) == 20 and v[0] == 0.25 and v[5] == 0.25 and v[10] == 0.25 and v[16] == 0.25
+        assert v[1] == 1.0 and v[7] == 1.0 and v[17] == 1.0
+    return True
+
+
+def test_resolve_scalar_and_classic():
+    with block_model('sd'):
+        assert lora_blocks.resolve('0.5') == [0.5] * 26, 'a scalar must broadcast to every slot'
+        v = lora_blocks.resolve('INS')
+        assert v[0] == 1.0 and all(x == 1.0 for x in v[1:7]) and all(x == 0.0 for x in v[7:]), f'INS must cover the shallow input half: {v}'
+        v = lora_blocks.resolve('OUTALL')
+        assert v[0] == 1.0 and all(x == 0.0 for x in v[1:14]) and all(x == 1.0 for x in v[14:]), f'OUTALL must cover the output side: {v}'
+        assert lora_blocks.resolve('NONE') == [0.0] * 26
+        assert lora_blocks.resolve('DOUBLE') is None, 'chain names need a two-chain arch'
+    with block_model('f1'):
+        v = lora_blocks.resolve('DOUBLE')
+        assert v[0] == 1.0 and all(x == 1.0 for x in v[1:20]) and all(x == 0.0 for x in v[20:]), 'DOUBLE must keep the double chain only'
+        v = lora_blocks.resolve('SINGLE')
+        assert all(x == 0.0 for x in v[1:20]) and all(x == 1.0 for x in v[20:]), 'SINGLE must keep the single chain only'
+    return True
+
+
+def test_bad_value_warns_once_and_ignores():
+    from types import SimpleNamespace
+    with block_model('sd'):
+        assert lora_blocks.resolve('bogus') is None
+        assert lora_blocks.resolve('1,2,3') is None
+        warned_n = len(lora_blocks.warned)
+        lora_blocks.resolve('bogus')
+        assert len(lora_blocks.warned) == warned_n, 'a repeated bad value must not warn again'
+        net = SimpleNamespace(name='b', block_spec='bogus')
+        assert lora_blocks.factor('lora_unet_conv_in', net) == 1.0, 'an unresolvable spec must leave the plain strength'
+    return True
+
+
+def test_multiplier_folds_block_weight():
+    layer = build_layer('uint4')
+    layer.network_layer_name = 'lora_transformer_transformer_blocks_3_attn_to_q'
+    A, B, D = make_delta()
+    net = make_net('blocky', layer, A, B, te_mult=0.5)
+    with block_model('sd3', lin=layer):
+        net.block_spec = sd3_spec(s4=0.5) # block 3 sits in slot 4
+        Wdq0 = dq(layer)
+        activate(net)
+        rho = rho_of(dq(layer) - Wdq0, D)
+        assert abs(rho - 0.25) < 0.01, f'expected multiplier 0.5 x block 0.5, rho={rho:.4f}'
+        activate()
+        assert torch.equal(dq(layer), Wdq0), 'unload must restore bit-exact'
+    return True
+
+
+def test_block_weight_zero_kills_layer_delta():
+    layer_a = build_layer('uint4')
+    layer_a.network_layer_name = 'lora_transformer_transformer_blocks_3_attn_to_q'
+    layer_b = build_layer('uint4', seed=7)
+    layer_b.network_layer_name = 'lora_transformer_transformer_blocks_5_attn_to_q'
+    A1, B1, D1 = make_delta(seed=1)
+    A2, B2, D2 = make_delta(seed=2)
+    net = make_net('zeroed', layer_a, A1, B1)
+    nw = network.NetworkWeights(network_key=layer_b.network_layer_name, sd_key=layer_b.network_layer_name,
+                                w={'lora_up.weight': B2.cpu(), 'lora_down.weight': A2.cpu()}, sd_module=layer_b)
+    net.modules[layer_b.network_layer_name] = network_lora.NetworkModuleLora(net, nw)
+    with block_model('sd3', a=layer_a, b=layer_b):
+        net.block_spec = sd3_spec(s4=0.0) # zero the slot of block 3; block 5 stays at 1
+        Wa0, Wb0 = dq(layer_a), dq(layer_b)
+        activate(net)
+        rho_a = rho_of(dq(layer_a) - Wa0, D1)
+        rho_b = rho_of(dq(layer_b) - Wb0, D2)
+        assert abs(rho_a) < 0.01, f'a zero slot must null the layer delta, rho={rho_a:.4f}'
+        assert rho_b > 0.99, f'a neutral slot must apply in full, rho={rho_b:.4f}'
+        activate()
+        assert torch.equal(dq(layer_a), Wa0) and torch.equal(dq(layer_b), Wb0), 'restore must be bit-exact'
+    return True
+
+
+def test_signature_suffix_inactive_and_changes():
+    from modules.lora import extra_networks_lora
+    layer = build_layer('uint4')
+    A, B, _D = make_delta()
+    net = make_net('siggy', layer, A, B)
+    l_common.loaded_networks.clear()
+    l_common.loaded_networks.append(net)
+    try:
+        assert lora_blocks.signature() == '', 'no spec must leave the stamp signature untouched'
+        net.block_spec = 'GRAD_V'
+        s1 = lora_blocks.signature()
+        assert s1 == '|lbw=siggy:grad_v', f's1={s1}'
+        net.block_spec = ' Grad_A '
+        assert lora_blocks.signature() == '|lbw=siggy:grad_a', 'the spec must normalize'
+        en = extra_networks_lora.ExtraNetworkLora()
+        plain = en.signature(['a'], [1.0], [[1.0] * 3])
+        with_spec = en.signature(['a'], [1.0], [[1.0] * 3], ['GRAD_V'])
+        assert plain == [f'a:1.0:{[1.0] * 3}'], 'legacy signature strings must stay byte-identical without specs'
+        assert with_spec[0] == plain[0] + ':lbw=grad_v'
+    finally:
+        l_common.loaded_networks.clear()
+    return True
+
+
+def test_factor_cache_invalidates_on_block_weight():
+    import tempfile
+    layer = build_layer('uint4')
+    layer.network_layer_name = 'lora_transformer_transformer_blocks_3_attn_to_q'
+    with tempfile.TemporaryDirectory() as tmp:
+        with host_rank(64), host_cache(10, os.path.join(tmp, 'cache')), block_model('sd3', lin=layer):
+            net, _D = cache_fixture(tmp, layer)
+            activate(net)
+            up_full = layer.svd_up.detach().clone()
+            activate()
+            net.block_spec = sd3_spec(s4=0.5)
+            activate(net) # different block vector: different signature, fresh svd, second entry
+            assert not torch.equal(layer.svd_up, up_full), 'a block-weight change must produce different factors'
+            activate()
+            files = os.listdir(os.path.join(tmp, 'cache'))
+            assert len(files) == 2, f'two cache entries expected, got {files}'
+    return True
+
+
+def test_stack_ties_respects_per_net_blocks():
+    layer = build_layer('uint4')
+    layer.network_layer_name = 'lora_transformer_transformer_blocks_3_attn_to_q'
+    torch.manual_seed(31)
+    Da = torch.randn(OUT_F, IN_F, device=DEVICE) * 3e-4
+    Db = torch.randn(OUT_F, IN_F, device=DEVICE) * 3e-4
+    net_a = make_dense_net('tiesa', layer, Da)
+    net_b = make_dense_net('tiesb', layer, Db)
+    with host_rank(64), stack_mode('ties', dens=0.5), block_model('sd3', lin=layer):
+        Wdq0 = dq(layer)
+        activate(net_a, net_b)
+        d_both = (dq(layer) - Wdq0).clone()
+        activate()
+        net_b.block_spec = 'NONE'
+        activate(net_a, net_b)
+        d_muted = (dq(layer) - Wdq0).clone()
+        activate()
+        assert not torch.allclose(d_both, d_muted), 'muting one member must change the combined delta'
+        assert rho_of(d_muted, Db) < 0.1, f'the muted member must not contribute: rho={rho_of(d_muted, Db):.3f}'
+        assert rho_of(d_muted, Da) > 0.3, f'the live member must survive the trim: rho={rho_of(d_muted, Da):.3f}'
+    return True
+
+
+def test_pending_promote_updates_block_spec():
+    layer = build_layer('uint4')
+    layer.network_layer_name = 'lora_transformer_transformer_blocks_3_attn_to_q'
+    A, B, D = make_delta()
+    net = make_net('promoted', layer, A, B)
+    with block_model('sd3', lin=layer):
+        Wdq0 = dq(layer)
+        net.pending_config = {'te': 1.0, 'unet': [1.0] * 3, 'dyn': None, 'blocks': 'NONE'}
+        activate(net)
+        assert net.block_spec == 'NONE', 'network_activate must promote the staged spec'
+        rho = rho_of(dq(layer) - Wdq0, D)
+        assert abs(rho) < 0.01, f'the promoted all-zero vector must null the delta, rho={rho:.4f}'
+        activate()
+        net.pending_config = {'te': 1.0, 'unet': [1.0] * 3, 'dyn': None, 'blocks': None}
+        activate(net)
+        assert net.block_spec is None, 'a spec-less reload must clear the previous spec'
+        rho = rho_of(dq(layer) - Wdq0, D)
+        assert rho > 0.99, f'without a spec the delta must apply in full, rho={rho:.4f}'
+        activate()
+        assert torch.equal(dq(layer), Wdq0)
+    return True
+
+
+def test_layout_recomputes_on_mapping_change():
+    with block_model('f1'):
+        assert lora_blocks.layout()['n'] == 58
+        assert lora_blocks.block_index('lora_transformer_transformer_blocks_18_attn_to_q') == 19
+        shared.sd_model.network_layer_mapping = {'lora_transformer_transformer_blocks_9_attn_to_q': None} # new object: the stamp must miss
+        assert lora_blocks.layout()['n'] == 11
+        assert lora_blocks.block_index('lora_transformer_transformer_blocks_9_attn_to_q') == 10
+        assert lora_blocks.block_index('lora_transformer_transformer_blocks_18_attn_to_q') == 0, 'an index past the scanned chain folds to BASE'
+    return True
+
+
 def run_tests():
     t0 = time.time()
     log.warning('=== Erasure law ===')
@@ -2334,6 +2720,14 @@ def run_tests():
     log.warning('=== Robustness ===')
     for fn in [test_remove_factors_after_device_move, test_stacked_shape_mismatch_falls_back]:
         run_test(CAT_ROBUST, fn)
+    log.warning('=== Block weights ===')
+    for fn in [test_block_index_sd_unet_layout, test_block_index_sdxl_unet_layout, test_block_index_flux_chains_concatenate,
+               test_block_index_anchoring_krea2_and_chroma, test_block_index_namespace_collisions, test_unet_arithmetic_matches_conversion_map,
+               test_resolve_preset_case_and_arch_guard, test_resolve_dit_resample_drops_base, test_resolve_vector_length_policy,
+               test_resolve_scalar_and_classic, test_bad_value_warns_once_and_ignores, test_multiplier_folds_block_weight,
+               test_block_weight_zero_kills_layer_delta, test_signature_suffix_inactive_and_changes, test_factor_cache_invalidates_on_block_weight,
+               test_stack_ties_respects_per_net_blocks, test_pending_promote_updates_block_spec, test_layout_recomputes_on_mapping_change]:
+        run_test(CAT_BLOCKS, fn)
 
     elapsed = time.time() - t0
     log.warning('=== Results ===')
