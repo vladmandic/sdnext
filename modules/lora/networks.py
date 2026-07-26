@@ -18,6 +18,12 @@ def network_activate(include=None, exclude=None):
         exclude = []
     if include is None:
         include = []
+    for net in l.loaded_networks: # promote staged multipliers only now: the deactivate pass ran against the previous values, which fuse-mode removal recomputes with
+        pending = getattr(net, 'pending_config', None)
+        if pending is not None:
+            net.te_multiplier = pending['te']
+            net.unet_multiplier = pending['unet']
+            net.dyn_dim = pending['dyn']
     t0 = time.time()
     with limit_errors("network_activate") as elimit:
         sd_model = getattr(shared.sd_model, "pipe", shared.sd_model)
