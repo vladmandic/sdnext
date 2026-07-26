@@ -2003,6 +2003,122 @@ def test_flip_lands_before_crossover_step():
     return True
 
 
+def test_score_pair_chunked_precision():
+    torch.manual_seed(71)
+    shapes = [(700, 460), (OUT_F, IN_F), (64,)] # off-chunk rows, square, and a 1-D norm delta
+    for shape in shapes:
+        d0 = (torch.randn(*shape, device=DEVICE) * 1e-2).to(torch.bfloat16)
+        d1 = (torch.randn(*shape, device=DEVICE) * 1e-2).to(torch.bfloat16)
+        for mode_name in ('klora', 'estlora'):
+            with select_mode(mode_name):
+                (s0, s1), (a0, a1) = lora_stack.score_pair(d0, d1, 8, 8)
+            f0, f1 = d0.to(torch.float64), d1.to(torch.float64)
+            ra0, ra1 = float(f0.abs().sum()), float(f1.abs().sum())
+            if mode_name == 'klora':
+                k = 64
+                rs0 = float(torch.topk(f0.abs().flatten(), min(k, f0.numel()), sorted=False).values.sum())
+                rs1 = float(torch.topk(f1.abs().flatten(), min(k, f1.numel()), sorted=False).values.sum())
+            else:
+                rs0, rs1 = float(f0.square().sum()), float(f1.square().sum())
+            for got, ref, label in ((s0, rs0, 'score0'), (s1, rs1, 'score1'), (a0, ra0, 'abs0'), (a1, ra1, 'abs1')):
+                assert abs(got - ref) <= 1e-9 * max(abs(ref), 1e-12), f'{mode_name} {label} shape={shape}: got {got!r} ref {ref!r}'
+    frozen = torch.randn(300, 200, device=DEVICE, dtype=torch.float32) * 1e-2 # fp32 input aliases through to(); abs must stay out-of-place
+    pristine = frozen.clone()
+    with select_mode('klora'):
+        lora_stack.score_pair(frozen, frozen, 4, 4)
+    assert torch.equal(frozen, pristine), 'score_pair must not mutate a caller-owned fp32 delta'
+    return True
+
+
+def test_select_replay_from_cache_skips_calc():
+    import tempfile
+    layer = build_layer('uint4')
+    torch.manual_seed(73)
+    Dd1 = (torch.randn(OUT_F, 24, device=DEVICE) @ torch.randn(24, IN_F, device=DEVICE)) * 1e-3
+    Dd2 = (torch.randn(OUT_F, 24, device=DEVICE) @ torch.randn(24, IN_F, device=DEVICE)) * 1e-3
+    with tempfile.TemporaryDirectory() as tmp:
+        with host_rank(32), host_cache(10, os.path.join(tmp, 'cache')), mock_model(lin=layer), select_mode('klora'):
+            n1 = make_dense_net('selk1', layer, Dd1)
+            n2 = make_dense_net('selk2', layer, Dd2)
+            for net in (n1, n2):
+                lora_file = os.path.join(tmp, f'{net.name}.safetensors')
+                with open(lora_file, 'wb') as f:
+                    f.write(b'0' * 64)
+                net.network_on_disk.filename = lora_file
+            from modules.modeldata import model_data
+            model_data.sd_model.sd_checkpoint_info = MockCheckpointInfo('test/cache-model')
+            Wdq0 = dq(layer)
+            with counting_calc() as calls:
+                activate(n1, n2)
+                assert calls['n'] > 0, 'a fresh select apply must assemble both deltas'
+                entry = lora_stack.state['entries'].get('lora_transformer_test')
+                assert entry is not None and entry['kind'] == 'factor'
+                fresh_scores, fresh_abs = entry['scores'], entry['abs_sums']
+                first = dq(layer)
+                activate()
+                calls['n'] = 0
+                real_svd = torch.svd_lowrank
+                torch.svd_lowrank = raise_no_svd
+                try:
+                    activate(n1, n2)
+                finally:
+                    torch.svd_lowrank = real_svd
+                assert calls['n'] == 0, f'a select replay must not assemble deltas: calc_updown ran {calls["n"]} times'
+                entry = lora_stack.state['entries'].get('lora_transformer_test')
+                assert entry is not None and entry['kind'] == 'factor', 'the replay must re-register the selection'
+                assert entry['scores'] == fresh_scores and entry['abs_sums'] == fresh_abs, 'cached scores must replay exactly'
+                assert torch.equal(dq(layer), first), 'select replay must be bit-identical to the fresh apply'
+                activate()
+                assert torch.equal(dq(layer), Wdq0)
+    return True
+
+
+def test_select_weight_replay_from_cache_skips_calc():
+    import tempfile
+    lin = torch.nn.Linear(IN_F, OUT_F, bias=False, dtype=torch.bfloat16, device=DEVICE)
+    with torch.no_grad():
+        lin.weight.copy_(torch.randn(OUT_F, IN_F, device=DEVICE) * 0.02)
+    lin.network_layer_name = 'lora_transformer_plainsel'
+    lin.network_current_names = ()
+    torch.manual_seed(75)
+    Dd1 = (torch.randn(OUT_F, 24, device=DEVICE) @ torch.randn(24, IN_F, device=DEVICE)) * 1e-3
+    Dd2 = (torch.randn(OUT_F, 24, device=DEVICE) @ torch.randn(24, IN_F, device=DEVICE)) * 1e-3
+    W0 = lin.weight.detach().float().clone()
+    with tempfile.TemporaryDirectory() as tmp:
+        with host_cache(10, os.path.join(tmp, 'cache')), mock_model(lin=lin), select_mode('klora'):
+            n1 = make_dense_net('selw1', lin, Dd1)
+            n2 = make_dense_net('selw2', lin, Dd2)
+            for net in (n1, n2):
+                lora_file = os.path.join(tmp, f'{net.name}.safetensors')
+                with open(lora_file, 'wb') as f:
+                    f.write(b'0' * 64)
+                net.network_on_disk.filename = lora_file
+            from modules.modeldata import model_data
+            model_data.sd_model.sd_checkpoint_info = MockCheckpointInfo('test/cache-model')
+            with counting_calc() as calls:
+                activate(n1, n2)
+                assert calls['n'] > 0, 'a fresh weight-kind select apply must assemble the pair'
+                entry = lora_stack.state['entries'].get('lora_transformer_plainsel')
+                assert entry is not None and entry['kind'] == 'weight'
+                fresh_scores = entry['scores']
+                assert torch.equal(lin.weight.detach().float(), W0), 'weights stay pristine until the schedule applies a winner'
+                lora_stack.reset(20)
+                fresh_selected = lin.weight.detach().float().clone()
+                activate()
+                assert torch.equal(lin.weight.detach().float(), W0)
+                calls['n'] = 0
+                activate(n1, n2)
+                assert calls['n'] == 0, f'a weight-kind select replay must not assemble the pair: calc_updown ran {calls["n"]} times'
+                entry = lora_stack.state['entries'].get('lora_transformer_plainsel')
+                assert entry is not None and entry['kind'] == 'weight', 'the replay must register from the score record'
+                assert entry['scores'] == fresh_scores, 'cached scores must replay exactly'
+                lora_stack.reset(20) # the winner recompute at schedule time still assembles its own delta, by design
+                assert torch.equal(lin.weight.detach().float(), fresh_selected), 'the replayed schedule must select the same winner'
+                activate()
+                assert torch.equal(lin.weight.detach().float(), W0)
+    return True
+
+
 CAT_COMPILE = category('compile')
 
 
@@ -2194,7 +2310,8 @@ def run_tests():
                test_select_deactivate_from_midflip, test_select_requires_exactly_two_nets, test_select_gated_off_when_compiled,
                test_select_finalize_drops_dead_module, test_select_int8_pair_rides_segments, test_select_gate_dormant_without_pair, test_stale_schedule_dropped_on_reapply,
                test_est_energy_matches_full_frobenius, test_select_weight_kind_plain_layer,
-               test_select_gamma_tracks_live_entries, test_select_host_disabled_falls_back_to_sum, test_flip_lands_before_crossover_step]:
+               test_select_gamma_tracks_live_entries, test_select_host_disabled_falls_back_to_sum, test_flip_lands_before_crossover_step,
+               test_score_pair_chunked_precision, test_select_replay_from_cache_skips_calc, test_select_weight_replay_from_cache_skips_calc]:
         run_test(CAT_SELECT, fn)
     log.warning('=== Compile ===')
     for fn in [test_factor_add_inside_compiled_graph, test_rank_bucket_graph_reuse]:
