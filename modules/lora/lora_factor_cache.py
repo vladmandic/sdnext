@@ -116,11 +116,13 @@ def dequantize_rowwise(q, scale):
     return q.to(torch.float32) * scale
 
 
-def lookup(network_layer_name):
-    """Cached (up, down, energy, calibrated, rms) for a layer, or None; factors return as fp32.
+def lookup_raw(network_layer_name):
+    """Cached entry as stored: (up_q, up_s, down_q, down_s, energy, calibrated, rms), or None.
 
     Pure lookup with no hit/miss accounting: the fast-path probe uses it so a
-    layer is only counted once, by whichever caller consumes the answer.
+    layer is only counted once, by whichever caller consumes the answer. The
+    quantized pair is the resident representation; callers that need values
+    dequantize through ``dequantize_rowwise``.
     """
     if state['sig'] is None:
         return None
@@ -132,7 +134,16 @@ def lookup(network_layer_name):
     rms = st.get(f'{network_layer_name}.rms')
     if up_q is None or up_s is None or down_q is None or down_s is None or energy is None or calib is None or rms is None:
         return None
-    return dequantize_rowwise(up_q, up_s), dequantize_rowwise(down_q, down_s), float(energy), bool(calib), float(rms)
+    return up_q, up_s, down_q, down_s, float(energy), bool(calib), float(rms)
+
+
+def lookup(network_layer_name):
+    """Cached (up, down, energy, calibrated, rms) for a layer, or None; factors return as fp32."""
+    raw = lookup_raw(network_layer_name)
+    if raw is None:
+        return None
+    up_q, up_s, down_q, down_s, energy, calib, rms = raw
+    return dequantize_rowwise(up_q, up_s), dequantize_rowwise(down_q, down_s), energy, calib, rms
 
 
 def note_hit():
@@ -142,6 +153,17 @@ def note_hit():
 def fetch(network_layer_name):
     """``lookup`` with accounting: a usable entry counts a hit, anything else a miss."""
     entry = lookup(network_layer_name)
+    if entry is None:
+        if state['sig'] is not None:
+            state['misses'] += 1
+        return None
+    state['hits'] += 1
+    return entry
+
+
+def fetch_raw(network_layer_name):
+    """``lookup_raw`` with the same hit/miss accounting as ``fetch``."""
+    entry = lookup_raw(network_layer_name)
     if entry is None:
         if state['sig'] is not None:
             state['misses'] += 1
@@ -185,18 +207,29 @@ def store(network_layer_name, up, down, energy, calibrated, rms):
     """
     if state['sig'] is None:
         return up, down
+    up_q, up_s, down_q, down_s = store_raw(network_layer_name, up, down, energy, calibrated, rms)
+    return dequantize_rowwise(up_q, up_s).to(up.dtype), dequantize_rowwise(down_q, down_s).to(down.dtype)
+
+
+def store_raw(network_layer_name, up, down, energy, calibrated, rms):
+    """Quantize the pair and return it as stored: (up_q, up_s, down_q, down_s).
+
+    Always quantizes, so hosted residency does not depend on the cache being
+    enabled; the entry persists only when caching is active for the pass.
+    """
     up_q, up_s = quantize_rowwise(up)
     down_q, down_s = quantize_rowwise(down)
-    st = state['store']
-    st[f'{network_layer_name}.up_q'] = up_q.to('cpu').contiguous()
-    st[f'{network_layer_name}.up_s'] = up_s.to('cpu').contiguous()
-    st[f'{network_layer_name}.down_q'] = down_q.to('cpu').contiguous()
-    st[f'{network_layer_name}.down_s'] = down_s.to('cpu').contiguous()
-    st[f'{network_layer_name}.energy'] = torch.tensor(float(energy))
-    st[f'{network_layer_name}.calib'] = torch.tensor(1 if calibrated else 0, dtype=torch.uint8)
-    st[f'{network_layer_name}.rms'] = torch.tensor(float(rms))
-    state['dirty'] = True
-    return dequantize_rowwise(up_q, up_s).to(up.dtype), dequantize_rowwise(down_q, down_s).to(down.dtype)
+    if state['sig'] is not None:
+        st = state['store']
+        st[f'{network_layer_name}.up_q'] = up_q.to('cpu').contiguous()
+        st[f'{network_layer_name}.up_s'] = up_s.to('cpu').contiguous()
+        st[f'{network_layer_name}.down_q'] = down_q.to('cpu').contiguous()
+        st[f'{network_layer_name}.down_s'] = down_s.to('cpu').contiguous()
+        st[f'{network_layer_name}.energy'] = torch.tensor(float(energy))
+        st[f'{network_layer_name}.calib'] = torch.tensor(1 if calibrated else 0, dtype=torch.uint8)
+        st[f'{network_layer_name}.rms'] = torch.tensor(float(rms))
+        state['dirty'] = True
+    return up_q, up_s, down_q, down_s
 
 
 def evict():
