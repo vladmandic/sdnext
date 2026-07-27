@@ -67,4 +67,3 @@ class ExtraNetworksPageWildcards(ui_extra_networks.ExtraNetworksPage):
 
     def allowed_directories_for_previews(self):
         return [v for v in [shared.opts.wildcards_dir] if v is not None]
-
