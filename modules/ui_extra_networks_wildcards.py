@@ -1,4 +1,5 @@
 import os
+import json
 from modules import shared, ui_extra_networks, modelstats, files_cache
 from modules.logger import log
 
@@ -52,7 +53,8 @@ class ExtraNetworksPageWildcards(ui_extra_networks.ExtraNetworksPage):
                     # "preview": self.find_preview(filename),
                     "preview": None,
                     "local_preview": f"{os.path.splitext(filename)[0]}.{shared.opts.samples_format}",
-                    "prompt": f" __{name}__",
+                    "prompt": json.dumps(f" __{name}__"),
+                    # "prompt": f" __{name}__",
                     "mtime": mtime,
                     "size": size,
                     "description": '',
@@ -65,3 +67,4 @@ class ExtraNetworksPageWildcards(ui_extra_networks.ExtraNetworksPage):
 
     def allowed_directories_for_previews(self):
         return [v for v in [shared.opts.wildcards_dir] if v is not None]
+
