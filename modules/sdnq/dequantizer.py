@@ -7,7 +7,7 @@ import torch
 from modules import devices
 from .common import dtype_dict, compile_func
 from .kernel_wrappers import use_contiguous_int8_mm, use_contiguous_fp16_mm, use_tensorwise_fp8_matmul, is_fp8_compile_supported
-from .quant_utils import quantize_int_mm, quantize_uint_mm, quantize_fp_mm, rotate_hadamard, get_hadamard
+from .quant_utils import quantize_int_mm, quantize_uint_mm, quantize_fp_mm, rotate_hadamard, get_hadamard, merge_svd_quantized
 from .packed_int import unpack_int
 from .packed_float import unpack_float
 from .layers import SDNQLayer
@@ -20,6 +20,10 @@ def dequantize_asymmetric(
     zero_point: torch.FloatTensor,
     svd_up: torch.FloatTensor | None = None,
     svd_down: torch.FloatTensor | None = None,
+    svd_up_q: torch.CharTensor | None = None,
+    svd_up_scale: torch.FloatTensor | None = None,
+    svd_down_q: torch.CharTensor | None = None,
+    svd_down_scale: torch.FloatTensor | None = None,
     hadamard: torch.FloatTensor | None = None,
     dtype: torch.dtype | None = None,
     result_shape: torch.Size | None = None,
@@ -32,6 +36,10 @@ def dequantize_asymmetric(
     if result_shape is not None:
         result = result.view(result_shape)
     is_conv = bool(result.ndim > 2 and weight.ndim > 2)
+    if svd_up_q is not None:
+        # quantized-matmul layers store factors transposed, so the concat axes flip with the layout
+        dim_up, dim_down = (0, 1) if skip_quantized_matmul else (1, 0)
+        svd_up, svd_down = merge_svd_quantized(svd_up, svd_down, svd_up_q, svd_up_scale, svd_down_q, svd_down_scale, dim_up, dim_down, dtype if dtype is not None else scale.dtype)
     if svd_up is not None:
         if skip_quantized_matmul:
             svd_up = svd_up.t().contiguous()
@@ -56,6 +64,10 @@ def dequantize_symmetric(
     scale: torch.FloatTensor,
     svd_up: torch.FloatTensor | None = None,
     svd_down: torch.FloatTensor | None = None,
+    svd_up_q: torch.CharTensor | None = None,
+    svd_up_scale: torch.FloatTensor | None = None,
+    svd_down_q: torch.CharTensor | None = None,
+    svd_down_scale: torch.FloatTensor | None = None,
     hadamard: torch.FloatTensor | None = None,
     dtype: torch.dtype | None = None,
     result_shape: torch.Size | None = None,
@@ -68,6 +80,10 @@ def dequantize_symmetric(
     if result_shape is not None:
         result = result.view(result_shape)
     is_conv = bool(result.ndim > 2 and weight.ndim > 2)
+    if svd_up_q is not None:
+        # quantized-matmul layers store factors transposed, so the concat axes flip with the layout
+        dim_up, dim_down = (0, 1) if skip_quantized_matmul else (1, 0)
+        svd_up, svd_down = merge_svd_quantized(svd_up, svd_down, svd_up_q, svd_up_scale, svd_down_q, svd_down_scale, dim_up, dim_down, dtype if dtype is not None else scale.dtype)
     if svd_up is not None:
         if skip_quantized_matmul:
             svd_up = svd_up.t().contiguous()
@@ -93,6 +109,10 @@ def dequantize_weight(
     zero_point: torch.FloatTensor | None = None,
     svd_up: torch.FloatTensor | None = None,
     svd_down: torch.FloatTensor | None = None,
+    svd_up_q: torch.CharTensor | None = None,
+    svd_up_scale: torch.FloatTensor | None = None,
+    svd_down_q: torch.CharTensor | None = None,
+    svd_down_scale: torch.FloatTensor | None = None,
     hadamard: torch.FloatTensor | None = None,
     dtype: torch.dtype | None = None,
     result_shape: torch.Size | None = None,
@@ -106,9 +126,9 @@ def dequantize_weight(
         else:
             weight = unpack_float(weight, weights_dtype, quantized_weight_shape)
     if dtype_dict[weights_dtype]["is_unsigned"]:
-        return dequantize_asymmetric(weight, scale, zero_point, svd_up=svd_up, svd_down=svd_down, hadamard=hadamard, dtype=dtype, result_shape=result_shape, skip_quantized_matmul=skip_quantized_matmul, re_quantize_for_matmul=re_quantize_for_matmul)
+        return dequantize_asymmetric(weight, scale, zero_point, svd_up=svd_up, svd_down=svd_down, svd_up_q=svd_up_q, svd_up_scale=svd_up_scale, svd_down_q=svd_down_q, svd_down_scale=svd_down_scale, hadamard=hadamard, dtype=dtype, result_shape=result_shape, skip_quantized_matmul=skip_quantized_matmul, re_quantize_for_matmul=re_quantize_for_matmul)
     else:
-        return dequantize_symmetric(weight, scale, svd_up=svd_up, svd_down=svd_down, hadamard=hadamard, dtype=dtype, result_shape=result_shape, skip_quantized_matmul=skip_quantized_matmul, re_quantize_for_matmul=re_quantize_for_matmul)
+        return dequantize_symmetric(weight, scale, svd_up=svd_up, svd_down=svd_down, svd_up_q=svd_up_q, svd_up_scale=svd_up_scale, svd_down_q=svd_down_q, svd_down_scale=svd_down_scale, hadamard=hadamard, dtype=dtype, result_shape=result_shape, skip_quantized_matmul=skip_quantized_matmul, re_quantize_for_matmul=re_quantize_for_matmul)
 
 
 @devices.inference_context()
@@ -156,6 +176,10 @@ def re_quantize_matmul(
     zero_point: torch.FloatTensor | None = None,
     svd_up: torch.FloatTensor | None = None,
     svd_down: torch.FloatTensor | None = None,
+    svd_up_q: torch.CharTensor | None = None,
+    svd_up_scale: torch.FloatTensor | None = None,
+    svd_down_q: torch.CharTensor | None = None,
+    svd_down_scale: torch.FloatTensor | None = None,
     hadamard: torch.FloatTensor | None = None,
     matmul_dtype: str = "int8",
     result_shape: torch.Size | None = None,
@@ -167,9 +191,9 @@ def re_quantize_matmul(
         else:
             weight = unpack_float(weight, weights_dtype, quantized_weight_shape)
     if dtype_dict[weights_dtype]["is_unsigned"]:
-        weight = dequantize_asymmetric(weight, scale, zero_point, svd_up=svd_up, svd_down=svd_down, hadamard=hadamard, dtype=scale.dtype, result_shape=result_shape)
+        weight = dequantize_asymmetric(weight, scale, zero_point, svd_up=svd_up, svd_down=svd_down, svd_up_q=svd_up_q, svd_up_scale=svd_up_scale, svd_down_q=svd_down_q, svd_down_scale=svd_down_scale, hadamard=hadamard, dtype=scale.dtype, result_shape=result_shape)
     else:
-        weight = dequantize_symmetric(weight, scale, svd_up=svd_up, svd_down=svd_down, hadamard=hadamard, dtype=scale.dtype, result_shape=result_shape)
+        weight = dequantize_symmetric(weight, scale, svd_up=svd_up, svd_down=svd_down, svd_up_q=svd_up_q, svd_up_scale=svd_up_scale, svd_down_q=svd_down_q, svd_down_scale=svd_down_scale, hadamard=hadamard, dtype=scale.dtype, result_shape=result_shape)
     if dtype_dict[matmul_dtype]["is_integer"]:
         if dtype_dict[matmul_dtype]["is_unsigned"]:
             return re_quantize_uint_mm(weight, matmul_dtype=matmul_dtype)
@@ -290,6 +314,10 @@ class SDNQDequantizer:
         zero_point: torch.FloatTensor | None = None,
         svd_up: torch.FloatTensor | None = None,
         svd_down: torch.FloatTensor | None = None,
+        svd_up_q: torch.CharTensor | None = None,
+        svd_up_scale: torch.FloatTensor | None = None,
+        svd_down_q: torch.CharTensor | None = None,
+        svd_down_scale: torch.FloatTensor | None = None,
         hadamard: torch.FloatTensor | None = None,
         non_hadamard: bool = True,
         skip_compile: bool = False,
@@ -309,6 +337,10 @@ class SDNQDequantizer:
             zero_point=zero_point,
             svd_up=svd_up,
             svd_down=svd_down,
+            svd_up_q=svd_up_q,
+            svd_up_scale=svd_up_scale,
+            svd_down_q=svd_down_q,
+            svd_down_scale=svd_down_scale,
             hadamard=hadamard,
             matmul_dtype=self.quantized_matmul_dtype,
             result_shape=self.result_shape,
@@ -323,6 +355,10 @@ class SDNQDequantizer:
         zero_point: torch.FloatTensor | None = None,
         svd_up: torch.FloatTensor | None = None,
         svd_down: torch.FloatTensor | None = None,
+        svd_up_q: torch.CharTensor | None = None,
+        svd_up_scale: torch.FloatTensor | None = None,
+        svd_down_q: torch.CharTensor | None = None,
+        svd_down_scale: torch.FloatTensor | None = None,
         hadamard: torch.FloatTensor | None = None,
         skip_quantized_matmul: bool = False,
         non_hadamard: bool = False,
@@ -347,6 +383,10 @@ class SDNQDequantizer:
             zero_point=zero_point,
             svd_up=svd_up,
             svd_down=svd_down,
+            svd_up_q=svd_up_q,
+            svd_up_scale=svd_up_scale,
+            svd_down_q=svd_down_q,
+            svd_down_scale=svd_down_scale,
             hadamard=hadamard,
             dtype=dtype,
             result_shape=self.result_shape,

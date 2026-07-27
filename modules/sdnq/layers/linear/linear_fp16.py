@@ -4,7 +4,7 @@ import torch
 
 from ...common import compile_func
 from ...kernel_wrappers import fp_scaled_mm_func, include_mm_kernel_in_compile
-from ...quant_utils import rotate_hadamard, get_hadamard
+from ...quant_utils import rotate_hadamard, get_hadamard, merge_svd_quantized
 from ...packed_float import unpack_float
 
 from .forward import check_mats
@@ -18,6 +18,10 @@ def get_fp16_matmul_inputs(
     bias: torch.FloatTensor | None = None,
     svd_up: torch.FloatTensor | None = None,
     svd_down: torch.FloatTensor | None = None,
+    svd_up_q: torch.CharTensor | None = None,
+    svd_up_scale: torch.FloatTensor | None = None,
+    svd_down_q: torch.CharTensor | None = None,
+    svd_down_scale: torch.FloatTensor | None = None,
     hadamard: torch.FloatTensor | None = None,
     quantized_weight_shape: torch.Size | None = None,
     weights_dtype: str | None = None,
@@ -32,6 +36,9 @@ def get_fp16_matmul_inputs(
 
     if hadamard is not None:
         input = rotate_hadamard(input, hadamard=hadamard)
+    if svd_up_q is not None:
+        # matmul layout stores factors transposed: concat along rank dim 0 of up, dim 1 of down
+        svd_up, svd_down = merge_svd_quantized(svd_up, svd_down, svd_up_q, svd_up_scale, svd_down_q, svd_down_scale, 0, 1, input.dtype)
     if svd_up is not None:
         input = input.flatten(0,-2)
         if bias is not None:
@@ -51,6 +58,10 @@ def fp16_matmul(
     bias: torch.FloatTensor | None = None,
     svd_up: torch.FloatTensor | None = None,
     svd_down: torch.FloatTensor | None = None,
+    svd_up_q: torch.CharTensor | None = None,
+    svd_up_scale: torch.FloatTensor | None = None,
+    svd_down_q: torch.CharTensor | None = None,
+    svd_down_scale: torch.FloatTensor | None = None,
     hadamard: torch.FloatTensor | None = None,
     quantized_weight_shape: torch.Size | None = None,
     weights_dtype: str | None = None,
@@ -60,6 +71,10 @@ def fp16_matmul(
         bias=bias,
         svd_up=svd_up,
         svd_down=svd_down,
+        svd_up_q=svd_up_q,
+        svd_up_scale=svd_up_scale,
+        svd_down_q=svd_down_q,
+        svd_down_scale=svd_down_scale,
         hadamard=hadamard,
         quantized_weight_shape=quantized_weight_shape,
         weights_dtype=weights_dtype,
@@ -69,7 +84,7 @@ def fp16_matmul(
 
 def quantized_linear_forward_fp16_matmul(self, input: torch.FloatTensor) -> torch.FloatTensor:
     if torch.numel(input) / input.shape[-1] < 32:
-        return torch.nn.functional.linear(input, self.sdnq_dequantizer(self.weight, self.scale, zero_point=self.zero_point, svd_up=self.svd_up, svd_down=self.svd_down, skip_quantized_matmul=True), self.bias)
+        return torch.nn.functional.linear(input, self.sdnq_dequantizer(self.weight, self.scale, zero_point=self.zero_point, svd_up=self.svd_up, svd_down=self.svd_down, svd_up_q=self.svd_up_q, svd_up_scale=self.svd_up_scale, svd_down_q=self.svd_down_q, svd_down_scale=self.svd_down_scale, skip_quantized_matmul=True), self.bias)
     if self.sdnq_dequantizer.re_quantize_for_matmul:
         weight, scale = self.sdnq_dequantizer.re_quantize_matmul(self.weight, self.scale, zero_point=self.zero_point)
         quantized_weight_shape = None
@@ -86,6 +101,10 @@ def quantized_linear_forward_fp16_matmul(self, input: torch.FloatTensor) -> torc
         bias=self.bias,
         svd_up=self.svd_up,
         svd_down=self.svd_down,
+        svd_up_q=self.svd_up_q,
+        svd_up_scale=self.svd_up_scale,
+        svd_down_q=self.svd_down_q,
+        svd_down_scale=self.svd_down_scale,
         hadamard=hadamard,
         quantized_weight_shape=quantized_weight_shape,
         weights_dtype=self.sdnq_dequantizer.weights_dtype,

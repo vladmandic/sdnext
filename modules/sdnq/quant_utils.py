@@ -183,6 +183,31 @@ def prepare_weight_for_matmul(weight: torch.Tensor, matmul_dtype: str | None = "
     return weight
 
 
+def merge_svd_quantized(
+    svd_up: torch.FloatTensor | None,
+    svd_down: torch.FloatTensor | None,
+    svd_up_q: torch.CharTensor | None,
+    svd_up_scale: torch.FloatTensor | None,
+    svd_down_q: torch.CharTensor | None,
+    svd_down_scale: torch.FloatTensor | None,
+    dim_up: int,
+    dim_down: int,
+    dtype: torch.dtype,
+) -> tuple[torch.FloatTensor | None, torch.FloatTensor | None]:
+    # rowwise-int8 side-channel factors dequantize with a single fp32 rounding and
+    # concatenate behind the full-precision pair, so the downstream matmul sees one
+    # factor set; the quantized channel is resident storage, the merge is transient
+    if svd_up_q is None:
+        return svd_up, svd_down
+    if svd_up is not None:
+        dtype = svd_up.dtype
+    up = svd_up_q.to(dtype=torch.float32).mul_(svd_up_scale).to(dtype=dtype)
+    down = svd_down_q.to(dtype=torch.float32).mul_(svd_down_scale).to(dtype=dtype)
+    if svd_up is None:
+        return up, down
+    return torch.cat([svd_up, up], dim=dim_up), torch.cat([svd_down, down], dim=dim_down)
+
+
 @devices.inference_context()
 def prepare_svd_for_matmul(svd_up: torch.FloatTensor, svd_down: torch.FloatTensor, use_quantized_matmul: bool) -> tuple[torch.FloatTensor, torch.FloatTensor]:
     if svd_up is not None:
