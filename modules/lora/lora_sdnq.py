@@ -25,7 +25,9 @@ Only additive low-rank modules ride the channel exactly (plain LoRA: no
 DoRA, no CP ``mid``, no LyCORIS dense-bias, no ``diff_b``). On sub-8-bit
 formats, sets with non-factorable contributions are hosted instead: the
 families' own ``calc_updown`` delta is truncated to its top singular
-directions and appended the same way. Hosted pairs stay resident as
+directions and appended the same way, stored at the delta's effective
+rank when the spectrum ends in a numerically null tail (dense-combined
+plain pairs, low-rank LyCORIS). Hosted pairs stay resident as
 rowwise int8 with fp32 scales (the factor cache's representation, applied
 on fresh computes and replays alike); the dequantizer dequantizes and
 concatenates that channel behind the full-precision members per
@@ -57,12 +59,14 @@ from modules.logger import log
 
 fallback_layers: list[str] = []
 hosted_layers: list[tuple[str, float, bool]] = []
+hosted_ranks: list[int] = []
 factor_layers: list[str] = []
 select_layers: list[str] = []
 routed_layers: list[str] = []
 
 REQUANT_RATIO = 0.30 # delta rms over mean grid step above which requantize can retain the delta
 REQUANT_ENERGY = 0.90 # sketch capture below which truncation genuinely loses part of it
+NULL_TAIL_EPS = 1e-6 # spectrum tail below this fraction of the capture is numerically null; dropping it keeps stored rank at the delta's effective rank
 
 def rank_bucket(r):
     """Fixed rank ladder for compiled-graph reuse: powers of two up to 256, multiples of 64 above (hosted rank plus exact members)."""
@@ -249,6 +253,12 @@ def set_hosted_channel(self, up_q, up_s, down_q, down_s):
     the previous bf16 concat ([members | hosted]) while resident storage
     stays at half the bytes. Zero rank padding dequantizes to exact zeros.
     """
+    nz = (up_q != 0).any(dim=0)
+    if not bool(nz.all()): # entries stored before tail slicing carry null ranks as exact int8 zero columns; trim to the effective rank on attach
+        k = max(1, int(nz.nonzero().max().item()) + 1) if bool(nz.any()) else 1
+        if k < up_q.shape[1]:
+            up_q, down_q, down_s = up_q[:, :k].contiguous(), down_q[:k].contiguous(), down_s[:k].contiguous()
+    hosted_ranks.append(int(up_q.shape[1]))
     deq = self.sdnq_dequantizer
     device = self.scale.device
     if not hasattr(self, 'sdnq_lora_svd_stash'):
@@ -454,6 +464,14 @@ def truncate_delta(self, D, dtype):
         # oversampled sketch with extra power iterations lands within noise of exact svd; only the top q columns are kept
         U, S, V = torch.svd_lowrank(D, q=min(q + 64, *D.shape), niter=8)
     U, S, V = U[:, :q], S[:q], V[:, :q]
+    e = S.square()
+    total_e = e.sum()
+    if float(total_e) > 0:
+        # an exactly low-rank delta (dense-combined plain pairs, low-rank LyCORIS) fills the tail with
+        # numerical zeros; storing them would pad the channel to the cap for nothing
+        k = int((torch.cumsum(e, 0) < (1.0 - NULL_TAIL_EPS) * total_e).sum().item()) + 1
+        if k < q:
+            U, S, V = U[:, :k], S[:k], V[:, :k]
     energy = float(S.square().sum() / D.square().sum().clamp(min=1e-30)) # captured fraction, in the weighted domain when calibrated
     up_h = (U * S).to(dtype=dtype)
     down_h = V.t()
@@ -583,10 +601,15 @@ def report_fallbacks():
         energies = sorted(e for _name, e, _c in hosted_layers)
         median = energies[len(energies) // 2]
         calibrated = sum(1 for _name, _e, c in hosted_layers if c)
-        log.info(f'Network load: type=LoRA quant=sdnq apply=hosted layers={len(hosted_layers)} rank={int(shared.opts.lora_sdnq_host_rank)}{f" calib={calibrated}" if calibrated else ""} energy={median:.2f} min={energies[0]:.2f}')
+        ranks = ''
+        if len(hosted_ranks) > 0 and min(hosted_ranks) < int(shared.opts.lora_sdnq_host_rank):
+            rs = sorted(hosted_ranks)
+            ranks = f' k={rs[0]}-{rs[len(rs) // 2]}-{rs[-1]}' # realized rank spread; shown only when a spectrum collapsed below the cap
+        log.info(f'Network load: type=LoRA quant=sdnq apply=hosted layers={len(hosted_layers)} rank={int(shared.opts.lora_sdnq_host_rank)}{ranks}{f" calib={calibrated}" if calibrated else ""} energy={median:.2f} min={energies[0]:.2f}')
         if l.debug:
             log.debug(f'Network load: type=LoRA quant=sdnq hosted={[(n, round(e, 3)) for n, e, _c in hosted_layers[:8]]}{"..." if len(hosted_layers) > 8 else ""}')
     hosted_layers.clear()
+    hosted_ranks.clear()
     if len(routed_layers) > 0:
         log.info(f'Network load: type=LoRA quant=sdnq apply=requantize layers={len(routed_layers)} routed=fat-delta')
         if l.debug:

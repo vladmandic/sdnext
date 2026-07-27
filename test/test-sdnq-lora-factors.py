@@ -707,6 +707,34 @@ def test_hosted_dense_delta_beats_requant():
     return True
 
 
+def test_hosted_null_tail_collapses_to_effective_rank():
+    layer = build_layer('uint4')
+    _A, _B, D = make_delta(sigma=3e-3) # exact rank-8 content in a non-factorable container
+    net = make_dense_net('nulltail', layer, D)
+    with host_rank(256), mock_model(lin=layer):
+        Wdq0 = dq(layer)
+        activate(net)
+        assert layer.svd_up_q.shape[1] == 8, f'rank-8 delta under cap 256 must store 8 ranks, got {layer.svd_up_q.shape[1]}'
+        assert layer.svd_down_q.shape[0] == 8, f'down factor must slice with the up factor, got {layer.svd_down_q.shape[0]}'
+        rho = rho_of(dq(layer) - Wdq0, D)
+        assert rho > 0.95, f'collapsing the null tail must not cost fidelity: rho={rho:.4f}'
+        activate()
+        assert torch.equal(dq(layer), Wdq0), 'unload must restore bit-exact'
+    return True
+
+
+def test_hosted_flat_spectrum_keeps_cap():
+    layer = build_layer('uint4')
+    torch.manual_seed(13)
+    D = torch.randn(OUT_F, IN_F, device=DEVICE) * 3e-4 # full-rank gaussian: no null tail inside the cap
+    net = make_dense_net('flattail', layer, D)
+    with host_rank(64), mock_model(lin=layer):
+        activate(net)
+        assert layer.svd_up_q.shape[1] == 64, f'a flat spectrum must keep the full cap, got {layer.svd_up_q.shape[1]}'
+        activate()
+    return True
+
+
 def test_hosted_skips_int8():
     layer = build_layer('int8')
     _A, _B, D = make_delta(sigma=3e-3)
@@ -1304,6 +1332,47 @@ def test_factor_cache_invalidates_on_multiplier():
     return True
 
 
+def test_attach_trims_stored_null_tail():
+    """Entries written before tail slicing pad the channel with null ranks: zero up
+    columns (and junk down rows behind them). Attach must trim to the effective rank
+    and replay the same resident tensors and weights as the unpadded entry."""
+    import tempfile
+    layer = build_layer('uint4')
+    with tempfile.TemporaryDirectory() as tmp:
+        with host_rank(64), host_cache(10, os.path.join(tmp, 'cache')), mock_model(lin=layer):
+            net, _D = cache_fixture(tmp, layer, name='padnet')
+            activate(net)
+            up_q0 = layer.svd_up_q.detach().clone()
+            down_q0 = layer.svd_down_q.detach().clone()
+            Wl0 = dq(layer)
+            activate()
+            cache_dir = os.path.join(tmp, 'cache')
+            entry = os.path.join(cache_dir, os.listdir(cache_dir)[0])
+            from safetensors import safe_open
+            from safetensors.torch import save_file
+            with safe_open(entry, framework='pt', device='cpu') as f:
+                meta = dict(f.metadata())
+                tensors = {k: f.get_tensor(k) for k in f.keys()}
+            for k in [k for k in tensors if k.endswith('.up_q')]:
+                base = k[: -len('.up_q')]
+                torch.manual_seed(5)
+                tensors[f'{base}.up_q'] = torch.cat([tensors[k], torch.zeros(tensors[k].shape[0], 64, dtype=torch.int8)], dim=1)
+                tensors[f'{base}.down_q'] = torch.cat([tensors[f'{base}.down_q'], torch.randint(-127, 128, (64, IN_F), dtype=torch.int8)], dim=0)
+                tensors[f'{base}.down_s'] = torch.cat([tensors[f'{base}.down_s'], torch.ones(64, 1)], dim=0)
+            save_file(tensors, entry, metadata=meta)
+            real_svd = torch.svd_lowrank
+            torch.svd_lowrank = raise_no_svd
+            try:
+                activate(net)
+            finally:
+                torch.svd_lowrank = real_svd
+            assert layer.svd_up_q.shape[1] == 64, f'attach must trim the padded tail back to the effective rank, got {layer.svd_up_q.shape[1]}'
+            assert torch.equal(layer.svd_up_q, up_q0) and torch.equal(layer.svd_down_q, down_q0), 'trimmed resident tensors must match the unpadded entry'
+            assert torch.equal(dq(layer), Wl0), 'trimmed attach must materialize the same weight'
+            activate()
+    return True
+
+
 def test_factor_cache_int8_quantization():
     from modules.lora import lora_factor_cache as fc
     torch.manual_seed(71)
@@ -1766,7 +1835,7 @@ def test_select_per_net_hosted_pair():
         activate(n1, n2)
         entry = lora_stack.state['entries'].get('lora_transformer_test')
         assert entry is not None, 'non-factorable pairs must register through per-net hosting'
-        assert entry['segments'][0] == (0, 32) and entry['segments'][1] == (32, 64), f'segments {entry["segments"]}'
+        assert entry['segments'][0] == (0, 24) and entry['segments'][1] == (24, 48), f'segments {entry["segments"]}' # hosting stores the effective rank (24), not the cap
         lora_stack.reset(20)
         eff = dq(layer) - Wdq0
         best = max(rho_of(eff, Dd1), rho_of(eff, Dd2))
@@ -2767,7 +2836,7 @@ def run_tests():
                test_route_fat_dense_delta_requantizes, test_route_rule_terms_gate_both_ways, test_route_low_rank_fat_delta_stays_hosted,
                test_route_mixed_set_keeps_hosting, test_route_svd_checkpoint_keeps_hosting, test_route_dense_stack_keeps_hosting,
                test_route_replay_from_cache, test_hosted_channel_matches_bf16_concat, test_hosted_matmul_layout_int8_channel,
-               test_plain_lora_keeps_bf16_channel]:
+               test_plain_lora_keeps_bf16_channel, test_hosted_null_tail_collapses_to_effective_rank, test_hosted_flat_spectrum_keeps_cap]:
         run_test(CAT_HOST, fn)
     log.warning('=== Calibration ===')
     for fn in [test_calibrated_hosting_beats_plain, test_calibrated_low_rank_delta_survives, test_calib_option_off_matches_plain,
@@ -2777,7 +2846,8 @@ def run_tests():
     log.warning('=== Factor cache ===')
     for fn in [test_factor_cache_roundtrip_bitexact, test_factor_cache_invalidates_on_multiplier,
                test_factor_cache_int8_quantization, test_factor_cache_disabled_at_zero, test_factor_cache_invalidates_on_calib_toggle,
-               test_cache_fastpath_skips_calc, test_cache_fastpath_serves_mixed_set, test_cache_fastpath_serves_dense_pair]:
+               test_cache_fastpath_skips_calc, test_cache_fastpath_serves_mixed_set, test_cache_fastpath_serves_dense_pair,
+               test_attach_trims_stored_null_tail]:
         run_test(CAT_FCACHE, fn)
     log.warning('=== Stack modes: dense ===')
     for fn in [test_ties_sign_consensus_drops_conflicts, test_dare_mask_is_deterministic_across_calls, test_dare_rescales_by_inverse_density,
