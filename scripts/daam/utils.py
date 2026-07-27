@@ -94,8 +94,8 @@ nlp = None
 
 
 @lru_cache(maxsize=100000)
-def cached_nlp(prompt: str, type='en_core_web_md'):
-    global nlp
+def cached_nlp(prompt: str, type='en_core_web_md'): # pylint: disable=redefined-builtin
+    global nlp # pylint: disable=global-statement
 
     if nlp is None:
         try:

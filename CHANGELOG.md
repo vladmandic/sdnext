@@ -1,5 +1,13 @@
 # Change Log for SD.Next
 
+## Update for 2026-07-27
+
+- **Features**
+  - optimized server startup
+  - video processing preserve audio
+- **Fixes**
+  - seedvr quality
+
 ## Update for 2026-07-23
 
 Primarily a service release with updates to compute packages: torch, CUDA, ROCm, etc.

@@ -118,7 +118,7 @@ class Upscaler:
                 img = self.do_upscale(img, selected_model)
                 if shape == (img.width, img.height):
                     break
-                if img.width >= dest_w and img.height >= dest_h:
+                if img.width >= (dest_w - 8) and img.height >= (dest_h - 8):
                     break
             if img.width != dest_w or img.height != dest_h:
                 from modules.image import sharpfin

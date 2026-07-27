@@ -170,7 +170,7 @@ class UpscalerSeedVR(Upscaler):
         devices.torch_gc(fast=True)
         t0 = time.time()
         with devices.inference_context():
-            self.pbar.update(self.task, description=f'inference: batch={self.step}')
+            self.pbar.update(self.task, description='inference')
             result = generation.generation_step_original(*args, **kwargs)
             self.pbar.update(self.task, advance=self.step)
         self.timer.ts('step', t0)
@@ -187,13 +187,38 @@ class UpscalerSeedVR(Upscaler):
                 image = Image.open(image)
             image = image.convert("RGB")
             width = image.width
+            height = image.height
             tensor = np.array(image)
             tensor = torch.from_numpy(tensor).to(device=devices.device, dtype=devices.dtype).unsqueeze(0) / 255.0
             self.frames = 1
-            return tensor, width
+            return tensor, width, height
         except Exception as e:
             log.error(f'Upscaler: name="SeedVR2" image="{image}" {e}')
-            return None, None
+            return None, None, None
+
+    def read_audio(self, video_path: str):
+        audio_frames = []
+        audio_meta = None
+        try:
+            from modules.video_models.video_utils import check_av
+            av = check_av()
+            container = av.open(video_path)
+            if container.streams.audio:
+                audio_stream = container.streams.audio[0]
+                audio_meta = {
+                    "sr": audio_stream.codec_context.sample_rate,
+                    "channels": audio_stream.codec_context.channels,
+                    "layout": audio_stream.layout.name if audio_stream.layout else "stereo",
+                    "format": audio_stream.codec_context.format.name,
+                }
+                for frame in container.decode(audio_stream):
+                    audio_frames.append(frame)
+            container.close()
+        except Exception as e:
+            log.error(f'Upscaler: name="SeedVR2" video="{video_path}" {e}')
+        if audio_meta and len(audio_frames) > 0:
+            return {"frames": audio_frames, **audio_meta}
+        return None
 
     def read_video(self, video_path: str):
         try:
@@ -201,9 +226,10 @@ class UpscalerSeedVR(Upscaler):
             cap = cv2.VideoCapture(video_path)
             if not cap.isOpened():
                 log.error(f'Upscaler: name="SeedVR2" video="{video_path}" failed to open')
-                return None, None
+                return None, None, None
             frames = []
             width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
             self.fps = int(cap.get(cv2.CAP_PROP_FPS))
             while True:
                 ret, frame = cap.read()
@@ -214,20 +240,21 @@ class UpscalerSeedVR(Upscaler):
             cap.release()
             if len(frames) == 0:
                 log.error(f'Upscaler: name="SeedVR2" video="{video_path}" no frames read')
-                return None, None
+                return None, None, None
             tensor = torch.from_numpy(np.array(frames)).to(device=devices.device, dtype=devices.dtype) / 255.0
             self.frames = tensor.shape[0]
-            return tensor, width
+            return tensor, width, height
         except Exception as e:
             log.error(f'Upscaler: name="SeedVR2" video="{video_path}" {e}')
-            return None, None
+            return None, None, None
 
-    def create_video(self, tensor: torch.Tensor, codec: str = 'libx264', codec_opt: str = 'crf:16', interpolate: int = 0):
+    def create_video(self, tensor: torch.Tensor, audio, codec: str = 'libx264', codec_opt: str = 'crf:16', interpolate: int = 0):
         t0 = time.time()
         from modules.video_models.video_save import save_video
         pixels = tensor.permute(3, 0, 1, 2).unsqueeze(0) # from (t, h, w, c) to (n, c, t, h, w)
         _frames, filename, _thumb = save_video(p=None,
                                                pixels=pixels,
+                                               audio=audio,
                                                mp4_fps=self.fps,
                                                mp4_thumb=False,
                                                mp4_frames=False,
@@ -255,7 +282,7 @@ class UpscalerSeedVR(Upscaler):
                    interpolate: int = 1,
                    codec: str = 'libx264',
                    codec_opt: str = 'crf:16',
-                   vae_memory: float = 0.2,
+                   vae_memory: float = 0.5,
                    vae_tile_encode: bool = True,
                    vae_tile_decode: bool = True,
                   ):
@@ -273,11 +300,13 @@ class UpscalerSeedVR(Upscaler):
 
         from modules.seedvr.src.core import generation
 
+        audio = None
         self.scale = self.scale if scale is None else scale
         if isinstance(img, Image.Image):
-            tensor, width = self.read_image(img)
+            tensor, width, height = self.read_image(img)
         elif isinstance(img, str):
-            tensor, width = self.read_video(img)
+            tensor, width, height = self.read_video(img)
+            audio = self.read_audio(img)
         else:
             log.error(f'Upscaler: name="SeedVR2" image="{img}" unsupported type {type(img)}')
             return img
@@ -287,6 +316,7 @@ class UpscalerSeedVR(Upscaler):
             log.error(f'Upscaler: name="SeedVR2" image="{img}" failed to read')
             return img
         width = int(self.scale * width) // 8 * 8
+        height = int(self.scale * height) // 8 * 8
         random.seed()
         seed = int(random.randrange(4294967294)) if seed == -1 else int(seed)
         self.step = 1 if self.frames == 1 else batch_size - batch_overlap
@@ -294,7 +324,7 @@ class UpscalerSeedVR(Upscaler):
         mode = "mode=image" if self.frames == 1 else f"mode=video frames={self.frames}"
         batch_info = f'batch=(size={batch_size} overlap={batch_overlap})'
         vae_info = f'vae=(tiled={vae_tile_encode}/{vae_tile_decode} memory={vae_memory} size={tile_size} overlap={tile_overlap})'
-        log.info(f'Upscaler: type="{self.name}" model="{selected_file}" {mode} scale={self.scale} cfg={cfg_scale}:{cfg_rescale} seed={seed} steps={steps} offload={self.offload} {batch_info} {vae_info}')
+        log.info(f'Upscaler: type="{self.name}" model="{selected_file}" {mode} scale={self.scale} width={width} height={height} cfg={cfg_scale}:{cfg_rescale} seed={seed} steps={steps} offload={self.offload} {batch_info} {vae_info}')
 
         import rich.progress as rp
         self.pbar = rp.Progress(rp.TextColumn('[cyan]SeedVR:'), rp.BarColumn(), rp.MofNCompleteColumn(), rp.TaskProgressColumn(), rp.TimeRemainingColumn(), rp.TimeElapsedColumn(), rp.TextColumn('[cyan]{task.description}'), console=console)
@@ -342,7 +372,7 @@ class UpscalerSeedVR(Upscaler):
         if self.frames == 1:
             result = convert.to_pil(result_tensor.squeeze())
         elif self.frames > 1:
-            result = self.create_video(result_tensor, codec=codec, codec_opt=codec_opt, interpolate=interpolate)
+            result = self.create_video(result_tensor, audio, codec=codec, codec_opt=codec_opt, interpolate=interpolate)
         else:
             log.error(f'Upscaler: name="SeedVR2" model="{selected_file}" no frames generated')
             result = img
