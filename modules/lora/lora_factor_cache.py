@@ -156,27 +156,27 @@ def fetch(network_layer_name):
 
 
 def store(network_layer_name, up, down, energy, calibrated, rms):
-    """Quantize-before-use: returns the pair the caller must apply.
+    """Quantize-before-use: returns the dequantized round-trip the caller must apply.
 
-    With caching inactive the inputs pass through untouched. Otherwise the
-    factors are stored as rowwise int8 and the dequantized round-trip comes
-    back, so the factors applied now and the factors a later hit replays are
-    the same tensors. ``rms`` is the assembled delta's rms, kept so replays
-    can evaluate the requantize routing rule without assembling the delta.
+    The factors quantize to rowwise int8 whether or not a cache entry can be
+    written, so the factors applied now, the factors a later hit replays, and a
+    cache-off apply are the same tensors (the round-trip also zeroes null-tail
+    columns the attach-side trim relies on). ``rms`` is the assembled delta's
+    rms, kept so replays can evaluate the requantize routing rule without
+    assembling the delta.
     """
-    if state['sig'] is None:
-        return up, down
     up_q, up_s = quantize_rowwise(up)
     down_q, down_s = quantize_rowwise(down)
-    st = state['store']
-    st[f'{network_layer_name}.up_q'] = up_q.to('cpu').contiguous()
-    st[f'{network_layer_name}.up_s'] = up_s.to('cpu').contiguous()
-    st[f'{network_layer_name}.down_q'] = down_q.to('cpu').contiguous()
-    st[f'{network_layer_name}.down_s'] = down_s.to('cpu').contiguous()
-    st[f'{network_layer_name}.energy'] = torch.tensor(float(energy))
-    st[f'{network_layer_name}.calib'] = torch.tensor(1 if calibrated else 0, dtype=torch.uint8)
-    st[f'{network_layer_name}.rms'] = torch.tensor(float(rms))
-    state['dirty'] = True
+    if state['sig'] is not None:
+        st = state['store']
+        st[f'{network_layer_name}.up_q'] = up_q.to('cpu').contiguous()
+        st[f'{network_layer_name}.up_s'] = up_s.to('cpu').contiguous()
+        st[f'{network_layer_name}.down_q'] = down_q.to('cpu').contiguous()
+        st[f'{network_layer_name}.down_s'] = down_s.to('cpu').contiguous()
+        st[f'{network_layer_name}.energy'] = torch.tensor(float(energy))
+        st[f'{network_layer_name}.calib'] = torch.tensor(1 if calibrated else 0, dtype=torch.uint8)
+        st[f'{network_layer_name}.rms'] = torch.tensor(float(rms))
+        state['dirty'] = True
     return dequantize_rowwise(up_q, up_s).to(up.dtype), dequantize_rowwise(down_q, down_s).to(down.dtype)
 
 
