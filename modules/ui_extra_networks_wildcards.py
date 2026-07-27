@@ -39,11 +39,11 @@ class ExtraNetworksPageWildcards(ui_extra_networks.ExtraNetworksPage):
 
     def list_items(self):
         self.refresh()
+        records = []
         for filename in wildcards_list:
             relname = os.path.relpath(filename, shared.opts.wildcards_dir)
             name = os.path.splitext(relname)[0]
             size, mtime = modelstats.stat(filename)
-            records = []
             try:
                 record = {
                     "type": 'Wildcard',
@@ -61,7 +61,7 @@ class ExtraNetworksPageWildcards(ui_extra_networks.ExtraNetworksPage):
                 records.append(record)
             except Exception as e:
                 log.debug(f'Networks error: type=wildcard file="{filename}" {e}')
-            return records
+        return records
 
     def allowed_directories_for_previews(self):
         return [v for v in [shared.opts.wildcards_dir] if v is not None]
