@@ -1,303 +1,24 @@
-from dataclasses import dataclass
-import io
 import os
 import re
 import time
 import random
-import base64
-import textwrap
 import torch
 import transformers
 import gradio as gr
 from PIL import Image
-from modules import scripts_manager, shared, devices, errors, processing, sd_models, sd_modules, timer, ui_symbols
+from modules import scripts_manager, shared, devices, errors, processing, sd_models, sd_modules, timer
 from modules import ui_control_helpers
 from modules.sd_offload_aux import register_aux, deregister_aux, move_aux_to_gpu, offload_aux
 from modules.logger import log
 from modules.caption.logits import LogitsParser
 from modules.caption import helpers
+from scripts.prompt_enhance.options import Options
+from scripts.prompt_enhance.helpers import is_cloud_model, is_vision_model, is_thinking_model, get_model_repo_from_display
+from scripts.prompt_enhance.template import set_template
 
 
 debug_enabled = os.environ.get('SD_LLM_DEBUG', None) is not None
 debug_log = log.trace if debug_enabled else lambda *args, **kwargs: None
-
-
-def b64(image):
-    if image is None:
-        return ''
-    if isinstance(image, gr.Image): # should not happen
-        return None
-    with io.BytesIO() as stream:
-        image.convert('RGB').save(stream, 'JPEG')
-        values = stream.getvalue()
-        encoded = base64.b64encode(values).decode()
-        return encoded
-
-
-def is_cloud_model(model_name: str) -> bool:
-    if not model_name:
-        return False
-    return model_name in Options.cloud
-
-
-def is_vision_model(model_name: str) -> bool:
-    """Check if model supports vision/image input."""
-    if not model_name:
-        return False
-    return model_name in Options.img2img or model_name in Options.cloud
-
-
-def is_thinking_model(model_name: str) -> bool:
-    """Check if model supports thinking/reasoning mode."""
-    if not model_name:
-        return False
-    model_lower = model_name.lower()
-    # Match VQA's detection patterns for consistency
-    thinking_indicators = [
-        'thinking',      # Qwen3-VL-*-Thinking models
-        'reasoning',     # Ministral-3-*-Reasoning models
-        'moondream3',    # Moondream 3 supports thinking
-        'moondream 3',
-        'moondream2',    # Moondream 2 supports reasoning mode
-        'moondream 2',
-        'mimo',          # XiaomiMiMo models
-        'qwen3.5',      # Qwen3.5 native thinking (repo names)
-        'qwen 3.5',     # Qwen3.5 native thinking (display names)
-    ]
-    return any(indicator in model_lower for indicator in thinking_indicators)
-
-
-def get_model_display_name(model_repo: str) -> str:
-    """Generate display name with vision/reasoning symbols."""
-    symbols = []
-    if model_repo in Options.img2img:
-        symbols.append(ui_symbols.vision)
-    if model_repo in Options.cloud:
-        symbols.append(ui_symbols.cloud)
-    if is_thinking_model(model_repo):
-        symbols.append(ui_symbols.reasoning)
-    return f"{model_repo} {' '.join(symbols)}" if symbols else model_repo
-
-
-def get_model_repo_from_display(display_name: str) -> str:
-    """Strip symbols from display name to get repo."""
-    if not display_name:
-        return display_name
-    result = display_name
-    for symbol in [ui_symbols.vision, ui_symbols.reasoning, ui_symbols.cloud]:
-        result = result.replace(symbol, '')
-    return result.strip()
-
-
-def keep_think_block_open(text_prompt: str) -> str:
-    """Remove closing </think> so model can continue reasoning with prefill."""
-    think_open = "<think>"
-    think_close = "</think>"
-    last_open = text_prompt.rfind(think_open)
-    if last_open == -1:
-        return text_prompt
-    close_index = text_prompt.find(think_close, last_open)
-    if close_index == -1:
-        return text_prompt
-    end_close = close_index + len(think_close)
-    while end_close < len(text_prompt) and text_prompt[end_close] in ' \t\r\n':
-        end_close += 1
-    return text_prompt[:close_index] + text_prompt[end_close:]
-
-
-@dataclass
-class Options:
-    img2img = [
-        # Gemma
-        'google/gemma-3-4b-it',
-        'google/gemma-3n-E2B-it',
-        'google/gemma-3n-E4B-it',
-        'google/gemma-4-E2B-it',
-        'google/gemma-4-E4B-it',
-        'google/gemma-4-12B-it-qat-w4a16-ct',
-        # Qwen3.5
-        'Qwen/Qwen3.5-2B',
-        'Qwen/Qwen3.5-4B',
-        'Qwen/Qwen3.5-9B',
-        # Qwen3-VL
-        'Qwen/Qwen3-VL-2B-Instruct',
-        'Qwen/Qwen3-VL-2B-Thinking',
-        'Qwen/Qwen3-VL-4B-Instruct',
-        'Qwen/Qwen3-VL-4B-Thinking',
-        'Qwen/Qwen3-VL-8B-Instruct',
-        'Qwen/Qwen3-VL-8B-Thinking',
-        # Qwen2.5-VL
-        'Qwen/Qwen2.5-VL-3B-Instruct',
-        # Mistral
-        'mistralai/Ministral-3-3B-Instruct-2512-BF16',
-        'mistralai/Ministral-3-8B-Instruct-2512-BF16',
-        'mistralai/Ministral-3-3B-Reasoning-2512',
-        'mistralai/Ministral-3-8B-Reasoning-2512',
-        # Finetunes
-        'trohrbaugh/gemma-4-E4B-it-heretic-ara',
-        'trohrbaugh/Qwen3.5-9B-heretic-v2',
-    ]
-    cloud = [
-        'google/gemini-3.5-flash',
-        'google/gemini-3.1-pro-preview',
-        'google/gemini-3.1-flash-lite',
-        'google/gemini-3.1-flash-lite-preview',
-        'google/gemini-2.5-flash',
-        'google/gemini-2.5-flash-lite',
-        'google/gemini-2.5-pro',
-    ]
-    models = {
-        # Gemma
-        'google/gemma-3-1b-it': {},
-        'google/gemma-3-4b-it': {},
-        'google/gemma-3n-E2B-it': {},
-        'google/gemma-3n-E4B-it': {},
-        'google/gemma-4-E2B-it': {},
-        'google/gemma-4-E4B-it': {},
-        'google/gemma-4-12B-it-qat-w4a16-ct': {}, # compressed-tensor model
-        # Qwen3.5
-        'Qwen/Qwen3.5-0.8B': {},
-        'Qwen/Qwen3.5-2B': {},
-        'Qwen/Qwen3.5-4B': {},
-        'Qwen/Qwen3.5-9B': {},
-        # Qwen3
-        'Qwen/Qwen3-0.6B': {},
-        'Qwen/Qwen3-1.7B': {},
-        'Qwen/Qwen3-4B': {},
-        'Qwen/Qwen3-4B-Instruct-2507': {},
-        # Qwen3-VL
-        'Qwen/Qwen3-VL-2B-Instruct': {},
-        'Qwen/Qwen3-VL-2B-Thinking': {},
-        'Qwen/Qwen3-VL-4B-Instruct': {},
-        'Qwen/Qwen3-VL-4B-Thinking': {},
-        'Qwen/Qwen3-VL-8B-Instruct': {},
-        'Qwen/Qwen3-VL-8B-Thinking': {},
-        # Qwen2.5
-        'Qwen/Qwen2.5-0.5B-Instruct': {},
-        'Qwen/Qwen2.5-1.5B-Instruct': {},
-        'Qwen/Qwen2.5-3B-Instruct': {},
-        # Qwen2.5-VL
-        'Qwen/Qwen2.5-VL-3B-Instruct': {},
-        # Llama
-        'meta-llama/Llama-3.2-1B-Instruct': {},
-        'meta-llama/Llama-3.2-3B-Instruct': {},
-        'meta-llama/Llama-3.2-8B-Instruct': {},
-        'cognitivecomputations/Dolphin3.0-Llama3.2-1B': {},
-        'cognitivecomputations/Dolphin3.0-Llama3.2-3B': {},
-        # Gemini
-        'google/gemini-3.5-flash': {},
-        'google/gemini-3.1-pro-preview': {},
-        'google/gemini-3.1-flash-lite': {},
-        'google/gemini-3.1-flash-lite-preview': {},
-        'google/gemini-2.5-flash': {},
-        'google/gemini-2.5-flash-lite': {},
-        'google/gemini-2.5-pro': {},
-        # SmolLM
-        'HuggingFaceTB/SmolLM2-135M-Instruct': {},
-        'HuggingFaceTB/SmolLM2-360M-Instruct': {},
-        'HuggingFaceTB/SmolLM2-1.7B-Instruct': {},
-        'HuggingFaceTB/SmolLM3-3B': {},
-        # Phi
-        'microsoft/Phi-4-mini-instruct': {},
-        # Mistral
-        'mistralai/Ministral-3-3B-Instruct-2512-BF16': {},
-        'mistralai/Ministral-3-8B-Instruct-2512-BF16': {},
-        'mistralai/Ministral-3-3B-Reasoning-2512': {},
-        'mistralai/Ministral-3-8B-Reasoning-2512': {},
-        # Finetunes
-        'p-e-w/gemma-4-E2B-it-heretic-ara': {},
-        'trohrbaugh/gemma-4-E4B-it-heretic-ara': {},
-        'trohrbaugh/Qwen3.5-9B-heretic-v2': {},
-        # GGUF
-        'mradermacher/Llama-3.2-1B-Instruct-Uncensored-i1-GGUF': { # kept primarily as an example how to add gguf model
-            'repo': 'meta-llama/Llama-3.2-1B-Instruct', # original repo so we can load missing components
-            'type': 'llama', # required so gguf loader knows what to do
-            'gguf': 'mradermacher/Llama-3.2-1B-Instruct-Uncensored-i1-GGUF', # gguf repo
-            'file': 'Llama-3.2-1B-Instruct-Uncensored.i1-Q4_0.gguf', # gguf file inside repo
-        },
-    }
-    models_cls = {
-        'qwen3_5': 'Qwen3_5ForConditionalGeneration',
-        'qwen3_5_moe': 'Qwen3_5MoeForConditionalGeneration',
-        'qwen3_vl': 'Qwen3VLForConditionalGeneration',
-        'qwen2_5_vl': 'Qwen2_5_VLForConditionalGeneration',
-        'qwen2_vl': 'Qwen2VLForConditionalGeneration',
-        'mistral3': 'Mistral3ForConditionalGeneration',
-        'gemma4': 'Gemma4ForConditionalGeneration',
-    }
-
-    # default = list(models)[1] # gemma-3-4b-it
-    default = 'google/gemma-3-4b-it'
-    supported = list(transformers.integrations.ggml.GGUF_CONFIG_MAPPING)
-    t2i_prompt: str = textwrap.dedent('''\
-        You are an image prompt expert.
-        You will receive a user prompt for image generation.
-        Improve the prompt by adding relevant visual specificity for composition, lighting, color, texture, and atmosphere.
-        Keep the result faithful to the original prompt and the intended image.
-        Do not add unrelated concepts, non-visual commentary, or fluff.
-        ''')
-    i2i_prompt: str = textwrap.dedent('''\
-        You are an image prompt expert.
-        You will receive an image and a user prompt for editing or refinement.
-        Improve the prompt with concrete visual detail that remains faithful to the image and edit intent.
-        Keep the result grounded in image-generation language.
-        Do not invent unrelated objects, actions, or concepts.
-        ''')
-    i2i_noprompt: str = textwrap.dedent('''\
-        You are an image prompt expert.
-        You will receive an image and must create an editing prompt from the visible content.
-        Base the prompt on what is present in the image, its style, and its atmosphere.
-        Use concrete, image-generation language and avoid unrelated fluff or commentary.
-        ''')
-    t2v_prompt: str = textwrap.dedent('''\
-        ''')
-    i2v_prompt: str = textwrap.dedent('''\
-        ''')
-    i2v_noprompt: str = textwrap.dedent('''\
-        ''')
-    nsfw_ok: str = textwrap.dedent('''\
-        NSFW, nudity and explicit content and language are allowed.
-        ''')
-    nsfw_no: str = textwrap.dedent('''\
-        NSFW, nudity or explicit content and language are not allowed; if present, remove those elements from the enhanced prompt.
-        ''')
-    details_prompt: str = textwrap.dedent('''\
-        Enhance the prompt with relevant image details.
-        Identify the main subject(s), physical attributes, clothing if non-nude, and distinctive visual features.
-        Describe the scene, environment, key objects, and overall mood or atmosphere.
-        Be precise and efficient; avoid redundancy, abstract commentary, unrelated fluff, or instructions.
-        Do not invent any objects, settings, or themes not implied by the input.
-        Do not add era, background props, or atmosphere unless explicitly present in the prompt.
-        ''')
-    details_format: str = textwrap.dedent('''\
-        Output exactly one enhanced prompt string.
-        Do not add greetings, comments, explanations, follow-up questions, labels, formatting, or numbering.
-        Do not include any extra prose or analysis.
-        Start immediately with the prompt content.
-        No stray tokens!
-        ''')
-
-    censored = ["i cannot", "i can't", "i am sorry", "against my programming", "i am not able", "i am unable", 'i am not allowed']
-
-    max_delim_index: int = 60
-    min_tokens: int = 0
-    max_tokens: int = 256
-    do_sample: bool = True
-    temperature: float = 0.6
-    repetition_penalty: float = 1.2
-    top_k: int = 0
-    top_p: float = 0.0
-    thinking_mode: bool = False
-
-    @staticmethod
-    def get_model_choices():
-        """Return list of display names for dropdown."""
-        return [get_model_display_name(repo) for repo in Options.models.keys()]
-
-    @staticmethod
-    def get_default_display():
-        """Return display name for default model."""
-        return get_model_display_name(Options.default)
 
 
 class PromptEnhanceScript(scripts_manager.Script):
@@ -421,7 +142,7 @@ class PromptEnhanceScript(scripts_manager.Script):
                     debug_log(f'Prompt enhance: {m}')
             self.model = name
             t1 = time.time()
-            log.debug(f'Prompt enhance: cls={self.llm.__class__.__name__} name="{name}" repo="{model_repo}" fn="{model_file}" processor="{self.processor.__class__.__name__ if self.processor else None}" tokenizer="{self.tokenizer.__class__.__name__ if self.tokenizer else None}" time={t1-t0:.2f} loaded')
+            log.debug(f'Prompt enhance: cls={self.llm.__class__.__name__} name="{name}" repo="{model_repo}" fn="{model_file}" processor="{self.processor.__class__.__name__ if self.processor else None}" tokenizer="{self.tokenizer.__class__.__name__ if self.tokenizer else None}" module={self.parent} time={t1-t0:.2f} loaded')
             self.compile()
         except Exception as e:
             log.error(f'Prompt enhance: load {e}')
@@ -668,63 +389,17 @@ class PromptEnhanceScript(scripts_manager.Script):
                     current_image = current_image.convert('RGB')
                     debug_log('Prompt enhance: Converted image to RGB mode')
 
-        has_system = system is not None and len(system) > 4
-
-        if current_image is not None and isinstance(current_image, Image.Image):
-            if is_cloud_model(model):
-                pass
-            elif self.processor is None:
-                log.error('Prompt enhance: image not supported by model')
-                return prompt_text # Return original text part if image cannot be processed
-            if prompt_text is not None and len(prompt_text) > 0:
-                if not has_system:
-                    system = self.options.i2i_prompt
-                    system += self.options.nsfw_ok if nsfw else self.options.nsfw_no
-                    system += self.options.details_prompt
-                    system += self.options.details_format
-                chat_template = [
-                    { "role": "system", "content": [
-                        {"type": "text", "text": system }
-                    ] },
-                    { "role": "user",   "content": [
-                        {"type": "text", "text": prompt_text},
-                        {"type": "image", "image": b64(current_image)}
-                    ] },
-                ]
-            else:
-                if not has_system:
-                    system = self.options.i2i_noprompt
-                    system += self.options.nsfw_ok if nsfw else self.options.nsfw_no
-                    system += self.options.details_prompt
-                    system += self.options.details_format
-                chat_template = [
-                    { "role": "system", "content": [
-                        {"type": "text", "text": system }
-                    ] },
-                    { "role": "user",   "content": [
-                        {"type": "image", "image": b64(current_image)}
-                    ] },
-                ]
-        else:
-            if not has_system:
-                system = self.options.t2i_prompt
-                system += self.options.nsfw_ok if nsfw else self.options.nsfw_no
-                system += self.options.details_prompt
-                system += self.options.details_format
-            if self.processor is None:
-                chat_template = [
-                    { "role": "system", "content": system },
-                    { "role": "user",   "content": prompt_text },
-                ]
-            else:
-                chat_template = [
-                    { "role": "system", "content": [
-                        {"type": "text", "text": system }
-                    ] },
-                    { "role": "user",   "content": [
-                        {"type": "text", "text": prompt_text},
-                    ] },
-                ]
+        print('HERE1', self.parent)
+        chat_template = set_template(
+            system=system,
+            prompt=prompt_text,
+            image=current_image,
+            options=self.options,
+            model=model,
+            nsfw=nsfw,
+            has_processor=self.processor is not None,
+            module=self.parent,
+        )
 
         # Prepare prefill (VQA approach: string concatenation, not assistant message)
         prefill_text = (prefill or '').strip()

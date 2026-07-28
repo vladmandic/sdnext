@@ -6,6 +6,7 @@
   - startup: optimized server startup
   - process: preserve audio when processing video
   - video: support for scripts/extensions
+  - prompt enhance: support for video generation
 - **Fixes**
   - seedvr quality
 
