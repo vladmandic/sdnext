@@ -249,6 +249,12 @@ class Options:
         Base the prompt on what is present in the image, its style, and its atmosphere.
         Use concrete, image-generation language and avoid unrelated fluff or commentary.
         ''')
+    t2v_prompt: str = textwrap.dedent('''\
+        ''')
+    i2v_prompt: str = textwrap.dedent('''\
+        ''')
+    i2v_noprompt: str = textwrap.dedent('''\
+        ''')
     nsfw_ok: str = textwrap.dedent('''\
         NSFW, nudity and explicit content and language are allowed.
         ''')
@@ -304,6 +310,7 @@ class PromptEnhanceScript(scripts_manager.Script):
     busy: bool = False
     server = None
     options = Options()
+    video_capable = scripts_manager.AlwaysVisible
 
     def title(self):
         return 'Prompt enhance'
@@ -835,7 +842,7 @@ class PromptEnhanceScript(scripts_manager.Script):
 
                 log.debug(f'Prompt enhance: cls={self.llm.__class__.__name__} model="{model}" tokens={input_len} args={gen_kwargs} custom={custom}')
                 defaults = {k: v for k, v in helpers.get_default_args(self.llm).items() if k not in gen_kwargs}
-                log.debug(f'Prompt enhance: defaults={defaults}')
+                debug_log(f'Prompt enhance: defaults={defaults}')
 
                 outputs = self.llm.generate(**inputs, **gen_kwargs)
 

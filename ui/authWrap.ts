@@ -16,7 +16,7 @@ export async function getToken(): Promise<{ user: string | undefined; token: str
       const data = (await res.json()) as TokenResponse;
       user = data.user;
       token = data.token;
-      log('getToken', user);
+      log('getToken', { user });
     }
   }
   return { user, token };

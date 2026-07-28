@@ -9891,7 +9891,7 @@ async function getToken() {
       const data = await res.json();
       user = data.user;
       token = data.token;
-      log("getToken", user);
+      log("getToken", { user });
     }
   }
   return { user, token };
@@ -10025,7 +10025,7 @@ function executeCallbacks(queue, arg) {
       const t0 = performance.now();
       callback(arg);
       const t1 = performance.now();
-      if (t1 - t0 > 250) log("callbackSlow", callback.name || callback, `time=${Math.round(t1 - t0)}`);
+      if (t1 - t0 > 250) log("callbackSlow", { callback: callback.name || callback, time: Math.round(t1 - t0) });
       timer(callback.name || "anonymousCallback", t1 - t0);
     } catch (e) {
       error(`executeCallbacks: ${callback} ${e}`);
@@ -10553,12 +10553,12 @@ function sortExtraNetworks(fixed = "no") {
   }
   const desc = sortDesc[sortVal];
   const t1 = performance.now();
-  log("sortNetworks", { name: pagename, val: sortVal, order: desc, fixed: fixed === "fixed", items: num, time: Math.round(t1 - t0) });
+  log("sortNetworks", { page: pagename, key: sortVal, order: desc, items: num, time: Math.round(t1 - t0) });
   timer(`sortExtraNetworks:${desc}`, t1 - t0);
   return desc;
 }
 async function markSelectedCards(selected, page = "") {
-  log("markSelectedCards", selected, page);
+  log("markSelectedCards", { page, selected });
   selectedNetworks[page] = selected;
   gradioApp().querySelectorAll(".extra-network-cards .card").forEach((el2) => {
     if (page.length > 0 && el2.dataset.page !== page) return;
@@ -10578,7 +10578,7 @@ function extractLoraNames(prompt) {
 }
 function cardClicked(textToAdd) {
   const tabName = getENActiveTab();
-  log("cardClicked", tabName, textToAdd);
+  log("cardClicked", { tab: tabName, text: textToAdd });
   const textarea = activePromptTextarea[tabName];
   if (textarea.value.indexOf(textToAdd) !== -1) textarea.value = textarea.value.replace(textToAdd, "");
   else textarea.value += textToAdd;
@@ -12447,7 +12447,7 @@ var ConnectionMonitorState = class _ConnectionMonitorState {
     if (online !== this.online) {
       this.online = online;
       this.ts = /* @__PURE__ */ new Date();
-      debug("monitorState", { online: _ConnectionMonitorState.online, ts: _ConnectionMonitorState.ts });
+      debug("monitorState", { online: _ConnectionMonitorState.online, ts: _ConnectionMonitorState.ts?.toLocaleTimeString() });
     }
     if (data?.updated) this.version = data.updated;
     if (data?.commit) this.commit = data.commit;

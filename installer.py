@@ -131,6 +131,11 @@ def print_profile(profiler: cProfile.Profile, msg: str):
     profile_print(msg, local_profiler=profiler)
 
 
+def profile(*_args, **_kwargs):
+    # legacy to avoid import errors
+    pass
+
+
 def package_version(package):
     try:
         return importlib.metadata.version(package)

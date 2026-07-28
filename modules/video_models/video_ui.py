@@ -1,6 +1,6 @@
 import os
 import gradio as gr
-from modules import sd_models, ui_common, ui_sections, ui_symbols, ui_video_vlm, call_queue
+from modules import sd_models, ui_common, ui_sections, ui_symbols, call_queue
 from modules.logger import log
 from modules.ui_components import ToolButton
 from modules.video_models import models_def, video_utils
@@ -105,7 +105,7 @@ def create_ui_outputs():
     return mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, mp4_thumb
 
 
-def create_ui(prompt, negative, styles, overrides, mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, mp4_thumb):
+def create_ui(prompt, negative, styles, overrides, script_inputs, mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, mp4_thumb):
     with gr.Row():
         with gr.Column(variant='compact', elem_id="video_settings", elem_classes=['settings-column'], scale=1):
             with gr.Row():
@@ -143,8 +143,6 @@ def create_ui(prompt, negative, styles, overrides, mp4_fps, mp4_interpolate, mp4
                     vae_type = gr.Dropdown(label='VAE decode', choices=['Default', 'Tiny', 'Remote', 'Upscale'], value='Default', elem_id="video_vae_type")
                     vae_tile_frames = gr.Slider(label='Tile frames', minimum=1, maximum=64, step=1, value=16, elem_id="video_vae_tile_frames")
 
-            vlm_enhance, vlm_model, vlm_system_prompt = ui_video_vlm.create_ui(prompt_element=prompt, image_element=init_image)
-
         # output panel with gallery and video tabs
         with gr.Column(elem_id='video-output-column', scale=2) as _column_output:
             with gr.Tabs(elem_classes=['video-output-tabs'], elem_id='video-output-tabs'):
@@ -174,7 +172,6 @@ def create_ui(prompt, negative, styles, overrides, mp4_fps, mp4_interpolate, mp4
         init_image, init_strength, last_image,
         vae_type, vae_tile_frames,
         mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, mp4_thumb,
-        vlm_enhance, vlm_model, vlm_system_prompt,
         overrides,
     ]
     video_outputs = [
@@ -188,7 +185,7 @@ def create_ui(prompt, negative, styles, overrides, mp4_fps, mp4_interpolate, mp4
     video_dict = dict(
         fn=call_queue.wrap_gradio_gpu_call(video_run.generate, extra_outputs=[gr.update(), gr.update(), gr.update(), gr.update()], name='Video'),
         _js="submit_video",
-        inputs=state_inputs + video_inputs,
+        inputs=state_inputs + video_inputs + script_inputs,
         outputs=video_outputs,
         show_progress='hidden',
     )

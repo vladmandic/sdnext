@@ -52,6 +52,8 @@ class Script:
     alwayson = False
     is_txt2img = False
     is_img2img = False
+    is_control = False
+    is_video = False
     api_info: ItemScript | None = None
     group = None
     infotext_fields: list | None = None
@@ -320,10 +322,11 @@ def load_scripts():
             t.record(os.path.basename(scriptfile.basedir) if scriptfile.basedir != paths.script_path else scriptfile.filename)
             sys.path = syspath
 
-    global scripts_txt2img, scripts_img2img, scripts_control, scripts_postproc # pylint: disable=global-statement
+    global scripts_txt2img, scripts_img2img, scripts_control, scripts_video, scripts_postproc # pylint: disable=global-statement
     scripts_txt2img = ScriptRunner('txt2img')
     scripts_img2img = ScriptRunner('img2img')
     scripts_control = ScriptRunner('control')
+    scripts_video = ScriptRunner('video')
     scripts_postproc = scripts_postprocessing.ScriptPostprocessingRunner()
     return t, time.time()-t0
 
@@ -373,12 +376,14 @@ class ScriptRunner:
         self.inputs: list = [None]
         self.time = 0
 
-    def add_script(self, script_class, path, is_img2img, is_control):
+    def add_script(self, script_class, path, is_img2img, is_control, is_video):
         try:
             script = script_class()
             script.filename = path
             script.is_txt2img = not is_img2img
             script.is_img2img = is_img2img
+            script.is_control = is_control
+            script.is_video = is_video
             if path.startswith(paths.extensions_dir) and not path.startswith(paths.extensions_builtin_dir):
                 script.external = True
             if is_control and script.external:
@@ -393,6 +398,8 @@ class ScriptRunner:
                     visibility = AlwaysVisible
                 else:
                     visibility = v1 or v2
+            elif is_video:
+                visibility = getattr(script, 'video_capable', False)
             else:
                 visibility = script.show(script.is_img2img)
             if visibility == AlwaysVisible:
@@ -406,7 +413,7 @@ class ScriptRunner:
             log.error(f'Script initialize: {path} {e}')
             errors.display(e, 'script')
 
-    def initialize_scripts(self, is_img2img=False, is_control=False):
+    def initialize_scripts(self, is_img2img=False, is_control=False, is_video=False):
         from modules import scripts_auto_postprocessing
 
         self.scripts.clear()
@@ -428,14 +435,14 @@ class ScriptRunner:
         except Exception:
             sorted_scripts = scripts_data
         for script_class, path, _basedir, _script_module in sorted_scripts:
-            self.add_script(script_class, path, is_img2img, is_control)
+            self.add_script(script_class, path, is_img2img, is_control, is_video)
 
         try:
             sorted_scripts = sorted(self.auto_processing_scripts, key=lambda x: x.script_class().title().lower())
         except Exception:
             sorted_scripts = self.auto_processing_scripts
         for script_class, path, _basedir, _script_module in sorted_scripts:
-            self.add_script(script_class, path, is_img2img, is_control)
+            self.add_script(script_class, path, is_img2img, is_control, is_video)
 
     def prepare_ui(self):
         self.inputs = [None]
@@ -817,6 +824,7 @@ class ScriptRunner:
 scripts_txt2img: ScriptRunner = None
 scripts_img2img: ScriptRunner = None
 scripts_control: ScriptRunner = None
+scripts_video: ScriptRunner = None
 scripts_current: ScriptRunner = None
 scripts_postproc: scripts_postprocessing.ScriptPostprocessingRunner = None
 reload_scripts = load_scripts  # compatibility alias
@@ -827,3 +835,4 @@ def reload_script_body_only():
     scripts_txt2img.reload_sources(cache)
     scripts_img2img.reload_sources(cache)
     scripts_control.reload_sources(cache)
+    scripts_video.reload_sources(cache)

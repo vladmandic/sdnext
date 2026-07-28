@@ -37,7 +37,7 @@ export class ConnectionMonitorState {
     if (online !== this.online) {
       this.online = online;
       this.ts = new Date();
-      debug('monitorState', { online: ConnectionMonitorState.online, ts: ConnectionMonitorState.ts });
+      debug('monitorState', { online: ConnectionMonitorState.online, ts: ConnectionMonitorState.ts?.toLocaleTimeString() });
     }
     if (data?.updated) this.version = data.updated;
     if (data?.commit) this.commit = data.commit;

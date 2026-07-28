@@ -3,7 +3,7 @@ import time
 import torch
 from PIL import Image
 
-from modules import shared, errors, timer, memstats, progress, processing, sd_models, sd_samplers, devices, extra_networks, call_queue
+from modules import shared, errors, timer, memstats, progress, processing, sd_models, sd_samplers, devices, extra_networks, call_queue, scripts_manager
 from modules.logger import log
 from modules.ltx import ltx_capabilities
 from modules.ltx.ltx_diffusers_patch import apply_patch as apply_ltx_diffusers_patch
@@ -151,6 +151,8 @@ def run_ltx(task_id,
             mp4_thumb: bool,
             audio_enable: bool,
             _overrides,
+            *args,
+            **_kwargs,
            ):
 
     def abort(e, ok: bool = False, p=None):
@@ -282,12 +284,14 @@ def run_ltx(task_id,
             vae_tile_frames=16,
         )
         processing.fix_seed(p)
-        p.scripts = None
-        p.script_args = None
         p.do_not_save_grid = True
         p.do_not_save_samples = not mp4_frames
         p.outpath_samples = resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_video)
         p.ops.append('video')
+
+        p.scripts = scripts_manager.scripts_video
+        p.script_args = args
+        processed: processing.Processed = scripts_manager.scripts_video.run(p, *args)
 
         p.task_args['num_inference_steps'] = p.steps
         p.task_args['width'] = p.width

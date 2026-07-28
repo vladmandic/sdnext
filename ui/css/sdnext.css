@@ -2261,8 +2261,12 @@ div:has(>#tab-gallery-folders) {
 }
 
 .video-model-link {
-  color: var(--button-primary-background-fill);
+  color: var(--button-primary-background-fill) !important;
   font-weight: normal;
+  font-size: 0.9em;
+  box-sizing: content-box;
+  position: relative;
+  left: 1em;
 }
 
 .controlnet-controls .styler {

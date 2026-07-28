@@ -55,7 +55,7 @@ def _model_change(model_name: str):
     )
 
 
-def create_ui(prompt, negative, styles, overrides, mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, mp4_thumb):
+def create_ui(prompt, negative, styles, overrides, script_inputs, mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, mp4_thumb):
     with gr.Row():
         with gr.Column(variant='compact', elem_id="ltx_settings", elem_classes=['settings-column'], scale=1):
             with gr.Row():
@@ -175,7 +175,7 @@ def create_ui(prompt, negative, styles, overrides, mp4_fps, mp4_interpolate, mp4
     video_dict = dict(
         fn=ltx_process.run_ltx,
         _js="submit_ltx",
-        inputs=state_inputs + video_inputs,
+        inputs=state_inputs + video_inputs + script_inputs,
         outputs=video_outputs,
         show_progress='hidden',
     )

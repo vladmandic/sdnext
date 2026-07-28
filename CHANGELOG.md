@@ -1,10 +1,11 @@
 # Change Log for SD.Next
 
-## Update for 2026-07-27
+## Update for 2026-07-28
 
 - **Features**
-  - optimized server startup
-  - video processing preserve audio
+  - startup: optimized server startup
+  - process: preserve audio when processing video
+  - video: support for scripts/extensions
 - **Fixes**
   - seedvr quality
 

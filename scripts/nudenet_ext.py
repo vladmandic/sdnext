@@ -136,9 +136,10 @@ def process(
 
 
 # defines script for dual-mode usage
+# see below for all available options and callbacks
+# <https://github.com/vladmandic/automatic/blob/master/modules/scripts.py>
 class ScriptNudeNet(scripts.Script):
-    # see below for all available options and callbacks
-    # <https://github.com/vladmandic/automatic/blob/master/modules/scripts.py#L26>
+    video_capable = scripts.AlwaysVisible
 
     def title(self):
         return 'NudeNet'

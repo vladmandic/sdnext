@@ -309,18 +309,18 @@ function sortExtraNetworks(fixed = 'no') {
   }
   const desc = sortDesc[sortVal];
   const t1 = performance.now();
-  log('sortNetworks', { name: pagename, val: sortVal, order: desc, fixed: fixed === 'fixed', items: num, time: Math.round(t1 - t0) });
+  log('sortNetworks', { page: pagename, key: sortVal, order: desc, items: num, time: Math.round(t1 - t0) });
   timer(`sortExtraNetworks:${desc}`, t1 - t0);
   return desc;
 }
 
 function refreshENInput(tabName) {
-  log('refreshNetworks', tabName, gradioApp().querySelector(`#${tabName}_extra_networks textarea`)?.value);
+  log('refreshNetworks', { tab: tabName, value: gradioApp().querySelector(`#${tabName}_extra_networks textarea`)?.value });
   gradioApp().querySelector(`#${tabName}_extra_networks textarea`)?.dispatchEvent(new Event('input'));
 }
 
 export async function markSelectedCards(selected, page = '') {
-  log('markSelectedCards', selected, page);
+  log('markSelectedCards', { page, selected });
   selectedNetworks[page] = selected;
   gradioApp().querySelectorAll('.extra-network-cards .card').forEach((el) => {
     if (page.length > 0 && el.dataset.page !== page) return; // filter by page
@@ -342,7 +342,7 @@ function extractLoraNames(prompt) {
 
 function cardClicked(textToAdd) {
   const tabName = getENActiveTab();
-  log('cardClicked', tabName, textToAdd);
+  log('cardClicked', { tab: tabName, text: textToAdd });
   const textarea = activePromptTextarea[tabName];
   if (textarea.value.indexOf(textToAdd) !== -1) textarea.value = textarea.value.replace(textToAdd, '');
   else textarea.value += textToAdd;
