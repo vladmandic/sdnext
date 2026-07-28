@@ -389,7 +389,6 @@ class PromptEnhanceScript(scripts_manager.Script):
                     current_image = current_image.convert('RGB')
                     debug_log('Prompt enhance: Converted image to RGB mode')
 
-        print('HERE1', self.parent)
         chat_template = set_template(
             system=system,
             prompt=prompt_text,

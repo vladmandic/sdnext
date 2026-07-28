@@ -341,7 +341,9 @@ def run_ltx(task_id,
 
             try:
                 if needs_latent_path:
-                    prompt_final, negative_final, networks = get_prompts(prompt, negative, styles)
+                    if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
+                        p.scripts.before_process(p)
+                    prompt_final, negative_final, networks = get_prompts(p)
                     extra_networks.activate(p, networks)
                     # Encode once and reuse across stages; encode_prompt short-circuits when
                     # embeds are passed to __call__. CPU park keeps them off GPU between stages.

@@ -144,7 +144,7 @@ def add_audio_packets(container, audio_stream, audio: dict):
 def add_audio_tensor(container, audio_stream, audio: torch.Tensor, sample_rate: int):
     av = check_av()
     if torch.is_tensor(audio):
-        audio = audio.detach().cpu().numpy()
+        audio = audio.detach().float().cpu().numpy()
     if audio.ndim > 2:
         audio = np.squeeze(audio)
     if audio.ndim == 1:
@@ -156,7 +156,7 @@ def add_audio_tensor(container, audio_stream, audio: torch.Tensor, sample_rate: 
     if audio.dtype != np.int16:
         audio = np.clip(audio, -1.0, 1.0)
         audio = (audio * 32767.0).astype(np.int16)
-    audio_frame = av.AudioFrame.from_ndarray(np.ascontiguousarray(audio.T), format="s16", layout=layout)
+    audio_frame = av.AudioFrame.from_ndarray(audio, format="s16p", layout=layout)
     audio_frame.sample_rate = sample_rate
     add_audio_packets(container, audio_stream, {"sr": sample_rate, "layout": layout, "frames": [audio_frame]})
 

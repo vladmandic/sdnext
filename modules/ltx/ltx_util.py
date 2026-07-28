@@ -123,7 +123,7 @@ def ltx_scheduler_opts(sd_model, *, dynamic_shift=None, sampler_shift=None):
             if orig_flow_shift is not None and hasattr(sd_model.scheduler.config, 'flow_shift'):
                 sd_model.scheduler.config.flow_shift = orig_flow_shift
                 sd_model.scheduler.register_to_config(flow_shift=orig_flow_shift)
-        log.debug(f'LTX: scheduler/opts restored dynamic_shift={orig_dynamic_shift} sampler_shift={orig_sampler_shift}')
+        # log.debug(f'LTX: scheduler/opts restored dynamic_shift={orig_dynamic_shift} sampler_shift={orig_sampler_shift}')
 
 
 def _condition_cls(family: str):
@@ -201,9 +201,9 @@ def get_conditions(width, height, condition_strength, condition_images, conditio
     return conditions
 
 
-def get_prompts(prompt, negative, styles):
-    prompt = shared.prompt_styles.apply_styles_to_prompt(prompt, styles)
-    negative = shared.prompt_styles.apply_negative_styles_to_prompt(negative, styles)
+def get_prompts(p):
+    prompt = shared.prompt_styles.apply_styles_to_prompt(p.prompt, p.styles)
+    negative = shared.prompt_styles.apply_negative_styles_to_prompt(p.negative_prompt, p.styles)
     prompts, networks = extra_networks.parse_prompts([prompt])
     prompt = prompts[0] if len(prompts) > 0 else prompt
     return prompt, negative, networks

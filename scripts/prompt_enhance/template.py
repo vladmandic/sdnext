@@ -97,5 +97,4 @@ def set_template(
     else:
         chat_template = get_text_template(system, prompt, options, nsfw, has_system, has_prompt, has_processor, is_video, image)
 
-    print('HERE2', chat_template)
     return chat_template
