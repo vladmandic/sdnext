@@ -35,7 +35,7 @@ def create_ui():
                 with gr.Tab('Output', id='video-outputs-tab') as _video_outputs_tab:
                     from modules.video_models import video_ui
                     mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, mp4_thumb = video_ui.create_ui_outputs()
-                with gr.Tab('Extras', elem_id='video_script_container'):
+                with gr.Tab('Extras', id='video-extras-tab', elem_id='video_extras') as _video_extras_tab:
                     video_script_inputs = scripts_manager.scripts_video.setup_ui(parent='video', accordion=True)
                 with gr.Tab('Generic', id='video-core-tab') as video_core_tab:
                     from modules.video_models import video_ui
