@@ -134,7 +134,7 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
                 "filename": url,
                 "preview": self.find_preview(os.path.join(paths.reference_path, preview)),
                 "local_preview": preview_file,
-                "onclick": '"' + html.escape(f"selectReference({path})") + '"',
+                "onclick": '"' + html.escape(f"""return selectReference({json.dumps(path)})""") + '"',
                 "hash": None,
                 "mtime": mtime,
                 "size": size,
@@ -161,7 +161,7 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
                 "filename": checkpoint.filename,
                 "hash": checkpoint.shorthash,
                 "metadata": checkpoint.metadata,
-                "onclick": '"' + html.escape(f"selectCheckpoint({json.dumps(name)})") + '"',
+                "onclick": '"' + html.escape(f"""return selectCheckpoint({json.dumps(name)})""") + '"',
                 "mtime": mtime,
                 "size": size,
             }
