@@ -146,8 +146,7 @@ class PromptEnhanceScript(scripts_manager.Script):
             self.compile()
         except Exception as e:
             log.error(f'Prompt enhance: load {e}')
-            if debug_enabled:
-                errors.display(e, 'Prompt enhance')
+            errors.display(e, 'Prompt enhance')
 
         devices.torch_gc()
         self.set_openai(enable=use_openai)

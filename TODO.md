@@ -6,6 +6,10 @@
 
 ## Features
 
+- [MageFlow](https://github.com/huggingface/diffusers/pull/14295)
+- [SeFi](https://github.com/huggingface/diffusers/pull/14084)
+- [Boogu](https://github.com/huggingface/diffusers/pull/14040)
+
 ### Assigned
 
 - Chat-based interface, @vladmandic
@@ -14,9 +18,7 @@
 - Video processing add/verify full API support, @CalamitousFelicitousness
 - Storage analyzer, @vladmandic
 - Lora: new handler, @CalamitousFelicitousness
-- Vide: full prompt enhance
 - Processing -> Video capabilities, @vladmandic
-  - `NudeNet` in processing
   - `RIFE` in processing
 
 ### Unassigned

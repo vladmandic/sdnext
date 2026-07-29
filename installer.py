@@ -554,7 +554,7 @@ def check_diffusers():
     t_start = time.time()
     if args.skip_all:
         return
-    target_commit = "01969142b55379991fee07608c9e7e8f80afced0" # diffusers commit hash == 0.39.0.dev0 == 06-29-2026
+    target_commit = "60092255dabeab7a0ece650c53bdb6f7ed5b584b" # diffusers commit hash == 0.40.0.dev0 == 07-29-2026
     # if args.use_rocm or args.use_zluda or args.use_directml:
     #     sha = '043ab2520f6a19fce78e6e060a68dbc947edb9f9' # lock diffusers versions for now
     pkg = package_spec('diffusers')
@@ -565,7 +565,7 @@ def check_diffusers():
         if minor == -1:
             log.info(f'Install: package="diffusers" commit={target_commit}')
         else:
-            log.info(f'Update: package="diffusers" current={pkg.version} hash={current} target={target_commit}')
+            log.info(f'Update: package="diffusers" current={pkg.version} commit={current} target={target_commit}')
             pip('uninstall --yes diffusers', ignore=True, quiet=True, uv=False)
         if args.skip_git:
             log.warning('Git: marked as not available but required for diffusers installation')
@@ -609,7 +609,7 @@ def check_transformers():
             if pkg_transformers is None:
                 log.info(f'Install: package="transformers" commit={target_commit}')
             else:
-                log.info(f'Update: package="transformers" current={pkg_transformers.version} hash={current} target={target_commit}')
+                log.info(f'Update: package="transformers" current={pkg_transformers.version} commit={current} target={target_commit}')
             pip('uninstall --yes transformers', ignore=True, quiet=True)
             pip(f'install tokenizers=={target_tokenizers}', ignore=False, quiet=True)
             pip(f'install git+https://github.com/huggingface/transformers@{target_commit}', ignore=False, quiet=True)
