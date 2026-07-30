@@ -554,7 +554,7 @@ def check_diffusers():
     t_start = time.time()
     if args.skip_all:
         return
-    target_commit = "60092255dabeab7a0ece650c53bdb6f7ed5b584b" # diffusers commit hash == 0.40.0.dev0 == 07-29-2026
+    target_commit = "8b33b473324423a9773d121c7caccb13601493a1" # diffusers commit hash == 0.40.0.dev0 == 07-29-2026
     # if args.use_rocm or args.use_zluda or args.use_directml:
     #     sha = '043ab2520f6a19fce78e6e060a68dbc947edb9f9' # lock diffusers versions for now
     pkg = package_spec('diffusers')
@@ -1366,6 +1366,7 @@ def install_requirements():
 # set environment variables controlling the behavior of various libraries
 def set_environment():
     log.debug('Setting environment tuning')
+    os.environ.setdefault('SDNQ_REGISTER_DIFFUSERS', '1')
     os.environ.setdefault('ACCELERATE', 'True')
     os.environ.setdefault('ATTN_PRECISION', 'fp16')
     os.environ.setdefault('ClDeviceGlobalMemSizeAvailablePercent', '100')

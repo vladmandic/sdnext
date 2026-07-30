@@ -25,7 +25,7 @@ if os.environ.get("SDNQ_ALLOW_FP8_COMPILE", None) is None:
     else:
         is_fp8_compile_supported = True
 else:
-    is_fp8_compile_supported = os.environ.get("SDNQ_ALLOW_FP8_COMPILE", "0").lower() not in {"0", "false", "no"}
+    is_fp8_compile_supported = bool(os.environ.get("SDNQ_ALLOW_FP8_COMPILE", "0").lower() not in {"0", "false", "no"})
 
 if devices.backend == "rocm":
     gfx_version = devices.get_hip_agent().gfx_version
@@ -53,7 +53,7 @@ if os.environ.get("SDNQ_USE_TENSORWISE_FP8_MM", None) is None:
     # row-wise FP8 only exist on H100 hardware, sdnq will use software row-wise with tensorwise hardware with this setting
     use_tensorwise_fp8_matmul = bool(devices.backend != "cuda" or (devices.backend == "cuda" and torch.cuda.get_device_capability(devices.device) < (9,0)))
 else:
-    use_tensorwise_fp8_matmul = os.environ.get("SDNQ_USE_TENSORWISE_FP8_MM", "0").lower() not in {"0", "false", "no"}
+    use_tensorwise_fp8_matmul = bool(os.environ.get("SDNQ_USE_TENSORWISE_FP8_MM", "0").lower() not in {"0", "false", "no"})
 
 if os.environ.get("SDNQ_USE_CONTIGUOUS_MM", None) is None:
     use_contiguous_int8_mm = bool(use_openvino_mm or is_rdna2_and_older or devices.backend in {"ipex", "xpu", "mps", "openvino", "zluda"})

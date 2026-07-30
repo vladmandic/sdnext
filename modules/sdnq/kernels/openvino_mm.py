@@ -12,7 +12,8 @@ OV_COMPILED_CACHE: dict[tuple[str, tuple[int,int] | None, str, tuple[int,int] | 
 if OV_DEVICE == "NPU":
     OV_DEVICE = "HETERO:NPU,CPU"
 for ov_device in core.get_available_devices():
-    core.set_property(ov_device, {ov_hints.execution_mode: ov_hints.ExecutionMode.ACCURACY})
+    if ov_device != "NPU":
+        core.set_property(ov_device, {ov_hints.execution_mode: ov_hints.ExecutionMode.ACCURACY})
 
 
 def ov_mm(A: torch.Tensor, B: torch.Tensor, infer_request: ov.InferRequest, out_name: str, out_dtype: torch.dtype = torch.float32) -> torch.FloatTensor:
