@@ -254,7 +254,7 @@ def main():
     installer.check_version()
     installer.check_venv()
     log.info(f'Args: {sys.argv[1:]}')
-    if not args.skip_env and not args.skip_all:
+    if not args.skip_env:
         installer.set_environment()
     if args.uv and shutil.which('uv') is None:
         installer.install('uv', 'uv')

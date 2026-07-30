@@ -1,14 +1,16 @@
 # Change Log for SD.Next
 
-## Update for 2026-07-28
+## Update for 2026-07-30
 
 - **Features**
   - startup: optimized server startup
   - process: preserve audio when processing video
   - video: support for scripts/extensions
   - prompt enhance: support for video generation
+  - remove background: add [lucida](https://huggingface.co/egeorcun/lucida) model
 - **Fixes**
   - seedvr quality
+  - skip-all do not skip env init
 
 ## Update for 2026-07-23
 
