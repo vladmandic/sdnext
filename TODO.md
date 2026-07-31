@@ -6,10 +6,6 @@
 
 ## Features
 
-- [MageFlow](https://github.com/huggingface/diffusers/pull/14295)
-- [SeFi](https://github.com/huggingface/diffusers/pull/14084)
-- [Boogu](https://github.com/huggingface/diffusers/pull/14040)
-
 ### Assigned
 
 - Chat-based interface, @vladmandic

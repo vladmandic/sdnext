@@ -1,1 +1,10 @@
-from .pipeline_mage import MageFlowPipeline
+import diffusers
+from .pipeline_mage_flow import MageFlowPipeline
+from .pipeline_output import MageFlowPipelineOutput
+from .autoencoder_mage_vae import AutoencoderMageVAE
+from .transformer_mage_flow import MageFlowTransformer2DModel
+
+diffusers.MageFlowPipeline = MageFlowPipeline
+diffusers.MageFlowPipelineOutput = MageFlowPipelineOutput
+diffusers.AutoencoderMageVAE = AutoencoderMageVAE
+diffusers.MageFlowTransformer2DModel = MageFlowTransformer2DModel

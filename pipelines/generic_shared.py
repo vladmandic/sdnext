@@ -107,7 +107,7 @@ shared_te_map = {
     'Qwen3-VL 4B Conditional': {
         'cls': transformers.Qwen3VLForConditionalGeneration,
         'target_repo': 'SeFi-Image/SeFi-Image-5B-Base',
-        'identifier': ['5b'],
+        'identifier': ['4b','5b'],
         'target_subfolder': 'Qwen3-VL-4B-Instruct',
     },
     'Qwen3-VL 8B Conditional': {

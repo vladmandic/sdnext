@@ -1,7 +1,11 @@
 # Change Log for SD.Next
 
-## Update for 2026-07-30
+## Update for 2026-07-31
 
+- **Models**
+  - [Microsoft Mage-Flow](https://huggingface.co/mage-flow-community/Mage-Flow) in *Base* and *Turbo* (distilled) variants  
+    Mage-Flow is a 4B-scale generative stack for efficient text-to-image generation and instruction-based image editing  
+    *note*: Microsoft released and then unpublished the model, but we still have a mirror available for download  
 - **Features**
   - startup: optimized server startup
   - process: preserve audio when processing video

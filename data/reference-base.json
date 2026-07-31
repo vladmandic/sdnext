@@ -918,5 +918,13 @@
     "size": 47.98,
     "extras": "sampler: Default",
     "date": "2026 July"
+  },
+  "Microsoft Mage-Flow": {
+    "path": "vladmandic/Mage-Flow-4B",
+    "preview": "vladmandic--Mage-Flow-4B.jpg",
+    "desc": "Mage-Flow is a compact 4B-scale generative stack for efficient text-to-image generation and instruction-based image editing.",
+    "extras": "sampler: Default",
+    "size": 16.19,
+    "date": "2026 July"
   }
 }
