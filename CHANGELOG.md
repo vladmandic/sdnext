@@ -3,6 +3,10 @@
 ## Update for 2026-07-31
 
 - **Models**
+  - [SeFi-Image](https://huggingface.co/SeFi-Image/SeFi-Image-5B-RL) in *Base*, *Turbo* (distilled) and *RL* (finetuned) variants  
+    SeFi is an interesting model that separates generation into semantic and texture latent streams  
+    and denoising semantic structure slightly ahead of texture details  
+    SeFi comes in 1B, 2B and 5B variants  
   - [Microsoft Mage-Flow](https://huggingface.co/mage-flow-community/Mage-Flow) in *Base* and *Turbo* (distilled) variants  
     Mage-Flow is a 4B-scale generative stack for efficient text-to-image generation and instruction-based image editing  
     *note*: Microsoft released and then unpublished the model, but we still have a mirror available for download  

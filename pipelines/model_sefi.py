@@ -18,6 +18,7 @@ def load_sefi(checkpoint_info, diffusers_load_config=None):
 
     transformer = generic.load_transformer(repo_id, cls_name=SeFiTransformer2DModel, load_config=diffusers_load_config)
     text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.Qwen3VLForConditionalGeneration, load_config=diffusers_load_config)
+    generic.set_pipeline('SeFi', SeFiPipeline)
     if repo_id is None or repo_id.lower() == 'none':
         return None
 
@@ -30,6 +31,10 @@ def load_sefi(checkpoint_info, diffusers_load_config=None):
     )
 
     diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["sefi"] = SeFiPipeline
+
+    pipe.task_args = {
+        "output_type": "np",
+    }
 
     generic.load_vae_override(pipe, diffusers_load_config)
 

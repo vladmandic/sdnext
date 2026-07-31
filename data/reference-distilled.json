@@ -233,5 +233,29 @@
     "extras": "sampler: Default",
     "size": 16.19,
     "date": "2026 July"
+  },
+  "SeFi-Image 1B Turbo": {
+    "path": "vladmandic/SeFi-Image-1B-Turbo",
+    "preview": "vladmandic--SeFi-Image-1B-Turbo.jpg",
+    "desc": "SeFi-Image is a text-to-image foundation model family built with Semantic-First Diffusion. It separates generation into semantic and texture latent streams, denoising semantic structure slightly ahead of texture details.",
+    "extras": "sampler: Default",
+    "size": 0,
+    "date": "2026 July"
+  },
+  "SeFi-Image 2B Turbo": {
+    "path": "vladmandic/SeFi-Image-2B-Turbo",
+    "preview": "vladmandic--SeFi-Image-2B-Turbo.jpg",
+    "desc": "SeFi-Image is a text-to-image foundation model family built with Semantic-First Diffusion. It separates generation into semantic and texture latent streams, denoising semantic structure slightly ahead of texture details.",
+    "extras": "sampler: Default",
+    "size": 0,
+    "date": "2026 July"
+  },
+  "SeFi-Image 5B Turbo": {
+    "path": "vladmandic/SeFi-Image-5B-Turbo",
+    "preview": "vladmandic--SeFi-Image-5B-Turbo.jpg",
+    "desc": "SeFi-Image is a text-to-image foundation model family built with Semantic-First Diffusion. It separates generation into semantic and texture latent streams, denoising semantic structure slightly ahead of texture details.",
+    "extras": "sampler: Default",
+    "size": 0,
+    "date": "2026 July"
   }
 }

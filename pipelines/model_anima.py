@@ -58,48 +58,6 @@ def load_anima(checkpoint_info, diffusers_load_config=None):
     if repo_id is None or repo_id.lower() == 'none':
         return None
 
-    # load-or-download custom pipeline modules from repo
-    """
-    import os
-    import sys
-    import huggingface_hub as hf
-
-    if os.path.exists(os.path.join(repo_id, 'pipeline.py')):
-        pipeline_file = os.path.join(repo_id, 'pipeline.py')
-    else:
-        try:
-            if os.path.exists(repo_id):
-                from pipelines.generic_map import transformers_map
-                custom_id = transformers_map.get('AnimaTextToImagePipeline', repo_id)
-            else:
-                custom_id = repo_id
-            pipeline_file = hf.hf_hub_download(repo_id=custom_id, filename='pipeline.py', cache_dir=shared.opts.hfcache_dir)
-        except Exception as e:
-            log.error(f'Load model: type=Anima failed to download custom modules: {e}')
-            return None
-    if os.path.exists(os.path.join(repo_id, 'llm_adapter/modeling_llm_adapter.py')):
-        adapter_file = os.path.join(repo_id, 'llm_adapter/modeling_llm_adapter.py')
-    else:
-        try:
-            if os.path.exists(repo_id):
-                from pipelines.generic_map import transformers_map
-                custom_id = transformers_map.get('AnimaTextToImagePipeline', repo_id)
-            else:
-                custom_id = repo_id
-            adapter_file = hf.hf_hub_download(repo_id=custom_id, filename='llm_adapter/modeling_llm_adapter.py', cache_dir=shared.opts.hfcache_dir)
-        except Exception as e:
-            log.error(f'Load model: type=Anima failed to download custom modules: {e}')
-            return None
-
-    # dynamically import custom classes and register in sys.modules so Diffusers' from_pretrained can resolve them via trust_remote_code
-    adapter_mod = _import_from_file('modeling_llm_adapter', adapter_file)
-    sys.modules['modeling_llm_adapter'] = adapter_mod
-    pipeline_mod = _import_from_file('pipeline', pipeline_file)
-    sys.modules['pipeline'] = pipeline_mod
-    AnimaTextToImagePipeline = pipeline_mod.AnimaTextToImagePipeline
-    AnimaLLMAdapter = adapter_mod.AnimaLLMAdapter
-    """
-
     import sys
     from pipelines.anima import modeling_llm_adapter
     sys.modules['modeling_llm_adapter'] = modeling_llm_adapter

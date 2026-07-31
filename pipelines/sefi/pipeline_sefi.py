@@ -633,7 +633,7 @@ class SeFiPipeline(DiffusionPipeline):
 
                 self._current_timestep = base_sigmas_schedule[i]
                 packed_latents = self._pack_latents(latents)
-                pred_cond = self.transformer(
+                noise_pred = self.transformer(
                     hidden_states=packed_latents,
                     timestep_sem=timesteps_sem_cur / 1000,
                     timestep_tex=timesteps_tex_cur / 1000,
@@ -643,7 +643,7 @@ class SeFiPipeline(DiffusionPipeline):
                     joint_attention_kwargs=self.attention_kwargs,
                     return_dict=False,
                 )[0]
-                pred_cond = pred_cond[:, : packed_latents.size(1)]
+                pred_cond = noise_pred[:, : packed_latents.size(1)]
                 pred_cond = self._unpack_latents_with_ids(pred_cond, latent_ids)
 
                 if self.do_classifier_free_guidance:

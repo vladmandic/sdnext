@@ -22,20 +22,20 @@ def load_boogu(checkpoint_info, diffusers_load_config=None):
     from pipelines.boogu import transformer_boogu, scheduling_flow_match_euler_discrete_time_shifting
     sys.modules['transformer_boogu'] = transformer_boogu  # for loading custom code from HF repo
     sys.modules['scheduling_flow_match_euler_discrete_time_shifting'] = scheduling_flow_match_euler_discrete_time_shifting  # for loading custom code from HF repo
-    scheduler = scheduling_flow_match_euler_discrete_time_shifting.FlowMatchEulerDiscreteScheduler.from_pretrained(repo_id, subfolder='scheduler', cache_dir=shared.opts.diffusers_dir)
+    generic.set_pipeline('Boogu', BooguImagePipeline)
 
     if repo_id is None or repo_id.lower() == 'none':
         return None
 
     mllm = generic.load_text_encoder(repo_id, cls_name=transformers.Qwen3VLForConditionalGeneration, load_config=diffusers_load_config, subfolder='mllm')
     transformer = generic.load_transformer(repo_id, cls_name=BooguImageTransformer2DModel, load_config=diffusers_load_config)
+    scheduler = scheduling_flow_match_euler_discrete_time_shifting.FlowMatchEulerDiscreteScheduler.from_pretrained(repo_id, subfolder='scheduler', cache_dir=shared.opts.diffusers_dir)
 
     if 'turbo' in repo_id.lower():
         cls = BooguImageTurboPipeline
     else:
         cls = BooguImagePipeline
 
-    generic.set_pipeline('Boogu', cls)
     diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING['boogu'] = cls
     diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING['boogu'] = cls
 

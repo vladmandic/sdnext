@@ -24,7 +24,7 @@ from huggingface_hub import snapshot_download
 from safetensors.torch import load_file
 
 from diffusers import __version__
-from diffusers.models import SeFiTransformer2DModel
+from transformer_sefi import SeFiTransformer2DModel
 
 
 SEFI_SCALE_PRESETS = {

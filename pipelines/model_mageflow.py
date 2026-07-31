@@ -18,14 +18,15 @@ def load_mageflow(checkpoint_info, diffusers_load_config=None):
     from pipelines.mageflow import MageFlowPipeline, MageFlowTransformer2DModel
 
     log.debug(f'Load model: type=MageFlow repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={diffusers_load_config}')
-    transformer = generic.load_transformer(repo_id, cls_name=MageFlowTransformer2DModel, load_config=diffusers_load_config)
-    text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.Qwen3VLForConditionalGeneration, load_config=diffusers_load_config)
-    tokenizer = transformers.Qwen2Tokenizer.from_pretrained(repo_id, subfolder="text_encoder", cache_dir=shared.opts.diffusers_dir)
+    generic.set_pipeline('MageFlow', MageFlowPipeline)
 
     if repo_id is None or repo_id.lower() == 'none':
         return None
 
-    generic.set_pipeline('MageFlow', MageFlowPipeline)
+    transformer = generic.load_transformer(repo_id, cls_name=MageFlowTransformer2DModel, load_config=diffusers_load_config)
+    text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.Qwen3VLForConditionalGeneration, load_config=diffusers_load_config)
+    tokenizer = transformers.Qwen2Tokenizer.from_pretrained(repo_id, subfolder="text_encoder", cache_dir=shared.opts.diffusers_dir)
+
     diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING['mageflow'] = MageFlowPipeline
     diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING['mageflow'] = MageFlowPipeline
 
