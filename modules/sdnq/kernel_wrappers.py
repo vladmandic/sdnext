@@ -78,8 +78,9 @@ if use_openvino_mm:
         from .kernels.openvino_mm import openvino_int_mm, openvino_fp_mm
         int_mm_func = openvino_int_mm
         fp_mm_func = openvino_fp_mm
-    except Exception:
+    except Exception as e:
         use_openvino_mm = False
+        shared.log.warning(f"SDNQ: OpenVINO kernels are not available! Falling back to PyTorch Eager kernels. Error message: {e}")
 elif use_triton_mm:
     try:
         from .kernels.triton_mm import sdnq_triton_mm

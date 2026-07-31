@@ -16,7 +16,7 @@ for ov_device in core.get_available_devices():
         core.set_property(ov_device, {ov_hints.execution_mode: ov_hints.ExecutionMode.ACCURACY})
 
 
-def ov_mm(A: torch.Tensor, B: torch.Tensor, infer_request: ov.InferRequest, out_name: str, out_dtype: torch.dtype = torch.float32) -> torch.FloatTensor:
+def ov_mm(infer_request: ov.InferRequest, out_name: str, A: torch.Tensor, B: torch.Tensor, out_dtype: torch.dtype = torch.float32) -> torch.Tensor:
     C = torch.empty((A.shape[0], B.shape[-1]), device="cpu", dtype=torch.float32)
     infer_request.set_tensor("A", ov.Tensor(A.detach().contiguous().to("cpu").numpy(), shared_memory=True))
     infer_request.set_tensor("B", ov.Tensor(B.detach().contiguous().to("cpu").numpy(), shared_memory=True))
@@ -34,7 +34,7 @@ def openvino_int_mm(Tensor_A: torch.Tensor, Tensor_B: torch.Tensor, out_dtype: t
         cache_key = (OV_DEVICE, "int8", None, None)
     infer_request, out_name = OV_COMPILED_CACHE.get(cache_key, (None, None))
     if infer_request is not None:
-        return ov_mm(Tensor_A, Tensor_B, infer_request, out_name, out_dtype=out_dtype)
+        return ov_mm(infer_request, out_name, Tensor_A, Tensor_B, out_dtype=out_dtype)
 
     if "GPU" not in OV_DEVICE:
         shape_a = ov.Shape(Tensor_A.shape)
@@ -42,6 +42,7 @@ def openvino_int_mm(Tensor_A: torch.Tensor, Tensor_B: torch.Tensor, out_dtype: t
     else:
         shape_a = ov.PartialShape([-1,-1])
         shape_b = ov.PartialShape([-1,-1])
+
     input_a = ov_ops.parameter(shape_a, ov.Type.i8, name="A")
     input_b = ov_ops.parameter(shape_b, ov.Type.i8, name="B")
     a = ov_ops.convert(input_a, ov.Type.f32)
@@ -76,7 +77,7 @@ def openvino_int_mm(Tensor_A: torch.Tensor, Tensor_B: torch.Tensor, out_dtype: t
     out_name = ov_model.outputs[0]
 
     OV_COMPILED_CACHE[cache_key] = (infer_request, out_name)
-    return ov_mm(Tensor_A, Tensor_B, infer_request, out_name, out_dtype=out_dtype)
+    return ov_mm(infer_request, out_name, Tensor_A, Tensor_B, out_dtype=out_dtype)
 
 @openvino_int_mm.register_fake
 def openvino_int_mm_fake(A: torch.Tensor, B: torch.Tensor, out_dtype: torch.dtype = torch.float32) -> torch.Tensor:
@@ -95,7 +96,7 @@ def openvino_fp_mm(Tensor_A: torch.Tensor, Tensor_B: torch.Tensor, out_dtype: to
         cache_key = (OV_DEVICE, mm_dtype, None, None)
     infer_request, out_name = OV_COMPILED_CACHE.get(cache_key, (None, None))
     if infer_request is not None:
-        return ov_mm(Tensor_A, Tensor_B, infer_request, out_name, out_dtype=out_dtype)
+        return ov_mm(infer_request, out_name, Tensor_A, Tensor_B, out_dtype=out_dtype)
 
     if "GPU" not in OV_DEVICE:
         shape_a = ov.Shape(Tensor_A.shape)
@@ -103,6 +104,7 @@ def openvino_fp_mm(Tensor_A: torch.Tensor, Tensor_B: torch.Tensor, out_dtype: to
     else:
         shape_a = ov.PartialShape([-1,-1])
         shape_b = ov.PartialShape([-1,-1])
+
     input_a = ov_ops.parameter(shape_a, ov.Type.f16, name="A")
     input_b = ov_ops.parameter(shape_b, ov.Type.f16, name="B")
     a = ov_ops.convert(input_a, ov.Type.f32)
@@ -136,7 +138,7 @@ def openvino_fp_mm(Tensor_A: torch.Tensor, Tensor_B: torch.Tensor, out_dtype: to
     out_name = ov_model.outputs[0]
 
     OV_COMPILED_CACHE[cache_key] = (infer_request, out_name)
-    return ov_mm(Tensor_A, Tensor_B, infer_request, out_name, out_dtype=out_dtype)
+    return ov_mm(infer_request, out_name, Tensor_A, Tensor_B, out_dtype=out_dtype)
 
 @openvino_fp_mm.register_fake
 def openvino_fp_mm_fake(A: torch.Tensor, B: torch.Tensor, out_dtype: torch.dtype = torch.float32) -> torch.Tensor:
