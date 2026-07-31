@@ -3,19 +3,19 @@
 ## Update for 2026-07-31
 
 - **Models**
-  - [SeFi-Image](https://huggingface.co/SeFi-Image/SeFi-Image-5B-RL) in *Base*, *Turbo* (distilled) and *RL* (finetuned) variants  
+  - [SeFi-Image](https://huggingface.co/SeFi-Image/SeFi-Image-5B-RL) in *Base* and *Turbo* (distilled) variants  
     SeFi is an interesting model that separates generation into semantic and texture latent streams  
     and denoising semantic structure slightly ahead of texture details  
-    SeFi comes in 1B, 2B and 5B variants  
+    SeFi comes in sizes with 1B, 2B and 5B params  
   - [Microsoft Mage-Flow](https://huggingface.co/mage-flow-community/Mage-Flow) in *Base* and *Turbo* (distilled) variants  
     Mage-Flow is a 4B-scale generative stack for efficient text-to-image generation and instruction-based image editing  
     *note*: Microsoft released and then unpublished the model, but we still have a mirror available for download  
 - **Features**
-  - startup: optimized server startup
-  - process: preserve audio when processing video
   - video: support for scripts/extensions
   - prompt enhance: support for video generation
-  - remove background: add [lucida](https://huggingface.co/egeorcun/lucida) model
+  - startup: optimized server startup
+  - process: preserve audio when processing video
+  - remove background: new [lucida](https://huggingface.co/egeorcun/lucida) model
 - **Fixes**
   - seedvr quality
   - skip-all do not skip env init
