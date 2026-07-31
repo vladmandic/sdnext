@@ -466,6 +466,8 @@ class ExtraNetworksPage:
         if path is None:
             return 'ui/assets/missing.png'
         if os.path.join('models', 'Reference') in path:
+            if shared.cmd_opts.test and not os.path.exists(path):
+                log.warning(f'Networks: missing-preview type="{self.name}" fn="{path}"')
             return path
         exts = ["jpg", "jpeg", "png", "webp", "tiff", "jp2", "jxl"]
         reference_path = os.path.abspath(os.path.join('models', 'Reference'))

@@ -197,7 +197,7 @@
   },
   "Anima 1.0 Turbo sdnq-svd-dynamic-uint4": {
     "path": "vladmandic/Anima-1.0-Turbo-sdnq-svd-dynamic-uint4",
-    "preview": "vladmandic--Anima-1.0-Turbo.jpg",
+    "preview": "vladmandic--Anima-1.0-Turbo-sdnq-svd-dynamic-uint4.jpg",
     "desc": "Anima 1.0 Turbo with extended 1024-resolution training and expanded dataset coverage for less common artists. A 2B parameter anime-focused text-to-image model based on modified Cosmos-Predict-2B with Qwen3-0.6B text encoder, created by CircleStone Labs and Comfy Org.",
     "date": "2026 May",
     "size": 2.03

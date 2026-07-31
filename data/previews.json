@@ -30,7 +30,7 @@
   "THUDM--CogVideoX-5b": "THUDM--CogView3-Plus-3B.jpg",
   "vladmandic--Anima-1.0-Base-Merge-sdnq-hadamard-uint4": "vladmandic--Anima-1.0-Base.jpg",
   "vladmandic--Anima-1.0-Base-sdnq-svd-dynamic-uint4": "vladmandic--Anima-1.0-Base.jpg",
-  "vladmandic--Anima-1.0-Turbo-sdnq-svd-dynamic-uint4": "vladmandic--Anima-1.0-Turbo.jpg",
+  "vladmandic--Anima-1.0-Turbo-sdnq-svd-dynamic-uint4": "vladmandic--Anima-1.0-Turbo-sdnq-svd-dynamic-uint4.jpg",
   "vladmandic--Flux.2-Klein-9B-KV-sdnq-hadamard-uint4": "black-forest-labs--FLUX.2-klein-9b-kv.jpg",
   "vladmandic--Flux.2-Klein-9B-KV-Merge-sdnq-hadamard-uint4": "black-forest-labs--FLUX.2-klein-9b-kv.jpg",
   "vladmandic--Krea-2-Base-sdnq-hadamard-uint4": "CalamitousFelicitousness--Krea-2-Base-Diffusers.jpg",
