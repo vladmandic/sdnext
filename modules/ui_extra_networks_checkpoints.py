@@ -145,7 +145,6 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
                 "tags": v.get('tags', []),
             }
             models.append(model)
-            # yield model
         log.debug(f'Networks: type="reference" {count}')
         return models
 

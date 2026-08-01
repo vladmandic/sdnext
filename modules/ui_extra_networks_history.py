@@ -19,9 +19,10 @@ class ExtraNetworksPageHistory(ui_extra_networks.ExtraNetworksPage):
 
     def list_items(self):
         # log.trace('History list')
+        records = []
         for item in shared.history.latents:
             title = ', '.join(list(set(item.ops))) + '<br>' + item.name
-            yield {
+            record = {
                 "type": 'History',
                 "name": title,
                 "preview": item.preview,
@@ -31,6 +32,8 @@ class ExtraNetworksPageHistory(ui_extra_networks.ExtraNetworksPage):
                 # "description": item.info,
                 "onclick": '"' + html.escape(f"""return selectHistory({json.dumps(item.name)})""") + '"',
             }
+            records.append(record)
+        return records
 
     def find_description(self, path, info=None):
         name = path.split('<br>')[-1]

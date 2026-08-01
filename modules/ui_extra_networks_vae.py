@@ -10,9 +10,10 @@ class ExtraNetworksPageVAEs(ui_extra_networks.ExtraNetworksPage):
         super().__init__('VAE')
 
     def refresh(self):
-        shared.refresh_vaes()
+        return shared.refresh_vaes()
 
     def list_items(self):
+        records = []
         for name, filename in sd_vae.vae_dict.items():
             try:
                 size, mtime = modelstats.stat(filename)
@@ -35,9 +36,10 @@ class ExtraNetworksPageVAEs(ui_extra_networks.ExtraNetworksPage):
                     "description": self.find_description(filename, info),
                     "version": version.get("baseModel", "N/A") if info else "N/A",
                 }
-                yield record
+                records.append(record)
             except Exception as e:
                 log.debug(f'Networks error: type=vae file="{filename}" {e}')
+        return records
 
     def allowed_directories_for_previews(self):
         return [v for v in [shared.opts.vae_dir] if v is not None]

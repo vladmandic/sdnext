@@ -13,6 +13,7 @@ class ExtraNetworksPageUNets(ui_extra_networks.ExtraNetworksPage):
         return sd_unet.refresh_unet_list()
 
     def list_items(self):
+        results = []
         for name, filename in sd_unet.unet_dict.items():
             try:
                 size, mtime = modelstats.stat(filename)
@@ -35,9 +36,10 @@ class ExtraNetworksPageUNets(ui_extra_networks.ExtraNetworksPage):
                     "description": self.find_description(filename, info),
                     "version": version.get("baseModel", "N/A") if info else "N/A",
                 }
-                yield record
+                results.append(record)
             except Exception as e:
                 log.debug(f'Networks error: type=unet file="{filename}" {e}')
+        return results
 
     def allowed_directories_for_previews(self):
         return [v for v in [shared.opts.unet_dir] if v is not None]
