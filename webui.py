@@ -135,10 +135,17 @@ def initialize():
     modules.extra_networks.register_default_extra_networks()
     timer.startup.record("networks")
 
-    from modules.models_hf import hf_init, hf_check_cache
+    from modules.models_hf import hf_init
     hf_init()
-    hf_check_cache()
-    timer.startup.record("huggingface")
+    if shared.cmd_opts.test:
+        from modules.models_hf import hf_check_cache
+        hf_check_cache()
+        timer.startup.record("huggingface")
+
+    if shared.cmd_opts.test:
+        from modules.storage import check_storage
+        check_storage()
+        timer.startup.record("storage")
 
     if shared.cmd_opts.tls_keyfile is not None and shared.cmd_opts.tls_certfile is not None:
         try:

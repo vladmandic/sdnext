@@ -2759,15 +2759,15 @@ var require_jquery = __commonJS({
       function returnFalse() {
         return false;
       }
-      function on(elem, types, selector, data, fn, one) {
+      function on(elem, types2, selector, data, fn, one) {
         var origFn, type;
-        if (typeof types === "object") {
+        if (typeof types2 === "object") {
           if (typeof selector !== "string") {
             data = data || selector;
             selector = void 0;
           }
-          for (type in types) {
-            on(elem, type, selector, data, types[type], one);
+          for (type in types2) {
+            on(elem, type, selector, data, types2[type], one);
           }
           return elem;
         }
@@ -2798,11 +2798,11 @@ var require_jquery = __commonJS({
           fn.guid = origFn.guid || (origFn.guid = jQuery3.guid++);
         }
         return elem.each(function() {
-          jQuery3.event.add(this, types, fn, data, selector);
+          jQuery3.event.add(this, types2, fn, data, selector);
         });
       }
       jQuery3.event = {
-        add: function(elem, types, handler, data, selector) {
+        add: function(elem, types2, handler, data, selector) {
           var handleObjIn, eventHandle, tmp, events, t, handleObj, special, handlers, type, namespaces, origType, elemData = dataPriv.get(elem);
           if (!acceptData(elem)) {
             return;
@@ -2826,10 +2826,10 @@ var require_jquery = __commonJS({
               return typeof jQuery3 !== "undefined" && jQuery3.event.triggered !== e.type ? jQuery3.event.dispatch.apply(elem, arguments) : void 0;
             };
           }
-          types = (types || "").match(rnothtmlwhite) || [""];
-          t = types.length;
+          types2 = (types2 || "").match(rnothtmlwhite) || [""];
+          t = types2.length;
           while (t--) {
-            tmp = rtypenamespace.exec(types[t]) || [];
+            tmp = rtypenamespace.exec(types2[t]) || [];
             type = origType = tmp[1];
             namespaces = (tmp[2] || "").split(".").sort();
             if (!type) {
@@ -2871,20 +2871,20 @@ var require_jquery = __commonJS({
           }
         },
         // Detach an event or set of events from an element
-        remove: function(elem, types, handler, selector, mappedTypes) {
+        remove: function(elem, types2, handler, selector, mappedTypes) {
           var j, origCount, tmp, events, t, handleObj, special, handlers, type, namespaces, origType, elemData = dataPriv.hasData(elem) && dataPriv.get(elem);
           if (!elemData || !(events = elemData.events)) {
             return;
           }
-          types = (types || "").match(rnothtmlwhite) || [""];
-          t = types.length;
+          types2 = (types2 || "").match(rnothtmlwhite) || [""];
+          t = types2.length;
           while (t--) {
-            tmp = rtypenamespace.exec(types[t]) || [];
+            tmp = rtypenamespace.exec(types2[t]) || [];
             type = origType = tmp[1];
             namespaces = (tmp[2] || "").split(".").sort();
             if (!type) {
               for (type in events) {
-                jQuery3.event.remove(elem, type + types[t], handler, selector, true);
+                jQuery3.event.remove(elem, type + types2[t], handler, selector, true);
               }
               continue;
             }
@@ -3234,26 +3234,26 @@ var require_jquery = __commonJS({
         };
       });
       jQuery3.fn.extend({
-        on: function(types, selector, data, fn) {
-          return on(this, types, selector, data, fn);
+        on: function(types2, selector, data, fn) {
+          return on(this, types2, selector, data, fn);
         },
-        one: function(types, selector, data, fn) {
-          return on(this, types, selector, data, fn, 1);
+        one: function(types2, selector, data, fn) {
+          return on(this, types2, selector, data, fn, 1);
         },
-        off: function(types, selector, fn) {
+        off: function(types2, selector, fn) {
           var handleObj, type;
-          if (types && types.preventDefault && types.handleObj) {
-            handleObj = types.handleObj;
-            jQuery3(types.delegateTarget).off(
+          if (types2 && types2.preventDefault && types2.handleObj) {
+            handleObj = types2.handleObj;
+            jQuery3(types2.delegateTarget).off(
               handleObj.namespace ? handleObj.origType + "." + handleObj.namespace : handleObj.origType,
               handleObj.selector,
               handleObj.handler
             );
             return this;
           }
-          if (typeof types === "object") {
-            for (type in types) {
-              this.off(type, selector, types[type]);
+          if (typeof types2 === "object") {
+            for (type in types2) {
+              this.off(type, selector, types2[type]);
             }
             return this;
           }
@@ -3265,7 +3265,7 @@ var require_jquery = __commonJS({
             fn = returnFalse;
           }
           return this.each(function() {
-            jQuery3.event.remove(this, types, fn, selector);
+            jQuery3.event.remove(this, types2, fn, selector);
           });
         }
       });
@@ -5823,17 +5823,17 @@ var require_jquery = __commonJS({
         };
       });
       jQuery3.fn.extend({
-        bind: function(types, data, fn) {
-          return this.on(types, null, data, fn);
+        bind: function(types2, data, fn) {
+          return this.on(types2, null, data, fn);
         },
-        unbind: function(types, fn) {
-          return this.off(types, null, fn);
+        unbind: function(types2, fn) {
+          return this.off(types2, null, fn);
         },
-        delegate: function(selector, types, data, fn) {
-          return this.on(types, selector, data, fn);
+        delegate: function(selector, types2, data, fn) {
+          return this.on(types2, selector, data, fn);
         },
-        undelegate: function(selector, types, fn) {
-          return arguments.length === 1 ? this.off(selector, "**") : this.off(types, selector || "**", fn);
+        undelegate: function(selector, types2, fn) {
+          return arguments.length === 1 ? this.off(selector, "**") : this.off(types2, selector || "**", fn);
         },
         hover: function(fnOver, fnOut) {
           return this.on("mouseenter", fnOver).on("mouseleave", fnOut || fnOver);
@@ -16448,7 +16448,7 @@ var Timesheet = class {
 // ui/history.ts
 var inferenceTypes = ["inference", "vae", "te"];
 var ioTypes = ["load", "save"];
-function refreshHistory() {
+async function refreshHistory() {
   log("refreshHistory");
   authFetch(`${window.api}/history`, { priority: "low" }).then((res) => {
     if (!res) return;
@@ -16499,6 +16499,70 @@ function refreshHistory() {
   });
 }
 window.refreshHistory = refreshHistory;
+
+// ui/storage.ts
+var types = ["Images", "Videos", "Models", "Data", "Cache", "Code", "Other"];
+function buildTable(type, data) {
+  const totalSize = data.reduce((acc, entry) => acc + entry.size, 0);
+  const totalLoc = data.length;
+  const totalFiles = data.reduce((acc, entry) => acc + entry.nfiles, 0);
+  const totalFolders = data.reduce((acc, entry) => acc + entry.nfolders, 0);
+  let title = `Locations: ${totalLoc}
+Total Size: ${(totalSize / (1024 * 1024)).toLocaleString(void 0, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MB
+Total Files: ${totalFiles}
+Total Folders: ${totalFolders}
+`;
+  let html = `<h2 title="${title}">${type}</h2><table><tbody>`;
+  for (const entry of data) {
+    if (entry.size === 0) continue;
+    const size = (entry.size / (1024 * 1024)).toLocaleString(void 0, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " MB";
+    const mtime = entry.mtime > 0 ? new Date(entry.mtime * 1e3).toLocaleString() : "";
+    title = `Type: ${entry.type}
+Name: ${entry.name}
+Size: ${size}
+Last modified: ${mtime}
+`;
+    title += `Folders: ${entry.folders.join(", ")}
+Resolved paths: ${entry.paths.join(", ")}
+`;
+    title += `Subfolders: ${entry.nfolders}
+Files: ${entry.nfiles}
+Symlinks: ${entry.nsymlinks}
+Errors: ${entry.nerrors}
+`;
+    title += `Time to scan: ${entry.time.toFixed(3)} seconds`;
+    const perc = Math.round(entry.size / totalSize * 100);
+    const color = `rgb(${perc}, 50, 80)`;
+    const css = `background: linear-gradient(to right, ${color} ${perc}%, transparent ${perc}%);`;
+    html += `<tr title="${title}"><td style="${css}">${entry.name}</td><td>${size}</td><td>${mtime}</td></tr>`;
+  }
+  html += "</tbody></table>";
+  return html;
+}
+async function refreshStorage(storageTypes) {
+  log("refreshStorage", storageTypes);
+  authFetch(`${window.api}/storage?types=${storageTypes.join(",")}`, { priority: "low" }).then((res) => {
+    if (!res) return;
+    const timeline = document.getElementById("storage_timeline");
+    const table = document.getElementById("storage_table");
+    if (!timeline || !table) return;
+    timeline.innerHTML = "";
+    res.json().then((rawData) => {
+      const data = rawData;
+      if (!data || !data.length) {
+        table.innerHTML = "<p>No storage data available.</p>";
+        return;
+      }
+      table.innerHTML = "";
+      if (storageTypes.includes("All")) storageTypes = types;
+      for (const type of storageTypes) {
+        const typeData = data.filter((entry) => entry.type === type);
+        if (typeData.length > 0) table.innerHTML += buildTable(type, typeData);
+      }
+    });
+  });
+}
+window.refreshStorage = refreshStorage;
 
 // ui/aspectRatioOverlay.ts
 var currentWidth = null;

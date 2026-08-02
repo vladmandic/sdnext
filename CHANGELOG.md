@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-07-31
+## Update for 2026-08-02
 
 - **Models**
   - [SeFi-Image](https://huggingface.co/SeFi-Image/SeFi-Image-5B-RL) in *Base* and *Turbo* (distilled) variants  
@@ -11,11 +11,17 @@
     Mage-Flow is a 4B-scale generative stack for efficient text-to-image generation and instruction-based image editing  
     *note*: Microsoft released and then unpublished the model, but we still have a mirror available for download  
 - **Features**
-  - video: support for scripts/extensions
+  - storage analyzer: new feature that analyzes your used storage by sdnext per type and location  
+    *system -> storage*  
+  - video: support for scripts/extensions  
+    video processing now supports scripts and extensions (if they support video processing)  
+    *example*: use nudenet to automatically censor video frames :)  
   - prompt enhance: support for video generation
   - startup: optimized server startup
   - process: preserve audio when processing video
   - remove background: new [lucida](https://huggingface.co/egeorcun/lucida) model
+- **API**
+  - add `/sdapi/v1/storage` endpoint to return storage usage info  
 - **Fixes**
   - seedvr quality
   - skip-all do not skip env init

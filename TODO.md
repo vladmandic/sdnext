@@ -12,7 +12,6 @@
 - Control tab verify overrides handling, @vladmandic
 - Cloud providers, @CalamitousFelicitousness
 - Video processing add/verify full API support, @CalamitousFelicitousness
-- Storage analyzer, @vladmandic
 - Lora: new handler, @CalamitousFelicitousness
 - Processing -> Video capabilities, @vladmandic
   - `RIFE` in processing

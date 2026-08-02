@@ -27,6 +27,7 @@ import './promptChecker';
 import './setHints';
 import './monitor';
 import './history';
+import './storage';
 import './aspectRatioOverlay';
 import './resolutionLock';
 import './authWrap';
