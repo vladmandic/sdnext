@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-08-02
+## Update for 2026-08-04
 
 - **Models**
   - [SeFi-Image](https://huggingface.co/SeFi-Image/SeFi-Image-5B-RL) in *Base* and *Turbo* (distilled) variants  
@@ -25,6 +25,8 @@
 - **Fixes**
   - seedvr quality
   - skip-all do not skip env init
+  - sdnq check contiguous
+  - torch reset compile cache on reload
 
 ## Update for 2026-07-23
 

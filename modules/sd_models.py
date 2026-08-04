@@ -1552,14 +1552,17 @@ def clear_caches(full: bool = False):
     lora_common.loaded_networks.clear()
     lora_common.previously_loaded_networks.clear()
     lora_load.lora_cache.clear()
+    fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
+    log.debug(f'Cache clear: full={full} fn={fn}')
     if full:
-        log.debug('Cache clear')
         sd_offload.offload_hook_instance = None
 
 
 def unload_model_weights(op='model'):
     fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
-    clear_caches(full=True)
+    if model_data.sd_model or model_data.sd_refiner:
+        clear_caches(full=True)
+        devices.torch_reset()
     if shared.compiled_model_state is not None:
         shared.compiled_model_state.compiled_cache.clear()
         shared.compiled_model_state.req_cache.clear()

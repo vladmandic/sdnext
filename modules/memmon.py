@@ -65,8 +65,8 @@ class MemUsageMonitor:
             retries = mem_mon_read.pop("retries")
             vram = {k: v//1048576 for k, v in mem_mon_read.items()}
             if 'active_peak' in vram:
-                peak = max(vram['active_peak'], vram['reserved_peak'], vram['used'])
-                used = round(100.0 * peak / vram['total']) if vram['total'] > 0 else 0
+                peak = max(vram.get('active_peak', 0), vram.get('reserved_peak', 0), vram.get('used', 0))
+                used = round(100.0 * peak / vram.get('total', 0)) if vram.get('total', 0) > 0 else 0
             else:
                 peak = 0
                 used = 0

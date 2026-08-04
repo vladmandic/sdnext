@@ -242,14 +242,25 @@ def torch_gc(force: bool = False, fast: bool = False, reason: str | None = None)
     if force:
         # actual gc
         collected = gc.collect() if not fast else 0 # python gc
-        if cuda_ok:
-            try:
-                with torch.cuda.device(get_cuda_device_string()):
-                    torch.cuda.synchronize()
-                    torch.cuda.empty_cache() # cuda gc
+        try:
+            if hasattr(torch, "accelerator") and torch.accelerator.is_available(): # torch >= 2.6
+                torch.accelerator.synchronize()
+                torch.accelerator.empty_cache()
+                if torch.cuda.is_available() and hasattr(torch.cuda, "ipc_collect"):
                     torch.cuda.ipc_collect()
-            except Exception as e:
-                log.error(f'GC: {e}')
+                elif hasattr(torch, "xpu") and hasattr(torch.xpu, "ipc_collect"):
+                    torch.xpu.ipc_collect()
+            elif torch.cuda.is_available(): # Fallback for older PyTorch versions
+                torch.cuda.synchronize()
+                torch.cuda.empty_cache()
+                torch.cuda.ipc_collect()
+            elif hasattr(torch, "xpu") and torch.xpu.is_available():
+                torch.xpu.synchronize()
+                torch.xpu.empty_cache()
+                if hasattr(torch.xpu, "ipc_collect"):
+                    torch.xpu.ipc_collect()
+        except Exception as e:
+            log.error(f'Torch GC: {e}')
     else:
         return gpu, ram
     t1 = time.time()
@@ -752,3 +763,15 @@ def bypass_sdpa_hijacks():
         torch.nn.functional.scaled_dot_product_attention = current_sdpa
         if debug:
             log.debug('SDPA bypass: restored hijacked attention')
+
+
+def torch_reset() -> bool:
+    """
+    Resets PyTorch execution graph, flushes VRAM caches, and syncs streams.
+    """
+    torch_gc(force=True, reason='reset', fast=True)
+    try:
+        if hasattr(torch, "_dynamo"):
+            torch._dynamo.reset() # pylint: disable=protected-access
+    except Exception as e:
+        log.error(f"Torch reset: {e}")
