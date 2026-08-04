@@ -49,15 +49,6 @@ if os.environ.get("SDNQ_USE_TENSORWISE_FP8_MM", None) is None:
 else:
     use_tensorwise_fp8_matmul = bool(os.environ.get("SDNQ_USE_TENSORWISE_FP8_MM", "0").lower() not in {"0", "false", "no"})
 
-if os.environ.get("SDNQ_USE_CONTIGUOUS_MM", None) is None:
-    use_contiguous_int8_mm = bool(is_rdna2_and_older or devices.backend in {"ipex", "xpu", "cpu", "mps", "openvino", "zluda"})
-    use_contiguous_fp16_mm = bool(use_contiguous_int8_mm or devices.backend == "rocm")
-    use_contiguous_fp8_mm = use_contiguous_fp16_mm and (is_fp8_mm_supported or use_triton_mm)
-else:
-    use_contiguous_int8_mm = bool(os.environ.get("SDNQ_USE_CONTIGUOUS_MM", "0").lower() not in {"0", "false", "no"})
-    use_contiguous_fp16_mm = use_contiguous_int8_mm
-    use_contiguous_fp8_mm = use_contiguous_fp16_mm and (is_fp8_mm_supported or use_triton_mm)
-
 use_openvino_mm = bool(os.environ.get("SDNQ_USE_OPENVINO_MM", "1").lower() not in {"0", "false", "no"})
 use_triton_scaled_mm = bool(use_triton_mm and os.environ.get("SDNQ_USE_TRITON_SCALED_MM", "1").lower() not in {"0", "false", "no"})
 
@@ -103,6 +94,15 @@ if os.environ.get("SDNQ_INCLUDE_MM_KERNEL_IN_COMPILE", None) is None:
     include_mm_kernel_in_compile = bool(not use_triton_scaled_mm)
 else:
     include_mm_kernel_in_compile = bool(os.environ.get("SDNQ_INCLUDE_MM_KERNEL_IN_COMPILE", "0").lower() not in {"0", "false", "no"})
+
+if os.environ.get("SDNQ_USE_CONTIGUOUS_MM", None) is None:
+    use_contiguous_int8_mm = bool(is_rdna2_and_older or devices.backend in {"ipex", "xpu", "cpu", "mps", "openvino", "zluda"})
+    use_contiguous_fp16_mm = bool(use_contiguous_int8_mm or devices.backend == "rocm")
+    use_contiguous_fp8_mm = use_contiguous_fp16_mm and (is_fp8_mm_supported and use_triton_mm)
+else:
+    use_contiguous_int8_mm = bool(os.environ.get("SDNQ_USE_CONTIGUOUS_MM", "0").lower() not in {"0", "false", "no"})
+    use_contiguous_fp16_mm = use_contiguous_int8_mm
+    use_contiguous_fp8_mm = use_contiguous_fp16_mm and (is_fp8_mm_supported and use_triton_mm)
 
 
 def int_mm_torch(a: torch.Tensor, b: torch.Tensor, out_dtype: torch.dtype = torch.int32) -> torch.FloatTensor:
