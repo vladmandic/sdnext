@@ -2,18 +2,25 @@ import os
 import torch
 import openvino as ov
 from openvino import opset16 as ov_ops
-from openvino.properties import hint as ov_hints
 
-core = ov.Core()
-
-OV_DEVICE: str = os.environ.get("SDNQ_OPENVINO_DEVICE", "HETERO:NPU,CPU" if "NPU" in core.get_available_devices() else "CPU")
+ov_core = None
+OV_DEVICE: str = None
 OV_COMPILED_CACHE: dict[tuple[str, tuple[int,int] | None, str, tuple[int,int] | None], tuple[ov.InferRequest, str]] = {}
 
-if OV_DEVICE == "NPU":
-    OV_DEVICE = "HETERO:NPU,CPU"
-for ov_device in core.get_available_devices():
-    if ov_device != "NPU":
-        core.set_property(ov_device, {ov_hints.execution_mode: ov_hints.ExecutionMode.ACCURACY})
+
+def get_ov_core():
+    global ov_core, OV_DEVICE
+    if ov_core is not None:
+        return ov_core, OV_DEVICE
+    from openvino.properties import hint as ov_hints
+    ov_core = ov.Core()
+    OV_DEVICE = os.environ.get("SDNQ_OPENVINO_DEVICE", "HETERO:NPU,CPU" if "NPU" in ov_core.get_available_devices() else "CPU")
+    if OV_DEVICE == "NPU":
+        OV_DEVICE = "HETERO:NPU,CPU"
+    for ov_device in OV_DEVICE.removeprefix("HETERO:").split(","):
+        if ov_device != "NPU":
+            ov_core.set_property(ov_device, {ov_hints.execution_mode: ov_hints.ExecutionMode.ACCURACY})
+    return ov_core, OV_DEVICE
 
 
 def ov_mm(infer_request: ov.InferRequest, out_name: str, A: torch.Tensor, B: torch.Tensor, out_dtype: torch.dtype = torch.float32) -> torch.Tensor:
@@ -29,6 +36,7 @@ def ov_mm(infer_request: ov.InferRequest, out_name: str, A: torch.Tensor, B: tor
 
 @torch.library.custom_op("sdnq::openvino_int_mm", mutates_args=())
 def openvino_int_mm(Tensor_A: torch.Tensor, Tensor_B: torch.Tensor, out_dtype: torch.dtype = torch.float32) -> torch.Tensor:
+    core, OV_DEVICE = get_ov_core()
     if "GPU" not in OV_DEVICE:
         cache_key = (OV_DEVICE, "int8", Tensor_A.shape, Tensor_B.shape)
     else:
@@ -87,6 +95,7 @@ def openvino_int_mm_fake(A: torch.Tensor, B: torch.Tensor, out_dtype: torch.dtyp
 
 @torch.library.custom_op("sdnq::openvino_fp_mm", mutates_args=())
 def openvino_fp_mm(Tensor_A: torch.Tensor, Tensor_B: torch.Tensor, out_dtype: torch.dtype = torch.float32) -> torch.Tensor:
+    core, OV_DEVICE = get_ov_core()
     mm_dtype = "fp16" if Tensor_B.dtype == torch.float16 else "fp8"
     if mm_dtype == "fp8":
         Tensor_A = Tensor_A.to(dtype=torch.float16)
