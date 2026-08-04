@@ -3,24 +3,24 @@ import torch
 import openvino as ov
 from openvino import opset16 as ov_ops
 
-ov_core = None
+OV_CORE = None
 OV_DEVICE: str = None
 OV_COMPILED_CACHE: dict[tuple[str, tuple[int,int] | None, str, tuple[int,int] | None], tuple[ov.InferRequest, str]] = {}
 
 
 def get_ov_core():
-    global ov_core, OV_DEVICE
-    if ov_core is not None:
-        return ov_core, OV_DEVICE
+    global OV_CORE, OV_DEVICE # pylint: disable=global-statement
+    if OV_CORE is not None:
+        return OV_CORE, OV_DEVICE
     from openvino.properties import hint as ov_hints
-    ov_core = ov.Core()
-    OV_DEVICE = os.environ.get("SDNQ_OPENVINO_DEVICE", "HETERO:NPU,CPU" if "NPU" in ov_core.get_available_devices() else "CPU")
+    OV_CORE = ov.Core()
+    OV_DEVICE = os.environ.get("SDNQ_OPENVINO_DEVICE", "HETERO:NPU,CPU" if "NPU" in OV_CORE.get_available_devices() else "CPU")
     if OV_DEVICE == "NPU":
         OV_DEVICE = "HETERO:NPU,CPU"
     for ov_device in OV_DEVICE.removeprefix("HETERO:").split(","):
         if ov_device != "NPU":
-            ov_core.set_property(ov_device, {ov_hints.execution_mode: ov_hints.ExecutionMode.ACCURACY})
-    return ov_core, OV_DEVICE
+            OV_CORE.set_property(ov_device, {ov_hints.execution_mode: ov_hints.ExecutionMode.ACCURACY})
+    return OV_CORE, OV_DEVICE
 
 
 def ov_mm(infer_request: ov.InferRequest, out_name: str, A: torch.Tensor, B: torch.Tensor, out_dtype: torch.dtype = torch.float32) -> torch.Tensor:
@@ -36,16 +36,16 @@ def ov_mm(infer_request: ov.InferRequest, out_name: str, A: torch.Tensor, B: tor
 
 @torch.library.custom_op("sdnq::openvino_int_mm", mutates_args=())
 def openvino_int_mm(Tensor_A: torch.Tensor, Tensor_B: torch.Tensor, out_dtype: torch.dtype = torch.float32) -> torch.Tensor:
-    core, OV_DEVICE = get_ov_core()
-    if "GPU" not in OV_DEVICE:
-        cache_key = (OV_DEVICE, "int8", Tensor_A.shape, Tensor_B.shape)
+    ov_core, ov_device = get_ov_core()
+    if "GPU" not in ov_device:
+        cache_key = (ov_device, "int8", Tensor_A.shape, Tensor_B.shape)
     else:
-        cache_key = (OV_DEVICE, "int8", None, None)
+        cache_key = (ov_device, "int8", None, None)
     infer_request, out_name = OV_COMPILED_CACHE.get(cache_key, (None, None))
     if infer_request is not None:
         return ov_mm(infer_request, out_name, Tensor_A, Tensor_B, out_dtype=out_dtype)
 
-    if "GPU" not in OV_DEVICE:
+    if "GPU" not in ov_device:
         shape_a = ov.Shape(Tensor_A.shape)
         shape_b = ov.Shape(Tensor_B.shape)
     else:
@@ -63,7 +63,7 @@ def openvino_int_mm(Tensor_A: torch.Tensor, Tensor_B: torch.Tensor, out_dtype: t
     b = ov_ops.fake_quantize(b, low, high, low, high, 256)
 
     # NPU uses FP16 x INT8 -> FP16 instead of INT8 x INT8 -> INT32 and FP16 output overflows
-    if "NPU" in OV_DEVICE:
+    if "NPU" in ov_device:
         fp16_scale = 0.25012213 * Tensor_B.shape[-2]
         in_scale = ov_ops.constant(fp16_scale ** 0.5, dtype=ov.Type.f32)
         out_scale = ov_ops.constant(fp16_scale, dtype=ov.Type.f32, name="out_scale_const")
@@ -75,13 +75,13 @@ def openvino_int_mm(Tensor_A: torch.Tensor, Tensor_B: torch.Tensor, out_dtype: t
         out = ov_ops.matmul(a, b, False, False)
 
     ov_model = ov.Model([out], [input_a, input_b], "ov_int8_mm")
-    if "NPU" in OV_DEVICE: # NPU can't use FP32 for regular multiplications
+    if "NPU" in ov_device: # NPU can't use FP32 for regular multiplications
         for node in ov_model.get_ops():
             if node.get_friendly_name() in {"out_scale", "out_scale_const"}:
                 node.get_rt_info()["affinity"] = "CPU"
             else:
                 node.get_rt_info()["affinity"] = "NPU"
-    ov_model = core.compile_model(ov_model, OV_DEVICE)
+    ov_model = ov_core.compile_model(ov_model, ov_device)
     infer_request = ov_model.create_infer_request()
     out_name = ov_model.outputs[0]
 
@@ -95,20 +95,20 @@ def openvino_int_mm_fake(A: torch.Tensor, B: torch.Tensor, out_dtype: torch.dtyp
 
 @torch.library.custom_op("sdnq::openvino_fp_mm", mutates_args=())
 def openvino_fp_mm(Tensor_A: torch.Tensor, Tensor_B: torch.Tensor, out_dtype: torch.dtype = torch.float32) -> torch.Tensor:
-    core, OV_DEVICE = get_ov_core()
+    ov_core, ov_device = get_ov_core()
     mm_dtype = "fp16" if Tensor_B.dtype == torch.float16 else "fp8"
     if mm_dtype == "fp8":
         Tensor_A = Tensor_A.to(dtype=torch.float16)
         Tensor_B = Tensor_B.to(dtype=torch.float16)
-    if "GPU" not in OV_DEVICE:
-        cache_key = (OV_DEVICE, mm_dtype, Tensor_A.shape, Tensor_B.shape)
+    if "GPU" not in ov_device:
+        cache_key = (ov_device, mm_dtype, Tensor_A.shape, Tensor_B.shape)
     else:
-        cache_key = (OV_DEVICE, mm_dtype, None, None)
+        cache_key = (ov_device, mm_dtype, None, None)
     infer_request, out_name = OV_COMPILED_CACHE.get(cache_key, (None, None))
     if infer_request is not None:
         return ov_mm(infer_request, out_name, Tensor_A, Tensor_B, out_dtype=out_dtype)
 
-    if "GPU" not in OV_DEVICE:
+    if "GPU" not in ov_device:
         shape_a = ov.Shape(Tensor_A.shape)
         shape_b = ov.Shape(Tensor_B.shape)
     else:
@@ -137,13 +137,13 @@ def openvino_fp_mm(Tensor_A: torch.Tensor, Tensor_B: torch.Tensor, out_dtype: to
     out = ov_ops.multiply(ov_ops.convert(out, ov.Type.f32), out_scale, name="out_scale")
 
     ov_model = ov.Model([out], [input_a, input_b], "ov_fp_mm")
-    if "NPU" in OV_DEVICE: # NPU can't use FP32 for regular multiplications
+    if "NPU" in ov_device: # NPU can't use FP32 for regular multiplications
         for node in ov_model.get_ops():
             if node.get_friendly_name() in {"out_scale", "out_scale_const"}:
                 node.get_rt_info()["affinity"] = "CPU"
             else:
                 node.get_rt_info()["affinity"] = "NPU"
-    ov_model = core.compile_model(ov_model, OV_DEVICE)
+    ov_model = ov_core.compile_model(ov_model, ov_device)
     infer_request = ov_model.create_infer_request()
     out_name = ov_model.outputs[0]
 
