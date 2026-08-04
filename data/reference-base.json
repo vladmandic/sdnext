@@ -928,27 +928,35 @@
     "date": "2026 July"
   },
   "SeFi-Image 1B Base": {
-    "path": "vladmandic/SeFi-Image-1B-Base",
-    "preview": "vladmandic--SeFi-Image-1B-Base.jpg",
+    "path": "SeFi-Image/SeFi-Image-1B-Base-diffusers",
+    "preview": "SeFi-Image--SeFi-Image-1B-Base-diffusers.jpg",
     "desc": "SeFi-Image is a text-to-image foundation model family built with Semantic-First Diffusion. It separates generation into semantic and texture latent streams, denoising semantic structure slightly ahead of texture details.",
     "extras": "sampler: Default",
-    "size": 0,
+    "size": 6.32,
     "date": "2026 July"
   },
   "SeFi-Image 2B Base": {
-    "path": "vladmandic/SeFi-Image-2B-Base",
-    "preview": "vladmandic--SeFi-Image-2B-Base.jpg",
+    "path": "SeFi-Image/SeFi-Image-2B-Base-diffusers",
+    "preview": "SeFi-Image--SeFi-Image-2B-Base-diffusers.jpg",
     "desc": "SeFi-Image is a text-to-image foundation model family built with Semantic-First Diffusion. It separates generation into semantic and texture latent streams, denoising semantic structure slightly ahead of texture details.",
     "extras": "sampler: Default",
-    "size": 0,
+    "size": 8.18,
     "date": "2026 July"
   },
   "SeFi-Image 5B Base": {
-    "path": "vladmandic/SeFi-Image-5B-Base",
-    "preview": "vladmandic--SeFi-Image-5B-Base.jpg",
+    "path": "SeFi-Image/SeFi-Image-5B-Base-diffusers",
+    "preview": "SeFi-Image--SeFi-Image-5B-Base-diffusers.jpg",
     "desc": "SeFi-Image is a text-to-image foundation model family built with Semantic-First Diffusion. It separates generation into semantic and texture latent streams, denoising semantic structure slightly ahead of texture details.",
     "extras": "sampler: Default",
-    "size": 0,
+    "size": 17.69,
+    "date": "2026 July"
+  },
+  "SeFi-Image 5B RL": {
+    "path": "SeFi-Image/SeFi-Image-5B-RL-diffusers",
+    "preview": "SeFi-Image--SeFi-Image-5B-RL-diffusers.jpg",
+    "desc": "SeFi-Image is a text-to-image foundation model family built with Semantic-First Diffusion. It separates generation into semantic and texture latent streams, denoising semantic structure slightly ahead of texture details.",
+    "extras": "sampler: Default",
+    "size": 17.69,
     "date": "2026 July"
   }
 }

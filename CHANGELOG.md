@@ -3,7 +3,7 @@
 ## Update for 2026-08-04
 
 - **Models**
-  - [SeFi-Image](https://huggingface.co/SeFi-Image/SeFi-Image-5B-RL) in *Base* and *Turbo* (distilled) variants  
+  - [SeFi-Image](https://huggingface.co/SeFi-Image/SeFi-Image-5B-RL) in *Base*, *Turbo* (distilled) and *RL* (finetuned) variants  
     SeFi is an interesting model that separates generation into semantic and texture latent streams  
     and denoising semantic structure slightly ahead of texture details  
     SeFi comes in sizes with 1B, 2B and 5B params  
