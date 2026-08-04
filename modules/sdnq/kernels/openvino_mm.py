@@ -18,8 +18,9 @@ for ov_device in core.get_available_devices():
 
 def ov_mm(infer_request: ov.InferRequest, out_name: str, A: torch.Tensor, B: torch.Tensor, out_dtype: torch.dtype = torch.float32) -> torch.Tensor:
     C = torch.empty((A.shape[0], B.shape[-1]), device="cpu", dtype=torch.float32)
-    infer_request.set_tensor("A", ov.Tensor(A.detach().contiguous().to("cpu").numpy(), shared_memory=True))
-    infer_request.set_tensor("B", ov.Tensor(B.detach().contiguous().to("cpu").numpy(), shared_memory=True))
+    A, B = A.contiguous(), B.contiguous()
+    infer_request.set_tensor("A", ov.Tensor(A.detach().to("cpu").numpy(), shared_memory=True))
+    infer_request.set_tensor("B", ov.Tensor(B.detach().to("cpu").numpy(), shared_memory=True))
     infer_request.set_tensor(out_name, ov.Tensor(C.numpy(), shared_memory=True))
     infer_request.infer()
     C = C.to(A.device, dtype=out_dtype)
