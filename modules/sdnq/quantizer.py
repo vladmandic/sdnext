@@ -496,6 +496,7 @@ def sdnq_post_load_quant(
     non_blocking: bool = False,
     add_skip_keys:bool = True,
     minimum_allowed_numel: int = 16384,
+    minimum_allowed_channel_size: int = 32,
     modules_to_not_convert: list[str] | None = None,
     modules_to_not_use_matmul: list[str] | None = None,
     modules_dtype_dict: dict[str, list[str]] | None = None,
@@ -535,6 +536,7 @@ def sdnq_post_load_quant(
         non_blocking=non_blocking,
         add_skip_keys=add_skip_keys,
         minimum_allowed_numel=minimum_allowed_numel,
+        minimum_allowed_channel_size=minimum_allowed_channel_size,
         modules_to_not_convert=modules_to_not_convert,
         modules_to_not_use_matmul=modules_to_not_use_matmul,
         modules_dtype_dict=modules_dtype_dict,
@@ -873,6 +875,8 @@ class SDNQConfig(QuantizationConfigMixin):
             Disabling this option won't add model specific keys to modules_to_not_convert, modules_to_not_use_matmul and modules_dtype_dict.
         minimum_allowed_numel (`int`, *optional*, defaults to `16384`):
             Layers that have less than `minimum_allowed_numel` elements in them will be skipped and added to `modules_to_not_convert`.
+        minimum_allowed_channel_size (`int`, *optional*, defaults to `32`):
+            Layers that have less than `minimum_allowed_channel_size` channels in them will be skipped and added to `modules_to_not_convert`.
         modules_to_not_convert (`list`, *optional*, default to `None`):
             The list of modules to not quantize. Useful for quantizing models that explicitly require to have some
             modules left in their original precision (e.g. Whisper encoder, Llava encoder, Mixtral gate layers).
@@ -917,6 +921,7 @@ class SDNQConfig(QuantizationConfigMixin):
         non_blocking: bool = False,
         add_skip_keys: bool = True,
         minimum_allowed_numel: int = 16384,
+        minimum_allowed_channel_size: int = 32,
         modules_to_not_convert: list[str] | None = None,
         modules_to_not_use_matmul: list[str] | None = None,
         modules_dtype_dict: dict[str, list[str]] | None = None,
@@ -949,6 +954,7 @@ class SDNQConfig(QuantizationConfigMixin):
         self.non_blocking = non_blocking
         self.add_skip_keys = add_skip_keys
         self.minimum_allowed_numel = minimum_allowed_numel
+        self.minimum_allowed_channel_size = minimum_allowed_channel_size
         self.modules_to_not_convert = modules_to_not_convert
         self.modules_to_not_use_matmul = modules_to_not_use_matmul
         self.modules_dtype_dict = modules_dtype_dict

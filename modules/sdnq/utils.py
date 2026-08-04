@@ -44,13 +44,23 @@ def check_param_name_in(param_name: str, param_list: list[str]) -> str:
 
 
 def check_quant_is_allowed(layer_class_name: str, weight: torch.Tensor, quantization_config, pre_quantized: bool = False) -> bool:
-    return bool(
+    if (
         layer_class_name in allowed_types
         and weight.dtype in {torch.float64, torch.float32, torch.float16, torch.bfloat16}
         and not (layer_class_name in embedding_types and not quantization_config.quant_embedding)
         and not ((layer_class_name in conv_types or layer_class_name in conv_transpose_types) and not quantization_config.quant_conv)
-        and (pre_quantized or weight.numel() >= quantization_config.minimum_allowed_numel)
-    )
+    ):
+        if pre_quantized:
+            return True
+        if layer_class_name in conv_types:
+            channel_size = weight.shape[1]
+        elif layer_class_name in conv_transpose_types:
+            channel_size = weight.shape[0]
+        else:
+            channel_size = weight.shape[-1]
+        if channel_size >= quantization_config.minimum_allowed_channel_size and weight.numel() >= quantization_config.minimum_allowed_numel:
+            return True
+    return False
 
 
 def check_quantized_matmul_is_allowed(use_quantized_matmul: bool, output_channel_size: int, channel_size: int) -> bool:
