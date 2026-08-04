@@ -80,7 +80,7 @@ class PromptEnhanceScript(scripts_manager.Script):
             gguf_args['model_type'] = model_type
             gguf_args['gguf_file'] = model_file
 
-        quant_args = model_quant.create_config(module='LLM') if not gguf_args else {}
+        quant_args = model_quant.create_config(module='LLM', modules_to_not_convert=['conv1d', 'linear_attn.conv1d']) if not gguf_args else {}
 
         try:
             t0 = time.time()
@@ -127,6 +127,7 @@ class PromptEnhanceScript(scripts_manager.Script):
                 )
             finally:
                 sd_models.set_huggingface_options(quiet=True)
+
             self.llm.eval()
             register_aux('prompt_enhance', self.llm)
             tokenizer_args = { 'pretrained_model_name_or_path': model_repo }
@@ -489,7 +490,7 @@ class PromptEnhanceScript(scripts_manager.Script):
             return prompt_text # Return original text part on error
 
         try:
-            with devices.inference_context():
+            with devices.llm_context():
                 move_aux_to_gpu('prompt_enhance')
                 gen_kwargs = {
                     'do_sample': sample,
@@ -535,8 +536,7 @@ class PromptEnhanceScript(scripts_manager.Script):
         except Exception as e:
             outputs = None
             log.error(f'Prompt enhance generate: {e}')
-            if debug_enabled:
-                errors.display(e, 'Prompt enhance')
+            errors.display(e, 'Prompt enhance')
             self.busy = False
             response = f'Error: {str(e)}'
         finally:

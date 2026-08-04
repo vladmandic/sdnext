@@ -11,7 +11,7 @@
     Mage-Flow is a 4B-scale generative stack for efficient text-to-image generation and instruction-based image editing  
     *note*: Microsoft released and then unpublished the model, but we still have a mirror available for download  
 - **Features**
-  - storage analyzer: new feature that analyzes your used storage by sdnext per type and location  
+  - storage analyzer: new feature that analyzes your storage used by sdnext per type and location  
     *system -> storage*  
   - video: support for scripts/extensions  
     video processing now supports scripts and extensions (if they support video processing)  
@@ -22,11 +22,14 @@
   - remove background: new [lucida](https://huggingface.co/egeorcun/lucida) model
 - **API**
   - add `/sdapi/v1/storage` endpoint to return storage usage info  
+- **Internal**
+  - update core requirements
 - **Fixes**
   - seedvr quality
   - skip-all do not skip env init
   - sdnq check contiguous
   - torch reset compile cache on reload
+  - bypass sdna for caption/prompt-enhance calls
 
 ## Update for 2026-07-23
 

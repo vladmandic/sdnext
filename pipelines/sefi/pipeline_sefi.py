@@ -252,7 +252,7 @@ class SeFiPipeline(DiffusionPipeline):
         """
         x_list = []
         for data, pos in zip(x, x_ids):
-            _, ch = data.shape  # noqa: F841
+            _, ch = data.shape
             h_ids = pos[:, 1].to(torch.int64)
             w_ids = pos[:, 2].to(torch.int64)
 

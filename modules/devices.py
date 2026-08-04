@@ -765,6 +765,15 @@ def bypass_sdpa_hijacks():
             log.debug('SDPA bypass: restored hijacked attention')
 
 
+@contextlib.contextmanager
+def llm_context():
+    """
+    Combined context manager that applies both inference_context and bypass_sdpa_hijacks.
+    """
+    with inference_context(), bypass_sdpa_hijacks():
+        yield
+
+
 def torch_reset() -> bool:
     """
     Resets PyTorch execution graph, flushes VRAM caches, and syncs streams.

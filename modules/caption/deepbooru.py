@@ -93,7 +93,7 @@ class DeepDanbooru:
             return ''
         pic = pil_image.resize((512, 512), resample=Image.Resampling.LANCZOS).convert("RGB")
         a = np.expand_dims(np.array(pic, dtype=np.float32), 0) / 255
-        with devices.inference_context():
+        with devices.llm_context():
             x = torch.from_numpy(a).to(device=devices.device, dtype=devices.dtype)
             y = self.model(x)[0].detach().float().cpu().numpy()
         probability_dict = {}

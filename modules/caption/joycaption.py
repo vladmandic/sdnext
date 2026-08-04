@@ -108,7 +108,7 @@ def predict(question: str, image, vqa_model: str | None = None) -> str:
     inputs = processor(text=[convo_string], images=[image], return_tensors="pt").to(devices.device)
     inputs['pixel_values'] = inputs['pixel_values'].to(devices.dtype)
     try:
-        with devices.inference_context():
+        with devices.llm_context():
             generate_ids = llava_model.generate( # Generate the captions
                 **inputs,
                 # input_ids=inputs['input_ids'],
