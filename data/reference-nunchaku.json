@@ -212,5 +212,67 @@
     "extras": "sampler: Default, cfg_scale: 1.0, steps: 4",
     "size": 19.38,
     "date": "2023 November"
+  },
+  "Z-Image-Turbo Nunchaku-Lite": {
+    "path": "lite-infer/z-image-turbo-nunchaku-lite-int4_r32-bnb4-text-encoder",
+    "preview": "Tongyi-MAI--Z-Image-Turbo.jpg",
+    "extras": "sampler: Default, cfg_scale: 1.0, steps: 9",
+    "desc": "Nunchaku-Lite quantization using precompiled Kernels",
+    "size": 6.17,
+    "date": "2026 July"
+  },
+  "Baidu ERNIE-Image Nunchaku-Lite": {
+    "path": "lite-infer/ERNIE-Image-Turbo-nunchaku-lite-int4-bnb4-text-encoder",
+    "preview": "baidu--ERNIE-Image.jpg",
+    "extras": "sampler: Default, cfg_scale: 4.0, steps: 50",
+    "desc": "Nunchaku-Lite quantization using precompiled Kernels",
+    "size": 6.88,
+    "date": "2026 July"
+  },
+  "BFL FLUX.1 Dev Nunchaku-Lite": {
+    "path": "lite-infer/flux.1-dev-nunchaku-lite-int4_r32-bnb4-text-encoder",
+    "preview": "black-forest-labs--FLUX.1-dev.jpg",
+    "extras": "sampler: Default, cfg_scale: 3.5",
+    "desc": "Nunchaku-Lite quantization using precompiled Kernels",
+    "size": 10.97,
+    "date": "2026 July"
+  },
+  "BFL FLUX.1 Schnell Nunchaku-Lite": {
+    "path": "lite-infer/flux.1-schnell-nunchaku-lite-int4_r32-bnb4-text-encoder",
+    "preview": "black-forest-labs--FLUX.1-schnell.jpg",
+    "extras": "sampler: Default, cfg_scale: 3.5",
+    "desc": "Nunchaku-Lite quantization using precompiled Kernels",
+    "size": 10.95,
+    "date": "2026 July"
+  },
+  "BFL FLUX.1 Kontext Nunchaku-Lite": {
+    "path": "lite-infer/flux.1-kontext-dev-nunchaku-lite-int4_r32-bnb4-text-encoder",
+    "preview": "black-forest-labs--FLUX.1-Kontext-dev.jpg",
+    "extras": "sampler: Default, cfg_scale: 3.5",
+    "desc": "Nunchaku-Lite quantization using precompiled Kernels",
+    "size": 10.97,
+    "date": "2026 July"
+  },
+  "BFL FLUX.1 Krea Nunchaku-Lite": {
+    "path": "lite-infer/flux.1-krea-dev-nunchaku-lite-int4_r32-bnb4-text-encoder",
+    "preview": "black-forest-labs--FLUX.1-Krea-dev.jpg",
+    "extras": "sampler: Default, cfg_scale: 4.5",
+    "desc": "Nunchaku-Lite quantization using precompiled Kernels",
+    "size": 10.97,
+    "date": "2026 July"
+  },
+  "Qwen-Image Nunchaku-Lite": {
+    "path": "lite-infer/Qwen-Image-nunchaku-lite-int4_r32-bnb4-text-encoder",
+    "preview": "Qwen--Qwen-Image.jpg",
+    "desc": "Nunchaku-Lite quantization using precompiled Kernels",
+    "size": 16.81,
+    "date": "2026 July"
+  },
+  "Qwen-Image-Edit-2509 Nunchaku-Lite": {
+    "path": "lite-infer/qwen-image-edit-2509-nunchaku-lite-int4_r32-bnb4-text-encoder",
+    "preview": "Qwen--Qwen-Image-Edit-2509.jpg",
+    "desc": "Nunchaku-Lite quantization using precompiled Kernels",
+    "size": 16.81,
+    "date": "2026 July"
   }
 }

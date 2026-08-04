@@ -10,7 +10,12 @@
   - [Microsoft Mage-Flow](https://huggingface.co/mage-flow-community/Mage-Flow) in *Base* and *Turbo* (distilled) variants  
     Mage-Flow is a 4B-scale generative stack for efficient text-to-image generation and instruction-based image editing  
     *note*: Microsoft released and then unpublished the model, but we still have a mirror available for download  
+  - [Nunchaku-Lite](https://huggingface.co/lite-infer) pre-quantized models  
+    included: *Z-Image, Flux.1-Dev/Schnell/Krea/Kontex, Qwen-Image/Image-Edit, Ernie-Image*
 - **Features**
+  - add support for [Nunchaku-Lite](https://github.com/rootonchair/nunchaku-lite) inference engine  
+    unlike Nunchaku, Nunchaku-Lite is based on Kernels and does not require any additional packages to be installed  
+    but like original Nunchaku, it is only available for CUDA and right now only for `torch==2.11/2.12`  
   - storage analyzer: new feature that analyzes your storage used by sdnext per type and location  
     *system -> storage*  
   - video: support for scripts/extensions  
@@ -30,6 +35,7 @@
   - sdnq check contiguous
   - torch reset compile cache on reload
   - bypass sdna for caption/prompt-enhance calls
+  - skip sdnq for small weights  
 
 ## Update for 2026-07-23
 

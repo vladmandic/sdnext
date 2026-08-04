@@ -1377,6 +1377,7 @@ def set_environment():
     os.environ.setdefault('CUDA_MODULE_LOADING', 'LAZY')
     os.environ.setdefault('DO_NOT_TRACK', '1')
     os.environ.setdefault('FORCE_CUDA', '1')
+    os.environ.setdefault('DIFFUSERS_TRUST_REMOTE_KERNELS', 'true')
     os.environ.setdefault('GRADIO_ANALYTICS_ENABLED', 'False')
     os.environ.setdefault('K_DIFFUSION_USE_COMPILE', '0')
     os.environ.setdefault('KINETO_LOG_LEVEL', '3')

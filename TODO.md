@@ -18,7 +18,6 @@
 
 ### Unassigned
 
-- [Nunchaku Lite](https://github.com/huggingface/diffusers/pull/14100)
 - [Object clear](https://huggingface.co/jixin0101/ObjectClear) remover for Kanvas
 - Video models: add to Reference
 - Video models: support custom entries, finetunes

@@ -198,6 +198,8 @@ def check_nunchaku(module: str = ''):
     from modules import shared
     if 'nunchaku' not in shared.opts.sd_model_checkpoint.lower():
         return False
+    if 'nunchaku-lite' in shared.opts.sd_model_checkpoint.lower():
+        return False
     base_path = shared.opts.sd_model_checkpoint.split('+')[0]
     for v in shared.reference_models.values():
         if v.get('path', '') != base_path:
