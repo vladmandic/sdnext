@@ -13,9 +13,11 @@
   - [Nunchaku-Lite](https://huggingface.co/lite-infer) pre-quantized models  
     included: *Z-Image, Flux.1-Dev/Schnell/Krea/Kontex, Qwen-Image/Image-Edit, Ernie-Image*
 - **Features**
-  - add support for [Nunchaku-Lite](https://github.com/rootonchair/nunchaku-lite) inference engine  
+  - [Nunchaku-Lite](https://github.com/rootonchair/nunchaku-lite) inference engine  
     unlike Nunchaku, Nunchaku-Lite is based on Kernels and does not require any additional packages to be installed  
     but like original Nunchaku, it is only available for CUDA and right now only for `torch==2.11/2.12`  
+  - [Krea2](https://huggingface.co/krea/Krea-2-Turbo) add *Inpaint* pipeline  
+    this also makes K2 compatible with *Detailer* workflow  
   - storage analyzer: new feature that analyzes your storage used by sdnext per type and location  
     *system -> storage*  
   - video: support for scripts/extensions  

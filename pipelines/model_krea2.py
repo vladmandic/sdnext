@@ -15,16 +15,19 @@ def load_krea2(checkpoint_info, diffusers_load_config=None):
 
     from pipelines.krea2.transformer_krea2 import Krea2Transformer2DModel
     from pipelines.krea2.pipeline_krea2 import Krea2Pipeline, Krea2Img2ImgPipeline
+    from pipelines.krea2.pipeline_krea2_inpaint import Krea2InpaintPipeline
     from pipelines.krea2 import KREA2_SPEC
     diffusers.Krea2Transformer2DModel = Krea2Transformer2DModel
     diffusers.Krea2Pipeline = Krea2Pipeline
     diffusers.Krea2Img2ImgPipeline = Krea2Img2ImgPipeline
+    diffusers.Krea2InpaintPipeline = Krea2InpaintPipeline
     generic.set_pipeline('Krea2', Krea2Pipeline)
     # One class per task so get_diffusers_task defaults to text2image and set_diffuser_pipe switches
     # to the img2img variant cleanly (matches the Chroma/Qwen per-task-class pattern).
     from diffusers.pipelines import auto_pipeline
     auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING['krea2'] = Krea2Pipeline
     auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING['krea2'] = Krea2Img2ImgPipeline
+    auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING['krea2'] = Krea2InpaintPipeline
     if repo_id is None or repo_id.lower() == 'none':
         return None
 
