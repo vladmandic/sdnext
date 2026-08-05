@@ -207,30 +207,56 @@ def create_api(app):
     return api
 
 
-def async_policy():
-    _BasePolicy = asyncio.WindowsSelectorEventLoopPolicy if sys.platform == "win32" and hasattr(asyncio, "WindowsSelectorEventLoopPolicy") else asyncio.DefaultEventLoopPolicy
+def verbose_task_factory(loop, coro, context=None):
+    """Custom task factory that intercepts and logs every created task."""
+    # Retrieve the origin frame (where asyncio.create_task was called)
+    frame = coro.cr_frame if hasattr(coro, 'cr_frame') and coro.cr_frame else None
+    origin = f"{frame.f_code.co_filename}:{frame.f_lineno}" if frame else "unknown origin"
 
-    class AnyThreadEventLoopPolicy(_BasePolicy):
-        def handle_exception(self, context):
-            msg = context.get("exception", context["message"])
-            log.error(f"AsyncIO loop: {msg}")
+    # Get the coroutine function name
+    coro_name = getattr(coro, '__qualname__', str(coro))
+
+    print(f"[TASK CREATED] {coro_name} | Origin: {origin}")
+
+    # Fallback to the default Task creation (handles Python 3.11+ context kwargs)
+    if context is not None:
+        return asyncio.Task(coro, loop=loop, name=coro_name, context=context)
+    return asyncio.Task(coro, loop=loop, name=coro_name)
+
+
+def async_policy():
+    if sys.platform == "win32" and hasattr(asyncio, "WindowsSelectorEventLoopPolicy"):
+        AsyncPolicy = asyncio.WindowsSelectorEventLoopPolicy
+    else:
+        AsyncPolicy = asyncio.DefaultEventLoopPolicy
+
+    class AnyThreadEventLoopPolicy(AsyncPolicy):
+        @staticmethod
+        def handle_exception(loop, context):
+            msg = context.get("exception", context.get("message"))
+            log.error(f"AsyncIO: loop={loop}: {msg}")
+
+        def new_event_loop(self) -> asyncio.AbstractEventLoop:
+            """Ensure custom exception handler is attached whenever a loop is created."""
+            loop = super().new_event_loop()
+            if shared.cmd_opts.profile:
+                loop.slow_callback_duration = 0.001
+            loop.set_debug(shared.cmd_opts.profile)
+            log.debug(f'AsyncIO: loop={loop}')
+            loop.set_task_factory(verbose_task_factory)
+            loop.set_exception_handler(self.handle_exception)
+            return loop
 
         def get_event_loop(self) -> asyncio.AbstractEventLoop:
+            """Get current thread's event loop, creating one if none exists (thread-safe)."""
             try:
-                self.loop = super().get_event_loop()
+                return super().get_event_loop()
             except (RuntimeError, AssertionError):
-                self.loop = self.new_event_loop()
-                self.set_event_loop(self.loop)
-            return self.loop
-
-        def __init__(self):
-            super().__init__()
-            self.loop = self.get_event_loop()
-            self.loop.set_exception_handler(self.handle_exception)
-            # log.debug(f"Event loop: {self.loop}")
+                loop = self.new_event_loop()
+                self.set_event_loop(loop)
+                return loop
 
     asyncio.set_event_loop_policy(AnyThreadEventLoopPolicy())
-
 
 def get_external_ip():
     import socket
@@ -381,6 +407,7 @@ def start_ui():
     # log.debug(f'Gradio functions: registered={len(shared.demo.fns)}')
     shared.demo.server.wants_restart = False
     modules.api.middleware.setup_middleware(app, shared.cmd_opts)
+    modules.api.middleware.setup_logging(debug=shared.cmd_opts.profile)
 
     timer.startup.record("launch")
 

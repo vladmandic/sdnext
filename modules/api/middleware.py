@@ -1,12 +1,14 @@
 import ssl
 import time
 import logging
+import asyncio
 from asyncio.exceptions import CancelledError
 import anyio
 import starlette
 import uvicorn
 import fastapi
 from starlette.responses import JSONResponse
+from starlette.websockets import WebSocket, WebSocketDisconnect
 from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import HTTPException
 from fastapi.responses import RedirectResponse
@@ -30,16 +32,54 @@ def validate_subpath(endpoint: str, subpath: str | None):
         return RedirectResponse(url=url, status_code=308)
     return None
 
+class LoopInstrumentorMiddleware:
+    def __init__(self, app):
+        self.app = app
+        self.instrumented = False
+
+    async def __call__(self, scope, receive, send):
+        if not self.instrumented:
+            loop = asyncio.get_running_loop()
+            def verbose_task_factory(loop, coro, context=None):
+                coro_name = getattr(coro, '__qualname__', str(coro))
+                frame = getattr(coro, 'cr_frame', None)
+                origin = f"{frame.f_code.co_filename}:{frame.f_lineno}" if frame else "unknown"
+                log.trace(f"HTTP: coro={coro_name} fn={origin}")
+                if context is not None:
+                    return asyncio.Task(coro, loop=loop, name=coro_name, context=context)
+                return asyncio.Task(coro, loop=loop, name=coro_name)
+
+            loop.set_task_factory(verbose_task_factory)
+            self.instrumented = True
+
+        await self.app(scope, receive, send)
+
+
+def setup_logging(debug: bool = False):
+    level = logging.DEBUG if debug else logging.WARNING
+    logging.getLogger("httpcore").setLevel(level)
+    logging.getLogger("httpx").setLevel(level)
+    logging.getLogger("uvicorn.access").setLevel(level)
+    logging.getLogger("asyncio").setLevel(level)
+    if not debug:
+        logging.getLogger("uvicorn.error").disabled = True
+    if debug:
+        asyncio_logger = logging.getLogger("asyncio")
+        if not asyncio_logger.handlers:
+            handler = logging.StreamHandler()
+            handler.setFormatter(logging.Formatter("[asyncio] %(message)s"))
+            asyncio_logger.addHandler(handler)
+
 
 def setup_middleware(app: FastAPI, cmd_opts):
     ssl._create_default_https_context = ssl._create_unverified_context # pylint: disable=protected-access
-    uvicorn_logger=logging.getLogger("uvicorn.error")
-    uvicorn_logger.disabled = True
     from fastapi.middleware.cors import CORSMiddleware
     from fastapi.middleware.gzip import GZipMiddleware
     app.user_middleware = [x for x in app.user_middleware if x.cls.__name__ != 'CORSMiddleware']
     app.middleware_stack = None # reset current middleware to allow modifying user provided list
     app.add_middleware(GZipMiddleware, minimum_size=2048)
+    if cmd_opts.profile:
+        app.add_middleware(LoopInstrumentorMiddleware)
     if cmd_opts.cors_origins and cmd_opts.cors_regex:
         app.add_middleware(CORSMiddleware, allow_origins=cmd_opts.cors_origins.split(','), allow_origin_regex=cmd_opts.cors_regex, allow_methods=['*'], allow_credentials=True, allow_headers=['*'])
     elif cmd_opts.cors_origins:
@@ -123,3 +163,20 @@ def setup_middleware(app: FastAPI, cmd_opts):
 
     app.build_middleware_stack() # rebuild middleware stack on-the-fly
     log.debug(f'API middleware: {[m.cls.__name__ for m in app.user_middleware]}')
+
+    @app.websocket("/internal/monitor")
+    async def ws_monitor(ws: WebSocket):
+        await ws.accept()
+        try:
+            while True:
+                await asyncio.sleep(1.0)
+                await ws.send_json({"status": "ok"})
+        except WebSocketDisconnect:
+            pass # Expected when client navigates away or closes tab
+        except Exception as e:
+            log.error(f'WebSocket monitor: {e}')
+        finally:
+            try:
+                await ws.close()
+            except RuntimeError:
+                pass  # Socket was already closed by client

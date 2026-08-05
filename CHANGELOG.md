@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-08-04
+## Update for 2026-08-05
 
 - **Models**
   - [SeFi-Image](https://huggingface.co/SeFi-Image/SeFi-Image-5B-RL) in *Base*, *Turbo* (distilled) and *RL* (finetuned) variants  
@@ -25,6 +25,7 @@
   - startup: optimized server startup
   - process: preserve audio when processing video
   - remove background: new [lucida](https://huggingface.co/egeorcun/lucida) model
+  - profile flag now logs all http requests and internal tasks
 - **API**
   - add `/sdapi/v1/storage` endpoint to return storage usage info  
 - **Internal**
@@ -36,6 +37,7 @@
   - torch reset compile cache on reload
   - bypass sdna for caption/prompt-enhance calls
   - skip sdnq for small weights  
+  - server monitor keep websocket open
 
 ## Update for 2026-07-23
 
