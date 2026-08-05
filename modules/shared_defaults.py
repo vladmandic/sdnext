@@ -1,3 +1,4 @@
+import os
 from modules.logger import log
 from modules import devices
 
@@ -57,6 +58,9 @@ def get_default_modes(cmd_opts, mem_stat):
             default_sdp_override_options = ['Dynamic attention'] # only RDNA2 and older GPUs needs this
     elif devices.backend in {"directml", "cpu", "mps"}:
         default_sdp_override_options = ['Dynamic attention']
+
+    if devices.get_optimal_device_name() != "cpu":
+        os.environ.setdefault('SDNQ_USE_OPENVINO_MM', '0')
 
     return (
         default_offload_mode,

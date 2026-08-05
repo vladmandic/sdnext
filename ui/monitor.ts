@@ -70,7 +70,6 @@ export class ConnectionMonitorState {
 }
 
 async function updateIndicator(online: boolean, data: VersionInfo = {}, msg?: string): Promise<void> {
-  console.error('HERE', { online, data, msg });
   ConnectionMonitorState.setData({ online, data });
   ConnectionMonitorState.updateState();
   if (msg) log('monitorConnection:', { online, data, msg });

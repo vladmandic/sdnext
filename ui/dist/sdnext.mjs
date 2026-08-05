@@ -12477,7 +12477,6 @@ var ConnectionMonitorState = class _ConnectionMonitorState {
   }
 };
 async function updateIndicator(online, data = {}, msg) {
-  console.error("HERE", { online, data, msg });
   ConnectionMonitorState.setData({ online, data });
   ConnectionMonitorState.updateState();
   if (msg) log("monitorConnection:", { online, data, msg });
