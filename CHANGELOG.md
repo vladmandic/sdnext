@@ -1,4 +1,4 @@
-# Change Log for SD.Next
+\# Change Log for SD.Next
 
 ## Update for 2026-08-05
 

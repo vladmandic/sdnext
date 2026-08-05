@@ -1,14 +1,12 @@
 """Anima img2img and inpainting pipelines (built dynamically from the runtime-imported base class)."""
 
 from typing import Callable, Dict, List, Optional, Union
-
 import torch
 import torch.nn.functional as F
 from PIL import Image
 from diffusers.callbacks import MultiPipelineCallbacks, PipelineCallback
 from diffusers.image_processor import PipelineImageInput
 from diffusers.utils.torch_utils import randn_tensor
-
 from modules import devices
 
 

@@ -22,6 +22,8 @@ aux_models: dict[str, AuxModel] = {}
 
 
 def register_aux(name: str, model: torch.nn.Module) -> None:
+    if model is None:
+        return
     size = sum(p.numel() * p.element_size() for p in model.parameters()) / 1024**3
     aux_models[name] = AuxModel(model=model, name=name, size=size)
     debug_move(f'Offload: type=aux op=register name={name} size={size:.3f}')
@@ -42,6 +44,8 @@ def evict_aux(exclude: str | None = None, reason: str = 'evict') -> None:
 
 
 def _do_move_to_cpu(model, op_label, size):
+    if model is None:
+        return
     if shared.opts.diffusers_offload_streams:
         global move_stream  # pylint: disable=global-statement
         if move_stream is None:
