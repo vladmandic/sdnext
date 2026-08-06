@@ -138,6 +138,7 @@ def dq(layer):
                                   svd_up=layer.svd_up, svd_down=layer.svd_down,
                                   svd_up_q=getattr(layer, 'svd_up_q', None), svd_up_scale=getattr(layer, 'svd_up_scale', None),
                                   svd_down_q=getattr(layer, 'svd_down_q', None), svd_down_scale=getattr(layer, 'svd_down_scale', None),
+                                  codebook=getattr(layer, 'codebook', None),
                                   skip_quantized_matmul=layer.sdnq_dequantizer.use_quantized_matmul,
                                   dtype=torch.float32, skip_compile=True)
 
@@ -185,7 +186,7 @@ def requant_effective(layer, D):
                                              group_size=deq.group_size, hadamard_group_size=deq.hadamard_group_size,
                                              use_hadamard=deq.use_hadamard, use_svd=False, use_quantized_matmul=False,
                                              dequantize_fp32=False, torch_dtype=torch.bfloat16)
-    W2 = deq2(data2['weight'], data2['scale'], zero_point=data2['zero_point'], svd_up=None, svd_down=None, dtype=torch.float32, skip_compile=True)
+    W2 = deq2(data2['weight'], data2['scale'], zero_point=data2['zero_point'], svd_up=None, svd_down=None, codebook=data2.get('codebook'), dtype=torch.float32, skip_compile=True)
     return W2 - Wdq
 
 
@@ -559,6 +560,31 @@ def test_partial_coverage_layers_stay_independent():
         activate()
         assert torch.equal(dq(layer_plain), Wdq0), 'factor layer must restore bit-exact'
         assert torch.equal(dq(layer_dora), Wdq0_dora), 'fallback layer must restore bit-exact'
+    return True
+
+
+def test_codebook_requantize_backs_up_and_restores():
+    """The cb requantize fallback fits a new codebook for the modified weights, so
+    the original must ride the backup with scale and zero point: restored indices
+    against a stale codebook would silently decode to wrong weights."""
+    layer = build_layer('cb4')
+    assert layer.codebook is not None and layer.codebook.dtype == torch.int8, 'cb4 layer must carry an int8 codebook'
+    A2, B2, _ = make_delta(seed=5, sigma=3e-3)
+    net_dora = make_net('doracb', layer, A2, B2, dora=True) # non-factorable: pins the requantize fallback
+
+    with host_rank(0), mock_model(lin=layer):
+        Wdq0 = dq(layer)
+        cb0 = layer.codebook.detach().clone()
+        activate(net_dora)
+        assert isinstance(getattr(layer, 'network_weights_backup', None), torch.Tensor), 'requantize fallback must take a tensor backup'
+        assert isinstance(getattr(layer, 'sdnq_codebook_backup', None), torch.Tensor), 'codebook must be backed up alongside scale'
+        assert torch.equal(layer.sdnq_codebook_backup.to(DEVICE), cb0), 'codebook backup must hold the original levels'
+        assert layer.codebook is not None, 'requantize must attach a fresh codebook'
+        assert not torch.equal(dq(layer), Wdq0), 'fallback must have requantized the weights'
+
+        activate()
+        assert torch.equal(layer.codebook.detach().to(DEVICE), cb0), 'restore must bring back the original codebook'
+        assert torch.equal(dq(layer), Wdq0), 'unload must restore the dequantized weight bit-exact'
     return True
 
 
@@ -2827,8 +2853,8 @@ def run_tests():
     for fn in [test_network_activate_roundtrip]:
         run_test(CAT_E2E, fn)
     log.warning('=== Set transitions ===')
-    for fn in [test_mixed_family_transition_restores_base, test_partial_coverage_layers_stay_independent, test_apply_restore_preserves_weight_storage,
-               test_fuse_promote_applies_new_multiplier, test_fuse_change_then_remove_restores_pristine]:
+    for fn in [test_mixed_family_transition_restores_base, test_partial_coverage_layers_stay_independent, test_codebook_requantize_backs_up_and_restores,
+               test_apply_restore_preserves_weight_storage, test_fuse_promote_applies_new_multiplier, test_fuse_change_then_remove_restores_pristine]:
         run_test(CAT_TRANS, fn)
     log.warning('=== Hosting ===')
     for fn in [test_hosted_low_rank_delta_is_kept, test_hosted_dense_delta_beats_requant, test_hosted_skips_int8,
