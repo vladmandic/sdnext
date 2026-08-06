@@ -1,16 +1,20 @@
 # Change Log for SD.Next
 
-## Update for 2026-08-05
+## Update for 2026-08-07
 
-### Highlights for 2026-08-05
+### Highlights for 2026-08-07
 
 This release brings **Sefi-Image** and **Mage-Flow** models, plus a new **Nunchaku-Lite** inference engine  
-On the server side, there are quite a few *under-the-hood* improvements, including optimized startup, optimized webserver, end-to-end profiling, storage analyzer, etc.  
-There are also several new auxiliary models, such as **Lucida** for background removal  
-And video processing now supports scripts such as prompt enhance, nudenet, etc.  
-Plus several quality-of-life improvements and bug-fixes across the board  
+*What else*?
+- On the server side, there are quite a few *under-the-hood* improvements, including optimized startup, optimized webserver, end-to-end profiling, storage analyzer, etc.  
+- There are also several new auxiliary models, such as **Lucida** for background removal  
+- And video processing now supports scripts such as prompt enhance, nudenet, etc.  
+- Plus several quality-of-life improvements and bug-fixes across the board  
+- Updated [SD.Next Launcher](https://github.com/vladmandic/sdnext-launcher/releases/tag/v0.1.6) with improved platform compatibility and upgrade workflows  
 
-### Details for 2026-08-05
+*Note*: This release follows previous minor service-release which did not get full announcement, so if you missed it, check it out
+
+### Details for 2026-08-07
 
 - **Models**
   - [SeFi-Image](https://huggingface.co/SeFi-Image/SeFi-Image-5B-RL) in *Base*, *Turbo* (distilled) and *RL* (finetuned) variants  
