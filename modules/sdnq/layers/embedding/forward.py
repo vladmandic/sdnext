@@ -16,6 +16,7 @@ def quantized_embedding(
     zero_point: torch.FloatTensor | None = None,
     svd_up: torch.FloatTensor | None = None,
     svd_down: torch.FloatTensor | None = None,
+    codebook: torch.CharTensor | None = None,
     hadamard: torch.FloatTensor | None = None,
     embed_scale: torch.FloatTensor | float | None = None,
     result_dtype: torch.dtype | None = None,
@@ -41,8 +42,11 @@ def quantized_embedding(
             dtype=result_dtype,
             )
     else:
+        weight = weight[input]
+        if codebook is not None: # gather after the row select so only looked-up rows expand to level values
+            weight = codebook[weight.to(dtype=torch.int32)]
         result = dequantize_symmetric(
-            weight[input], scale[input],
+            weight, scale[input],
             svd_up=svd_up[input] if svd_up is not None else svd_up,
             svd_down=svd_down,
             hadamard=hadamard,
@@ -71,6 +75,7 @@ def quantized_embedding_forward(self: torch.nn.Module, input: torch.Tensor) -> t
         zero_point=self.zero_point,
         svd_up=self.svd_up,
         svd_down=self.svd_down,
+        codebook=self.codebook,
         hadamard=hadamard,
         embed_scale=getattr(self, "scalar_embed_scale", None),
         result_dtype=self.sdnq_dequantizer.result_dtype,

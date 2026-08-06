@@ -16,6 +16,7 @@ from accelerate import init_empty_weights
 from modules import devices, shared
 from .common import (
     sdnq_keys,
+    sdnq_float_keys,
     dtype_dict,
     accepted_weight_dtypes,
     accepted_matmul_dtypes,
@@ -30,6 +31,7 @@ from .common import (
 
 from .quant_utils import (
     quantize_weight,
+    quantize_weight_codebook,
     apply_svdquant,
     apply_hadamard,
     prepare_weight_for_matmul,
@@ -99,6 +101,7 @@ def sdnq_quantize_layer_weight(
     if torch_dtype is None:
         torch_dtype = weight.dtype
     quantized_matmul_dtype = get_quantized_matmul_dtype(weights_dtype, quantized_matmul_dtype)
+    is_codebook = dtype_dict[weights_dtype].get("is_codebook", False)
 
     re_quantize_for_matmul = bool(
         dtype_dict[weights_dtype]["num_bits"] > dtype_dict[quantized_matmul_dtype]["num_bits"]
@@ -120,7 +123,7 @@ def sdnq_quantize_layer_weight(
         reduction_axes = 1
         output_channel_size, channel_size = weight.shape[:2]
         use_quantized_matmul = check_quantized_matmul_is_allowed(use_quantized_matmul, output_channel_size, channel_size)
-        if use_quantized_matmul and not re_quantize_for_matmul and not dtype_dict[weights_dtype]["is_packed"]:
+        if use_quantized_matmul and not re_quantize_for_matmul and (not dtype_dict[weights_dtype]["is_packed"] or is_codebook): # packed codebook convs must flatten or the matmul kernels hit a >2D transpose
             result_shape = weight.shape
             weight = weight.flatten(1,-1)
             reduction_axes = -1
@@ -169,7 +172,7 @@ def sdnq_quantize_layer_weight(
         svd_up, svd_down = None, None
 
     if group_size == 0:
-        if use_quantized_matmul and not re_quantize_for_matmul and dtype_dict[weights_dtype]["num_bits"] >= 6:
+        if is_codebook or (use_quantized_matmul and not re_quantize_for_matmul and dtype_dict[weights_dtype]["num_bits"] >= 6): # the codebook absorbs the distribution shape, so per-channel scale is the default
             group_size = -1
         elif is_linear_type:
             group_size = 2 ** ((3 if (svd_up is not None or using_pre_calculated_svd) else 2) + dtype_dict[weights_dtype]["num_bits"])
@@ -221,7 +224,12 @@ def sdnq_quantize_layer_weight(
         if not use_tensorwise_fp8_matmul and not dtype_dict[quantized_matmul_dtype]["is_integer"]:
             cast_scale = False
 
-    weight, scale, zero_point = quantize_weight(weight, reduction_axes, weights_dtype, dtype=(scale_dtype if cast_scale else None), use_stochastic_rounding=(use_stochastic_rounding and not skip_sr))
+    if is_codebook:
+        weight, scale, codebook = quantize_weight_codebook(weight, reduction_axes, weights_dtype, dtype=(scale_dtype if cast_scale else None))
+        zero_point = None
+    else:
+        weight, scale, zero_point = quantize_weight(weight, reduction_axes, weights_dtype, dtype=(scale_dtype if cast_scale else None), use_stochastic_rounding=(use_stochastic_rounding and not skip_sr))
+        codebook = None
 
     if transpose_weights:
         scale = scale.t_().contiguous()
@@ -258,7 +266,7 @@ def sdnq_quantize_layer_weight(
         layer_class_name=layer_class_name,
     )
 
-    return (sdnq_dequantizer, {"weight": weight, "scale": scale, "zero_point": zero_point, "svd_up": svd_up, "svd_down": svd_down})
+    return (sdnq_dequantizer, {"weight": weight, "scale": scale, "zero_point": zero_point, "svd_up": svd_up, "svd_down": svd_down, "codebook": codebook})
 
 
 @devices.inference_context()
@@ -316,6 +324,8 @@ def sdnq_quantize_layer_weight_dynamic(
     for i in range(weights_dtype_order.index(weights_dtype), len(weights_dtype_order)):
         add_param_to_not_use_matmul = False
         current_weights_dtype = weights_dtype_order[i]
+        if dtype_dict[current_weights_dtype].get("is_codebook", False) and not dtype_dict[weights_dtype].get("is_codebook", False):
+            continue # codebook rungs are opt-in: only walked when the requested dtype is itself a codebook type
         current_quantized_matmul_dtype = get_quantized_matmul_dtype(current_weights_dtype, quantized_matmul_dtype)
         if quantized_matmul_dtype is None and not is_fp8_mm_supported and current_quantized_matmul_dtype in {"fp8", "float8_e4m3fn", "float8_e5m2"}:
             current_use_quantized_matmul = False
@@ -372,6 +382,7 @@ def sdnq_quantize_layer_weight_dynamic(
                 zero_point=weight_data["zero_point"],
                 svd_up=weight_data["svd_up"],
                 svd_down=weight_data["svd_down"],
+                codebook=weight_data.get("codebook"),
                 skip_quantized_matmul=sdnq_dequantizer.use_quantized_matmul,
                 dtype=weight.dtype,
                 skip_compile=True,
@@ -637,9 +648,9 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
 
         if self.pre_quantized:
             if param_value is not None:
-                if tensor_name == "weight":
+                if tensor_name in {"weight", "codebook"}: # both keep their stored dtype
                     return_dtype = param_value.dtype
-                elif self.quantization_config.dequantize_fp32 and tensor_name in sdnq_keys:
+                elif self.quantization_config.dequantize_fp32 and tensor_name in sdnq_float_keys:
                     if torch.float64 not in {param_value.dtype, self.torch_dtype}:
                         return_dtype = torch.float32
                     else:

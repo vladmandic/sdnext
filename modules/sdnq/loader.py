@@ -206,6 +206,8 @@ def post_process_model(model: torch.nn.Module) -> torch.nn.Module:
             module.scale.requires_grad_(False)
             if module.zero_point is not None:
                 module.zero_point.requires_grad_(False)
+            if getattr(module, "codebook", None) is not None:
+                module.codebook.requires_grad_(False)
             if module.sdnq_dequantizer.use_quantized_matmul and not module.sdnq_dequantizer.re_quantize_for_matmul:
                 module.weight.data = prepare_weight_for_matmul(module.weight, matmul_dtype=module.sdnq_dequantizer.quantized_matmul_dtype)
             if module.svd_up is not None:

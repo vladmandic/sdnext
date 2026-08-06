@@ -55,6 +55,42 @@ def quantize_weight(weight: torch.FloatTensor, dim: int | list[int], weights_dty
 
 
 @devices.inference_context()
+def fit_codebook(values: torch.FloatTensor, num_levels: int, iterations: int = 24) -> torch.FloatTensor:
+    # 1D lloyd-max: initialized from the uniform min/max grid so the fitted MSE never
+    # exceeds the matching affine grid's; fixed iteration count, no host syncs, meta-safe
+    values = values.reshape(-1)
+    w_min, w_max = values.min(), values.max()
+    levels = torch.arange(num_levels, dtype=values.dtype, device=values.device).div_(num_levels - 1).mul_(w_max - w_min).add_(w_min)
+    ones = torch.ones_like(values)
+    for _ in range(iterations):
+        midpoints = levels[1:].add(levels[:-1]).mul_(0.5)
+        assignment = torch.bucketize(values, midpoints)
+        sums = torch.zeros_like(levels).scatter_add_(0, assignment, values)
+        counts = torch.zeros_like(levels).scatter_add_(0, assignment, ones)
+        occupied = counts > 0
+        levels = torch.where(occupied, sums.div_(counts.clamp_(min=1)), levels) # empty clusters keep their previous level
+    return torch.sort(levels).values
+
+
+@devices.inference_context()
+def quantize_weight_codebook(weight: torch.FloatTensor, dim: int | list[int], weights_dtype: str, dtype: torch.dtype = None) -> tuple[torch.Tensor, torch.FloatTensor, torch.CharTensor]:
+    if weight.dtype != torch.float64:
+        weight = weight.to(dtype=torch.float32, copy=False)
+    scale = torch.amax(weight.abs(), dim=dim, keepdims=True).clamp_(min=torch.finfo(torch.float32).tiny) # a zero row must not poison the shared codebook
+    weight = torch.div(weight, scale).nan_to_num_()
+    levels = fit_codebook(weight, dtype_dict[weights_dtype]["max"] + 1)
+    level_absmax = levels.abs().max().clamp(min=torch.finfo(torch.float32).tiny)
+    codebook = levels.div(level_absmax).mul_(127.0).round_().clamp_(-127.0, 127.0).to(dtype=torch.int8)
+    scale = scale.mul_(level_absmax / 127.0)
+    if dtype is not None:
+        scale = scale.to(dtype=dtype)
+    snapped_levels = codebook.to(dtype=weight.dtype).mul_(level_absmax / 127.0) # assign against the int8-snapped levels, not the raw fit
+    midpoints = snapped_levels[1:].add(snapped_levels[:-1]).mul_(0.5)
+    quantized_weight = torch.bucketize(weight, midpoints).to(dtype=dtype_dict[weights_dtype]["torch_dtype"])
+    return quantized_weight, scale, codebook
+
+
+@devices.inference_context()
 def apply_svdquant(weight: torch.FloatTensor, rank: int = 32, niter: int = 8, dtype: torch.dtype = None) -> tuple[torch.FloatTensor, torch.FloatTensor, torch.FloatTensor]:
     reshape_weight = False
     if weight.ndim > 2: # convs

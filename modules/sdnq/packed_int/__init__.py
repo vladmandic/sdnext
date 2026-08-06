@@ -70,6 +70,11 @@ packed_int_function_dict["int3"] = packed_int_function_dict["uint3"]
 packed_int_function_dict["int2"] = packed_int_function_dict["uint2"]
 packed_int_function_dict["int1"] = packed_int_function_dict["uint1"]
 packed_int_function_dict["bool"] = packed_int_function_dict["uint1"]
+packed_int_function_dict["cb6"] = packed_int_function_dict["uint6"]
+packed_int_function_dict["cb5"] = packed_int_function_dict["uint5"]
+packed_int_function_dict["cb4"] = packed_int_function_dict["uint4"]
+packed_int_function_dict["cb3"] = packed_int_function_dict["uint3"]
+packed_int_function_dict["cb2"] = packed_int_function_dict["uint2"]
 
 
 def pack_int(tensor: torch.Tensor, weights_dtype: str) -> torch.Tensor:
