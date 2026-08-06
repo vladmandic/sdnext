@@ -317,6 +317,41 @@ def mount_subpath(app):
     log.info(f'Mounted: subpath="{shared.opts.subpath}"')
 
 
+def start_server(
+    blocks,
+    server_name: str | None = None, # pylint: disable=redefined-outer-name
+    server_port: int | None = None,
+    ssl_keyfile: str | None = None,
+    ssl_certfile: str | None = None,
+    ssl_keyfile_password: str | None = None, # pylint: disable=unused-argument
+    app_kwargs: dict | None = None,
+):
+    from gradio.routes import App
+    from modules.server import UvicornServer
+    if ssl_keyfile is not None and ssl_certfile is None:
+        raise ValueError("ssl_certfile must be provided if ssl_keyfile is provided.")
+    server_name = server_name or "127.0.0.1"
+    server_port = server_port or 7860
+    url_host_name = "localhost" if server_name == "0.0.0.0" else server_name
+    if server_name.startswith("[") and server_name.endswith("]"):
+        server_name = server_name[1:-1]
+    app = App.create_app(blocks, app_kwargs=app_kwargs)
+    server = UvicornServer(
+        app=app,
+        listen=server_name == '0.0.0.0',
+        host=server_name,
+        port=server_port,
+        keyfile=ssl_keyfile,
+        certfile=ssl_certfile,
+    )
+    server.start()
+    if ssl_keyfile is not None:
+        path_to_local_server = f"https://{url_host_name}:{server_port}/"
+    else:
+        path_to_local_server = f"http://{url_host_name}:{server_port}/"
+    return server_name, server_port, path_to_local_server, app, server
+
+
 def start_ui():
     log.debug('UI start sequence')
     log.debug(f'UI image support: kanvas={version.get("kanvas", "unknown")}')
@@ -362,8 +397,10 @@ def start_ui():
         allowed_paths.append(shared.cmd_opts.models_dir)
     if shared.cmd_opts.allowed_paths is not None:
         allowed_paths += [p for p in shared.cmd_opts.allowed_paths if os.path.isdir(p)]
-    log.debug(f'Root paths: {allowed_paths}')
+    log.info(f'Server: name={server_name} port={shared.cmd_opts.port} paths={allowed_paths} ssl={shared.cmd_opts.tls_keyfile}:{shared.cmd_opts.tls_certfile} auth={len(auth_pairs)}')
     with contextlib.redirect_stdout(stdout):
+        import gradio.networking
+        gradio.networking.start_server = start_server
         app, local_url, share_url = shared.demo.launch( # app is FastAPI(Starlette) instance
             share=shared.cmd_opts.share,
             server_name=server_name,
@@ -382,6 +419,11 @@ def start_ui():
             app_kwargs=fastapi_args,
             _frontend=True and shared.cmd_opts.share,
         )
+
+    uc = shared.demo.server.config
+    get_name = lambda c: getattr(c, '__name__', c) # pylint: disable=unnecessary-lambda-assignment
+    log.debug(f'Server config: loop={shared.demo.server.loop} http={get_name(uc.http_protocol_class)} ws={get_name(uc.ws_protocol_class)} interface={uc.interface} workers={uc.workers} backlog={uc.backlog} timeout_keep_alive={uc.timeout_keep_alive} timeout_notify={uc.timeout_notify} ws_max_size={uc.ws_max_size} ws_max_queue={uc.ws_max_queue} ws_ping_interval={uc.ws_ping_interval} ws_ping_timeout={uc.ws_ping_timeout}')
+
     if shared.cmd_opts.data_dir is not None:
         modules.gr_tempdir.register_tmp_file(shared.demo, os.path.join(shared.cmd_opts.data_dir, 'x'))
     log.info(f'Local URL: {local_url}')

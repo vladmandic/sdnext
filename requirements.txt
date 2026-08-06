@@ -17,11 +17,13 @@ voluptuous
 fasteners
 limits
 orjson
-websockets
 ftfy
+websockets
+httptools
 
 # versioned
 fastapi==0.124.4
+uvicorn==0.52.1
 rich==15.0.0
 safetensors==0.8.0
 peft==0.20.0

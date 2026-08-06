@@ -1,6 +1,16 @@
-\# Change Log for SD.Next
+# Change Log for SD.Next
 
 ## Update for 2026-08-05
+
+### Highlights for 2026-08-05
+
+This release brings **Sefi-Image** and **Mage-Flow** models, plus a new **Nunchaku-Lite** inference engine  
+On the server side, there are quite a few *under-the-hood* improvements, including optimized startup, optimized webserver, end-to-end profiling, storage analyzer, etc.  
+There are also several new auxiliary models, such as **Lucida** for background removal  
+And video processing now supports scripts such as prompt enhance, nudenet, etc.  
+Plus several quality-of-life improvements and bug-fixes across the board  
+
+### Details for 2026-08-05
 
 - **Models**
   - [SeFi-Image](https://huggingface.co/SeFi-Image/SeFi-Image-5B-RL) in *Base*, *Turbo* (distilled) and *RL* (finetuned) variants  
@@ -31,6 +41,7 @@
 - **API**
   - add `/sdapi/v1/storage` endpoint to return storage usage info  
 - **Internal**
+  - switch internal server to explicit `uvicorn`
   - update core requirements
 - **Fixes**
   - seedvr quality
