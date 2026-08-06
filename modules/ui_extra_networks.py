@@ -15,6 +15,7 @@ from html.parser import HTMLParser
 from collections import OrderedDict
 import gradio as gr
 from PIL import Image
+from fastapi.exceptions import HTTPException
 from starlette.responses import FileResponse, JSONResponse
 from modules import paths, shared, devices, files_cache, errors, infotext, ui_symbols, ui_components, modelstats
 from modules.logger import log
@@ -61,6 +62,8 @@ def init_api():
             allowed_dirs = shared.demo.allowed_paths
         if filename is None or len(filename) == 0:
             return JSONResponse({ "error": "no filename" }, status_code=400)
+        if not any(Path(folder).absolute() in Path(filename).absolute().parents for folder in allowed_dirs):
+            raise HTTPException(status_code=403, detail=f"file {filename}: must be in one of allowed directories")
         if not os.path.exists(filename) or not os.path.isfile(filename) or os.path.getsize(filename) == 0:
             return FileResponse('ui/assets/missing.png', headers={"Accept-Ranges": "bytes"})
         if filename.startswith('html/') or filename.startswith('models/') or filename.startswith('data/') or filename.startswith('ui/'):

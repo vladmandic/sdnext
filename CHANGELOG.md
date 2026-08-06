@@ -55,6 +55,7 @@ This release brings **Sefi-Image** and **Mage-Flow** models, plus a new **Nuncha
   - bypass sdna for caption/prompt-enhance calls
   - skip sdnq for small weights  
   - server monitor keep websocket open
+  - unauthenticated path traversal in /thumbs
 
 ## Update for 2026-07-23
 
