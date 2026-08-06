@@ -51,6 +51,10 @@ def network_backup_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Gr
                     else:
                         self.sdnq_svd_up_backup = None
                         self.sdnq_svd_down_backup = None
+                    if getattr(self, "codebook", None) is not None:
+                        self.sdnq_codebook_backup = self.codebook.clone().to(devices.cpu)
+                    else:
+                        self.sdnq_codebook_backup = None
 
         if bias_backup is None:
             if getattr(self, 'bias', None) is not None:
@@ -93,6 +97,7 @@ def network_calc_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Grou
                     self.sdnq_zero_point_backup.to(devices.device) if self.sdnq_zero_point_backup is not None else None,
                     self.sdnq_svd_up_backup.to(devices.device) if self.sdnq_svd_up_backup is not None else None,
                     self.sdnq_svd_down_backup.to(devices.device) if self.sdnq_svd_down_backup is not None else None,
+                    codebook=self.sdnq_codebook_backup.to(devices.device) if getattr(self, "sdnq_codebook_backup", None) is not None else None,
                     skip_quantized_matmul=self.sdnq_dequantizer_backup.use_quantized_matmul
                 )
             elif hasattr(self, "sdnq_dequantizer"):
@@ -102,6 +107,7 @@ def network_calc_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Grou
                     self.zero_point.to(devices.device) if self.zero_point is not None else None,
                     self.svd_up.to(devices.device) if self.svd_up is not None else None,
                     self.svd_down.to(devices.device) if self.svd_down is not None else None,
+                    codebook=self.codebook.to(devices.device) if getattr(self, "codebook", None) is not None else None,
                     skip_quantized_matmul=self.sdnq_dequantizer.use_quantized_matmul
                 )
             else:
@@ -195,6 +201,7 @@ def network_add_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Group
                     self.sdnq_zero_point_backup.to(devices.device) if self.sdnq_zero_point_backup is not None else None,
                     self.sdnq_svd_up_backup.to(devices.device) if use_svd else None,
                     self.sdnq_svd_down_backup.to(devices.device) if use_svd else None,
+                    codebook=self.sdnq_codebook_backup.to(devices.device) if getattr(self, "sdnq_codebook_backup", None) is not None else None,
                     skip_quantized_matmul=self.sdnq_dequantizer_backup.use_quantized_matmul,
                     dtype=torch.float32,
                 )
@@ -208,13 +215,14 @@ def network_add_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Group
                     self.zero_point.to(devices.device) if self.zero_point is not None else None,
                     self.svd_up.to(devices.device) if use_svd else None,
                     self.svd_down.to(devices.device) if use_svd else None,
+                    codebook=self.codebook.to(devices.device) if getattr(self, "codebook", None) is not None else None,
                     skip_quantized_matmul=self.sdnq_dequantizer.use_quantized_matmul,
                     dtype=torch.float32,
                 )
 
             new_weight = dequant_weight.to(devices.device, dtype=torch.float32) + lora_weights.to(devices.device, dtype=torch.float32)
             self.weight = torch.nn.Parameter(new_weight, requires_grad=False)
-            self.sdnq_dequantizer = self.scale = self.zero_point = self.svd_up = self.svd_down = None
+            self.sdnq_dequantizer = self.scale = self.zero_point = self.svd_up = self.svd_down = self.codebook = None
             self = sdnq_quantize_layer(
                 self,
                 SDNQConfig(
@@ -308,6 +316,10 @@ def network_apply_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Gro
                     self.svd_down = torch.nn.Parameter(self.sdnq_svd_down_backup.to(device), requires_grad=False)
                 else:
                     self.svd_up, self.svd_down = None, None
+                if getattr(self, "sdnq_codebook_backup", None) is not None:
+                    self.codebook = torch.nn.Parameter(self.sdnq_codebook_backup.to(device), requires_grad=False)
+                else:
+                    self.codebook = None
                 # del self.sdnq_dequantizer_backup, self.sdnq_scale_backup, self.sdnq_zero_point_backup, self.sdnq_svd_up_backup, self.sdnq_svd_down_backup
 
     if bias_backup is not None and not isinstance(bias_backup, bool):
