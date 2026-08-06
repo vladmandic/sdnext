@@ -206,6 +206,7 @@ dequant_dtype_configs = [
     ("uint6", "uint6", dict(weights_dtype="uint6")),
     ("int4", "int4", dict(weights_dtype="int4")),
     ("uint4", "uint4", dict(weights_dtype="uint4")),
+    ("cb4", "cb4 codebook", dict(weights_dtype="cb4")),
     ("int2", "int2", dict(weights_dtype="int2")),
     ("uint2", "uint2", dict(weights_dtype="uint2")),
     ("fp8", "float8_e4m3fn", dict(weights_dtype="float8_e4m3fn")),
@@ -214,7 +215,7 @@ dequant_dtype_configs = [
 ]
 # svd/hadamard variants measured on top of these dtypes at the first dequant shape; low bits are
 # where rotation is expected to pay, int8 is the control
-dequant_variant_dtypes = ["int8", "uint4", "uint2"]
+dequant_variant_dtypes = ["int8", "uint4", "cb4", "uint2"]
 dequant_variant_configs = [
     ("hadamard", dict(use_hadamard=True)),
     ("svd", dict(use_svd=True)),
@@ -1009,9 +1010,10 @@ def make_quantized_linear(weight, weights_dtype, group_size=0, use_quantized_mat
 
 def layer_storage_bytes(layer):
     # measured storage of everything the quantized layer keeps: packed weights, scales,
-    # zero points and svd factors; sizes on disk and in vram follow this, not the nominal bits
+    # zero points, codebook and svd factors (incl. the hosted rowwise-int8 channel);
+    # sizes on disk and in vram follow this, not the nominal bits
     total = 0
-    for name in ("weight", "scale", "zero_point", "svd_up", "svd_down"):
+    for name in ("weight", "scale", "zero_point", "svd_up", "svd_down", "codebook", "svd_up_q", "svd_up_scale", "svd_down_q", "svd_down_scale"):
         tensor = getattr(layer, name, None)
         if isinstance(tensor, (torch.Tensor, torch.nn.Parameter)):
             total += tensor.numel() * tensor.element_size()
@@ -1039,6 +1041,7 @@ def dequant_args(layer, upcast_fp8=True):
         zero_point=getattr(layer, "zero_point", None),
         svd_up=getattr(layer, "svd_up", None),
         svd_down=getattr(layer, "svd_down", None),
+        codebook=getattr(layer, "codebook", None),
         dtype=deq.result_dtype,
         result_shape=deq.result_shape,
         quantized_weight_shape=deq.quantized_weight_shape,

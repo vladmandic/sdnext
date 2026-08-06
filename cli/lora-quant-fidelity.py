@@ -288,7 +288,7 @@ def analyze_module(W_dq, deq_params, mods, calib_rms=None, step_live=None):
                   svd_steps=deq_params.get('svd_steps', 8), use_quantized_matmul=False, dequantize_fp32=False)
         deq2, data2 = sdnq_quantize_layer_weight(W_dq + D, **kw)
         W2 = deq2(data2['weight'], data2['scale'], zero_point=data2['zero_point'],
-                  svd_up=data2['svd_up'], svd_down=data2['svd_down'], dtype=torch.float32, skip_compile=True)
+                  svd_up=data2['svd_up'], svd_down=data2['svd_down'], codebook=data2.get('codebook'), dtype=torch.float32, skip_compile=True)
         Dh = rotate_hadamard(D, group_size=deq_params['hadamard_group_size']) if deq_params['use_hadamard'] else D
         step = data2['scale'].float()
         Dg = Dh.unflatten(-1, (step.shape[1], -1)) if step.ndim == 3 else Dh
@@ -404,7 +404,7 @@ def main():
                         non_matrix.append(path)
                         continue
                     W_dq = deq(layer.weight, layer.scale, zero_point=layer.zero_point, svd_up=layer.svd_up, svd_down=layer.svd_down,
-                               skip_quantized_matmul=deq.use_quantized_matmul, dtype=torch.float32, skip_compile=True).to(device)
+                               codebook=getattr(layer, 'codebook', None), skip_quantized_matmul=deq.use_quantized_matmul, dtype=torch.float32, skip_compile=True).to(device)
                     params = dict(weights_dtype=deq.weights_dtype, group_size=deq.group_size, hadamard_group_size=deq.hadamard_group_size,
                                   use_hadamard=deq.use_hadamard, use_svd=layer.svd_up is not None, svd_rank=deq.svd_rank, svd_steps=deq.svd_steps)
                     step_live = layer.scale.detach().to(device)
@@ -427,7 +427,7 @@ def main():
                         deq0, data0 = sdnq_quantize_layer_weight(W.to(device, torch.float32), layer_class_name='Linear', weights_dtype=args.dtype,
                                                                  group_size=args.group, hadamard_group_size=args.hadamard_group, use_hadamard=args.hadamard_group > 0,
                                                                  use_svd=False, use_quantized_matmul=False, dequantize_fp32=False, torch_dtype=torch.bfloat16)
-                        W_dq = deq0(data0['weight'], data0['scale'], zero_point=data0['zero_point'], svd_up=None, svd_down=None, dtype=torch.float32, skip_compile=True)
+                        W_dq = deq0(data0['weight'], data0['scale'], zero_point=data0['zero_point'], svd_up=None, svd_down=None, codebook=data0.get('codebook'), dtype=torch.float32, skip_compile=True)
                         params = dict(weights_dtype=args.dtype, group_size=deq0.group_size, hadamard_group_size=deq0.hadamard_group_size, use_hadamard=deq0.use_hadamard)
                         step_live = data0['scale'].detach()
                     sd_module = make_stub(W.shape)
