@@ -75,8 +75,10 @@ COMFY_QUANT_FORMATS: dict[str, str] = {  # comfy_quant format string -> SDNQ wei
     "int8_tensorwise": "int8",
     "float8_e4m3fn": "float8_e4m3fn",
     "nvfp4": "float4_e2m1fn",
+    "asym_w4a8_int8": "cb4",
 }
 NVFP4_GROUP_SIZE = 16  # fixed by the format definition; markers restate it
+W4A8_GROUP_SIZE = 16  # asym_w4a8_int8 default; markers may restate it
 
 
 class OverrideArchMismatch(Exception):
@@ -540,6 +542,11 @@ def detect_comfy_quant(state_dict: dict, type_name: str) -> tuple[dict[str, dict
                 f"Load model: type={type_name} native_transformer comfy_quant layer "
                 f"{name!r} nvfp4 group_size={meta.get('group_size')} is not {NVFP4_GROUP_SIZE}"
             )
+        if fmt == "asym_w4a8_int8" and int(meta.get("group_size", W4A8_GROUP_SIZE)) < 1:
+            raise OverrideArchMismatch(
+                f"Load model: type={type_name} native_transformer comfy_quant layer "
+                f"{name!r} asym_w4a8_int8 group_size={meta.get('group_size')} is not a positive integer"
+            )
         marked[name] = meta
         formats.add(fmt)
     unsupported = sorted(formats - set(COMFY_QUANT_FORMATS))
@@ -651,6 +658,53 @@ def adopt_nvfp4_layer(sd: dict, name: str, linear: torch.nn.Linear, component_na
     scales = unswizzle_block_scales(scales, out_features, groups)
     sd[f"{name}.weight"] = weight
     sd[f"{name}.scale"] = scales.to(torch.float32).mul_(global_scale.to(torch.float32)).unsqueeze(-1)
+
+
+def adopt_asym_w4a8_layer(sd: dict, name: str, linear: torch.nn.Linear, component_name: str, meta: dict) -> None:
+    """Rewrite one asym_w4a8_int8 layer's tensors in place into SDNQ cb4 layout.
+
+    Reinterprets the int8-packed 4-bit index pairs as uint8 and swaps the
+    nibble order (the container packs the even element into the high nibble,
+    SDNQ unpacks low-first), folds the fp32 per-channel scale into the e4m3
+    per-group relative scales as ``[out, groups, 1]`` fp32 grouped scales, and
+    keeps the fp32 codebook unsnapped: stored indices reference the stored
+    level order, so the codebook is adopted verbatim.
+    """
+    out_features, in_features = linear.out_features, linear.in_features
+    group_size = int(meta.get("group_size", W4A8_GROUP_SIZE))
+    if in_features % group_size != 0:
+        raise OverrideArchMismatch(
+            f"Load model: transformer=native {component_name} comfy_quant marked module "
+            f"{name!r} asym_w4a8_int8 group size {group_size} does not divide in_features={in_features}"
+        )
+    weight = sd.get(f"{name}.weight")
+    codebook = sd.pop(f"{name}.weight_codebook", None)
+    s_channel = sd.pop(f"{name}.weight_s_channel", None)
+    s_rel = sd.pop(f"{name}.weight_s_rel", None)
+    if codebook is None or s_channel is None or s_rel is None:
+        raise OverrideArchMismatch(
+            f"Load model: transformer=native {component_name} comfy_quant marked module "
+            f"{name!r} is missing asym_w4a8_int8 codebook/s_channel/s_rel tensors"
+        )
+    packed_columns = in_features // 2
+    if weight is None or weight.ndim != 2 or tuple(weight.shape) != (out_features, packed_columns):
+        found = tuple(weight.shape) if weight is not None else "missing"
+        raise OverrideArchMismatch(
+            f"Load model: transformer=native {component_name} comfy_quant marked module "
+            f"{name!r} packed weight {found} does not match {(out_features, packed_columns)}"
+        )
+    groups = in_features // group_size
+    if codebook.numel() != 16 or s_channel.numel() != out_features or tuple(s_rel.shape) != (out_features, groups):
+        raise OverrideArchMismatch(
+            f"Load model: transformer=native {component_name} comfy_quant marked module "
+            f"{name!r} sidecar shapes codebook={tuple(codebook.shape)} s_channel={tuple(s_channel.shape)} "
+            f"s_rel={tuple(s_rel.shape)} do not match out={out_features} groups={groups}"
+        )
+    weight = weight.view(torch.uint8) # reinterpret before any nibble op: arithmetic shift on int8 sign-extends
+    weight = torch.bitwise_or(torch.bitwise_left_shift(torch.bitwise_and(weight, 15), 4), torch.bitwise_right_shift(weight, 4))
+    sd[f"{name}.weight"] = weight
+    sd[f"{name}.scale"] = s_rel.to(torch.float32).mul_(s_channel.to(torch.float32).reshape(-1, 1)).unsqueeze(-1)
+    sd[f"{name}.codebook"] = codebook.to(torch.float32).reshape(-1)
 
 
 def partition_siblings(
@@ -813,7 +867,9 @@ def build_component_prequantized(
     identical regular Hadamard construction lets the dequantizer undo the
     stored rotation; nvfp4 layers keep their packed 4-bit codes (nibble order
     swapped once) and land on SDNQ's grouped quantization with the block and
-    global scales folded into fp32 per-group scales.
+    global scales folded into fp32 per-group scales; asym_w4a8_int8 layers
+    keep their packed codebook indices (nibble order swapped once) and adopt
+    the fp32 codebook verbatim as SDNQ cb4 with folded fp32 grouped scales.
     The file dictates which layers are quantized, independent of the user's
     quantization settings, and floating-point SDNQ params are not cast to the
     target dtype (the fp32 scales must survive). Layers are assembled in
@@ -838,6 +894,8 @@ def build_component_prequantized(
     storage_dtype = dtype_dict[weights_dtype]["storage_dtype"]
     target_dtype = dtype if dtype is not None else devices.dtype
     is_nvfp4 = comfy_format == "nvfp4"
+    is_w4a8 = comfy_format == "asym_w4a8_int8"
+    is_grouped = is_nvfp4 or is_w4a8
     # on hardware where compiled graphs cannot touch e4m3 tensors, adopt fp8 weights
     # through the uint8-backed codec: same values (NaN codes decode as +/-480), and
     # compiled dequant beats the eager native-fp8 fallback by ~6x
@@ -849,13 +907,14 @@ def build_component_prequantized(
 
     # Civitai relabels these containers freely; trust the marker only as far
     # as the stored tensors actually match it.
+    expected_weight_dtype = torch.int8 if is_w4a8 else storage_dtype # w4a8 ships int8-viewed packed nibbles; adoption reinterprets to uint8
     for name in marked_names:
         weight = sd.get(f"{name}.weight")
-        if weight is None or weight.dtype != storage_dtype:
+        if weight is None or weight.dtype != expected_weight_dtype:
             found = weight.dtype if weight is not None else "missing"
             raise OverrideArchMismatch(
                 f"Load model: transformer=native {component_name} comfy_quant format "
-                f"{comfy_format} expects {storage_dtype} weights but {name!r} has {found}"
+                f"{comfy_format} expects {expected_weight_dtype} weights but {name!r} has {found}"
             )
         if remap_fp8_storage:
             sd[f"{name}.weight"] = weight.view(torch.uint8)
@@ -866,7 +925,7 @@ def build_component_prequantized(
     quantization_config = SDNQConfig(
         weights_dtype=weights_dtype,
         quantized_matmul_dtype=matmul_dtype,
-        group_size=NVFP4_GROUP_SIZE if is_nvfp4 else -1,
+        group_size=NVFP4_GROUP_SIZE if is_nvfp4 else W4A8_GROUP_SIZE if is_w4a8 else -1,
         use_quantized_matmul=(shared.opts.sdnq_quantize_matmul_mode != "disabled"),
         dequantize_fp32=shared.opts.sdnq_dequantize_fp32,
         add_skip_keys=False,
@@ -904,21 +963,24 @@ def build_component_prequantized(
             )
         if is_nvfp4:
             adopt_nvfp4_layer(sd, name, linear, component_name, marker_meta[name])
+        elif is_w4a8:
+            adopt_asym_w4a8_layer(sd, name, linear, component_name, marker_meta[name])
+        layer_group = NVFP4_GROUP_SIZE if is_nvfp4 else int(marker_meta[name].get("group_size", W4A8_GROUP_SIZE)) if is_w4a8 else -1
         layer_shape = torch.Size((linear.out_features, linear.in_features))
         linear.sdnq_dequantizer = SDNQDequantizer(
             result_dtype=target_dtype,
-            result_shape=layer_shape if is_nvfp4 else None,
+            result_shape=layer_shape if is_grouped else None,
             original_shape=layer_shape,
             original_stride=(linear.in_features, 1),
-            quantized_weight_shape=torch.Size((linear.out_features, linear.in_features // NVFP4_GROUP_SIZE, NVFP4_GROUP_SIZE)) if is_nvfp4 else layer_shape,
+            quantized_weight_shape=torch.Size((linear.out_features, linear.in_features // layer_group, layer_group)) if is_grouped else layer_shape,
             weights_dtype=weights_dtype,
             quantized_matmul_dtype=matmul_dtype,
             hadamard_group_size=hadamard_group_size,
-            group_size=NVFP4_GROUP_SIZE if is_nvfp4 else -1,
+            group_size=layer_group,
             svd_rank=32,
             svd_steps=8,
             use_quantized_matmul=False,
-            re_quantize_for_matmul=is_nvfp4,
+            re_quantize_for_matmul=is_grouped,
             use_stochastic_rounding=False,
             use_hadamard=use_hadamard,
             layer_class_name="Linear",
@@ -928,6 +990,8 @@ def build_component_prequantized(
         wrapped.zero_point = None
         wrapped.svd_up = None
         wrapped.svd_down = None
+        if is_w4a8: # a meta placeholder so the codebook lands in expected_keys; the loader assigns the real fp32 levels
+            wrapped.codebook = torch.nn.Parameter(torch.empty((16,), dtype=torch.float32, device="meta"), requires_grad=False)
         setattr(parent, child, wrapped)
 
     target_device = (
