@@ -58,12 +58,28 @@ export function setProgress(res?: any) {
       eta = min > 0 ? `${Math.round(min)}m ${Math.round(sec)}s` : `${Math.round(sec)}s`;
     }
   }
+  const elPerf = document.getElementById('control-performance');
+  let hint = '';
+  if (elPerf && res) {
+    const jobTxt = res.job && res.job !== '' ? ` | Job ${res.job}` : '';
+    const batchTxt = res.batch > 0 ? ` | Batch ${res.batch}/${res.batches}` : '';
+    const stateTxt = res.queued ? 'Queued' : res.paused ? 'Paused' : res.completed ? 'Completed' : res.active ? 'Active' : 'Idle'; // eslint-disable-line no-nested-ternary
+    const stepsTxt = res.step > 0 ? ` | Step ${res.step}/${res.steps}` : '';
+    const progressTxt = res.progress > 0 ? ` | Progress ${Math.round(100.0 * res.progress)}%` : '';
+    const etaTxt = res.eta > 0 ? ` | ETA ${formatTime(res.eta)}` : '';
+    const previewTxt = res.id_live_preview > 0 ? ` | Preview ${res.id_live_preview}` : '';
+    const elapsedTxt = res.job_time > 0 ? ` | Elapsed ${formatTime((Date.now() / 1000) - res.job_time)}` : '';
+    const startedTxt = res.job_time > 0 ? ` | Started ${new Date(res.job_time * 1000).toLocaleTimeString()}` : '';
+    hint = `⏱ State ${stateTxt} ${jobTxt} ${startedTxt} ${elapsedTxt} ${batchTxt} ${progressTxt} ${stepsTxt} ${etaTxt} ${previewTxt}`.replaceAll('  ', ' ').trim();
+    elPerf.innerHTML = `<p>${hint}`;
+  }
   document.title = `SD.Next ${perc}`;
   for (const elId of elements) {
     const el = document.getElementById(elId);
     if (!el) continue;
     const jobLabel = (res ? `${job} ${perc}${eta}` : 'Generate').trim();
     el.innerText = jobLabel;
+    el.title = hint.length > 0 ? hint : jobLabel;
     if (!window.waitForUiReady) {
       const gradient = perc !== '' ? perc : '100%';
       if (jobLabel === 'Generate') el.style.background = 'var(--primary-500)';
@@ -72,6 +88,19 @@ export function setProgress(res?: any) {
       else if (res && progress > 0 && progress < 1) el.style.background = `linear-gradient(to right, var(--primary-500) 0%, var(--primary-800) ${gradient}, var(--neutral-700) ${gradient})`;
       else el.style.background = 'var(--primary-500)';
     }
+  }
+  const el = document.getElementById('control-performance');
+  if (el && res) {
+    const jobTxt = res.job && res.job !== '' ? ` | Job ${res.job}` : '';
+    const batchTxt = res.batch > 0 ? ` | Batch ${res.batch}/${res.batches}` : '';
+    const stateTxt = res.queued ? 'Queued' : res.paused ? 'Paused' : res.completed ? 'Completed' : res.active ? 'Active' : 'Idle'; // eslint-disable-line no-nested-ternary
+    const stepsTxt = res.step > 0 ? ` | Step ${res.step}/${res.steps}` : '';
+    const progressTxt = res.progress > 0 ? ` | Progress ${Math.round(100.0 * res.progress)}%` : '';
+    const etaTxt = res.eta > 0 ? ` | ETA ${formatTime(res.eta)}` : '';
+    const previewTxt = res.id_live_preview > 0 ? ` | Preview ${res.id_live_preview}` : '';
+    const elapsedTxt = res.job_time > 0 ? ` | Elapsed ${formatTime((Date.now() / 1000) - res.job_time)}` : '';
+    const startedTxt = res.job_time > 0 ? ` | Started ${new Date(res.job_time * 1000).toLocaleTimeString()}` : '';
+    el.innerHTML = `<p>⏱ State ${stateTxt} ${jobTxt} ${startedTxt} ${elapsedTxt} ${batchTxt} ${progressTxt} ${stepsTxt} ${etaTxt} ${previewTxt}</p>`.replaceAll('  ', ' ').trim();
   }
 }
 
@@ -153,60 +182,73 @@ export function requestProgress(id_task = 'undefined', progressEl = null, galler
     }
   };
 
-  const startLivePreview = (taskId: string, id_live_preview: number) => {
-    if (window.opts.live_preview_refresh_period === 0) return;
+  const onProgressDataHandler = async (res, caller) => {
+    if (res?.debug) debug('progress:', { start: dateStart, res });
+    lastState = res;
+    const elapsedFromStart = (Date.now() - dateStart) / 1000;
+    hasStarted = hasStarted || res.active;
+    if (res.completed || (!res.active && (hasStarted || once))) {
+      debug('progress', { end: res, reason: res.completed ? 'completed' : 'inactive' });
+      const hidden = document.hidden || !previewVisible();
+      if (!res.paused) removeLivePreview(!hidden); // only abort if not paused
+      return;
+    }
+    if (elapsedFromStart > progressTimeout && !res.queued && res.progress === prevProgress) {
+      debug('progress', { end: res, reason: 'progressTimeout' });
+      if (!res.paused) removeLivePreview(false); // only abort if not paused
+      return;
+    }
+    if (elapsedFromStart > startTimeout && !res.queued && !res.active) {
+      debug('progress', { end: res, reason: 'startTimeout' });
+      if (!res.paused) removeLivePreview(false); // only abort if not paused
+      return;
+    }
+    if (res.progress !== prevProgress) {
+      dateStart = Date.now();
+      prevProgress = res.progress;
+    }
+    setProgress(res);
+    if (res.live_preview && !livePreview) initLivePreview();
+    let id_live_preview = res.id_live_preview;
+    if (res.live_preview && galleryEl) {
+      if (img.src !== res.live_preview) img.src = res.live_preview;
+      id_live_preview = res.id_live_preview;
+    }
+    if (onProgress) onProgress(res);
+    // timeout should be random +/- 20% of max(window.opts.live_preview_refresh_period || 500, 500))
+    let timeout = Math.max(window.opts.live_preview_refresh_period || 500, 500);
+    timeout += (Math.random() * 0.4 - 0.2) * timeout;
+    setTimeout(() => caller(id_task, id_live_preview), timeout);
+  };
 
-    let request_id = -1;
+  const onProgressErrorHandler = (err) => {
+    error('progress', { error: err });
+    removeLivePreview(false);
+  };
+
+  const startLivePreview = (taskId: string, id_live_preview: number) => {
     const hidden = document.hidden || !previewVisible();
+    let request_id = id_live_preview;
     if (hidden) {
       if (!window.opts.live_preview_require_focus) request_id = id_live_preview;
-    } else {
-      request_id = id_live_preview;
+    } else if (window.opts.live_preview_refresh_period === 0) {
+      request_id = -1;
     }
-
-    const onProgressHandler = (res) => {
-      if (res?.debug) debug('progress:', { start: dateStart, id: request_id, res });
-      lastState = res;
-      const elapsedFromStart = (Date.now() - dateStart) / 1000;
-      hasStarted = hasStarted || res.active;
-      if (res.completed || (!res.active && (hasStarted || once))) {
-        debug('progress', { end: res, reason: res.completed ? 'completed' : 'inactive' });
-        if (!res.paused) removeLivePreview(!hidden); // only abort if not paused
-        return;
-      }
-      if (elapsedFromStart > progressTimeout && !res.queued && res.progress === prevProgress) {
-        debug('progress', { end: res, reason: 'progressTimeout' });
-        if (!res.paused) removeLivePreview(false); // only abort if not paused
-        return;
-      }
-      if (elapsedFromStart > startTimeout && !res.queued && !res.active) {
-        debug('progress', { end: res, reason: 'startTimeout' });
-        if (!res.paused) removeLivePreview(false); // only abort if not paused
-        return;
-      }
-      if (res.progress !== prevProgress) {
-        dateStart = Date.now();
-        prevProgress = res.progress;
-      }
-      setProgress(res);
-      if (res.live_preview && !livePreview) initLivePreview();
-      if (res.live_preview && galleryEl) {
-        if (img.src !== res.live_preview) img.src = res.live_preview;
-        id_live_preview = res.id_live_preview;
-      }
-      if (onProgress) onProgress(res);
-      setTimeout(() => startLivePreview(id_task, id_live_preview), window.opts.live_preview_refresh_period || 500);
-    };
-
-    const onProgressErrorHandler = (err) => {
-      error('progress', { error: err });
-      removeLivePreview(false);
-    };
-
-    xhrPost('./internal/progress', { id_task, id_live_preview: request_id }, onProgressHandler, onProgressErrorHandler, false, 30000);
+    // eslint-disable-next-line @typescript-eslint/no-use-before-define
+    xhrPost('./internal/progress', { id_task, id_live_preview: request_id }, onLivePreviewHandler, onProgressErrorHandler, false, 30000); // poll for preview
   };
+
+  const startProgress = (taskId: string, id_live_preview: number) => {
+    // eslint-disable-next-line @typescript-eslint/no-use-before-define
+    xhrPost('./internal/progress', { id_task, id_live_preview: -1 }, onProgressHandler, onProgressErrorHandler, false, 30000); // poll for progress
+  };
+
+  const onProgressHandler = (res) => onProgressDataHandler(res, startProgress);
+  const onLivePreviewHandler = (res) => onProgressDataHandler(res, startLivePreview);
+
   debug('progress', { start: dateStart });
   startLivePreview(id_task, 0);
+  startProgress(id_task, -1);
 }
 
 window.checkPaused = checkPaused;

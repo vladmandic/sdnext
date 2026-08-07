@@ -189,7 +189,7 @@
     "path": "CalamitousFelicitousness/Krea-2-Base-Diffusers",
     "preview": "CalamitousFelicitousness--Krea-2-Base-Diffusers.jpg",
     "desc": "Krea 2 (K2) Base is the undistilled foundation model of the Krea 2 family, trained from scratch by Krea. A 12.9B-parameter single-stream flow-matching DiT that uses a Qwen3-VL-4B vision-language model as its text encoder and the Qwen-Image VAE. The base checkpoint is intended for fine-tuning and LoRA training; LoRAs trained on it apply to Krea 2 Turbo.",
-    "extras": "sampler: Default, cfg_scale: 4.5, steps: 52, width: 1024, height: 1024",
+    "extras": "sampler: Default, cfg_scale: 4.5, steps: 52",
     "size": 33.5,
     "date": "2026 June"
   },
@@ -917,6 +917,46 @@
     "desc": "JoyAI Image Edit Plus is a Diffusers-native image editing model that combines a JoyImageEditPlus transformer with Qwen3-VL multimodal conditioning for instruction-guided edits.",
     "size": 47.98,
     "extras": "sampler: Default",
+    "date": "2026 July"
+  },
+  "Microsoft Mage-Flow": {
+    "path": "vladmandic/Mage-Flow-4B",
+    "preview": "vladmandic--Mage-Flow-4B.jpg",
+    "desc": "Mage-Flow is a compact 4B-scale generative stack for efficient text-to-image generation and instruction-based image editing.",
+    "extras": "sampler: Default",
+    "size": 16.19,
+    "date": "2026 July"
+  },
+  "SeFi-Image 1B Base": {
+    "path": "SeFi-Image/SeFi-Image-1B-Base-diffusers",
+    "preview": "SeFi-Image--SeFi-Image-1B-Base-diffusers.jpg",
+    "desc": "SeFi-Image is a text-to-image foundation model family built with Semantic-First Diffusion. It separates generation into semantic and texture latent streams, denoising semantic structure slightly ahead of texture details.",
+    "extras": "sampler: Default",
+    "size": 6.32,
+    "date": "2026 July"
+  },
+  "SeFi-Image 2B Base": {
+    "path": "SeFi-Image/SeFi-Image-2B-Base-diffusers",
+    "preview": "SeFi-Image--SeFi-Image-2B-Base-diffusers.jpg",
+    "desc": "SeFi-Image is a text-to-image foundation model family built with Semantic-First Diffusion. It separates generation into semantic and texture latent streams, denoising semantic structure slightly ahead of texture details.",
+    "extras": "sampler: Default",
+    "size": 8.18,
+    "date": "2026 July"
+  },
+  "SeFi-Image 5B Base": {
+    "path": "SeFi-Image/SeFi-Image-5B-Base-diffusers",
+    "preview": "SeFi-Image--SeFi-Image-5B-Base-diffusers.jpg",
+    "desc": "SeFi-Image is a text-to-image foundation model family built with Semantic-First Diffusion. It separates generation into semantic and texture latent streams, denoising semantic structure slightly ahead of texture details.",
+    "extras": "sampler: Default",
+    "size": 17.69,
+    "date": "2026 July"
+  },
+  "SeFi-Image 5B RL": {
+    "path": "SeFi-Image/SeFi-Image-5B-RL-diffusers",
+    "preview": "SeFi-Image--SeFi-Image-5B-RL-diffusers.jpg",
+    "desc": "SeFi-Image is a text-to-image foundation model family built with Semantic-First Diffusion. It separates generation into semantic and texture latent streams, denoising semantic structure slightly ahead of texture details.",
+    "extras": "sampler: Default",
+    "size": 17.69,
     "date": "2026 July"
   }
 }

@@ -55,7 +55,7 @@ class MarigoldDepthOutput(BaseOutput):
 
     depth_np: np.ndarray
     depth_colored: Image.Image
-    uncertainty: Union[None, np.ndarray]
+    uncertainty: Union[np.ndarray, None]
 
 
 class MarigoldPipeline(DiffusionPipeline):

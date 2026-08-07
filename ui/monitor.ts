@@ -10,11 +10,12 @@ interface VersionInfo {
 }
 
 let monitorActive = false;
+let wsTimer: ReturnType<typeof setTimeout> | undefined;
 
 export class ConnectionMonitorState {
   static ws: WebSocket | undefined;
   static url = '';
-  static delay = 1000;
+  static delay = 2000;
   static element: HTMLElement | undefined;
   static version = '';
   static commit = '';
@@ -37,7 +38,7 @@ export class ConnectionMonitorState {
     if (online !== this.online) {
       this.online = online;
       this.ts = new Date();
-      debug('monitorState', { online: ConnectionMonitorState.online, ts: ConnectionMonitorState.ts });
+      debug('monitorState', { online: ConnectionMonitorState.online, ts: ConnectionMonitorState.ts?.toLocaleTimeString() });
     }
     if (data?.updated) this.version = data.updated;
     if (data?.commit) this.commit = data.commit;
@@ -74,21 +75,45 @@ async function updateIndicator(online: boolean, data: VersionInfo = {}, msg?: st
   if (msg) log('monitorConnection:', { online, data, msg });
 }
 
+function scheduleNextLoop() {
+  if (wsTimer) {
+    clearTimeout(wsTimer);
+    wsTimer = undefined;
+  }
+  const offlineDurationMs = Date.now() - ConnectionMonitorState.ts.getTime();
+  if (!ConnectionMonitorState.online && offlineDurationMs > (60 * 60 * 1000)) ConnectionMonitorState.delay = 10000;
+  else if (!ConnectionMonitorState.online && offlineDurationMs > (5 * 60 * 1000)) ConnectionMonitorState.delay = 5000;
+  else ConnectionMonitorState.delay = 1000;
+  wsTimer = setTimeout(wsMonitorLoop, ConnectionMonitorState.delay); // eslint-disable-line @typescript-eslint/no-use-before-define
+}
+
 async function wsMonitorLoop() {
-  const delayed = Date.now() - ConnectionMonitorState.ts.getTime();
-  if ((delayed > 60 * 60) && (ConnectionMonitorState.delay < 10) && !ConnectionMonitorState.online) ConnectionMonitorState.delay = 10000;
-  else if ((delayed > 5 * 60) && (ConnectionMonitorState.delay < 5) && !ConnectionMonitorState.online) ConnectionMonitorState.delay = 5000;
-  else ConnectionMonitorState.delay = 2000;
+  // Tear down any existing socket before creating a new one
+  if (ConnectionMonitorState.ws) {
+    ConnectionMonitorState.ws.onopen = null;
+    ConnectionMonitorState.ws.onmessage = null;
+    ConnectionMonitorState.ws.onclose = null;
+    ConnectionMonitorState.ws.onerror = null;
+    try {
+      ConnectionMonitorState.ws.close();
+    } catch {
+      // Ignore cleanup errors on stale sockets
+    }
+    ConnectionMonitorState.ws = undefined;
+  }
+
   try {
-    ConnectionMonitorState.ws = new WebSocket(`${ConnectionMonitorState.url}/queue/join`);
-    ConnectionMonitorState.ws.onopen = () => {};
-    ConnectionMonitorState.ws.onmessage = () => updateIndicator(true);
-    ConnectionMonitorState.ws.onclose = () => setTimeout(wsMonitorLoop, ConnectionMonitorState.delay); // main re-check loop
-    ConnectionMonitorState.ws.onerror = (e: Event) => updateIndicator(false, {}, String((e as ErrorEvent).message || 'unknown error')); // actual error
+    ConnectionMonitorState.ws = new WebSocket(`${ConnectionMonitorState.url}/internal/monitor`);
+    ConnectionMonitorState.ws.onopen = () => updateIndicator(true);
+    ConnectionMonitorState.ws.onmessage = (msg: MessageEvent) => updateIndicator(true, msg.data ? JSON.parse(msg.data) : {});
+    ConnectionMonitorState.ws.onclose = () => {
+      updateIndicator(false);
+      scheduleNextLoop();
+    };
+    ConnectionMonitorState.ws.onerror = (e: Event) => updateIndicator(false, {}, String((e as ErrorEvent).message || 'unknown error'));
   } catch (e) {
     updateIndicator(false, {}, String((e as Error).message || e));
-    // eslint-disable-next-line @typescript-eslint/no-use-before-define
-    setTimeout(monitorConnection, ConnectionMonitorState.delay);
+    scheduleNextLoop();
   }
 }
 
@@ -114,6 +139,6 @@ export async function monitorConnection() {
     wsMonitorLoop();
   } catch {
     updateIndicator(false, data);
-    setTimeout(monitorConnection, ConnectionMonitorState.delay);
+    scheduleNextLoop();
   }
 }

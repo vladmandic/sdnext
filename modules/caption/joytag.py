@@ -1073,7 +1073,7 @@ def predict(image: Image.Image):
     load()
     image_tensor = prepare_image(image, model.image_size).unsqueeze(0).to(device=devices.device, dtype=devices.dtype)
     try:
-        with devices.inference_context():
+        with devices.llm_context():
             preds = model({'image': image_tensor})
             tag_preds = preds['tags'].sigmoid().cpu()
     finally:

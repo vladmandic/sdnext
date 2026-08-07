@@ -23,7 +23,7 @@ class ScriptSeedVR(scripts_postprocessing.ScriptPostprocessing):
                     seedvr_seed = gr.Number(step=1, value=-1, label="SeedVR seed", elem_id="extras_seedvr_seed")
                 with gr.Row():
                     seedvr_cfg_scale = gr.Slider(minimum=0.0, maximum=15.0, step=0.01, value=1.5, label="SeedVR guidance scale", elem_id="extras_seedvr_cfg_scale")
-                    seedvr_cfg_rescale = gr.Slider(minimum=0.0, maximum=15.0, step=0.01, value=0.0, label="SeedVR guidance rescale", elem_id="extras_seedvr_cfg_rescale")
+                    seedvr_cfg_rescale = gr.Slider(minimum=0.0, maximum=1.0, step=0.01, value=0.0, label="SeedVR guidance rescale", elem_id="extras_seedvr_cfg_rescale")
             with gr.Accordion('SeedVR VAE', open = False, elem_id="postprocess_seedvr_vae_accordion"):
                 with gr.Row():
                     seedvr_vae_tile_encode = gr.Checkbox(label="VAE tiled encode", value=True, elem_id="extras_seedvr_vae_tile_encode")
@@ -32,8 +32,8 @@ class ScriptSeedVR(scripts_postprocessing.ScriptPostprocessing):
                     seedvr_tile_size = gr.Slider(minimum=64, maximum=4096, step=8, value=1024, label="SeedVR tile size", elem_id="extras_seedvr_tile_size")
                     seedvr_tile_overlap = gr.Slider(minimum=0, maximum=1.0, step=0.01, value=0.25, label="SeedVR tile overlap", elem_id="extras_seedvr_tile_overlap")
                 with gr.Row():
-                    seedvr_vae_memory = gr.Slider(minimum=0.1, maximum=1.0, step=0.01, value=1.0, label="SeedVR VAE memory", elem_id="extras_seedvr_vae_memory")
-            with gr.Accordion('SeedVR video', open = False, elem_id="postprocess_seedvr_video_accordion"):
+                    seedvr_vae_memory = gr.Slider(minimum=0.1, maximum=1.0, step=0.01, value=0.5, label="SeedVR VAE memory", elem_id="extras_seedvr_vae_memory")
+            with gr.Accordion('SeedVR video', open = False, elem_id="postprocess_seedvr_video_accordion", visible=False):
                 with gr.Row():
                     seedvr_batch_size = gr.Slider(minimum=1, maximum=64, step=1, value=1, label="SeedVR batch size", elem_id="extras_seedvr_batch_size")
                     seedvr_batch_overlap = gr.Slider(minimum=0, maximum=16, step=1, value=0, label="SeedVR batch overlap", elem_id="extras_seedvr_batch_overlap")

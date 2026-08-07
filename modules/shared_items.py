@@ -84,6 +84,8 @@ pipelines = {
     'XOmni': None,
     'ZetaChroma': None,
     'Boogu': None,
+    'SeFi': None,
+    'MageFlow': None,
 }
 
 

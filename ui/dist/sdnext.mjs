@@ -2759,15 +2759,15 @@ var require_jquery = __commonJS({
       function returnFalse() {
         return false;
       }
-      function on(elem, types, selector, data, fn, one) {
+      function on(elem, types2, selector, data, fn, one) {
         var origFn, type;
-        if (typeof types === "object") {
+        if (typeof types2 === "object") {
           if (typeof selector !== "string") {
             data = data || selector;
             selector = void 0;
           }
-          for (type in types) {
-            on(elem, type, selector, data, types[type], one);
+          for (type in types2) {
+            on(elem, type, selector, data, types2[type], one);
           }
           return elem;
         }
@@ -2798,11 +2798,11 @@ var require_jquery = __commonJS({
           fn.guid = origFn.guid || (origFn.guid = jQuery3.guid++);
         }
         return elem.each(function() {
-          jQuery3.event.add(this, types, fn, data, selector);
+          jQuery3.event.add(this, types2, fn, data, selector);
         });
       }
       jQuery3.event = {
-        add: function(elem, types, handler, data, selector) {
+        add: function(elem, types2, handler, data, selector) {
           var handleObjIn, eventHandle, tmp, events, t, handleObj, special, handlers, type, namespaces, origType, elemData = dataPriv.get(elem);
           if (!acceptData(elem)) {
             return;
@@ -2826,10 +2826,10 @@ var require_jquery = __commonJS({
               return typeof jQuery3 !== "undefined" && jQuery3.event.triggered !== e.type ? jQuery3.event.dispatch.apply(elem, arguments) : void 0;
             };
           }
-          types = (types || "").match(rnothtmlwhite) || [""];
-          t = types.length;
+          types2 = (types2 || "").match(rnothtmlwhite) || [""];
+          t = types2.length;
           while (t--) {
-            tmp = rtypenamespace.exec(types[t]) || [];
+            tmp = rtypenamespace.exec(types2[t]) || [];
             type = origType = tmp[1];
             namespaces = (tmp[2] || "").split(".").sort();
             if (!type) {
@@ -2871,20 +2871,20 @@ var require_jquery = __commonJS({
           }
         },
         // Detach an event or set of events from an element
-        remove: function(elem, types, handler, selector, mappedTypes) {
+        remove: function(elem, types2, handler, selector, mappedTypes) {
           var j, origCount, tmp, events, t, handleObj, special, handlers, type, namespaces, origType, elemData = dataPriv.hasData(elem) && dataPriv.get(elem);
           if (!elemData || !(events = elemData.events)) {
             return;
           }
-          types = (types || "").match(rnothtmlwhite) || [""];
-          t = types.length;
+          types2 = (types2 || "").match(rnothtmlwhite) || [""];
+          t = types2.length;
           while (t--) {
-            tmp = rtypenamespace.exec(types[t]) || [];
+            tmp = rtypenamespace.exec(types2[t]) || [];
             type = origType = tmp[1];
             namespaces = (tmp[2] || "").split(".").sort();
             if (!type) {
               for (type in events) {
-                jQuery3.event.remove(elem, type + types[t], handler, selector, true);
+                jQuery3.event.remove(elem, type + types2[t], handler, selector, true);
               }
               continue;
             }
@@ -3234,26 +3234,26 @@ var require_jquery = __commonJS({
         };
       });
       jQuery3.fn.extend({
-        on: function(types, selector, data, fn) {
-          return on(this, types, selector, data, fn);
+        on: function(types2, selector, data, fn) {
+          return on(this, types2, selector, data, fn);
         },
-        one: function(types, selector, data, fn) {
-          return on(this, types, selector, data, fn, 1);
+        one: function(types2, selector, data, fn) {
+          return on(this, types2, selector, data, fn, 1);
         },
-        off: function(types, selector, fn) {
+        off: function(types2, selector, fn) {
           var handleObj, type;
-          if (types && types.preventDefault && types.handleObj) {
-            handleObj = types.handleObj;
-            jQuery3(types.delegateTarget).off(
+          if (types2 && types2.preventDefault && types2.handleObj) {
+            handleObj = types2.handleObj;
+            jQuery3(types2.delegateTarget).off(
               handleObj.namespace ? handleObj.origType + "." + handleObj.namespace : handleObj.origType,
               handleObj.selector,
               handleObj.handler
             );
             return this;
           }
-          if (typeof types === "object") {
-            for (type in types) {
-              this.off(type, selector, types[type]);
+          if (typeof types2 === "object") {
+            for (type in types2) {
+              this.off(type, selector, types2[type]);
             }
             return this;
           }
@@ -3265,7 +3265,7 @@ var require_jquery = __commonJS({
             fn = returnFalse;
           }
           return this.each(function() {
-            jQuery3.event.remove(this, types, fn, selector);
+            jQuery3.event.remove(this, types2, fn, selector);
           });
         }
       });
@@ -5823,17 +5823,17 @@ var require_jquery = __commonJS({
         };
       });
       jQuery3.fn.extend({
-        bind: function(types, data, fn) {
-          return this.on(types, null, data, fn);
+        bind: function(types2, data, fn) {
+          return this.on(types2, null, data, fn);
         },
-        unbind: function(types, fn) {
-          return this.off(types, null, fn);
+        unbind: function(types2, fn) {
+          return this.off(types2, null, fn);
         },
-        delegate: function(selector, types, data, fn) {
-          return this.on(types, selector, data, fn);
+        delegate: function(selector, types2, data, fn) {
+          return this.on(types2, selector, data, fn);
         },
-        undelegate: function(selector, types, fn) {
-          return arguments.length === 1 ? this.off(selector, "**") : this.off(types, selector || "**", fn);
+        undelegate: function(selector, types2, fn) {
+          return arguments.length === 1 ? this.off(selector, "**") : this.off(types2, selector || "**", fn);
         },
         hover: function(fnOver, fnOut) {
           return this.on("mouseenter", fnOver).on("mouseleave", fnOut || fnOver);
@@ -9891,7 +9891,7 @@ async function getToken() {
       const data = await res.json();
       user = data.user;
       token = data.token;
-      log("getToken", user);
+      log("getToken", { user });
     }
   }
   return { user, token };
@@ -10025,7 +10025,7 @@ function executeCallbacks(queue, arg) {
       const t0 = performance.now();
       callback(arg);
       const t1 = performance.now();
-      if (t1 - t0 > 250) log("callbackSlow", callback.name || callback, `time=${Math.round(t1 - t0)}`);
+      if (t1 - t0 > 250) log("callbackSlow", { callback: callback.name || callback, time: Math.round(t1 - t0) });
       timer(callback.name || "anonymousCallback", t1 - t0);
     } catch (e) {
       error(`executeCallbacks: ${callback} ${e}`);
@@ -10553,12 +10553,12 @@ function sortExtraNetworks(fixed = "no") {
   }
   const desc = sortDesc[sortVal];
   const t1 = performance.now();
-  log("sortNetworks", { name: pagename, val: sortVal, order: desc, fixed: fixed === "fixed", items: num, time: Math.round(t1 - t0) });
+  log("sortNetworks", { page: pagename, key: sortVal, order: desc, items: num, time: Math.round(t1 - t0) });
   timer(`sortExtraNetworks:${desc}`, t1 - t0);
   return desc;
 }
 async function markSelectedCards(selected, page = "") {
-  log("markSelectedCards", selected, page);
+  log("markSelectedCards", { page, selected });
   selectedNetworks[page] = selected;
   gradioApp().querySelectorAll(".extra-network-cards .card").forEach((el2) => {
     if (page.length > 0 && el2.dataset.page !== page) return;
@@ -10578,7 +10578,7 @@ function extractLoraNames(prompt) {
 }
 function cardClicked(textToAdd) {
   const tabName = getENActiveTab();
-  log("cardClicked", tabName, textToAdd);
+  log("cardClicked", { tab: tabName, text: textToAdd });
   const textarea = activePromptTextarea[tabName];
   if (textarea.value.indexOf(textToAdd) !== -1) textarea.value = textarea.value.replace(textToAdd, "");
   else textarea.value += textToAdd;
@@ -10993,6 +10993,14 @@ function setRefreshInterval() {
     else refreshInterval = window.opts.live_preview_refresh_period || 1e3;
   });
 }
+function pad2(x) {
+  return x < 10 ? `0${x}` : x;
+}
+function formatTime(secs) {
+  if (secs > 3600) return `${pad2(Math.floor(secs / 60 / 60))}:${pad2(Math.floor(secs / 60) % 60)}:${pad2(Math.floor(secs) % 60)}`;
+  if (secs > 60) return `${pad2(Math.floor(secs / 60))}:${pad2(Math.floor(secs) % 60)}`;
+  return `${Math.floor(secs)}s`;
+}
 function checkPaused(state) {
   lastState.paused = state ? !state : !lastState.paused;
   const t_el = document.getElementById("txt2img_pause");
@@ -11023,20 +11031,49 @@ function setProgress(res) {
       eta = min > 0 ? `${Math.round(min)}m ${Math.round(sec)}s` : `${Math.round(sec)}s`;
     }
   }
+  const elPerf = document.getElementById("control-performance");
+  let hint = "";
+  if (elPerf && res) {
+    const jobTxt = res.job && res.job !== "" ? ` | Job ${res.job}` : "";
+    const batchTxt = res.batch > 0 ? ` | Batch ${res.batch}/${res.batches}` : "";
+    const stateTxt = res.queued ? "Queued" : res.paused ? "Paused" : res.completed ? "Completed" : res.active ? "Active" : "Idle";
+    const stepsTxt = res.step > 0 ? ` | Step ${res.step}/${res.steps}` : "";
+    const progressTxt = res.progress > 0 ? ` | Progress ${Math.round(100 * res.progress)}%` : "";
+    const etaTxt = res.eta > 0 ? ` | ETA ${formatTime(res.eta)}` : "";
+    const previewTxt = res.id_live_preview > 0 ? ` | Preview ${res.id_live_preview}` : "";
+    const elapsedTxt = res.job_time > 0 ? ` | Elapsed ${formatTime(Date.now() / 1e3 - res.job_time)}` : "";
+    const startedTxt = res.job_time > 0 ? ` | Started ${new Date(res.job_time * 1e3).toLocaleTimeString()}` : "";
+    hint = `\u23F1 State ${stateTxt} ${jobTxt} ${startedTxt} ${elapsedTxt} ${batchTxt} ${progressTxt} ${stepsTxt} ${etaTxt} ${previewTxt}`.replaceAll("  ", " ").trim();
+    elPerf.innerHTML = `<p>${hint}`;
+  }
   document.title = `SD.Next ${perc}`;
   for (const elId of elements) {
-    const el2 = document.getElementById(elId);
-    if (!el2) continue;
+    const el3 = document.getElementById(elId);
+    if (!el3) continue;
     const jobLabel = (res ? `${job} ${perc}${eta}` : "Generate").trim();
-    el2.innerText = jobLabel;
+    el3.innerText = jobLabel;
+    el3.title = hint.length > 0 ? hint : jobLabel;
     if (!window.waitForUiReady) {
       const gradient = perc !== "" ? perc : "100%";
-      if (jobLabel === "Generate") el2.style.background = "var(--primary-500)";
+      if (jobLabel === "Generate") el3.style.background = "var(--primary-500)";
       else if (jobLabel.endsWith("Decode")) continue;
-      else if (jobLabel.endsWith("Start") || jobLabel.endsWith("Finishing")) el2.style.background = "var(--primary-800)";
-      else if (res && progress > 0 && progress < 1) el2.style.background = `linear-gradient(to right, var(--primary-500) 0%, var(--primary-800) ${gradient}, var(--neutral-700) ${gradient})`;
-      else el2.style.background = "var(--primary-500)";
+      else if (jobLabel.endsWith("Start") || jobLabel.endsWith("Finishing")) el3.style.background = "var(--primary-800)";
+      else if (res && progress > 0 && progress < 1) el3.style.background = `linear-gradient(to right, var(--primary-500) 0%, var(--primary-800) ${gradient}, var(--neutral-700) ${gradient})`;
+      else el3.style.background = "var(--primary-500)";
     }
+  }
+  const el2 = document.getElementById("control-performance");
+  if (el2 && res) {
+    const jobTxt = res.job && res.job !== "" ? ` | Job ${res.job}` : "";
+    const batchTxt = res.batch > 0 ? ` | Batch ${res.batch}/${res.batches}` : "";
+    const stateTxt = res.queued ? "Queued" : res.paused ? "Paused" : res.completed ? "Completed" : res.active ? "Active" : "Idle";
+    const stepsTxt = res.step > 0 ? ` | Step ${res.step}/${res.steps}` : "";
+    const progressTxt = res.progress > 0 ? ` | Progress ${Math.round(100 * res.progress)}%` : "";
+    const etaTxt = res.eta > 0 ? ` | ETA ${formatTime(res.eta)}` : "";
+    const previewTxt = res.id_live_preview > 0 ? ` | Preview ${res.id_live_preview}` : "";
+    const elapsedTxt = res.job_time > 0 ? ` | Elapsed ${formatTime(Date.now() / 1e3 - res.job_time)}` : "";
+    const startedTxt = res.job_time > 0 ? ` | Started ${new Date(res.job_time * 1e3).toLocaleTimeString()}` : "";
+    el2.innerHTML = `<p>\u23F1 State ${stateTxt} ${jobTxt} ${startedTxt} ${elapsedTxt} ${batchTxt} ${progressTxt} ${stepsTxt} ${etaTxt} ${previewTxt}</p>`.replaceAll("  ", " ").trim();
   }
 }
 function requestInterrupt() {
@@ -11109,56 +11146,65 @@ function requestProgress(id_task = "undefined", progressEl = null, galleryEl = n
       return true;
     }
   };
+  const onProgressDataHandler = async (res, caller) => {
+    if (res?.debug) debug("progress:", { start: dateStart, res });
+    lastState = res;
+    const elapsedFromStart = (Date.now() - dateStart) / 1e3;
+    hasStarted = hasStarted || res.active;
+    if (res.completed || !res.active && (hasStarted || once)) {
+      debug("progress", { end: res, reason: res.completed ? "completed" : "inactive" });
+      const hidden = document.hidden || !previewVisible();
+      if (!res.paused) removeLivePreview(!hidden);
+      return;
+    }
+    if (elapsedFromStart > progressTimeout && !res.queued && res.progress === prevProgress) {
+      debug("progress", { end: res, reason: "progressTimeout" });
+      if (!res.paused) removeLivePreview(false);
+      return;
+    }
+    if (elapsedFromStart > startTimeout && !res.queued && !res.active) {
+      debug("progress", { end: res, reason: "startTimeout" });
+      if (!res.paused) removeLivePreview(false);
+      return;
+    }
+    if (res.progress !== prevProgress) {
+      dateStart = Date.now();
+      prevProgress = res.progress;
+    }
+    setProgress(res);
+    if (res.live_preview && !livePreview) initLivePreview();
+    let id_live_preview = res.id_live_preview;
+    if (res.live_preview && galleryEl) {
+      if (img.src !== res.live_preview) img.src = res.live_preview;
+      id_live_preview = res.id_live_preview;
+    }
+    if (onProgress) onProgress(res);
+    let timeout = Math.max(window.opts.live_preview_refresh_period || 500, 500);
+    timeout += (Math.random() * 0.4 - 0.2) * timeout;
+    setTimeout(() => caller(id_task, id_live_preview), timeout);
+  };
+  const onProgressErrorHandler = (err) => {
+    error("progress", { error: err });
+    removeLivePreview(false);
+  };
   const startLivePreview = (taskId, id_live_preview) => {
-    if (window.opts.live_preview_refresh_period === 0) return;
-    let request_id = -1;
     const hidden = document.hidden || !previewVisible();
+    let request_id = id_live_preview;
     if (hidden) {
       if (!window.opts.live_preview_require_focus) request_id = id_live_preview;
-    } else {
-      request_id = id_live_preview;
+    } else if (window.opts.live_preview_refresh_period === 0) {
+      request_id = -1;
     }
-    const onProgressHandler = (res) => {
-      if (res?.debug) debug("progress:", { start: dateStart, id: request_id, res });
-      lastState = res;
-      const elapsedFromStart = (Date.now() - dateStart) / 1e3;
-      hasStarted = hasStarted || res.active;
-      if (res.completed || !res.active && (hasStarted || once)) {
-        debug("progress", { end: res, reason: res.completed ? "completed" : "inactive" });
-        if (!res.paused) removeLivePreview(!hidden);
-        return;
-      }
-      if (elapsedFromStart > progressTimeout && !res.queued && res.progress === prevProgress) {
-        debug("progress", { end: res, reason: "progressTimeout" });
-        if (!res.paused) removeLivePreview(false);
-        return;
-      }
-      if (elapsedFromStart > startTimeout && !res.queued && !res.active) {
-        debug("progress", { end: res, reason: "startTimeout" });
-        if (!res.paused) removeLivePreview(false);
-        return;
-      }
-      if (res.progress !== prevProgress) {
-        dateStart = Date.now();
-        prevProgress = res.progress;
-      }
-      setProgress(res);
-      if (res.live_preview && !livePreview) initLivePreview();
-      if (res.live_preview && galleryEl) {
-        if (img.src !== res.live_preview) img.src = res.live_preview;
-        id_live_preview = res.id_live_preview;
-      }
-      if (onProgress) onProgress(res);
-      setTimeout(() => startLivePreview(id_task, id_live_preview), window.opts.live_preview_refresh_period || 500);
-    };
-    const onProgressErrorHandler = (err) => {
-      error("progress", { error: err });
-      removeLivePreview(false);
-    };
-    xhrPost("./internal/progress", { id_task, id_live_preview: request_id }, onProgressHandler, onProgressErrorHandler, false, 3e4);
+    xhrPost("./internal/progress", { id_task, id_live_preview: request_id }, onLivePreviewHandler, onProgressErrorHandler, false, 3e4);
   };
+  const startProgress = (taskId, id_live_preview) => {
+    xhrPost("./internal/progress", { id_task, id_live_preview: -1 }, onProgressHandler, onProgressErrorHandler, false, 3e4);
+  };
+  const onProgressHandler = (res) => onProgressDataHandler(res, startProgress);
+  const onLivePreviewHandler = (res) => onProgressDataHandler(res, startLivePreview);
   debug("progress", { start: dateStart });
   startLivePreview(id_task, 0);
+  startProgress(id_task, -1);
 }
 window.checkPaused = checkPaused;
 window.requestInterrupt = requestInterrupt;
@@ -12424,10 +12470,11 @@ async function initSettings() {
 
 // ui/monitor.ts
 var monitorActive = false;
+var wsTimer;
 var ConnectionMonitorState = class _ConnectionMonitorState {
   static ws;
   static url = "";
-  static delay = 1e3;
+  static delay = 2e3;
   static element;
   static version = "";
   static commit = "";
@@ -12447,7 +12494,7 @@ var ConnectionMonitorState = class _ConnectionMonitorState {
     if (online !== this.online) {
       this.online = online;
       this.ts = /* @__PURE__ */ new Date();
-      debug("monitorState", { online: _ConnectionMonitorState.online, ts: _ConnectionMonitorState.ts });
+      debug("monitorState", { online: _ConnectionMonitorState.online, ts: _ConnectionMonitorState.ts?.toLocaleTimeString() });
     }
     if (data?.updated) this.version = data.updated;
     if (data?.commit) this.commit = data.commit;
@@ -12480,21 +12527,41 @@ async function updateIndicator(online, data = {}, msg) {
   ConnectionMonitorState.updateState();
   if (msg) log("monitorConnection:", { online, data, msg });
 }
+function scheduleNextLoop() {
+  if (wsTimer) {
+    clearTimeout(wsTimer);
+    wsTimer = void 0;
+  }
+  const offlineDurationMs = Date.now() - ConnectionMonitorState.ts.getTime();
+  if (!ConnectionMonitorState.online && offlineDurationMs > 60 * 60 * 1e3) ConnectionMonitorState.delay = 1e4;
+  else if (!ConnectionMonitorState.online && offlineDurationMs > 5 * 60 * 1e3) ConnectionMonitorState.delay = 5e3;
+  else ConnectionMonitorState.delay = 1e3;
+  wsTimer = setTimeout(wsMonitorLoop, ConnectionMonitorState.delay);
+}
 async function wsMonitorLoop() {
-  const delayed = Date.now() - ConnectionMonitorState.ts.getTime();
-  if (delayed > 60 * 60 && ConnectionMonitorState.delay < 10 && !ConnectionMonitorState.online) ConnectionMonitorState.delay = 1e4;
-  else if (delayed > 5 * 60 && ConnectionMonitorState.delay < 5 && !ConnectionMonitorState.online) ConnectionMonitorState.delay = 5e3;
-  else ConnectionMonitorState.delay = 2e3;
+  if (ConnectionMonitorState.ws) {
+    ConnectionMonitorState.ws.onopen = null;
+    ConnectionMonitorState.ws.onmessage = null;
+    ConnectionMonitorState.ws.onclose = null;
+    ConnectionMonitorState.ws.onerror = null;
+    try {
+      ConnectionMonitorState.ws.close();
+    } catch {
+    }
+    ConnectionMonitorState.ws = void 0;
+  }
   try {
-    ConnectionMonitorState.ws = new WebSocket(`${ConnectionMonitorState.url}/queue/join`);
-    ConnectionMonitorState.ws.onopen = () => {
+    ConnectionMonitorState.ws = new WebSocket(`${ConnectionMonitorState.url}/internal/monitor`);
+    ConnectionMonitorState.ws.onopen = () => updateIndicator(true);
+    ConnectionMonitorState.ws.onmessage = (msg) => updateIndicator(true, msg.data ? JSON.parse(msg.data) : {});
+    ConnectionMonitorState.ws.onclose = () => {
+      updateIndicator(false);
+      scheduleNextLoop();
     };
-    ConnectionMonitorState.ws.onmessage = () => updateIndicator(true);
-    ConnectionMonitorState.ws.onclose = () => setTimeout(wsMonitorLoop, ConnectionMonitorState.delay);
     ConnectionMonitorState.ws.onerror = (e) => updateIndicator(false, {}, String(e.message || "unknown error"));
   } catch (e) {
     updateIndicator(false, {}, String(e.message || e));
-    setTimeout(monitorConnection, ConnectionMonitorState.delay);
+    scheduleNextLoop();
   }
 }
 async function monitorConnection() {
@@ -12518,7 +12585,7 @@ async function monitorConnection() {
     wsMonitorLoop();
   } catch {
     updateIndicator(false, data);
-    setTimeout(monitorConnection, ConnectionMonitorState.delay);
+    scheduleNextLoop();
   }
 }
 
@@ -16448,7 +16515,7 @@ var Timesheet = class {
 // ui/history.ts
 var inferenceTypes = ["inference", "vae", "te"];
 var ioTypes = ["load", "save"];
-function refreshHistory() {
+async function refreshHistory() {
   log("refreshHistory");
   authFetch(`${window.api}/history`, { priority: "low" }).then((res) => {
     if (!res) return;
@@ -16499,6 +16566,70 @@ function refreshHistory() {
   });
 }
 window.refreshHistory = refreshHistory;
+
+// ui/storage.ts
+var types = ["Images", "Videos", "Models", "Data", "Cache", "Code", "Other"];
+function buildTable(type, data) {
+  const totalSize = data.reduce((acc, entry) => acc + entry.size, 0);
+  const totalLoc = data.length;
+  const totalFiles = data.reduce((acc, entry) => acc + entry.nfiles, 0);
+  const totalFolders = data.reduce((acc, entry) => acc + entry.nfolders, 0);
+  let title = `Locations: ${totalLoc}
+Total Size: ${(totalSize / (1024 * 1024)).toLocaleString(void 0, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MB
+Total Files: ${totalFiles}
+Total Folders: ${totalFolders}
+`;
+  let html = `<h2 title="${title}">${type}</h2><table><tbody>`;
+  for (const entry of data) {
+    if (entry.size === 0) continue;
+    const size = (entry.size / (1024 * 1024)).toLocaleString(void 0, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " MB";
+    const mtime = entry.mtime > 0 ? new Date(entry.mtime * 1e3).toLocaleString() : "";
+    title = `Type: ${entry.type}
+Name: ${entry.name}
+Size: ${size}
+Last modified: ${mtime}
+`;
+    title += `Folders: ${entry.folders.join(", ")}
+Resolved paths: ${entry.paths.join(", ")}
+`;
+    title += `Subfolders: ${entry.nfolders}
+Files: ${entry.nfiles}
+Symlinks: ${entry.nsymlinks}
+Errors: ${entry.nerrors}
+`;
+    title += `Time to scan: ${entry.time.toFixed(3)} seconds`;
+    const perc = Math.round(entry.size / totalSize * 100);
+    const color = `rgb(${perc}, 50, 80)`;
+    const css = `background: linear-gradient(to right, ${color} ${perc}%, transparent ${perc}%);`;
+    html += `<tr title="${title}"><td style="${css}">${entry.name}</td><td>${size}</td><td>${mtime}</td></tr>`;
+  }
+  html += "</tbody></table>";
+  return html;
+}
+async function refreshStorage(storageTypes) {
+  log("refreshStorage", storageTypes);
+  authFetch(`${window.api}/storage?types=${storageTypes.join(",")}`, { priority: "low" }).then((res) => {
+    if (!res) return;
+    const timeline = document.getElementById("storage_timeline");
+    const table = document.getElementById("storage_table");
+    if (!timeline || !table) return;
+    timeline.innerHTML = "";
+    res.json().then((rawData) => {
+      const data = rawData;
+      if (!data || !data.length) {
+        table.innerHTML = "<p>No storage data available.</p>";
+        return;
+      }
+      table.innerHTML = "";
+      if (storageTypes.includes("All")) storageTypes = types;
+      for (const type of storageTypes) {
+        const typeData = data.filter((entry) => entry.type === type);
+        if (typeData.length > 0) table.innerHTML += buildTable(type, typeData);
+      }
+    });
+  });
+}
+window.refreshStorage = refreshStorage;
 
 // ui/aspectRatioOverlay.ts
 var currentWidth = null;

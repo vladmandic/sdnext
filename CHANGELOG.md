@@ -1,5 +1,66 @@
 # Change Log for SD.Next
 
+## Update for 2026-08-07
+
+### Highlights for 2026-08-07
+
+This release brings **Sefi-Image** and **Mage-Flow** models, plus a new **Nunchaku-Lite** inference engine  
+*What else*?
+- On the server side, there are quite a few *under-the-hood* improvements, including optimized startup, optimized webserver, end-to-end profiling, storage analyzer, etc.  
+- There are also several new auxiliary models, such as **Lucida** for background removal  
+- And video processing now supports scripts such as prompt enhance, nudenet, etc.  
+- Plus several quality-of-life improvements (better progress monitoring for one) and bug-fixes across the board
+- Updated [SD.Next Launcher](https://github.com/vladmandic/sdnext-launcher/releases/tag/v0.1.6) with improved platform compatibility and upgrade workflows  
+
+*Note*: This release follows previous minor service-release which did not get full announcement, so if you missed it, check it out
+
+[Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
+
+### Details for 2026-08-07
+
+- **Models**
+  - [SeFi-Image](https://huggingface.co/SeFi-Image/SeFi-Image-5B-RL) in *Base*, *Turbo* (distilled) and *RL* (finetuned) variants  
+    SeFi is an interesting model that separates generation into semantic and texture latent streams  
+    and denoising semantic structure slightly ahead of texture details  
+    SeFi comes in sizes with 1B, 2B and 5B params  
+  - [Microsoft Mage-Flow](https://huggingface.co/mage-flow-community/Mage-Flow) in *Base* and *Turbo* (distilled) variants  
+    Mage-Flow is a 4B-scale generative stack for efficient text-to-image generation and instruction-based image editing  
+    *note*: Microsoft released and then unpublished the model, but we still have a mirror available for download  
+  - [Nunchaku-Lite](https://huggingface.co/lite-infer) pre-quantized models  
+    included: *Z-Image, Flux.1-Dev/Schnell/Krea/Kontex, Qwen-Image/Image-Edit, Ernie-Image*
+- **Features**
+  - [Nunchaku-Lite](https://github.com/rootonchair/nunchaku-lite) inference engine  
+    unlike Nunchaku, Nunchaku-Lite is based on Kernels and does not require any additional packages to be installed  
+    but like original Nunchaku, it is only available for CUDA and right now only for `torch==2.11/2.12`  
+  - [Krea2](https://huggingface.co/krea/Krea-2-Turbo) add *Inpaint* pipeline  
+    this also makes K2 compatible with *Detailer* workflow  
+  - storage analyzer: new feature that analyzes your storage used by sdnext per type and location  
+    *system -> storage*  
+  - video: support for scripts/extensions  
+    video processing now supports scripts and extensions (if they support video processing)  
+    *example*: use nudenet to automatically censor video frames :)  
+  - prompt enhance: support for video generation
+  - startup: optimized server startup
+  - process: preserve audio when processing video
+  - separate progress reporting and live-preview for much more precise progress reporting
+  - add progress details to performance status bar (below the preview image)
+  - remove background: new [lucida](https://huggingface.co/egeorcun/lucida) model
+  - profile flag now logs all http requests and internal tasks
+- **API**
+  - add `/sdapi/v1/storage` endpoint to return storage usage info  
+- **Internal**
+  - switch internal server to explicit `uvicorn`
+  - update core requirements
+- **Fixes**
+  - seedvr quality
+  - skip-all do not skip env init
+  - sdnq check contiguous
+  - torch reset compile cache on reload
+  - bypass sdna for caption/prompt-enhance calls
+  - skip sdnq for small weights  
+  - server monitor keep websocket open
+  - unauthenticated path traversal in /thumbs
+
 ## Update for 2026-07-23
 
 Primarily a service release with updates to compute packages: torch, CUDA, ROCm, etc.

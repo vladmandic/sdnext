@@ -118,7 +118,7 @@ export function executeCallbacks(queue: any[], arg?: any) {
       const t0 = performance.now();
       callback(arg);
       const t1 = performance.now();
-      if (t1 - t0 > 250) log('callbackSlow', callback.name || callback, `time=${Math.round(t1 - t0)}`);
+      if (t1 - t0 > 250) log('callbackSlow', { callback: callback.name || callback, time: Math.round(t1 - t0) });
       timer(callback.name || 'anonymousCallback', t1 - t0);
     } catch (e) {
       error(`executeCallbacks: ${callback} ${e}`);

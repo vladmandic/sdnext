@@ -94,7 +94,14 @@ def get_sdnq_devices(mode="pre"):
     return quantization_device, return_device
 
 
-def create_sdnq_config(kwargs = None, allow: bool = True, module: str = 'Model', weights_dtype: str | None = None, quantized_matmul_dtype: str | None = None, modules_to_not_convert: list | None = None, modules_dtype_dict: dict | None = None):
+def create_sdnq_config(kwargs = None,
+                       allow: bool = True,
+                       module: str = 'Model',
+                       weights_dtype: str | None = None,
+                       quantized_matmul_dtype: str | None = None,
+                       modules_to_not_convert: list | None = None,
+                       modules_dtype_dict: dict | None = None,
+                      ):
     from modules import shared
     if allow and (shared.opts.sdnq_quantize_mode in {'pre', 'auto'}) and (module == 'any' or module in shared.opts.sdnq_quantize_weights):
         from modules.sdnq import SDNQConfig
@@ -191,6 +198,8 @@ def check_nunchaku(module: str = ''):
     from modules import shared
     if 'nunchaku' not in shared.opts.sd_model_checkpoint.lower():
         return False
+    if 'nunchaku-lite' in shared.opts.sd_model_checkpoint.lower():
+        return False
     base_path = shared.opts.sd_model_checkpoint.split('+')[0]
     for v in shared.reference_models.values():
         if v.get('path', '') != base_path:
@@ -216,7 +225,12 @@ def create_config(kwargs = None, allow: bool = True, module: str = 'Model', modu
         kwargs = {}
     if module == 'Model' and dont_quant():
         return kwargs
-    kwargs = create_sdnq_config(kwargs, allow=allow, module=module, modules_to_not_convert=modules_to_not_convert, modules_dtype_dict=modules_dtype_dict)
+    kwargs = create_sdnq_config(kwargs,
+                                allow=allow,
+                                module=module,
+                                modules_to_not_convert=modules_to_not_convert,
+                                modules_dtype_dict=modules_dtype_dict
+                               )
     if kwargs is not None and 'quantization_config' in kwargs:
         if debug:
             log.trace(f'Quantization: type=sdnq config={kwargs.get("quantization_config", None)}')

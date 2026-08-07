@@ -255,7 +255,7 @@ class BriaPipeline(FluxPipeline):
         callback_on_step_end: Optional[Callable[[int, int, Dict], None]] = None,
         callback_on_step_end_tensor_inputs: List[str] = ["latents"],
         max_sequence_length: int = 128,
-        clip_value:Union[None,float] = None,
+        clip_value:Union[float, None] = None,
         normalize:bool = False
     ):
         r"""

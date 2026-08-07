@@ -51,7 +51,6 @@ class Api:
         self.add_api_route("/sdapi/v1/status", server.get_status, methods=["GET"], response_model=models.ResStatus, tags=["Server"])
         self.add_api_route("/sdapi/v1/platform", server.get_platform, methods=["GET"], tags=["Server"])
         self.add_api_route("/sdapi/v1/progress", server.get_progress, methods=["GET"], response_model=models.ResProgress, tags=["Server"])
-        self.add_api_route("/sdapi/v1/history", server.get_history, methods=["GET"], response_model=list[models.ResHistory], tags=["Server"])
         self.add_api_route("/sdapi/v1/interrupt", server.post_interrupt, methods=["POST"], status_code=204, tags=["Server"])
         self.add_api_route("/sdapi/v1/skip", server.post_skip, methods=["POST"], status_code=204, tags=["Server"])
         self.add_api_route("/sdapi/v1/shutdown", server.post_shutdown, methods=["POST"], status_code=204, tags=["Server"])
@@ -60,6 +59,8 @@ class Api:
         self.add_api_route("/sdapi/v1/cmd-flags", server.get_cmd_flags, methods=["GET"], response_model=models.FlagsModel, tags=["Server"])
         self.add_api_route("/sdapi/v1/gpu", gpu.get_gpu, methods=["GET"], tags=["Server"], response_model=list[dict])
         self.add_api_route("/sdapi/v1/gpu-smi", gpu.get_gpu_smi, methods=["GET"], response_model=list[models.ResGPU], tags=["Server"])
+        self.add_api_route("/sdapi/v1/history", server.get_history, methods=["GET"], response_model=list[models.ResHistory], tags=["Server"])
+        self.add_api_route("/sdapi/v1/storage", server.get_storage, methods=["GET"], response_model=list[models.ResStorage], tags=["Server"])
 
         # core api using locking
         self.add_api_route("/sdapi/v1/txt2img", self.generate.post_text2img, methods=["POST"], response_model=models.ResTxt2Img, tags=["Generation"])

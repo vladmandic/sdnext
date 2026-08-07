@@ -1,14 +1,12 @@
 """Anima img2img and inpainting pipelines (built dynamically from the runtime-imported base class)."""
 
 from typing import Callable, Dict, List, Optional, Union
-
 import torch
 import torch.nn.functional as F
 from PIL import Image
 from diffusers.callbacks import MultiPipelineCallbacks, PipelineCallback
 from diffusers.image_processor import PipelineImageInput
 from diffusers.utils.torch_utils import randn_tensor
-
 from modules import devices
 
 
@@ -131,12 +129,20 @@ def build_anima_pipeline_classes(base_cls):
             try:
                 return base_cls.__call__(
                     self,
-                    prompt=prompt, negative_prompt=negative_prompt,
-                    height=height, width=width, num_inference_steps=num_inference_steps,
-                    guidance_scale=guidance_scale, num_images_per_prompt=num_images_per_prompt,
-                    generator=generator, latents=noised, prompt_embeds=prompt_embeds,
-                    negative_prompt_embeds=negative_prompt_embeds, output_type=output_type,
-                    return_dict=return_dict, callback_on_step_end=blend_callback,
+                    prompt=prompt,
+                    negative_prompt=negative_prompt,
+                    height=height,
+                    width=width,
+                    num_inference_steps=num_inference_steps,
+                    guidance_scale=guidance_scale,
+                    num_images_per_prompt=num_images_per_prompt,
+                    generator=generator,
+                    latents=noised,
+                    prompt_embeds=prompt_embeds,
+                    negative_prompt_embeds=negative_prompt_embeds,
+                    output_type=output_type,
+                    return_dict=return_dict,
+                    callback_on_step_end=blend_callback,
                     callback_on_step_end_tensor_inputs=["latents"],
                     max_sequence_length=max_sequence_length,
                 )

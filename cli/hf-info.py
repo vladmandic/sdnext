@@ -702,6 +702,7 @@ def search(repo_id: str) -> int:
         "pipeline": pipeline_value,
         "gated": gated_value,
         "size": size_total_raw,
+        "size_gb": round(size_total_raw / (1024**3), 2) if isinstance(size_total_raw, int) else None,
         "class": model_class,
         "dit": ", ".join(main_dit_entries) if len(main_dit_entries) > 0 else None,
         "dit_params": model_params_raw,

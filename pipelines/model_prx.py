@@ -20,6 +20,7 @@ def load_prx(checkpoint_info, diffusers_load_config=None):
 
     if repo_id is None or repo_id.lower() == 'none':
         return None
+
     pipe = diffusers.PRXPipeline.from_pretrained(
         repo_id,
         transformer=transformer,

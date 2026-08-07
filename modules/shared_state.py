@@ -293,8 +293,9 @@ class State:
                         elif self.prediction_type == "v_prediction":
                             sample = self.current_noise_pred * (-self.current_sigma / (self.current_sigma**2 + 1) ** 0.5) + (original_sample / (self.current_sigma**2 + 1)) # pylint: disable=invalid-unary-operand-type
                 except Exception:
+                    # log.error(f'State image sigma: last={self.id_live_preview} step={self.sampling_step} {e}')
                     pass # ignore sigma errors
-                image = sd_samplers_common.samples_to_image_grid(sample)
+                image = sd_samplers_common.samples_to_image_grid(sample, fast=self.sampling_step > 1)
                 self.assign_current_image(image)
                 self.preview_job = -1
                 return True

@@ -196,8 +196,8 @@ def clean_server():
 def start_server(immediate=True, server=None):
     if args.profile:
         import cProfile
-        pr = cProfile.Profile()
-        pr.enable()
+        profiler = cProfile.Profile()
+        profiler.enable()
     import gc
     import importlib.util
     collected = 0
@@ -221,10 +221,12 @@ def start_server(immediate=True, server=None):
         server.wants_restart = False
         uvicorn = server.webui(restart=not immediate, _exit=True)
     else:
-        uvicorn = server.webui(restart=not immediate)
+        uvicorn = server.webui(restart=not immediate, profiler=profiler if args.profile else None)
     if args.profile:
-        pr.disable()
-        installer.print_profile(pr, 'WebUI')
+        profiler.disable()
+        installer.print_profile(profiler, 'WebUI')
+        profiler.clear()
+        profiler.enable()
     rec('server')
     return uvicorn, server
 
@@ -252,7 +254,7 @@ def main():
     installer.check_version()
     installer.check_venv()
     log.info(f'Args: {sys.argv[1:]}')
-    if not args.skip_env and not args.skip_all:
+    if not args.skip_env:
         installer.set_environment()
     if args.uv and shutil.which('uv') is None:
         installer.install('uv', 'uv')
@@ -343,10 +345,12 @@ def main():
             if uv is not None and uv.wants_restart:
                 clean_server()
                 log.info('Server restarting...')
-                # uv, instance = start_server(immediate=False, server=instance)
                 os.execv(sys.executable, ['python'] + sys.argv)
             else:
                 log.info('Exiting...')
+                from modules import errors
+                errors.profile_stop()
+                errors.profile_print('Shutdown')
                 break
         time.sleep(1.0)
 

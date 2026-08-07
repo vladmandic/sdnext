@@ -55,7 +55,7 @@ def _model_change(model_name: str):
     )
 
 
-def create_ui(prompt, negative, styles, overrides, mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, mp4_thumb):
+def create_ui(prompt, negative, styles, overrides, script_inputs, mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, mp4_thumb):
     with gr.Row():
         with gr.Column(variant='compact', elem_id="ltx_settings", elem_classes=['settings-column'], scale=1):
             with gr.Row():
@@ -67,8 +67,8 @@ def create_ui(prompt, negative, styles, overrides, mp4_fps, mp4_interpolate, mp4
             with gr.Accordion(open=False, label='Size', elem_id='ltx_size_accordion'):
                 width, height = ui_sections.create_resolution_inputs('ltx', default_width=832, default_height=480)
                 with gr.Row():
-                    frames = gr.Slider(label='LTX Frames', minimum=1, maximum=1024, step=1, value=121, elem_id='ltx_frames')
-                    seed = gr.Number(label='Initial seed', value=-1, elem_id='ltx_seed', container=True)
+                    frames = gr.Slider(label='LTX frames', minimum=1, maximum=1024, step=1, value=121, elem_id='ltx_frames')
+                    seed = gr.Number(label='LTX seed', value=-1, elem_id='ltx_seed', container=True)
                     random_seed = ToolButton(ui_symbols.random, elem_id='ltx_seed_random')
                     random_seed.click(fn=lambda: -1, show_progress='hidden', inputs=[], outputs=[seed])
             input_media_accordion = gr.Accordion(open=False, label="Input media", elem_id='ltx_input_media_accordion', visible=False)
@@ -88,16 +88,16 @@ def create_ui(prompt, negative, styles, overrides, mp4_fps, mp4_interpolate, mp4
                                 condition_video_skip = gr.Slider(label='LTX frames skip', minimum=0, maximum=1024, step=1, value=0, elem_id="ltx_condition_video_sip")
                         with gr.Tab('Gallery prefix', id='ltx_condition_batch_tab'):
                             condition_files = gr.Files(label="Image Batch", interactive=True, elem_id="ltx_condition_batch")
-            upsample_accordion = gr.Accordion(open=False, label="Upsample", elem_id='ltx_upsample_accordion')
+            upsample_accordion = gr.Accordion(open=False, label="Upscale", elem_id='ltx_upsample_accordion')
             with upsample_accordion:
                 with gr.Row():
-                    upsample_enable = gr.Checkbox(label='LTX enable upsampling', value=False, elem_id="ltx_upsample_enable")
-                    upsample_ratio = gr.Slider(label='LTX upsample ratio', minimum=1.0, maximum=4.0, step=0.1, value=2.0, elem_id="ltx_upsample_ratio")
+                    upsample_enable = gr.Checkbox(label='LTX upscale', value=False, elem_id="ltx_upsample_enable")
+                    upsample_ratio = gr.Slider(label='LTX scale', minimum=1.0, maximum=4.0, step=0.1, value=2.0, elem_id="ltx_upsample_ratio")
             refine_accordion = gr.Accordion(open=False, label="Refine", elem_id='ltx_refine_accordion')
             with refine_accordion:
                 with gr.Row():
-                    refine_enable = gr.Checkbox(label='LTX enable refine', value=False, elem_id="ltx_refine_enable")
-                    refine_strength = gr.Slider(label='LTX refine strength', minimum=0.1, maximum=1.0, step=0.05, value=0.4, elem_id="ltx_refine_strength")
+                    refine_enable = gr.Checkbox(label='LTX refine', value=False, elem_id="ltx_refine_enable")
+                    refine_strength = gr.Slider(label='LTX strength', minimum=0.1, maximum=1.0, step=0.05, value=0.4, elem_id="ltx_refine_strength")
             parameters_accordion = gr.Accordion(open=False, label="Advanced", elem_id='ltx_parameters_accordion')
             with parameters_accordion:
                 steps, sampler_index = ui_sections.create_sampler_and_steps_selection(None, "ltx", default_steps=50)
@@ -108,7 +108,7 @@ def create_ui(prompt, negative, styles, overrides, mp4_fps, mp4_interpolate, mp4
                     dynamic_shift = gr.Checkbox(label='LTX dynamic shift', value=False, elem_id="ltx_dynamic_shift")
                 with gr.Row():
                     decode_timestep = gr.Slider(label='LTX decode timestep', minimum=0.0, maximum=1.0, step=0.01, value=0.05, elem_id="ltx_decode_timestep")
-                    image_cond_noise_scale = gr.Slider(label='LTX image cond noise scale', minimum=0.0, maximum=1.0, step=0.005, value=0.025, elem_id="ltx_image_cond_noise_scale")
+                    image_cond_noise_scale = gr.Slider(label='LTX image cond', minimum=0.0, maximum=1.0, step=0.005, value=0.025, elem_id="ltx_image_cond_noise_scale")
             audio_accordion = gr.Accordion(open=False, label="Audio", elem_id='ltx_audio_accordion', visible=False)
             with audio_accordion:
                 with gr.Row():
@@ -175,7 +175,7 @@ def create_ui(prompt, negative, styles, overrides, mp4_fps, mp4_interpolate, mp4
     video_dict = dict(
         fn=ltx_process.run_ltx,
         _js="submit_ltx",
-        inputs=state_inputs + video_inputs,
+        inputs=state_inputs + video_inputs + script_inputs,
         outputs=video_outputs,
         show_progress='hidden',
     )

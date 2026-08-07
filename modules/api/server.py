@@ -111,6 +111,15 @@ def get_history(req: models.ReqHistory = Depends()):
     res = [models.ResHistory(**item) for item in res]
     return res
 
+def get_storage(req: models.ReqStorage = Depends()):
+    from modules.storage import check_storage
+    res = check_storage(folders=req.folder,
+                        types=req.types.split(',') if req.types else None,
+                        silent=True,
+                       )
+    res = [models.ResStorage(**loc.dict()) for loc in res]
+    return res
+
 def get_progress(req: models.ReqProgress = Depends()):
     if shared.state.job_count == 0 and shared.state.sampling_step == 0: # truly idle
         return models.ResProgress(id=shared.state.id, progress=0, eta_relative=0, state=shared.state.dict(), textinfo=shared.state.textinfo)

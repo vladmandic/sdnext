@@ -1,5 +1,6 @@
 import os
 import io
+from functools import lru_cache
 import random
 import re
 import time
@@ -14,6 +15,7 @@ from html.parser import HTMLParser
 from collections import OrderedDict
 import gradio as gr
 from PIL import Image
+from fastapi.exceptions import HTTPException
 from starlette.responses import FileResponse, JSONResponse
 from modules import paths, shared, devices, files_cache, errors, infotext, ui_symbols, ui_components, modelstats
 from modules.logger import log
@@ -55,11 +57,12 @@ preview_map = None
 def init_api():
 
     def get_thumb(filename: str = ""):
-        global allowed_dirs # pylint: disable=global-statement
-        if len(allowed_dirs) == 0:
-            allowed_dirs = shared.demo.allowed_paths
+        if os.path.join('ui', 'assets') not in allowed_dirs:
+            allowed_dirs.append(os.path.join('ui', 'assets'))
         if filename is None or len(filename) == 0:
             return JSONResponse({ "error": "no filename" }, status_code=400)
+        if not any(Path(folder).absolute() in Path(filename).absolute().parents for folder in allowed_dirs):
+            raise HTTPException(status_code=403, detail=f"file {filename}: must be in one of allowed directories")
         if not os.path.exists(filename) or not os.path.isfile(filename) or os.path.getsize(filename) == 0:
             return FileResponse('ui/assets/missing.png', headers={"Accept-Ranges": "bytes"})
         if filename.startswith('html/') or filename.startswith('models/') or filename.startswith('data/') or filename.startswith('ui/'):
@@ -196,8 +199,12 @@ class ExtraNetworksPage:
             errors.display(e, 'Network version')
         return all_versions[0]
 
+    @lru_cache(maxsize=2048, typed=False)
     def link_preview(self, filename: str):
-        if not os.path.exists(filename):
+        if filename == 'ui/assets/missing.png':
+            return f"{shared.opts.subpath}/sdapi/v1/network/thumb?filename={filename}"
+        just_file = not bool(os.path.dirname(filename))
+        if just_file or not os.path.exists(filename):
             ref = os.path.join(paths.reference_path, filename)
             if os.path.exists(ref):
                 filename = ref
@@ -456,10 +463,13 @@ class ExtraNetworksPage:
                 errors.display(e, 'Networks')
             return ""
 
+    @lru_cache(maxsize=2048, typed=False)
     def find_preview_file(self, path: str | None):
         if path is None:
             return 'ui/assets/missing.png'
         if os.path.join('models', 'Reference') in path:
+            if shared.cmd_opts.test and not os.path.exists(path):
+                log.warning(f'Networks: missing-preview type="{self.name}" fn="{path}"')
             return path
         exts = ["jpg", "jpeg", "png", "webp", "tiff", "jp2", "jxl"]
         reference_path = os.path.abspath(os.path.join('models', 'Reference'))
@@ -477,6 +487,7 @@ class ExtraNetworksPage:
                 return file
         return 'ui/assets/missing.png'
 
+    @lru_cache(maxsize=2048, typed=False)
     def find_preview(self, filename: str):
         t0 = time.time()
         preview_file = self.find_preview_file(filename)

@@ -443,7 +443,6 @@ class ReqGetLog(BaseModel):
     lines: int = Field(default=100, title="Lines", description="How many lines to return")
     clear: bool = Field(default=False, title="Clear", description="Should the log be cleared after returning the lines?")
 
-
 class ReqPostLog(BaseModel):
     json: dict | None = Field(default=None, title="Data", description="The data to log")
     message: str | None = Field(default=None, title="Message", description="The info message to log")
@@ -452,6 +451,10 @@ class ReqPostLog(BaseModel):
 
 class ReqHistory(BaseModel):
     id: int | str | None = Field(default=None, title="Task ID", description="Task ID")
+
+class ReqStorage(BaseModel):
+    folder: str | None = Field(default=None, title="Folder", description="Storage folder(s)")
+    types: str | None = Field(default=None, title="Types", description="Storage types to filter by")
 
 class ReqProgress(BaseModel):
     skip_current_image: bool = Field(default=False, title="Skip current image", description="Skip current image serialization")
@@ -471,6 +474,19 @@ class ResHistory(BaseModel):
     timestamp: float | None = Field(default=None, title="Timestamp", description="Job timestamp")
     duration: float | None = Field(default=None, title="Duration", description="Job duration")
     outputs: list[str] = Field(title="Outputs", description="List of filenames")
+
+class ResStorage(BaseModel):
+    name: str = Field(title="Name", description="Storage location name")
+    type: str = Field(title="Type", description="Storage location type")
+    folders: list[str] = Field(title="Folders", description="List of folders in the storage location")
+    paths: list[str] = Field(title="Paths", description="List of resolved paths in the storage location")
+    size: int = Field(title="Size", description="Total size of the storage location in bytes")
+    mtime: float = Field(title="Last modified", description="Last modified timestamp of the storage location")
+    nfiles: int = Field(title="Files", description="Number files in the storage location")
+    nfolders: int = Field(title="Folders", description="Number of folders in the storage location")
+    nsymlinks: int = Field(title="Symlinks", description="Number of symbolic links in the storage location")
+    nerrors: int = Field(title="Errors", description="Number of errors in the storage location")
+    time: float = Field(title="Time", description="Time taken to scan the storage location in seconds")
 
 class ResStatus(BaseModel):
     status: str = Field(title="Status", description="Current status")

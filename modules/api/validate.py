@@ -41,7 +41,7 @@ log_exclude_prefix = ['/assets']
 
 
 class Limiter():
-    def __init__(self, limit, subpath=None):
+    def __init__(self, limit, subpath=None, debug=False):
         import limits
         self.request_backend = limits.storage.MemoryStorage()
         self.request_limit = limit # default is 300 requests per minute
@@ -53,6 +53,7 @@ class Limiter():
         self.log_limiter = limits.parse(f"{self.log_limit}/minute")
         self.summary = {}
         self.subpath = subpath
+        self.debug = debug
         log.info(f'API: limit={self.request_limit} strategy={self.request_strategy.__class__.__name__} backend={self.request_backend.__class__.__name__} subpath={self.subpath}')
 
 
@@ -75,6 +76,8 @@ class Limiter():
         return status
 
     def check_log(self, client: str, api: str):
+        if self.debug:
+            return True
         if self.log_limit < 0:
             return True
         if any(api.endswith(s) for s in log_exclude_suffix):
@@ -99,7 +102,7 @@ def validate_request(client, endpoint):
     global limiter # pylint: disable=global-statement
     from modules.shared import opts, cmd_opts
     if opts.server_rate_limit != limiter.request_limit:
-        limiter = Limiter(opts.server_rate_limit, cmd_opts.subpath)
+        limiter = Limiter(opts.server_rate_limit, cmd_opts.subpath, cmd_opts.profile)
     api = re.match(r"^[^?#&=]+", endpoint).group(0)
 
     if (limiter.subpath is not None) and (len(limiter.subpath) > 0) and api.startswith(limiter.subpath): # strip subpath from api for rate limiting

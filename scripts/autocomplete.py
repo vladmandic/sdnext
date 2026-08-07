@@ -150,6 +150,7 @@ def on_update(selected):
 
 
 class AutocompleteScript(scripts_manager.Script):
+    video_capable = scripts_manager.AlwaysVisible
 
     def show(self, is_img2img):
         return scripts_manager.AlwaysVisible

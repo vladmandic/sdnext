@@ -40,6 +40,7 @@ class ExtraNetworksPageWildcards(ui_extra_networks.ExtraNetworksPage):
 
     def list_items(self):
         self.refresh()
+        records = []
         for filename in wildcards_list:
             relname = os.path.relpath(filename, shared.opts.wildcards_dir)
             name = os.path.splitext(relname)[0]
@@ -49,17 +50,20 @@ class ExtraNetworksPageWildcards(ui_extra_networks.ExtraNetworksPage):
                     "type": 'Wildcard',
                     "name": name,
                     "filename": filename,
-                    "preview": self.find_preview(filename),
+                    # "preview": self.find_preview(filename),
+                    "preview": None,
                     "local_preview": f"{os.path.splitext(filename)[0]}.{shared.opts.samples_format}",
                     "prompt": json.dumps(f" __{name}__"),
+                    # "prompt": f" __{name}__",
                     "mtime": mtime,
                     "size": size,
                     "description": '',
                     "info": {},
                 }
-                yield record
+                records.append(record)
             except Exception as e:
                 log.debug(f'Networks error: type=wildcard file="{filename}" {e}')
+        return records
 
     def allowed_directories_for_previews(self):
         return [v for v in [shared.opts.wildcards_dir] if v is not None]

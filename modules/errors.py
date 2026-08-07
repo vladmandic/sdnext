@@ -8,6 +8,7 @@ log = get_log()
 setup_logging()
 install_traceback()
 already_displayed = {}
+_profiler = None
 
 
 class ValidationError(ValueError):
@@ -63,19 +64,21 @@ def exception(suppress=None):
     console.print_exception(show_locals=False, max_frames=16, extra_lines=2, suppress=suppress, theme="ansi_dark", word_wrap=False, width=min([console.width, 200]))
 
 
-def profile(profiler, msg: str, n: int = 16):
-    profiler.disable()
+def profile_print(msg: str='', n: int = 16, local_profiler=None):
+    if local_profiler is None:
+        local_profiler = _profiler
+    if local_profiler is None:
+        return
     import io
     import pstats
     stream = io.StringIO() # pylint: disable=abstract-class-instantiated
-    p = pstats.Stats(profiler, stream=stream)
+    p = pstats.Stats(local_profiler, stream=stream)
     p.sort_stats(pstats.SortKey.CUMULATIVE)
     p.print_stats(200)
     # p.print_title()
     # p.print_call_heading(10, 'time')
     # p.print_callees(10)
     # p.print_callers(10)
-    profiler = None
     lines = stream.getvalue().split('\n')
     lines = [x for x in lines if '<frozen' not in x
              and '{built-in' not in x
@@ -90,6 +93,23 @@ def profile(profiler, msg: str, n: int = 16):
             ]
     txt = '\n'.join(lines[:min(n, len(lines))])
     log.debug(f'Profile {msg}: {txt}')
+
+
+def profile_start():
+    global _profiler # pylint: disable=global-statement
+    if _profiler is not None:
+        _profiler.disable()
+        _profiler.clear()
+        _profiler.enable()
+    else:
+        import cProfile
+        _profiler = cProfile.Profile()
+        _profiler.enable()
+
+
+def profile_stop():
+    if _profiler is not None:
+        _profiler.disable()
 
 
 def profile_torch(profiler, msg: str):

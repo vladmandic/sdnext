@@ -119,6 +119,7 @@ declare global {
     disableGPU?: () => Promise<void>; // ui/gpu.ts
     startGPU?: () => Promise<void>; // ui/gpu.ts
     refreshHistory?: () => void; // ui/history.ts
+    refreshStorage?: (storageTypes: string[]) => void; // ui/storage.ts
     inputAccordionChecked?: (id: string, checked: boolean) => void; // ui/inputAccordion.ts
     debug?: (...args: unknown[]) => Promise<void>; // ui/logger.ts
     error?: (...args: unknown[]) => Promise<void>; // ui/logger.ts

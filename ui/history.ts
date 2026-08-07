@@ -22,7 +22,7 @@ interface TimelineEntry {
 const inferenceTypes = ['inference', 'vae', 'te'];
 const ioTypes = ['load', 'save'];
 
-export function refreshHistory() {
+export async function refreshHistory() {
   log('refreshHistory');
   authFetch(`${window.api}/history`, { priority: 'low' }).then((res) => {
     if (!res) return;

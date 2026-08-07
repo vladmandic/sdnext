@@ -19,7 +19,7 @@ from transformers import Qwen2Tokenizer, Qwen3VLForConditionalGeneration
 
 from diffusers.models import AutoencoderKL, AutoencoderKLFlux2
 from diffusers.schedulers import FlowMatchEulerDiscreteScheduler
-from diffusers.utils import is_torch_xla_available, logging, replace_example_docstring
+from diffusers.utils import is_torch_xla_available, replace_example_docstring
 from diffusers.utils.torch_utils import randn_tensor
 from diffusers.pipelines.flux2.image_processor import Flux2ImageProcessor
 from diffusers.pipelines.pipeline_utils import DiffusionPipeline
@@ -35,16 +35,15 @@ else:
     XLA_AVAILABLE = False
 
 
-logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
-
-
 EXAMPLE_DOC_STRING = """
     Examples:
         ```py
         >>> import torch
         >>> from diffusers import SeFiPipeline
 
-        >>> pipe = SeFiPipeline.from_pretrained("./sefi-1b-base-diffusers", torch_dtype=torch.bfloat16)
+        >>> pipe = SeFiPipeline.from_pretrained(
+        ...     "SeFi-Image/SeFi-Image-1B-Base-diffusers", dtype=torch.bfloat16
+        ... )
         >>> pipe.to("cuda")
         >>> image = pipe("A red apple on a wooden table.").images[0]
         >>> image.save("sefi.png")
@@ -135,13 +134,8 @@ class SeFiPipeline(DiffusionPipeline):
         )
         if isinstance(text_encoder_hidden_layers, str):
             text_encoder_hidden_layers = tuple(int(layer) for layer in text_encoder_hidden_layers.split(","))
-        semantic_channels = 16 if semantic_channels is None else semantic_channels
-        if texture_vae_name is None:
-            texture_vae_name = "flux2" if vae is not None and hasattr(vae, "bn") else "sd1.5"
-        default_guidance_scale = 4.0 if default_guidance_scale is None else default_guidance_scale
-        default_num_inference_steps = 50 if default_num_inference_steps is None else default_num_inference_steps
-        text_encoder_hidden_layers = (9, 18, 27) if text_encoder_hidden_layers is None else text_encoder_hidden_layers
-        max_sequence_length = 1024 if max_sequence_length is None else max_sequence_length
+        elif text_encoder_hidden_layers is not None:
+            text_encoder_hidden_layers = tuple(text_encoder_hidden_layers)
         self.register_to_config(
             semantic_channels=semantic_channels,
             texture_vae_name=texture_vae_name,
@@ -150,11 +144,11 @@ class SeFiPipeline(DiffusionPipeline):
             default_num_inference_steps=default_num_inference_steps,
             delta_t=delta_t,
             timestep_shift_alpha=timestep_shift_alpha,
-            text_encoder_hidden_layers=tuple(text_encoder_hidden_layers),
+            text_encoder_hidden_layers=text_encoder_hidden_layers,
             max_sequence_length=max_sequence_length,
         )
 
-        self.semantic_channels = int(semantic_channels)
+        self.semantic_channels = semantic_channels
         self.texture_vae_name = str(texture_vae_name).lower()
         self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1) if getattr(self, "vae", None) else 8
         self.image_processor = Flux2ImageProcessor(vae_scale_factor=self.vae_scale_factor * 2)
@@ -184,24 +178,23 @@ class SeFiPipeline(DiffusionPipeline):
     def num_timesteps(self):
         return self._num_timesteps
 
-    @staticmethod
-    def _prepare_text_ids(x: torch.Tensor, t_coord: torch.Tensor | None = None):
-        B, L, _ = x.shape
-        out_ids = []
-
-        for i in range(B):
-            t = torch.arange(1) if t_coord is None else t_coord[i]
-            h = torch.arange(1)
-            w = torch.arange(1)
-            l = torch.arange(L)
-
-            coords = torch.cartesian_prod(t, h, w, l)
-            out_ids.append(coords)
-
-        return torch.stack(out_ids)
+    @property
+    def current_timestep(self):
+        return self._current_timestep
 
     @staticmethod
-    def _prepare_latent_ids(latents: torch.Tensor):
+    def _prepare_text_ids(x: torch.Tensor):
+        batch_size, sequence_length, _ = x.shape
+        text_ids = torch.cartesian_prod(
+            torch.arange(1), torch.arange(1), torch.arange(1), torch.arange(sequence_length)
+        )
+        return text_ids.unsqueeze(0).expand(batch_size, -1, -1)
+
+    @staticmethod
+    # Copied from diffusers.pipelines.flux2.pipeline_flux2.Flux2Pipeline._prepare_latent_ids
+    def _prepare_latent_ids(
+        latents: torch.Tensor,  # (B, C, H, W)
+    ):
         r"""
         Generates 4D position coordinates (T, H, W, L) for latent tensors.
 
@@ -231,6 +224,7 @@ class SeFiPipeline(DiffusionPipeline):
         return latent_ids
 
     @staticmethod
+    # Copied from diffusers.pipelines.flux2.pipeline_flux2.Flux2Pipeline._unpatchify_latents
     def _unpatchify_latents(latents):
         batch_size, num_channels_latents, height, width = latents.shape
         latents = latents.reshape(batch_size, num_channels_latents // (2 * 2), 2, 2, height, width)
@@ -239,6 +233,7 @@ class SeFiPipeline(DiffusionPipeline):
         return latents
 
     @staticmethod
+    # Copied from diffusers.pipelines.flux2.pipeline_flux2.Flux2Pipeline._pack_latents
     def _pack_latents(latents):
         """
         pack latents: (batch_size, num_channels, height, width) -> (batch_size, height * width, num_channels)
@@ -250,9 +245,8 @@ class SeFiPipeline(DiffusionPipeline):
         return latents
 
     @staticmethod
-    def _unpack_latents_with_ids(
-        x: torch.Tensor, x_ids: torch.Tensor, height: int | None = None, width: int | None = None
-    ):
+    # Copied from diffusers.pipelines.flux2.pipeline_flux2.Flux2Pipeline._unpack_latents_with_ids
+    def _unpack_latents_with_ids(x: torch.Tensor, x_ids: torch.Tensor) -> list[torch.Tensor]:
         """
         using position ids to scatter tokens into place
         """
@@ -306,34 +300,19 @@ class SeFiPipeline(DiffusionPipeline):
 
     def _build_chat_text(self, prompt: str) -> str:
         messages = [{"role": "user", "content": [{"type": "text", "text": prompt}]}]
-        try:
-            return self.tokenizer.apply_chat_template(
-                messages,
-                tokenize=False,
-                add_generation_prompt=True,
-                enable_thinking=False,
-            )
-        except TypeError:
-            return self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        return self.tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True,
+            enable_thinking=False,
+        )
 
     def _align_text_encoder_rotary_dtype(self, device: torch.device):
-        text_encoder = self.text_encoder
-        if text_encoder is None:
-            return
-
-        try:
-            text_encoder_dtype = next(text_encoder.parameters()).dtype
-        except StopIteration:
-            return
-
-        text_model = text_encoder.model if hasattr(text_encoder, "model") else text_encoder
-        language_model = getattr(text_model, "language_model", None)
-        rotary_emb = getattr(language_model, "rotary_emb", None)
-        if rotary_emb is not None:
-            # Qwen3-VL stores RoPE inverse frequencies as non-persistent buffers. `from_pretrained(torch_dtype=...)`
-            # can leave them in fp32 even when text weights are bf16, while the reference SeFi wrapper casts the whole
-            # text encoder module. Keep these buffers aligned before text encoding.
-            rotary_emb.to(device=device, dtype=text_encoder_dtype)
+        text_encoder_dtype = next(self.text_encoder.parameters()).dtype
+        # Qwen3-VL stores RoPE inverse frequencies as non-persistent buffers. `from_pretrained(dtype=...)`
+        # can leave them in fp32 even when text weights are bf16, while the reference SeFi wrapper casts the whole
+        # text encoder module. Keep these buffers aligned before text encoding.
+        self.text_encoder.model.language_model.rotary_emb.to(device=device, dtype=text_encoder_dtype)
 
     def _get_qwen3vl_prompt_embeds(
         self,
@@ -390,10 +369,10 @@ class SeFiPipeline(DiffusionPipeline):
     ):
         device = device or self._execution_device
         dtype = dtype or (self.transformer.dtype if self.transformer is not None else self.text_encoder.dtype)
-        max_sequence_length = max_sequence_length or self.config.max_sequence_length
-        text_encoder_hidden_layers = text_encoder_hidden_layers or tuple(self.config.text_encoder_hidden_layers)
 
         if prompt_embeds is None:
+            max_sequence_length = max_sequence_length or self.config.max_sequence_length
+            text_encoder_hidden_layers = text_encoder_hidden_layers or tuple(self.config.text_encoder_hidden_layers)
             prompt_embeds = self._get_qwen3vl_prompt_embeds(
                 prompt=prompt,
                 device=device,
@@ -608,7 +587,7 @@ class SeFiPipeline(DiffusionPipeline):
             dtype=torch.float32,
         )
         u_shifted_unit = _apply_timestep_shift_unit_interval(u_base_unit, self.config.timestep_shift_alpha)
-        _, base_sigmas_schedule = self._timesteps_and_sigmas(u_shifted_unit, n_dim=1, dtype=torch.float32)
+        base_timesteps_schedule, _ = self._timesteps_and_sigmas(u_shifted_unit, n_dim=1, dtype=torch.float32)
         u_sem_raw_schedule = u_shifted_unit * (1.0 + float(self.config.delta_t))
 
         self._num_timesteps = num_inference_steps
@@ -631,9 +610,9 @@ class SeFiPipeline(DiffusionPipeline):
                 _, sigmas_sem_next = self._timesteps_and_sigmas(u_sem_next, latents.ndim, latents.dtype)
                 _, sigmas_tex_next = self._timesteps_and_sigmas(u_tex_next, latents.ndim, latents.dtype)
 
-                self._current_timestep = base_sigmas_schedule[i]
+                self._current_timestep = base_timesteps_schedule[i]
                 packed_latents = self._pack_latents(latents)
-                pred_cond = self.transformer(
+                noise_pred = self.transformer(
                     hidden_states=packed_latents,
                     timestep_sem=timesteps_sem_cur / 1000,
                     timestep_tex=timesteps_tex_cur / 1000,
@@ -643,8 +622,8 @@ class SeFiPipeline(DiffusionPipeline):
                     joint_attention_kwargs=self.attention_kwargs,
                     return_dict=False,
                 )[0]
-                pred_cond = pred_cond[:, : packed_latents.size(1)]
-                pred_cond = self._unpack_latents_with_ids(pred_cond, latent_ids)
+                noise_pred = noise_pred[:, : packed_latents.size(1)]
+                noise_pred = self._unpack_latents_with_ids(noise_pred, latent_ids)
 
                 if self.do_classifier_free_guidance:
                     pred_uncond = self.transformer(
@@ -659,9 +638,9 @@ class SeFiPipeline(DiffusionPipeline):
                     )[0]
                     pred_uncond = pred_uncond[:, : packed_latents.size(1)]
                     pred_uncond = self._unpack_latents_with_ids(pred_uncond, latent_ids)
-                    velocity = _combine_guided_velocity(pred_uncond, pred_cond, guidance_scale)
+                    velocity = _combine_guided_velocity(pred_uncond, noise_pred, guidance_scale)
                 else:
-                    velocity = pred_cond
+                    velocity = noise_pred
 
                 vel_sem = velocity[:, : self.semantic_channels]
                 vel_tex = velocity[:, self.semantic_channels :]
@@ -685,6 +664,8 @@ class SeFiPipeline(DiffusionPipeline):
                     xm.mark_step()
 
                 progress_bar.update()
+
+        self._current_timestep = None
 
         if output_type == "latent":
             image = latents

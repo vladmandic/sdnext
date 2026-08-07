@@ -1,3 +1,6 @@
+# legacy module as video now uses main prompt enhancer
+# except for framepack
+
 import gradio as gr
 from PIL import Image
 from modules.logger import log

@@ -105,7 +105,7 @@ def encode_image(image: Image.Image, cache_key: str | None = None):
 
     model = load_model(loaded)
 
-    with devices.inference_context():
+    with devices.llm_context():
         encoded = model.encode_image(image)
 
     if cache_key:
@@ -157,7 +157,7 @@ def query(image: Image.Image, question: str, repo: str, stream: bool = False,
     else:
         image_input = image
 
-    with devices.inference_context():
+    with devices.llm_context():
         response = model.query(
             image=image_input,
             question=question,
@@ -212,7 +212,7 @@ def caption(image: Image.Image, repo: str, length: str = 'normal', stream: bool 
 
     debug(f'LLM: handler=moondream3 method=caption length={length} stream={stream} settings={settings}')
 
-    with devices.inference_context():
+    with devices.llm_context():
         response = model.caption(
             image,
             length=length,
@@ -244,7 +244,7 @@ def point(image: Image.Image, object_name: str, repo: str):
 
     debug(f'LLM: handler=moondream3 method=point object_name="{object_name}"')
 
-    with devices.inference_context():
+    with devices.llm_context():
         result = model.point(image, object_name)
 
     debug(f'LLM: handler=moondream3 point_raw_result="{result}" type={type(result)}')
@@ -281,7 +281,7 @@ def detect(image: Image.Image, object_name: str, repo: str, max_objects: int = 1
 
     debug(f'LLM: handler=moondream3 method=detect object_name="{object_name}" max_objects={max_objects}')
 
-    with devices.inference_context():
+    with devices.llm_context():
         result = model.detect(image, object_name)
 
     debug(f'LLM: handler=moondream3 detect_raw_result="{result}" type={type(result)}')

@@ -28,6 +28,9 @@ async def post_rembg(
     if model == "ben2":
         from modules.rembg import ben2
         image = ben2.remove(input_image, refine=refine)
+    elif model == "lucida":
+        from modules.rembg import lucida
+        image = lucida.remove(input_image)
     else:
         dependencies()
         import rembg

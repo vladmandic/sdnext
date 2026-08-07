@@ -107,7 +107,19 @@ def cut_videos(videos):
     return result
 
 
-def generation_loop(runner, images, cfg_scale=1.0, cfg_rescale=0.0, steps=1, seed=666, res_w=720, batch_size=90, temporal_overlap=0, progress_callback=None, device:str='cpu', color_reconstruct=True):
+def generation_loop(runner,
+                    images,
+                    cfg_scale=1.5,
+                    cfg_rescale=0.0,
+                    steps=1,
+                    seed=-1,
+                    res_w=720,
+                    batch_size=1,
+                    temporal_overlap=0,
+                    progress_callback=None,
+                    device:str='cpu',
+                    color_reconstruct=True,
+                   ):
     """
     Main generation loop with context-aware temporal processing
 

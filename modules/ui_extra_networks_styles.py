@@ -137,6 +137,5 @@ class ExtraNetworkStyles(extra_networks.ExtraNetwork):
                     p.negative_prompts = [styles.merge_prompts(style.negative_prompt, prompt) for prompt in p.negative_prompts]
                     styles.apply_styles_to_extra(p, style)
 
-
     def deactivate(self, p, force=False):
         pass

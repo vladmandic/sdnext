@@ -175,6 +175,8 @@ def guess_by_name(fn, current_guess):
         new_guess = 'JoyEdit'
     elif 'sefi-image' in fn.lower():
         new_guess = 'SeFi'
+    elif 'mage-flow' in fn.lower():
+        new_guess = 'MageFlow'
     if debug_load:
         log.trace(f'Autodetect: method=name file="{fn}" previous="{current_guess}" current="{new_guess}"')
     return new_guess or current_guess

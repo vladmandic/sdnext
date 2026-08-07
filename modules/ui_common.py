@@ -296,7 +296,7 @@ def open_folder(result_gallery, gallery_index = 0):
         subprocess.Popen([opener, path])  # pylint: disable=consider-using-with
 
 
-def create_output_panel(tabname, preview=True, prompt=None, height=None, transfer=True, scale=1, result_info=None):
+def create_output_panel(tabname, preview=True, prompt=None, height=None, transfer=True, scale=1, result_info=None, html_log_val=''):
     with gr.Column(variant='panel', elem_id=f"{tabname}_results", scale=scale):
         with gr.Group(elem_id=f"{tabname}_gallery_container"):
             if tabname == "txt2img":
@@ -348,7 +348,7 @@ def create_output_panel(tabname, preview=True, prompt=None, height=None, transfe
                 html_info = gr.HTML(elem_id=f'html_info_{tabname}', elem_classes="infotext", visible=False) # contains raw infotext as returned by wrapped call
                 html_info_formatted = gr.HTML(elem_id=f'html_info_formatted_{tabname}', elem_classes="infotext", visible=True) # contains html formatted infotext
                 html_info.change(fn=infotext_to_html, inputs=[html_info], outputs=[html_info_formatted], show_progress='hidden')
-                html_log = gr.HTML(elem_id=f'html_log_{tabname}', elem_classes=["hint"])
+                html_log = gr.HTML(elem_id=f'html_log_{tabname}', elem_classes=["hint"], value=html_log_val)
                 generation_info = gr.Textbox(visible=False, elem_id=f'generation_info_{tabname}')
                 generation_info_button = gr.Button(visible=False, elem_id=f"{tabname}_generation_info_button")
 

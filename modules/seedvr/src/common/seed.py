@@ -16,13 +16,14 @@ import random
 from typing import Optional
 import numpy as np
 import torch
-from .distributed import get_global_rank
 
 
-def set_seed(seed: Optional[int], same_across_ranks: bool = False):
+def set_seed(seed: Optional[int]):
     """Function that sets the seed for pseudo-random number generators."""
+    if (seed is None) or (seed == '') or (seed == -1):
+        random.seed()
+        seed = int(random.randrange(4294967294))
     if seed is not None:
-        seed += get_global_rank() if not same_across_ranks else 0
         random.seed(seed)
         np.random.seed(seed)
         torch.manual_seed(seed)

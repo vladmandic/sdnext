@@ -72,7 +72,7 @@ def path_to_repo(checkpoint_info: CheckpointInfo | str):
     for opt in [shared.opts.ckpt_dir, shared.opts.diffusers_dir, shared.opts.hfcache_dir]:
         remove_prefix.append(opt.replace('\\', '/'))
         try:
-            relative = os.path.relpath(opt, start=shared.opts.models_dir).replace('\\', '/')
+            relative = os.path.relpath(opt, start=shared.models_path).replace('\\', '/')
             if not relative.startswith('.'):
                 remove_prefix.append(relative)
         except Exception:

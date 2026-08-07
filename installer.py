@@ -127,8 +127,13 @@ def env_flag(name: str, default: bool = False) -> bool:
 
 def print_profile(profiler: cProfile.Profile, msg: str):
     profiler.disable()
-    from modules.errors import profile
-    profile(profiler, msg)
+    from modules.errors import profile_print
+    profile_print(msg, local_profiler=profiler)
+
+
+def profile(*_args, **_kwargs):
+    # legacy to avoid import errors
+    pass
 
 
 def package_version(package):
@@ -549,7 +554,7 @@ def check_diffusers():
     t_start = time.time()
     if args.skip_all:
         return
-    target_commit = "01969142b55379991fee07608c9e7e8f80afced0" # diffusers commit hash == 0.39.0.dev0 == 06-29-2026
+    target_commit = "6f2010e8bbe61fd2a81a659b858e298edcba8fab" # diffusers commit hash == 0.40.0.dev0 == 08-04-2026
     # if args.use_rocm or args.use_zluda or args.use_directml:
     #     sha = '043ab2520f6a19fce78e6e060a68dbc947edb9f9' # lock diffusers versions for now
     pkg = package_spec('diffusers')
@@ -560,7 +565,7 @@ def check_diffusers():
         if minor == -1:
             log.info(f'Install: package="diffusers" commit={target_commit}')
         else:
-            log.info(f'Update: package="diffusers" current={pkg.version} hash={current} target={target_commit}')
+            log.info(f'Update: package="diffusers" current={pkg.version} commit={current} target={target_commit}')
             pip('uninstall --yes diffusers', ignore=True, quiet=True, uv=False)
         if args.skip_git:
             log.warning('Git: marked as not available but required for diffusers installation')
@@ -578,7 +583,7 @@ def check_transformers():
     pkg_transformers = package_spec('transformers')
     pkg_tokenizers = package_spec('tokenizers')
     # target_commit = '753d61104116eefc8ffc977327b441ee0c8d599f' # transformers commit hash == 4.57.6
-    # target_commit = "380e3cc5d59912a48508cb6d4959a31cd460e12e" # transformers commit hash == 5.5.0.dev-0409
+    # target_commit = "cf8572d34e39818e42dbf220701fbd3eb5b5a82a" # transformers commit hash == 5.14.0.dev0 == 08-04-2026
     target_commit = "b70d02fc724d04c916832ca4ead03ff05e8fb1ee" # transformers commit hash == 5.13.0.dev0 == 07-03-2026
     if args.use_directml:
         target_transformers = '4.52.4'
@@ -604,7 +609,7 @@ def check_transformers():
             if pkg_transformers is None:
                 log.info(f'Install: package="transformers" commit={target_commit}')
             else:
-                log.info(f'Update: package="transformers" current={pkg_transformers.version} hash={current} target={target_commit}')
+                log.info(f'Update: package="transformers" current={pkg_transformers.version} commit={current} target={target_commit}')
             pip('uninstall --yes transformers', ignore=True, quiet=True)
             pip(f'install tokenizers=={target_tokenizers}', ignore=False, quiet=True)
             pip(f'install git+https://github.com/huggingface/transformers@{target_commit}', ignore=False, quiet=True)
@@ -942,6 +947,12 @@ def check_torch():
             install(torch_command, 'torch torchvision', quiet=False)
 
     try:
+        try:
+            # import torch pulls torch.distributed immediately which is slow and unnecessary
+            import torch.distributed.tensor._ops as dtensor_ops
+            dtensor_ops.single_dim_strategy._resolve_foreach_elementwise_overload = lambda *a, **kw: None # pylint: disable=protected-access
+        except Exception:
+            pass
         import torch
         try:
             import intel_extension_for_pytorch as ipex # pylint: disable=import-error, unused-import
@@ -1355,6 +1366,7 @@ def install_requirements():
 # set environment variables controlling the behavior of various libraries
 def set_environment():
     log.debug('Setting environment tuning')
+    os.environ.setdefault('SDNQ_REGISTER_DIFFUSERS', '1')
     os.environ.setdefault('ACCELERATE', 'True')
     os.environ.setdefault('ATTN_PRECISION', 'fp16')
     os.environ.setdefault('ClDeviceGlobalMemSizeAvailablePercent', '100')
@@ -1365,6 +1377,7 @@ def set_environment():
     os.environ.setdefault('CUDA_MODULE_LOADING', 'LAZY')
     os.environ.setdefault('DO_NOT_TRACK', '1')
     os.environ.setdefault('FORCE_CUDA', '1')
+    os.environ.setdefault('DIFFUSERS_TRUST_REMOTE_KERNELS', 'true')
     os.environ.setdefault('GRADIO_ANALYTICS_ENABLED', 'False')
     os.environ.setdefault('K_DIFFUSION_USE_COMPILE', '0')
     os.environ.setdefault('KINETO_LOG_LEVEL', '3')

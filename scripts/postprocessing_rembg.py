@@ -1,11 +1,11 @@
 import os
 import gradio as gr
 from PIL import Image
-from modules import scripts_postprocessing
-
+from modules import errors, scripts_postprocessing
 
 models = [
     "none",
+    "lucida",
     "ben2",
     "silueta",
     "u2net",
@@ -84,6 +84,15 @@ class ScriptPostprocessingRembg(scripts_postprocessing.ScriptPostprocessing):
                 image = ben2.remove(image, refine=refine)
             except Exception as e:
                 log.error(f'RemoveBackground: model={model} {e}')
+                errors.display(e, 'Rembg model=ben2')
+                return pp
+        elif model == 'lucida':
+            try:
+                from modules.rembg import lucida
+                image = lucida.remove(image)
+            except Exception as e:
+                log.error(f'RemoveBackground: model={model} {e}')
+                errors.display(e, 'Rembg model=lucida')
                 return pp
         else:
             try:
@@ -101,6 +110,7 @@ class ScriptPostprocessingRembg(scripts_postprocessing.ScriptPostprocessing):
                                     session=rembg.new_session(model))
             except Exception as e:
                 log.error(f'RemoveBackground: model={model} {e}')
+                errors.display(e, f'Rembg model={model}')
                 return pp
 
         if mask_only and image.mode == "RGBA":

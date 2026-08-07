@@ -606,6 +606,10 @@ def load_diffuser_force(detected_model_type: str, checkpoint_info: CheckpointInf
             from pipelines.model_sefi import load_sefi
             sd_model = load_sefi(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
+        elif model_type in ['MageFlow']:
+            from pipelines.model_mageflow import load_mageflow
+            sd_model = load_mageflow(checkpoint_info, diffusers_load_config)
+            allow_post_quant = True
     except Exception as e:
         log.error(f'Load {op}: path="{checkpoint_info.path}" {e}')
         errors.display(e, 'Load')
@@ -1393,9 +1397,9 @@ def set_diffuser_pipe(pipe, new_pipe_type):
         add_noise_pred_to_diffusers_callback(new_pipe.pipe)
 
     fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
-    log.debug(f"Pipeline class change: source={cls} target={new_pipe.__class__.__name__} device={pipe.device} fn={fn}") # pylint: disable=protected-access
+    log.debug(f"Pipeline class change: source={cls} target={new_pipe.__class__.__name__} fn={fn}") # pylint: disable=protected-access
 
-    if shared.opts.diffusers_offload_mode == 'none':
+    if shared.opts.diffusers_offload_mode == 'none' and hasattr(pipe, 'device'):
         move_model(new_pipe, pipe.device)
     else:
         set_diffuser_offload(new_pipe, op='model')
@@ -1428,7 +1432,7 @@ def add_noise_pred_to_diffusers_callback(pipe):
 
 
 def get_native(pipe: diffusers.DiffusionPipeline):
-    if hasattr(pipe, "vae") and hasattr(pipe.vae.config, "sample_size"):
+    if hasattr(pipe, "vae") and hasattr(pipe.vae, "config") and hasattr(pipe.vae.config, "sample_size"):
         size = pipe.vae.config.sample_size # Stable Diffusion
     elif hasattr(pipe, "movq") and hasattr(pipe.movq.config, "sample_size"):
         size = pipe.movq.config.sample_size # Kandinsky
@@ -1548,14 +1552,17 @@ def clear_caches(full: bool = False):
     lora_common.loaded_networks.clear()
     lora_common.previously_loaded_networks.clear()
     lora_load.lora_cache.clear()
+    fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
+    log.debug(f'Cache clear: full={full} fn={fn}')
     if full:
-        log.debug('Cache clear')
         sd_offload.offload_hook_instance = None
 
 
 def unload_model_weights(op='model'):
     fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
-    clear_caches(full=True)
+    if model_data.sd_model or model_data.sd_refiner:
+        clear_caches(full=True)
+        devices.torch_reset()
     if shared.compiled_model_state is not None:
         shared.compiled_model_state.compiled_cache.clear()
         shared.compiled_model_state.req_cache.clear()

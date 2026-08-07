@@ -12,17 +12,14 @@
 - Control tab verify overrides handling, @vladmandic
 - Cloud providers, @CalamitousFelicitousness
 - Video processing add/verify full API support, @CalamitousFelicitousness
-- Storage analyzer, @vladmandic
 - Lora: new handler, @CalamitousFelicitousness
-- Vide: full prompt enhance
 - Processing -> Video capabilities, @vladmandic
-  - `NudeNet` in processing
   - `RIFE` in processing
 
 ### Unassigned
 
-- [Nunchaku Lite](https://github.com/huggingface/diffusers/pull/14100)
 - [Object clear](https://huggingface.co/jixin0101/ObjectClear) remover for Kanvas
+- [MiniMax H3](https://github.com/huggingface/diffusers/pull/14355)
 - Video models: add to Reference
 - Video models: support custom entries, finetunes
 - UI Lite vs Expert mode

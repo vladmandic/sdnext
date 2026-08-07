@@ -250,12 +250,12 @@ class OffloadHook(accelerate.hooks.ModelHook):
                     for module_name in get_module_names(pipe):
                         module_instance = getattr(pipe, module_name, None)
                         module_cls = module_instance.__class__.__name__
-                        if (module_instance is not None) and (_id != id(module_instance)) and (module_cls not in self.offload_never) and (not devices.same_device(module_instance.device, devices.cpu)):
+                        if (module_instance is not None) and (_id != id(module_instance)) and (module_cls not in self.offload_never) and (not devices.same_device(getattr(module_instance, "device", devices.cpu), devices.cpu)):
                             apply_balanced_offload_to_module(module_instance, op='pre')
                 self.last_cls = module.__class__.__name__
                 process_timer.add('offload', time.time() - t0)
 
-        if not devices.same_device(module.device, devices.device): # move-to-device
+        if not devices.same_device(getattr(module, "device", devices.cpu), devices.device): # move-to-device
             t0 = time.time()
             device_index = torch.device(devices.device).index
             if device_index is None:
@@ -301,7 +301,7 @@ class OffloadHook(accelerate.hooks.ModelHook):
             for _i, pipe in enumerate(get_pipe_variants()):
                 for module_name in get_module_names(pipe):
                     module_instance = getattr(pipe, module_name, None)
-                    log.trace(f'Offload: type=balanced op=pre:status forward={module.__class__.__name__} module={module_name} class={module_instance.__class__.__name__} pipe={_i} device={module_instance.device} dtype={module_instance.dtype}')
+                    log.trace(f'Offload: type=balanced op=pre:status forward={module.__class__.__name__} module={module_name} class={module_instance.__class__.__name__} pipe={_i} device={getattr(module_instance, "device", devices.cpu)} dtype={module_instance.dtype}')
 
         self.last_pre = _id
         return args, kwargs

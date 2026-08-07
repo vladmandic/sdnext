@@ -50,8 +50,9 @@ import signal
 import logging
 import argparse
 import tempfile
+import statistics
+import importlib
 import importlib.metadata
-import importlib.import_module
 from contextlib import contextmanager
 
 import torch
@@ -660,8 +661,16 @@ def run_drift_sigma():
 
 drift_override = None
 verdict_z = 1.28 # one-sided 90%: an on/off verdict is only stated when its margin test clears this
-# per-test z holding the family-wise confidence at 90% across k tested candidates (sidak)
-sidak_z = {1: 1.28, 2: 1.63, 3: 1.82, 4: 1.95}
+
+
+def sidak_z_for(count):
+    # per-test z holding the family-wise confidence of verdict_z across count candidates
+    # (sidak): the selected best of several noisy rows sits low by selection, so testing
+    # it at the single-test z would overstate confidence
+    if count <= 1:
+        return verdict_z
+    single = statistics.NormalDist().cdf(verdict_z)
+    return statistics.NormalDist().inv_cdf(single ** (1.0 / count))
 
 # the synthetic-tensor errors are seed-fixed math and land within a few percent across
 # nvidia, amd and intel gpus; a value outside its band means the measurement itself is
@@ -2527,6 +2536,58 @@ def best_config(results):
     return min(near_fastest, key=lambda item: item[2])[0]
 
 
+def config_settings(kwargs):
+    # ui settings tuple a bench config corresponds to; None for the external baselines
+    # and the unquantized row, which are not reachable states of the attention dropdowns
+    if not kwargs or not kwargs.get("do_quantize", True):
+        return None
+    matmul = kwargs.get("matmul_dtype", "auto")
+    pv = kwargs.get("pv_matmul_dtype", "auto")
+    return {
+        "matmul": "enabled" if matmul == "auto" else matmul,
+        "pv": "disabled" if pv == "auto" else pv,
+        "smooth": bool(kwargs.get("smooth_k", False)),
+        "hadamard": bool(kwargs.get("use_hadamard", False)),
+    }
+
+
+def select_attention_config(results):
+    # the attention settings jointly pick one kernel config, so they are judged as one:
+    # rank the measured quantized rows by the same rule as the per-shape star instead of
+    # testing each setting alone against int8, which can assemble a settings tuple no
+    # row ever measured. rows breaching the incremental error cap vs int8 are held out
+    # of the ranking but kept for citation
+    int8_err_ref = measured(results, "int8")[1]
+    pool, capped = [], []
+    for config_id, label, kwargs in bench_configs:
+        settings = config_settings(kwargs)
+        if settings is None:
+            continue
+        ms, err = measured(results, config_id)
+        if ms is None:
+            continue
+        entry = dict(config_id=config_id, label=label.removeprefix("sdnq "), ms=ms, err=err, settings=settings)
+        if err and int8_err_ref and err > int8_err_ref * recommend_error_cap:
+            capped.append(entry)
+        else:
+            pool.append(entry)
+    if not pool:
+        return None, pool, capped
+    fastest = min(entry["ms"] for entry in pool)
+    window = [entry for entry in pool if entry["ms"] <= fastest * 1.05]
+    chosen = min(window, key=lambda entry: entry["err"] if entry["err"] is not None else float("inf"))
+    return chosen, pool, capped
+
+
+def best_in_subset(entries):
+    # the star rule inside one setting's subset, for citing its strongest variant
+    if not entries:
+        return None
+    fastest = min(entry["ms"] for entry in entries)
+    window = [entry for entry in entries if entry["ms"] <= fastest * 1.05]
+    return min(window, key=lambda entry: entry["err"] if entry["err"] is not None else float("inf"))
+
+
 def build_recommendations(all_results, fp8_result, prep_status, block_results=None, block_variants=None):
     # prefer an image dit shape with the full config set as reference, then the video shapes
     reference = None
@@ -2552,34 +2613,35 @@ def build_recommendations(all_results, fp8_result, prep_status, block_results=No
         return str(getattr(shared.opts, key))
 
     rows = []
-    # verdicts are computed before any row is built: the smooth k and hadamard buybacks
-    # feed a composition check on the qk verdict, since toggles that pass individually
-    # can still lose to unquantized as a stack. compare against the unquantized sdnq row:
-    # quantization has to pay for its own prep and clear the shared speed margin, at this
-    # run's own measured noise level; too close to call keeps the current setting
-    qk_sigma = pair_sigma(results.get("int8") or {}, "ms", results.get("noquant") or {}, "ms")
-    qk_test = speed_verdict(int8_ms, noquant_ms, sigma=qk_sigma)
-    use_quantized = qk_test == "faster"
-    qk_inconclusive = qk_test == "inconclusive"
-    if int8_ms and noquant_ms:
-        if use_quantized:
-            quant_reason = f"int8 qk measured x{noquant_ms / int8_ms:.2f} vs unquantized sdnq attention"
-            if int8_err and noquant_err:
-                quant_reason += f", error {int8_err:.5f} vs {noquant_err:.5f}; smooth k and hadamard below buy error back"
-        elif qk_inconclusive:
-            quant_reason = f"int8 qk measured x{noquant_ms / int8_ms:.2f} vs unquantized sdnq attention, too close to the x{1 / recommend_speed_margin:.2f} margin to call at this run's noise (ratio sigma {qk_sigma:.1%}); keeping the current setting"
-        elif int8_ms < noquant_ms:
-            quant_reason = f"int8 qk measured only x{noquant_ms / int8_ms:.2f} vs unquantized sdnq attention, under the x{1 / recommend_speed_margin:.2f} margin the verdict requires"
-            if int8_err and noquant_err:
-                quant_reason += f"; unquantized keeps error {noquant_err:.5f} vs {int8_err:.5f}"
+    # the settings below jointly pick one kernel config, so the verdict is joint: select
+    # the best measured quantized row (star rule with the error cap), then gate that one
+    # config against the unquantized sdnq row: quantization has to pay for its own prep
+    # and clear the shared speed margin, at this run's own measured noise level and at a
+    # z adjusted for having selected the best of the pool; too close to call keeps the
+    # current settings
+    chosen, pool, capped = select_attention_config(results)
+    gate = None
+    quant_reason = "no quantized attention config ran at this shape"
+    if chosen is not None and noquant_ms:
+        gate_sigma = pair_sigma(results.get(chosen["config_id"]) or {}, "ms", results.get("noquant") or {}, "ms")
+        gate = speed_verdict(chosen["ms"], noquant_ms, sigma=gate_sigma, z=sidak_z_for(len(pool)))
+        if gate == "faster":
+            quant_reason = f"{chosen['label']} measured x{noquant_ms / chosen['ms']:.2f} vs unquantized sdnq attention"
+            if chosen["err"] and noquant_err:
+                quant_reason += f", error {chosen['err']:.5f} vs {noquant_err:.5f}"
+        elif gate == "inconclusive":
+            quant_reason = f"best quantized config ({chosen['label']}) measured x{noquant_ms / chosen['ms']:.2f} vs unquantized sdnq attention, too close to the x{1 / recommend_speed_margin:.2f} margin to call at this run's noise (ratio sigma {gate_sigma:.1%}); keeping the current setting"
+        elif chosen["ms"] < noquant_ms:
+            quant_reason = f"best quantized config ({chosen['label']}) measured only x{noquant_ms / chosen['ms']:.2f} vs unquantized sdnq attention, under the x{1 / recommend_speed_margin:.2f} margin the verdict requires"
+            if chosen["err"] and noquant_err:
+                quant_reason += f"; unquantized keeps error {noquant_err:.5f} vs {chosen['err']:.5f}"
         else:
-            quant_reason = f"unquantized sdnq measured x{int8_ms / noquant_ms:.2f} vs int8 qk with lower error; quantization prep outweighs the kernel gain on this gpu"
-    elif int8_ms and base_ms:
-        use_quantized = base_ms / int8_ms >= 1.10
-        quant_reason = f"int8 qk measured x{base_ms / int8_ms:.2f} vs torch sdpa; unquantized sdnq row unavailable"
-    else:
-        use_quantized = False
-        quant_reason = "int8 qk failed to run"
+            quant_reason = f"unquantized sdnq measured x{chosen['ms'] / noquant_ms:.2f} vs the best quantized config ({chosen['label']}) with lower error; quantization prep outweighs the kernel gain on this gpu"
+    elif chosen is not None and base_ms:
+        gate = "faster" if base_ms / chosen["ms"] >= 1.10 else "not_faster"
+        quant_reason = f"{chosen['label']} measured x{base_ms / chosen['ms']:.2f} vs torch sdpa; unquantized sdnq row unavailable"
+    use_quantized = gate == "faster"
+    qk_inconclusive = gate == "inconclusive"
 
     # buyback costs are judged at the block geometry matching the reference family when
     # one was measured, so a krea2 verdict uses the krea2-width block
@@ -2623,127 +2685,105 @@ def build_recommendations(all_results, fp8_result, prep_status, block_results=No
         hadamard_rec = hadamard_gain >= 1.3 and hadamard_cost <= 0.15
         hadamard_reason = f"int8 error x{hadamard_gain:.1f} lower for {hadamard_cost_note}; hangs torch compile on non pow2 head dims (SD 1.5)"
 
-    # composition check: the toggles recommended above must still beat unquantized as a
-    # stack; when the exact stack was not measured, predict it additively from the single
-    # toggle deltas (measured cross-vendor: additive to ~2% median with a +2% skew, so the
-    # prediction carries that correction plus a model sigma alongside the measurement noise)
-    additive_model_skew = 1.02
-    additive_model_sigma = 0.028
+    # rows decompose the one selected config; each reason cites the measured row that
+    # isolates its own setting where one was benchmarked
+    by_settings = {}
+    for entry in pool + capped:
+        s = entry["settings"]
+        by_settings[(s["matmul"], s["pv"], s["smooth"], s["hadamard"])] = entry
 
-    def stack_estimate(qk_ms, toggles):
-        deltas, measured_row = 0.0, results.get({(True, True): "smooth_hadamard", (True, False): "smooth", (False, True): "hadamard", (False, False): "int8"}[toggles]) or {}
-        if measured_row.get("ms"):
-            return measured_row["ms"], row_sigma(measured_row, "ms"), False
-        for on, toggle_id in ((toggles[0], "smooth"), (toggles[1], "hadamard")):
-            toggle_ms, _err = measured(results, toggle_id)
-            if on and toggle_ms and int8_ms:
-                deltas += toggle_ms - int8_ms
-        sigma = row_sigma(results.get("int8") or {}, "ms")
-        sigma = math.sqrt((sigma or 0.0) ** 2 + additive_model_sigma ** 2)
-        return (qk_ms + deltas) * additive_model_skew, sigma, True
+    def sibling(entry, **overrides):
+        s = dict(entry["settings"], **overrides)
+        other = by_settings.get((s["matmul"], s["pv"], s["smooth"], s["hadamard"]))
+        return None if other is entry else other
 
-    composition_flip = False
-    if use_quantized and noquant_ms and int8_ms:
-        toggles = (bool(smooth_rec), bool(hadamard_rec))
-        combo_label = {(True, True): "int8 qk + smooth + hadamard", (True, False): "int8 qk + smooth k", (False, True): "int8 qk + hadamard", (False, False): "int8 qk"}[toggles]
-        combo_ms, combo_sigma, estimated = stack_estimate(int8_ms, toggles)
-        combo_sigma = math.sqrt((combo_sigma or 0.0) ** 2 + (row_sigma(results.get("noquant") or {}, "ms") or 0.0) ** 2) or None
-        stack_test = speed_verdict(combo_ms, noquant_ms, sigma=combo_sigma)
-        if combo_ms and stack_test != "faster":
-            use_quantized = False
-            composition_flip = True
-            source = "estimated additively at" if estimated else "measured"
-            if stack_test == "inconclusive":
-                quant_reason = f"the recommended stack ({combo_label}) {source} x{noquant_ms / combo_ms:.2f} vs unquantized sdnq attention, too close to the margin to call; disabled until it clearly wins"
-            else:
-                quant_reason = f"the recommended stack ({combo_label}) {source} x{noquant_ms / combo_ms:.2f} vs unquantized sdnq attention; the error buybacks eat the qk gain on this gpu"
+    def block_buyback_survives(block_config_id):
+        # None when the block section did not measure the pair; False when the toggle
+        # left block output error unchanged, so its kernel-scope buyback is cosmetic here
+        variant_err = (block_rows.get(block_config_id) or {}).get("err")
+        base_block_err = (block_rows.get("int8-mm-atten") or {}).get("err")
+        if not (variant_err and base_block_err):
+            return None
+        return variant_err < base_block_err * 0.98
 
-    # the verdict must not hinge on int8 alone: bare float8 qk can clear the margin on
-    # gpus where int8 falls short, so it gets its own shot before disabling
     fp8qk_ms, fp8qk_err = measured(results, "fp8qk")
-    fp8_rescue = False
-    if not use_quantized and not composition_flip and noquant_ms and fp8qk_ms:
-        fp8_sigma = pair_sigma(results.get("fp8qk") or {}, "ms", results.get("noquant") or {}, "ms")
-        if speed_verdict(fp8qk_ms, noquant_ms, sigma=fp8_sigma) == "faster" and not (fp8qk_err and int8_err and fp8qk_err > int8_err * recommend_error_cap):
-            use_quantized = True
-            fp8_rescue = True
-            qk_inconclusive = False
-            quant_reason = f"float8 qk measured x{noquant_ms / fp8qk_ms:.2f} vs unquantized sdnq attention where the int8 path fell short"
-            if fp8qk_err:
-                quant_reason += f", error {fp8qk_err:.5f}"
-            quant_reason += "; smooth k and hadamard buybacks were only measured on int8"
-
-    qk_choice = "enabled"
-    qk_reason = quant_reason + "; enabled resolves to int8, uint8 remaps to int8"
-    if fp8_rescue:
-        qk_choice = "float8_e4m3fn"
+    if use_quantized:
+        qk_choice = chosen["settings"]["matmul"]
         qk_reason = quant_reason
-    elif fp8qk_ms and int8_ms:
-        qk_compare = f"float8 qk measured x{int8_ms / fp8qk_ms:.2f} vs int8"
-        if fp8qk_err and int8_err:
-            qk_compare += f", error {fp8qk_err:.5f} vs {int8_err:.5f}"
-        if fp8qk_ms < int8_ms * 0.95 and not (fp8qk_err and int8_err and fp8qk_err > int8_err * recommend_error_cap):
-            qk_choice = "float8_e4m3fn"
-            qk_reason = quant_reason + "; " + qk_compare
-        else:
-            qk_reason += f"; {qk_compare}"
-    elif fp8_result["qk"][0]:
-        qk_reason += "; float8 compiles here but was not benchmarked at this shape"
-    if qk_inconclusive:
+        faster_capped = [entry for entry in capped if entry["ms"] < chosen["ms"]]
+        if faster_capped and int8_err:
+            fastest_capped = min(faster_capped, key=lambda entry: entry["ms"])
+            qk_reason += f"; {fastest_capped['label']} is x{chosen['ms'] / fastest_capped['ms']:.2f} faster but multiplies error x{fastest_capped['err'] / int8_err:.1f} over int8"
+        if qk_choice == "enabled":
+            qk_reason += "; enabled resolves to int8, uint8 remaps to int8"
+        if fp8qk_ms and int8_ms and qk_choice != "float8_e4m3fn":
+            qk_reason += f"; float8 qk measured x{int8_ms / fp8qk_ms:.2f} vs int8"
+            if fp8qk_err and int8_err:
+                qk_reason += f", error {fp8qk_err:.5f} vs {int8_err:.5f}"
+        elif fp8_result["qk"][0] and not fp8qk_ms:
+            qk_reason += "; float8 compiles here but was not benchmarked at this shape"
+    elif qk_inconclusive:
         qk_choice = current("sdnq_attention_matmul_type")
         qk_reason = quant_reason
-    elif not use_quantized:
+    else:
         qk_choice = "disabled"
         qk_reason = quant_reason
     rows.append(("MatMul type", current("sdnq_attention_matmul_type"), qk_choice, qk_reason))
 
-    # pv rows were measured on top of int8 qk, so a pv verdict only holds when qk
-    # quantization itself is recommended; note enabled means int8 pv on this dropdown.
-    # each candidate is tested against the margin independently at a sidak-adjusted z:
-    # picking the fastest first and testing it afterwards would bias toward enabling,
-    # since the minimum of several noisy rows sits low by selection
-    pv_candidates = []
-    for pv_dtype, pv_name, pv_id in (("float8_e4m3fn", "fp8", "fp8pv"), ("int8", "int8", "int8pv"), ("float16", "fp16", "fp16pv")):
-        pv_ms, pv_err = measured(results, pv_id)
-        if pv_ms:
-            pv_candidates.append((pv_dtype, pv_name, pv_id, pv_ms, pv_err))
-    if use_quantized and pv_candidates and int8_ms:
-        z_sel = sidak_z.get(len(pv_candidates), sidak_z[4])
-        pv_winners, pv_inconclusive = [], False
-        for pv_dtype, pv_name, pv_id, pv_ms, pv_err in pv_candidates:
-            pv_test = speed_verdict(pv_ms, int8_ms, sigma=pair_sigma(results.get(pv_id) or {}, "ms", results.get("int8") or {}, "ms"), z=z_sel)
-            if pv_test == "faster":
-                pv_winners.append((pv_dtype, pv_name, pv_ms, pv_err))
-            elif pv_test == "inconclusive":
-                pv_inconclusive = True
-        if pv_winners:
-            fastest_pv = min(ms for _d, _n, ms, _e in pv_winners)
-            near_fastest = [c for c in pv_winners if c[2] <= fastest_pv * 1.05]
-            pv_dtype, pv_name, pv_ms, pv_err = min(near_fastest, key=lambda c: c[3] if c[3] is not None else float("inf"))
-            if pv_err and int8_err and pv_err > int8_err * recommend_error_cap:
-                rows.append(("PV MatMul type", current("sdnq_attention_pv_matmul_type"), "disabled", f"{pv_name} pv is x{int8_ms / pv_ms:.2f} faster but multiplies error x{pv_err / int8_err:.1f}; disabled keeps pv unquantized"))
-            else:
-                pv_reason = f"{pv_name} pv measured x{int8_ms / pv_ms:.2f} over int8 qk alone"
-                if pv_err and int8_err:
-                    pv_reason += f", error {pv_err:.5f} vs {int8_err:.5f}"
-                rows.append(("PV MatMul type", current("sdnq_attention_pv_matmul_type"), pv_dtype, pv_reason))
-        elif pv_inconclusive:
-            rows.append(("PV MatMul type", current("sdnq_attention_pv_matmul_type"), current("sdnq_attention_pv_matmul_type"), "the best pv candidate sits within this run's noise of the margin; keeping the current setting"))
+    pv_names = {"int8": "int8", "float16": "fp16", "float8_e4m3fn": "fp8"}
+    if use_quantized:
+        pv_choice = chosen["settings"]["pv"]
+        if pv_choice != "disabled":
+            without = sibling(chosen, pv="disabled")
+            pv_reason = f"{pv_names[pv_choice]} pv rides the selected config"
+            if without:
+                pv_reason = f"{pv_names[pv_choice]} pv measured x{without['ms'] / chosen['ms']:.2f} over the same stack without pv"
+                if chosen["err"] and without["err"]:
+                    pv_reason += f", error {chosen['err']:.5f} vs {without['err']:.5f}"
         else:
-            rows.append(("PV MatMul type", current("sdnq_attention_pv_matmul_type"), "disabled", f"disabled keeps pv unquantized; {' and '.join(name for _d, name, _i, _m, _e in pv_candidates)} pv measured no gain here"))
+            best_pv = best_in_subset([entry for entry in pool + capped if entry["settings"]["pv"] != "disabled"])
+            pv_reason = "disabled keeps pv unquantized"
+            if best_pv is not None:
+                pv_label = f"{pv_names[best_pv['settings']['pv']]} pv ({best_pv['label']})"
+                if best_pv["err"] and int8_err and best_pv["err"] > int8_err * recommend_error_cap:
+                    pv_reason = f"{pv_label} is x{chosen['ms'] / best_pv['ms']:.2f} the speed of the selected config but multiplies error x{best_pv['err'] / int8_err:.1f} over int8; disabled keeps pv unquantized"
+                else:
+                    pv_reason += f"; {best_pv['label']} measured x{chosen['ms'] / best_pv['ms']:.2f} the speed of the selected config"
+                    if best_pv["err"] and chosen["err"]:
+                        pv_reason += f", error {best_pv['err']:.5f} vs {chosen['err']:.5f}"
+        rows.append(("PV MatMul type", current("sdnq_attention_pv_matmul_type"), pv_choice, pv_reason))
+    elif qk_inconclusive:
+        rows.append(("PV MatMul type", current("sdnq_attention_pv_matmul_type"), current("sdnq_attention_pv_matmul_type"), "the qk verdict above is inconclusive; pv follows it"))
     else:
-        if qk_inconclusive and pv_candidates:
-            pv_note = "the qk verdict above is inconclusive; pv follows it"
-        elif not use_quantized and pv_candidates:
-            pv_note = "qk quantization is not recommended above; pv on an unquantized qk path was not measured"
-        else:
-            pv_note = "disabled keeps pv unquantized"
-        rows.append(("PV MatMul type", current("sdnq_attention_pv_matmul_type"), "disabled" if not qk_inconclusive else current("sdnq_attention_pv_matmul_type"), pv_note))
+        rows.append(("PV MatMul type", current("sdnq_attention_pv_matmul_type"), "disabled", "qk quantization is not recommended above; pv on an unquantized qk path was not measured"))
 
-    if smooth_rec is not None:
-        rows.append(("Use Smooth K", current("sdnq_attention_smooth_k"), str(smooth_rec), smooth_reason))
-    if hadamard_rec is not None:
-        rows.append(("Use Hadamard", current("sdnq_attention_use_hadamard"), str(hadamard_rec), hadamard_reason))
+    def toggle_row(setting_key, ui_name, on, buyback_reason, subset, block_config_id, caveat=None):
+        # a toggle the selected config carries keeps the buyback evidence as its reason;
+        # one it omits cites the strongest variant that carried it, plus the block-scope
+        # cross-check when that shows the buyback never reached block output
+        if on:
+            reason = buyback_reason or f"part of the selected config ({chosen['label']})"
+            if caveat and caveat not in reason:
+                reason += f"; {caveat}"
+        else:
+            reason = "the selected config omits it"
+            best_variant = best_in_subset(subset)
+            if best_variant is not None:
+                reason += f"; {best_variant['label']} measured x{chosen['ms'] / best_variant['ms']:.2f} the speed of the selected config"
+                if best_variant["err"] and chosen["err"]:
+                    reason += f", error {best_variant['err']:.5f} vs {chosen['err']:.5f}"
+            if block_buyback_survives(block_config_id) is False:
+                reason += "; the block cross-check found no output-error change from it at this shape"
+        rows.append((ui_name, current(setting_key), str(bool(on)), reason))
+
+    if use_quantized:
+        toggle_row("sdnq_attention_smooth_k", "Use Smooth K", chosen["settings"]["smooth"], smooth_reason, [entry for entry in pool + capped if entry["settings"]["smooth"]], "int8-mm-smooth")
+        toggle_row("sdnq_attention_use_hadamard", "Use Hadamard", chosen["settings"]["hadamard"], hadamard_reason, [entry for entry in pool + capped if entry["settings"]["hadamard"]], "int8-mm-hadamard", caveat="hangs torch compile on non pow2 head dims (SD 1.5)")
+    else:
+        if smooth_rec is not None:
+            rows.append(("Use Smooth K", current("sdnq_attention_smooth_k"), str(smooth_rec), smooth_reason))
+        if hadamard_rec is not None:
+            rows.append(("Use Hadamard", current("sdnq_attention_use_hadamard"), str(hadamard_rec), hadamard_reason))
 
     rows.append(("Hadamard Group Size", current("sdnq_attention_hadamard_group_size"), "256", "values above head dim are clamped; non pow2 values floor to the nearest power of 2"))
 
@@ -2761,27 +2801,29 @@ def build_recommendations(all_results, fp8_result, prep_status, block_results=No
         emit(f"[yellow]{differing} settings differ from the recommended values, change them in Compute Settings -> SDNQ Attention[/yellow]")
     else:
         emit("[green]current settings already match the recommendations[/green]")
-    if not use_quantized:
+    if not use_quantized and not qk_inconclusive:
         emit("[dim]qk quantization is not worth it here, so MatMul type recommends disabled; the smooth k and hadamard rows show what to pick if it is enabled anyway[/dim]")
 
     notes = []
-    # per-shape qk verdicts: the table above judges one reference shape, but the settings
-    # are global and workloads differ; a split gpu (video wins, image loses) shows here
-    # rather than being averaged away. cross and te shapes are prep-dominated, skip them
+    # per-shape joint verdicts: the table above judges one reference shape, but the
+    # settings are global and workloads differ; a split gpu (video wins, image loses)
+    # shows here rather than being averaged away, and each shape names the config its
+    # star selected. cross and te shapes are prep-dominated, skip them
     shape_verdicts = []
     for shape_label in recommendation_presets:
         shape_results = all_results.get(shape_label)
         if not shape_results:
             continue
         shape_noquant_ms, _err = measured(shape_results, "noquant")
-        shape_int8_ms, _err = measured(shape_results, "int8")
-        if shape_noquant_ms and shape_int8_ms:
-            shape_test = speed_verdict(shape_int8_ms, shape_noquant_ms, sigma=pair_sigma(shape_results.get("int8") or {}, "ms", shape_results.get("noquant") or {}, "ms"))
+        shape_chosen, shape_pool, _shape_capped = select_attention_config(shape_results)
+        if shape_noquant_ms and shape_chosen is not None:
+            shape_sigma = pair_sigma(shape_results.get(shape_chosen["config_id"]) or {}, "ms", shape_results.get("noquant") or {}, "ms")
+            shape_test = speed_verdict(shape_chosen["ms"], shape_noquant_ms, sigma=shape_sigma, z=sidak_z_for(len(shape_pool)))
             word = {"faster": "enabled", "not_faster": "disabled", "inconclusive": "inconclusive"}[shape_test]
-            shape_verdicts.append((word, f"{shape_label} {word} (x{shape_noquant_ms / shape_int8_ms:.2f})"))
+            shape_verdicts.append((word, f"{shape_label} {word} ({shape_chosen['label']} x{shape_noquant_ms / shape_chosen['ms']:.2f})"))
     if len(shape_verdicts) > 1:
         split = len({word for word, _text in shape_verdicts}) > 1
-        line = f"qk verdict by shape: {', '.join(text for _word, text in shape_verdicts)}"
+        line = f"verdict by shape: {', '.join(text for _word, text in shape_verdicts)}"
         if split:
             notes.append(f"[yellow]{line}; settings are global, pick for the shapes you generate at[/yellow]")
         else:
@@ -2959,7 +3001,7 @@ def build_dequant_recommendations(dequant_results, weight_dequant_result, varian
         fwd_err = mm_entry.get("fwd_err")
         err_ok = not (fwd_err and best_err) or best_err <= fwd_err * recommend_error_cap
         best_entry = mm_entry if best_sel == "enabled" else float_mm_entry(mm_id, best_sel)
-        mm_test = speed_verdict(best_ms, mm_entry["fwd_ms"], sigma=pair_sigma(best_entry, "mm_ms", mm_entry, "fwd_ms"), z=sidak_z.get(len(mm_candidates), sidak_z[4]))
+        mm_test = speed_verdict(best_ms, mm_entry["fwd_ms"], sigma=pair_sigma(best_entry, "mm_ms", mm_entry, "fwd_ms"), z=sidak_z_for(len(mm_candidates)))
         recommend_mm = mm_test == "faster" and err_ok
         mm_reason = f"{mm_id} quantized matmul ({best_resolved}) measured {ratio_text(mm_entry['fwd_ms'], best_ms)} vs the dequant path"
         if fwd_err and best_err:
@@ -3084,7 +3126,7 @@ def build_dequant_recommendations(dequant_results, weight_dequant_result, varian
             rows.append(("Quantize convolutional layers", current("sdnq_quantize_conv_layers"), str(conv_free), conv_reason))
         if conv_int8.get("fwd_ms") and conv_mm_rows:
             best_mm_id, best_mm = min(conv_mm_rows, key=lambda item: item[1]["fwd_ms"])
-            conv_mm_test = speed_verdict(best_mm["fwd_ms"], conv_int8["fwd_ms"], sigma=pair_sigma(best_mm, "fwd_ms", conv_int8, "fwd_ms"), z=sidak_z.get(len(conv_mm_rows), sidak_z[4]))
+            conv_mm_test = speed_verdict(best_mm["fwd_ms"], conv_int8["fwd_ms"], sigma=pair_sigma(best_mm, "fwd_ms", conv_int8, "fwd_ms"), z=sidak_z_for(len(conv_mm_rows)))
             mm_err_ok = not (best_mm.get("out_err") and conv_int8.get("out_err")) or best_mm["out_err"] <= conv_int8["out_err"] * recommend_error_cap
             conv_mm_reason = f"{best_mm_id} measured {best_mm['fwd_ms']:.3f} vs {conv_int8['fwd_ms']:.3f} ms for the int8 conv dequant path at {conv_shapes[0][0]}, output error {best_mm.get('out_err', 0):.5f} vs {conv_int8.get('out_err', 0):.5f}"
             other_base, _other_int8, other_mm_rows = conv_per_shape.get(conv_shapes[1][0], ({}, {}, [])) if len(conv_shapes) > 1 else ({}, {}, [])

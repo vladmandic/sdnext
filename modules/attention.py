@@ -291,7 +291,7 @@ def set_diffusers_attention(pipe, quiet = False):
 orig_get_kernel = None
 def get_kernel_hijack(repo_id, revision=None, version=None, backend=None, user_agent=None, trust_remote_code: bool | list[str] = False): # pylint: disable=unused-argument
     log.debug(f'Attention dispatcher hub: repo="{repo_id}" revision={revision} version={version} backend={backend}')
-    user_agent = 'kernels/0.14.1'
+    user_agent = 'kernels/0.16.0'
     module = None
     try:
         module = orig_get_kernel(repo_id, revision=revision, version=version, backend=backend, user_agent=user_agent, trust_remote_code=True)
@@ -309,7 +309,7 @@ def get_hf_api_hijack(user_agent = None): # pylint: disable=unused-argument
 def hijack_kernels():
     global orig_get_kernel # pylint: disable=global-statement
     try:
-        install('kernels==0.14.1')
+        install('kernels==0.16.0')
         import kernels
         import kernels.utils
         log.debug(f'Attention dispatcher: kernels={kernels.__version__}')

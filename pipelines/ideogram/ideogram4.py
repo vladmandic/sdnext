@@ -653,7 +653,7 @@ class Ideogram4Pipeline(DiffusionPipeline):
         # 4. Set up the resolution-aware logit-normal schedule on the scheduler.
         schedule_mu = _resolution_aware_mu(height=height, width=width, base_mu=mu)
         sigmas = _logit_normal_sigmas(num_inference_steps, schedule_mu, std=std, device=device)
-        self.scheduler.set_timesteps(sigmas=sigmas.tolist(), device=device)
+        self.scheduler.set_timesteps(sigmas=sigmas.tolist(), device=device) # pylint: disable=unexpected-keyword-arg
         timesteps = self.scheduler.timesteps
         self._num_timesteps = len(timesteps) # pylint: disable=attribute-defined-outside-init
 

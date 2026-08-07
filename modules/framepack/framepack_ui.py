@@ -12,7 +12,7 @@ def change_sections(duration, mp4_fps, mp4_interpolate, latent_ws, variant):
     return gr.update(value=f'Target video: {num_frames} frames in {num_sections} sections'), gr.update(lines=max(2, 2*num_sections//3))
 
 
-def create_ui(prompt, negative, styles, _overrides, mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, mp4_thumb):
+def create_ui(prompt, negative, styles, _overrides, script_inputs, mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, mp4_thumb):
     with gr.Row():
         with gr.Column(variant='compact', elem_id="framepack_settings", elem_classes=['settings-column'], scale=1):
             with gr.Row():
@@ -114,7 +114,7 @@ def create_ui(prompt, negative, styles, _overrides, mp4_fps, mp4_interpolate, mp
     framepack_dict = dict(
         fn=run_framepack,
         _js="submit_framepack",
-        inputs=state_inputs + framepack_inputs,
+        inputs=state_inputs + framepack_inputs + script_inputs,
         outputs=framepack_outputs,
         show_progress='hidden',
     )
