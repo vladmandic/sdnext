@@ -14,6 +14,8 @@ This release brings **Sefi-Image** and **Mage-Flow** models, plus a new **Nuncha
 
 *Note*: This release follows previous minor service-release which did not get full announcement, so if you missed it, check it out
 
+[Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
+
 ### Details for 2026-08-07
 
 - **Models**
