@@ -26,9 +26,10 @@ class Model:
     vae_hijack: bool = True
     vae_remote: bool = False
     workflow: str = None
+    base: bool = False # also registered as a base model: caches into the diffusers folder so the model scan lists it in the dropdown
 
     def __str__(self):
-        return f'name="{self.name}" url="{self.url}" repo="{self.repo}" repo_cls="{self.repo_cls}" dit="{self.dit}" dit_cls="{self.dit_cls}" dit_folder="{self.dit_folder}" te="{self.te}" te_cls="{self.te_cls}" te_folder="{self.te_folder}" te_hijack={self.te_hijack} vae_hijack={self.vae_hijack} vae_remote={self.vae_remote} workflow="{self.workflow}"'
+        return f'name="{self.name}" url="{self.url}" repo="{self.repo}" repo_cls="{self.repo_cls}" dit="{self.dit}" dit_cls="{self.dit_cls}" dit_folder="{self.dit_folder}" te="{self.te}" te_cls="{self.te_cls}" te_folder="{self.te_folder}" te_hijack={self.te_hijack} vae_hijack={self.vae_hijack} vae_remote={self.vae_remote} workflow="{self.workflow}" base={self.base}'
 
 
 def getpipe(package, name, _default=None):
@@ -638,6 +639,7 @@ try:
                 repo='OzzyGT/MiniMax_H3_sdnq_dynamic_4bit',
                 repo_cls='MiniMaxH3ModularPipeline',
                 workflow='fl2va',
+                base=True,
                 te_cls=None,
                 dit_cls=None,
                 te_hijack=False,
@@ -649,6 +651,7 @@ try:
                 repo='MiniMaxAI/MiniMax-H3',
                 repo_cls='MiniMaxH3ModularPipeline',
                 workflow='fl2va',
+                base=True,
                 te_cls=None,
                 dit_cls=None,
                 te_hijack=False,
