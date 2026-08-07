@@ -17,6 +17,32 @@ native_active: bool = False
 default_components = ['text_encoder', 'text_encoder_2', 'text_encoder_3', 'text_encoder_4', 'unet', 'transformer', 'transformer_2', 'llm_adapter']
 
 
+def group_will_mutate(module, network_layer_name: str, loaded) -> bool:
+    """True when the pass will write to this module: a loaded network covers its layer, a
+    tensor backup awaits restore, or an svd factor stash awaits removal."""
+    if any(net.modules.get(network_layer_name, None) is not None for net in loaded):
+        return True
+    weights_backup = getattr(module, 'network_weights_backup', None)
+    if weights_backup is not None and not isinstance(weights_backup, bool):
+        return True
+    bias_backup = getattr(module, 'network_bias_backup', None)
+    if bias_backup is not None and not isinstance(bias_backup, bool):
+        return True
+    return getattr(module, 'sdnq_lora_svd_stash', None) is not None
+
+
+def group_offload_strip(sd_model, component_name: str, stripped: dict):
+    """Group offload hooks come off before the first weight write in a component: a write
+    under live hooks either replaces a parameter out of the hook's group bookkeeping or is
+    lost on the next onload. With hooks removed the weights rest on cpu and the component
+    reports its truthful device, so writes land in place; the offload reapply at the end
+    of the pass snapshots the result into fresh groups."""
+    component = getattr(sd_model, component_name, None)
+    sd_models.remove_group_offload_component(component)
+    stripped[component_name] = component.device
+    return stripped[component_name]
+
+
 def network_activate(include=None, exclude=None):
     if exclude is None:
         exclude = []
@@ -38,6 +64,8 @@ def network_activate(include=None, exclude=None):
             sd_models.move_model(sd_model, device=devices.cpu)
         elif shared.opts.diffusers_offload_mode == "balanced":
             sd_model = sd_models.apply_balanced_offload(sd_model, force=True, silent=True) # dispatched modules hold meta tensors backed by the offload map; rebuild them real on cpu with hooks intact before touching weights
+        group_offload = shared.opts.diffusers_offload_mode == "group"
+        group_stripped = {}
         device = None
         modules = {}
         components = include if len(include) > 0 else default_components
@@ -80,6 +108,8 @@ def network_activate(include=None, exclude=None):
                             pbar.update(task, advance=1)
                         continue
                     lora_stack.drop(network_layer_name) # re-application invalidates any live selection schedule; the select branch re-registers
+                    if group_offload and component not in group_stripped and group_will_mutate(module, network_layer_name, l.loaded_networks):
+                        device = group_offload_strip(sd_model, component, group_stripped)
                     calced = False # tracks whether this iteration assembled the delta, so the fallthrough reuses it instead of recomputing
                     if select_active and component_wanted and not network_layer_name.startswith('lora_te'):
                         if lora_sdnq.select_candidate(module, network_layer_name, component_wanted): # SDNQ pairs ride the channel as separate segments at any bit width; weight rewrites cannot flip a quantized layer
@@ -205,7 +235,7 @@ def network_activate(include=None, exclude=None):
     if l.debug and len(l.loaded_networks) > 0:
         log.debug(f'Network load: type=LoRA networks={[n.name for n in l.loaded_networks]} modules={active_components} layers={total} weights={applied_weight} bias={applied_bias} backup={round(backup_size/1024/1024/1024, 2)} fuse={fuse}:{shared.opts.lora_fuse_diffusers} device={device} time={l.timer.summary}')
     modules.clear()
-    if len(applied_layers) > 0 or shared.opts.diffusers_offload_mode == "sequential":
+    if len(applied_layers) > 0 or shared.opts.diffusers_offload_mode == "sequential" or len(group_stripped) > 0:
         sd_models.set_diffuser_offload(sd_model, op="model")
 
 
@@ -236,6 +266,8 @@ def network_deactivate(include=None, exclude=None):
             sd_models.move_model(sd_model, device=devices.cpu)
         elif shared.opts.diffusers_offload_mode == "balanced":
             sd_model = sd_models.apply_balanced_offload(sd_model, force=True, silent=True) # dispatched modules hold meta tensors backed by the offload map; rebuild them real on cpu with hooks intact before touching weights
+        group_offload = shared.opts.diffusers_offload_mode == "group"
+        group_stripped = {}
         modules = {}
 
         components = include if len(include) > 0 else ['text_encoder', 'text_encoder_2', 'text_encoder_3', 'unet', 'transformer', 'llm_adapter']
@@ -263,6 +295,8 @@ def network_deactivate(include=None, exclude=None):
                         if task is not None:
                             pbar.update(task, advance=1)
                         continue
+                    if group_offload and component not in group_stripped and group_will_mutate(module, network_layer_name, l.previously_loaded_networks):
+                        device = group_offload_strip(sd_model, component, group_stripped)
                     if lora_sdnq.remove_factors(module): # exact inverse for factor-mode layers, weights were never touched
                         applied_layers.append(network_layer_name)
                         module.network_current_names = ()
@@ -284,5 +318,5 @@ def network_deactivate(include=None, exclude=None):
     if l.debug and len(l.previously_loaded_networks) > 0:
         log.debug(f'Network deactivate: type=LoRA networks={[n.name for n in l.previously_loaded_networks]} modules={active_components} layers={total} apply={len(applied_layers)} fuse={fuse}:{shared.opts.lora_fuse_diffusers} time={l.timer.summary}')
     modules.clear()
-    if len(applied_layers) > 0 or shared.opts.diffusers_offload_mode == "sequential":
+    if len(applied_layers) > 0 or shared.opts.diffusers_offload_mode == "sequential" or len(group_stripped) > 0:
         sd_models.set_diffuser_offload(sd_model, op="model")
