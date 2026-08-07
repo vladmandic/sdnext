@@ -17,7 +17,7 @@ def generate(task_id, ui_state,
              sampler_index, sampler_shift, dynamic_shift,
              seed, guidance_scale, guidance_true,
              init_image, init_strength, last_image,
-             vae_type, vae_tile_frames,
+             vae_type, vae_tile_frames, audio,
              mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, mp4_thumb,
              override_settings,
              *args, **kwargs
@@ -59,6 +59,7 @@ def generate(task_id, ui_state,
         cfg_true=float(guidance_true),
         vae_type=vae_type,
         vae_tile_frames=int(vae_tile_frames),
+        video_audio=bool(audio),
         override_settings=override_settings,
     )
     if p.vae_type == 'Remote' and not selected.vae_remote:
@@ -73,7 +74,20 @@ def generate(task_id, ui_state,
     p.do_not_save_grid = True
     p.do_not_save_samples = not mp4_frames
     p.outpath_samples = resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_video)
-    if 'T2V' in model:
+    if getattr(selected, 'workflow', None) is not None:
+        # modular workflows dispatch on which inputs are present; keyframes pass through
+        # unresized since the pipeline defines its own canvas placement per anchor
+        p.video_still = int(frames) <= 1
+        if init_image is not None:
+            p.task_args['image'] = init_image
+        if last_image is not None:
+            p.task_args['last_image'] = last_image
+        if p.video_still:
+            p.do_not_save_samples = False # the still is the product; save it like an image result
+        elif int(mp4_fps) != 24:
+            log.warning(f'Video: model="{model}" fps={mp4_fps} model output is fixed at 24')
+        log.debug(f'Video: op=modular workflow={selected.workflow} still={p.video_still} init={init_image} last={last_image}')
+    elif 'T2V' in model:
         if init_image is not None:
             log.warning('Video: op=T2V init image not supported')
     elif 'I2V' in model:
@@ -167,6 +181,11 @@ def generate(task_id, ui_state,
         return video_utils.queue_err('processing failed')
     log.info(f'Video: name="{selected.name}" cls={shared.sd_model.__class__.__name__} frames={len(processed.images)} time={t1-t0:.2f}')
 
+    if getattr(p, 'video_still', False):
+        processed.images = processed.images[:1] # already trimmed in process_decode; defensive
+        generation_info_js = processed.js() if processed is not None else ''
+        return processed.images, None, generation_info_js, processed.info, ui_common.plaintext_to_html(processed.comments)
+
     if hasattr(processed, 'images') and processed.images is not None:
         pixels = video_save.images_to_tensor(processed.images)
     else:
@@ -191,6 +210,7 @@ def generate(task_id, ui_state,
         p=p,
         pixels=pixels,
         audio=audio,
+        aac_sample_rate=getattr(p, 'audio_sampling_rate', None) or 24000,
         binary=processed.bytes,
         mp4_fps=save_fps,
         mp4_codec=mp4_codec,

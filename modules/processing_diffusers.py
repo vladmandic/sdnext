@@ -191,6 +191,8 @@ def process_base(p: processing.StableDiffusionProcessing):
             output = SimpleNamespace(images=output)
         if isinstance(output, Image.Image):
             output = SimpleNamespace(images=[output])
+        if not hasattr(output, 'frames') and hasattr(output, 'videos'):
+            output.frames = output.videos # modular video pipelines emit videos, not frames
         if hasattr(output, 'image'):
             output.images = output.image
         if hasattr(output, 'images'):
@@ -473,9 +475,13 @@ def process_decode(p: processing.StableDiffusionProcessing, output):
             log.debug(f'Generated: bytes={len(output.bytes)}')
             return output
         audio = getattr(output, 'audio', None)
+        if audio is not None:
+            p.audio_sampling_rate = getattr(output, 'sampling_rate', None)
         if not hasattr(output, 'images') and hasattr(output, 'frames'):
             log.debug(f'Generated: frames={len(output.frames[0])}')
             output.images = output.frames[0]
+        if getattr(p, 'video_still', False) and hasattr(output, 'images') and output.images is not None:
+            output.images = output.images[:1] # only the first frame derives from real latents; the rest decode from padding
         if output.images is not None and len(output.images) > 0 and isinstance(output.images[0], Image.Image):
             sd_models.offload_ondemand(shared.sd_model) # in-pipe decode paths return materialized frames; the vae seam in processing_vae never runs
             return attach_audio(output.images, audio)

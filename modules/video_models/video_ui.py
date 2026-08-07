@@ -120,6 +120,7 @@ def create_ui(prompt, negative, styles, overrides, script_inputs, mp4_fps, mp4_i
                 with gr.Row():
                     sampler_shift = gr.Slider(label='Sampler shift', minimum=-1.0, maximum=20.0, step=0.1, value=-1.0, elem_id="video_scheduler_shift")
                     dynamic_shift = gr.Checkbox(label='Dynamic shift', value=False, elem_id="video_dynamic_shift")
+                    audio = gr.Checkbox(label='Audio', value=True, elem_id="video_audio")
                 with gr.Row():
                     guidance_scale = gr.Slider(label='Guidance scale', minimum=-1.0, maximum=14.0, step=0.1, value=-1.0, elem_id="video_guidance_scale")
                     guidance_true = gr.Slider(label='True guidance', minimum=-1.0, maximum=14.0, step=0.1, value=-1.0, elem_id="video_guidance_true")
@@ -170,7 +171,7 @@ def create_ui(prompt, negative, styles, overrides, script_inputs, mp4_fps, mp4_i
         seed,
         guidance_scale, guidance_true,
         init_image, init_strength, last_image,
-        vae_type, vae_tile_frames,
+        vae_type, vae_tile_frames, audio,
         mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, mp4_thumb,
         overrides,
     ]

@@ -248,7 +248,7 @@ def move_model(model, device=None, force=False):
         for name, m in model.components.items():
             if not hasattr(m, "_hf_hook"): # not accelerate hook
                 break
-            if not isinstance(m, torch.nn.Module) or name in model._exclude_from_cpu_offload: # pylint: disable=protected-access
+            if not isinstance(m, torch.nn.Module) or name in getattr(model, '_exclude_from_cpu_offload', []): # modular pipelines lack the attr
                 continue
             for module in m.modules():
                 set_execution_device(module, device)
