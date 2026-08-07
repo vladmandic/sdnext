@@ -4,6 +4,7 @@ import diffusers
 from modules import shared, processing, devices
 from modules.logger import log
 from modules.video_models.models_def import Model
+from modules.video_models import video_modular
 
 
 debug = log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None else lambda *args, **kwargs: None
@@ -104,3 +105,6 @@ def set_overrides(p: processing.StableDiffusionProcessingVideo, selected: Model)
     if 'Kandinsky 5.0 Lite 10s' in selected.name:
         # p.task_args['time_length'] = 10
         shared.sd_model.transformer.set_attention_backend("flex")
+    # MiniMax H3
+    if 'MiniMaxH3' in cls:
+        video_modular.apply_minimax_overrides(p, shared.sd_model, still=getattr(p, 'video_still', False), audio=getattr(p, 'video_audio', True))

@@ -25,9 +25,10 @@ class Model:
     image_hijack: bool = True
     vae_hijack: bool = True
     vae_remote: bool = False
+    workflow: str = None
 
     def __str__(self):
-        return f'name="{self.name}" url="{self.url}" repo="{self.repo}" repo_cls="{self.repo_cls}" dit="{self.dit}" dit_cls="{self.dit_cls}" dit_folder="{self.dit_folder}" te="{self.te}" te_cls="{self.te_cls}" te_folder="{self.te_folder}" te_hijack={self.te_hijack} vae_hijack={self.vae_hijack} vae_remote={self.vae_remote}'
+        return f'name="{self.name}" url="{self.url}" repo="{self.repo}" repo_cls="{self.repo_cls}" dit="{self.dit}" dit_cls="{self.dit_cls}" dit_folder="{self.dit_folder}" te="{self.te}" te_cls="{self.te_cls}" te_folder="{self.te_folder}" te_hijack={self.te_hijack} vae_hijack={self.vae_hijack} vae_remote={self.vae_remote} workflow="{self.workflow}"'
 
 
 def getpipe(package, name, _default=None):
@@ -629,6 +630,31 @@ try:
                 repo_cls='Kandinsky5I2VPipeline',
                 te_cls='Qwen2_5_VLForConditionalGeneration',
                 dit_cls='Kandinsky5Transformer3DModel'),
+        ],
+        'MiniMax': [
+            Model(name='None'),
+            Model(name='MiniMax H3 SDNQ uint4',
+                url='https://huggingface.co/MiniMaxAI/MiniMax-H3',
+                repo='OzzyGT/MiniMax_H3_sdnq_dynamic_4bit',
+                repo_cls='MiniMaxH3ModularPipeline',
+                workflow='fl2va',
+                te_cls=None,
+                dit_cls=None,
+                te_hijack=False,
+                image_hijack=False,
+                vae_hijack=False,
+                vae_remote=False),
+            Model(name='MiniMax H3',
+                url='https://huggingface.co/MiniMaxAI/MiniMax-H3',
+                repo='MiniMaxAI/MiniMax-H3',
+                repo_cls='MiniMaxH3ModularPipeline',
+                workflow='fl2va',
+                te_cls=None,
+                dit_cls=None,
+                te_hijack=False,
+                image_hijack=False,
+                vae_hijack=False,
+                vae_remote=False),
         ],
         'Google Veo': [
             Model(name='Google Veo 3.1 T2V',

@@ -24,6 +24,7 @@ no_split_module_classes = [
     "Linear", "Conv1d", "Conv2d", "Conv3d", "ConvTranspose1d", "ConvTranspose2d", "ConvTranspose3d", "Embedding",
     "SDNQLinear", "SDNQConv1d", "SDNQConv2d", "SDNQConv3d", "SDNQConvTranspose1d", "SDNQConvTranspose2d", "SDNQConvTranspose3d", "SDNQEmbedding",
     "WanTransformerBlock",
+    "MiniMaxH3TransformerBlock", "MiniMaxH3TokenRefinerBlock",
 ]
 accelerate_dtype_byte_size = None
 move_stream = None
@@ -74,6 +75,51 @@ def set_accelerate(sd_model):
         set_accelerate_to_module(sd_model.prior_pipe)
     if hasattr(sd_model, "decoder_pipe"):
         set_accelerate_to_module(sd_model.decoder_pipe)
+
+
+def apply_modular_group_offload(sd_model, op:str='model'):
+    """Per-component group offload for modular pipelines, which lack the pipeline-level
+    enable_*_offload entry points. The model and sequential modes also route here."""
+    if getattr(sd_model, 'sdnext_modular_offload', False):
+        return # group offload hook registries raise on re-application
+    if shared.opts.diffusers_offload_mode != 'group':
+        log.warning(f'Setting {op}: offload={shared.opts.diffusers_offload_mode} not supported on modular pipelines: using group offload')
+    from diffusers.hooks import apply_group_offloading
+    offload_dct = {
+        'onload_device': devices.device,
+        'offload_device': devices.cpu,
+        'non_blocking': shared.opts.diffusers_offload_nonblocking,
+        'use_stream': shared.opts.group_offload_stream,
+        'record_stream': shared.opts.group_offload_record,
+        'low_cpu_mem_usage': False,
+    }
+    applied = []
+    for name in ('transformer', 'transformer_ref'):
+        transformer = getattr(sd_model, name, None)
+        if transformer is None:
+            continue
+        transformer.requires_grad_(False)
+        transformer.enable_group_offload(offload_type=shared.opts.group_offload_type, num_blocks_per_group=shared.opts.group_offload_blocks, **offload_dct)
+        applied.append(name)
+    text_encoder = getattr(sd_model, 'text_encoder', None)
+    if text_encoder is not None:
+        text_encoder.requires_grad_(False)
+        # offload targets the inner model when present: conditioning may call it directly, so
+        # hooks on the wrapper forward would never fire. no streams: the encoder runs once per
+        # generation, and stream mode would pin its full weight size in non-pageable host memory
+        apply_group_offloading(getattr(text_encoder, 'model', text_encoder), offload_type='leaf_level', **{**offload_dct, 'use_stream': False, 'record_stream': False})
+        applied.append('text_encoder')
+    # vae components stay resident: leaf-offloading them costs minutes per tiled decode
+    for name in ('vae', 'audio_vae'):
+        component = getattr(sd_model, name, None)
+        if component is not None:
+            component.requires_grad_(False)
+            component.to(devices.device)
+            applied.append(f'{name}:device')
+    # has_accelerate stays unset: group hooks are not accelerate hooks, and the modular
+    # pipeline's own to() skips group-offloaded components when move_model runs
+    sd_model.sdnext_modular_offload = True
+    log.info(f'Setting {op}: offload=group type={shared.opts.group_offload_type} modules={applied}')
 
 
 def apply_group_offload(sd_model, op:str='model'):
@@ -163,6 +209,11 @@ def set_diffuser_offload(sd_model, op:str='model', quiet:bool=False, force:bool=
     if accelerate_dtype_byte_size is None:
         accelerate_dtype_byte_size = accelerate.utils.modeling.dtype_byte_size
         accelerate.utils.modeling.dtype_byte_size = dtype_byte_size
+
+    if sd_models.get_diffusers_task(sd_model) == sd_models.DiffusersTaskType.MODULAR and shared.opts.diffusers_offload_mode in {'model', 'sequential', 'group'}:
+        apply_modular_group_offload(sd_model, op=op)
+        process_timer.add('offload', time.time() - t0)
+        return
 
     if shared.opts.diffusers_offload_mode == "none":
         apply_none_offload(sd_model, op=op, quiet=quiet)

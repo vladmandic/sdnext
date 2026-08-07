@@ -60,6 +60,8 @@
   ],
   "a": [
     {"id":"","label":"Active dictionaries","localized":"","hint":"Select which tag dictionaries are used for prompt autocompletion.<br>Dictionaries not yet downloaded locally will be fetched automatically when the autocomplete engine loads them.","ui":"script_autocomplete"},
+    {"id":"video_audio","label":"Audio","localized":"","hint":"Generate synchronized audio for video models with audio support<br>When disabled, audio decode and muxing are skipped and the audio component stays off the device","ui":"video"},
+    {"id":"ltx_audio_accordion","label":"Audio","localized":"","hint":"Audio track settings for video models with audio support","ui":"video"},
     {"id":"txt2img_advanced","label":"Advanced","localized":"","hint":"Advanced settings used to run image generation","ui":"txt2img"},
     {"id":"txt2img_adapters","label":"Adapters","localized":"","hint":"Settings related to IP Adapters","ui":"txt2img"},
     {"id":"component-981","label":"Apply to model","localized":"","hint":"","ui":"script_layerdiffuse"},
@@ -485,7 +487,7 @@
     {"id":"","label":"Fixed","localized":"","hint":"Resize image to target resolution. Unless height and width match, you will get incorrect aspect ratio","ui":"txt2img"},
     {"id":"","label":"Folder","localized":"","hint":"","ui":"control"},
     {"id":"video_params_framepack","label":"FramePack","localized":"","hint":"","ui":"video"},
-    {"id":"","label":"Frames","localized":"","hint":"","ui":"video"},
+    {"id":"video_frames","label":"Frames","localized":"","hint":"Number of frames to generate<br>Values are aligned to the frame grid of the selected model<br>On MiniMax H3, a value of 1 generates a single still image (experimental)","ui":"video"},
     {"id":"","label":"Fallback guidance","localized":"","hint":"","ui":"txt2img"},
     {"id":"","label":"FreeU","localized":"","hint":"","ui":"settings_advanced"},
     {"id":"","label":"Faster Cache","localized":"","hint":"","ui":"settings_advanced"},
