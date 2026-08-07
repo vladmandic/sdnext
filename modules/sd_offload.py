@@ -96,7 +96,9 @@ def group_offload_config(main: bool) -> dict:
 
 def remove_group_offload_component(module):
     if getattr(module, 'sdnext_group_offload_sig', None) is None:
-        return
+        module = getattr(module, 'model', None) # wrapper components carry the hooks on the inner model
+        if module is None or getattr(module, 'sdnext_group_offload_sig', None) is None:
+            return
     from diffusers.hooks.group_offloading import _GROUP_OFFLOADING, _LAYER_EXECUTION_TRACKER, _LAZY_PREFETCH_GROUP_OFFLOADING
     from diffusers.hooks.hooks import HookRegistry
     registry = HookRegistry.check_if_exists_or_initialize(module)
