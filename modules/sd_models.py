@@ -493,6 +493,10 @@ def load_diffuser_force(detected_model_type: str, checkpoint_info: CheckpointInf
             from pipelines.model_wanai import load_wan
             sd_model = load_wan(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
+        elif model_type in ['MiniMaxH3']:
+            from pipelines.model_minimax import load_minimax
+            sd_model = load_minimax(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
         elif model_type in ['ChronoEdit']:
             from pipelines.model_chrono import load_chrono
             sd_model = load_chrono(checkpoint_info, diffusers_load_config)

@@ -156,6 +156,8 @@ def get_model_type(pipe):
         model_type = 'mochivideo'
     elif "Allegro" in name:
         model_type = 'allegrovideo'
+    elif 'MiniMaxH3' in name:
+        model_type = 'minimaxh3'
     # cloud models
     elif 'GoogleVeo' in name:
         model_type = 'veo3'
