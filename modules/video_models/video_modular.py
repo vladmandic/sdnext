@@ -1,7 +1,7 @@
 import time
 import logging
 import torch
-from modules import shared, errors, devices
+from modules import shared, errors, devices, model_quant
 from modules.logger import log
 
 
@@ -38,10 +38,25 @@ def load_modular_pipe(repo_cls, repo: str, workflow: str | None = None, revision
         )
         # workflow selection stays out of from_pretrained: pruning the blocks tree to one task
         # would disable runtime auto-dispatch between them; only the component fetch is restricted
+        load_kwargs = {}
+        quant_config = {}
+        quant_args = model_quant.create_config(module='Model')
+        if 'quantization_config' in quant_args:
+            quant_config['transformer'] = quant_args['quantization_config']
+            quant_config['transformer_ref'] = quant_args['quantization_config']
+        te_args = model_quant.create_config(module='TE')
+        if 'quantization_config' in te_args:
+            quant_config['text_encoder'] = te_args['quantization_config']
+        if quant_config:
+            # per-component dict without a default entry: only the listed components quantize while
+            # loading, everything else loads unquantized
+            load_kwargs['quantization_config'] = quant_config
+            log.debug(f'Load modular: quant={next(iter(quant_config.values())).__class__.__name__} modules={list(quant_config)}')
         pipe.load_components(
             workflow=workflow,
             dtype=devices.dtype,
             cache_dir=shared.opts.hfcache_dir,
+            **load_kwargs,
             **offline_args,
         )
         loaded = [name for name, component in pipe.components.items() if component is not None]
