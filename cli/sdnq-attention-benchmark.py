@@ -154,6 +154,8 @@ block_configs = [
     ("int6", dict(weights_dtype="int6"), False, "sdpa"),
     ("uint4-mm", dict(weights_dtype="uint4"), True, "sdpa"),
     ("uint4-mm-atten", dict(weights_dtype="uint4"), True, "atten int8"),
+    ("cb4-mm", dict(weights_dtype="cb4"), True, "sdpa"),
+    ("cb4-mm-atten", dict(weights_dtype="cb4"), True, "atten int8"),
     ("fp8sdnq", dict(weights_dtype="float8_e4m3fn_sdnq"), False, "sdpa"),
     ("fp8sdnq-atten", dict(weights_dtype="float8_e4m3fn_sdnq"), False, "atten int8"),
     ("nvfp4", dict(weights_dtype="float4_e2m1fn", group_size=16), False, "sdpa"),
@@ -204,18 +206,20 @@ dequant_dtype_configs = [
     ("uint8", "uint8", dict(weights_dtype="uint8")),
     ("int6", "int6", dict(weights_dtype="int6")),
     ("uint6", "uint6", dict(weights_dtype="uint6")),
+    ("cb6", "cb6 codebook", dict(weights_dtype="cb6")),
     ("int4", "int4", dict(weights_dtype="int4")),
     ("uint4", "uint4", dict(weights_dtype="uint4")),
     ("cb4", "cb4 codebook", dict(weights_dtype="cb4")),
     ("int2", "int2", dict(weights_dtype="int2")),
     ("uint2", "uint2", dict(weights_dtype="uint2")),
+    ("cb2", "cb2 codebook", dict(weights_dtype="cb2")),
     ("fp8", "float8_e4m3fn", dict(weights_dtype="float8_e4m3fn")),
     ("fp8sdnq", "float8_e4m3fn_sdnq", dict(weights_dtype="float8_e4m3fn_sdnq")),
     ("nvfp4", "float4_e2m1fn g16", dict(weights_dtype="float4_e2m1fn", group_size=16)),
 ]
 # svd/hadamard variants measured on top of these dtypes at the first dequant shape; low bits are
 # where rotation is expected to pay, int8 is the control
-dequant_variant_dtypes = ["int8", "uint4", "cb4", "uint2"]
+dequant_variant_dtypes = ["int8", "uint4", "cb4", "uint2", "cb2"]
 dequant_variant_configs = [
     ("hadamard", dict(use_hadamard=True)),
     ("svd", dict(use_svd=True)),
@@ -227,14 +231,15 @@ float_mm_dtypes = ["fp8", "fp8sdnq", "nvfp4"]
 float_mm_alternative_dtypes = ["int8", "float16"]
 # setting sweeps for the remaining measurable SDNQ options, each at the first dequant shape:
 # group size 0 = auto, -1 = row-wise; explicit values snap down to a divisor of in_features
-# and grouped weights force a per-forward re-quantize when quantized matmul is on
-group_sweep_dtypes = ["int8", "uint4"]
-group_sweep_values = [0, -1, 32, 64, 128, 256]
-svd_rank_sweep_dtypes = ["int8", "uint4"]
+# and grouped weights force a per-forward re-quantize when quantized matmul is on; 16 is the
+# group comfy asym_w4a8_int8 checkpoints ingest with, and cb4 auto resolves to row-wise
+group_sweep_dtypes = ["int8", "uint4", "cb4"]
+group_sweep_values = [0, -1, 16, 32, 64, 128, 256]
+svd_rank_sweep_dtypes = ["int8", "uint4", "cb4"]
 svd_rank_sweep_values = [16, 32, 64, 128]
 hadamard_group_values = [32, 64, 128, 256] # weight-side rotation group, swept on int8
-toggle_dtypes = ["int8", "uint4"] # dequantize using full precision off is measured on these
-dynamic_quant_requests = ["uint2", "uint4", "int6"] # dynamic quantization escalates until loss passes
+toggle_dtypes = ["int8", "uint4", "cb4"] # dequantize using full precision off is measured on these
+dynamic_quant_requests = ["uint2", "uint4", "int6", "cb4"] # dynamic quantization escalates until loss passes; cb entry checks the gated ladder
 # conv geometry: sdxl unet mid-block and vae decoder convs, the two conv-heavy model classes
 conv_shapes = [
     ("unet 1280x1280 3x3 @32px", 1280, 1280, 3, 32),
@@ -245,6 +250,7 @@ conv_configs = [ # id, weights config (None = bf16 baseline), use conv quantized
     ("int8", dict(weights_dtype="int8"), False),
     ("int8-mm", dict(weights_dtype="int8"), True),
     ("uint8-mm", dict(weights_dtype="uint8"), True),
+    ("cb4-mm", dict(weights_dtype="cb4"), True),
 ]
 all_dequant_sweeps = ["groups", "svd", "hgroups", "toggles", "conv"]
 all_mm_backends = ["torch", "triton"]
@@ -1448,7 +1454,7 @@ def bench_dequant_shape(shape_label, out_features, in_features, iters, warmup, p
                 return current.sdnq_dequantizer(
                     current.weight, current.scale,
                     zero_point=getattr(current, "zero_point", None),
-                    svd_up=getattr(current, "svd_up", None), svd_down=getattr(current, "svd_down", None),
+                    svd_up=getattr(current, "svd_up", None), svd_down=getattr(current, "svd_down", None), codebook=getattr(current, "codebook", None),
                     skip_compile=True,
                 )
 
@@ -1625,7 +1631,7 @@ def bench_dequant_variants(shape_label, out_features, in_features, plain_results
                 return current.sdnq_dequantizer(
                     current.weight, current.scale,
                     zero_point=getattr(current, "zero_point", None),
-                    svd_up=getattr(current, "svd_up", None), svd_down=getattr(current, "svd_down", None),
+                    svd_up=getattr(current, "svd_up", None), svd_down=getattr(current, "svd_down", None), codebook=getattr(current, "codebook", None),
                 )
 
             def fwd_fn(current=layer):
@@ -1970,7 +1976,7 @@ def bench_group_sizes(shape_label, out_features, in_features, plain_results, sel
                     deq_out = layer.sdnq_dequantizer(
                         layer.weight, layer.scale,
                         zero_point=getattr(layer, "zero_point", None),
-                        svd_up=getattr(layer, "svd_up", None), svd_down=getattr(layer, "svd_down", None),
+                        svd_up=getattr(layer, "svd_up", None), svd_down=getattr(layer, "svd_down", None), codebook=getattr(layer, "codebook", None),
                     ).to(torch.float32)
                     fwd_fn()
                     torch_device_module.synchronize()
@@ -2066,7 +2072,7 @@ def bench_svd_ranks(shape_label, out_features, in_features, plain_results, selec
                     deq_out = layer.sdnq_dequantizer(
                         layer.weight, layer.scale,
                         zero_point=getattr(layer, "zero_point", None),
-                        svd_up=getattr(layer, "svd_up", None), svd_down=getattr(layer, "svd_down", None),
+                        svd_up=getattr(layer, "svd_up", None), svd_down=getattr(layer, "svd_down", None), codebook=getattr(layer, "codebook", None),
                     ).to(torch.float32)
                     fwd_fn()
                     torch_device_module.synchronize()
@@ -2133,7 +2139,7 @@ def bench_hadamard_groups(shape_label, out_features, in_features, plain_results,
                     deq_out = layer.sdnq_dequantizer(
                         layer.weight, layer.scale,
                         zero_point=getattr(layer, "zero_point", None),
-                        svd_up=getattr(layer, "svd_up", None), svd_down=getattr(layer, "svd_down", None),
+                        svd_up=getattr(layer, "svd_up", None), svd_down=getattr(layer, "svd_down", None), codebook=getattr(layer, "codebook", None),
                     ).to(torch.float32)
                     fwd_fn()
                     torch_device_module.synchronize()
@@ -2198,7 +2204,7 @@ def bench_quant_toggles(shape_label, out_features, in_features, plain_results, s
                     deq_out = layer.sdnq_dequantizer(
                         layer.weight, layer.scale,
                         zero_point=getattr(layer, "zero_point", None),
-                        svd_up=getattr(layer, "svd_up", None), svd_down=getattr(layer, "svd_down", None),
+                        svd_up=getattr(layer, "svd_up", None), svd_down=getattr(layer, "svd_down", None), codebook=getattr(layer, "codebook", None),
                     ).to(torch.float32)
                     fwd_fn()
                     torch_device_module.synchronize()
@@ -2238,7 +2244,7 @@ def bench_quant_toggles(shape_label, out_features, in_features, plain_results, s
                 deq_out = layer.sdnq_dequantizer(
                     layer.weight, layer.scale,
                     zero_point=getattr(layer, "zero_point", None),
-                    svd_up=getattr(layer, "svd_up", None), svd_down=getattr(layer, "svd_down", None),
+                    svd_up=getattr(layer, "svd_up", None), svd_down=getattr(layer, "svd_down", None), codebook=getattr(layer, "codebook", None),
                     skip_compile=True,
                 ).to(torch.float32)
                 entry["weight_err"] = rel_err(deq_out, weight_fp32)
@@ -2349,7 +2355,7 @@ def bench_conv_section(iters, warmup, config_timeout=300):
                         deq_out = layer.sdnq_dequantizer(
                             layer.weight, layer.scale,
                             zero_point=getattr(layer, "zero_point", None),
-                            svd_up=getattr(layer, "svd_up", None), svd_down=getattr(layer, "svd_down", None),
+                            svd_up=getattr(layer, "svd_up", None), svd_down=getattr(layer, "svd_down", None), codebook=getattr(layer, "codebook", None),
                             skip_quantized_matmul=use_mm, skip_compile=True,
                         ).to(torch.float32)
                         entry["weight_err"] = rel_err(deq_out, weight_fp32)
