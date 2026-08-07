@@ -265,13 +265,13 @@ def test_dequant_grouped_matches_reference():
     return True
 
 
-def build_layer(weights_dtype='cb4', use_quantized_matmul=False, use_hadamard=False, use_svd=False, seed=0):
+def build_layer(weights_dtype='cb4', use_quantized_matmul=False, use_hadamard=False, use_svd=False, seed=0, group_size=0):
     torch.manual_seed(seed)
     lin = torch.nn.Linear(IN_F, OUT_F, bias=False, dtype=torch.bfloat16, device=DEVICE)
     with torch.no_grad():
         lin.weight.copy_(torch.randn(OUT_F, IN_F, device=DEVICE) * 0.04)
     reference = lin.weight.detach().clone()
-    cfg = SDNQConfig(weights_dtype=weights_dtype, group_size=0, hadamard_group_size=256, use_hadamard=use_hadamard,
+    cfg = SDNQConfig(weights_dtype=weights_dtype, group_size=group_size, hadamard_group_size=256, use_hadamard=use_hadamard,
                      use_svd=use_svd, svd_rank=32, use_quantized_matmul=use_quantized_matmul, dequantize_fp32=False,
                      quantization_device=str(DEVICE), return_device=str(DEVICE))
     layer, _ = sdnq_quantize_layer(lin, cfg, torch_dtype=torch.bfloat16, param_name='test.weight')
@@ -296,9 +296,14 @@ def test_layer_forward_matches_dequant_linear():
 
 
 def test_matmul_bypass_matches_dequant_linear():
-    layer, _ = build_layer('cb4', use_quantized_matmul=True)
+    # auto resolves cb4 to half the affine group (32): storage parity with uint4's
+    # scale+zero_point pair at measurably better fidelity, on the requant matmul path
+    default_layer, _ = build_layer('cb4', use_quantized_matmul=True)
+    assert default_layer.sdnq_dequantizer.group_size == 32, f'cb4 auto group {default_layer.sdnq_dequantizer.group_size}, expected 32'
+    assert default_layer.sdnq_dequantizer.re_quantize_for_matmul, 'grouped cb4 must take the requant matmul path'
+    layer, _ = build_layer('cb4', use_quantized_matmul=True, group_size=-1)
     assert layer.sdnq_dequantizer.use_quantized_matmul, 'matmul not enabled on the layer'
-    assert not layer.sdnq_dequantizer.re_quantize_for_matmul, 'cb4 default must take the direct matmul path'
+    assert not layer.sdnq_dequantizer.re_quantize_for_matmul, 'row-wise cb4 must take the direct matmul path'
     x = torch.randn(4, IN_F, device=DEVICE, dtype=torch.bfloat16)  # < 32 rows: the small-batch bypass
     out = layer(x)
     ref = torch.nn.functional.linear(x, dequantized_weight(layer))  # pylint: disable=not-callable

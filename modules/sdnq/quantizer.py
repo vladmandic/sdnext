@@ -172,8 +172,12 @@ def sdnq_quantize_layer_weight(
         svd_up, svd_down = None, None
 
     if group_size == 0:
-        if is_codebook or (use_quantized_matmul and not re_quantize_for_matmul and dtype_dict[weights_dtype]["num_bits"] >= 6): # the codebook absorbs the distribution shape, so per-channel scale is the default
+        if dtype_dict[weights_dtype]["num_bits"] >= 6 and (is_codebook or (use_quantized_matmul and not re_quantize_for_matmul)):
             group_size = -1
+        elif is_codebook and is_linear_type: # zero_point-free storage buys groups half the affine size at equal bytes
+            group_size = 2 ** ((2 if (svd_up is not None or using_pre_calculated_svd) else 1) + dtype_dict[weights_dtype]["num_bits"])
+        elif is_codebook:
+            group_size = 2 ** ((1 if (svd_up is not None or using_pre_calculated_svd) else 0) + dtype_dict[weights_dtype]["num_bits"])
         elif is_linear_type:
             group_size = 2 ** ((3 if (svd_up is not None or using_pre_calculated_svd) else 2) + dtype_dict[weights_dtype]["num_bits"])
         else:
