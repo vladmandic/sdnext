@@ -539,6 +539,13 @@ def update_pipeline(sd_model, p: processing.StableDiffusionProcessing):
         log.warning('Processing: op=update model not loaded')
         return None
     updated_model = sd_model
+    if 'MiniMaxH3' in sd_model.__class__.__name__ and not isinstance(p, processing.StableDiffusionProcessingVideo):
+        # image tabs run the model in still mode; the video tab applies its own overrides
+        from modules.video_models import video_modular
+        video_modular.apply_minimax_overrides(p, sd_model, still=True, audio=False)
+        if getattr(p, 'detailer_enabled', False):
+            log.warning(f'Processing: cls={sd_model.__class__.__name__} detailer not supported')
+            p.detailer_enabled = False
     if sd_models.get_diffusers_task(sd_model) == sd_models.DiffusersTaskType.INPAINTING and getattr(p, 'image_mask', None) is None and p.task_args.get('image_mask', None) is None and getattr(p, 'mask', None) is None:
         log.warning('Processing: mode=inpaint mask=None')
         updated_model = sd_models.set_diffuser_pipe(sd_model, sd_models.DiffusersTaskType.IMAGE_2_IMAGE)
@@ -568,7 +575,7 @@ def validate_pipeline(p: processing.StableDiffusionProcessing):
             if m.custom is not None:
                 models_cls.append(m.custom)
     is_video_model = shared.sd_model.__class__.__name__ in models_cls
-    override_video_pipelines = ['WanPipeline', 'WanImageToVideoPipeline', 'WanVACEPipeline']
+    override_video_pipelines = ['WanPipeline', 'WanImageToVideoPipeline', 'WanVACEPipeline', 'MiniMaxH3ModularPipeline']
     is_video_pipeline = ('video' in p.__class__.__name__.lower()) or (shared.sd_model.__class__.__name__ in override_video_pipelines)
     if is_video_model and not is_video_pipeline:
         log.error(f'Mismatch: type={shared.sd_model_type} cls={shared.sd_model.__class__.__name__} request={p.__class__.__name__} video model with non-video pipeline')

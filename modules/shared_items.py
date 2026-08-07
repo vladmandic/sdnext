@@ -55,6 +55,7 @@ pipelines = {
     'PixArtAlpha': getattr(diffusers, 'PixArtAlphaPipeline', None),
     'PixArtSigma': getattr(diffusers, 'PixArtSigmaPipeline', None),
     'PRXPixel': getattr(diffusers, 'PRXPixelPipeline', None),
+    'MiniMaxH3': getattr(diffusers, 'MiniMaxH3ModularPipeline', None),
     'Qwen': getattr(diffusers, 'QwenImagePipeline', None),
     'Sana': getattr(diffusers, 'SanaPipeline', None),
     'WanAI': getattr(diffusers, 'WanPipeline', None),
