@@ -276,6 +276,14 @@ class OffloadHook(accelerate.hooks.ModelHook):
     def model_size(self):
         return sum(self.offload_map.values())
 
+    def matches(self, module, names: list, module_name: str | None = None) -> bool:
+        """Match against an always/never list by class name or by pipeline component name.
+        Component entries such as `text_encoder` cover every architecture without listing each encoder class."""
+        if module.__class__.__name__ in names:
+            return True
+        module_name = module_name or getattr(module, 'module_name', None)
+        return module_name is not None and module_name in names
+
     def init_hook(self, module):
         return module
 
@@ -301,8 +309,7 @@ class OffloadHook(accelerate.hooks.ModelHook):
                 for pipe in get_pipe_variants():
                     for module_name in get_module_names(pipe):
                         module_instance = getattr(pipe, module_name, None)
-                        module_cls = module_instance.__class__.__name__
-                        if (module_instance is not None) and (_id != id(module_instance)) and (module_cls not in self.offload_never) and (not devices.same_device(getattr(module_instance, "device", devices.cpu), devices.cpu)):
+                        if (module_instance is not None) and (_id != id(module_instance)) and (not self.matches(module_instance, self.offload_never, module_name)) and (not devices.same_device(getattr(module_instance, "device", devices.cpu), devices.cpu)):
                             apply_balanced_offload_to_module(module_instance, op='pre')
                 self.last_cls = module.__class__.__name__
                 process_timer.add('offload', time.time() - t0)
@@ -496,9 +503,9 @@ def move_module_to_cpu(module, op='unk', force:bool=False):
             op = f'{op}:force'
             module = do_move(module)
             used_gpu -= module_size
-        elif module_cls in offload_hook_instance.offload_never:
+        elif offload_hook_instance.matches(module, offload_hook_instance.offload_never, module_name):
             op = f'{op}:never'
-        elif module_cls in offload_hook_instance.offload_always:
+        elif offload_hook_instance.matches(module, offload_hook_instance.offload_always, module_name):
             op = f'{op}:always'
             module = do_move(module)
             used_gpu -= module_size
