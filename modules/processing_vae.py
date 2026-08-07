@@ -189,6 +189,8 @@ def full_vae_encode(image, model):
         sd_models.move_model(model.unet, devices.cpu)
     if shared.opts.diffusers_offload_mode != "sequential" and hasattr(model, 'vae'):
         sd_models.move_model(model.vae, devices.device)
+        if getattr(model.vae, 'sdnext_ondemand', False):
+            model.vae.to(devices.device) # the image placement below derives from vae.device, and the entry bridge would onload the weights only after the input is already bound
     vae_name = sd_vae.loaded_vae_file if sd_vae.loaded_vae_file is not None else "default"
     log_debug(f'Encode vae="{vae_name}" dtype={model.vae.dtype} upcast={model.vae.config.get("force_upcast", None)}')
 
@@ -369,6 +371,7 @@ def vae_decode(latents, model, output_type='np', vae_type='Full', width=None, he
     if shared.cmd_opts.profile or debug:
         t1 = time.time()
         log.debug(f'Profile: VAE decode: {t1-t0:.2f}')
+    sd_models.offload_ondemand(model)
     devices.torch_gc()
     shared.state.end(jobid)
     return images
@@ -393,6 +396,7 @@ def vae_encode(image, model, vae_type='Full'): # pylint: disable=unused-variable
     else:
         log.error('VAE not found in model')
         latents = []
+    sd_models.offload_ondemand(model)
     devices.torch_gc()
     shared.state.end(jobid)
     return latents
