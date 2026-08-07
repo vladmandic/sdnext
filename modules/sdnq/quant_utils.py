@@ -61,12 +61,14 @@ def fit_codebook(values: torch.FloatTensor, num_levels: int, iterations: int = 2
     values = values.reshape(-1)
     w_min, w_max = values.min(), values.max()
     levels = torch.arange(num_levels, dtype=values.dtype, device=values.device).div_(num_levels - 1).mul_(w_max - w_min).add_(w_min)
-    ones = torch.ones_like(values)
+    ones = None
     for _ in range(iterations):
         midpoints = levels[1:].add(levels[:-1]).mul_(0.5)
         assignment = torch.bucketize(values, midpoints)
+        if ones is None:
+            ones = torch.ones_like(assignment) # int64: a float32 count accumulator stops incrementing at 2^24 elements per cluster
         sums = torch.zeros_like(levels).scatter_add_(0, assignment, values)
-        counts = torch.zeros_like(levels).scatter_add_(0, assignment, ones)
+        counts = torch.zeros(levels.shape, dtype=torch.int64, device=levels.device).scatter_add_(0, assignment, ones)
         occupied = counts > 0
         levels = torch.where(occupied, sums.div_(counts.clamp_(min=1)), levels) # empty clusters keep their previous level
     return torch.sort(levels).values

@@ -209,6 +209,28 @@ def test_zero_row_does_not_poison_codebook():
     return True
 
 
+def test_fit_survives_clusters_past_fp32_count_limit():
+    # a float32 count accumulator stops incrementing at 2^24 (16777216 + 1 == 16777216
+    # in fp32); per-channel normalization of outlier-heavy weights concentrates a
+    # 100M-element tensor into a few central clusters that stay past that cliff for
+    # every iteration, so the skewed means never heal; 16384x6144 with boosted input
+    # channels is the smallest real geometry that crosses it, and the affine invariant
+    # must hold there like everywhere else
+    g = torch.Generator(device='cpu').manual_seed(11)
+    w = (torch.randn(16384, 6144, generator=g) * 0.02)
+    w[:, [1, 3072, 6142]] *= 8.0
+    w = w.to(DEVICE)
+    q, scale, codebook = quantize_weight_codebook(w.float(), -1, 'cb4')
+    cb_dq = codebook.to(torch.float32)[q.to(torch.int32)] * scale
+    cb_mse = float(torch.mean((w.float() - cb_dq) ** 2))
+    del q, scale, codebook, cb_dq
+    aq, ascale, azp = quantize_weight(w.float(), -1, 'uint4')
+    affine_dq = aq.to(torch.float32) * ascale + azp
+    affine_mse = float(torch.mean((w.float() - affine_dq) ** 2))
+    assert cb_mse <= affine_mse * 1.05, f'cb4 mse {cb_mse:.3e} vs uint4 {affine_mse:.3e} at 16384x6144'
+    return True
+
+
 def test_pack_roundtrip_all_widths():
     g = torch.Generator(device='cpu').manual_seed(6)
     for wdt in CB_DTYPES:
@@ -535,7 +557,7 @@ def run_all() -> bool:
     log.warning(f'device={DEVICE} fit noise floor={FIT_FLOOR:.3e}')
 
     suites = [
-        (CAT_FIT, [test_fit_deterministic_on_cpu, test_fit_zero_iterations_is_affine_grid, test_fit_beats_affine_grid, test_quantize_beats_uint4_end_to_end, test_zero_row_does_not_poison_codebook]),
+        (CAT_FIT, [test_fit_deterministic_on_cpu, test_fit_zero_iterations_is_affine_grid, test_fit_beats_affine_grid, test_quantize_beats_uint4_end_to_end, test_zero_row_does_not_poison_codebook, test_fit_survives_clusters_past_fp32_count_limit]),
         (CAT_PACK, [test_pack_roundtrip_all_widths]),
         (CAT_DEQUANT, [test_dequant_matches_reference, test_dequant_grouped_matches_reference]),
         (CAT_FORWARD, [test_layer_forward_matches_dequant_linear, test_matmul_bypass_matches_dequant_linear, test_gemm_path_error_within_control_band, test_matmul_with_hadamard_and_svd, test_cb4_beats_int4_against_reference, test_conv_forward_matches_dequant, test_embedding_forward_matches_dequant]),
