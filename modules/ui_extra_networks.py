@@ -57,9 +57,8 @@ preview_map = None
 def init_api():
 
     def get_thumb(filename: str = ""):
-        global allowed_dirs # pylint: disable=global-statement
-        if len(allowed_dirs) == 0:
-            allowed_dirs = shared.demo.allowed_paths
+        if os.path.join('ui', 'assets') not in allowed_dirs:
+            allowed_dirs.append(os.path.join('ui', 'assets'))
         if filename is None or len(filename) == 0:
             return JSONResponse({ "error": "no filename" }, status_code=400)
         if not any(Path(folder).absolute() in Path(filename).absolute().parents for folder in allowed_dirs):

@@ -61,6 +61,7 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
             torch.xpu.synchronize(devices.device)
         elif devices.backend in {"cuda", "zluda", "rocm"}:
             torch.cuda.synchronize(devices.device)
+        time.sleep(0.001) # 1ms yield frees GIL for the preview thread
 
     t1 = time.time()
 
@@ -82,7 +83,7 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
 
     latents = kwargs.get('latents', None)
     if debug:
-        debug_callback(f'Callback: step={step} timestep={timestep} latents={latents.shape if latents is not None else None} kwargs={list(kwargs)}')
+        debug_callback(f'Callback: step={step} timestep={timestep} latents={latents.shape if latents is not None else None} sync={shared.opts.torch_sync} kwargs={list(kwargs)}')
     if shared.state.sampling_steps == 0 and getattr(pipe, 'num_timesteps', 0) > 0:
         shared.state.sampling_steps = pipe.num_timesteps
     shared.state.step()
@@ -90,14 +91,6 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
         raise AssertionError('Interrupted...')
     if latents is None or p is None:
         return kwargs
-
-    """
-    if torch.isnan(latents).any().item():
-        log.error(f'Callback: step={step} timestep={timestep} latents={latents.shape}:{latents.device}:{latents.dtype} error="contains NaN values"')
-        if (shared.state.current_latent is not None) and (shared.state.current_latent.shape == latents.shape):
-            log.error(f'Callback: step={step} timestep={timestep} latents={latents.shape}:{latents.device}:{latents.dtype} error="replacing with previous latent"')
-            latents = shared.state.current_latent
-    """
 
     if len(getattr(p, 'ip_adapter_names', [])) > 0 and p.ip_adapter_names[0] != 'None':
         ip_adapter_scales = list(p.ip_adapter_scales)
@@ -122,6 +115,7 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
     cfg_end = getattr(p, "cfg_end", 1.0) or 1.0
     total_steps = getattr(pipe, "num_timesteps", 0)
     target_step = int(total_steps * cfg_end) if total_steps else 0
+
     if (cfg_end < 1.0) and not getattr(pipe, "_cfg_end_applied", False) and (step >= target_step):
         pipe._cfg_end_applied = True # pylint: disable=protected-access
         if "PAG" in shared.sd_model.__class__.__name__:
@@ -145,7 +139,7 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
             else:
                 width = getattr(p, 'width', 1024)
                 height = getattr(p, 'height', 1024)
-            shared.state.current_latent = pipe._unpack_latents(kwargs['latents'], height, width, pipe.vae_scale_factor) # pylint: disable=protected-access
+            shared.state.current_latent = pipe._unpack_latents(latents, height, width, pipe.vae_scale_factor) # pylint: disable=protected-access
             if current_noise_pred is not None:
                 shared.state.current_noise_pred = pipe._unpack_latents(current_noise_pred, height, width, pipe.vae_scale_factor) # pylint: disable=protected-access
             else:
@@ -158,7 +152,6 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
             else:
                 width = getattr(p, 'width', 1024)
                 height = getattr(p, 'height', 1024)
-            latents = kwargs['latents']
             if len(latents.shape) == 4:
                 latents = pipe._unpatchify_latents(latents) # [B, C*4, h/2, w/2] -> [B, C, h, w] # pylint: disable=protected-access
             elif len(latents.shape) == 3:  # packed format [B, seq_len, patch_channels]
@@ -183,7 +176,6 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
                 current_noise_pred = current_noise_pred.permute(0, 3, 1, 4, 2, 5).reshape(b, channels, h_patches * 2, w_patches * 2)
             shared.state.current_noise_pred = current_noise_pred
         elif 'Ideogram4' in pipe.__class__.__name__:  # packed normalized [B, seq, 128] -> Flux.2 latent space for TAE FLUX.2
-            latents = kwargs['latents']
             if latents.ndim == 3:
                 b, seq_len, packed_ch = latents.shape
                 vae_scale = getattr(pipe, 'vae_scale_factor', 8)
@@ -203,7 +195,7 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
                 shared.state.current_latent = latents
             shared.state.current_noise_pred = current_noise_pred
         else:
-            shared.state.current_latent = kwargs['latents']
+            shared.state.current_latent = latents
             shared.state.current_noise_pred = current_noise_pred
 
         # Video latent preview: extract middle frame from 5D [B,C,T,H,W] to 4D [B,C,H,W]

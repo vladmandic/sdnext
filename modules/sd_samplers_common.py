@@ -1,3 +1,4 @@
+import os
 import time
 import threading
 from collections import namedtuple
@@ -14,6 +15,7 @@ approximation_indexes = { "Simple": 0, "Approximate": 1, "TAESD": 2, "Full VAE":
 flow_models = ['f1', 'f2', 'sd3', 'lumina', 'auraflow', 'sana', 'zimage', 'lumina2', 'cogview4', 'h1', 'cosmos', 'anima', 'chroma', 'omnigen', 'omnigen2', 'longcat', 'ideogram4', 'krea2']
 warned = False
 queue_lock = threading.Lock()
+debug = os.environ.get('SD_PREVIEW_DEBUG', None) is not None
 
 
 def warn_once(message):
@@ -35,10 +37,12 @@ def setup_img2img_steps(p, steps=None):
     return steps, t_enc
 
 
-def single_sample_to_image(sample, approximation=None):
+def single_sample_to_image(sample, approximation=None, fast=False):
     with queue_lock:
         t0 = time.time()
         approximation = approximation or shared.opts.show_progress_type
+        if debug:
+            log.debug(f'Preview sample: shape={list(sample.shape)} dtype={sample.dtype} method={approximation}')
         try:
             if (sample.dtype == torch.bfloat16) and (approximation in ["Simple", "Approximate"]):
                 sample = sample.to(torch.float16)
@@ -59,7 +63,7 @@ def single_sample_to_image(sample, approximation=None):
                     sample = torch.nn.functional.interpolate(sample.unsqueeze(0), scale_factor=[scale, scale], mode='bilinear', align_corners=False)[0]
                 except Exception:
                     pass
-            x_sample = sd_vae_taesd.decode(sample)
+            x_sample = sd_vae_taesd.decode(sample, fast=fast)
             # x_sample = (1.0 + x_sample) / 2.0 # preview requires smaller range
         elif shared.sd_model_type == 'sc' and approximation != "Full":
             x_sample = sd_vae_stablecascade.decode(sample)
@@ -98,8 +102,8 @@ def sample_to_image(samples, index=0, approximation=None):
     return single_sample_to_image(samples[index], approximation)
 
 
-def samples_to_image_grid(samples, approximation=None):
-    return images.image_grid([single_sample_to_image(sample, approximation) for sample in samples])
+def samples_to_image_grid(samples, approximation=None, fast=False):
+    return images.image_grid([single_sample_to_image(sample, approximation, fast=fast) for sample in samples])
 
 
 def store_latent(decoded):

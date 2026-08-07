@@ -9,7 +9,7 @@ This release brings **Sefi-Image** and **Mage-Flow** models, plus a new **Nuncha
 - On the server side, there are quite a few *under-the-hood* improvements, including optimized startup, optimized webserver, end-to-end profiling, storage analyzer, etc.  
 - There are also several new auxiliary models, such as **Lucida** for background removal  
 - And video processing now supports scripts such as prompt enhance, nudenet, etc.  
-- Plus several quality-of-life improvements and bug-fixes across the board  
+- Plus several quality-of-life improvements (better progress monitoring for one) and bug-fixes across the board
 - Updated [SD.Next Launcher](https://github.com/vladmandic/sdnext-launcher/releases/tag/v0.1.6) with improved platform compatibility and upgrade workflows  
 
 *Note*: This release follows previous minor service-release which did not get full announcement, so if you missed it, check it out
@@ -40,6 +40,8 @@ This release brings **Sefi-Image** and **Mage-Flow** models, plus a new **Nuncha
   - prompt enhance: support for video generation
   - startup: optimized server startup
   - process: preserve audio when processing video
+  - separate progress reporting and live-preview for much more precise progress reporting
+  - add progress details to performance status bar (below the preview image)
   - remove background: new [lucida](https://huggingface.co/egeorcun/lucida) model
   - profile flag now logs all http requests and internal tasks
 - **API**

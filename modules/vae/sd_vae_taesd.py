@@ -43,7 +43,8 @@ prev_warnings = False
 first_run = True
 prev_cls = ''
 prev_type = ''
-prev_model = ''
+prev_variant = ''
+prev_model = None
 lock = threading.Lock()
 
 
@@ -82,12 +83,12 @@ def get_model(model_cls, variant=None):
         warn_once(f'cls={shared.sd_model.__class__.__name__} type={shared.sd_model_type} unsuppported', variant=variant)
         return model_cls, None
     if debug:
-        log.debug(f'TAESD detect: cls={model_cls} variant={variant}')
+        log.debug(f'TAESD detect: cls={model_cls} variant="{variant}"')
     return model_cls, variant
 
 
 def load_model(model_type = 'decoder', variant = None, vae_file: str | None = None):
-    global prev_cls, prev_type, prev_model, prev_warnings # pylint: disable=global-statement
+    global prev_cls, prev_type, prev_variant, prev_warnings # pylint: disable=global-statement
     model_cls = shared.sd_model_type if shared.sd_loaded else None
     if vae_file is not None and os.path.exists(vae_file):
         model_cls = 'sdxl'
@@ -101,7 +102,7 @@ def load_model(model_type = 'decoder', variant = None, vae_file: str | None = No
     os.makedirs(folder, exist_ok=True)
     if variant.startswith('TAE'):
         cfg = TAESD_MODELS[variant]
-        if (model_cls == prev_cls) and (model_type == prev_type) and (variant == prev_model) and (cfg['model'] is not None):
+        if (model_cls == prev_cls) and (model_type == prev_type) and (variant == prev_variant) and (cfg['model'] is not None):
             return cfg['model'], variant
         fn = os.path.join(folder, cfg['fn'] + model_type + '_' + model_cls + '.pth')
         if not os.path.exists(fn):
@@ -117,7 +118,7 @@ def load_model(model_type = 'decoder', variant = None, vae_file: str | None = No
         if os.path.exists(fn):
             prev_cls = model_cls
             prev_type = model_type
-            prev_model = variant
+            prev_variant = variant
             log.print() # new line
             log.debug(f'Decode: type="taesd" variant="{variant}" fn="{fn}" layers={shared.opts.taesd_layers} load')
             vae = None
@@ -133,12 +134,6 @@ def load_model(model_type = 'decoder', variant = None, vae_file: str | None = No
             else:
                 from modules.taesd.taesd import TAESD
                 vae = TAESD(decoder_path=fn if model_type=='decoder' else None, encoder_path=fn if model_type=='encoder' else None)
-                """
-                _vae = diffusers.AutoencoderKL()
-                from installer import Dot
-                _config = diffusers.AutoencoderKL().config.copy()
-                vae.config = Dot(_config) # set config for compatibility with standard vae
-                """
             if vae is not None:
                 prev_warnings = False # reset warnings for new model
                 vae = vae.to(devices.device, dtype=dtype)
@@ -147,7 +142,7 @@ def load_model(model_type = 'decoder', variant = None, vae_file: str | None = No
             return vae, variant
     elif variant.startswith('Hybrid'):
         cfg = CQYAN_MODELS[variant].get(model_cls, None)
-        if (model_cls == prev_cls) and (model_type == prev_type) and (variant == prev_model) and (cfg['model'] is not None):
+        if (model_cls == prev_cls) and (model_type == prev_type) and (variant == prev_variant) and (cfg['model'] is not None):
             return cfg['model'], variant
         if cfg is None:
             warn_once(f'cls={shared.sd_model.__class__.__name__} type={model_cls} unsuppported', variant=variant)
@@ -155,7 +150,7 @@ def load_model(model_type = 'decoder', variant = None, vae_file: str | None = No
         repo = cfg['repo']
         prev_cls = model_cls
         prev_type = model_type
-        prev_model = variant
+        prev_variant = variant
         log.debug(f'Decode: type="taesd" variant="{variant}" id="{repo}" load')
         if 'tiny' in repo:
             from diffusers.models import AutoencoderTiny
@@ -190,13 +185,20 @@ def restore_preview_size(image, vae):
     return image
 
 
-def decode(latents):
-    global first_run # pylint: disable=global-statement
+def decode(latents, fast=False):
+    global first_run, prev_model, prev_variant # pylint: disable=global-statement
     with lock:
         try:
-            vae, variant = load_model(model_type='decoder')
-            if vae is None or max(latents.shape) > 256: # safetey check of large tensors
-                return latents
+            if fast and prev_model is not None:
+                vae = prev_model
+                variant = prev_variant
+            else:
+                vae, variant = load_model(model_type='decoder')
+                if vae is None or max(latents.shape) > 256: # safety check of large tensors
+                    return latents
+                prev_model = vae
+                prev_variant = variant
+                fast = False
         except Exception as e:
             # from modules import errors
             # errors.display(e, 'taesd"')
@@ -208,7 +210,7 @@ def decode(latents):
                 tensor = latents.unsqueeze(0) if len(latents.shape) == 3 else latents
                 tensor = tensor.detach().clone().to(devices.device, dtype=dtype)
                 if debug:
-                    log.debug(f'Decode: type="taesd" variant="{variant}" input={latents.shape} tensor={tensor.shape}')
+                    log.debug(f'Decode: type="taesd" variant="{variant}" input={latents.shape} fast={fast} tensor={tensor.shape}')
                 # Fallback: reshape packed 128-channel latents to 32 channels if not already unpacked
                 if (variant == 'TAE FLUX.2') and (len(tensor.shape) == 4) and (tensor.shape[1] == 128):
                     b, _c, h, w = tensor.shape
@@ -221,7 +223,7 @@ def decode(latents):
                     image = (image / 2.0 + 0.5).clamp(0, 1).detach()
                 image = restore_preview_size(image, vae)
                 t1 = time.time()
-                if (t1 - t0) > 3.0 and not first_run:
+                if (t1 - t0) > 5.0 and not first_run:
                     log.warning(f'Decode: type="taesd" variant="{variant}" long decode time={t1 - t0:.2f}')
                 first_run = False
                 return image
