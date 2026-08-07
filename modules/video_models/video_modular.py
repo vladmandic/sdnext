@@ -22,18 +22,19 @@ def is_modular(obj) -> bool:
     return 'Modular' in cls.__name__
 
 
-def load_modular_pipe(repo_cls, repo: str, workflow: str | None = None, revision: str | None = None, offline_args: dict | None = None):
+def load_modular_pipe(repo_cls, repo: str, workflow: str | None = None, revision: str | None = None, offline_args: dict | None = None, base: bool = False):
     if repo_cls is None or isinstance(repo_cls, str):
         log.error(f'Load modular: repo="{repo}" cls="{repo_cls}" pipeline class not found: diffusers too old')
         return None
     offline_args = offline_args or {}
+    cache_dir = shared.opts.diffusers_dir if base else shared.opts.hfcache_dir # base models live in the diffusers folder so the model scan lists them; video-only models stay out of the dropdown
     try:
         t0 = time.time()
-        log.debug(f'Load modular: repo="{repo}" cls={repo_cls.__name__} workflow={workflow}')
+        log.debug(f'Load modular: repo="{repo}" cls={repo_cls.__name__} workflow={workflow} base={base}')
         pipe = repo_cls.from_pretrained(
             repo,
             revision=revision,
-            cache_dir=shared.opts.hfcache_dir,
+            cache_dir=cache_dir,
             **offline_args,
         )
         # workflow selection stays out of from_pretrained: pruning the blocks tree to one task
@@ -55,7 +56,7 @@ def load_modular_pipe(repo_cls, repo: str, workflow: str | None = None, revision
         pipe.load_components(
             workflow=workflow,
             dtype=devices.dtype,
-            cache_dir=shared.opts.hfcache_dir,
+            cache_dir=cache_dir,
             **load_kwargs,
             **offline_args,
         )
@@ -71,7 +72,7 @@ def load_modular_pipe(repo_cls, repo: str, workflow: str | None = None, revision
 
 
 def load_modular(selected, offline_args: dict):
-    return load_modular_pipe(selected.repo_cls, selected.repo, workflow=selected.workflow, revision=selected.repo_revision, offline_args=offline_args)
+    return load_modular_pipe(selected.repo_cls, selected.repo, workflow=selected.workflow, revision=selected.repo_revision, offline_args=offline_args, base=selected.base)
 
 
 def apply_minimax_overrides(p, pipe, still: bool = False, audio: bool = True):

@@ -17,6 +17,7 @@ def load_minimax(checkpoint_info, diffusers_load_config=None): # pylint: disable
         repo_id,
         workflow='fl2va',
         offline_args=offline_args,
+        base=True,
     )
     if pipe is None:
         return None
