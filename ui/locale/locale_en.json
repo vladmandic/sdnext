@@ -622,7 +622,7 @@
     {"id":"","label":"Generic","localized":"","hint":"","ui":"video"},
     {"id":"","label":"Google GenAI","localized":"","hint":"","ui":"settings_model_options"},
     {"id":"","label":"Group Offload","localized":"","hint":"","ui":"settings_offload"},
-    {"id":"","label":"Group offload type","localized":"","hint":"Granularity used by <b>group</b> offload.<br>- <b>leaf_level</b>: offloads at the smallest module level; maximum memory savings, slower<br>- <b>block_level</b>: offloads groups of transformer blocks (size set by <b><i>Offload blocks</i></b>); faster with less savings<br>The VAE stays resident on the GPU in both modes, and text encoders always offload at leaf level.<br><br>Applies only when <b><i>Model offload mode</i></b> is <b>group</b>.<br><br>Default is <b>leaf_level</b>.","reload":"model","ui":"settings_offload"},
+    {"id":"","label":"Group offload type","localized":"","hint":"Granularity used by <b>group</b> offload.<br>- <b>leaf_level</b>: offloads at the smallest module level; maximum memory savings, slower<br>- <b>block_level</b>: offloads groups of transformer blocks (size set by <b><i>Offload blocks</i></b>); faster with less savings<br>Text encoders always offload at leaf level. Small VAEs stay resident on the GPU; VAEs above 1GB rest in system memory and load whole for each encode or decode.<br><br>Applies only when <b><i>Model offload mode</i></b> is <b>group</b>.<br><br>Default is <b>leaf_level</b>.","reload":"model","ui":"settings_offload"},
     {"id":"","label":"Grid Options","localized":"","hint":"","ui":"settings_saving-images"},
     {"id":"","label":"Grids","localized":"","hint":"","ui":"settings_saving-paths"},
     {"id":"","label":"Guider","localized":"","hint":"","ui":"txt2img"},

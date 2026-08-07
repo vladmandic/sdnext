@@ -483,6 +483,7 @@ def process_decode(p: processing.StableDiffusionProcessing, output):
         if getattr(p, 'video_still', False) and hasattr(output, 'images') and output.images is not None:
             output.images = output.images[:1] # only the first frame derives from real latents; the rest decode from padding
         if output.images is not None and len(output.images) > 0 and isinstance(output.images[0], Image.Image):
+            sd_models.offload_ondemand(shared.sd_model) # in-pipe decode paths return materialized frames; the vae seam in processing_vae never runs
             return attach_audio(output.images, audio)
         model = shared.sd_model if not is_refiner_enabled(p) else shared.sd_refiner
         if not hasattr(model, 'vae'):
