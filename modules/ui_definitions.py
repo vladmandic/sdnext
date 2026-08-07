@@ -162,6 +162,7 @@ def create_settings(cmd_opts):
         "group_offload_type": OptionInfo("leaf_level", "Group offload type", gr.Radio, {"choices": ['leaf_level', 'block_level']}),
         "group_offload_stream": OptionInfo(False, "Use torch streams", gr.Checkbox),
         'group_offload_record': OptionInfo(False, "Record torch streams", gr.Checkbox),
+        'group_offload_pin': OptionInfo(True, "Pin offload memory", gr.Checkbox),
         'group_offload_blocks': OptionInfo(1, "Offload blocks", gr.Number),
     }))
 
