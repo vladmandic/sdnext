@@ -165,7 +165,16 @@ def install_state_hook(pipe):
     if not any(isinstance(f, InterruptLogFilter) for f in runner_log.filters):
         runner_log.addFilter(InterruptLogFilter())
 
+    def set_phase(phase: str):
+        # every stage runs inside one pipeline call, so the forward hooks are the only
+        # place the current stage is visible; state.begin clears the label per job
+        if getattr(pipe, 'sdnext_phase', None) != phase:
+            pipe.sdnext_phase = phase
+            shared.state.textinfo = phase
+            log.debug(f'Video modular: cls={pipe.__class__.__name__} phase="{phase}"')
+
     def state_hook(module, args): # pylint: disable=unused-argument
+        set_phase('Generate')
         if shared.state.sampling_steps == 0 and getattr(pipe, 'num_timesteps', 0) > 0:
             shared.state.sampling_steps = pipe.num_timesteps
         if shared.state.paused:
@@ -178,8 +187,27 @@ def install_state_hook(pipe):
         if shared.state.interrupted or shared.state.skipped:
             raise AssertionError('Interrupted...')
 
+    def encode_hook(module, args): # pylint: disable=unused-argument
+        set_phase('Text encode')
+        if shared.state.interrupted or shared.state.skipped:
+            raise AssertionError('Interrupted...')
+
+    def decode_hook(module, args): # pylint: disable=unused-argument
+        set_phase('Decode')
+        if shared.state.interrupted or shared.state.skipped: # fires per tile, so tiled decodes abort promptly
+            raise AssertionError('Interrupted...')
+
     for name in ('transformer', 'transformer_ref'):
         module = getattr(pipe, name, None)
         if module is None or getattr(module, 'sdnext_state_hook', None) is not None:
             continue
         module.sdnext_state_hook = module.register_forward_pre_hook(state_hook)
+    text_encoder = getattr(pipe, 'text_encoder', None)
+    if text_encoder is not None:
+        target = getattr(text_encoder, 'model', text_encoder) # conditioning calls the inner model directly
+        if isinstance(target, torch.nn.Module) and getattr(target, 'sdnext_state_hook', None) is None:
+            target.sdnext_state_hook = target.register_forward_pre_hook(encode_hook)
+    for name in ('vae', 'audio_vae'):
+        decoder = getattr(getattr(pipe, name, None), 'decoder', None) # decode entry points bypass forward, the inner decoder does not
+        if isinstance(decoder, torch.nn.Module) and getattr(decoder, 'sdnext_state_hook', None) is None:
+            decoder.sdnext_state_hook = decoder.register_forward_pre_hook(decode_hook)

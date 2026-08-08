@@ -164,6 +164,7 @@ def apply_group_offload_component(module, module_name: str, main: bool, op: str 
         module = accelerate.hooks.remove_hook_from_module(module, recurse=True)
     remove_group_offload_component(module)
     module.requires_grad_(False)
+    log.debug(f'Setting {op}: offload=group op=apply module={module_name} pin={cfg["use_stream"] and not cfg["low_cpu_mem_usage"]}') # before the apply: pinning large components takes a while and would otherwise run silently
     apply_group_offloading(module, onload_device=devices.device, offload_device=devices.cpu, **cfg)
     module.sdnext_group_offload_sig = sig
     return True

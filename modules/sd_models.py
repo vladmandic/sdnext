@@ -1644,6 +1644,7 @@ def save_model(name: str, path: str | None = None, shard: str = "5GB", overwrite
         torch.cuda.synchronize()
     except Exception:
         pass
+    jobid = shared.state.begin('Save model')
     try:
         t0 = time.time()
         log.info(f'Save model: path="{model_name}" cls={shared.sd_model.__class__.__name__} start')
@@ -1660,6 +1661,8 @@ def save_model(name: str, path: str | None = None, shard: str = "5GB", overwrite
         log.error(f'Save model: path="{model_name}" {e}')
         errors.display(e, 'Save model')
         return f'Error: {e}'
+    finally:
+        shared.state.end(jobid)
 
 
 def list_hfcache():
