@@ -61,6 +61,7 @@ def load_modular_pipe(repo_cls, repo: str, workflow: str | None = None, revision
             **offline_args,
         )
         loaded = [name for name, component in pipe.components.items() if component is not None]
+        pipe.sdnext_video_workflow = workflow # lets a pipe loaded outside the video registry report its own workflow
         if hasattr(pipe, 'min_duration') and hasattr(pipe, 'fps'):
             pipe.sdnext_supported_min_frames = int(pipe.min_duration * pipe.fps) # fresh pipes report the true floor; still mode gates per instance
         log.debug(f'Load modular: cls={pipe.__class__.__name__} workflow={workflow} components={loaded} time={time.time()-t0:.2f}')

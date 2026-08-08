@@ -58,34 +58,6 @@ def model_load(engine, model):
     return msg
 
 
-def run_video(*args):
-    engine, model = args[2], args[3]
-    debug(f'Video run: engine="{engine}" model="{model}"')
-    selected = get_selected(engine, model)
-    if not selected or engine is None or model is None or engine == 'None' or model == 'None':
-        return video_utils.queue_err('model not selected')
-    debug(f'Video run: {str(selected)}')
-    if selected and 'Hunyuan' in selected.name:
-        return video_run.generate(*args)
-    elif selected and 'LTX' in selected.name:
-        return video_run.generate(*args)
-    elif selected and 'Mochi' in selected.name:
-        return video_run.generate(*args)
-    elif selected and 'Cog' in selected.name:
-        return video_run.generate(*args)
-    elif selected and 'Allegro' in selected.name:
-        return video_run.generate(*args)
-    elif selected and 'WAN' in selected.name:
-        return video_run.generate(*args)
-    elif selected and 'Latte' in selected.name:
-        return video_run.generate(*args)
-    elif selected and 'anisora' in selected.name.lower():
-        return video_run.generate(*args)
-    elif selected and 'Kandinsky' in selected.name:
-        return video_run.generate(*args)
-    return video_utils.queue_err(f'model not found: engine="{engine}" model="{model}"')
-
-
 def create_ui_outputs():
     with gr.Row():
         with gr.Column(variant='compact', elem_id="video_outputs", elem_classes=['settings-column'], scale=1):

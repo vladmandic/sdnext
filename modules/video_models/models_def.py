@@ -688,3 +688,47 @@ try:
 except Exception as e:
     models = {}
     log.error(f'Networks: type="video" {e}')
+
+
+def engines() -> list[str]:
+    """Engine families with at least one real model, sentinel rows excluded."""
+    return [engine for engine, rows in models.items() if any(row.name != 'None' for row in rows)]
+
+
+def model_names(engine: str) -> list[str]:
+    """Real model names for an engine, sentinel rows excluded."""
+    return [row.name for row in models.get(engine, []) if row.name != 'None']
+
+
+def find(engine: str, name: str) -> Model | None:
+    """Case-insensitive exact-name lookup; the 'None' sentinel rows are not models."""
+    for family, rows in models.items():
+        if family.lower() != (engine or '').lower():
+            continue
+        for row in rows:
+            if row.name != 'None' and row.name.lower() == (name or '').lower():
+                return row
+    return None
+
+
+def workflow_for_class(cls_name: str) -> str | None:
+    """Workflow of the first registry row whose pipeline class matches, if any."""
+    for rows in models.values():
+        for row in rows:
+            if row.workflow is not None and row.repo_cls is not None:
+                row_cls = row.repo_cls if isinstance(row.repo_cls, str) else row.repo_cls.__name__
+                if row_cls == cls_name:
+                    return row.workflow
+    return None
+
+
+def pipeline_classes() -> set[str]:
+    """Class names of every registry pipeline; repo_cls is a string before load and a class after video_load resolves it in place."""
+    classes = set()
+    for rows in models.values():
+        for row in rows:
+            if row.repo_cls is not None:
+                classes.add(row.repo_cls if isinstance(row.repo_cls, str) else row.repo_cls.__name__)
+            if row.custom is not None:
+                classes.add(row.custom)
+    return classes

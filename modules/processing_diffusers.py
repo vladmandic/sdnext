@@ -564,18 +564,8 @@ def update_pipeline(sd_model, p: processing.StableDiffusionProcessing):
 
 
 def validate_pipeline(p: processing.StableDiffusionProcessing):
-    from modules.video_models.models_def import models as video_models
-    models_cls = []
-    for family in video_models:
-        for m in video_models[family]:
-            if m.repo_cls is not None:
-                if isinstance(m.repo_cls, str):
-                    models_cls.append(m.repo_cls)
-                else:
-                    models_cls.append(m.repo_cls.__name__)
-            if m.custom is not None:
-                models_cls.append(m.custom)
-    is_video_model = shared.sd_model.__class__.__name__ in models_cls
+    from modules.video_models import models_def
+    is_video_model = shared.sd_model.__class__.__name__ in models_def.pipeline_classes()
     override_video_pipelines = ['WanPipeline', 'WanImageToVideoPipeline', 'WanVACEPipeline', 'MiniMaxH3ModularPipeline']
     is_video_pipeline = ('video' in p.__class__.__name__.lower()) or (shared.sd_model.__class__.__name__ in override_video_pipelines)
     if is_video_model and not is_video_pipeline:
