@@ -83,7 +83,7 @@
     "path": "OzzyGT/MiniMax_H3_sdnq_dynamic_4bit",
     "preview": "MiniMaxAI--MiniMax-H3.jpg",
     "desc": "Quantization of MiniMaxAI/MiniMax-H3 using SDNQ: dynamic 4-bit uint. Video with synchronized audio; in image tabs the model runs in experimental still mode.",
-    "extras": "sampler: None",
+    "extras": "sampler: Default",
     "size": 51,
     "date": "2026 August"
   },
