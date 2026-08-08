@@ -266,7 +266,10 @@ def move_model(model, device=None, force=False):
             if hasattr(model, 'device') and model.device == torch.device('meta'):
                 set_execution_device(model, device)
             elif hasattr(model, 'to'):
-                model.to(device)
+                if device == devices.device and getattr(model, 'sdnext_ondemand_modules', None):
+                    pass # the group engine already placed every component; a pipe-level move would only drag on-demand components to the accelerator for the trailing eviction to undo
+                else:
+                    model.to(device)
             if hasattr(model, "prior_pipe"):
                 model.prior_pipe.to(device)
             if device == devices.device:
