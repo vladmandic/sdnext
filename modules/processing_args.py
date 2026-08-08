@@ -328,6 +328,8 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:l
     if 'MiniMaxH3' in model.__class__.__name__:
         if isinstance(args.get('prompt', None), list): # packs one request into one sequence, str only
             args['prompt'] = args['prompt'][0] if len(args['prompt']) > 0 else ''
+        if not str(args.get('prompt', '') or '').strip():
+            args['prompt'] = ' ' # an empty prompt tokenizes to zero tokens, which the conditioner cannot reshape
         args.pop('negative_prompt', None) # guidance-distilled, no negative prompt
         if isinstance(args.get('generator', None), list) and len(args['generator']) > 0:
             args['generator'] = args['generator'][0] # >1-element list breaks the audio noise draw
