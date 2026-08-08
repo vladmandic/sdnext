@@ -38,7 +38,10 @@ class Detailer():
         ) -> list[DetailerResult]:
         if 'LocateAnything' in name:
             from modules.detailer import locateanything
-            return locateanything.predict(self, model, image, device=device, mask=mask, offload=offload, p=p)
+            return locateanything.predict(self, name, image, device=device, mask=mask, offload=offload, p=p)
+        if 'Qwen3-VL' in name:
+            from modules.detailer import qwen
+            return qwen.predict(self, name, image, device=device, mask=mask, offload=offload, p=p)
 
         from modules.detailer import yolo
         return yolo.predict(self, model, image, imgsz=imgsz, half=half, device=device, agnostic=agnostic, retina=retina, mask=mask, augment=augment, offload=offload, p=p)
@@ -50,7 +53,10 @@ class Detailer():
     def load(self, model_name: str | None = None):
         if 'LocateAnything' in model_name:
             from modules.detailer import locateanything
-            return locateanything.load(model_name=model_name)
+            return locateanything.load(self, model_name=model_name)
+        if 'Qwen3-VL' in model_name:
+            from modules.detailer import qwen
+            return qwen.load(self, model_name=model_name)
 
         from modules.detailer import yolo
         return yolo.load(self, model_name=model_name)
@@ -356,7 +362,7 @@ class Detailer():
             return gr.update(visible=False), gr.update(visible=True, value=value), gr.update(visible=False)
 
     def ui(self, tab: str):
-        def ui_settings_change(merge, detailers, text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end, resolution, save, sort, seg):
+        def ui_settings_change(merge, detailers, text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end, resolution, save, sort, seg): # pylint: disable=unused-argument
             shared.opts.detailer_merge = merge
             shared.opts.detailer_models = detailers
             shared.opts.detailer_args = text if not self.ui_mode else ''
@@ -375,7 +381,7 @@ class Detailer():
             shared.opts.detailer_segmentation = seg
             # shared.opts.detailer_resolution = resolution
             shared.opts.save(silent=True)
-            log.debug(f'Detailer settings: models={detailers} classes={classes} strength={strength} conf={min_confidence} max={max_detected} iou={iou} size={min_size}-{max_size} padding={padding} steps={steps} resolution={resolution} save={save} sort={sort} seg={seg}')
+            # log.debug(f'Detailer settings: models={detailers} classes={classes} strength={strength} conf={min_confidence} max={max_detected} iou={iou} size={min_size}-{max_size} padding={padding} steps={steps} resolution={resolution} save={save} sort={sort} seg={seg}')
             if not self.ui_mode:
                 log.debug(f'Detailer expert: {text}')
 
@@ -395,7 +401,7 @@ class Detailer():
                 ui_mode = ui_components.ToolButton(value=ui_symbols.view, elem_id=f'{tab}_yolo_models_list')
                 ui_mode.click(fn=self.change_mode, inputs=[detailers, detailers_text], outputs=[detailers, detailers_text, refresh_btn])
             with gr.Row():
-                classes = gr.Textbox(label="Detailer classes", placeholder="Classes", elem_id=f"{tab}_detailer_classes")
+                classes = gr.Textbox(label="Detailer classes or instructions", placeholder="List of classes or human instructions", elem_id=f"{tab}_detailer_classes")
             if tab == 'extras': # Process tab is standalone, there is no base prompt to fall back to
                 prompt_placeholder = 'detailer prompt, leave empty for none'
                 negative_placeholder = 'detailer negative prompt, leave empty for none'

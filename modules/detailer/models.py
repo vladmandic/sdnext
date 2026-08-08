@@ -9,5 +9,8 @@ detailer_models = [ # <https://huggingface.co/vladmandic/yolo-detailers/tree/mai
     'https://huggingface.co/vladmandic/yolo-detailers/resolve/main/anzhc-eyes-seg.pt',
     'https://huggingface.co/vladmandic/yolo-detailers/resolve/main/anzhc-face-1024-seg-8n.pt',
     'https://huggingface.co/vladmandic/yolo-detailers/resolve/main/anzhc-head-seg-8n.pt',
+    'Qwen3-VL-2B-Instruct',
+    'Qwen3-VL-4B-Instruct',
+    'Qwen3-VL-8B-Instruct',
     # 'nvidia-LocateAnything-3B',
 ]

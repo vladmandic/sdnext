@@ -44,9 +44,9 @@ class DetailerResult:
         self.box = box
         self.mask = mask
         self.item = item
-        self.width = width
-        self.height = height
+        self.width = width if width > 0 else box[2] - box[0]
+        self.height = height if height > 0 else box[3] - box[1]
         self.args = args
 
     def __str__(self):
-        return f'DetailerResult(cls={self.cls} label={self.label} score={self.score:.2f} box={self.box} size={self.width}x{self.height} args={self.args})'
+        return f'DetailerResult(cls={self.cls} label="{self.label}" score={self.score:.2f} box={self.box} size={self.width}x{self.height} args={self.args})'

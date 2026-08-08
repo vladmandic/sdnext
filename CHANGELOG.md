@@ -1,5 +1,14 @@
 # Change Log for SD.Next
 
+## Update for 2026-08-08
+
+- **Detailer** support for VL models in addition to standard YOLO models  
+  select any of Qwen3-VL models in model selection  
+  enter the human-readable ask as detailer instructions  
+  for example: *glasses, optional hat, left hand, largest tree in the background*  
+  *note*: VL models are much larger, so use with caution  
+  *note*: LLM processes data sequentially, so if it cannot find one item, it may skip the rest of the items in the prompt  
+
 ## Update for 2026-08-07
 
 ### Highlights for 2026-08-07

@@ -91,3 +91,10 @@ def offload_aux(name: str) -> None:
     if hasattr(entry.model, 'device') and devices.same_device(entry.model.device, devices.cpu):
         return
     _do_move_to_cpu(entry.model, f'post:{name}', entry.size)
+
+
+def get_aux_model(name: str) -> torch.nn.Module | None:
+    entry = aux_models.get(name)
+    if entry is None:
+        return None
+    return entry.model
