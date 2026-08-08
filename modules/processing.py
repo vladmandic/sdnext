@@ -513,6 +513,8 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
                 if not _keep:
                     break
 
+            audio = getattr(samples, 'audio', None) # captured before the batch script hooks, which rewrap samples into a plain list without the attribute
+
             if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
                 p.scripts.postprocess_batch(p, samples, batch_number=n)
             if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
@@ -530,8 +532,6 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
                     if batch_image is not None and batch_image not in output_images:
                         output_images.append(batch_image)
                         infotexts.append(batch_infotext)
-
-            audio = getattr(samples, 'audio', None)
 
             if shared.cmd_opts.lowvram:
                 devices.torch_gc(force=True, reason='lowvram')
