@@ -231,6 +231,8 @@ def move_model(model, device=None, force=False):
 
     if model is None or device is None:
         return
+    if getattr(model, 'sdnext_ondemand', False) and device == devices.device: # on-demand components onload at their entry points instead of pre-moves
+        return
 
     if hasattr(model, 'pipe'):
         move_model(model.pipe, device, force)
