@@ -45,7 +45,7 @@ def load_modular_pipe(repo_cls, repo: str, workflow: str | None = None, revision
         if 'quantization_config' in quant_args:
             quant_config['transformer'] = quant_args['quantization_config']
             quant_config['transformer_ref'] = quant_args['quantization_config']
-        te_args = model_quant.create_config(module='TE')
+        te_args = model_quant.create_config(module='TE', modules_to_not_convert=['.model.visual']) # the conditioner's vision tower stays unquantized: quantized vision blocks have no validated precedent and only run for keyframe workflows
         if 'quantization_config' in te_args:
             quant_config['text_encoder'] = te_args['quantization_config']
         if quant_config:
