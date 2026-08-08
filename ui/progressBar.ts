@@ -42,7 +42,7 @@ export function checkPaused(state) {
 export function setProgress(res?: any) {
   const elements = ['txt2img_generate', 'img2img_generate', 'extras_generate', 'control_generate', 'video_generate', 'framepack_generate'];
   const progress = res?.progress || 0;
-  const job = res?.job || '';
+  const job = res?.textinfo || res?.job || ''; // stage label when the backend reports one, job name otherwise
   let perc: string;
   let eta = '';
   if (job === 'VAE') perc = 'Decode';
@@ -62,7 +62,7 @@ export function setProgress(res?: any) {
   const elPerf = document.getElementById('control-performance');
   let hint = '';
   if (elPerf && res) {
-    const jobTxt = res.job && res.job !== '' ? ` | Job ${res.job}` : '';
+    const jobTxt = res.job && res.job !== '' ? ` | Job ${res.job}${res.textinfo ? `: ${res.textinfo}` : ''}` : '';
     const batchTxt = res.batch > 0 ? ` | Batch ${res.batch}/${res.batches}` : '';
     const stateTxt = res.queued ? 'Queued' : res.paused ? 'Paused' : res.completed ? 'Completed' : res.active ? 'Active' : 'Idle'; // eslint-disable-line no-nested-ternary
     const stepsTxt = res.step > 0 ? ` | Step ${res.step}/${res.steps}` : '';
@@ -92,7 +92,7 @@ export function setProgress(res?: any) {
   }
   const el = document.getElementById('control-performance');
   if (el && res) {
-    const jobTxt = res.job && res.job !== '' ? ` | Job ${res.job}` : '';
+    const jobTxt = res.job && res.job !== '' ? ` | Job ${res.job}${res.textinfo ? `: ${res.textinfo}` : ''}` : '';
     const batchTxt = res.batch > 0 ? ` | Batch ${res.batch}/${res.batches}` : '';
     const stateTxt = res.queued ? 'Queued' : res.paused ? 'Paused' : res.completed ? 'Completed' : res.active ? 'Active' : 'Idle'; // eslint-disable-line no-nested-ternary
     const stepsTxt = res.step > 0 ? ` | Step ${res.step}/${res.steps}` : '';
