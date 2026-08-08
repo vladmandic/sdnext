@@ -73,16 +73,46 @@ def load_hyimage3(checkpoint_info, diffusers_load_config=None): # pylint: disabl
     pipe.load_tokenizer(repo_id)
 
     pipe.pipeline # noqa: B018 # call it to set up pipeline # pylint: disable=pointless-statement
-    pipe = HunyuanImage3Wrapper(pipe)
+    is_instruct = getattr(pipe.generation_config, 'sequence_template', 'pretrain') == 'instruct'
+    log.debug(f'Load model: type=HunyuanImage3 variant={"instruct" if is_instruct else "base"}')
+    pipe = HunyuanImage3InstructWrapper(pipe) if is_instruct else HunyuanImage3Wrapper(pipe)
 
     devices.torch_gc(force=True, reason='load')
     return pipe
+
+
+def resolve_seeds(seed, batch_size):
+    if seed is None or seed < 0:
+        return None
+    if batch_size <= 1:
+        return seed
+    return [seed + i for i in range(batch_size)] # int seed is replicated per batch entry upstream which makes identical images
 
 
 class HunyuanImage3Wrapper(torch.nn.Module):
     def __init__(self, model):
         super().__init__()
         self.model = model
+
+    def set_diffusion_config(self, num_inference_steps, guidance_scale):
+        # instruct variant reads diffusion params from generation_config only, so both variants set them there
+        gen_config = self.model.generation_config
+        if num_inference_steps is not None and num_inference_steps > 0:
+            gen_config.diff_infer_steps = num_inference_steps
+        if guidance_scale is not None and guidance_scale > 0:
+            gen_config.diff_guidance_scale = guidance_scale
+        if hasattr(self.model._pipeline.model, "_hf_hook"): # pylint: disable=protected-access
+            self.model._pipeline.model._hf_hook.execution_device = torch.device(devices.device) # pylint: disable=protected-access
+
+    @staticmethod
+    def resolve_image_size(height, width):
+        if height is None and width is None:
+            return "auto"
+        if height is None:
+            return (width, width)
+        if width is None:
+            return (height, height)
+        return (height, width)
 
     def __call__(
         self,
@@ -92,39 +122,85 @@ class HunyuanImage3Wrapper(torch.nn.Module):
         num_inference_steps: int = 50,
         num_images_per_prompt: int = 1,
         guidance_scale: float = 7.5,
-        guidance_rescale: float = 0.0,
-        callback_on_step_end = None,
-        callback_on_step_end_tensor_inputs = ["latents"],
+        seed: int | None = None,
         **kwargs,
     ):
-        if hasattr(self.model._pipeline.model, "_hf_hook"):
-            self.model._pipeline.model._hf_hook.execution_device = torch.device(devices.device)
+        self.set_diffusion_config(num_inference_steps, guidance_scale)
 
         if num_inference_steps > 1:
             if isinstance(prompt, str):
                 prompt = [prompt]
             prompt = prompt * num_images_per_prompt
 
-        if height is None and width is None:
-            image_size = "auto"
-        elif height is None:
-            image_size = (width, width)
-        elif width is None:
-            image_size = (height, height)
-        else:
-            image_size = (height, width)
-
+        batch_size = len(prompt) if isinstance(prompt, list) else 1
         output = self.model.generate_image(
             prompt,
-            image_size=image_size,
-            diff_infer_steps=num_inference_steps,
-            guidance_scale=guidance_scale,
-            guidance_rescale=guidance_rescale,
-            callback_on_step_end=callback_on_step_end,
-            callback_on_step_end_tensor_inputs=callback_on_step_end_tensor_inputs,
+            image_size=self.resolve_image_size(height, width),
+            seed=resolve_seeds(seed, batch_size),
             **kwargs,
         )
 
         if not isinstance(output, list):
             output = [output]
         return SimpleNamespace(images=output)
+
+
+class HunyuanImage3InstructWrapper(HunyuanImage3Wrapper):
+    # class name carries 'Instruct' so sd_models.get_diffusers_task routes the INSTRUCT task branch which supplies init images
+
+    @staticmethod
+    def resolve_instruct_image_size(images, height, width):
+        # sizing policy for edits: explicit UI dims are snapped to the model resolution buckets;
+        # image_size='auto' + infer_align_image_size=True is the upstream-recommended editing mode
+        # where the model predicts the ratio and output is aligned back to the input image size
+        if height is None and width is None:
+            return "auto", images is not None
+        return HunyuanImage3Wrapper.resolve_image_size(height, width), False
+
+    def __call__(
+        self,
+        prompt: str,
+        image = None,
+        height: int | None = None,
+        width: int | None = None,
+        num_inference_steps: int = 50,
+        num_images_per_prompt: int = 1,
+        guidance_scale: float = 7.5,
+        seed: int | None = None,
+        bot_task: str | None = None,
+        use_system_prompt: str | None = None,
+        system_prompt: str | None = None,
+        **kwargs,
+    ):
+        self.set_diffusion_config(num_inference_steps, guidance_scale)
+
+        prompts = [prompt] if isinstance(prompt, str) else list(prompt)
+        if num_images_per_prompt > 1:
+            prompts = prompts * num_images_per_prompt
+
+        images = None
+        if image is not None:
+            images = [i for i in image if i is not None] if isinstance(image, list) else [image]
+        image_size, align_size = self.resolve_instruct_image_size(images, height, width)
+
+        call_args = {}
+        if bot_task is not None:
+            call_args['bot_task'] = bot_task
+        if use_system_prompt is not None:
+            call_args['use_system_prompt'] = use_system_prompt
+        if system_prompt is not None:
+            call_args['system_prompt'] = system_prompt
+
+        cot_text, samples = self.model.generate_image(
+            prompt=prompts,
+            image=[images] * len(prompts) if images else None, # per-sample image lists must match batch size
+            seed=resolve_seeds(seed, len(prompts)),
+            image_size=image_size,
+            infer_align_image_size=align_size,
+            **call_args,
+        )
+
+        if cot_text:
+            text = cot_text[0] if isinstance(cot_text, list) else cot_text
+            log.debug(f'HunyuanImage3: cot="{text[:300]}"')
+        return SimpleNamespace(images=samples, cot_text=cot_text)
