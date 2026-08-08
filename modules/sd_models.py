@@ -1648,6 +1648,9 @@ def save_model(name: str, path: str | None = None, shard: str = "5GB", overwrite
     try:
         t0 = time.time()
         log.info(f'Save model: path="{model_name}" cls={shared.sd_model.__class__.__name__} start')
+        if hasattr(shared.sd_model, '_component_specs'): # modular pipeline: the saved index must reference the destination folder, not the source repos; save_sdnq_model lives in the sdnq submodule and does not pass this flag
+            import functools
+            shared.sd_model.save_pretrained = functools.partial(shared.sd_model.save_pretrained, overwrite_modular_index=True)
         save_sdnq_model(
             model=shared.sd_model,
             model_path=model_name,
@@ -1662,6 +1665,8 @@ def save_model(name: str, path: str | None = None, shard: str = "5GB", overwrite
         errors.display(e, 'Save model')
         return f'Error: {e}'
     finally:
+        if 'save_pretrained' in vars(shared.sd_model):
+            del shared.sd_model.save_pretrained # drop the instance shadow, restoring the class method
         shared.state.end(jobid)
 
 
