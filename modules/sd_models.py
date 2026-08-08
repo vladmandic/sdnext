@@ -266,6 +266,8 @@ def move_model(model, device=None, force=False):
                 model.to(device)
             if hasattr(model, "prior_pipe"):
                 model.prior_pipe.to(device)
+            if device == devices.device:
+                offload_ondemand(model) # a bulk move must not strand on-demand components on the accelerator; their entry points onload them when needed
         except Exception as e0:
             if 'Cannot copy out of meta tensor' in str(e0) or 'must be Tensor, not NoneType' in str(e0):
                 if hasattr(model, "components"):
