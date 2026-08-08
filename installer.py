@@ -728,33 +728,45 @@ def install_rocm_zluda():
 
     else: # linux
         #check_python(supported_minors=[10, 11, 12, 13, 14], reason='ROCm backend requires a Python version between 3.10 and 3.13')
+        rocm_major, rocm_minor = (int(x) for x in rocm.version.split('.')) if rocm.version is not None else (0, 0)
         if args.use_nightly:
-            if rocm.version is None or float(rocm.version) >= 7.2: # assume the latest if version check fails
+            if rocm.version is None or (rocm_major > 7 or (rocm_major == 7 and rocm_minor >= 2)): # assume the latest if version check fails
                 torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm7.2')
             else: # oldest rocm version on nightly is 7.1
                 torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm7.1')
         else:
-            if rocm.version is None or float(rocm.version) >= 7.2: # assume the latest if version check fails
+            if rocm.version is None or rocm_major > 7: # assume the latest if version check fails
                 torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.13.0+rocm7.2 torchvision==0.28.0+rocm7.2 --index-url https://download.pytorch.org/whl/rocm7.2')
-            elif rocm.version == "7.1":
-                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.13.0+rocm7.1 torchvision==0.28.0+rocm7.1 --index-url https://download.pytorch.org/whl/rocm7.1')
-            elif rocm.version == "7.0":
-                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.10.0+rocm7.0 torchvision==0.25.0+rocm7.0 --index-url https://download.pytorch.org/whl/rocm7.0')
-            elif rocm.version == "6.4":
-                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.9.1+rocm6.4 torchvision==0.24.1+rocm6.4 --index-url https://download.pytorch.org/whl/rocm6.4')
-            elif rocm.version == "6.3":
-                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.9.1+rocm6.3 torchvision==0.24.1+rocm6.3 --index-url https://download.pytorch.org/whl/rocm6.3')
-            elif rocm.version == "6.2":
-                # use rocm 6.2.4 instead of 6.2 as torch==2.7.1+rocm6.2 doesn't exists
-                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.1+rocm6.2.4 torchvision==0.22.1+rocm6.2.4 --index-url https://download.pytorch.org/whl/rocm6.2.4')
-            elif rocm.version == "6.1":
-                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.6.0+rocm6.1 torchvision==0.21.0+rocm6.1 --index-url https://download.pytorch.org/whl/rocm6.1')
             else:
-                # lock to 2.4.1 instead of 2.5.1 for performance reasons there are no support for torch 2.6 for rocm 6.0
-                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.4.1+rocm6.0 torchvision==0.19.1+rocm6.0 --index-url https://download.pytorch.org/whl/rocm6.0')
-                if float(rocm.version) < 6.0:
-                    log.warning(f"ROCm: unsupported version={rocm.version}")
-                    log.warning("ROCm: minimum supported version=6.0")
+                match rocm_major:
+                    case 7:
+                        if rocm_minor >= 2: # latest supported rocm 7.x version is 7.2
+                            torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.13.0+rocm7.2 torchvision==0.28.0+rocm7.2 --index-url https://download.pytorch.org/whl/rocm7.2')
+                        else:
+                            match rocm_minor:
+                                case 1:
+                                    torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.13.0+rocm7.1 torchvision==0.28.0+rocm7.1 --index-url https://download.pytorch.org/whl/rocm7.1')
+                                case _:
+                                    torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.10.0+rocm7.0 torchvision==0.25.0+rocm7.0 --index-url https://download.pytorch.org/whl/rocm7.0')
+                    case 6:
+                        if rocm_minor >= 4: # latest supported rocm 6.x version is 6.4
+                            torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.9.1+rocm6.4 torchvision==0.24.1+rocm6.4 --index-url https://download.pytorch.org/whl/rocm6.4')
+                        else:
+                            match rocm_minor:
+                                case 3:
+                                    torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.9.1+rocm6.3 torchvision==0.24.1+rocm6.3 --index-url https://download.pytorch.org/whl/rocm6.3')
+                                case 2:
+                                    # use rocm 6.2.4 instead of 6.2 as torch==2.7.1+rocm6.2 doesn't exists
+                                    torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.1+rocm6.2.4 torchvision==0.22.1+rocm6.2.4 --index-url https://download.pytorch.org/whl/rocm6.2.4')
+                                case 1:
+                                    torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.6.0+rocm6.1 torchvision==0.21.0+rocm6.1 --index-url https://download.pytorch.org/whl/rocm6.1')
+                                case _:
+                                    torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.4.1+rocm6.0 torchvision==0.19.1+rocm6.0 --index-url https://download.pytorch.org/whl/rocm6.0')
+                    case _:
+                        # lock to 2.4.1 instead of 2.5.1 for performance reasons there are no support for torch 2.6 for rocm 6.0
+                        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.4.1+rocm6.0 torchvision==0.19.1+rocm6.0 --index-url https://download.pytorch.org/whl/rocm6.0')
+                        log.warning(f"ROCm: unsupported version={rocm.version}")
+                        log.warning("ROCm: minimum supported version=6.0")
 
     if device is None or os.environ.get("HSA_OVERRIDE_GFX_VERSION", None) is not None:
         log.info(f'ROCm: HSA_OVERRIDE_GFX_VERSION auto config skipped: device={device} version={os.environ.get("HSA_OVERRIDE_GFX_VERSION", None)}')
