@@ -242,6 +242,22 @@ def offload_ondemand(sd_model):
             log.debug(f'Offload: type=ondemand op=offload module={module_name} time={dt:.3f}')
 
 
+def report_group_stats(sd_model, module_names):
+    """Per-component stats block once per loaded model; balanced mode prints its own from the hook map."""
+    if getattr(sd_model, 'sdnext_group_stats_reported', False):
+        return
+    sd_model.sdnext_group_stats_reported = True
+    total = 0.0
+    counted = []
+    for module_name in module_names:
+        module = getattr(sd_model, module_name, None)
+        if isinstance(module, torch.nn.Module):
+            total += get_module_size(module)[0]
+            counted.append(module_name)
+            report_model_stats(module_name, module)
+    log.info(f'Model class={sd_model.__class__.__name__} modules={len(counted)} size={total:.3f}')
+
+
 def apply_modular_group_offload(sd_model, op:str='model'):
     """Per-component group offload for modular pipelines, which lack the pipeline-level
     enable_*_offload entry points. The model and sequential modes also route here."""
@@ -268,6 +284,7 @@ def apply_modular_group_offload(sd_model, op:str='model'):
     # pipeline's own to() skips group-offloaded components when move_model runs
     if any(':' not in name for name in applied):
         log.info(f'Setting {op}: offload=group type={shared.opts.group_offload_type} modules={applied}')
+    report_group_stats(sd_model, ('transformer', 'transformer_ref', 'text_encoder', 'vae', 'audio_vae'))
 
 
 def apply_group_offload(sd_model, op:str='model'):
@@ -290,6 +307,7 @@ def apply_group_offload(sd_model, op:str='model'):
     set_accelerate(sd_model)
     if applied:
         log.info(f'Setting {op}: offload=group type={shared.opts.group_offload_type} modules={applied} resident={resident} ondemand={ondemand}')
+    report_group_stats(sd_model, get_module_names(sd_model))
     return sd_model
 
 
@@ -710,7 +728,9 @@ def get_logical_param_count(module: torch.nn.Module) -> int:
 
 def report_model_stats(module_name, module):
     try:
-        size = offload_hook_instance.offload_map.get(module_name, 0)
+        size = offload_hook_instance.offload_map.get(module_name, 0) if offload_hook_instance is not None else 0
+        if size == 0:
+            size, _params = get_module_size(module)
         quant = getattr(module, "quantization_method", None)
         params = sum(p.numel() for p in module.parameters(recurse=True))
         logical = get_logical_param_count(module)
