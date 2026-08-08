@@ -53,8 +53,11 @@ def save_sdnq_model(
     sdnq_config: SDNQConfig | None = None,
 ) -> None:
     normalized_modules = normalize_tied_weights_keys_for_save(model, is_pipeline=is_pipeline)
+    save_kwargs = {"max_shard_size": max_shard_size}
+    if hasattr(model, "_component_specs"): # modular pipelines: the saved index must reference the destination, not the source repos
+        save_kwargs["overwrite_modular_index"] = True
     try:
-        model.save_pretrained(model_path, max_shard_size=max_shard_size) # actual save
+        model.save_pretrained(model_path, **save_kwargs) # actual save
     finally:
         restore_tied_weights_keys_after_save(normalized_modules)
 
