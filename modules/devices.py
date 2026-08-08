@@ -245,6 +245,8 @@ def torch_gc(force: bool = False, fast: bool = False, reason: str | None = None)
                 torch.xpu.empty_cache()
                 if hasattr(torch.xpu, "ipc_collect"):
                     torch.xpu.ipc_collect()
+            if torch.cuda.is_available() and hasattr(torch._C, '_host_emptyCache'): # pylint: disable=protected-access
+                torch._C._host_emptyCache() # pylint: disable=protected-access # freed pinned host blocks otherwise stay cached in-process across model switches
         except Exception as e:
             log.error(f'Torch GC: {e}')
     else:

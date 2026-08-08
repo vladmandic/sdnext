@@ -45,6 +45,7 @@ def get_signature(cls):
 
 
 def disable_offload(sd_model):
+    remove_group_offload(sd_model) # group hooks block the meta move at unload, keeping component weights alive for as long as any reference to the pipe survives
     if not getattr(sd_model, 'has_accelerate', False):
         return
     for module_name in get_module_names(sd_model):
@@ -95,11 +96,11 @@ def group_offload_config(main: bool) -> dict:
     }
 
 
-def remove_group_offload_component(module):
+def remove_group_offload_component(module) -> bool:
     if getattr(module, 'sdnext_group_offload_sig', None) is None:
         module = getattr(module, 'model', None) # wrapper components carry the hooks on the inner model
         if module is None or getattr(module, 'sdnext_group_offload_sig', None) is None:
-            return
+            return False
     from diffusers.hooks.group_offloading import _GROUP_OFFLOADING, _LAYER_EXECUTION_TRACKER, _LAZY_PREFETCH_GROUP_OFFLOADING
     from diffusers.hooks.hooks import HookRegistry
     registry = HookRegistry.check_if_exists_or_initialize(module)
@@ -107,14 +108,14 @@ def remove_group_offload_component(module):
     registry.remove_hook(_LAYER_EXECUTION_TRACKER, recurse=True)
     registry.remove_hook(_LAZY_PREFETCH_GROUP_OFFLOADING, recurse=True)
     module.sdnext_group_offload_sig = None
+    return True
 
 
 def remove_group_offload(sd_model):
     removed = []
     for module_name in get_module_names(sd_model):
         module = getattr(sd_model, module_name, None)
-        if isinstance(module, torch.nn.Module) and getattr(module, 'sdnext_group_offload_sig', None) is not None:
-            remove_group_offload_component(module)
+        if isinstance(module, torch.nn.Module) and remove_group_offload_component(module):
             removed.append(module_name)
     for module_name in getattr(sd_model, 'sdnext_ondemand_modules', None) or []:
         module = getattr(sd_model, module_name, None)
