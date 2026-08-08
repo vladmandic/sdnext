@@ -6,7 +6,7 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.exceptions import HTTPException
 from modules import errors, shared, paths
 from modules.logger import log
-from modules.api import models, endpoints, script, helpers, server, generate, process, control, docs, gpu
+from modules.api import models, endpoints, script, helpers, server, generate, process, control, video, docs, gpu
 
 
 errors.install()
@@ -33,6 +33,7 @@ class Api:
         self.generate = generate.APIGenerate(queue_lock)
         self.process = process.APIProcess(queue_lock)
         self.control = control.APIControl(queue_lock)
+        self.video = video.APIVideo(queue_lock)
         # compatibility api
         self.text2imgapi = self.generate.post_text2img
         self.img2imgapi = self.generate.post_img2img
@@ -66,6 +67,7 @@ class Api:
         self.add_api_route("/sdapi/v1/txt2img", self.generate.post_text2img, methods=["POST"], response_model=models.ResTxt2Img, tags=["Generation"])
         self.add_api_route("/sdapi/v1/img2img", self.generate.post_img2img, methods=["POST"], response_model=models.ResImg2Img, tags=["Generation"])
         self.add_api_route("/sdapi/v1/control", self.control.post_control, methods=["POST"], response_model=control.ResControl, tags=["Generation"])
+        self.add_api_route("/sdapi/v1/video", self.video.post_video, methods=["POST"], response_model=video.ResVideo, tags=["Generation"])
         self.add_api_route("/sdapi/v1/process", self.process.extras_single_image_api, methods=["POST"], response_model=models.ResProcessImage, tags=["Processing"])
         self.add_api_route("/sdapi/v1/extra-single-image", self.process.extras_single_image_api, methods=["POST"], response_model=models.ResProcessImage, tags=["Processing"])
         self.add_api_route("/sdapi/v1/process-batch", self.process.extras_batch_images_api, methods=["POST"], response_model=models.ResProcessBatch, tags=["Processing"])
@@ -102,9 +104,11 @@ class Api:
         self.add_api_route("/sdapi/v1/extra-network-detail", endpoints.get_extra_network_detail, methods=["GET"], response_model=models.ItemExtraNetworkFull, tags=["Enumerators"])
         self.add_api_route("/sdapi/v1/extra-network-details", endpoints.get_extra_network_details, methods=["GET"], response_model=models.ResExtraNetworkDetails, tags=["Enumerators"])
         self.add_api_route("/sdapi/v1/unets", endpoints.get_unets, methods=["GET"], response_model=list[models.ItemUNet], tags=["Enumerators"])
+        self.add_api_route("/sdapi/v1/video/models", self.video.get_video_models, methods=["GET"], response_model=list[video.ItemVideoModel], tags=["Enumerators"])
 
         # functional api
         self.add_api_route("/sdapi/v1/file", endpoints.get_file, methods=["GET"], tags=["Functional"])
+        self.add_api_route("/sdapi/v1/video/file", self.video.get_video_file, methods=["GET"], tags=["Functional"])
         self.add_api_route("/sdapi/v1/delete-image", endpoints.get_deleteimage, methods=["DELETE"], tags=["Functional"])
         self.add_api_route("/sdapi/v1/delete-file", endpoints.get_deletefile, methods=["DELETE"], tags=["Functional"])
         self.add_api_route("/sdapi/v1/png-info", endpoints.get_pnginfo, methods=["GET"], response_model=models.ResImageInfo, tags=["Functional"])

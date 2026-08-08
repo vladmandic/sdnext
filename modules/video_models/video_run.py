@@ -1,53 +1,129 @@
 import os
 import copy
 import time
+from dataclasses import dataclass
 from modules import shared, errors, sd_models, processing, devices, images, ui_common, scripts_manager
 from modules.logger import log
-from modules.video_models import models_def, video_utils, video_load, video_vae, video_overrides, video_save
+from modules.video_models import models_def, video_utils, video_load, video_vae, video_overrides, video_save, video_modular
 from modules.paths import resolve_output_path
 
 
 debug = log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None else lambda *args, **kwargs: None
 
 
-def generate(task_id, ui_state,
-             engine, model,
-             prompt, negative, styles,
-             width, height, frames, steps,
-             sampler_index, sampler_shift, dynamic_shift,
-             seed, guidance_scale, guidance_true,
-             init_image, init_strength, last_image,
-             vae_type, vae_tile_frames, audio,
-             mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, mp4_thumb,
-             override_settings,
-             *args, **kwargs
-            ):
+class VideoError(Exception):
+    """Video generation failure; code follows HTTP semantics so API callers can map it directly."""
+    def __init__(self, msg: str, code: int = 500):
+        super().__init__(msg)
+        self.code = code
 
-    if engine is None or model is None or engine == 'None' or model == 'None':
-        return video_utils.queue_err('model not selected')
-    # videojob = shared.state.begin('Video')
-    found = [model.name for model in models_def.models.get(engine, [])]
-    selected: models_def.Model = [m for m in models_def.models[engine] if m.name == model][0] if len(found) > 0 else None
-    if not shared.sd_loaded:
-        debug('Video: model not yet loaded')
-        video_load.load_model(selected)
-    if selected.name != video_load.loaded_model:
-        debug('Video: force reload')
-        video_load.load_model(selected)
-    if not shared.sd_loaded:
-        debug('Video: model still not loaded')
-        return video_utils.queue_err('model not loaded')
-    debug(f'Video generate: task={task_id} args={args} kwargs={kwargs}')
+
+@dataclass
+class VideoResult:
+    images: list # PIL frames as produced; callers decide what to surface
+    video_path: str | None
+    thumb_path: str | None
+    num_frames: int
+    fps: float # effective save fps after interpolation
+    has_audio: bool
+    still: bool
+    processed: processing.Processed
+
+
+def resolve_model(engine: str | None, model: str | None) -> tuple[models_def.Model, bool]:
+    """Return (selected, needs_load): a registry row when both names are given, or a synthesized
+    row describing the already-loaded pipeline when both are omitted."""
+    engine_given = engine not in (None, '', 'None')
+    model_given = model not in (None, '', 'None')
+    if engine_given != model_given:
+        raise VideoError('video model selection requires both engine and model', 400)
+    if engine_given:
+        selected = models_def.find(engine, model)
+        if selected is None:
+            available = models_def.model_names(engine) or models_def.engines()
+            raise VideoError(f'video model not found: engine="{engine}" model="{model}" available={available}', 404)
+        return selected, True
+    cls = shared.sd_model.__class__.__name__ if shared.sd_loaded else None
+    if not shared.sd_loaded or cls not in models_def.pipeline_classes():
+        raise VideoError(f'no video model loaded: cls={cls} select engine and model or load a video-capable checkpoint first', 400)
+    pipe = shared.sd_model
+    workflow = getattr(pipe, 'sdnext_video_workflow', None)
+    if workflow is None and video_modular.is_modular(pipe):
+        workflow = models_def.workflow_for_class(cls) or 'auto' # modular pipes dispatch on inputs, so any workflow marker selects the modular branch
+    ckpt = getattr(pipe, 'sd_checkpoint_info', None)
+    selected = models_def.Model(
+        name=getattr(ckpt, 'title', None) or cls,
+        repo=getattr(ckpt, 'name', None),
+        repo_cls=type(pipe),
+        workflow=workflow,
+        base=True,
+    )
+    return selected, False
+
+
+def run(selected: models_def.Model, *,
+        prompt: str,
+        negative: str = '',
+        styles: list | None = None,
+        width: int = 832,
+        height: int = 480,
+        frames: int = 17,
+        steps: int = 50,
+        sampler_name: str = 'Default',
+        sampler_shift: float = -1.0,
+        dynamic_shift: bool = False,
+        seed: int = -1,
+        guidance_scale: float = -1.0,
+        guidance_true: float = -1.0,
+        init_image=None,
+        init_strength: float = 0.8,
+        last_image=None,
+        vae_type: str = 'Default',
+        vae_tile_frames: int = 16,
+        audio: bool = True,
+        mp4_fps: int = 24,
+        mp4_interpolate: int = 0,
+        mp4_codec: str = 'libx264',
+        mp4_ext: str = 'mp4',
+        mp4_opt: str = 'crf:16',
+        mp4_video: bool = True,
+        mp4_frames: bool = False,
+        mp4_sf: bool = False,
+        mp4_thumb: bool = True,
+        override_settings=None,
+        engine: str | None = None,
+        ui_state=None,
+        scripts=None,
+        script_args=(),
+        per_script_args: dict | None = None,
+        extra_p: dict | None = None,
+        needs_load: bool = True,
+       ) -> VideoResult:
+
+    if needs_load:
+        if not shared.sd_loaded:
+            debug('Video: model not yet loaded')
+            video_load.load_model(selected)
+        if selected.name != video_load.loaded_model:
+            debug('Video: force reload')
+            video_load.load_model(selected)
+        if not shared.sd_loaded:
+            debug('Video: model still not loaded')
+            raise VideoError('model not loaded', 500)
+
+    if isinstance(override_settings, (list, tuple)): # the ui override control emits "setting: value" pairs; always empty on the video tab since the control stays hidden
+        from modules.generation_parameters_copypaste import create_override_settings_dict
+        override_settings = create_override_settings_dict(override_settings)
 
     p = processing.StableDiffusionProcessingVideo(
         sd_model=shared.sd_model,
-        video_engine=engine,
-        video_model=model,
+        video_engine=engine or 'Loaded',
+        video_model=selected.name,
         prompt=prompt,
         negative_prompt=negative,
-        styles=styles,
+        styles=styles or [],
         seed=int(seed),
-        sampler_name = processing.get_sampler_name(sampler_index),
+        sampler_name=sampler_name,
         sampler_shift=float(sampler_shift),
         steps=int(steps),
         width=16 * int(width // 16),
@@ -67,9 +143,13 @@ def generate(task_id, ui_state,
         p.vae_type = 'Default'
 
     p.state = ui_state
-    p.scripts = scripts_manager.scripts_video
-    p.script_args = args
-    processed: processing.Processed = scripts_manager.scripts_video.run(p, *args)
+    if per_script_args:
+        p.per_script_args.update(per_script_args)
+    for k, v in (extra_p or {}).items():
+        setattr(p, k, v)
+    p.scripts = scripts if scripts is not None else scripts_manager.scripts_video
+    p.script_args = tuple(script_args)
+    p.scripts.run(p, *script_args)
 
     p.do_not_save_grid = True
     p.do_not_save_samples = not mp4_frames
@@ -85,44 +165,44 @@ def generate(task_id, ui_state,
         if p.video_still:
             p.do_not_save_samples = False # the still is the product; save it like an image result
         elif int(mp4_fps) != 24:
-            log.warning(f'Video: model="{model}" fps={mp4_fps} model output is fixed at 24')
+            log.warning(f'Video: model="{selected.name}" fps={mp4_fps} model output is fixed at 24')
         log.debug(f'Video: op=modular workflow={selected.workflow} still={p.video_still} init={init_image} last={last_image}')
-    elif 'T2V' in model:
+    elif 'T2V' in selected.name:
         if init_image is not None:
             log.warning('Video: op=T2V init image not supported')
-    elif 'I2V' in model:
+    elif 'I2V' in selected.name:
         if init_image is None:
-            return video_utils.queue_err('No input image provided. Please upload or select an image.')
+            raise VideoError('No input image provided. Please upload or select an image.', 400)
         p.task_args['image'] = images.resize_image(resize_mode=2, im=init_image, width=p.width, height=p.height, upscaler_name=None, output_type='pil')
         if last_image is not None and video_utils.supports_last_frame(shared.sd_model):
             p.task_args['last_image'] = images.resize_image(resize_mode=2, im=last_image, width=p.width, height=p.height, upscaler_name=None, output_type='pil')
             log.debug(f'Video: op=FLF2V init={init_image} last={last_image} resized={p.task_args["image"]}')
         elif last_image is not None:
-            log.warning(f'Video: op=I2V model="{model}" last frame not supported, ignoring')
+            log.warning(f'Video: op=I2V model="{selected.name}" last frame not supported, ignoring')
         else:
             log.debug(f'Video: op=I2V init={init_image} resized={p.task_args["image"]}')
-    elif 'FLF2V' in model:
+    elif 'FLF2V' in selected.name:
         if init_image is None:
-            return video_utils.queue_err('No input image provided. Please upload or select an image.')
+            raise VideoError('No input image provided. Please upload or select an image.', 400)
         if last_image is None:
-            return video_utils.queue_err('No last frame image provided. Please upload or select an image.')
+            raise VideoError('No last frame image provided. Please upload or select an image.', 400)
         p.task_args['image'] = images.resize_image(resize_mode=2, im=init_image, width=p.width, height=p.height, upscaler_name=None, output_type='pil')
         p.task_args['last_image'] = images.resize_image(resize_mode=2, im=last_image, width=p.width, height=p.height, upscaler_name=None, output_type='pil')
         log.debug(f'Video: op=FLF2V init={init_image} last={last_image} resized={p.task_args["image"]}')
-    elif 'VACE' in model:
+    elif 'VACE' in selected.name:
         if init_image is not None:
             p.task_args['reference_images'] = [images.resize_image(resize_mode=2, im=init_image, width=p.width, height=p.height, upscaler_name=None, output_type='pil')]
             log.debug(f'Video: op=VACE reference={init_image} resized={p.task_args["reference_images"]}')
-    elif 'Animate' in model:
+    elif 'Animate' in selected.name:
         if init_image is None:
-            return video_utils.queue_err('No input image provided. Please upload or select an image.')
+            raise VideoError('No input image provided. Please upload or select an image.', 400)
         p.task_args['image'] = images.resize_image(resize_mode=2, im=init_image, width=p.width, height=p.height, upscaler_name=None, output_type='pil')
         p.task_args['mode'] = 'animate'
         p.task_args['pose_video'] = [] # input pose video to condition the generation on. must be a list of PIL images.
         p.task_args['face_video'] = [] # input face video to condition the generation on. must be a list of PIL images.
         log.debug(f'Video: op=Animate init={p.task_args["image"]} pose={p.task_args["pose_video"]} face={p.task_args["face_video"]}')
     else:
-        log.warning(f'Video: unknown model type "{model}"')
+        log.warning(f'Video: unknown model type "{selected.name}"')
 
     # cleanup memory
     shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
@@ -176,24 +256,23 @@ def generate(task_id, ui_state,
 
     # done
     if err:
-        return video_utils.queue_err(err)
+        raise VideoError(err, 500)
     if processed is None or (len(processed.images) == 0 and processed.bytes is None):
-        return video_utils.queue_err('processing failed')
+        raise VideoError('processing failed', 500)
     log.info(f'Video: name="{selected.name}" cls={shared.sd_model.__class__.__name__} frames={len(processed.images)} time={t1-t0:.2f}')
 
     if getattr(p, 'video_still', False):
-        processed.images = processed.images[:1] # already trimmed in process_decode; defensive
-        generation_info_js = processed.js() if processed is not None else ''
-        return processed.images, None, generation_info_js, processed.info, ui_common.plaintext_to_html(processed.comments)
+        stills = processed.images[:1] # already trimmed in process_decode; defensive
+        return VideoResult(images=stills, video_path=None, thumb_path=None, num_frames=len(stills), fps=0.0, has_audio=False, still=True, processed=processed)
 
     if hasattr(processed, 'images') and processed.images is not None:
         pixels = video_save.images_to_tensor(processed.images)
     else:
         pixels = None
     if hasattr(processed, 'audio') and processed.audio is not None:
-        audio = processed.audio[0].float().cpu()
+        waveform = processed.audio[0].float().cpu()
     else:
-        audio = None
+        waveform = None
 
     if mp4_interpolate > 0 and pixels is not None:
         p.video_interpolate = mp4_interpolate
@@ -206,10 +285,10 @@ def generate(task_id, ui_state,
         pixels = x.permute(1, 0, 2, 3).unsqueeze(0)
     from modules.processing_video import interpolation_factor
     save_fps = mp4_fps * interpolation_factor(p)
-    _num_frames, video_file, _thumb = video_save.save_video(
+    num_frames, video_file, thumb_file = video_save.save_video(
         p=p,
         pixels=pixels,
-        audio=audio,
+        audio=waveform,
         aac_sample_rate=getattr(p, 'audio_sampling_rate', None) or 24000,
         binary=processed.bytes,
         mp4_fps=save_fps,
@@ -223,9 +302,68 @@ def generate(task_id, ui_state,
         mp4_interpolate=mp4_interpolate,
         metadata={},
     )
-    if not mp4_frames:
-        processed.images = []
+    return VideoResult(images=processed.images, video_path=video_file, thumb_path=thumb_file, num_frames=num_frames, fps=float(save_fps), has_audio=waveform is not None, still=False, processed=processed)
 
-    generation_info_js = processed.js() if processed is not None else ''
-    # shared.state.end(videojob)
-    return processed.images, video_file, generation_info_js, processed.info, ui_common.plaintext_to_html(processed.comments)
+
+def generate(task_id, ui_state,
+             engine, model,
+             prompt, negative, styles,
+             width, height, frames, steps,
+             sampler_index, sampler_shift, dynamic_shift,
+             seed, guidance_scale, guidance_true,
+             init_image, init_strength, last_image,
+             vae_type, vae_tile_frames, audio,
+             mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, mp4_thumb,
+             override_settings,
+             *args, **kwargs
+            ):
+    # gradio adapter around run(): the positional signature is frozen since external callers bind to it
+    if engine is None or model is None or engine == 'None' or model == 'None':
+        return video_utils.queue_err('model not selected')
+    selected = models_def.find(engine, model)
+    if selected is None:
+        return video_utils.queue_err(f'model not found: engine="{engine}" model="{model}"')
+    debug(f'Video generate: task={task_id} args={args} kwargs={kwargs}')
+    try:
+        res = run(selected,
+                  prompt=prompt,
+                  negative=negative,
+                  styles=styles,
+                  width=width,
+                  height=height,
+                  frames=frames,
+                  steps=steps,
+                  sampler_name=processing.get_sampler_name(sampler_index),
+                  sampler_shift=sampler_shift,
+                  dynamic_shift=dynamic_shift,
+                  seed=seed,
+                  guidance_scale=guidance_scale,
+                  guidance_true=guidance_true,
+                  init_image=init_image,
+                  init_strength=init_strength,
+                  last_image=last_image,
+                  vae_type=vae_type,
+                  vae_tile_frames=vae_tile_frames,
+                  audio=audio,
+                  mp4_fps=mp4_fps,
+                  mp4_interpolate=mp4_interpolate,
+                  mp4_codec=mp4_codec,
+                  mp4_ext=mp4_ext,
+                  mp4_opt=mp4_opt,
+                  mp4_video=mp4_video,
+                  mp4_frames=mp4_frames,
+                  mp4_sf=mp4_sf,
+                  mp4_thumb=mp4_thumb,
+                  override_settings=override_settings,
+                  engine=engine,
+                  ui_state=ui_state,
+                  script_args=args,
+                 )
+    except VideoError as e:
+        return video_utils.queue_err(str(e))
+    generation_info_js = res.processed.js()
+    html_log = ui_common.plaintext_to_html(res.processed.comments)
+    if res.still:
+        return res.images, None, generation_info_js, res.processed.info, html_log
+    result_images = res.images if mp4_frames else []
+    return result_images, res.video_path, generation_info_js, res.processed.info, html_log
