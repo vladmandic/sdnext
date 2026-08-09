@@ -1,0 +1,98 @@
+from modules.logger import log
+
+
+installed = False
+status = {'session': None}
+slow_compile_seconds = 1.0
+
+
+def kernel_name(fn):
+    while fn is not None and not hasattr(fn, '__name__'):
+        fn = getattr(fn, 'fn', None)
+    return getattr(fn, '__name__', 'unknown')
+
+
+def bench_hook(orig):
+    def wrapped(self, *args, config, **meta):
+        try:
+            from modules import shared
+            session = status['session']
+            if session is None or session['owner'] is not self:
+                session = {'owner': self, 'count': 0, 'total': len(self.configs), 'name': kernel_name(getattr(self, 'base_fn', None)), 'prev': shared.state.textinfo, 'compile_us': 0}
+                status['session'] = session
+                log.info(f'Kernel autotune: kernel={session["name"]} configs={session["total"]}')
+            session['count'] += 1
+            shared.state.textinfo = f"Tuning kernel {session['name']} {session['count']}/{session['total']} (one-time per shape)"
+        except Exception as e:
+            log.debug(f'Kernel autotune: report error: {e}')
+        return orig(self, *args, config=config, **meta)
+    return wrapped
+
+
+def make_autotune_listener(prior):
+    def listener(*, fn=None, key=None, best_config=None, configs_timings=None, duration=None, cache_hit=False, **kwargs):
+        try:
+            from modules import shared
+            session = status['session']
+            if session is not None:
+                shared.state.textinfo = session['prev']
+                status['session'] = None
+            name = kernel_name(fn)
+            if cache_hit:
+                log.debug(f'Kernel autotune: kernel={name} cached')
+            else:
+                n = len(configs_timings) if configs_timings is not None else 0
+                compile_s = (session['compile_us'] / 1e6) if session is not None else 0
+                log.info(f'Kernel autotune: kernel={name} configs={n} time={duration or 0:.2f} compile={compile_s:.2f}')
+        except Exception as e:
+            log.debug(f'Kernel autotune: report error: {e}')
+        if prior is not None:
+            prior(fn=fn, key=key, best_config=best_config, configs_timings=configs_timings, duration=duration, cache_hit=cache_hit, **kwargs)
+    return listener
+
+
+def make_compile_listener(prior):
+    def listener(*, src=None, metadata=None, metadata_group=None, times=None, cache_hit=False, **kwargs):
+        try:
+            if not cache_hit and times is not None:
+                total_s = getattr(times, 'total', 0) / 1e6
+                session = status['session']
+                if session is not None:
+                    session['compile_us'] += getattr(times, 'total', 0)
+                elif total_s >= slow_compile_seconds:
+                    name = kernel_name(getattr(src, 'fn', None))
+                    if name == 'unknown' and isinstance(metadata, dict):
+                        name = str(metadata.get('name', 'unknown'))
+                    log.info(f'Kernel compile: kernel={name} time={total_s:.2f}')
+        except Exception as e:
+            log.debug(f'Kernel compile: report error: {e}')
+        if prior is not None:
+            prior(src=src, metadata=metadata, metadata_group=metadata_group, times=times, cache_hit=cache_hit, **kwargs)
+    return listener
+
+
+def install():
+    """Report triton kernel autotuning and slow compiles in the log and in live progress text.
+
+    Autotune sweeps and kernel compiles run inside the first forward pass at a
+    new shape and can take minutes; without reporting they are indistinguishable
+    from slow inference. Uses the triton knobs listeners for completion events
+    and wraps the per-candidate benchmark for the live signal.
+    """
+    global installed # pylint: disable=global-statement
+    if installed:
+        return
+    installed = True
+    try:
+        from triton import knobs
+        from triton.runtime.autotuner import Autotuner
+    except Exception as e:
+        log.debug(f'Kernel autotune: reporting unavailable: {e}')
+        return
+    try:
+        knobs.autotuning.listener = make_autotune_listener(getattr(knobs.autotuning, 'listener', None))
+        knobs.compilation.listener = make_compile_listener(getattr(knobs.compilation, 'listener', None))
+        Autotuner._bench = bench_hook(Autotuner._bench) # pylint: disable=protected-access
+        log.debug('Kernel autotune: reporting installed')
+    except Exception as e:
+        log.warning(f'Kernel autotune: reporting install failed: {e}')
