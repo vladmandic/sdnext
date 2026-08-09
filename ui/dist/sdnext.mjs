@@ -11015,7 +11015,7 @@ function checkPaused(state) {
 function setProgress(res) {
   const elements = ["txt2img_generate", "img2img_generate", "extras_generate", "control_generate", "video_generate", "framepack_generate"];
   const progress = res?.progress || 0;
-  const job = res?.job || "";
+  const job = res?.textinfo || res?.job || "";
   let perc;
   let eta = "";
   if (job === "VAE") perc = "Decode";
@@ -11034,7 +11034,7 @@ function setProgress(res) {
   const elPerf = document.getElementById("control-performance");
   let hint = "";
   if (elPerf && res) {
-    const jobTxt = res.job && res.job !== "" ? ` | Job ${res.job}` : "";
+    const jobTxt = res.job && res.job !== "" ? ` | Job ${res.job}${res.textinfo ? `: ${res.textinfo}` : ""}` : "";
     const batchTxt = res.batch > 0 ? ` | Batch ${res.batch}/${res.batches}` : "";
     const stateTxt = res.queued ? "Queued" : res.paused ? "Paused" : res.completed ? "Completed" : res.active ? "Active" : "Idle";
     const stepsTxt = res.step > 0 ? ` | Step ${res.step}/${res.steps}` : "";
@@ -11064,7 +11064,7 @@ function setProgress(res) {
   }
   const el2 = document.getElementById("control-performance");
   if (el2 && res) {
-    const jobTxt = res.job && res.job !== "" ? ` | Job ${res.job}` : "";
+    const jobTxt = res.job && res.job !== "" ? ` | Job ${res.job}${res.textinfo ? `: ${res.textinfo}` : ""}` : "";
     const batchTxt = res.batch > 0 ? ` | Batch ${res.batch}/${res.batches}` : "";
     const stateTxt = res.queued ? "Queued" : res.paused ? "Paused" : res.completed ? "Completed" : res.active ? "Active" : "Idle";
     const stepsTxt = res.step > 0 ? ` | Step ${res.step}/${res.steps}` : "";
