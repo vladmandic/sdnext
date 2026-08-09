@@ -5,13 +5,16 @@ API tests for video generation.
 Tests:
 - GET /sdapi/v1/video/models — engine/model enumeration and mode derivation
 - POST /sdapi/v1/video — request validation errors (partial pair, unknown model/sampler, checkpoint override, unknown script)
+- POST /sdapi/v1/video — reference rules (wrong workflow, missing, over limit, aspect)
 - POST /sdapi/v1/video — still mode (frames=1) against the currently loaded model
 - POST /sdapi/v1/video — video generation against the currently loaded model
 - POST /sdapi/v1/video — wire switches and GET /sdapi/v1/video/file serving
 
 Requires a running SD.Next instance. Generation categories require a video-capable
 model loaded (for example MiniMax-H3 via the base checkpoint dropdown) and are
-skipped otherwise; enumeration and validation run against any instance.
+skipped otherwise; enumeration and validation run against any instance. A loaded
+model that conditions on references is detected by the still probe, and every
+later request against it carries one.
 
 Usage:
     python test/test-video-api.py [--url URL] [--steps STEPS] [--frames FRAMES]
@@ -20,7 +23,9 @@ Usage:
 import os
 import sys
 import base64
+import struct
 import time
+import zlib
 import argparse
 import requests
 import urllib3
@@ -28,6 +33,16 @@ import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 VALID_MODES = {'workflow', 't2v', 'i2v', 'flf2v', 'vace', 'animate'}
+
+
+def png_b64(width: int, height: int) -> str:
+    """Minimal grey RGB PNG, so reference tests need no image library."""
+    def chunk(tag: bytes, payload: bytes) -> bytes:
+        return struct.pack('>I', len(payload)) + tag + payload + struct.pack('>I', zlib.crc32(tag + payload) & 0xffffffff)
+    scanlines = b''.join(b'\x00' + b'\x7f\x7f\x7f' * width for _ in range(height))
+    header = struct.pack('>IIBBBBB', width, height, 8, 2, 0, 0, 0)
+    data = b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', header) + chunk(b'IDAT', zlib.compress(scanlines)) + chunk(b'IEND', b'')
+    return base64.b64encode(data).decode()
 
 
 class VideoAPITest:
@@ -39,6 +54,7 @@ class VideoAPITest:
         self.frames = frames
         self.timeout = timeout
         self.video_capable = None # set by the still-mode probe
+        self.ref2va = False # set by the same probe when the loaded model conditions on references
         self.results = {
             'enumerate': {'passed': 0, 'failed': 0, 'skipped': 0, 'tests': []},
             'validation': {'passed': 0, 'failed': 0, 'skipped': 0, 'tests': []},
@@ -105,6 +121,8 @@ class VideoAPITest:
         }
         if extra_params:
             payload.update(extra_params)
+        if self.ref2va and 'references' not in payload and 'engine' not in payload:
+            payload['references'] = [png_b64(64, 64)] # requests aimed at the loaded model carry a reference when that model needs one
         t0 = time.time()
         data = self._post('/sdapi/v1/video', payload)
         return data, time.time() - t0
@@ -158,6 +176,29 @@ class VideoAPITest:
             self.record(data.get('error') == 422, 'unknown_script_rejected', f'code={data.get("error")}')
         else:
             self.skip('unknown_sampler_rejected', 'no registry models to pair with')
+        self.check_references(models)
+
+    def check_references(self, models):
+        # every reference rule is checked before the model load, so these stay fast on a cold registry row
+        keyframe = next((m for m in models if m.get('workflow') not in (None, 'ref2va')), None)
+        reference = next((m for m in models if m.get('workflow') == 'ref2va'), None)
+        if keyframe:
+            pair = {'engine': keyframe['engine'], 'model': keyframe['name']}
+            data, elapsed = self._video({**pair, 'references': [png_b64(64, 64)]})
+            self.record(data.get('error') == 400, 'references_wrong_workflow_rejected', f'code={data.get("error")} time={elapsed:.2f}s')
+        else:
+            self.skip('references_wrong_workflow_rejected', 'no keyframe workflow model in registry')
+        if not reference:
+            for name in ('references_required', 'references_over_limit', 'references_aspect_rejected'):
+                self.skip(name, 'no ref2va model in registry')
+            return
+        pair = {'engine': reference['engine'], 'model': reference['name']}
+        data, elapsed = self._video(pair)
+        self.record(data.get('error') == 400, 'references_required', f'code={data.get("error")} time={elapsed:.2f}s')
+        data, elapsed = self._video({**pair, 'references': [png_b64(64, 64)] * 10})
+        self.record(data.get('error') == 400, 'references_over_limit', f'code={data.get("error")} time={elapsed:.2f}s')
+        data, elapsed = self._video({**pair, 'references': [png_b64(8, 64)]})
+        self.record(data.get('error') == 400, 'references_aspect_rejected', f'code={data.get("error")} time={elapsed:.2f}s')
 
     # =========================================================================
     # Tests: Still mode (doubles as the video-capability probe)
@@ -167,6 +208,9 @@ class VideoAPITest:
         self._category = 'still'
         print("\n--- Still Mode Tests ---")
         data, elapsed = self._video({'frames': 1})
+        if data.get('error') == 400 and 'ref2va' in str(data.get('detail', '')):
+            self.ref2va = True # the loaded model conditions on references; every later request carries one
+            data, elapsed = self._video({'frames': 1})
         if data.get('error') == 400:
             self.video_capable = False
             self.skip('still_generation', f'no video-capable model loaded: {data.get("detail")}')

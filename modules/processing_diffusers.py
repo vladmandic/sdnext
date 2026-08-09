@@ -574,6 +574,11 @@ def validate_pipeline(p: processing.StableDiffusionProcessing):
     elif not is_video_model and is_video_pipeline:
         log.error(f'Mismatch: type={shared.sd_model_type} cls={shared.sd_model.__class__.__name__} request={p.__class__.__name__} non-video model with video pipeline')
         return False
+    if getattr(shared.sd_model, 'sdnext_video_workflow', None) == 'ref2va' and p.task_args.get('references', None) is None:
+        # the reference workflow loads its own transformer partition alone: without references the pipeline
+        # dispatches to the keyframe path and reaches a transformer that was never loaded
+        log.error(f'Mismatch: type={shared.sd_model_type} cls={shared.sd_model.__class__.__name__} request={p.__class__.__name__} reference workflow requires reference images: use the video tab or the video api')
+        return False
     return True
 
 

@@ -10,12 +10,13 @@ def load_minimax(checkpoint_info, diffusers_load_config=None): # pylint: disable
     if repo_id is None or repo_id.lower() == 'none':
         return None
     offline_args = {'local_files_only': True} if shared.opts.offline_mode else {}
-    log.debug(f'Load model: type=MiniMaxH3 repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype}')
+    workflow = (getattr(checkpoint_info, 'subfolder', None) or 'fl2va').lower() # one repo holds both checkpoint partitions; reference entries select ref2va via the subfolder tag
+    log.debug(f'Load model: type=MiniMaxH3 repo="{repo_id}" workflow={workflow} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype}')
 
     pipe = video_modular.load_modular_pipe(
         getattr(diffusers, 'MiniMaxH3ModularPipeline', None),
         repo_id,
-        workflow='fl2va',
+        workflow=workflow,
         offline_args=offline_args,
         base=True,
     )
