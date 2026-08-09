@@ -70,6 +70,10 @@ def load_hyimage3(checkpoint_info, diffusers_load_config=None): # pylint: disabl
         **load_args,
         **quant_args,
     )
+    if not hasattr(pipe.config, 'model_version'):
+        # HunyuanImage-3.0-Instruct and -Instruct-Distil read config.model_version in load_tokenizer but ship no such
+        # key and no config default, so the documented entry point raises. The tokenizer discards the value.
+        pipe.config.model_version = None
     pipe.load_tokenizer(repo_id)
 
     pipe.pipeline # noqa: B018 # call it to set up pipeline # pylint: disable=pointless-statement
