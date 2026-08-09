@@ -7,6 +7,24 @@ from modules.logger import log
 from pipelines import generic
 
 
+def hijack_cache_lazy_init():
+    # HunyuanImage3 ships its own cache whose update() calls layer.lazy_initialization(key_states). transformers 5
+    # made value_states a required second argument so a value head dim may differ from the key head dim. Callers
+    # written against the one-argument form assume the dims match, so keys carry the shape for both.
+    import transformers.cache_utils as cache_utils
+    for cls_name in ('StaticLayer', 'DynamicLayer'):
+        cls = getattr(cache_utils, cls_name, None)
+        if cls is None or getattr(cls.lazy_initialization, 'sdnext_optional_values', False):
+            continue
+        original = cls.lazy_initialization
+
+        def lazy_initialization(self, key_states, value_states=None, original=original):
+            return original(self, key_states, key_states if value_states is None else value_states)
+
+        lazy_initialization.sdnext_optional_values = True
+        cls.lazy_initialization = lazy_initialization
+
+
 def load_hyimage(checkpoint_info, diffusers_load_config=None): # pylint: disable=unused-argument
     if diffusers_load_config is None:
         diffusers_load_config = {}
@@ -70,6 +88,7 @@ def load_hyimage3(checkpoint_info, diffusers_load_config=None): # pylint: disabl
         **load_args,
         **quant_args,
     )
+    hijack_cache_lazy_init()
     if not hasattr(pipe.config, 'model_version'):
         # HunyuanImage-3.0-Instruct and -Instruct-Distil read config.model_version in load_tokenizer but ship no such
         # key and no config default, so the documented entry point raises. The tokenizer discards the value.
