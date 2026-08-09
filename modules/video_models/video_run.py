@@ -9,6 +9,7 @@ from modules.paths import resolve_output_path
 
 
 debug = log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None else lambda *args, **kwargs: None
+MAX_IMAGE_REFERENCES = 9 # mirrors the reference setup block's own limit; reading it off the pipe would deep-copy the block tree per access
 
 
 class VideoError(Exception):
@@ -61,6 +62,31 @@ def resolve_model(engine: str | None, model: str | None) -> tuple[models_def.Mod
     return selected, False
 
 
+def validate_references(selected: models_def.Model, references: list | None, init_image) -> list | None:
+    """Return the ordered reference images for a reference workflow, None for every other model.
+    Reference conditioning is exclusive to ref2va: its partition holds no keyframe transformer, and
+    a mismatched request would only fail once the pipeline reached a component it never loaded.
+    Checks run before the model load so a rejected request costs nothing."""
+    workflow = getattr(selected, 'workflow', None)
+    if workflow != 'ref2va':
+        if references:
+            raise VideoError(f'reference images require a ref2va model: model="{selected.name}" workflow={workflow}', 400)
+        return None
+    refs = list(references) if references else ([init_image] if init_image is not None else [])
+    if len(refs) == 0:
+        raise VideoError('No reference image provided. The ref2va workflow conditions on reference images, so at least one is required.', 400)
+    if len(refs) > MAX_IMAGE_REFERENCES:
+        raise VideoError(f'too many reference images: count={len(refs)} max={MAX_IMAGE_REFERENCES}', 400)
+    for index, image in enumerate(refs):
+        size = getattr(image, 'size', None)
+        if size is None or len(size) != 2:
+            raise VideoError(f'reference {index + 1} is not an image: type={type(image).__name__}', 400)
+        width, height = size
+        if width > 4 * height or height > 4 * width: # the same bound the pipeline enforces, raised here where it is free
+            raise VideoError(f'reference {index + 1} aspect ratio out of range: size={width}x{height} supported=1:4..4:1', 400)
+    return refs
+
+
 def run(selected: models_def.Model, *,
         prompt: str,
         negative: str = '',
@@ -78,6 +104,7 @@ def run(selected: models_def.Model, *,
         init_image=None,
         init_strength: float = 0.8,
         last_image=None,
+        references: list | None = None,
         vae_type: str = 'Default',
         vae_tile_frames: int = 16,
         audio: bool = True,
@@ -99,6 +126,8 @@ def run(selected: models_def.Model, *,
         extra_p: dict | None = None,
         needs_load: bool = True,
        ) -> VideoResult:
+
+    refs = validate_references(selected, references, init_image)
 
     if needs_load:
         if not shared.sd_loaded:
@@ -158,15 +187,23 @@ def run(selected: models_def.Model, *,
         # modular workflows dispatch on which inputs are present; keyframes pass through
         # unresized since the pipeline defines its own canvas placement per anchor
         p.video_still = int(frames) <= 1
-        if init_image is not None:
-            p.task_args['image'] = init_image
-        if last_image is not None:
-            p.task_args['last_image'] = last_image
+        if refs is not None:
+            from diffusers.modular_pipelines.minimax_h3 import MiniMaxH3ImageReference
+            # references outrank the keyframe inputs in every block, so those stay unset; the reference
+            # encoder reads the image array as (height, width, 3) and never converts it itself
+            p.task_args['references'] = [MiniMaxH3ImageReference(image=image.convert('RGB')) for image in refs]
+            if last_image is not None:
+                log.warning(f'Video: op=reference model="{selected.name}" last frame not supported, ignoring')
+        else:
+            if init_image is not None:
+                p.task_args['image'] = init_image
+            if last_image is not None:
+                p.task_args['last_image'] = last_image
         if p.video_still:
             p.do_not_save_samples = False # the still is the product; save it like an image result
         elif int(mp4_fps) != 24:
             log.warning(f'Video: model="{selected.name}" fps={mp4_fps} model output is fixed at 24')
-        log.debug(f'Video: op=modular workflow={selected.workflow} still={p.video_still} init={init_image} last={last_image}')
+        log.debug(f'Video: op=modular workflow={selected.workflow} still={p.video_still} init={init_image} last={last_image} references={len(refs) if refs else 0}')
     elif 'T2V' in selected.name:
         if init_image is not None:
             log.warning('Video: op=T2V init image not supported')

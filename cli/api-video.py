@@ -114,6 +114,8 @@ def generate(args): # pylint: disable=redefined-outer-name
         options['init_image'] = encode(args.init)
     if args.last:
         options['last_image'] = encode(args.last)
+    if args.reference:
+        options['references'] = [encode(f) for f in args.reference]
     stop_event = threading.Event()
     if args.progress:
         threading.Thread(target=watch_progress, args=(stop_event,), daemon=True).start()
@@ -146,6 +148,7 @@ if __name__ == "__main__":
     parser.add_argument('--audio', action=argparse.BooleanOptionalAction, default=True, help='generate audio on supported models')
     parser.add_argument('--init', required=False, default=None, help='init image file')
     parser.add_argument('--last', required=False, default=None, help='last frame image file')
+    parser.add_argument('--reference', required=False, default=None, action='append', help='reference image file for reference workflows; repeat in the order the model should read them')
     parser.add_argument('--output', required=False, default=None, help='output video file')
     parser.add_argument('--progress', action='store_true', help='poll and log progress during generation')
     parser.add_argument('--timeout', required=False, default=3600, help='request timeout in seconds')

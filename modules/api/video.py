@@ -30,6 +30,7 @@ class ReqVideo(BaseModel):
     init_image: str | None = Field(default=None, title="Init image", description="Base64, data URI, or upload reference for the first-frame image")
     init_strength: float = Field(default=0.8, ge=0.0, le=1.0, title="Init strength", description="Denoising strength for the init image")
     last_image: str | None = Field(default=None, title="Last image", description="Base64, data URI, or upload reference for the last-frame image")
+    references: list[str] = Field(default=[], title="References", description="Reference images for a reference workflow, in the order the model reads them; base64, data URIs, or upload references. At most 9, each within a 1:4 to 4:1 aspect ratio. Rejected on models that do not condition on references")
     vae_type: str = Field(default="Default", title="VAE type", description="Decode variant: Default, Tiny, Remote, or Upscale")
     vae_tile_frames: int = Field(default=16, ge=1, le=64, title="VAE tile frames", description="Frames per VAE decode tile")
     audio: bool = Field(default=True, title="Audio", description="Generate audio on models that support it")
@@ -72,7 +73,7 @@ class ItemVideoModel(BaseModel):
     repo: str = Field(default="", title="Repo", description="Model repository or path")
     url: str = Field(default="", title="URL", description="Model information page")
     mode: str = Field(title="Mode", description="Input mode: workflow, t2v, i2v, flf2v, vace, or animate")
-    workflow: str | None = Field(default=None, title="Workflow", description="Modular workflow name when the model dispatches on inputs")
+    workflow: str | None = Field(default=None, title="Workflow", description="Modular workflow name when the model dispatches on inputs; ref2va conditions on references and ignores the keyframe images")
     base: bool = Field(default=False, title="Base", description="Also listed in the base checkpoint dropdown")
     loaded: bool = Field(default=False, title="Loaded", description="Currently loaded through the video registry")
 
@@ -118,6 +119,8 @@ class APIVideo:
             val = getattr(req, name, None)
             if isinstance(val, str) and len(val) >= 1000:
                 setattr(req, name, f"<str {len(val)}>")
+        if req.references:
+            sanitize_str(req.references)
         if req.script_args:
             sanitize_str(req.script_args)
         if req.alwayson_scripts:
@@ -140,6 +143,11 @@ class APIVideo:
         `video_path` set; fetch those via `GET /sdapi/v1/video/file`.
 
         `init_image` and `last_image` accept base64 data, data URIs, or upload references.
+        Models whose workflow is `ref2va` condition on `references` instead: an ordered list of
+        images the prompt addresses as `<Picture 1>`, `<Picture 2>` and so on, following list
+        order. A single reference may also be passed as `init_image`. Reference images do not
+        set the output canvas, and `last_image` is ignored.
+
         Progress is reported on `GET /sdapi/v1/progress`; `POST /sdapi/v1/interrupt` cancels.
         Switching checkpoints via `override_settings` is not supported here; use
         `POST /sdapi/v1/checkpoint` before generating.
@@ -151,6 +159,7 @@ class APIVideo:
         sampler_name = helpers.validate_sampler_name(req.sampler_name)
         init_image = helpers.decode_base64_to_image(req.init_image) if req.init_image else None
         last_image = helpers.decode_base64_to_image(req.last_image) if req.last_image else None
+        references = [helpers.decode_base64_to_image(x) for x in (req.references or [])]
         overrides = dict(req.override_settings or {})
         for key in ('sd_model_checkpoint', 'sd_model_refiner'):
             if key in overrides:
@@ -180,6 +189,7 @@ class APIVideo:
                     init_image=init_image,
                     init_strength=req.init_strength,
                     last_image=last_image,
+                    references=references,
                     vae_type=req.vae_type,
                     vae_tile_frames=req.vae_tile_frames,
                     audio=req.audio,

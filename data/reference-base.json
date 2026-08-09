@@ -382,6 +382,15 @@
     "size": 134,
     "date": "2026 August"
   },
+  "MiniMaxAI MiniMax-H3 Ref2VA": {
+    "path": "MiniMaxAI/MiniMax-H3",
+    "subfolder": "ref2va",
+    "preview": "MiniMaxAI--MiniMax-H3.jpg",
+    "desc": "The omni-reference variant of MiniMax-H3, sharing one repository with the base model as a separate checkpoint partition. Video with synchronized stereo audio is conditioned on reference images for identity and appearance, with reference rows held clean while video rows denoise.",
+    "extras": "sampler: Default",
+    "size": 134,
+    "date": "2026 August"
+  },
   "Freepik F-Lite": {
     "path": "Freepik/F-Lite",
     "preview": "Freepik--F-Lite.jpg",
