@@ -143,6 +143,12 @@ def load_diffusers_models(clear=True):
                     diffuser_repos.append(repo)
                     continue
 
+                config_file = os.path.join(folder, 'config.json')
+                if os.path.exists(config_file): # single-module models carry a config where a pipeline carries an index
+                    repo = { 'name': name, 'filename': name, 'friendly': friendly, 'folder': folder, 'path': folder, 'hash': None, 'mtime': os.path.getmtime(folder), 'model_info': os.path.join(folder, 'model_info.json'), 'model_index': index_file, 'model_config': config_file }
+                    diffuser_repos.append(repo)
+                    continue
+
                 snapshots = os.listdir(os.path.join(folder, "snapshots"))
                 if len(snapshots) == 0:
                     log.warning(f'Diffusers folder has no snapshots: location="{place}" folder="{folder}" name="{name}"')
