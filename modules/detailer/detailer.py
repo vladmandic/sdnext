@@ -36,34 +36,64 @@ class Detailer():
             offload: bool | None = None,
             p = None,
         ) -> list[DetailerResult]:
+        jobid = shared.state.begin('Detect')
         if 'LocateAnything' in name:
             from modules.detailer import locateanything
-            return locateanything.predict(self, name, image, device=device, mask=mask, offload=offload, p=p)
-        if 'Qwen3-VL' in name:
+            results = locateanything.predict(self, name, image, device=device, mask=mask, offload=offload, p=p)
+        elif 'Qwen3-VL' in name:
             from modules.detailer import qwen
-            return qwen.predict(self, name, image, device=device, mask=mask, offload=offload, p=p)
-
-        from modules.detailer import yolo
-        return yolo.predict(self, model, image, imgsz=imgsz, half=half, device=device, agnostic=agnostic, retina=retina, mask=mask, augment=augment, offload=offload, p=p)
+            results = qwen.predict(self, name, image, device=device, mask=mask, offload=offload, p=p)
+        elif 'Florence-2' in name:
+            from modules.detailer import florence
+            results = florence.predict(self, name, image, device=device, mask=mask, offload=offload, p=p)
+        elif 'Grounding-DINO' in name:
+            from modules.detailer import dino
+            results = dino.predict(self, name, image, device=device, mask=mask, offload=offload, p=p)
+        elif 'Rex-Omni' in name:
+            from modules.detailer import rexomni
+            results = rexomni.predict(self, name, image, device=device, mask=mask, offload=offload, p=p)
+        elif 'Facebook-SAM3' in name:
+            from modules.detailer import sam
+            results = sam.predict(self, name, image, device=device, mask=mask, offload=offload, p=p)
+        else:
+            from modules.detailer import yolo
+            results = yolo.predict(self, model, image, imgsz=imgsz, half=half, device=device, agnostic=agnostic, retina=retina, mask=mask, augment=augment, offload=offload, p=p)
+        shared.state.end(jobid)
+        return results
 
     def enumerate(self):
         from modules.detailer import list_models
         return list_models(self)
 
     def load(self, model_name: str | None = None):
+        jobid = shared.state.begin('Load detailer')
         if 'LocateAnything' in model_name:
             from modules.detailer import locateanything
-            return locateanything.load(self, model_name=model_name)
-        if 'Qwen3-VL' in model_name:
+            model_name, model = locateanything.load(self, model_name=model_name)
+        elif 'Qwen3-VL' in model_name:
             from modules.detailer import qwen
-            return qwen.load(self, model_name=model_name)
-
-        from modules.detailer import yolo
-        return yolo.load(self, model_name=model_name)
+            model_name, model = qwen.load(self, model_name=model_name)
+        elif 'Florence-2' in model_name:
+            from modules.detailer import florence
+            model_name, model = florence.load(self, model_name=model_name)
+        elif 'Grounding-DINO' in model_name:
+            from modules.detailer import dino
+            model_name, model = dino.load(self, model_name=model_name)
+        elif 'Rex-Omni' in model_name:
+            from modules.detailer import rexomni
+            model_name, model = rexomni.load(self, model_name=model_name)
+        elif 'Facebook-SAM3' in model_name:
+            from modules.detailer import sam
+            model_name, model = sam.load(self, model_name=model_name)
+        else:
+            from modules.detailer import yolo
+            model_name, model = yolo.load(self, model_name=model_name)
+        shared.state.end(jobid)
+        return model_name, model
 
     def merge(self, items: list[DetailerResult]) -> list[DetailerResult]:
         if items is None or len(items) == 0:
-            return None
+            return []
         box=[min(item.box[0] for item in items), min(item.box[1] for item in items), max(item.box[2] for item in items), max(item.box[3] for item in items)]
         mask = Image.new('L', items[0].mask.size, 0)
         for item in items:
@@ -80,6 +110,30 @@ class Detailer():
         )
         return [merged]
 
+    def filter(self, items: list[DetailerResult], image: Image.Image, p: processing.StableDiffusionProcessing = None) -> list[DetailerResult]:
+        if items is None or len(items) == 0:
+            return []
+        if p is not None:
+            min_conf = detailer_opt(p, 'detailer_conf')
+            max_detected = detailer_opt(p, 'detailer_max')
+            filtered = [item for item in items if item.score >= min_conf]
+            opt_min = detailer_opt(p, 'detailer_min_size') or 0
+            opt_max = detailer_opt(p, 'detailer_max_size') or 1
+            for item in filtered.copy():
+                w, h = item.box[2] - item.box[0], item.box[3] - item.box[1]
+                x_size, y_size = w/image.width, h/image.height
+                min_size = opt_min if 0 <= opt_min <= 1 else 0
+                max_size = opt_max if 0 < opt_max <= 1 else 1
+                if not ((x_size >= min_size) and (y_size >= min_size) and (x_size <= max_size) and (y_size <= max_size)):
+                    filtered.remove(item)
+            filtered = sorted(filtered, key=lambda x: x.score, reverse=True)
+            filtered = filtered[:max_detected]
+        else:
+            filtered = items
+        if len(filtered) != len(items):
+            log.debug(f'Detailer: items={len(items)} filtered={len(filtered)}')
+        return filtered
+
     def draw_masks(self, image: Image.Image, items: list[DetailerResult], p=None) -> Image.Image:
         if not isinstance(image, Image.Image):
             image = Image.fromarray(image)
@@ -87,7 +141,7 @@ class Detailer():
         size = min(image.width, image.height) // 32
         font = images.get_font(size)
         color = (0, 190, 190)
-        log.debug(f'Detailer: draw={items}')
+        # log.debug(f'Detailer: draw={items}')
         for i, item in enumerate(items):
             if detailer_opt(p, 'detailer_segmentation') and item.mask is not None:
                 mask = item.mask.convert('L')
@@ -157,6 +211,7 @@ class Detailer():
             if image is None:
                 image = Image.fromarray(np_image)
             items = self.predict(name, model, image, p=p)
+            items = self.filter(items, image, p=p)
 
             if len(items) == 0:
                 log.info(f'Detailer: model="{name}" no items detected')
@@ -305,7 +360,7 @@ class Detailer():
             np_images.append(annotated) # save debug image with boxes
         return np_images
 
-    def make_processing(self, image, prompt='', negative='', steps=10, strength=0.3, resolution=1024, seed=-1, overrides=None):
+    def make_processing(self, image, prompt='', negative='', steps=10, strength=0.3, resolution=1024, seed=-1, overrides=None, classes=''):
         """Build a synthetic Img2Img processing object to run restore() standalone, with no base generation pass.
 
         The primary params map to the detailer_* fields restore() reads directly. overrides is an optional
@@ -337,6 +392,7 @@ class Detailer():
             detailer_steps=steps,
             detailer_strength=strength,
             detailer_resolution=resolution,
+            detailer_classes=classes,
         )
         for attr, val in (overrides or {}).items():
             if val is not None:
@@ -366,7 +422,7 @@ class Detailer():
             shared.opts.detailer_merge = merge
             shared.opts.detailer_models = detailers
             shared.opts.detailer_args = text if not self.ui_mode else ''
-            shared.opts.detailer_classes = classes
+            # shared.opts.detailer_classes = classes
             shared.opts.detailer_padding = padding
             shared.opts.detailer_blur = blur
             shared.opts.detailer_conf = min_confidence
@@ -466,5 +522,5 @@ class Detailer():
             sort.change(fn=ui_settings_change, inputs=[merge, detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end, resolution, save, sort, seg], outputs=[])
             seg.change(fn=ui_settings_change, inputs=[merge, detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end, resolution, save, sort, seg], outputs=[])
             if tab == 'extras':
-                return enabled, prompt, negative, steps, strength, resolution, sampler_block
-            return enabled, prompt, negative, steps, strength, resolution
+                return enabled, prompt, negative, steps, strength, resolution, classes, sampler_block
+            return enabled, prompt, negative, steps, strength, resolution, classes

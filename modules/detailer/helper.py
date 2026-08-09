@@ -1,5 +1,5 @@
 import os
-from PIL import Image
+from PIL import Image, ImageDraw
 from modules.logger import log
 
 
@@ -32,6 +32,16 @@ def detailer_opt(p, attr, opts_attr=None):
         if val is not None:
             return val
     return getattr(shared.opts, opts_attr or attr, None)
+
+
+def get_mask(box: list[int], image: Image.Image, include_mask: bool = True) -> tuple[Image.Image | None, Image.Image]:
+    cropped = image.crop(box)
+    if not include_mask:
+        return None, cropped
+    mask = Image.new('L', image.size, 0)
+    draw_mask = ImageDraw.Draw(mask)
+    draw_mask.rectangle(box, fill="white", outline=None, width=0)
+    return mask, cropped
 
 
 class DetailerResult:

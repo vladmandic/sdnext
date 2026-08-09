@@ -12,5 +12,11 @@ detailer_models = [ # <https://huggingface.co/vladmandic/yolo-detailers/tree/mai
     'Qwen3-VL-2B-Instruct',
     'Qwen3-VL-4B-Instruct',
     'Qwen3-VL-8B-Instruct',
-    # 'nvidia-LocateAnything-3B',
+    'Florence-2-base-ft',
+    'Florence-2-large-ft',
+    'Grounding-DINO-tiny',
+    'Grounding-DINO-base',
+    'Facebook-SAM3',
+    # 'Rex-Omni', # not compatible with transformers==5
+    # 'nvidia-LocateAnything-3B', # not compatible with transformers==5
 ]

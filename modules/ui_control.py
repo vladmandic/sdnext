@@ -207,7 +207,7 @@ def create_ui(_blocks: gr.Blocks=None):
                         video_type, video_duration, video_loop, video_pad, video_interpolate = create_video_inputs(tab='control')
 
                 enable_hr, hr_sampler_index, hr_denoising_strength, hr_resize_mode, hr_resize_context, hr_upscaler, hr_force, hr_second_pass_steps, hr_scale, hr_resize_x, hr_resize_y, refiner_steps, refiner_start, refiner_prompt, refiner_negative = ui_sections.create_hires_inputs('control')
-                detailer_enabled, detailer_prompt, detailer_negative, detailer_steps, detailer_strength, detailer_resolution = shared.detailer.ui('control')
+                detailer_enabled, detailer_prompt, detailer_negative, detailer_steps, detailer_strength, detailer_resolution, detailer_classes = shared.detailer.ui('control')
 
             with gr.Row():
                 override_script_name = gr.State(value='', visible=False, elem_id='control_override_script_name')
@@ -311,7 +311,7 @@ def create_ui(_blocks: gr.Blocks=None):
                 seed, subseed, subseed_strength, seed_resize_from_h, seed_resize_from_w,
                 guidance_name, guidance_scale, guidance_rescale, guidance_start, guidance_stop,
                 cfg_scale, clip_skip, cfg_image, cfg_rescale, cfg_true, cfg_adaptive, cfg_end, vae_type, tiling, hidiffusion,
-                detailer_enabled, detailer_prompt, detailer_negative, detailer_steps, detailer_strength, detailer_resolution,
+                detailer_enabled, detailer_prompt, detailer_negative, detailer_steps, detailer_strength, detailer_resolution, detailer_classes,
                 hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundary, hdr_color_picker, hdr_tint_ratio, hdr_apply_hires,
                 grading_brightness, grading_contrast, grading_saturation, grading_hue, grading_gamma, grading_sharpness, grading_color_temp,
                 grading_shadows, grading_midtones, grading_highlights, grading_clahe_clip, grading_clahe_grid,

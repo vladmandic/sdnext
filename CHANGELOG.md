@@ -1,14 +1,21 @@
 # Change Log for SD.Next
 
-## Update for 2026-08-08
+## Update for 2026-08-09
 
-- **Detailer** support for VL models in addition to standard YOLO models  
-  select any of Qwen3-VL models in model selection  
-  enter the human-readable ask as detailer instructions  
+- **Detailer**: Pretty much *detailer.next* :)  
+  Detailer detection models were traditionally *YOLO* models, but now we also use:  
+  - [Facebook-SAM3](https://huggingface.co/facebook/sam3) hybrid promptable concept segmentation and detection network
+  - [Qwen3-VL](https://huggingface.co/Qwen/Qwen3-VL-4B-Instruct) vision-language autoregressive foundation models, in *2B, 4B, and 8B* variants
+  - [Florence-2](https://huggingface.co/microsoft/Florence-2-large) lightweight multi-task vision sequence-to-sequence models, in *base and large* variants
+  - [Grounding-DINO](https://huggingface.co/IDEA-Research/grounding-dino-base) open-vocabulary object detection models, in *tiny and base* variants
+
+  select any of the above models in the detailer model selection dropdown  
+  and enter your human-readable target descriptions as *detailer instructions*  
   for example: *glasses, optional hat, left hand, largest tree in the background*  
-  *note*: VL models are much larger, so use with caution  
-  *note*: LLM processes data sequentially, so if it cannot find one item, it may skip the rest of the items in the prompt  
-
+  *note*: VL models are much larger, so use them with caution  
+  *note*: LLMs process data sequentially, meaning if a model cannot find one specific item, it may skip subsequent items in the prompt  
+  *note*: SAM3 is a [gated model](https://vladmandic.github.io/sdnext-docs/Gated/)  
+  
 ## Update for 2026-08-07
 
 ### Highlights for 2026-08-07

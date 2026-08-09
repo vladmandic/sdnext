@@ -2,9 +2,9 @@ import time
 import json
 import transformers
 from pydantic import BaseModel, Field
-from PIL import Image, ImageDraw
+from PIL import Image
 from modules import shared, devices, sd_offload_aux, model_quant
-from modules.detailer import DetailerResult, detailer_opt
+from modules.detailer import DetailerResult, detailer_opt, get_mask
 from modules.logger import log
 
 
@@ -77,7 +77,7 @@ def load(self, model_name: str | None = None) -> tuple[str, transformers.Qwen3VL
     return model_name, model
 
 
-def parse(data: str, image: Image.Image) -> tuple[str, list[DetailerResult]]:
+def parse(data: str, image: Image.Image, include_mask: bool = True) -> tuple[str, list[DetailerResult]]:
     results = []
     response = ''
     w, h = image.size
@@ -99,11 +99,15 @@ def parse(data: str, image: Image.Image) -> tuple[str, list[DetailerResult]]:
                 xmin, ymin = int((xmin / 1000.0) * w), int((ymin / 1000.0) * h)
                 xmax, ymax = int((xmax / 1000.0) * w), int((ymax / 1000.0) * h)
                 box = (xmin, ymin, xmax, ymax)
-                mask = Image.new('L', image.size, 0)
-                draw_mask = ImageDraw.Draw(mask)
-                draw_mask.rectangle(box, fill="white", outline=None, width=0)
-                result = DetailerResult(box=box, label=label, score=confidence, cls=-1, mask=mask)
-                log.trace(f'Detailer box: {result}')
+                mask, cropped = get_mask(box, image, include_mask)
+                result = DetailerResult(box=box,
+                                        label=label,
+                                        score=confidence,
+                                        cls=-1,
+                                        mask=mask,
+                                        item=cropped
+                                       )
+                # log.trace(f'Detailer box: {result}')
                 results.append(result)
     except Exception as err:
         log.error(f'Detailer: failed to parse object detection output: {err}')
@@ -141,34 +145,34 @@ def predict(
 
     t0 = time.time()
     schema = json.dumps(ObjectDetectionOutput.model_json_schema(), indent=2)
-    messages = template(prompt=prompt, schema=schema, min_confidence=shared.opts.detailer_conf)
-    text = model.processor.apply_chat_template(
-        messages,
-        tokenize=False,
-        add_generation_prompt=True,
-    )
-    inputs = model.processor(
-        text=[text],
-        images=[image],
-        padding=True,
-        return_tensors="pt",
-        min_pixels=128 * 28 * 28,
-        max_pixels=1280 * 28 * 28,  # Force 1 MP cap
-    )
-    inputs.pop("token_type_ids", None)
-    inputs = inputs.to(model.device)
-    eos_id = model.processor.tokenizer.convert_tokens_to_ids("<|im_end|>")
-    if eos_id is None or isinstance(eos_id, list):
-        eos_id = model.processor.tokenizer.eos_token_id
-    pad_id = model.processor.tokenizer.pad_token_id if model.processor.tokenizer.pad_token_id is not None else eos_id
+    messages = template(prompt=prompt, schema=schema, min_confidence=detailer_opt(p, 'detailer_conf'))
 
     with devices.llm_context():
+        text = model.processor.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True,
+        )
+        inputs = model.processor(
+            text=[text],
+            images=[image],
+            padding=True,
+            return_tensors="pt",
+            min_pixels=128 * 28 * 28,
+            max_pixels=1280 * 28 * 28,  # Force 1 MP cap
+        )
+        inputs.pop("token_type_ids", None)
+        inputs = inputs.to(model.device)
+        eos_id = model.processor.tokenizer.convert_tokens_to_ids("<|im_end|>")
+        if eos_id is None or isinstance(eos_id, list):
+            eos_id = model.processor.tokenizer.eos_token_id
+        pad_id = model.processor.tokenizer.pad_token_id if model.processor.tokenizer.pad_token_id is not None else eos_id
         generated_ids = model.generate(
             **inputs,
             max_new_tokens=2048,
             do_sample=False,         # Deterministic decoding keeps bbox integer tokens strict
             temperature=None,        # Forces argmax token selection
-            repetition_penalty=1.01, # Breaks coordinate repetition loops without distorting valid coordinates
+            repetition_penalty=1.03, # Breaks coordinate repetition loops without distorting valid coordinates
             no_repeat_ngram_size=0,  # MUST be 0/None—setting this > 0 corrupts valid repeated bbox coordinates
             eos_token_id=eos_id,     # Prevent premature EOS token stopping
             pad_token_id=pad_id,     # Prevent premature EOS token stopping
@@ -178,7 +182,7 @@ def predict(
     output_tokens = generated_ids[0][prompt_len:]
     output_text = model.processor.tokenizer.decode(output_tokens, skip_special_tokens=True)
     t1 = time.time()
-    response, results = parse(output_text, image)
+    response, results = parse(output_text, image, include_mask=mask)
 
     log.debug(f'Detailer: name="{name}" tokens={output_tokens.shape[0]} response="{response}" items={len(results)} time={t1-t0:.3f}')
 

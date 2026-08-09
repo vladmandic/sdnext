@@ -478,8 +478,8 @@ def get_platform():
             release = platform.release()
         return {
             'arch': platform.machine(),
-            'cpu': f'{platform.processor()}',
-            'system': platform.system(),
+            'cpu': f'"{platform.processor()}"',
+            'system': f'"{platform.system()}"',
             'release': release,
             'python': platform.python_version(),
             'locale': locale.getlocale(),

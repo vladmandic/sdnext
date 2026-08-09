@@ -190,6 +190,7 @@ class APIProcess:
                 strength=req.detailer_strength if req.detailer_strength is not None else 0.3,
                 resolution=req.detailer_resolution if req.detailer_resolution is not None else 1024,
                 seed=req.seed if req.seed is not None else -1,
+                classes=req.detailer_classes if req.detailer_classes is not None else None,
                 overrides=overrides,
             )
 
