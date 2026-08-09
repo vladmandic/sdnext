@@ -1651,7 +1651,7 @@ def save_model(name: str, path: str | None = None, shard: str = "5GB", overwrite
             model=shared.sd_model,
             model_path=model_name,
             max_shard_size=shard,
-            is_pipeline=True,
+            is_pipeline=hasattr(shared.sd_model, '_internal_dict'), # the component walk needs a pipeline; single-module models save whole
         )
         t1 = time.time()
         log.info(f'Save model: path="{model_name}" cls={shared.sd_model.__class__.__name__} time={t1 - t0:.2f}')
