@@ -77,6 +77,9 @@ def initialize():
     log.debug('Initializing: modules')
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
+    from modules.models_hf import hf_init
+    hf_init()
+
     modules.sd_checkpoint.init_metadata()
     modules.hashes.load_cache()
 
@@ -135,8 +138,6 @@ def initialize():
     modules.extra_networks.register_default_extra_networks()
     timer.startup.record("networks")
 
-    from modules.models_hf import hf_init
-    hf_init()
     if shared.cmd_opts.test:
         from modules.models_hf import hf_check_cache
         hf_check_cache()

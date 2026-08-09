@@ -1416,6 +1416,14 @@ def set_environment():
     os.environ.setdefault('UV_INDEX_STRATEGY', 'unsafe-any-match')
     os.environ.setdefault('UV_NO_BUILD_ISOLATION', '1')
     os.environ.setdefault('UVICORN_TIMEOUT_KEEP_ALIVE', '60')
+    # duplicate here since hf_init cannot be called before loader
+    os.environ.setdefault('HF_HUB_DISABLE_EXPERIMENTAL_WARNING', '1')
+    os.environ.setdefault('HF_HUB_DISABLE_IMPLICIT_TOKEN', '1')
+    os.environ.setdefault('HF_HUB_DISABLE_SYMLINKS_WARNING', '1')
+    os.environ.setdefault('HF_HUB_DISABLE_TELEMETRY', '1')
+    os.environ.setdefault('HF_HUB_VERBOSITY', 'warning')
+    os.environ.setdefault('HF_HUB_DOWNLOAD_TIMEOUT', '60')
+    os.environ.setdefault('HF_HUB_ETAG_TIMEOUT', '10')
     allocator = f'garbage_collection_threshold:{opts.get("torch_gc_threshold", 80)/100:0.2f},max_split_size_mb:512'
     if opts.get("torch_malloc", "native") == 'cudaMallocAsync':
         allocator += ',backend:cudaMallocAsync'

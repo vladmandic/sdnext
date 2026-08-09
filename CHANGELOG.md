@@ -17,6 +17,9 @@
   *note*: SAM3 is a [gated model](https://vladmandic.github.io/sdnext-docs/Gated/)  
 - **Server**
   - update handlers for all authenticated workflows
+  - nunchaku-lite support for `torch==2.13`
+- **Fixes**
+  - init hf env variables before gradio load
 
 ## Update for 2026-08-07
 
