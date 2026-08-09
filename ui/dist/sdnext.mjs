@@ -37,6 +37,7 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 // node_modules/.pnpm/jquery@4.0.0/node_modules/jquery/dist/jquery.js
 var require_jquery = __commonJS({
   "node_modules/.pnpm/jquery@4.0.0/node_modules/jquery/dist/jquery.js"(exports, module) {
+    "use strict";
     (function(global2, factory) {
       "use strict";
       if (typeof module === "object" && typeof module.exports === "object") {
@@ -6935,6 +6936,7 @@ var require_iframeResizer = __commonJS({
 // node_modules/.pnpm/exifr@7.1.3/node_modules/exifr/dist/full.umd.js
 var require_full_umd = __commonJS({
   "node_modules/.pnpm/exifr@7.1.3/node_modules/exifr/dist/full.umd.js"(exports, module) {
+    "use strict";
     !(function(e, t) {
       "object" == typeof exports && "undefined" != typeof module ? t(exports) : "function" == typeof define && define.amd ? define("exifr", ["exports"], t) : t((e = "undefined" != typeof globalThis ? globalThis : e || self).exifr = {});
     })(exports, (function(e) {
@@ -8417,6 +8419,7 @@ this.ifd0Offset: ${this.ifd0Offset}, file.byteLength: ${e2.byteLength}`), e2.tif
 // node_modules/.pnpm/wheel@1.0.0/node_modules/wheel/index.js
 var require_wheel = __commonJS({
   "node_modules/.pnpm/wheel@1.0.0/node_modules/wheel/index.js"(exports, module) {
+    "use strict";
     module.exports = addWheelListener;
     module.exports.addWheelListener = addWheelListener;
     module.exports.removeWheelListener = removeWheelListener;
@@ -8432,6 +8435,7 @@ var require_wheel = __commonJS({
 // node_modules/.pnpm/bezier-easing@2.1.0/node_modules/bezier-easing/src/index.js
 var require_src = __commonJS({
   "node_modules/.pnpm/bezier-easing@2.1.0/node_modules/bezier-easing/src/index.js"(exports, module) {
+    "use strict";
     var NEWTON_ITERATIONS = 4;
     var NEWTON_MIN_SLOPE = 1e-3;
     var SUBDIVISION_PRECISION = 1e-7;
@@ -8527,6 +8531,7 @@ var require_src = __commonJS({
 // node_modules/.pnpm/amator@1.1.0/node_modules/amator/index.js
 var require_amator = __commonJS({
   "node_modules/.pnpm/amator@1.1.0/node_modules/amator/index.js"(exports, module) {
+    "use strict";
     var BezierEasing = require_src();
     var animations = {
       ease: BezierEasing(0.25, 0.1, 0.25, 1),
@@ -8702,6 +8707,7 @@ var require_ngraph_events = __commonJS({
 // node_modules/.pnpm/panzoom@9.4.4/node_modules/panzoom/lib/kinetic.js
 var require_kinetic = __commonJS({
   "node_modules/.pnpm/panzoom@9.4.4/node_modules/panzoom/lib/kinetic.js"(exports, module) {
+    "use strict";
     module.exports = kinetic;
     function kinetic(getPoint, scroll, settings) {
       if (typeof settings !== "object") {
@@ -8802,6 +8808,7 @@ var require_kinetic = __commonJS({
 // node_modules/.pnpm/panzoom@9.4.4/node_modules/panzoom/lib/makeTextSelectionInterceptor.js
 var require_makeTextSelectionInterceptor = __commonJS({
   "node_modules/.pnpm/panzoom@9.4.4/node_modules/panzoom/lib/makeTextSelectionInterceptor.js"(exports, module) {
+    "use strict";
     module.exports = makeTextSelectionInterceptor;
     function makeTextSelectionInterceptor(useFake) {
       if (useFake) {
@@ -8845,6 +8852,7 @@ var require_makeTextSelectionInterceptor = __commonJS({
 // node_modules/.pnpm/panzoom@9.4.4/node_modules/panzoom/lib/transform.js
 var require_transform = __commonJS({
   "node_modules/.pnpm/panzoom@9.4.4/node_modules/panzoom/lib/transform.js"(exports, module) {
+    "use strict";
     module.exports = Transform;
     function Transform() {
       this.x = 0;
@@ -8857,6 +8865,7 @@ var require_transform = __commonJS({
 // node_modules/.pnpm/panzoom@9.4.4/node_modules/panzoom/lib/makeSvgController.js
 var require_makeSvgController = __commonJS({
   "node_modules/.pnpm/panzoom@9.4.4/node_modules/panzoom/lib/makeSvgController.js"(exports, module) {
+    "use strict";
     module.exports = makeSvgController;
     module.exports.canAttach = isSVGElement;
     function makeSvgController(svgElement, options) {
@@ -8922,6 +8931,7 @@ var require_makeSvgController = __commonJS({
 // node_modules/.pnpm/panzoom@9.4.4/node_modules/panzoom/lib/makeDomController.js
 var require_makeDomController = __commonJS({
   "node_modules/.pnpm/panzoom@9.4.4/node_modules/panzoom/lib/makeDomController.js"(exports, module) {
+    "use strict";
     module.exports = makeDomController;
     module.exports.canAttach = isDomElement;
     function makeDomController(domElement, options) {
@@ -13931,7 +13941,6 @@ async function thumbCacheCleanup(folder, imgCount, controller, force = false) {
       const keptGalleryHashes = force ? /* @__PURE__ */ new Set() : new Set(galleryHashes.values());
       const folderNormalized = folder.replace(/\/+/g, "/").replace(/\/$/, "");
       const recursiveFolder = IDBKeyRange.bound(folderNormalized, `${folderNormalized}\uFFFF`, false, true);
-      if (keptGalleryHashes.size < minCleanupCount && !force) return;
       const cachedHashesCount = await idbCount(recursiveFolder).catch((e) => {
         error("maintenanceQueue", { folder, error: e });
         return Infinity;
