@@ -1,4 +1,4 @@
-import { log, error } from './logger';
+import { log, error, initLoggerAuth } from './logger';
 
 interface TokenResponse {
   user?: string;
@@ -17,9 +17,15 @@ export async function getToken(): Promise<{ user: string | undefined; token: str
       user = data.user;
       token = data.token;
       log('getToken', { user });
+      initLoggerAuth(user, token);
     }
   }
   return { user, token };
+}
+
+export async function getUser(): Promise<string | undefined> {
+  if (!user) await getToken();
+  return user;
 }
 
 export async function authFetch(url: RequestInfo | URL, options: RequestInit = {}): Promise<Response | undefined> {

@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-08-09
+## Update for 2026-08-10
 
 - **Detailer**: Pretty much *detailer.next* :)  
   Detailer detection models were traditionally *YOLO* models, but now we also use:  
@@ -15,7 +15,9 @@
   *note*: VL models are much larger, so use them with caution  
   *note*: LLMs process data sequentially, meaning if a model cannot find one specific item, it may skip subsequent items in the prompt  
   *note*: SAM3 is a [gated model](https://vladmandic.github.io/sdnext-docs/Gated/)  
-  
+- **Server**
+  - update handlers for all authenticated workflows
+
 ## Update for 2026-08-07
 
 ### Highlights for 2026-08-07

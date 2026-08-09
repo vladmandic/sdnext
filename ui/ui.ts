@@ -128,7 +128,7 @@ export async function setTheme(val, old) {
   }
   for (const link of links) {
     const href = link.href.replace(old, val);
-    const res = await fetch(href);
+    const res = await authFetch(href);
     if (res.ok) {
       log('setTheme', old, val);
       link.href = link.href.replace(old, val);
@@ -749,7 +749,7 @@ export async function toggleCompact(val, old) {
 
 function previewTheme() {
   let name = gradioApp().getElementById('setting_gradio_theme').querySelectorAll('input')?.[0].value || '';
-  fetch(`${window.subpath}/file=data/themes.json`)
+  authFetch(`${window.subpath}/file=data/themes.json`)
     .then((res) => {
       res.json()
         .then((themes) => {

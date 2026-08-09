@@ -9796,6 +9796,7 @@ jquery_node_module_wrapper_default.isArray = Array.isArray;
 // ui/logger.ts
 window.logRingBuffer = [];
 window.logBufferDirty = false;
+var authEncoded;
 var logBuffer = (ts, type, msg) => {
   const maxLogLength = 8;
   window.logRingBuffer.push({ ts, type, msg });
@@ -9843,6 +9844,7 @@ var xhrInternal = async (xhrObj, data, handler, errorHandler, ignore = false, se
       if (errorHandler) errorHandler(xhrObj);
     }
   };
+  if (authEncoded) xhrObj.setRequestHeader("Authorization", `Basic ${authEncoded}`);
   xhrObj.setRequestHeader("Content-Type", "application/json");
   xhrObj.timeout = serverTimeout;
   xhrObj.ontimeout = () => err("xhr.ontimeout");
@@ -9874,6 +9876,12 @@ function xhrPost(url2, data, handler, errorHandler, ignore = false, serverTimeou
   xhr.open("POST", url2, true);
   xhrInternal(xhr, data, handler, errorHandler, ignore, serverTimeout);
 }
+var initLoggerAuth = (user2, token2) => {
+  if (user2 && token2) {
+    authEncoded = btoa(`${user2}:${token2}`);
+    log("initAuth", { user: user2 });
+  }
+};
 window.log = log;
 window.debug = debug;
 window.error = error;
@@ -9892,11 +9900,12 @@ async function getToken() {
       user = data.user;
       token = data.token;
       log("getToken", { user });
+      initLoggerAuth(user, token);
     }
   }
   return { user, token };
 }
-async function authFetch(url2, options = {}) {
+async function authFetch2(url2, options = {}) {
   await getToken();
   if (user && token) {
     const encoded = btoa(`${user}:${token}`);
@@ -9919,7 +9928,7 @@ async function authFetch(url2, options = {}) {
   }
   return res;
 }
-window.authFetch = authFetch;
+window.authFetch = authFetch2;
 
 // ui/timers.ts
 var allTimers = [];
@@ -10160,7 +10169,7 @@ async function initTableSorter() {
 async function deleteFile(filename) {
   if (!filename) return;
   if (!confirm(`Are you sure you want to delete the object - This action cannot be undone? Object: ${filename}`)) return;
-  const res = await authFetch(`${window.api}/delete-file?file=${encodeURIComponent(filename)}`, { method: "DELETE" });
+  const res = await authFetch2(`${window.api}/delete-file?file=${encodeURIComponent(filename)}`, { method: "DELETE" });
   if (!res || res.status !== 200) {
     error("FileDelete", { file: filename, status: res?.status, statusText: res?.statusText });
     return;
@@ -11321,7 +11330,7 @@ async function setTheme(val, old) {
   }
   for (const link of links) {
     const href = link.href.replace(old, val);
-    const res = await fetch(href);
+    const res = await authFetch2(href);
     if (res.ok) {
       log("setTheme", old, val);
       link.href = link.href.replace(old, val);
@@ -11675,7 +11684,7 @@ async function restartReload(initial = true) {
   document.body.innerHTML = "<h1>Server shutdown in progress...</h1>";
   if (initial) await delay(1e4);
   try {
-    const res = await authFetch(`${window.api}/progress?skip_current_image=true`);
+    const res = await authFetch2(`${window.api}/progress?skip_current_image=true`);
     console.log("restartReload", res);
     if (res?.ok) {
       document.body.innerHTML = "<h1>Server restart in progress...</h1>";
@@ -12165,7 +12174,7 @@ Warnings ${logWarnings}`;
   if (!logMonitorEl) return;
   const atBottom = logMonitorEl.scrollHeight <= logMonitorEl.scrollTop + logMonitorEl.clientHeight;
   try {
-    const res = await authFetch(`${window.api}/log?clear=True`);
+    const res = await authFetch2(`${window.api}/log?clear=True`);
     if (res?.ok) {
       logMonitorStatus = true;
       const lines = await res.json();
@@ -12229,7 +12238,7 @@ async function initLogMonitor() {
     `;
   }
   el2.style.display = "none";
-  authFetch(`${window.api}/start?agent=${encodeURI(navigator.userAgent)}`);
+  authFetch2(`${window.api}/start?agent=${encodeURI(navigator.userAgent)}`);
   logMonitor();
   initClearErrorsButton();
   const t1 = performance.now();
@@ -12408,7 +12417,7 @@ async function initModels() {
   const el2 = gradioApp().getElementById("main_info");
   const en = gradioApp().getElementById("txt2img_extra_networks");
   if (!el2 || !en) return;
-  const req = await authFetch(`${window.api}/sd-models`);
+  const req = await authFetch2(`${window.api}/sd-models`);
   const res = req.ok ? await req.json() : [];
   log("initModels", res.length);
   const ready = () => `
@@ -12575,7 +12584,7 @@ async function monitorConnection() {
   ConnectionMonitorState.startup = /* @__PURE__ */ new Date();
   let data = {};
   try {
-    const res = await authFetch(`${window.api}/version`);
+    const res = await authFetch2(`${window.api}/version`);
     if (!res) throw new Error("No response");
     data = await res.json();
     log("monitorConnection:", { data });
@@ -13454,7 +13463,7 @@ async function delayFetchThumb(fn, signal) {
   try {
     outstanding++;
     const ts = t0.toString();
-    const res = await authFetch(`${window.api}/browser/thumb?file=${encodeURI(fn)}&ts=${ts}&exif=false`, { priority: "low" });
+    const res = await authFetch2(`${window.api}/browser/thumb?file=${encodeURI(fn)}&ts=${ts}&exif=false`, { priority: "low" });
     if (!res.ok) {
       error(`fetchThumb: ${res.statusText}`);
       return void 0;
@@ -13983,7 +13992,7 @@ async function fetchFilesHT(evt, controller) {
   const fragment = document.createDocumentFragment();
   updateStatusLine(["Folder", evt.target.name], "in-progress");
   let numFiles = 0;
-  const res = await authFetch(`${window.api}/browser/files?folder=${encodeURI(evt.target.name)}`);
+  const res = await authFetch2(`${window.api}/browser/files?folder=${encodeURI(evt.target.name)}`);
   if (!res || res.status !== 200) {
     updateStatusLine(["Folder", evt.target.name], ["Failed", res?.statusText || "No response"]);
     return;
@@ -14071,7 +14080,7 @@ async function fetchFilesWS(evt) {
   ws.send(encodeURI(evt.target.name));
 }
 async function updateFolders() {
-  const res = await authFetch(`${window.api}/browser/folders`);
+  const res = await authFetch2(`${window.api}/browser/folders`);
   if (!res || res.status !== 200) return;
   url = res.url.split("/sdapi")[0].replace("http", "ws");
   const folders = await res.json();
@@ -14145,7 +14154,7 @@ async function initGalleryAutoRefresh() {
   galleryVisObserver.observe(galleryTab, { attributeFilter: ["class", "style"], attributeOldValue: true });
 }
 async function overlayDelete(evt) {
-  const res = await authFetch(`${window.api}/delete-image?file=${encodeURIComponent(currentImage)}`, { method: "DELETE" });
+  const res = await authFetch2(`${window.api}/delete-image?file=${encodeURIComponent(currentImage)}`, { method: "DELETE" });
   evt.stopPropagation();
   if (!res || res.status !== 200) {
     error("galleryDelete", { file: currentImage, status: res?.status, statusText: res?.statusText });
@@ -14169,7 +14178,7 @@ async function overlayInfo(evt) {
   evt.stopPropagation();
   const tgt = document.getElementById("html_info_formatted_gallery");
   if (!tgt) return;
-  const res = await authFetch(`${window.api}/png-info?file=${encodeURI(currentImage)}`);
+  const res = await authFetch2(`${window.api}/png-info?file=${encodeURI(currentImage)}`);
   if (!res || res.status !== 200) return;
   const data = await res.json();
   log("galleryInfo res", data);
@@ -14645,7 +14654,7 @@ var xnEngine = {
   wildcard: new XnIndex([]),
   async fetchJson(path) {
     try {
-      const resp = await fetch(`${window.api}${path}`, { credentials: "include" });
+      const resp = await authFetch(`${window.api}${path}`);
       if (!resp.ok) throw new Error(`${resp.status}`);
       return await resp.json();
     } catch (e) {
@@ -14894,7 +14903,7 @@ var engine = {
     toRemove.forEach((n) => this.indices.delete(n));
     await Promise.all(toLoad.map(async (name) => {
       try {
-        const resp = await fetch(`${window.api}/autocomplete/${name}`, { credentials: "include" });
+        const resp = await authFetch(`${window.api}/autocomplete/${name}`);
         if (!resp.ok) throw new Error(`${resp.status}`);
         const data = await resp.json();
         this.indices.set(name, new TagIndex(data));
@@ -15564,16 +15573,16 @@ async function getLocaleData(desiredLocale = null) {
   log("getLocale", { lang: desiredLocale, locale: localeData.locale });
   let json = {};
   try {
-    let res = await fetch(`${window.subpath}/file=ui/locale/locale_${localeData.locale}.json`);
+    let res = await authFetch(`${window.subpath}/file=ui/locale/locale_${localeData.locale}.json`);
     if (!res || !res.ok) {
       localeData.locale = "en";
-      res = await fetch(`${window.subpath}/file=ui/locale/locale_${localeData.locale}.json`);
+      res = await authFetch(`${window.subpath}/file=ui/locale/locale_${localeData.locale}.json`);
     }
     json = await res.json();
   } catch {
   }
   try {
-    const res = await fetch(`${window.subpath}/file=ui/locale/override_${localeData.locale}.json`);
+    const res = await authFetch(`${window.subpath}/file=ui/locale/override_${localeData.locale}.json`);
     if (res && res.ok) json.override = await res.json();
   } catch {
   }
@@ -15857,7 +15866,7 @@ var getStatus = async () => {
 Progress internal:
 ${JSON.stringify(data, null, 2)}`;
   }
-  res = await authFetch("./sdapi/v1/progress?skip_current_image=true", { method: "GET", headers });
+  res = await authFetch2("./sdapi/v1/progress?skip_current_image=true", { method: "GET", headers });
   if (res?.ok) {
     data = await res.json();
     log("progressAPI:", data);
@@ -16005,7 +16014,7 @@ async function createSplash() {
   if (splashEl) splashEl.insertAdjacentHTML("afterbegin", imgEl);
   monitorLogActive = true;
   monitorLog();
-  await authFetch(`${window.api}/motd`).then((res) => res.text()).then((text) => {
+  await authFetch2(`${window.api}/motd`).then((res) => res.text()).then((text) => {
     const clean = text.replace(/["]+/g, "");
     const boldMatch = clean.match(/<b>(.*?)<\/b>/);
     const boldText = boldMatch ? boldMatch[1] : clean;
@@ -16327,7 +16336,7 @@ async function modelCardClick(id) {
   log("modelCardClick id", id);
   const el2 = gradioApp().getElementById("model-details") || gradioApp().getElementById("civitai_models_output") || gradioApp().getElementById("models_outcome");
   if (!el2) return;
-  const res = await authFetch(`${window.api}/civitai?model_id=${encodeURI(id)}`);
+  const res = await authFetch2(`${window.api}/civitai?model_id=${encodeURI(id)}`);
   if (!res || res.status !== 200) {
     error(`modelCardClick: id=${id} status=${res ? res.status : "unknown"}`);
     return;
@@ -16517,7 +16526,7 @@ var inferenceTypes = ["inference", "vae", "te"];
 var ioTypes = ["load", "save"];
 async function refreshHistory() {
   log("refreshHistory");
-  authFetch(`${window.api}/history`, { priority: "low" }).then((res) => {
+  authFetch2(`${window.api}/history`, { priority: "low" }).then((res) => {
     if (!res) return;
     const timeline = document.getElementById("history_timeline");
     const table = document.getElementById("history_table");
@@ -16608,7 +16617,7 @@ Errors: ${entry.nerrors}
 }
 async function refreshStorage(storageTypes) {
   log("refreshStorage", storageTypes);
-  authFetch(`${window.api}/storage?types=${storageTypes.join(",")}`, { priority: "low" }).then((res) => {
+  authFetch2(`${window.api}/storage?types=${storageTypes.join(",")}`, { priority: "low" }).then((res) => {
     if (!res) return;
     const timeline = document.getElementById("storage_timeline");
     const table = document.getElementById("storage_table");
@@ -19318,7 +19327,7 @@ async function updateGPU() {
   const gpuTable = document.getElementById("gpu-table");
   if (!gpuEl || !gpuTable) return;
   try {
-    const res = await authFetch(`${window.api}/gpu-smi`);
+    const res = await authFetch2(`${window.api}/gpu-smi`);
     if (!res || !res.ok) {
       clearInterval(gpuInterval);
       gpuEl.style.display = "none";

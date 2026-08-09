@@ -238,7 +238,7 @@ const engine = {
     toRemove.forEach((n) => this.indices.delete(n));
     await Promise.all(toLoad.map(async (name) => {
       try {
-        const resp = await fetch(`${window.api}/autocomplete/${name}`, { credentials: 'include' });
+        const resp = await authFetch(`${window.api}/autocomplete/${name}`);
         if (!resp.ok) throw new Error(`${resp.status}`);
         const data = await resp.json();
         this.indices.set(name, new TagIndex(data));

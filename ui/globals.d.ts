@@ -173,6 +173,7 @@ declare global {
   }
 
   const opts: Window['opts'];
+  function authFetch(url: RequestInfo | URL, options?: RequestInit): Promise<Response | undefined>;
   function updateInput(target: EventTarget): void;
   function panzoom(element: HTMLElement, options?: Record<string, unknown>): { dispose: () => void };
   function hash(data: string | Uint8Array): any;

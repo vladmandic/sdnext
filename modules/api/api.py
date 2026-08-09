@@ -39,7 +39,9 @@ class Api:
 
     def register(self):
         # fetch js/css
-        self.add_api_route("/js", server.get_js, methods=["GET"], auth=False)
+        self.add_api_route("/js", server.get_js, methods=["GET"], auth=False, tags=["Base"])
+        self.add_api_route("/manifest", server.get_manifest, methods=["GET"], auth=False, tags=["Base"])
+        self.add_api_route("/icon", server.get_icon, methods=["GET"], auth=False, tags=["Base"])
 
         # server api
         self.add_api_route("/sdapi/v1/motd", server.get_motd, methods=["GET"], response_model=str, tags=["Server"])
@@ -173,7 +175,7 @@ class Api:
     def add_api_route(self, path: str, fn, auth: bool = True, **kwargs):
         if auth and self.credentials:
             deps = list(kwargs.get('dependencies', []))
-            deps.append(Depends(self.auth))
+            deps.append(Depends(self.auth, use_cache=True))
             kwargs['dependencies'] = deps
         if shared.opts.subpath is not None and len(shared.opts.subpath) > 0:
             self.app.add_api_route(f'{shared.opts.subpath}{path}', endpoint=fn, **kwargs)
