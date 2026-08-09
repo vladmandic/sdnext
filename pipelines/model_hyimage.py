@@ -98,6 +98,9 @@ class HunyuanImage3Wrapper(torch.nn.Module):
         super().__init__()
         self.model = model
 
+    def save_pretrained(self, *args, **kwargs):
+        return self.model.save_pretrained(*args, **kwargs) # save reaches the wrapper, but the weights and config live on the inner causal lm
+
     def set_diffusion_config(self, num_inference_steps, guidance_scale):
         # instruct variant reads diffusion params from generation_config only, so both variants set them there
         gen_config = self.model.generation_config
