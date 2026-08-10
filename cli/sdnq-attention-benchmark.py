@@ -872,7 +872,8 @@ def probe_compiled_prep():
     # host c++ compiler (msvc on windows) fails every sdnq attention call at generation.
     # must run before any other sdnq_triton_atten call: a prior eager run masks the
     # cold-start failure the webui hits
-    if not shared.opts.sdnq_dequantize_compile:
+    from sdnq.common import use_torch_compile
+    if use_torch_compile:
         return "disabled", None
     q, k, v = make_qkv(1, 2, 256, 64, structured=False)
     with console.status("probing compiled input prep (compiles on first run, cached afterwards)"):

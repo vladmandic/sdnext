@@ -420,13 +420,12 @@ def print_stats():
     log.debug(f'Processed: timers={timer.process.dct()}')
     log.debug(f'Processed: memory={memstats.memory_stats()}')
 
-    if shared.opts.sdnq_dequantize_compile:
+    if devices.triton_ok:
         from modules.timer_sdnq import update_sdnq_attention_timers
         update_sdnq_attention_timers()
         if timer.autotune.get_total() > 0.1:
             log.debug(f'Processed: autotune={timer.autotune.dct(min_time=0)}')
 
-    if devices.triton_ok:
         from modules.sd_models_compile import update_compile_times
         update_compile_times()
         dynamo_dct = timer.dynamo.dct(min_time=2.0, no_total=True)

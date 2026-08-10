@@ -189,7 +189,6 @@ def create_settings(cmd_opts):
         "sdnq_use_dynamic_quantization": OptionInfo(False, "Use Dynamic quantization", gr.Checkbox),
         "sdnq_quantize_conv_layers": OptionInfo(False, "Quantize convolutional layers", gr.Checkbox),
         "sdnq_quantize_embedding_layers": OptionInfo(False, "Quantize embedding layers", gr.Checkbox),
-        "sdnq_dequantize_compile": OptionInfo(devices.has_triton(early=True), "Dequantize using torch.compile", gr.Checkbox),
         "sdnq_use_quantized_matmul_conv": OptionInfo(False, "Use quantized MatMul with conv", gr.Checkbox),
         "sdnq_quantize_with_gpu": OptionInfo(True, "Quantize using GPU", gr.Checkbox),
         "sdnq_dequantize_fp32": OptionInfo(True, "Dequantize using full precision", gr.Checkbox),
