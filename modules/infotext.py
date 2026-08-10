@@ -83,6 +83,8 @@ def parse(infotext):
             params[key] = False
         elif key == 'VAE' and val == 'TAESD':
             params["VAE type"] = 'Tiny'
+        elif key == 'Sampler' and val == 'None':
+            params[key] = 'Default' # legacy infotexts recorded the keep-current-scheduler sentinel, which is not a dropdown choice
         elif size is not None:
             params[f"{key}-1"] = int(size.group(1))
             params[f"{key}-2"] = int(size.group(2))
