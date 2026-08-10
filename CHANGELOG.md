@@ -15,6 +15,8 @@
   *note*: VL models are much larger, so use them with caution  
   *note*: LLMs process data sequentially, meaning if a model cannot find one specific item, it may skip subsequent items in the prompt  
   *note*: SAM3 is a [gated model](https://vladmandic.github.io/sdnext-docs/Gated/)  
+- [SDNQ](https://github.com/Disty0/sdnq) is now a separate package and no longer part of sdnext repo  
+  installed and used internally by sd.next, but also supported by diffusers natively  
 - **Server**
   - update handlers for all authenticated workflows
   - nunchaku-lite support for `torch==2.13`
