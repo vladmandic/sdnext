@@ -1603,12 +1603,14 @@ def hf_auth_check(checkpoint_info: CheckpointInfo, force:bool=False):
     if repo_id is None or '/' not in repo_id:
         # log.warning(f'Auth: repo="{repo_id}" invalid repo id')
         return False
+    auth_ok = False
     try:
         login = modelloader.hf_login()
-        return hf.auth_check(repo_id)
+        hf.auth_check(repo_id, write=False)
+        auth_ok = True
     except Exception as e:
-        log.error(f'Auth: repo="{repo_id}" login={login} {e}')
-        return False
+        log.error(f'Auth: repo="{repo_id}" login={login} auth={auth_ok} {e}')
+    return auth_ok
 
 
 def save_model(name: str, path: str | None = None, shard: str = "5GB", overwrite = False):

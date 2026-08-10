@@ -22,6 +22,7 @@
   - init hf env variables before gradio load
   - lora skip init and rebuild offload state
   - lora keep network multiplier on change
+  - improve handling of hf auth
 
 ## Update for 2026-08-07
 

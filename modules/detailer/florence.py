@@ -2,7 +2,7 @@ import time
 import json
 import transformers
 from PIL import Image
-from modules import shared, devices, sd_offload_aux, model_quant
+from modules import shared, devices, sd_offload_aux, sd_models, model_quant
 from modules.detailer import DetailerResult, detailer_opt, get_mask
 from modules.logger import log
 
@@ -35,6 +35,7 @@ def load(self, model_name: str | None = None) -> tuple[str, transformers.AutoMod
     if cached is not None:
         return model_name, cached
     repo_id = 'florence-community/' + model_name if '/' not in model_name else model_name
+    sd_models.hf_auth_check(repo_id)
 
     orig_get_imports = transformers.dynamic_module_utils.get_imports
 

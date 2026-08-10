@@ -1,7 +1,7 @@
 import time
 import transformers
 from PIL import Image
-from modules import shared, devices, sd_offload_aux
+from modules import shared, devices, sd_models, sd_offload_aux
 from modules.detailer import DetailerResult, detailer_opt, get_mask
 from modules.logger import log
 
@@ -11,6 +11,7 @@ def load(self, model_name: str | None = None) -> tuple[str, transformers.Sam3Mod
     if cached is not None:
         return model_name, cached
     repo_id = model_name.lower().replace('-', '/')
+    sd_models.hf_auth_check(repo_id, force=True)
     load_kwargs = {
         'pretrained_model_name_or_path': repo_id,
         'cache_dir': shared.opts.hfcache_dir,

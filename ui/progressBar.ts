@@ -148,7 +148,7 @@ export function requestProgress(id_task = 'undefined', progressEl = null, galler
     };
   };
 
-  const removeLivePreview = (ok = false) => {
+  const removeLivePreview = (useImage = false) => {
     debug('taskEnd:', id_task);
     localStorage.removeItem('task');
     setProgress();
@@ -158,12 +158,14 @@ export function requestProgress(id_task = 'undefined', progressEl = null, galler
     for (const gallery of galleries) gallery.style.display = 'flex'; // remove all galleries
     try {
       if (parentGallery && livePreview) {
-        if (ok) {
+        if (useImage) {
           const previewImg = gradioApp().querySelector('#livePreviewImage');
-          const galleryImg = gradioApp().querySelector('#control_gallery img');
+          const galleryImg = parentGallery.querySelector('img');
           if (previewImg?.src && galleryImg) galleryImg.src = previewImg.src; // copy preview to gallery if everything is ok
         }
         parentGallery.removeChild(livePreview);
+      }
+      if (parentGallery) {
         parentGallery.style.minHeight = 'unset';
         parentGallery.style.maxHeight = 'unset';
         parentGallery.style.overflow = 'unset';

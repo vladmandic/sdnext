@@ -61,6 +61,11 @@ def xet_get_hijack(*args, **kwargs):
 
 
 def build_hf_headers_hijack(*args, **kwargs):
+    from huggingface_hub import get_token
+    token = kwargs.get('token', None)
+    if token is None or token is True:
+        token = os.environ.get("HF_TOKEN") or get_token()
+        kwargs['token'] = token
     headers = orig_build_hf_headers(*args, **kwargs)
     headers = clean_user_agent(headers)
     return headers

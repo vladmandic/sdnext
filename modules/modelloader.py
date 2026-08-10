@@ -18,6 +18,7 @@ loggedin = None
 diffuser_repos = []
 debug = log.trace if os.environ.get('SD_DOWNLOAD_DEBUG', None) is not None else lambda *args, **kwargs: None
 pbar = None
+_orig_build_hf_headers = hf.utils._headers.build_hf_headers
 
 
 def hf_login(token=None):
@@ -25,34 +26,53 @@ def hf_login(token=None):
         return False
     global loggedin # pylint: disable=global-statement
     token = token or shared.opts.huggingface_token
+    if token is None:
+        token = os.environ.get('HF_TOKEN', None)
     token = token.replace("\n", "").replace("\r", "").strip() if token is not None else None
     install('hf_xet', quiet=True)
     if token is None or len(token) <= 4:
         log.debug('HF login: no token provided')
         return False
-    if len(shared.opts.huggingface_mirror.strip()) > 0 and os.environ.get('HF_ENDPOINT', None) is None:
-        os.environ['HF_ENDPOINT'] = shared.opts.huggingface_mirror.strip()
-    if os.environ.get('HUGGING_FACE_HUB_TOKEN', None) is not None:
+    if loggedin != token:
+        if len(shared.opts.huggingface_mirror.strip()) > 0 and os.environ.get('HF_ENDPOINT', None) is None:
+            os.environ['HF_ENDPOINT'] = shared.opts.huggingface_mirror.strip()
+
         os.environ.pop('HUGGING_FACE_HUB_TOKEN', None)
         os.unsetenv('HUGGING_FACE_HUB_TOKEN')
-    if os.environ.get('HF_TOKEN', None) is not None:
-        os.environ.pop('HF_TOKEN', None)
-        os.unsetenv('HF_TOKEN')
-    if loggedin != token:
+        os.environ['HF_TOKEN'] = token
         stdout = io.StringIO()
+        stderr = io.StringIO()
+        text = ''
         try:
-            with contextlib.redirect_stdout(stdout):
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
                 hf.logout()
         except Exception:
             pass
-        with contextlib.redirect_stdout(stdout):
-            hf.login(token=token, add_to_git_credential=False)
-        os.environ['HF_TOKEN'] = token
-        text = stdout.getvalue() or ''
-        obfuscated_token = 'hf_...' + token[-4:]
+        try:
+            # with contextlib.nullcontext():
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                hf.login(token=token, add_to_git_credential=False)
+        except Exception as e:
+            text += str(e)
+        text = (stdout.getvalue() or '') + (stderr.getvalue() or '')
+        try:
+            new_token = hf.get_token()
+        except Exception:
+            pass
+        obfuscated_token = 'hf_...' + new_token[-4:]
         line = [l for l in text.split('\n') if 'Token' in l]
-        log.info(f'HF login: token="{obfuscated_token}" fn="{hf.constants.HF_TOKEN_PATH}" {line[0] if len(line) > 0 else text}')
-        loggedin = token
+        token_name = None
+        user_name = None
+        try:
+            user = hf.whoami()
+            if user is not None:
+                user_name = user.get('name', None)
+                token_name = user.get('auth', {}).get('accessToken', {}).get('displayName', None)
+        except Exception:
+            pass
+        log.info(f'HF login: user={user_name} key="{token_name}" token="{obfuscated_token}" fn="{hf.constants.HF_TOKEN_PATH}" {line[0] if len(line) > 0 else text}')
+        loggedin = new_token
+        return user_name is not None
     return True
 
 

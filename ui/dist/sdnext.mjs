@@ -11122,7 +11122,7 @@ function requestProgress(id_task = "undefined", progressEl = null, galleryEl = n
       parentGallery.style.overflow = "hidden";
     };
   };
-  const removeLivePreview = (ok2 = false) => {
+  const removeLivePreview = (useImage = false) => {
     debug("taskEnd:", id_task);
     localStorage.removeItem("task");
     setProgress();
@@ -11132,12 +11132,14 @@ function requestProgress(id_task = "undefined", progressEl = null, galleryEl = n
     for (const gallery of galleries) gallery.style.display = "flex";
     try {
       if (parentGallery && livePreview) {
-        if (ok2) {
+        if (useImage) {
           const previewImg = gradioApp().querySelector("#livePreviewImage");
-          const galleryImg = gradioApp().querySelector("#control_gallery img");
+          const galleryImg = parentGallery.querySelector("img");
           if (previewImg?.src && galleryImg) galleryImg.src = previewImg.src;
         }
         parentGallery.removeChild(livePreview);
+      }
+      if (parentGallery) {
         parentGallery.style.minHeight = "unset";
         parentGallery.style.maxHeight = "unset";
         parentGallery.style.overflow = "unset";

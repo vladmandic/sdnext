@@ -3,7 +3,7 @@ import json
 import transformers
 from pydantic import BaseModel, Field
 from PIL import Image
-from modules import shared, devices, sd_offload_aux, model_quant
+from modules import shared, devices, sd_offload_aux, sd_models, model_quant
 from modules.detailer import DetailerResult, detailer_opt, get_mask
 from modules.logger import log
 
@@ -61,6 +61,7 @@ def load(self, model_name: str | None = None) -> tuple[str, transformers.Qwen3VL
     if cached is not None:
         return model_name, cached
     repo_id = 'Qwen/' + model_name if not model_name.startswith('Qwen/') else model_name
+    sd_models.hf_auth_check(repo_id)
     load_kwargs = {
         'pretrained_model_name_or_path': repo_id,
         'cache_dir': shared.opts.hfcache_dir,
