@@ -139,10 +139,24 @@ def apply_group_offload_component(module, module_name: str, main: bool, op: str 
     cfg = group_offload_config(main)
     if cfg['use_stream'] and not cfg['low_cpu_mem_usage']:
         size_gb, _params = get_module_size(module)
-        limit_gb = 0.5 * shared.cpu_memory # heuristic ceiling: pinned memory is non-pageable, and half of system memory must stay available to everything else
-        if size_gb > limit_gb:
+        pin_ok = getattr(module, 'sdnext_group_offload_pin', None)
+        if pin_ok is None: # decide once per module: a granted pin moves the weights into locked memory, so re-reading available on the next apply would see it lower by the pinned size and revoke its own grant
+            from modules import memstats
+            avail_gb = memstats.ram_stats().get('avail', 0)
+            reserve_gb = max(8.0, 0.25 * shared.cpu_memory) # pinned pages cannot be reclaimed or swapped, so a quarter of the machine, floored at 8 GB, stays pageable for the process and page cache
+            limit_gb = (avail_gb - reserve_gb) if avail_gb > 0 else (0.5 * shared.cpu_memory) # budget from memory free right now; total-derived ceiling only when psutil cannot say
+            pin_ok = size_gb <= limit_gb
+            module.sdnext_group_offload_pin = pin_ok
+            module.sdnext_group_offload_pin_limit = limit_gb
+        if not pin_ok:
+            # unpinned streaming degrades to per-transfer staging and leaf groups make that a per-module cost,
+            # so the whole leaf+stream shape goes with the pin: few large synchronous groups instead
             cfg['low_cpu_mem_usage'] = True
-            log.warning(f'Setting {op}: offload=group module={module_name} size={size_gb:.3f} limit={limit_gb:.3f} pin=dynamic memory guard')
+            cfg['use_stream'] = False
+            cfg['record_stream'] = False
+            cfg['offload_type'] = 'block_level'
+            cfg['num_blocks_per_group'] = max(4, int(shared.opts.group_offload_blocks))
+            log.warning(f'Setting {op}: offload=group module={module_name} size={size_gb:.3f} limit={getattr(module, "sdnext_group_offload_pin_limit", 0):.3f} pin=denied type=block_level blocks={cfg["num_blocks_per_group"]} expect ~{size_gb:.0f} GB transferred per step')
     sig = f'{devices.device}:{main}:' + ':'.join(str(v) for v in cfg.values())
     if getattr(module, 'sdnext_group_offload_sig', None) == sig:
         return False
