@@ -162,6 +162,7 @@ main.ignore-paths=[
     "scripts/pulid",
     "scripts/xadapter",
     "extensions-builtin/sd-extension-chainner/nodes",
+    "extensions-builtin/sdnq",
 ]
 main.ignore-patterns=[
     ".*test*.py$",
