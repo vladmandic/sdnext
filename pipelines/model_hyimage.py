@@ -25,6 +25,29 @@ def hijack_cache_lazy_init():
         cls.lazy_initialization = lazy_initialization
 
 
+def hijack_update_model_kwargs(pipe):
+    # HunyuanImage3's _update_model_kwargs_for_generation rebuilds model_kwargs from an allowlist.
+    # transformers 5 reads model_kwargs['use_cache'] on every decode iteration, but generate() seeds
+    # the key only once at entry, so the rebuild loses it after the first forward and decode step two
+    # raises KeyError. Preserve that one key; the other drops (tokenizer_output, attention_mask in
+    # text decode) are intentional.
+    cls = pipe.__class__
+    if '_update_model_kwargs_for_generation' not in cls.__dict__: # only shim the model's own rebuild, never the stock implementation
+        return
+    if getattr(cls._update_model_kwargs_for_generation, 'sdnext_keeps_use_cache', False): # pylint: disable=protected-access
+        return
+    original = cls._update_model_kwargs_for_generation # pylint: disable=protected-access
+
+    def _update_model_kwargs_for_generation(self, outputs, model_kwargs, **kwargs):
+        updated = original(self, outputs, model_kwargs, **kwargs)
+        if 'use_cache' in model_kwargs and 'use_cache' not in updated:
+            updated['use_cache'] = model_kwargs['use_cache']
+        return updated
+
+    _update_model_kwargs_for_generation.sdnext_keeps_use_cache = True
+    cls._update_model_kwargs_for_generation = _update_model_kwargs_for_generation # pylint: disable=protected-access
+
+
 def load_hyimage(checkpoint_info, diffusers_load_config=None): # pylint: disable=unused-argument
     if diffusers_load_config is None:
         diffusers_load_config = {}
@@ -89,6 +112,7 @@ def load_hyimage3(checkpoint_info, diffusers_load_config=None): # pylint: disabl
         **quant_args,
     )
     hijack_cache_lazy_init()
+    hijack_update_model_kwargs(pipe)
     if not hasattr(pipe.config, 'model_version'):
         # HunyuanImage-3.0-Instruct and -Instruct-Distil read config.model_version in load_tokenizer but ship no such
         # key and no config default, so the documented entry point raises. The tokenizer discards the value.
