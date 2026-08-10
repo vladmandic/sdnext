@@ -210,8 +210,10 @@ def network_add_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Group
                     use_quantized_matmul_conv=sdnq_dequantizer.use_quantized_matmul,
                     use_svd=use_svd,
                     use_hadamard=sdnq_dequantizer.use_hadamard,
+                    use_codebook=sdnq_dequantizer.use_codebook,
                     dequantize_fp32=dequantize_fp32,
                     svd_steps=shared.opts.sdnq_svd_steps,
+                    codebook_steps=shared.opts.sdnq_codebook_steps,
                     quant_conv=True, # quant_conv is True if conv layers ends up here
                     non_blocking=False,
                     quantization_device=devices.device,
