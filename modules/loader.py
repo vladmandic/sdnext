@@ -134,7 +134,7 @@ if ".dev" in torch.__version__ or "+git" in torch.__version__:
 timer.startup.record("torch")
 
 try:
-    from modules.sd_hijack_triton import install as install_autotune_report
+    from modules.sd_hijack_triton import install as install_autotune_report # pylint: disable=ungrouped-imports
     install_autotune_report()
 except Exception as e:
     log.warning(f'Triton logging: {e}')

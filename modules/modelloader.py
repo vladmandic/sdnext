@@ -18,7 +18,6 @@ loggedin = None
 diffuser_repos = []
 debug = log.trace if os.environ.get('SD_DOWNLOAD_DEBUG', None) is not None else lambda *args, **kwargs: None
 pbar = None
-_orig_build_hf_headers = hf.utils._headers.build_hf_headers
 
 
 def hf_login(token=None):

@@ -51,6 +51,7 @@ export function setProgress(res?: any) {
     let sec = res?.eta || 0;
     if (res?.paused) eta = 'Paused';
     else if (res?.completed || (progress > 0.99)) eta = 'Finishing';
+    else if (job.startsWith('VAE') || job.startsWith('Load')) eta = '';
     else if (sec === 0) eta = 'Start';
     else {
       const min = Math.floor(sec / 60);
