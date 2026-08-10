@@ -222,12 +222,19 @@ try:
     import diffusers # pylint: disable=W0611,C0411
     import diffusers.loaders.single_file # pylint: disable=W0611,C0411
     diffusers.loaders.single_file.logging.tqdm = partial(tqdm, unit='C')
-    timer.startup.record("diffusers")
 except Exception as e:
     log.error(f'Loader: diffusers=={diffusers.__version__ if "diffusers" in sys.modules else None} {e}')
     log.error('Please restart re-run the installer')
     errors.display(e, 'diffusers')
     sys.exit(1)
+timer.startup.record("diffusers")
+
+from installer import register_sdnq
+register_sdnq()
+import sdnq # pylint: disable=W0611,C0411
+diffusers.utils.import_utils._sdnq_available = True # pylint: disable=protected-access
+diffusers.utils.import_utils._sdnq_version = sdnq.__version__ # pylint: disable=protected-access
+timer.startup.record("sdnq")
 
 try:
     import pillow_jxl # pylint: disable=W0611,C0411
@@ -235,7 +242,6 @@ except Exception:
     pass
 from PIL import Image # pylint: disable=W0611,C0411
 timer.startup.record("pillow")
-
 
 import cv2 # pylint: disable=W0611,C0411
 timer.startup.record("cv2")
@@ -265,6 +271,7 @@ def get_packages():
         "torchvision": torchvision.__version__,
         "diffusers": diffusers.__version__,
         "transformers": transformers.__version__,
+        "sdnq": sdnq.__version__,
         "tokenizers": tokenizers.__version__,
         "accelerate": accelerate.__version__,
         "hub": huggingface_hub.__version__,

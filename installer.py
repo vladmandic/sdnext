@@ -550,27 +550,16 @@ def check_python(supported_minors=None, experimental_minors=None, reason=None):
     ts('python', t_start)
 
 
-# check sdnq version
-def check_sdnq():
+# register sdnq package from github submodule
+def register_sdnq():
     t_start = time.time()
-    if args.skip_all:
-        return
-    target_commit = "27a54aed657ec583620b76b42c65d907d13290ad"
-    pkg = package_spec('sdnq')
-    parts = pkg.version.split('.') if pkg is not None else []
-    minor = int(parts[1]) if len(parts) > 1 else -1
-    current = package_commit(pkg) if minor > -1 else ''
-    if (minor == -1) or ((current != target_commit) and (not args.experimental)):
-        if minor == -1:
-            log.info(f'Install: package="sdnq" commit={target_commit}')
-        else:
-            log.info(f'Update: package="sdnq" current={pkg.version} commit={current} target={target_commit}')
-            pip('uninstall --yes sdnq', ignore=True, quiet=True, uv=False)
-        if args.skip_git:
-            log.warning('Git: marked as not available but required for sdnq installation')
-        pip(f'install git+https://github.com/Disty0/sdnq@{target_commit}', ignore=False, quiet=True, uv=False)
-        global sdnq_commit # pylint: disable=global-statement
-        sdnq_commit = target_commit
+    fn = os.path.join('extensions-builtin', 'sdnq', 'src', 'sdnq', '__init__.py')
+    name = "sdnq"
+    spec = importlib.util.spec_from_file_location(name, fn)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module) # this is where actual import happens
+    import sdnq # pylint: disable=unused-import # test import
     ts('sdnq', t_start)
 
 

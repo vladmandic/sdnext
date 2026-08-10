@@ -429,8 +429,9 @@ def print_stats():
     if devices.triton_ok:
         from modules.sd_models_compile import update_compile_times
         update_compile_times()
-        if timer.dynamo.get_total() > 0.1:
-            log.debug(f'Processed: dynamo={timer.dynamo.dct(min_time=2.0, no_total=True)}')
+        dynamo_dct = timer.dynamo.dct(min_time=2.0, no_total=True)
+        if dynamo_dct:
+            log.debug(f'Processed: dynamo={dynamo_dct}')
 
 
 def process_images_inner(p: StableDiffusionProcessing) -> Processed:

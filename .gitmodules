@@ -13,5 +13,5 @@
   path = extensions-builtin/sdnext-kanvas
   url = https://github.com/vladmandic/sdnext-kanvas
 [submodule "extensions-builtin/sdnq"]
-	path = extensions-builtin/sdnq
-	url = https://github.com/Disty0/sdnq
+  path = extensions-builtin/sdnq
+  url = https://github.com/Disty0/sdnq
