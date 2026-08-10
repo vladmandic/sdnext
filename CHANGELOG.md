@@ -20,6 +20,8 @@
   - nunchaku-lite support for `torch==2.13`
 - **Fixes**
   - init hf env variables before gradio load
+  - lora skip init and rebuild offload state
+  - lora keep network multiplier on change
 
 ## Update for 2026-08-07
 
