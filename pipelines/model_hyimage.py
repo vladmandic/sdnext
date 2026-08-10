@@ -1,3 +1,4 @@
+import time
 from types import SimpleNamespace
 import torch
 import transformers
@@ -144,6 +145,31 @@ class HunyuanImage3Wrapper(torch.nn.Module):
     def save_pretrained(self, *args, **kwargs):
         return self.model.save_pretrained(*args, **kwargs) # save reaches the wrapper, but the weights and config live on the inner causal lm
 
+    def progress_hook(self):
+        # upstream generate_image exposes no callbacks, so a pre-hook on the causal lm is the only
+        # progress and interrupt point: one forward per think token and one per diffusion step
+        counts = {'text': 0, 'image': 0}
+        steps_total = int(getattr(self.model.generation_config, 'diff_infer_steps', 0) or 0)
+
+        def hook(module, args, kwargs): # pylint: disable=unused-argument
+            if shared.state.interrupted or shared.state.skipped:
+                raise AssertionError('Interrupted...') # matches the diffusers callback so process_base handles it as a clean interrupt
+            while shared.state.paused:
+                if shared.state.interrupted or shared.state.skipped:
+                    raise AssertionError('Interrupted...')
+                time.sleep(0.1)
+            mode = kwargs.get('mode', None)
+            if mode == 'gen_text':
+                counts['text'] += 1
+                shared.state.textinfo = f'Think token {counts["text"]}'
+            elif mode is not None:
+                counts['image'] += 1
+                shared.state.sampling_steps = max(steps_total, counts['image'])
+                shared.state.sampling_step = counts['image']
+                shared.state.textinfo = f'Diffusion step {counts["image"]}/{shared.state.sampling_steps}'
+
+        return self.model.register_forward_pre_hook(hook, with_kwargs=True)
+
     def set_diffusion_config(self, num_inference_steps, guidance_scale):
         # instruct variant reads diffusion params from generation_config only, so both variants set them there
         gen_config = self.model.generation_config
@@ -183,12 +209,16 @@ class HunyuanImage3Wrapper(torch.nn.Module):
             prompt = prompt * num_images_per_prompt
 
         batch_size = len(prompt) if isinstance(prompt, list) else 1
-        output = self.model.generate_image(
-            prompt,
-            image_size=self.resolve_image_size(height, width),
-            seed=resolve_seeds(seed, batch_size),
-            **kwargs,
-        )
+        hook = self.progress_hook()
+        try:
+            output = self.model.generate_image(
+                prompt,
+                image_size=self.resolve_image_size(height, width),
+                seed=resolve_seeds(seed, batch_size),
+                **kwargs,
+            )
+        finally:
+            hook.remove()
 
         if not isinstance(output, list):
             output = [output]
@@ -241,14 +271,18 @@ class HunyuanImage3InstructWrapper(HunyuanImage3Wrapper):
         if system_prompt is not None:
             call_args['system_prompt'] = system_prompt
 
-        cot_text, samples = self.model.generate_image(
-            prompt=prompts,
-            image=[images] * len(prompts) if images else None, # per-sample image lists must match batch size
-            seed=resolve_seeds(seed, len(prompts)),
-            image_size=image_size,
-            infer_align_image_size=align_size,
-            **call_args,
-        )
+        hook = self.progress_hook()
+        try:
+            cot_text, samples = self.model.generate_image(
+                prompt=prompts,
+                image=[images] * len(prompts) if images else None, # per-sample image lists must match batch size
+                seed=resolve_seeds(seed, len(prompts)),
+                image_size=image_size,
+                infer_align_image_size=align_size,
+                **call_args,
+            )
+        finally:
+            hook.remove()
 
         if cot_text:
             text = cot_text[0] if isinstance(cot_text, list) else cot_text
