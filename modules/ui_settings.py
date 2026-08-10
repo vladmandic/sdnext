@@ -135,9 +135,6 @@ def run_settings(*args):
         from modules.onnx_impl import install_olive, initialize_onnx_pipelines
         install_olive()
         initialize_onnx_pipelines()
-    if shared.cmd_opts.use_directml:
-        from modules.dml import directml_override_opts
-        directml_override_opts()
     if shared.cmd_opts.use_openvino:
         if "Model" not in shared.opts.cuda_compile:
             log.warning("OpenVINO: Overriding Torch Compile Model")
@@ -196,9 +193,6 @@ def run_settings_single(value, key, progress=False, force=False):
     if key == "cuda_compile_backend" and value == "olive-ai":
         from modules.onnx_impl import install_olive
         install_olive()
-    if shared.cmd_opts.use_directml:
-        from modules.dml import directml_override_opts
-        directml_override_opts()
     shared.opts.save(silent=True)
     if key == 'sd_text_encoder':
         sd_models.reload_text_encoder() # apply the change now; reloads the model for encoders with no in-place swap

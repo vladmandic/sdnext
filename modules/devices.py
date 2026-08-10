@@ -79,8 +79,6 @@ def get_backend(shared_cmd_opts):
     args = shared_cmd_opts
     if args.use_openvino:
         name = 'openvino'
-    elif args.use_directml:
-        name = 'directml'
     elif has_xpu():
         name = 'ipex'
     elif has_zluda():
@@ -131,11 +129,6 @@ def get_gpu_info():
                     'devices': devices,
                     'openvino': get_package_version("openvino"),
                 }
-            elif backend == 'directml':
-                return {
-                    'device': f'{torch.cuda.get_device_name(torch.cuda.current_device())} n={torch.cuda.device_count()}',
-                    'directml': get_package_version("torch-directml"),
-                }
             else:
                 return {}
         except Exception:
@@ -176,10 +169,6 @@ def get_cuda_device_string():
         if cmd_opts.device_id is not None:
             return f"xpu:{cmd_opts.device_id}"
         return "xpu"
-    elif backend == 'directml' and torch.dml.is_available():
-        if cmd_opts.device_id is not None:
-            return f"privateuseone:{cmd_opts.device_id}"
-        return torch.dml.get_device_string(torch.dml.default_device().index)
     else:
         if cmd_opts.device_id is not None:
             return f"cuda:{cmd_opts.device_id}"
@@ -189,7 +178,7 @@ def get_cuda_device_string():
 def get_optimal_device_name():
     if backend == 'openvino':
         return "cpu"
-    if cuda_ok or backend == 'directml':
+    if cuda_ok:
         return get_cuda_device_string()
     if has_mps() and backend != 'openvino':
         return "mps"
@@ -205,12 +194,9 @@ def torch_gc(force: bool = False, fast: bool = False, reason: str | None = None)
         mem_dict = memstats.memory_stats()
         gpu_dict = mem_dict.get('gpu', {})
         ram_dict = mem_dict.get('ram', {})
-        oom = gpu_dict.get('oom', 0)
         ram = ram_dict.get('used', 0)
-        if backend == "directml":
-            gpu = torch.cuda.memory_allocated() / (1 << 30)
-        else:
-            gpu = gpu_dict.get('used', 0)
+        oom = gpu_dict.get('oom', 0)
+        gpu = gpu_dict.get('used', 0)
         used_gpu = round(100 * gpu / gpu_dict.get('total', 1)) if gpu_dict.get('total', 1) > 1 else 0
         used_ram = round(100 * ram / ram_dict.get('total', 1)) if ram_dict.get('total', 1) > 1 else 0
         return gpu, used_gpu, ram, used_ram, oom
@@ -374,7 +360,7 @@ def test_bf16():
     if bf16_ok is not None:
         return bf16_ok
     if opts.cuda_dtype != 'BF16': # don't override if the user sets it
-        if sys.platform == "darwin" or backend in {'directml', 'cpu'}: # override
+        if sys.platform == "darwin" or backend == 'cpu': # override
             bf16_ok = False
             return bf16_ok
         elif backend == 'openvino':
@@ -676,8 +662,6 @@ def randn_without_seed(shape):
 def autocast(disable=False):
     if disable or dtype == torch.float32:
         return contextlib.nullcontext()
-    if backend == 'directml':
-        return torch.dml.amp.autocast(dtype)
     if cuda_ok:
         return torch.autocast("cuda")
     else:
@@ -687,8 +671,6 @@ def autocast(disable=False):
 def without_autocast(disable=False):
     if disable:
         return contextlib.nullcontext()
-    if backend == 'directml':
-        return torch.dml.amp.autocast(enabled=False) if torch.is_autocast_enabled() else contextlib.nullcontext() # pylint: disable=unexpected-keyword-arg
     if cuda_ok:
         return torch.autocast("cuda", enabled=False) if torch.is_autocast_enabled() else contextlib.nullcontext()
     else:

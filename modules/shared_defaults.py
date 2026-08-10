@@ -56,7 +56,7 @@ def get_default_modes(cmd_opts, mem_stat):
         agent = devices.get_hip_agent()
         if agent.gfx_version < 0x1100:
             default_sdp_override_options = ['Dynamic attention'] # only RDNA2 and older GPUs needs this
-    elif devices.backend in {"directml", "cpu", "mps"}:
+    elif devices.backend in {"cpu", "mps"}:
         default_sdp_override_options = ['Dynamic attention']
 
     if devices.get_optimal_device_name() != "cpu":

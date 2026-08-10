@@ -24,9 +24,7 @@ def create_ui():
             with gr.TabItem("Provider", id="onnxep"):
                 gr.Markdown("Install ONNX execution provider")
                 ep_default = None
-                if cmd_opts.use_directml:
-                    ep_default = ExecutionProvider.DirectML
-                elif cmd_opts.use_cuda:
+                if cmd_opts.use_cuda:
                     ep_default = ExecutionProvider.CUDA
                 elif cmd_opts.use_rocm:
                     ep_default = ExecutionProvider.ROCm

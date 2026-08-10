@@ -28,7 +28,6 @@
 - JSON image metadata
 - Expand custom VAE support
 - Refactor: remove obsolete code:
-  - Remove `directml`
   - Remove `olive-ai`
 - Integrate natural language image search
   - [ImageDB](https://github.com/vladmandic/imagedb)

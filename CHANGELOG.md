@@ -20,6 +20,7 @@
 - **Server**
   - update handlers for all authenticated workflows
   - nunchaku-lite support for `torch==2.13`
+  - remove DirectML support: latest release was over 2 years ago and is not compatible with modern frameworks
 - **Fixes**
   - init hf env variables before gradio load
   - lora skip init and rebuild offload state

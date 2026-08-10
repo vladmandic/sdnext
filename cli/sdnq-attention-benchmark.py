@@ -743,13 +743,13 @@ def fp8_failure_is_capability(detail):
 def print_environment(fp8_result, prep_status, prep_detail, weight_dequant_result=None):
     device = torch.device(torch_device)
     capability = torch_device_module.get_device_capability(device)
-    # backend runtime versions (cuda/cudnn/driver, hip, ipex, openvino, directml) so a shared
+    # backend runtime versions (cuda/cudnn/driver, hip, ipex, openvino) so a shared
     # report identifies the stack without inferring it from the torch version string
     try:
         gpu_info = devices.get_gpu_info() or {}
     except Exception:
         gpu_info = {}
-    runtime_versions = {key: gpu_info[key] for key in ("cuda", "hip", "cudnn", "driver", "ipex", "openvino", "directml") if gpu_info.get(key)}
+    runtime_versions = {key: gpu_info[key] for key in ("cuda", "hip", "cudnn", "driver", "ipex", "openvino") if gpu_info.get(key)}
     runtime_line = f"python: {sys.version.split()[0]} ({sys.platform})  backend: {getattr(devices, 'backend', 'unknown')}"
     if runtime_versions:
         runtime_line += "  " + "  ".join(f"{key}: {value}" for key, value in runtime_versions.items())

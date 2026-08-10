@@ -88,13 +88,6 @@ elif cmd_opts.use_ipex or devices.has_xpu():
         log.error(f'IPEX initialization failed: {e}')
         if os.environ.get('SD_DEVICE_DEBUG', None) is not None:
             errors.display(e, 'IPEX')
-elif cmd_opts.use_directml:
-    from modules.dml import directml_init
-    ok, e = directml_init()
-    if not ok:
-        log.error(f'DirectML initialization failed: {e}')
-        if os.environ.get('SD_DEVICE_DEBUG', None) is not None:
-            errors.display(e, 'DirectML')
 elif cmd_opts.use_rocm or devices.has_rocm():
     from modules.rocm import rocm_init
     ok, e = rocm_init()
@@ -167,7 +160,6 @@ if cmd_opts.locale is not None:
     opts.data['ui_locale'] = cmd_opts.locale
 
 log.debug('Initializing: backend')
-from modules.dml import directml_do_hijack
 if cmd_opts.use_xformers:
     opts.data['cross_attention_optimization'] = 'xFormers'
 opts.data['uni_pc_lower_order_final'] = opts.schedulers_use_loworder # compatibility
@@ -191,8 +183,6 @@ device = devices.device
 parallel_processing_allowed = not cmd_opts.lowvram
 mem_mon = modules.memmon.MemUsageMonitor("MemMon", devices.device)
 history = history.History()
-if devices.backend == "directml":
-    directml_do_hijack()
 log.debug('Quantization: registered=SDNQ')
 
 try:

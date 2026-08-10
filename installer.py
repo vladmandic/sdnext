@@ -54,7 +54,6 @@ args = Dot({
     'skip_requirements': False,
     'skip_git': False,
     'skip_torch': False,
-    'use_directml': False,
     'use_ipex': False,
     'use_cuda': False,
     'use_rocm': False,
@@ -586,7 +585,7 @@ def check_diffusers():
     if args.skip_all:
         return
     target_commit = "6f2010e8bbe61fd2a81a659b858e298edcba8fab" # diffusers commit hash == 0.40.0.dev0 == 08-04-2026
-    # if args.use_rocm or args.use_zluda or args.use_directml:
+    # if args.use_rocm or args.use_zluda:
     #     sha = '043ab2520f6a19fce78e6e060a68dbc947edb9f9' # lock diffusers versions for now
     pkg = package_spec('diffusers')
     parts = pkg.version.split('.') if pkg is not None else []
@@ -616,36 +615,21 @@ def check_transformers():
     # target_commit = '753d61104116eefc8ffc977327b441ee0c8d599f' # transformers commit hash == 4.57.6
     # target_commit = "cf8572d34e39818e42dbf220701fbd3eb5b5a82a" # transformers commit hash == 5.14.0.dev0 == 08-04-2026
     target_commit = "b70d02fc724d04c916832ca4ead03ff05e8fb1ee" # transformers commit hash == 5.13.0.dev0 == 07-03-2026
-    if args.use_directml:
-        target_transformers = '4.52.4'
-        target_tokenizers = '0.21.4'
-    else:
-        # target_transformers = '4.57.6'
-        target_transformers = None
-        target_tokenizers = '0.22.2'
-    if target_transformers is not None:
-        # Pinned release version (e.g. DirectML)
-        if args.reinstall or (pkg_transformers is None) or ((pkg_transformers.version != target_transformers) or (pkg_tokenizers is None) or ((pkg_tokenizers.version != target_tokenizers) and (not args.experimental))):
-            if pkg_transformers is None:
-                log.info(f'Install: package="transformers" version={target_transformers}')
-            else:
-                log.info(f'Update: package="transformers" current={pkg_transformers.version} target={target_transformers}')
-            pip('uninstall --yes transformers', ignore=True, quiet=True)
-            pip(f'install tokenizers=={target_tokenizers}', ignore=False, quiet=True)
-            pip(f'install transformers=={target_transformers}', ignore=False, quiet=True)
-    else:
-        # Git commit-pinned version
-        current = package_commit(pkg_transformers)
-        if args.reinstall or (pkg_transformers is None) or (pkg_transformers.version.startswith('4')) or (current != target_commit):
-            if pkg_transformers is None:
-                log.info(f'Install: package="transformers" commit={target_commit}')
-            else:
-                log.info(f'Update: package="transformers" current={pkg_transformers.version} commit={current} target={target_commit}')
-            pip('uninstall --yes transformers', ignore=True, quiet=True)
-            pip(f'install tokenizers=={target_tokenizers}', ignore=False, quiet=True)
-            pip(f'install git+https://github.com/huggingface/transformers@{target_commit}', ignore=False, quiet=True)
-            global transformers_commit # pylint: disable=global-statement
-            transformers_commit = target_commit
+    target_tokenizers = '0.22.2'
+    # Git commit-pinned version
+    current = package_commit(pkg_transformers)
+    if args.reinstall or (pkg_transformers is None) or (pkg_transformers.version.startswith('4')) or (current != target_commit):
+        if pkg_transformers is None:
+            log.info(f'Install: package="transformers" commit={target_commit}')
+        else:
+            log.info(f'Update: package="transformers" current={pkg_transformers.version} commit={current} target={target_commit}')
+        pip('uninstall --yes transformers', ignore=True, quiet=True)
+        pip(f'install tokenizers=={target_tokenizers}', ignore=False, quiet=True)
+        pip(f'install git+https://github.com/huggingface/transformers@{target_commit}', ignore=False, quiet=True)
+        global transformers_commit # pylint: disable=global-statement
+        transformers_commit = target_commit
+    if args.reinstall or (pkg_tokenizers is None) or (pkg_tokenizers.version != target_tokenizers):
+        pip(f'install tokenizers=={target_tokenizers}', ignore=False, quiet=True)
     ts('transformers', t_start)
 
 
@@ -924,20 +908,17 @@ def check_torch():
     if args.profile:
         pr = cProfile.Profile()
         pr.enable()
-    allow_cuda = not (args.use_rocm or args.use_directml or args.use_ipex or args.use_openvino)
-    allow_rocm = not (args.use_cuda or args.use_directml or args.use_ipex or args.use_openvino)
-    allow_ipex = not (args.use_cuda or args.use_rocm or args.use_directml or args.use_openvino)
-    allow_directml = not (args.use_cuda or args.use_rocm or args.use_ipex or args.use_openvino)
-    allow_openvino = not (args.use_cuda or args.use_rocm or args.use_ipex or args.use_directml)
-    log.debug(f'Torch overrides: cuda={args.use_cuda} rocm={args.use_rocm} ipex={args.use_ipex} directml={args.use_directml} openvino={args.use_openvino} zluda={args.use_zluda}')
-    # log.debug(f'Torch allowed: cuda={allow_cuda} rocm={allow_rocm} ipex={allow_ipex} diml={allow_directml} openvino={allow_openvino}')
+    allow_cuda = not (args.use_rocm or args.use_ipex or args.use_openvino)
+    allow_rocm = not (args.use_cuda or args.use_ipex or args.use_openvino)
+    allow_ipex = not (args.use_cuda or args.use_rocm or args.use_openvino)
+    allow_openvino = not (args.use_cuda or args.use_rocm or args.use_ipex)
+    log.debug(f'Torch overrides: cuda={args.use_cuda} rocm={args.use_rocm} ipex={args.use_ipex} openvino={args.use_openvino} zluda={args.use_zluda}')
+    # log.debug(f'Torch allowed: cuda={allow_cuda} rocm={allow_rocm} ipex={allow_ipex} openvino={allow_openvino}')
     torch_command = os.environ.get('TORCH_COMMAND', '')
 
     if sys.platform != 'win32':
         if args.use_zluda:
             log.error('ZLUDA is only supported on Windows')
-        if args.use_directml:
-            log.error('DirectML is only supported on Windows')
 
     if torch_command != '':
         is_cuda_available = False
@@ -967,15 +948,8 @@ def check_torch():
         elif is_ipex_available:
             torch_command = install_ipex()
         else:
-            machine = platform.machine()
             if sys.platform == 'darwin':
                 torch_command = os.environ.get('TORCH_COMMAND', 'torch torchvision')
-            elif allow_directml and args.use_directml and ('arm' not in machine and 'aarch' not in machine):
-                log.info('DirectML: selected')
-                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.4.1 torchvision torch-directml==0.2.4.dev240913')
-                if 'torch' in torch_command and not args.version:
-                    install(torch_command, 'torch torchvision')
-                install('onnxruntime-directml', 'onnxruntime-directml', ignore=True)
             else:
                 log.warning('Torch: CPU-only version installed')
                 torch_command = os.environ.get('TORCH_COMMAND', 'torch torchvision')
@@ -1066,21 +1040,6 @@ def check_torch():
                     log.info(f'Torch detected: {gpu}')
             except Exception as e:
                 log.error(f'Torch: type=cuda/rocm {e}')
-
-        if args.use_directml and allow_directml:
-            try:
-                import torch_directml # pylint: disable=import-error
-                dml_ver = package_version("torch-directml")
-                log.warning(f'Torch backend: DirectML ({dml_ver})')
-                log.warning('DirectML: end-of-life')
-                for i in range(0, torch_directml.device_count()):
-                    gpu = {
-                        'gpu': torch_directml.device_name(i),
-                    }
-                    gpu_info.append(gpu)
-                    log.info(f'Torch detected: {gpu}')
-            except Exception as e:
-                log.warning(f"Torch: type=directml {e}")
 
     except Exception as e:
         log.error(f'Torch cannot load: {e}')

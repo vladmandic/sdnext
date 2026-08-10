@@ -270,10 +270,6 @@ class OffloadHook(accelerate.hooks.ModelHook):
                                                               clean_result=False,
                                                              )
             offload_dir = getattr(module, "offload_dir", os.path.join(shared.opts.accelerate_offload_path, module.__class__.__name__))
-            if devices.backend == "directml":
-                for k, v in device_map.items():
-                    if isinstance(v, int):
-                        device_map[k] = f"{devices.device.type}:{v}" # int implies CUDA or XPU device, but it will break DirectML backend so we add type
             if debug:
                 log.trace(f'Offload: type=balanced op=dispatch map={device_map}')
             if device_map is not None:

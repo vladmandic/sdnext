@@ -109,7 +109,6 @@ main.ignore-paths=[
     "modules/schedulers/scheduler_*.py",
     "modules/apg",
     "modules/cfgzero",
-    "modules/dml",
     "modules/face",
     "modules/flash_attn_triton_amd",
     "modules/ggml",

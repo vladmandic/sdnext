@@ -129,6 +129,6 @@ def install():
         knobs.autotuning.listener = make_autotune_listener(getattr(knobs.autotuning, 'listener', None))
         knobs.compilation.listener = make_compile_listener(getattr(knobs.compilation, 'listener', None))
         Autotuner._bench = bench_hook(Autotuner._bench) # pylint: disable=protected-access
-        log.debug('Kernel autotune: reporting installed')
+        # log.debug('Kernel autotune: reporting installed')
     except Exception as e:
         log.warning(f'Kernel autotune: reporting install failed: {e}')

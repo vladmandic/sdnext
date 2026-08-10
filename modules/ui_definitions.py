@@ -25,14 +25,6 @@ def list_onnx_providers():
         return "CPU", []
 
 
-def list_dml_providers():
-    try:
-        from modules.dml import memory_providers, default_memory_provider
-        return default_memory_provider, memory_providers
-    except Exception:
-        return "Performance Counter", []
-
-
 def list_checkpoint_titles():
     import modules.sd_models # pylint: disable=redefined-outer-name
     return modules.sd_models.checkpoint_titles()
@@ -83,7 +75,6 @@ def create_settings(cmd_opts):
     default_xetcache_dir = os.environ.get("HF_XET_CACHE ", None) or os.path.join(paths.models_path, 'xet')
 
     default_onnx_execution_provider, default_onnx_execution_providers = list_onnx_providers()
-    default_dml_memory_provider, default_dml_memory_providers = list_dml_providers()
 
     hide_dirs = {"visible": not cmd_opts.hide_ui_dir_config}
 
@@ -313,10 +304,6 @@ def create_settings(cmd_opts):
         "openvino_compile_backend": OptionInfo("openvino_fx", "OpenVINO compile backend", gr.Radio, {"choices": ["openvino", "openvino_fx"], "visible": cmd_opts.use_openvino}),
         "openvino_disable_model_caching": OptionInfo(True, "OpenVINO disable model caching", gr.Checkbox, {"visible": cmd_opts.use_openvino}),
         "openvino_disable_memory_cleanup": OptionInfo(True, "OpenVINO disable memory cleanup", gr.Checkbox, {"visible": cmd_opts.use_openvino}),
-
-        "directml_sep": OptionInfo("<h2>DirectML</h2>", "", gr.HTML, {"visible": devices.backend == "directml"}),
-        "directml_memory_provider": OptionInfo(default_dml_memory_provider, "DirectML memory stats provider", gr.Radio, {"choices": default_dml_memory_providers, "visible": devices.backend == "directml"}),
-        "directml_catch_nan": OptionInfo(False, "DirectML retry ops for NaN", gr.Checkbox, {"visible": devices.backend == "directml"}),
     }))
 
     # --- Pipeline Modifiers ---
