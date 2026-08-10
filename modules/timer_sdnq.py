@@ -1,7 +1,7 @@
 def update_sdnq_attention_timers():
     from modules.timer import autotune
     autotune.reset()
-    from modules.sdnq.kernels import triton_atten, triton_mm, triton_scaled_mm
+    from sdnq.kernels import triton_atten, triton_mm, triton_scaled_mm
     if getattr(triton_atten.sdnq_attn_kernel, 'bench_time', None) is not None:
         autotune.add('sdnq_attn_kernel', getattr(triton_atten.sdnq_attn_kernel, 'bench_time', 0))
         triton_atten.sdnq_attn_kernel.bench_time = 0

@@ -52,7 +52,7 @@ from transformers import AutoTokenizer
 from transformers.models.qwen3_vl import Qwen3VLModel
 
 from modules import devices
-from modules.sdnq import SDNQConfig
+from sdnq import SDNQConfig
 
 TE_REPO = "Qwen/Qwen3-VL-8B-Instruct"
 

@@ -20,7 +20,7 @@ def set_dynamic_attention():
 def set_sdnq_attention():
     try:
         from modules import shared
-        from modules.sdnq.kernels.triton_atten import sdnq_triton_atten
+        from sdnq.kernels.triton_atten import sdnq_triton_atten
         sdpa_pre_sdnq_atten = torch.nn.functional.scaled_dot_product_attention
         @wraps(sdpa_pre_sdnq_atten)
         def sdpa_sdnq_atten(query: torch.FloatTensor, key: torch.FloatTensor, value: torch.FloatTensor, attn_mask: torch.Tensor | None = None, dropout_p: float = 0.0, is_causal: bool = False, scale: float | None = None, enable_gqa: bool = False, **kwargs) -> torch.FloatTensor:

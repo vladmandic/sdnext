@@ -202,7 +202,7 @@ def set_diffuser_options(sd_model, vae=None, op:str='model', offload:bool=True, 
             else:
                 sdnq_use_quantized_matmul = shared.opts.sdnq_quantize_matmul_mode != "disabled"
             if module.quantization_config.use_quantized_matmul != sdnq_use_quantized_matmul:
-                from modules.sdnq.loader import apply_sdnq_options_to_model
+                from sdnq.loader import apply_sdnq_options_to_model
                 # log.debug(f'Setting {op} {module_name}: sdnq_use_quantized_matmul={sdnq_use_quantized_matmul}')
                 module = apply_sdnq_options_to_model(module, use_quantized_matmul=sdnq_use_quantized_matmul)
                 setattr(sd_model, module_name, module)
@@ -359,7 +359,7 @@ def hf_prefetch_configs(checkpoint_info: CheckpointInfo | str, diffusers_load_co
 
 
 def load_diffuser_force(detected_model_type: str, checkpoint_info: CheckpointInfo, diffusers_load_config: dict, op='model'):
-    from modules import sdnq # pylint: disable=unused-import
+    import sdnq # pylint: disable=unused-import
     sd_model = None
     global allow_post_quant # pylint: disable=global-statement
     unload_model_weights(op=op)
@@ -773,7 +773,7 @@ def load_sdnq_module(fn: str, module_name: str, load_method: str):
         return None, module_name, 0
     model_name = os.path.join(fn, module_name)
     try:
-        from modules import sdnq
+        import sdnq
         module = sdnq.load_sdnq_model(
             model_path=model_name,
             quantization_config=quantization_config,
@@ -1573,7 +1573,7 @@ def unload_model_weights(op='model'):
             disable_offload(model_data.sd_model)
             move_model(model_data.sd_model, 'meta')
         model_data.sd_model = None
-        from modules.sdnq.common import reset_compile_caches
+        from sdnq.common import reset_compile_caches
         reset_compile_caches() # dead compiled-dequant graphs and their lifetime recompile counters otherwise accumulate across switches
         devices.torch_gc(force=True, reason='unload')
         log.debug(f'Unload {op}: {memory_stats()} fn={fn}')
@@ -1620,7 +1620,7 @@ def save_model(name: str, path: str | None = None, shard: str = "5GB", overwrite
     if not shared.sd_loaded:
         log.error('Save model: model not loaded')
         return 'Model not loaded'
-    from modules.sdnq import save_sdnq_model
+    from sdnq import save_sdnq_model
     if path is None:
         path = shared.opts.diffusers_dir
     model_name = os.path.join(path.strip(), name.strip())

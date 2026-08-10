@@ -31,7 +31,7 @@ def load_custom(model_name: str):
 
 
 def load_model(selected: models_def.Model):
-    from modules import sdnq # pylint: disable=unused-import
+    import sdnq # pylint: disable=unused-import
     if selected is None or selected.repo is None:
         return ''
     if isinstance(selected.repo_cls, str):

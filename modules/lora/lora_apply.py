@@ -167,7 +167,7 @@ def network_add_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Group
     weight, new_weight = None, None
     if not bias and hasattr(self, "sdnq_dequantizer"):
         try:
-            from modules.sdnq import SDNQConfig, sdnq_quantize_layer
+            from sdnq import SDNQConfig, sdnq_quantize_layer
             if hasattr(self, "sdnq_dequantizer_backup"):
                 use_svd = bool(self.sdnq_svd_up_backup is not None)
                 dequantize_fp32 = bool(self.sdnq_scale_backup.dtype == torch.float32)

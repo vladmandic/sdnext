@@ -2,7 +2,7 @@
 """
 Benchmark and validate SDNQ attention and weight dequantization on the local GPU.
 
-The attention section runs the kernel from modules/sdnq/kernels/triton_atten.py directly and
+The attention section runs the kernel from sdnq/kernels/triton_atten.py directly and
 compares speed and numerical error against torch scaled_dot_product_attention and
 sageattention when installed. Verifies mask, causal, GQA, cross-attention and padding code
 paths, probes float8 hardware support and the torch.compile input prep, and prints
@@ -358,7 +358,7 @@ def load_sdnext():
         with capture_console_output() as startup_log:
             from modules import shared as shared_module
             from modules import devices as devices_module
-            from modules.sdnq.kernels.triton_atten import sdnq_triton_atten as atten
+            from sdnq.kernels.triton_atten import sdnq_triton_atten as atten
     except BaseException as e: # pylint: disable=broad-exception-caught # SystemExit is not an Exception: the bootstrap exits on a failed torch or library import
         if isinstance(e, KeyboardInterrupt):
             raise
@@ -727,7 +727,7 @@ def fp8_compile_gate_flag():
     # False on gpus where sdnq upcasts e4m3 storage to the scale dtype before the compiled
     # dequant, because triton cannot convert e4m3 there; absent on builds without the gate
     try:
-        from modules.sdnq import kernel_wrappers as sdnq_kernel_wrappers
+        from sdnq import kernel_wrappers as sdnq_kernel_wrappers
         return getattr(sdnq_kernel_wrappers, "is_fp8_compile_supported", None)
     except Exception:
         return None
@@ -839,13 +839,13 @@ def probe_fp8():
     # toggling torch._dynamo.config.disable: torch 2.13+ raises "found no compiled frames"
     # for fullgraph-compiled functions called inside a disable window
     try:
-        from modules.sdnq import kernel_wrappers as sdnq_kernel_wrappers
+        from sdnq import kernel_wrappers as sdnq_kernel_wrappers
         is_fp8_mm_supported = getattr(sdnq_kernel_wrappers, "is_fp8_mm_supported", True)
     except Exception:
         is_fp8_mm_supported = True
     if not is_fp8_mm_supported:
         return dict(qk=(False, "FP8 matmul is not supported in this architecture"), pv=(False, "FP8 matmul is not supported in this architecture"))
-    from modules.sdnq.kernels import triton_atten as atten_module
+    from sdnq.kernels import triton_atten as atten_module
     q, k, v = make_qkv(1, 2, 256, 64, structured=False)
     result = {}
     compiled_prep = atten_module.get_attn_inputs
@@ -884,7 +884,7 @@ def probe_compiled_prep():
             torch._dynamo.reset() # pylint: disable=protected-access # drop failed compile state
             detail = f"{type(e).__name__}: {error_summary(e, 120)}"
     # check whether the dynamic=false workaround holds
-    from modules.sdnq.kernels import triton_atten as atten_module
+    from sdnq.kernels import triton_atten as atten_module
     compiled_prep = atten_module.get_attn_inputs
     inner = getattr(compiled_prep, "_torchdynamo_orig_callable", None)
     if inner is None:
@@ -948,8 +948,8 @@ def make_block_master():
 
 
 def build_bench_block(master_sd, weights_cfg, use_mm, attention_spec):
-    from modules.sdnq import SDNQConfig
-    from modules.sdnq.quantizer import apply_sdnq_to_module
+    from sdnq import SDNQConfig
+    from sdnq.quantizer import apply_sdnq_to_module
     hidden, heads, mlp_dim = block_geometry["hidden"], block_geometry["heads"], block_geometry["mlp_dim"]
     block = BenchBlock(hidden, heads, mlp_dim, device=torch_device, dtype=bench_dtype)
     block.load_state_dict(master_sd)
@@ -990,8 +990,8 @@ def make_quantized_linear(weight, weights_dtype, group_size=0, use_quantized_mat
     # quantize through the same entry point model loading uses, so forward benches measure
     # the production wrapper classes and dequantizer configuration; returns the quantize wall
     # time, a one-shot measurement of what on-the-fly quantization pays per layer at load
-    from modules.sdnq import SDNQConfig
-    from modules.sdnq.quantizer import sdnq_quantize_layer
+    from sdnq import SDNQConfig
+    from sdnq.quantizer import sdnq_quantize_layer
     out_features, in_features = weight.shape
     linear = torch.nn.Linear(in_features, out_features, bias=False, device=device, dtype=bench_dtype)
     with torch.no_grad():
@@ -1058,7 +1058,7 @@ def get_compiled_dequantize_weight():
         for limit_name in ("recompile_limit", "cache_size_limit", "accumulated_recompile_limit", "accumulated_cache_size_limit"):
             if hasattr(torch._dynamo.config, limit_name): # pylint: disable=protected-access
                 setattr(torch._dynamo.config, limit_name, max(8192, getattr(torch._dynamo.config, limit_name) or 0)) # pylint: disable=protected-access
-        from modules.sdnq.dequantizer import dequantize_weight
+        from sdnq.dequantizer import dequantize_weight
         compiled_dequantize_weight = torch.compile(dequantize_weight, fullgraph=True, dynamic=False)
     return compiled_dequantize_weight
 
@@ -1134,7 +1134,7 @@ def run_correctness():
     # do not toggle torch._dynamo.config.disable for this: newer torch raises "found no
     # compiled frames" when a fullgraph-compiled function is called inside a disable window,
     # failing every check and poisoning the first compiled call afterwards
-    from modules.sdnq.kernels import triton_atten as atten_module
+    from sdnq.kernels import triton_atten as atten_module
     compiled_prep = atten_module.get_attn_inputs
     inner_prep = getattr(compiled_prep, "_torchdynamo_orig_callable", None)
     if inner_prep is not None:
@@ -1194,9 +1194,9 @@ def run_correctness():
 
 def make_prep_fn(q, k, v, attn_mask, kwargs, is_causal=False, enable_gqa=False):
     # mirror sdnq_triton_atten's prep call so the prep column measures the same code path
-    from modules.sdnq.kernels import triton_atten as atten_module
-    from modules.sdnq.quant_utils import get_hadamard, get_hadamard_group_size
-    from modules.sdnq.utils import next_power_of_2
+    from sdnq.kernels import triton_atten as atten_module
+    from sdnq.quant_utils import get_hadamard, get_hadamard_group_size
+    from sdnq.utils import next_power_of_2
     matmul_dtype = kwargs.get("matmul_dtype", "int8")
     do_quantize = kwargs.get("do_quantize", True)
     hadamard_group_size = kwargs.get("hadamard_group_size", 256)
@@ -1377,7 +1377,7 @@ def bench_shape(preset, iters, warmup, position=None, config_timeout=300, fp8_re
 
 
 def bench_dequant_shape(shape_label, out_features, in_features, iters, warmup, position=None, config_timeout=300, selected_dtypes=None):
-    from modules.sdnq.common import check_torch_compile
+    from sdnq.common import check_torch_compile
     compile_on = check_torch_compile()
     dtype_configs = [(dtype_id, label, cfg) for dtype_id, label, cfg in dequant_dtype_configs if selected_dtypes is None or dtype_id in selected_dtypes]
 
@@ -1490,7 +1490,7 @@ def bench_dequant_shape(shape_label, out_features, in_features, iters, warmup, p
             # bench matches the webui with Dequantize using torch.compile off. do not toggle
             # torch._dynamo.config.disable instead: code objects called during a disable window
             # keep their skip marking and never compile again in this process
-            from modules.sdnq import dequantizer as dequantizer_module
+            from sdnq import dequantizer as dequantizer_module
             saved_compiled_fn = dequantizer_module.dequantize_weight_compiled
             try:
                 phase("timing linear forward, eager dequant")
@@ -1754,10 +1754,10 @@ def bench_float_mm_alternatives(shape_label, out_features, in_features, plain_re
 # never defined and the row needs SDNQ_USE_TRITON_MM=0.
 
 mm_swap_targets = [
-    ("modules.sdnq.layers.linear.linear_int8", "int_scaled_mm_func"),
-    ("modules.sdnq.layers.linear.linear_uint8", "int_scaled_mm_func"),
-    ("modules.sdnq.layers.linear.linear_fp16", "fp_scaled_mm_func"),
-    ("modules.sdnq.layers.linear.linear_fp8", "fp8_scaled_mm_func"),
+    ("sdnq.layers.linear.linear_int8", "int_scaled_mm_func"),
+    ("sdnq.layers.linear.linear_uint8", "int_scaled_mm_func"),
+    ("sdnq.layers.linear.linear_fp16", "fp_scaled_mm_func"),
+    ("sdnq.layers.linear.linear_fp8", "fp8_scaled_mm_func"),
 ]
 
 
@@ -1774,7 +1774,7 @@ def mm_backend_bindings():
         if func is not None:
             bound[(module_path, attr)] = func
     try:
-        from modules.sdnq.kernels.triton_scaled_mm import sdnq_scaled_mm
+        from sdnq.kernels.triton_scaled_mm import sdnq_scaled_mm
     except Exception as e:
         return {}, {"triton": f"triton scaled mm unavailable: {error_summary(e, 120)}"}
 
@@ -2284,8 +2284,8 @@ def fp32_conv_reference(x, weight_fp32, padding):
 
 
 def make_quantized_conv(weight, weights_dtype, use_quantized_matmul=False):
-    from modules.sdnq import SDNQConfig
-    from modules.sdnq.quantizer import sdnq_quantize_layer
+    from sdnq import SDNQConfig
+    from sdnq.quantizer import sdnq_quantize_layer
     out_channels, in_channels, kh, kw = weight.shape
     conv = torch.nn.Conv2d(in_channels, out_channels, (kh, kw), padding=(kh // 2, kw // 2), bias=False, device=torch_device, dtype=bench_dtype)
     with torch.no_grad():
@@ -3403,11 +3403,11 @@ def main():
         if free_vram_gb() < 2.0:
             emit(f"[yellow]skipping dequant benchmarks: needs about 2 gb free vram, {free_vram_gb():.1f} gb available[/yellow]")
         else:
-            from modules.sdnq.common import check_torch_compile
+            from sdnq.common import check_torch_compile
             if not check_torch_compile():
                 # the module-level compiled dequant is a passthrough with the option off; swap in
                 # a real compiled variant so the compiled fwd rows measure what enabling it gives
-                from modules.sdnq import dequantizer as dequantizer_module
+                from sdnq import dequantizer as dequantizer_module
                 dequantizer_module.dequantize_weight_compiled = get_compiled_dequantize_weight()
                 emit("[yellow]Dequantize using torch.compile is off in the current config: compiled fwd rows are measured with a tool-compiled dequant, matching the webui after enabling it[/yellow]")
             for index, (shape_label, out_features, in_features) in enumerate(dequant_shapes, start=1):
@@ -3446,13 +3446,13 @@ def main():
     if "attention" in sections:
         # bench the prep mode the advice points to: compiled, static workaround, or eager
         if prep_status == "failing_dynamic":
-            from modules.sdnq.kernels import triton_atten as atten_module
+            from sdnq.kernels import triton_atten as atten_module
             inner = getattr(atten_module.get_attn_inputs, "_torchdynamo_orig_callable", None)
             atten_module.get_attn_inputs = torch.compile(inner, fullgraph=True, dynamic=False)
             emit("[yellow]dynamic-shape compile is broken here: benchmarking with the dynamic=false workaround applied, numbers match the webui after setting SDNQ_COMPILE_KWARGS='{\"dynamic\": false}'[/yellow]")
         elif prep_status == "failing":
             emit("[yellow]torch compile is broken here: benchmarking with eager input prep, numbers match the webui after disabling Dequantize using torch.compile[/yellow]")
-            from modules.sdnq.kernels import triton_atten as atten_module
+            from sdnq.kernels import triton_atten as atten_module
             inner = getattr(atten_module.get_attn_inputs, "_torchdynamo_orig_callable", None)
             if inner is not None: # swap in the eager prep; a disable toggle raises on torch 2.13+
                 atten_module.get_attn_inputs = inner

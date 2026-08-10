@@ -104,7 +104,7 @@ def create_sdnq_config(kwargs = None,
                       ):
     from modules import shared
     if allow and (shared.opts.sdnq_quantize_mode in {'pre', 'auto'}) and (module == 'any' or module in shared.opts.sdnq_quantize_weights):
-        from modules.sdnq import SDNQConfig
+        from sdnq import SDNQConfig
 
         if weights_dtype is None:
             if module in {"TE", "LLM"} and shared.opts.sdnq_quantize_weights_mode_te not in {"Same as model", "default"}:
@@ -363,7 +363,7 @@ def apply_layerwise(sd_model, quiet:bool=False):
 def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weights_dtype: str | None = None, quantized_matmul_dtype: str | None = None, modules_to_not_convert: list | None = None, modules_dtype_dict: dict | None = None):
     global quant_last_model_name, quant_last_model_device # pylint: disable=global-statement
     from modules import devices, shared, timer
-    from modules.sdnq import sdnq_post_load_quant
+    from sdnq import sdnq_post_load_quant
 
     if (
         hasattr(model, "quantization_config")
