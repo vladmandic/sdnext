@@ -134,6 +134,13 @@ if ".dev" in torch.__version__ or "+git" in torch.__version__:
 timer.startup.record("torch")
 
 try:
+    from modules.sd_hijack_triton import install as install_autotune_report
+    install_autotune_report()
+except Exception as e:
+    log.warning(f'Triton logging: {e}')
+timer.startup.record("triton")
+
+try:
     import bitsandbytes # pylint: disable=unused-import
     _bnb = True
 except Exception:

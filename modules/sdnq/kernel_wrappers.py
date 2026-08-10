@@ -5,10 +5,7 @@ import sys
 import torch
 
 from modules import devices, shared
-from modules.sd_hijack_triton import install as install_autotune_report
 from .common import compile_func
-
-install_autotune_report()
 
 
 if os.environ.get("SDNQ_ALLOW_FP8_MM", None) is None:
