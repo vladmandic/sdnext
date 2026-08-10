@@ -92,6 +92,10 @@ class APIControl:
         args.pop('inpaint_full_res', None)
         args.pop('inpaint_full_res_padding', None)
         args.pop('inpainting_mask_invert', None)
+        args.pop('xyz', None)
+        for k, v in args.copy().items():
+            if v is None:
+                args.pop(k, None)
         args['override_script_name'] = args.pop('script_name', None)
         args['override_script_args'] = args.pop('script_args', None)
         return args
