@@ -1117,7 +1117,6 @@ async function thumbCacheCleanup(folder, imgCount, controller, force = false) {
       const keptGalleryHashes = force ? new Set() : new Set(galleryHashes.values()); // External context should be safe since this function run is guarded by AbortController/AbortSignal in the SimpleFunctionQueue
       const folderNormalized = folder.replace(/\/+/g, '/').replace(/\/$/, '');
       const recursiveFolder = IDBKeyRange.bound(folderNormalized, `${folderNormalized}\uffff`, false, true);
-      if (keptGalleryHashes.size < minCleanupCount && !force) return; // Don't run when there aren't many excess entries
       const cachedHashesCount = await idbCount(recursiveFolder)
         .catch((e) => {
           error('maintenanceQueue', { folder, error: e });
