@@ -102,8 +102,8 @@ def apply_minimax_overrides(p, pipe, still: bool = False, audio: bool = True):
     p.task_args['num_inference_steps'] = p.steps
     pipe.num_timesteps = p.steps - 1 # sigma grid includes the terminal point; feeds the progress total
     if p.sampler_name not in ('None', 'Default'):
-        log.warning(f'Video modular: cls={pipe.__class__.__name__} sampler={p.sampler_name} unsupported: using model scheduler')
-    p.sampler_name = 'None' # bespoke scheduler pair must not be replaced
+        log.warning(f'Video modular: cls={pipe.__class__.__name__} sampler={p.sampler_name} unsupported: using model default')
+    p.sampler_name = 'Default' # the model default is the bespoke scheduler pair, which discrete samplers must not replace
     pipe.vae.enable_tiling() # model always tiles; the shared vae params path may have disabled it
     set_audio(pipe, audio)
     p.task_args['output'] = ['videos', 'audio', 'sampling_rate'] if audio else ['videos']

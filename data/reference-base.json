@@ -378,7 +378,7 @@
     "path": "MiniMaxAI/MiniMax-H3",
     "preview": "MiniMaxAI--MiniMax-H3.jpg",
     "desc": "MiniMax-H3 generates video with synchronized stereo audio in a single denoising pass through a 33B single-stream transformer with a Qwen3-VL conditioner. In image tabs the model runs in experimental still mode, keeping the first frame of a minimal generation.",
-    "extras": "sampler: None",
+    "extras": "sampler: Default",
     "size": 134,
     "date": "2026 August"
   },
