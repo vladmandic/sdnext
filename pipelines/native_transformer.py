@@ -917,10 +917,12 @@ def build_component_prequantized(
             group_size=NVFP4_GROUP_SIZE if is_nvfp4 else -1,
             svd_rank=32,
             svd_steps=8,
+            codebook_steps=24,
             use_quantized_matmul=False,
             re_quantize_for_matmul=is_nvfp4,
             use_stochastic_rounding=False,
             use_hadamard=use_hadamard,
+            use_codebook=False,
             layer_class_name="Linear",
         )
         wrapped = get_sdnq_wrapper_class(linear, dequant_forward)
