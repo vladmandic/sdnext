@@ -1027,7 +1027,6 @@ def check_torch():
                     torch_info.set(type='rocm', hip=torch.version.hip)
                 else:
                     log.warning('Torch backend: cannot detect type')
-                log.info(f"Torch backend: {torch_info}")
                 for device in [torch.cuda.device(i) for i in range(torch.cuda.device_count())]:
                     props = torch.cuda.get_device_properties(device)
                     gpu = {
@@ -1040,6 +1039,18 @@ def check_torch():
                     log.info(f'Torch detected: {gpu}')
             except Exception as e:
                 log.error(f'Torch: type=cuda/rocm {e}')
+        if hasattr(torch, "accelerator") and torch.accelerator.is_available():
+            try:
+                _index = torch.accelerator.current_device_index()
+                _count = torch.accelerator.device_count()
+                _current = torch.accelerator.current_accelerator()
+                torch_info.set(accelerator=_current)
+            except Exception as e:
+                log.error(f'Torch: type=accelerator {e}')
+                torch_info.set(accelerator=False)
+        else:
+            torch_info.set(accelerator=False)
+        log.info(f"Torch backend: {torch_info}")
 
     except Exception as e:
         log.error(f'Torch cannot load: {e}')

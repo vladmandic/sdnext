@@ -232,6 +232,7 @@ def torch_gc(force: bool = False, fast: bool = False, reason: str | None = None)
             if hasattr(torch, "accelerator") and torch.accelerator.is_available(): # torch >= 2.6
                 torch.accelerator.synchronize()
                 torch.accelerator.empty_cache()
+                torch.accelerator.empty_host_cache()
                 if torch.cuda.is_available() and hasattr(torch.cuda, "ipc_collect"):
                     torch.cuda.ipc_collect()
                 elif hasattr(torch, "xpu") and hasattr(torch.xpu, "ipc_collect"):
