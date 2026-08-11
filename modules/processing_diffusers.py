@@ -477,6 +477,7 @@ def process_decode(p: processing.StableDiffusionProcessing, output):
             log.debug(f'Generated: frames={len(output.frames[0])}')
             output.images = output.frames[0]
         if output.images is not None and len(output.images) > 0 and isinstance(output.images[0], Image.Image):
+            sd_models.offload_ondemand(shared.sd_model) # in-pipe decode paths return materialized frames; the vae seam in processing_vae never runs
             return attach_audio(output.images, audio)
         model = shared.sd_model if not is_refiner_enabled(p) else shared.sd_refiner
         if not hasattr(model, 'vae'):

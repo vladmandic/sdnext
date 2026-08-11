@@ -19,6 +19,7 @@ debug_move = log.trace if debug else lambda *args, **kwargs: None
 offload_allow_none = ['sd', 'sdxl']
 offload_post = ['h1']
 offload_hook_instance = None
+group_offload_vae_limit = 1.0 # GB; vae-class components above this rest on cpu and onload whole at encode/decode
 balanced_offload_exclude = ['CogView4Pipeline', 'MeissonicPipeline']
 no_split_module_classes = [
     "Linear", "Conv1d", "Conv2d", "Conv3d", "ConvTranspose1d", "ConvTranspose2d", "ConvTranspose3d", "Embedding",
@@ -44,6 +45,7 @@ def get_signature(cls):
 
 
 def disable_offload(sd_model):
+    remove_group_offload(sd_model) # group hooks block the meta move at unload, keeping component weights alive for as long as any reference to the pipe survives
     if not getattr(sd_model, 'has_accelerate', False):
         return
     for module_name in get_module_names(sd_model):
@@ -76,30 +78,257 @@ def set_accelerate(sd_model):
         set_accelerate_to_module(sd_model.decoder_pipe)
 
 
-def apply_group_offload(sd_model, op:str='model'):
-    offload_dct = {
-        'onload_device': devices.device,
-        'offload_device': devices.cpu,
-        'offload_type': shared.opts.group_offload_type,
-        'num_blocks_per_group': shared.opts.group_offload_blocks,
+def group_offload_config(main: bool) -> dict:
+    """Effective group offload settings for one component. Components that run once per
+    generation take the leaf no-stream policy regardless of the main settings, so their
+    weights are never held in pinned host memory."""
+    stream = shared.opts.group_offload_stream if main else False
+    blocks = max(1, int(shared.opts.group_offload_blocks))
+    if stream and blocks != 1:
+        blocks = 1 # streamed prefetch supports one block per group; upstream clamps with a warning otherwise
+    return {
+        'offload_type': shared.opts.group_offload_type if main else 'leaf_level',
+        'num_blocks_per_group': blocks,
         'non_blocking': shared.opts.diffusers_offload_nonblocking,
-        'use_stream': shared.opts.group_offload_stream,
-        'record_stream': shared.opts.group_offload_record,
-        'low_cpu_mem_usage': False,
+        'use_stream': stream,
+        'record_stream': shared.opts.group_offload_record and stream, # record without streams is rejected upstream
+        'low_cpu_mem_usage': stream and not shared.opts.group_offload_pin,
     }
-    if shared.opts.group_offload_type == 'block_level':
-        offload_dct['exclude_modules'] = ['vae']
-    log.debug(f'Setting {op}: offload={shared.opts.diffusers_offload_mode} options={offload_dct}')
-    if hasattr(sd_model, "enable_group_offload"):
-        sd_model.enable_group_offload(**offload_dct)
-    else:
-        log.warning(f'Setting {op}: offload={shared.opts.diffusers_offload_mode} not supported')
+
+
+def remove_group_offload_component(module) -> bool:
+    if getattr(module, 'sdnext_group_offload_sig', None) is None:
+        module = getattr(module, 'model', None) # wrapper components carry the hooks on the inner model
+        if module is None or getattr(module, 'sdnext_group_offload_sig', None) is None:
+            return False
+    from diffusers.hooks.group_offloading import _GROUP_OFFLOADING, _LAYER_EXECUTION_TRACKER, _LAZY_PREFETCH_GROUP_OFFLOADING
+    from diffusers.hooks.hooks import HookRegistry
+    registry = HookRegistry.check_if_exists_or_initialize(module)
+    registry.remove_hook(_GROUP_OFFLOADING, recurse=True)
+    registry.remove_hook(_LAYER_EXECUTION_TRACKER, recurse=True)
+    registry.remove_hook(_LAZY_PREFETCH_GROUP_OFFLOADING, recurse=True)
+    module.sdnext_group_offload_sig = None
+    return True
+
+
+def remove_group_offload(sd_model):
+    removed = []
+    for module_name in get_module_names(sd_model):
+        module = getattr(sd_model, module_name, None)
+        if isinstance(module, torch.nn.Module) and remove_group_offload_component(module):
+            removed.append(module_name)
+    for module_name in getattr(sd_model, 'sdnext_ondemand_modules', None) or []:
+        module = getattr(sd_model, module_name, None)
+        if module is not None:
+            module.sdnext_ondemand = False
+            if hasattr(module, '_hf_hook'):
+                module = accelerate.hooks.remove_hook_from_module(module, recurse=True)
+            removed.append(f'{module_name}:ondemand')
+    if getattr(sd_model, 'sdnext_ondemand_modules', None):
+        sd_model.sdnext_ondemand_modules = []
+    if removed:
+        log.debug(f'Offload: type=group op=remove modules={removed}')
+
+
+def apply_group_offload_component(module, module_name: str, main: bool, op: str = 'model') -> bool:
+    """Apply group offload to one component. Re-application with unchanged settings is a no-op:
+    the hooks silently keep their original config when re-applied and raise before the first
+    forward, so a changed config must remove the old hooks first."""
+    from diffusers.hooks import apply_group_offloading
+    cfg = group_offload_config(main)
+    if cfg['use_stream'] and not cfg['low_cpu_mem_usage']:
+        size_gb, _params = get_module_size(module)
+        pin_ok = getattr(module, 'sdnext_group_offload_pin', None)
+        if pin_ok is None: # decide once per module: a granted pin moves the weights into locked memory, so re-reading available on the next apply would see it lower by the pinned size and revoke its own grant
+            from modules import memstats
+            avail_gb = memstats.ram_stats().get('avail', 0)
+            reserve_gb = max(8.0, 0.25 * shared.cpu_memory) # pinned pages cannot be reclaimed or swapped, so a quarter of the machine, floored at 8 GB, stays pageable for the process and page cache
+            limit_gb = (avail_gb - reserve_gb) if avail_gb > 0 else (0.5 * shared.cpu_memory) # budget from memory free right now; total-derived ceiling only when psutil cannot say
+            pin_ok = size_gb <= limit_gb
+            module.sdnext_group_offload_pin = pin_ok
+            module.sdnext_group_offload_pin_limit = limit_gb
+        if not pin_ok:
+            # unpinned streaming degrades to per-transfer staging and leaf groups make that a per-module cost,
+            # so the whole leaf+stream shape goes with the pin: few large synchronous groups instead
+            cfg['low_cpu_mem_usage'] = True
+            cfg['use_stream'] = False
+            cfg['record_stream'] = False
+            cfg['offload_type'] = 'block_level'
+            cfg['num_blocks_per_group'] = max(4, int(shared.opts.group_offload_blocks))
+            log.warning(f'Setting {op}: offload=group module={module_name} size={size_gb:.3f} limit={getattr(module, "sdnext_group_offload_pin_limit", 0):.3f} pin=denied type=block_level blocks={cfg["num_blocks_per_group"]} expect ~{size_gb:.0f} GB transferred per step')
+    sig = f'{devices.device}:{main}:' + ':'.join(str(v) for v in cfg.values())
+    if getattr(module, 'sdnext_group_offload_sig', None) == sig:
+        return False
+    if hasattr(module, '_hf_hook'): # leftover accelerate hooks from a previous offload mode abort the group apply upstream
+        module = accelerate.hooks.remove_hook_from_module(module, recurse=True)
+    remove_group_offload_component(module)
+    module.requires_grad_(False)
+    apply_group_offloading(module, onload_device=devices.device, offload_device=devices.cpu, **cfg)
+    module.sdnext_group_offload_sig = sig
+    return True
+
+
+def set_group_resident(module):
+    """VAE-class components never take group hooks: the hooks are forward-scoped, while
+    pipelines enter through encode/decode, and tiled calls re-enter per tile."""
+    if hasattr(module, '_hf_hook'):
+        module = accelerate.hooks.remove_hook_from_module(module, recurse=True)
+    remove_group_offload_component(module)
+    module.requires_grad_(False)
+    module.to(devices.device)
+
+
+def group_offload_role(module_name: str, module) -> str:
+    cls = module.__class__.__name__
+    if 'vae' in module_name.lower() or cls.startswith(('Autoencoder', 'VQModel', 'AsymmetricAutoencoder', 'ConsistencyDecoder')):
+        return 'resident'
+    if module_name.startswith(('text_encoder', 'image_encoder', 'safety_checker')):
+        return 'aux'
+    return 'main'
+
+
+def has_entry_bridge(module) -> bool:
+    """Entry points decorated with diffusers' apply_forward_hook fire _hf_hook.pre_forward,
+    which is what carries the on-demand onload for encode and decode calls that bypass forward."""
+    for name in ('decode', 'encode'):
+        fn = getattr(module, name, None)
+        if fn is not None and getattr(fn, '__qualname__', '').startswith('apply_forward_hook'):
+            return True
+    return False
+
+
+class OnDemandHook(accelerate.hooks.ModelHook):
+    """Whole-module onload for components entered through decode or encode rather than forward.
+    Tiled calls re-enter inside one entry point, so the module is on device before the first
+    tile; the return to cpu happens at the processing seams once outputs are materialized."""
+    def pre_forward(self, module, *args, **kwargs):
+        param = next(module.parameters(), None)
+        if param is not None and not devices.same_device(param.device, devices.device):
+            t0 = time.time()
+            module.to(devices.device)
+            dt = time.time() - t0
+            process_timer.add('onload', dt)
+            log.debug(f'Offload: type=ondemand op=onload module={module.__class__.__name__} time={dt:.3f}')
+        return args, kwargs
+
+
+def set_group_vae(sd_model, module, module_name: str) -> str:
+    """Placement policy for vae-class components, which never take group hooks. Small
+    components stay resident; components above group_offload_vae_limit rest on cpu and
+    onload whole when their decode or encode entry point fires."""
+    size_gb, _params = get_module_size(module)
+    if size_gb < group_offload_vae_limit or not has_entry_bridge(module):
+        set_group_resident(module)
+        module.sdnext_ondemand = False # a lingering stamp would let the seams offload a component with no onload hook
+        names = getattr(sd_model, 'sdnext_ondemand_modules', None) or []
+        if module_name in names:
+            sd_model.sdnext_ondemand_modules = [n for n in names if n != module_name]
+        return 'resident'
+    if not getattr(module, 'sdnext_ondemand', False) or not hasattr(module, '_hf_hook'):
+        if hasattr(module, '_hf_hook'):
+            module = accelerate.hooks.remove_hook_from_module(module, recurse=True)
+        remove_group_offload_component(module)
+        module.requires_grad_(False)
+        accelerate.hooks.add_hook_to_module(module, OnDemandHook(), append=False)
+        module.sdnext_ondemand = True
+        module.to(devices.cpu)
+    names = getattr(sd_model, 'sdnext_ondemand_modules', None) or []
+    if module_name not in names:
+        sd_model.sdnext_ondemand_modules = names + [module_name]
+    return 'ondemand'
+
+
+def offload_ondemand(sd_model):
+    """Return on-demand components to cpu once their outputs are materialized."""
+    if sd_model is None:
+        return
+    names = getattr(sd_model, 'sdnext_ondemand_modules', None)
+    if not names and hasattr(sd_model, 'pipe'):
+        sd_model = sd_model.pipe
+        names = getattr(sd_model, 'sdnext_ondemand_modules', None)
+    for module_name in names or []:
+        module = getattr(sd_model, module_name, None)
+        param = next(module.parameters(), None) if module is not None else None
+        if param is not None and not devices.same_device(param.device, devices.cpu):
+            t0 = time.time()
+            module.to(devices.cpu)
+            dt = time.time() - t0
+            process_timer.add('offload', dt)
+            log.debug(f'Offload: type=ondemand op=offload module={module_name} time={dt:.3f}')
+
+
+def report_group_stats(sd_model, module_names):
+    """Per-component stats block once per loaded model; balanced mode prints its own from the hook map."""
+    if getattr(sd_model, 'sdnext_group_stats_reported', False):
+        return
+    sd_model.sdnext_group_stats_reported = True
+    total = 0.0
+    counted = []
+    for module_name in module_names:
+        module = getattr(sd_model, module_name, None)
+        if isinstance(module, torch.nn.Module):
+            total += get_module_size(module)[0]
+            counted.append(module_name)
+            report_model_stats(module_name, module)
+    log.info(f'Model class={sd_model.__class__.__name__} modules={len(counted)} size={total:.3f}')
+
+
+def apply_modular_group_offload(sd_model, op:str='model'):
+    """Per-component group offload for modular pipelines, which lack the pipeline-level
+    enable_*_offload entry points. The model and sequential modes also route here."""
+    if shared.opts.diffusers_offload_mode != 'group' and not getattr(sd_model, 'sdnext_modular_offload_warned', False):
+        sd_model.sdnext_modular_offload_warned = True
+        log.warning(f'Setting {op}: offload={shared.opts.diffusers_offload_mode} not supported on modular pipelines: using group offload')
+    applied = []
+    for name in ('transformer', 'transformer_ref'):
+        transformer = getattr(sd_model, name, None)
+        if transformer is not None and apply_group_offload_component(transformer, name, main=True, op=op):
+            applied.append(name)
+    text_encoder = getattr(sd_model, 'text_encoder', None)
+    if text_encoder is not None:
+        # offload targets the inner model when present: conditioning may call it directly,
+        # and hooks on the wrapper forward would never fire
+        if apply_group_offload_component(getattr(text_encoder, 'model', text_encoder), 'text_encoder', main=False, op=op):
+            applied.append('text_encoder')
+    for name in ('vae', 'audio_vae'):
+        component = getattr(sd_model, name, None)
+        if component is not None:
+            placement = set_group_vae(sd_model, component, name)
+            applied.append(f'{name}:{placement}')
+    # has_accelerate stays unset: group hooks are not accelerate hooks, and the modular
+    # pipeline's own to() skips group-offloaded components when move_model runs
+    if any(':' not in name for name in applied):
+        log.info(f'Setting {op}: offload=group type={shared.opts.group_offload_type} modules={applied}')
+    report_group_stats(sd_model, ('transformer', 'transformer_ref', 'text_encoder', 'vae', 'audio_vae'))
+
+
+def apply_group_offload(sd_model, op:str='model'):
+    applied, resident, ondemand = [], [], []
+    for module_name in get_module_names(sd_model):
+        module = getattr(sd_model, module_name, None)
+        if not isinstance(module, torch.nn.Module):
+            continue
+        try:
+            role = group_offload_role(module_name, module)
+            if role == 'resident':
+                if set_group_vae(sd_model, module, module_name) == 'ondemand':
+                    ondemand.append(module_name)
+                else:
+                    resident.append(module_name)
+            elif apply_group_offload_component(module, module_name, main=role == 'main', op=op):
+                applied.append(module_name)
+        except Exception as e:
+            log.error(f'Setting {op}: offload=group module={module_name} {e}')
     set_accelerate(sd_model)
+    if applied:
+        log.info(f'Setting {op}: offload=group type={shared.opts.group_offload_type} modules={applied} resident={resident} ondemand={ondemand}')
+    report_group_stats(sd_model, get_module_names(sd_model))
     return sd_model
 
 
 def apply_model_offload(sd_model, op:str='model', quiet:bool=False):
     try:
+        remove_group_offload(sd_model)
         log.quiet(quiet, f'Setting {op}: offload={shared.opts.diffusers_offload_mode} limit={shared.opts.cuda_mem_fraction}')
         if shared.opts.diffusers_move_base or shared.opts.diffusers_move_unet or shared.opts.diffusers_move_refiner:
             shared.opts.diffusers_move_base = False
@@ -117,6 +346,7 @@ def apply_model_offload(sd_model, op:str='model', quiet:bool=False):
 
 def apply_sequential_offload(sd_model, op:str='model', quiet:bool=False):
     try:
+        remove_group_offload(sd_model)
         log.quiet(quiet, f'Setting {op}: offload={shared.opts.diffusers_offload_mode} limit={shared.opts.cuda_mem_fraction}')
         if shared.opts.diffusers_move_base or shared.opts.diffusers_move_unet or shared.opts.diffusers_move_refiner:
             shared.opts.diffusers_move_base = False
@@ -144,6 +374,7 @@ def apply_none_offload(sd_model, op:str='model', quiet:bool=False):
         log.quiet(quiet, f'Setting {op}: offload={shared.opts.diffusers_offload_mode} limit={shared.opts.cuda_mem_fraction}')
     try:
         sd_model.has_accelerate = False
+        remove_group_offload(sd_model)
         if hasattr(sd_model, 'maybe_free_model_hooks'):
             sd_model.maybe_free_model_hooks()
         sd_model = accelerate.hooks.remove_hook_from_module(sd_model, recurse=True)
@@ -224,6 +455,14 @@ class OffloadHook(accelerate.hooks.ModelHook):
     def model_size(self):
         return sum(self.offload_map.values())
 
+    def matches(self, module, names: list, module_name: str | None = None) -> bool:
+        """Match against an always/never list by class name or by pipeline component name.
+        Component entries such as `text_encoder` cover every architecture without listing each encoder class."""
+        if module.__class__.__name__ in names:
+            return True
+        module_name = module_name or getattr(module, 'module_name', None)
+        return module_name is not None and module_name in names
+
     def init_hook(self, module):
         return module
 
@@ -249,8 +488,7 @@ class OffloadHook(accelerate.hooks.ModelHook):
                 for pipe in get_pipe_variants():
                     for module_name in get_module_names(pipe):
                         module_instance = getattr(pipe, module_name, None)
-                        module_cls = module_instance.__class__.__name__
-                        if (module_instance is not None) and (_id != id(module_instance)) and (module_cls not in self.offload_never) and (not devices.same_device(getattr(module_instance, "device", devices.cpu), devices.cpu)):
+                        if (module_instance is not None) and (_id != id(module_instance)) and (not self.matches(module_instance, self.offload_never, module_name)) and (not devices.same_device(getattr(module_instance, "device", devices.cpu), devices.cpu)):
                             apply_balanced_offload_to_module(module_instance, op='pre')
                 self.last_cls = module.__class__.__name__
                 process_timer.add('offload', time.time() - t0)
@@ -440,9 +678,9 @@ def move_module_to_cpu(module, op='unk', force:bool=False):
             op = f'{op}:force'
             module = do_move(module)
             used_gpu -= module_size
-        elif module_cls in offload_hook_instance.offload_never:
+        elif offload_hook_instance.matches(module, offload_hook_instance.offload_never, module_name):
             op = f'{op}:never'
-        elif module_cls in offload_hook_instance.offload_always:
+        elif offload_hook_instance.matches(module, offload_hook_instance.offload_always, module_name):
             op = f'{op}:always'
             module = do_move(module)
             used_gpu -= module_size
@@ -505,7 +743,9 @@ def get_logical_param_count(module: torch.nn.Module) -> int:
 
 def report_model_stats(module_name, module):
     try:
-        size = offload_hook_instance.offload_map.get(module_name, 0)
+        size = offload_hook_instance.offload_map.get(module_name, 0) if offload_hook_instance is not None else 0
+        if size == 0:
+            size, _params = get_module_size(module)
         quant = getattr(module, "quantization_method", None)
         params = sum(p.numel() for p in module.parameters(recurse=True))
         logical = get_logical_param_count(module)
@@ -528,6 +768,7 @@ def apply_balanced_offload(sd_model=None, exclude: list[str] | None = None, forc
         exclude = []
     if sd_model.__class__.__name__ in balanced_offload_exclude:
         return sd_model
+    remove_group_offload(sd_model)
 
     t0 = time.time()
     cached = True

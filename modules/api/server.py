@@ -197,4 +197,5 @@ def get_memory():
             cuda = { 'error': 'unavailable' }
     except Exception as err:
         cuda = { 'error': f'{err}' }
-    return models.ResMemory(ram = ram, cuda = cuda)
+    from modules import memstats
+    return models.ResMemory(ram = ram, cuda = cuda, model = memstats.model_stats())
