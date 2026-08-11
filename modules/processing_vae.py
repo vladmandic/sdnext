@@ -43,10 +43,6 @@ def full_vqgan_decode(latents, model):
         devices.torch_gc(force=True)
         shared.mem_mon.reset()
 
-    base_device = None
-    if shared.opts.diffusers_move_unet and not getattr(model, 'has_accelerate', False):
-        base_device = sd_models.move_base(model, devices.cpu)
-
     if shared.opts.diffusers_offload_mode == "balanced":
         shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
     elif shared.opts.diffusers_offload_mode != "sequential":
@@ -76,8 +72,6 @@ def full_vqgan_decode(latents, model):
 
     if shared.opts.diffusers_offload_mode == "balanced":
         shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
-    elif shared.opts.diffusers_move_unet and not getattr(model, 'has_accelerate', False) and base_device is not None:
-        sd_models.move_base(model, base_device)
     t1 = time.time()
     if debug:
         log_debug(f'VAE memory: {shared.mem_mon.read()}')
@@ -97,10 +91,7 @@ def full_vae_decode(latents, model):
         devices.torch_gc(force=True)
         shared.mem_mon.reset()
 
-    base_device = None
-    if shared.opts.diffusers_move_unet and not getattr(model, 'has_accelerate', False):
-        base_device = sd_models.move_base(model, devices.cpu)
-    elif shared.opts.diffusers_offload_mode != "sequential":
+    if shared.opts.diffusers_offload_mode != "sequential":
         sd_models.move_model(model.vae, devices.device)
 
     sd_models.set_vae_options(model, vae=None, op='decode')
@@ -169,9 +160,6 @@ def full_vae_decode(latents, model):
             model.vae.apply(sd_models_utils.convert_to_faketensors)
             devices.torch_gc(force=True)
 
-    elif shared.opts.diffusers_move_unet and not getattr(model, 'has_accelerate', False) and base_device is not None:
-        sd_models.move_base(model, base_device)
-
     t1 = time.time()
     if debug:
         log_debug(f'VAE memory: {shared.mem_mon.read()}')
@@ -183,10 +171,6 @@ def full_vae_decode(latents, model):
 
 def full_vae_encode(image, model):
     t0 = time.time()
-    if shared.opts.diffusers_move_unet and not getattr(model, 'has_accelerate', False) and hasattr(model, 'unet'):
-        log_debug('Moving to CPU: model=UNet')
-        unet_device = model.unet.device
-        sd_models.move_model(model.unet, devices.cpu)
     if shared.opts.diffusers_offload_mode != "sequential" and hasattr(model, 'vae'):
         sd_models.move_model(model.vae, devices.device)
         if getattr(model.vae, 'sdnext_ondemand', False):
@@ -209,8 +193,6 @@ def full_vae_encode(image, model):
         model.vae = model.vae.to(dtype=model.vae.orig_dtype)
         del model.vae.orig_dtype
 
-    if shared.opts.diffusers_move_unet and not getattr(model, 'has_accelerate', False) and hasattr(model, 'unet'):
-        sd_models.move_model(model.unet, unet_device)
     t1 = time.time()
     log.debug(f'Encode: vae="{vae_name}" upcast={upcast} slicing={getattr(model.vae, "use_slicing", None)} tiling={getattr(model.vae, "use_tiling", None)} latents={encoded.shape}:{encoded.device}:{encoded.dtype} time={t1-t0:.3f}')
     return encoded

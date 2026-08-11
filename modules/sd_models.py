@@ -239,7 +239,7 @@ def move_model(model, device=None, force=False):
 
     fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
     if getattr(model, 'vae', None) is not None and get_diffusers_task(model) != DiffusersTaskType.TEXT_2_IMAGE:
-        if device == devices.device and model.vae.device.type != "meta" and not getattr(model.vae, 'sdnext_ondemand', False): # force vae back to gpu if not in txt2img mode; on-demand vaes onload at their entry point instead
+        if (device == devices.device) and (model.vae.device.type != "meta") and not getattr(model.vae, 'sdnext_ondemand', False): # force vae back to gpu if not in txt2img mode; on-demand vaes onload at their entry point instead
             model.vae.to(device)
             if hasattr(model.vae, '_hf_hook'):
                 debug_move(f'Model move: to={device} class={model.vae.__class__} fn={fn}') # pylint: disable=protected-access
@@ -1037,9 +1037,6 @@ def load_diffuser(checkpoint_info: CheckpointInfo | None = None, op='model', rev
         if op == 'model' and not (os.path.isdir(checkpoint_info.path) or checkpoint_info.type == 'huggingface'):
             if getattr(shared.sd_model, 'sd_checkpoint_info', None) is not None and vae_file is not None:
                 sd_vae.apply_vae_config(shared.sd_model.sd_checkpoint_info.filename, vae_file, sd_model)
-        if op == 'refiner' and shared.opts.diffusers_move_refiner:
-            log.debug('Moving refiner model to CPU')
-            move_model(sd_model, devices.cpu)
         else:
             move_model(sd_model, devices.device)
         timer.load.record("move")

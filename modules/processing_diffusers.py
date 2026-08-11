@@ -374,20 +374,11 @@ def process_refine(p: processing.StableDiffusionProcessing, output):
     if is_refiner_enabled(p):
         if shared.opts.samples_save and not p.do_not_save_samples and shared.opts.save_images_before_refiner and hasattr(shared.sd_model, 'vae'):
             save_intermediate(p, latents=output.images, suffix="-before-refiner")
-        if shared.opts.diffusers_move_base:
-            log.debug('Moving to CPU: model=base')
-            sd_models.move_model(shared.sd_model, devices.cpu)
         if shared.state.interrupted or shared.state.skipped:
             shared.sd_model = orig_pipeline
             return output
         jobid = shared.state.begin('Refine')
         shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
-        if shared.opts.diffusers_move_refiner:
-            sd_models.move_model(shared.sd_refiner, devices.device)
-            if hasattr(shared.sd_refiner, 'unet'):
-                sd_models.move_model(shared.sd_model.unet, devices.device)
-            if hasattr(shared.sd_refiner, 'transformer'):
-                sd_models.move_model(shared.sd_model.transformer, devices.device)
         p.ops.append('refine')
         p.is_refiner_pass = True
 
@@ -444,9 +435,6 @@ def process_refine(p: processing.StableDiffusionProcessing, output):
 
         if shared.opts.diffusers_offload_mode == "balanced":
             shared.sd_refiner = sd_models.apply_balanced_offload(shared.sd_refiner)
-        elif shared.opts.diffusers_move_refiner:
-            log.debug('Moving to CPU: model=refiner')
-            sd_models.move_model(shared.sd_refiner, devices.cpu)
         shared.state.end(jobid)
         shared.state.nextjob()
         p.is_refiner_pass = False
