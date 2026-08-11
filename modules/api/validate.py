@@ -12,6 +12,7 @@ request_cost = {
     "/sdapi/v1/txt2img": 5,
     "/sdapi/v1/img2img": 5,
     "/sdapi/v1/control": 5,
+    "/sdapi/v1/video": 5,
 }
 log_cost = {
     "/.well-known/appspecific/com.chrome.devtools.json": -1,

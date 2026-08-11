@@ -152,10 +152,13 @@ def load_diffusers_models(clear=True):
                     continue
                 name = name.replace("--", "/")
                 friendly = os.path.join(place, name)
-                has_index = os.path.exists(os.path.join(folder, 'model_index.json'))
+                index_file = os.path.join(folder, 'model_index.json')
+                if not os.path.exists(index_file):
+                    index_file = os.path.join(folder, 'modular_model_index.json') # modular pipelines carry their own index flavor
+                has_index = os.path.exists(index_file)
 
                 if has_index: # direct download of diffusers model
-                    repo = { 'name': name, 'filename': name, 'friendly': friendly, 'folder': folder, 'path': folder, 'hash': None, 'mtime': os.path.getmtime(folder), 'model_info': os.path.join(folder, 'model_info.json'), 'model_index': os.path.join(folder, 'model_index.json') }
+                    repo = { 'name': name, 'filename': name, 'friendly': friendly, 'folder': folder, 'path': folder, 'hash': None, 'mtime': os.path.getmtime(folder), 'model_info': os.path.join(folder, 'model_info.json'), 'model_index': index_file }
                     diffuser_repos.append(repo)
                     continue
 
@@ -168,6 +171,8 @@ def load_diffusers_models(clear=True):
                     mtime = os.path.getmtime(commit)
                     info = os.path.join(commit, "model_info.json")
                     index = os.path.join(commit, "model_index.json")
+                    if not os.path.exists(index):
+                        index = os.path.join(commit, "modular_model_index.json") # modular pipelines carry their own index flavor
                     config = os.path.join(commit, "config.json")
                     if (not os.path.exists(index)) and (not os.path.exists(info)) and (not os.path.exists(config)):
                         debug(f'Diffusers skip model no info: {name}')

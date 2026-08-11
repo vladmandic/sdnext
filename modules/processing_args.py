@@ -172,7 +172,7 @@ def task_specific_kwargs(p, model):
 def get_params(model):
     if hasattr(model, 'blocks') and hasattr(model.blocks, 'inputs'): # modular pipeline
         possible = [input_param.name for input_param in model.blocks.inputs]
-        return possible
+        return possible + ['output'] # __call__ param selecting which state values to return, not a block input
     else:
         signature = inspect.signature(type(model).__call__, follow_wrapped=True)
         possible = list(signature.parameters)
@@ -325,6 +325,14 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:l
             args['negative_prompt'] = args['negative_prompt'][0] if len(args['negative_prompt']) > 0 else ''
         if isinstance(args['generator'], list) and len(args['generator']) > 0:
             args['generator'] = args['generator'][0]
+    if 'MiniMaxH3' in model.__class__.__name__:
+        if isinstance(args.get('prompt', None), list): # packs one request into one sequence, str only
+            args['prompt'] = args['prompt'][0] if len(args['prompt']) > 0 else ''
+        if not str(args.get('prompt', '') or '').strip():
+            args['prompt'] = ' ' # an empty prompt tokenizes to zero tokens, which the conditioner cannot reshape
+        args.pop('negative_prompt', None) # guidance-distilled, no negative prompt
+        if isinstance(args.get('generator', None), list) and len(args['generator']) > 0:
+            args['generator'] = args['generator'][0] # >1-element list breaks the audio noise draw
 
     # set callbacks
     if 'prior_callback_steps' in possible:  # Wuerstchen / Cascade

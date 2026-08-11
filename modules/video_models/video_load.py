@@ -6,7 +6,7 @@ import transformers
 import diffusers
 from modules import shared, errors, sd_models, sd_checkpoint, model_quant, devices, sd_hijack_te, sd_hijack_vae
 from modules.logger import log
-from modules.video_models import models_def, video_utils, video_overrides, video_cache
+from modules.video_models import models_def, video_utils, video_overrides, video_cache, video_modular
 
 
 def _loader(component):
@@ -151,7 +151,9 @@ def load_model(selected: models_def.Model):
 
     # model
     try:
-        if selected.repo_cls is None:
+        if selected.workflow is not None or video_modular.is_modular(selected.repo_cls):
+            shared.sd_model = video_modular.load_modular(selected, offline_args)
+        elif selected.repo_cls is None:
             shared.sd_model = load_custom(selected.repo)
         else:
             log.debug(f'Load video: module=pipe repo="{selected.repo}" cls={selected.repo_cls.__name__}')
@@ -210,6 +212,8 @@ def load_model(selected: models_def.Model):
 
     shared.sd_model = model_quant.do_post_load_quant(shared.sd_model, allow=False)
     sd_models.set_diffuser_offload(shared.sd_model)
+    if video_modular.is_modular(shared.sd_model):
+        video_modular.install_state_hook(shared.sd_model)
 
     loaded_model = selected.name
     msg = f'Load video: cls={shared.sd_model.__class__.__name__} model="{selected.name}" time={t1-t0:.2f}'

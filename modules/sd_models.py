@@ -248,7 +248,7 @@ def move_model(model, device=None, force=False):
         for name, m in model.components.items():
             if not hasattr(m, "_hf_hook"): # not accelerate hook
                 break
-            if not isinstance(m, torch.nn.Module) or name in model._exclude_from_cpu_offload: # pylint: disable=protected-access
+            if not isinstance(m, torch.nn.Module) or name in getattr(model, '_exclude_from_cpu_offload', []): # modular pipelines lack the attr
                 continue
             for module in m.modules():
                 set_execution_device(module, device)
@@ -492,6 +492,10 @@ def load_diffuser_force(detected_model_type: str, checkpoint_info: CheckpointInf
         elif model_type in ['WanAI']:
             from pipelines.model_wanai import load_wan
             sd_model = load_wan(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
+        elif model_type in ['MiniMaxH3']:
+            from pipelines.model_minimax import load_minimax
+            sd_model = load_minimax(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
         elif model_type in ['ChronoEdit']:
             from pipelines.model_chrono import load_chrono
@@ -1602,7 +1606,7 @@ def hf_auth_check(checkpoint_info: CheckpointInfo, force:bool=False):
         try:
             if (checkpoint_info.path.endswith('.safetensors') and os.path.isfile(checkpoint_info.path)): # skip check for single-file safetensors models
                 return True
-            if (os.path.exists(checkpoint_info.path) and os.path.isdir(checkpoint_info.path) and os.path.isfile(os.path.join(checkpoint_info.path, 'model_index.json'))): # skip check for local diffusers folders
+            if os.path.exists(checkpoint_info.path) and os.path.isdir(checkpoint_info.path) and any(os.path.isfile(os.path.join(checkpoint_info.path, f)) for f in ('model_index.json', 'modular_model_index.json')): # skip check for local diffusers folders
                 return True
         except Exception:
             pass
@@ -1640,9 +1644,13 @@ def save_model(name: str, path: str | None = None, shard: str = "5GB", overwrite
         torch.cuda.synchronize()
     except Exception:
         pass
+    jobid = shared.state.begin('Save model')
     try:
         t0 = time.time()
         log.info(f'Save model: path="{model_name}" cls={shared.sd_model.__class__.__name__} start')
+        if hasattr(shared.sd_model, '_component_specs'): # modular pipeline: the saved index must reference the destination folder, not the source repos; save_sdnq_model lives in the sdnq submodule and does not pass this flag
+            import functools
+            shared.sd_model.save_pretrained = functools.partial(shared.sd_model.save_pretrained, overwrite_modular_index=True)
         save_sdnq_model(
             model=shared.sd_model,
             model_path=model_name,
@@ -1656,6 +1664,10 @@ def save_model(name: str, path: str | None = None, shard: str = "5GB", overwrite
         log.error(f'Save model: path="{model_name}" {e}')
         errors.display(e, 'Save model')
         return f'Error: {e}'
+    finally:
+        if 'save_pretrained' in vars(shared.sd_model):
+            del shared.sd_model.save_pretrained # drop the instance shadow, restoring the class method
+        shared.state.end(jobid)
 
 
 def list_hfcache():

@@ -191,6 +191,8 @@ def process_base(p: processing.StableDiffusionProcessing):
             output = SimpleNamespace(images=output)
         if isinstance(output, Image.Image):
             output = SimpleNamespace(images=[output])
+        if not hasattr(output, 'frames') and hasattr(output, 'videos'):
+            output.frames = output.videos # modular video pipelines emit videos, not frames
         if hasattr(output, 'image'):
             output.images = output.image
         if hasattr(output, 'images'):
@@ -473,9 +475,13 @@ def process_decode(p: processing.StableDiffusionProcessing, output):
             log.debug(f'Generated: bytes={len(output.bytes)}')
             return output
         audio = getattr(output, 'audio', None)
+        if audio is not None:
+            p.audio_sampling_rate = getattr(output, 'sampling_rate', None)
         if not hasattr(output, 'images') and hasattr(output, 'frames'):
             log.debug(f'Generated: frames={len(output.frames[0])}')
             output.images = output.frames[0]
+        if getattr(p, 'video_still', False) and hasattr(output, 'images') and output.images is not None:
+            output.images = output.images[:1] # only the first frame derives from real latents; the rest decode from padding
         if output.images is not None and len(output.images) > 0 and isinstance(output.images[0], Image.Image):
             sd_models.offload_ondemand(shared.sd_model) # in-pipe decode paths return materialized frames; the vae seam in processing_vae never runs
             return attach_audio(output.images, audio)
@@ -534,6 +540,13 @@ def update_pipeline(sd_model, p: processing.StableDiffusionProcessing):
         log.warning('Processing: op=update model not loaded')
         return None
     updated_model = sd_model
+    if 'MiniMaxH3' in sd_model.__class__.__name__ and not isinstance(p, processing.StableDiffusionProcessingVideo):
+        # image tabs run the model in still mode; the video tab applies its own overrides
+        from modules.video_models import video_modular
+        video_modular.apply_minimax_overrides(p, sd_model, still=True, audio=False)
+        if getattr(p, 'detailer_enabled', False):
+            log.warning(f'Processing: cls={sd_model.__class__.__name__} detailer not supported')
+            p.detailer_enabled = False
     if sd_models.get_diffusers_task(sd_model) == sd_models.DiffusersTaskType.INPAINTING and getattr(p, 'image_mask', None) is None and p.task_args.get('image_mask', None) is None and getattr(p, 'mask', None) is None:
         log.warning('Processing: mode=inpaint mask=None')
         updated_model = sd_models.set_diffuser_pipe(sd_model, sd_models.DiffusersTaskType.IMAGE_2_IMAGE)
@@ -551,25 +564,20 @@ def update_pipeline(sd_model, p: processing.StableDiffusionProcessing):
 
 
 def validate_pipeline(p: processing.StableDiffusionProcessing):
-    from modules.video_models.models_def import models as video_models
-    models_cls = []
-    for family in video_models:
-        for m in video_models[family]:
-            if m.repo_cls is not None:
-                if isinstance(m.repo_cls, str):
-                    models_cls.append(m.repo_cls)
-                else:
-                    models_cls.append(m.repo_cls.__name__)
-            if m.custom is not None:
-                models_cls.append(m.custom)
-    is_video_model = shared.sd_model.__class__.__name__ in models_cls
-    override_video_pipelines = ['WanPipeline', 'WanImageToVideoPipeline', 'WanVACEPipeline']
+    from modules.video_models import models_def
+    is_video_model = shared.sd_model.__class__.__name__ in models_def.pipeline_classes()
+    override_video_pipelines = ['WanPipeline', 'WanImageToVideoPipeline', 'WanVACEPipeline', 'MiniMaxH3ModularPipeline']
     is_video_pipeline = ('video' in p.__class__.__name__.lower()) or (shared.sd_model.__class__.__name__ in override_video_pipelines)
     if is_video_model and not is_video_pipeline:
         log.error(f'Mismatch: type={shared.sd_model_type} cls={shared.sd_model.__class__.__name__} request={p.__class__.__name__} video model with non-video pipeline')
         return False
     elif not is_video_model and is_video_pipeline:
         log.error(f'Mismatch: type={shared.sd_model_type} cls={shared.sd_model.__class__.__name__} request={p.__class__.__name__} non-video model with video pipeline')
+        return False
+    if getattr(shared.sd_model, 'sdnext_video_workflow', None) == 'ref2va' and p.task_args.get('references', None) is None:
+        # the reference workflow loads its own transformer partition alone: without references the pipeline
+        # dispatches to the keyframe path and reaches a transformer that was never loaded
+        log.error(f'Mismatch: type={shared.sd_model_type} cls={shared.sd_model.__class__.__name__} request={p.__class__.__name__} reference workflow requires reference images: use the video tab or the video api')
         return False
     return True
 

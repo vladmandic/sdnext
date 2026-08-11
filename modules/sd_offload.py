@@ -25,6 +25,7 @@ no_split_module_classes = [
     "Linear", "Conv1d", "Conv2d", "Conv3d", "ConvTranspose1d", "ConvTranspose2d", "ConvTranspose3d", "Embedding",
     "SDNQLinear", "SDNQConv1d", "SDNQConv2d", "SDNQConv3d", "SDNQConvTranspose1d", "SDNQConvTranspose2d", "SDNQConvTranspose3d", "SDNQEmbedding",
     "WanTransformerBlock",
+    "MiniMaxH3TransformerBlock", "MiniMaxH3TokenRefinerBlock",
 ]
 accelerate_dtype_byte_size = None
 move_stream = None
@@ -163,6 +164,7 @@ def apply_group_offload_component(module, module_name: str, main: bool, op: str 
         module = accelerate.hooks.remove_hook_from_module(module, recurse=True)
     remove_group_offload_component(module)
     module.requires_grad_(False)
+    log.debug(f'Setting {op}: offload=group op=apply module={module_name} pin={cfg["use_stream"] and not cfg["low_cpu_mem_usage"]}') # before the apply: pinning large components takes a while and would otherwise run silently
     apply_group_offloading(module, onload_device=devices.device, offload_device=devices.cpu, **cfg)
     module.sdnext_group_offload_sig = sig
     return True
@@ -394,6 +396,11 @@ def set_diffuser_offload(sd_model, op:str='model', quiet:bool=False, force:bool=
     if accelerate_dtype_byte_size is None:
         accelerate_dtype_byte_size = accelerate.utils.modeling.dtype_byte_size
         accelerate.utils.modeling.dtype_byte_size = dtype_byte_size
+
+    if sd_models.get_diffusers_task(sd_model) == sd_models.DiffusersTaskType.MODULAR and shared.opts.diffusers_offload_mode in {'model', 'sequential', 'group'}:
+        apply_modular_group_offload(sd_model, op=op)
+        process_timer.add('offload', time.time() - t0)
+        return
 
     if shared.opts.diffusers_offload_mode == "none":
         apply_none_offload(sd_model, op=op, quiet=quiet)

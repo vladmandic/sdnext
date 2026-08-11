@@ -30,3 +30,7 @@ echo control-preprocess
 python cli/api-preprocess.py --input ui/assets/logo-bg-0.jpg --model "Zoe Depth"
 echo control-controlnet
 python cli/api-control.py --prompt "cute robot" --input ui/assets/logo-bg-0.jpg --type controlnet --control "Zoe Depth:Xinsir Union XL:0.5"
+echo video-models
+python cli/api-video.py --list
+echo video
+python cli/api-video.py --prompt "a paper boat drifting down a rain gutter" --frames 17 --steps 8 --output /tmp/sdnext-test-video.mp4

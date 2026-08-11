@@ -58,34 +58,6 @@ def model_load(engine, model):
     return msg
 
 
-def run_video(*args):
-    engine, model = args[2], args[3]
-    debug(f'Video run: engine="{engine}" model="{model}"')
-    selected = get_selected(engine, model)
-    if not selected or engine is None or model is None or engine == 'None' or model == 'None':
-        return video_utils.queue_err('model not selected')
-    debug(f'Video run: {str(selected)}')
-    if selected and 'Hunyuan' in selected.name:
-        return video_run.generate(*args)
-    elif selected and 'LTX' in selected.name:
-        return video_run.generate(*args)
-    elif selected and 'Mochi' in selected.name:
-        return video_run.generate(*args)
-    elif selected and 'Cog' in selected.name:
-        return video_run.generate(*args)
-    elif selected and 'Allegro' in selected.name:
-        return video_run.generate(*args)
-    elif selected and 'WAN' in selected.name:
-        return video_run.generate(*args)
-    elif selected and 'Latte' in selected.name:
-        return video_run.generate(*args)
-    elif selected and 'anisora' in selected.name.lower():
-        return video_run.generate(*args)
-    elif selected and 'Kandinsky' in selected.name:
-        return video_run.generate(*args)
-    return video_utils.queue_err(f'model not found: engine="{engine}" model="{model}"')
-
-
 def create_ui_outputs():
     with gr.Row():
         with gr.Column(variant='compact', elem_id="video_outputs", elem_classes=['settings-column'], scale=1):
@@ -120,6 +92,7 @@ def create_ui(prompt, negative, styles, overrides, script_inputs, mp4_fps, mp4_i
                 with gr.Row():
                     sampler_shift = gr.Slider(label='Sampler shift', minimum=-1.0, maximum=20.0, step=0.1, value=-1.0, elem_id="video_scheduler_shift")
                     dynamic_shift = gr.Checkbox(label='Dynamic shift', value=False, elem_id="video_dynamic_shift")
+                    audio = gr.Checkbox(label='Audio', value=True, elem_id="video_audio")
                 with gr.Row():
                     guidance_scale = gr.Slider(label='Guidance scale', minimum=-1.0, maximum=14.0, step=0.1, value=-1.0, elem_id="video_guidance_scale")
                     guidance_true = gr.Slider(label='True guidance', minimum=-1.0, maximum=14.0, step=0.1, value=-1.0, elem_id="video_guidance_true")
@@ -170,7 +143,7 @@ def create_ui(prompt, negative, styles, overrides, script_inputs, mp4_fps, mp4_i
         seed,
         guidance_scale, guidance_true,
         init_image, init_strength, last_image,
-        vae_type, vae_tile_frames,
+        vae_type, vae_tile_frames, audio,
         mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, mp4_thumb,
         overrides,
     ]
