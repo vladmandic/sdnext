@@ -27,17 +27,19 @@ def start_progress(name: str, total: int):
     console = get_console()
     if console is None:
         return None, None
-    from rich.progress import Progress, TextColumn, BarColumn, TaskProgressColumn, TimeRemainingColumn, TimeElapsedColumn
-    progress = Progress(TextColumn('[cyan]{task.description}'), BarColumn(), TaskProgressColumn(), TimeRemainingColumn(), TimeElapsedColumn(), console=console, transient=True)
-    task = progress.add_task(description=f'Autotune: kernel={name}', total=total)
+    import rich.progress as rp
+    progress = rp.Progress(rp.TextColumn('[cyan]Autotune'), rp.BarColumn(), rp.TaskProgressColumn(), rp.TimeRemainingColumn(), rp.TimeElapsedColumn(), rp.TextColumn('[yellow]{task.description}'), console=console, transient=True)
+    task = progress.add_task(description=f'kernel={name}', total=total)
     progress.start()
     return progress, task
 
 
 def stop_progress(session):
     progress = session.get('progress', None) if session is not None else None
+    task = session.get('task', None) if session is not None else None
     if progress is not None:
         try:
+            progress.remove_task(task)
             progress.stop()
         except Exception as e:
             log.debug(f'Kernel autotune: report error: {e}')
@@ -56,8 +58,10 @@ def bench_hook(orig):
                 session = {'owner': self, 'count': 0, 'total': len(self.configs), 'name': kernel_name(getattr(self, 'base_fn', None)), 'prev': prev, 'compile_us': 0, 'progress': progress, 'task': task}
                 status['session'] = session
             session['count'] += 1
-            if session['progress'] is not None:
-                session['progress'].update(session['task'], completed=session['count'])
+            if session['progress'] is not None and session['task'] is not None:
+                session['progress'].update(session['task'], completed=session['count'], description=f'kernel={session["name"]} {session["count"]}/{session["total"]}')
+                if session["count"] >= session["total"]:
+                    stop_progress(session)
             shared.state.textinfo = f"Tuning kernel {session['name']} {session['count']}/{session['total']}"
         except Exception as e:
             log.debug(f'Kernel autotune: report error: {e}')
