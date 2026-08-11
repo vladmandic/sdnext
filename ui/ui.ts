@@ -3,6 +3,7 @@ import { gradioApp, onAfterUiUpdate } from './script';
 import { log, debug, error } from './logger';
 import { timer } from './timers';
 import { authFetch } from './authWrap';
+import { updateModel } from './dynamicUI';
 import { getENActiveTab, markSelectedCards } from './extraNetworks';
 
 window.opts = {};
@@ -805,11 +806,12 @@ export async function reconnectUI() {
   let loadingStarted = 0;
   let loadingMonitor: ReturnType<typeof setInterval> | null = null;
 
-  const sd_model_callback = () => {
+  const sd_model_callback = async () => {
     const loading = sd_model.querySelector('.eta-bar');
     if (!loading) {
       loadingStarted = 0;
       clearInterval(loadingMonitor);
+      updateModel();
     } else if (loadingStarted === 0) {
       loadingStarted = Date.now();
       loadingMonitor = setInterval(() => {

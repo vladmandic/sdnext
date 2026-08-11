@@ -29,8 +29,9 @@ def start_progress(name: str, total: int):
         return None, None
     from rich.progress import Progress, TextColumn, BarColumn, TaskProgressColumn, TimeRemainingColumn, TimeElapsedColumn
     progress = Progress(TextColumn('[cyan]{task.description}'), BarColumn(), TaskProgressColumn(), TimeRemainingColumn(), TimeElapsedColumn(), console=console, transient=True)
+    task = progress.add_task(description=f'Autotune: kernel={name}', total=total)
     progress.start()
-    return progress, progress.add_task(description=f'Autotune kernel: {name}', total=total)
+    return progress, task
 
 
 def stop_progress(session):
@@ -57,7 +58,7 @@ def bench_hook(orig):
             session['count'] += 1
             if session['progress'] is not None:
                 session['progress'].update(session['task'], completed=session['count'])
-            shared.state.textinfo = f"Tuning kernel {session['name']} {session['count']}/{session['total']} (one-time per shape)"
+            shared.state.textinfo = f"Tuning kernel {session['name']} {session['count']}/{session['total']}"
         except Exception as e:
             log.debug(f'Kernel autotune: report error: {e}')
         return orig(self, *args, config=config, **meta)
@@ -79,7 +80,7 @@ def make_autotune_listener(prior):
                 log.debug(f'Kernel autotune: kernel={name} shape={shape} cached')
             else:
                 compile_s = (session['compile_us'] / 1e6) if session is not None else 0
-                log.info(f'Kernel autotune: kernel={name} shape={shape} time={duration or 0:.2f} compile={compile_s:.2f}')
+                log.debug(f'Kernel autotune: kernel={name} shape={shape} time={duration or 0:.2f} compile={compile_s:.2f}')
         except Exception as e:
             log.debug(f'Kernel autotune: report error: {e}')
         if prior is not None:

@@ -11118,9 +11118,10 @@ function requestProgress(id_task = "undefined", progressEl = null, galleryEl = n
     livePreview.appendChild(img);
     img.onload = () => {
       img.style.width = `min(100%, max(${img.naturalWidth}px, 512px))`;
-      parentGallery.style.minHeight = `min(82vh, ${img.naturalHeight}px)`;
-      parentGallery.style.maxHeight = `min(82vh, ${img.naturalHeight}px)`;
-      parentGallery.style.overflow = "hidden";
+      const anchored = livePreview.parentElement === parentGallery;
+      if (anchored) {
+        parentGallery.style.overflow = "hidden";
+      }
     };
   };
   const removeLivePreview = (useImage = false) => {
@@ -11141,8 +11142,6 @@ function requestProgress(id_task = "undefined", progressEl = null, galleryEl = n
         parentGallery.removeChild(livePreview);
       }
       if (parentGallery) {
-        parentGallery.style.minHeight = "unset";
-        parentGallery.style.maxHeight = "unset";
         parentGallery.style.overflow = "unset";
       }
     } catch {
@@ -11222,6 +11221,21 @@ window.checkPaused = checkPaused;
 window.requestInterrupt = requestInterrupt;
 window.randomId = randomId;
 window.requestProgress = requestProgress;
+
+// ui/dynamicUI.ts
+var lastCheckpoint = "";
+async function updateUI(model) {
+  if (model.checkpoint === lastCheckpoint) return;
+  lastCheckpoint = model.checkpoint;
+  log("modelUpdate", model);
+}
+async function updateModel() {
+  const req = await authFetch2(`${window.api}/checkpoint`);
+  if (req.ok) {
+    const model = await req.json();
+    if (model?.type?.length > 0) updateUI(model);
+  }
+}
 
 // ui/ui.ts
 window.opts = {};
@@ -11815,11 +11829,12 @@ async function reconnectUI() {
   const sd_model = gradioApp().getElementById("setting_sd_model_checkpoint");
   let loadingStarted = 0;
   let loadingMonitor = null;
-  const sd_model_callback = () => {
+  const sd_model_callback = async () => {
     const loading = sd_model.querySelector(".eta-bar");
     if (!loading) {
       loadingStarted = 0;
       clearInterval(loadingMonitor);
+      updateModel();
     } else if (loadingStarted === 0) {
       loadingStarted = Date.now();
       loadingMonitor = setInterval(() => {
