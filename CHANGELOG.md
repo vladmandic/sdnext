@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-08-10
+## Update for 2026-08-11
 
 - **Detailer**: Pretty much *detailer.next* :)  
   Detailer detection models were traditionally *YOLO* models, but now we also use:  
@@ -21,6 +21,7 @@
   - update handlers for all authenticated workflows
   - nunchaku-lite support for `torch==2.13`
   - remove DirectML support: latest release was over 2 years ago and is not compatible with modern frameworks
+  - utilize torch.accelerator
 - **Fixes**
   - init hf env variables before gradio load
   - lora skip init and rebuild offload state
