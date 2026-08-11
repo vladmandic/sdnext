@@ -1044,7 +1044,7 @@ def check_torch():
                 _index = torch.accelerator.current_device_index()
                 _count = torch.accelerator.device_count()
                 _current = torch.accelerator.current_accelerator()
-                torch_info.set(accelerator=_current)
+                torch_info.set(accelerator=str(_current))
             except Exception as e:
                 log.error(f'Torch: type=accelerator {e}')
                 torch_info.set(accelerator=False)

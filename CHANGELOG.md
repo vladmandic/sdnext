@@ -3,7 +3,7 @@
 ## Update for 2026-08-11
 
 - **Detailer**: Pretty much *detailer.next* :)  
-  Detailer detection models were traditionally *YOLO* models, but now we also use:  
+  Detailer detection models were traditionally *YOLO* models, but now we can also use:  
   - [Facebook-SAM3](https://huggingface.co/facebook/sam3) hybrid promptable concept segmentation and detection network
   - [Qwen3-VL](https://huggingface.co/Qwen/Qwen3-VL-4B-Instruct) vision-language autoregressive foundation models, in *2B, 4B, and 8B* variants
   - [Florence-2](https://huggingface.co/microsoft/Florence-2-large) lightweight multi-task vision sequence-to-sequence models, in *base and large* variants
@@ -20,8 +20,11 @@
 - **Server**
   - update handlers for all authenticated workflows
   - nunchaku-lite support for `torch==2.13`
-  - remove DirectML support: latest release was over 2 years ago and is not compatible with modern frameworks
+  - log long torch autotune operations
   - utilize torch.accelerator
+- **Removed**
+  - remove DirectML support  
+    latest release was over 2 years ago and is not compatible with modern frameworks  
 - **Fixes**
   - init hf env variables before gradio load
   - lora skip init and rebuild offload state
