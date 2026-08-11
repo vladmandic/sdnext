@@ -324,10 +324,10 @@ if sys.platform == "win32":
                 # use cpu instead of crashing
                 torch.cuda.is_available = lambda: False
 
-            agent = get_hip_agent()
+            _agent = get_hip_agent()
             log.debug(f'ROCm: selected={agents}')
-            if not agent.blaslt_supported:
-                log.warning(f'ROCm: hipBLASLt unavailable agent={agent}')
+            # if not agent.blaslt_supported:
+            #     log.warning(f'ROCm: hipBLASLt unavailable agent={agent}')
 
             if sys.platform == "win32":
                 apply_triton_patches()
