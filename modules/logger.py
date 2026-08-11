@@ -280,9 +280,19 @@ def setup_logging(debug=None, trace=None, filename=None):
     # overrides
     logging.getLogger("lycoris").handlers = log.handlers
     logging.getLogger("ControlNet").handlers = log.handlers
-
-    logging.getLogger("diffusers").setLevel(logging.ERROR)
-    logging.getLogger("diffusers.modular_pipelines").setLevel(logging.ERROR)
-    logging.getLogger("transformers").setLevel(logging.ERROR)
-    logging.getLogger("torch").setLevel(logging.ERROR)
     logging.getLogger("urllib3").setLevel(logging.ERROR)
+
+    if os.environ.get('SD_DIFFUSERS_DEBUG', None) is not None:
+        logging.getLogger("diffusers").setLevel(logging.DEBUG)
+        logging.getLogger("diffusers.modular_pipelines").setLevel(logging.DEBUG)
+    else:
+        logging.getLogger("diffusers").setLevel(logging.WARNING)
+        logging.getLogger("diffusers.modular_pipelines").setLevel(logging.WARNING)
+    if os.environ.get('SD_TRANSFORMERS_DEBUG', None) is not None:
+        logging.getLogger("transformers").setLevel(logging.DEBUG)
+    else:
+        logging.getLogger("transformers").setLevel(logging.WARNING)
+    if os.environ.get('SD_TORCH_DEBUG', None) is not None:
+        logging.getLogger("torch").setLevel(logging.DEBUG)
+    else:
+        logging.getLogger("torch").setLevel(logging.WARNING)

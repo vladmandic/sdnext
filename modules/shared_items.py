@@ -1,9 +1,15 @@
+import logging
 import diffusers
 
 
 class OnlinePipeline(diffusers.DiffusionPipeline):
     pass
 
+
+logging_level = logging.getLogger("diffusers").level
+print('HERE', logging_level)
+logging.getLogger("diffusers").setLevel(logging.ERROR)
+logging.getLogger("diffusers.modular_pipelines").setLevel(logging.ERROR)
 
 pipelines = {
     'Autodetect': None,
@@ -88,6 +94,8 @@ pipelines = {
     'SeFi': None,
     'MageFlow': None,
 }
+logging.getLogger("diffusers").setLevel(logging_level)
+logging.getLogger("diffusers.modular_pipelines").setLevel(logging_level)
 
 
 def postprocessing_scripts():

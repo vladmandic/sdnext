@@ -22,6 +22,7 @@
   - nunchaku-lite support for `torch==2.13`
   - log long torch autotune operations
   - utilize torch.accelerator
+  - add `SD_DIFFUSERS_DEBUG` and `SD_TRANSFORMERS_DEBUG` env variables to trace diffusers and transformers internal operations  
 - **Removed**
   - remove DirectML support  
     latest release was over 2 years ago and is not compatible with modern frameworks  
