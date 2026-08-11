@@ -945,7 +945,7 @@ def load_diffuser(checkpoint_info: CheckpointInfo | None = None, op='model', rev
             os.unsetenv('HF_HUB_OFFLINE')
 
         # detect pipeline
-        pipeline, model_type = sd_detect.detect_pipeline(checkpoint_info.path, op)
+        pipeline, model_type = sd_detect.detect_pipeline(checkpoint_info, op)
         set_huggingface_options()
 
         # preload vae so it can be used as param
@@ -1496,7 +1496,7 @@ def reload_model_weights(sd_model=None, info: CheckpointInfo | None = None, op='
     jobid = shared.state.begin('Load model')
     if sd_model is None:
         sd_model = model_data.sd_model if op == 'model' or op == 'dict' else model_data.sd_refiner
-    loaded_ckpt = getattr(sd_model, 'sd_checkpoint_info', None) if sd_model is not None else None
+    loaded_ckpt: CheckpointInfo | None = getattr(sd_model, 'sd_checkpoint_info', None) if sd_model is not None else None
     changed_checkpoint = loaded_ckpt is None or checkpoint_info is None or loaded_ckpt.filename != checkpoint_info.filename
     reset_unet = shared.opts.sd_unet not in (None, 'Default', 'None')
     reset_unet_secondary = shared.opts.sd_unet_secondary not in (None, 'Default', 'None')
@@ -1506,8 +1506,8 @@ def reload_model_weights(sd_model=None, info: CheckpointInfo | None = None, op='
         # concrete class but detect as generic DiffusionPipeline, so a class compare would falsely reset
         # across same-arch checkpoints (Base vs Turbo). detect both sides so the comparison is symmetric.
         try:
-            _, new_type = sd_detect.detect_pipeline(checkpoint_info.path, op)
-            _, old_type = sd_detect.detect_pipeline(loaded_ckpt.path, op) if loaded_ckpt is not None else (None, None)
+            _, new_type = sd_detect.detect_pipeline(checkpoint_info, op)
+            _, old_type = sd_detect.detect_pipeline(loaded_ckpt, op) if loaded_ckpt is not None else (None, None)
         except Exception:
             new_type = old_type = None
         if new_type is not None and old_type is not None and new_type != old_type: # architecture changed: custom components no longer fit

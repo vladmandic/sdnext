@@ -30,6 +30,7 @@
   - lora skip init and rebuild offload state
   - lora keep network multiplier on change
   - improve handling of hf auth
+  - improve pipeline detection for non-cached models
 
 ## Update for 2026-08-07
 

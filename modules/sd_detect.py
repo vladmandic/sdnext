@@ -182,59 +182,75 @@ def guess_by_name(fn, current_guess):
     return new_guess or current_guess
 
 
-def guess_by_diffusers(fn, current_guess):
+def get_model_index(name: str):
+    repo_id = name.removeprefix('Diffusers/')
+    fn = None
+    try:
+        from huggingface_hub import hf_hub_download
+        fn = hf_hub_download(repo_id, filename='model_index.json', cache_dir=shared.opts.diffusers_dir)
+        log.debug(f'Autodetect model: repo="{repo_id}" index="{fn}"')
+        return fn
+    except Exception:
+        pass
+    return fn
+
+def guess_by_model_index(fn: str, name: str, current_guess: str):
     exclude_by_name = ['ostris/Flex.2-preview', 'Owen777/UltraFlux-v1', './pretrain/FLUX.1-dev'] # pipeline may be misleading
-    if not os.path.isdir(fn):
-        return current_guess, None
+
     index = os.path.join(fn, 'model_index.json')
-    if os.path.exists(index) and os.path.isfile(index):
-        index = shared.readfile(index, silent=True, as_type="dict")
-        name = index.get('_name_or_path', None)
-        if debug_load:
-            log.trace(f'Autodetect: method=diffusers file="{fn}" name="{name}"')
-        if (name is not None) and (name in exclude_by_name):
-            return current_guess, None
-        cls = index.get('_class_name', None)
-        if isinstance(cls, list):
-            cls = cls[-1]
-        pipeline = None
-        if cls is not None:
-            pipeline = getattr(diffusers, cls, None)
-            if pipeline is None:
-                pipeline = cls
-        if callable(pipeline):
-            is_quant = False
-            for folder in os.listdir(fn):
-                folder = os.path.join(fn, folder)
-                if is_quant:
-                    break
-                if folder.endswith('quantization_config.json'):
+    if (index is None) or (not os.path.exists(index)) or (not os.path.isfile(index)):
+        if name is not None and name.startswith('Diffusers/'):
+            index = get_model_index(name)
+    if (index is None) or (not os.path.exists(index)) or (not os.path.isfile(index)):
+        return current_guess, None
+
+    index = shared.readfile(index, silent=True, as_type="dict")
+    name = index.get('_name_or_path', None)
+    if debug_load:
+        log.trace(f'Autodetect: method=diffusers file="{fn}" name="{name}"')
+    if (name is not None) and (name in exclude_by_name):
+        return current_guess, None
+    cls = index.get('_class_name', None)
+    if isinstance(cls, list):
+        cls = cls[-1]
+    pipeline = None
+    if cls is not None:
+        pipeline = getattr(diffusers, cls, None)
+        if pipeline is None:
+            pipeline = cls
+    if callable(pipeline):
+        is_quant = False
+        for folder in os.listdir(fn):
+            folder = os.path.join(fn, folder)
+            if is_quant:
+                break
+            if folder.endswith('quantization_config.json'):
+                is_quant = True
+                break
+            if folder.endswith('config.json'):
+                quantization_config = shared.readfile(folder, silent=True, as_type="dict").get("quantization_config", None)
+                if quantization_config is not None:
                     is_quant = True
                     break
-                if folder.endswith('config.json'):
-                    quantization_config = shared.readfile(folder, silent=True, as_type="dict").get("quantization_config", None)
-                    if quantization_config is not None:
+            if os.path.isdir(folder):
+                for f in os.listdir(folder):
+                    f = os.path.join(folder, f)
+                    if f.endswith('quantization_config.json'):
                         is_quant = True
                         break
-                if os.path.isdir(folder):
-                    for f in os.listdir(folder):
-                        f = os.path.join(folder, f)
-                        if f.endswith('quantization_config.json'):
+                    if f.endswith('config.json'):
+                        quantization_config = shared.readfile(f, silent=True, as_type="dict").get("quantization_config", None)
+                        if quantization_config is not None:
                             is_quant = True
                             break
-                        if f.endswith('config.json'):
-                            quantization_config = shared.readfile(f, silent=True, as_type="dict").get("quantization_config", None)
-                            if quantization_config is not None:
-                                is_quant = True
-                                break
-            pipelines = shared_items.get_pipelines()
-            for k, v in pipelines.items():
-                if v is not None and v.__name__ == pipeline.__name__:
-                    if is_quant:
-                        k = f'{k} SDNQ'
-                    if debug_load:
-                        log.trace(f'Autodetect: method=diffusers file="{fn}" previous="{current_guess}" current="{k}"')
-                    return k, v
+        pipelines = shared_items.get_pipelines()
+        for k, v in pipelines.items():
+            if v is not None and v.__name__ == pipeline.__name__:
+                if is_quant:
+                    k = f'{k} SDNQ'
+                if debug_load:
+                    log.trace(f'Autodetect: method=diffusers file="{fn}" previous="{current_guess}" current="{k}"')
+                return k, v
     return current_guess, None
 
 
@@ -255,24 +271,35 @@ def guess_variant(fn, current_guess):
     return new_guess or current_guess
 
 
-def detect_pipeline(f: str, op: str = 'model'):
+def detect_pipeline(ckpt, op: str = 'model'):
+    if isinstance(ckpt, str):
+        f = ckpt
+        name = None
+    else:
+        f = ckpt.path
+        name = ckpt.name
     guess = shared.opts.diffusers_pipeline
     pipeline = None
     if guess == 'Autodetect':
         try:
             guess = 'Stable Diffusion XL' if ('XL' in f.upper() or 'SDNQ' in f.upper()) else 'Stable Diffusion' # set default guess
+
             guess = guess_by_size(f, guess)
             if debug_load:
                 log.trace(f'Autodetect: type=size guess="{guess}" file="{f}"')
+
             guess = guess_by_name(f, guess)
             if debug_load:
                 log.trace(f'Autodetect: type=name guess="{guess}" file="{f}"')
-            guess, pipeline = guess_by_diffusers(f, guess)
+
+            guess, pipeline = guess_by_model_index(f, name=name, current_guess=guess)
             if debug_load:
                 log.trace(f'Autodetect: type=diffusers guess="{guess}" file="{f}"')
+
             guess = guess_variant(f, guess)
             if debug_load:
                 log.trace(f'Autodetect: type=variant guess="{guess}" file="{f}"')
+
             pipeline = shared_items.get_pipelines().get(guess, None) if pipeline is None else pipeline
             log.info(f'Autodetect {op}: detect="{guess}" class={getattr(pipeline, "__name__", None)} file="{f}"')
             if debug_load is not None:

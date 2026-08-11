@@ -128,6 +128,9 @@ class Agent:
     def __str__(self) -> str:
         return self.name
 
+    def __repr__(self) -> str:
+        return f"Agent(name={self.name} gfx={hex(self.gfx_version)} arch={self.arch} apu={self.is_apu} blaslt={self.blaslt_supported})"
+
     @property
     def therock(self) -> str | None:
         if (self.gfx_version & 0xFFF0) == 0x1200:
@@ -381,10 +384,9 @@ else: # sys.platform != "win32"
     def rocm_init():
         try:
             from modules.devices import get_hip_agent
-
-            agent = get_hip_agent()
-            if not agent.blaslt_supported:
-                log.debug(f'ROCm: hipBLASLt unavailable agent={agent}')
+            _agent = get_hip_agent()
+            # if not agent.blaslt_supported:
+            #    log.debug(f'ROCm: hipBLASLt unavailable agent={agent}')
         except Exception as e:
             return False, e
         return True, None
