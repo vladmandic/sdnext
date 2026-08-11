@@ -282,6 +282,7 @@ def setup_logging(debug=None, trace=None, filename=None):
     logging.getLogger("ControlNet").handlers = log.handlers
 
     logging.getLogger("diffusers").setLevel(logging.ERROR)
+    logging.getLogger("diffusers.modular_pipelines").setLevel(logging.ERROR)
     logging.getLogger("transformers").setLevel(logging.ERROR)
     logging.getLogger("torch").setLevel(logging.ERROR)
     logging.getLogger("urllib3").setLevel(logging.ERROR)

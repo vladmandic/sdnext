@@ -37,11 +37,11 @@ def load_modular_pipe(repo_cls, repo: str, workflow: str | None = None, revision
             cache_dir=cache_dir,
             **offline_args,
         )
-        # workflow selection stays out of from_pretrained: pruning the blocks tree to one task
-        # would disable runtime auto-dispatch between them; only the component fetch is restricted
+        # workflow selection stays out of from_pretrained: pruning the blocks tree to one task would disable runtime auto-dispatch between them; only the component fetch is restricted
         load_kwargs = {}
         quant_config = {}
         quant_args = model_quant.create_config(module='Model')
+        # TODO load_modular: need to handle component names dynamically
         if 'quantization_config' in quant_args:
             quant_config['transformer'] = quant_args['quantization_config']
             quant_config['transformer_ref'] = quant_args['quantization_config']
@@ -49,8 +49,7 @@ def load_modular_pipe(repo_cls, repo: str, workflow: str | None = None, revision
         if 'quantization_config' in te_args:
             quant_config['text_encoder'] = te_args['quantization_config']
         if quant_config:
-            # per-component dict without a default entry: only the listed components quantize while
-            # loading, everything else loads unquantized
+            # per-component dict without a default entry: only the listed components quantize while loading, everything else loads unquantized
             load_kwargs['quantization_config'] = quant_config
             log.debug(f'Load modular: quant={next(iter(quant_config.values())).__class__.__name__} modules={list(quant_config)}')
         pipe.load_components(
@@ -61,10 +60,11 @@ def load_modular_pipe(repo_cls, repo: str, workflow: str | None = None, revision
             **offline_args,
         )
         loaded = [name for name, component in pipe.components.items() if component is not None]
+        empty = [name for name, component in pipe.components.items() if component is None]
         pipe.sdnext_video_workflow = workflow # lets a pipe loaded outside the video registry report its own workflow
         if hasattr(pipe, 'min_duration') and hasattr(pipe, 'fps'):
             pipe.sdnext_supported_min_frames = int(pipe.min_duration * pipe.fps) # fresh pipes report the true floor; still mode gates per instance
-        log.debug(f'Load modular: cls={pipe.__class__.__name__} workflow={workflow} components={loaded} time={time.time()-t0:.2f}')
+        log.info(f'Load modular: cls={pipe.__class__.__name__} workflow={workflow} components={loaded} empty={empty} time={time.time()-t0:.2f}')
         return pipe
     except Exception as e:
         log.error(f'Load modular: repo="{repo}" workflow={workflow} {e}')
@@ -87,7 +87,7 @@ def apply_minimax_overrides(p, pipe, still: bool = False, audio: bool = True):
     set_still(pipe, still)
     if still:
         frames = 5 # two latent frames; decode pads to the decoder floor and only the first frame is kept
-        log.info(f'Video modular: cls={pipe.__class__.__name__} mode=still experimental')
+        log.info(f'Pipeline: cls={pipe.__class__.__name__} mode=still')
     else:
         frames = max(getattr(p, 'frames', 1), getattr(pipe, 'sdnext_supported_min_frames', 120))
         while frames % pipe.vae_frames_per_chunk != pipe.vae_latents_per_chunk: # frame counts align to 17n+5
@@ -96,14 +96,14 @@ def apply_minimax_overrides(p, pipe, still: bool = False, audio: bool = True):
         while frames > max_frames:
             frames -= pipe.vae_frames_per_chunk
     if frames != getattr(p, 'frames', None):
-        log.debug(f'Video modular: cls={pipe.__class__.__name__} frames={getattr(p, "frames", None)} aligned={frames}')
+        log.debug(f'Pipeline: cls={pipe.__class__.__name__} frames={getattr(p, "frames", None)} aligned={frames}')
     p.frames = frames
     p.task_args['num_frames'] = frames
     p.steps = max(2, p.steps)
     p.task_args['num_inference_steps'] = p.steps
     pipe.num_timesteps = p.steps - 1 # sigma grid includes the terminal point; feeds the progress total
     if p.sampler_name not in ('None', 'Default'):
-        log.warning(f'Video modular: cls={pipe.__class__.__name__} sampler={p.sampler_name} unsupported: using model default')
+        log.warning(f'Pipeline: cls={pipe.__class__.__name__} sampler={p.sampler_name} unsupported: using model default')
     p.sampler_name = 'Default' # the model default is the bespoke scheduler pair, which discrete samplers must not replace
     pipe.vae.enable_tiling() # model always tiles; the shared vae params path may have disabled it
     set_audio(pipe, audio)
@@ -149,10 +149,10 @@ def set_audio(pipe, enabled: bool):
         stashed = getattr(pipe, 'sdnext_audio_decode_block', None)
         if stashed is not None:
             sub.insert('audio', stashed, len(sub))
-            log.debug(f'Video modular: cls={pipe.__class__.__name__} audio=enabled')
+            log.debug(f'Pipeline: cls={pipe.__class__.__name__} audio=enabled')
     elif not enabled and 'audio' in sub:
         pipe.sdnext_audio_decode_block = sub.pop('audio')
-        log.debug(f'Video modular: cls={pipe.__class__.__name__} audio=disabled')
+        log.debug(f'Pipeline: cls={pipe.__class__.__name__} audio=disabled')
 
 
 class InterruptLogFilter(logging.Filter):
@@ -172,7 +172,7 @@ def install_state_hook(pipe):
         if getattr(pipe, 'sdnext_phase', None) != phase:
             pipe.sdnext_phase = phase
             shared.state.textinfo = phase
-            log.debug(f'Video modular: cls={pipe.__class__.__name__} phase="{phase}"')
+            log.debug(f'Pipeline: cls={pipe.__class__.__name__} phase={phase}')
 
     def state_hook(module, args): # pylint: disable=unused-argument
         set_phase('Generate')
@@ -189,7 +189,7 @@ def install_state_hook(pipe):
             raise AssertionError('Interrupted...')
 
     def encode_hook(module, args): # pylint: disable=unused-argument
-        set_phase('Text encode')
+        set_phase('TextEncode')
         if shared.state.interrupted or shared.state.skipped:
             raise AssertionError('Interrupted...')
 

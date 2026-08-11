@@ -230,9 +230,12 @@ def torch_gc(force: bool = False, fast: bool = False, reason: str | None = None)
         collected = gc.collect() if not fast else 0 # python gc
         try:
             if hasattr(torch, "accelerator") and torch.accelerator.is_available(): # torch >= 2.6
-                torch.accelerator.synchronize()
-                torch.accelerator.empty_cache()
-                torch.accelerator.empty_host_cache()
+                if hasattr(torch.accelerator, "synchronize"):
+                    torch.accelerator.synchronize()
+                if hasattr(torch.accelerator, "empty_cache"):
+                    torch.accelerator.empty_cache()
+                if hasattr(torch.accelerator, "empty_host_cache"):
+                    torch.accelerator.empty_host_cache()
                 if torch.cuda.is_available() and hasattr(torch.cuda, "ipc_collect"):
                     torch.cuda.ipc_collect()
                 elif hasattr(torch, "xpu") and hasattr(torch.xpu, "ipc_collect"):
@@ -240,7 +243,8 @@ def torch_gc(force: bool = False, fast: bool = False, reason: str | None = None)
             elif torch.cuda.is_available(): # Fallback for older PyTorch versions
                 torch.cuda.synchronize()
                 torch.cuda.empty_cache()
-                torch.cuda.ipc_collect()
+                if hasattr(torch.cuda, "ipc_collect"):
+                    torch.cuda.ipc_collect()
             elif hasattr(torch, "xpu") and torch.xpu.is_available():
                 torch.xpu.synchronize()
                 torch.xpu.empty_cache()

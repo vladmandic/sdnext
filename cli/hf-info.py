@@ -199,7 +199,7 @@ def discover_components(model_index: dict[str, Any] | None, files_map: dict[str,
     components: dict[str, Any] = {
         "mains": [],
         "text_encoders": [],
-        "ae": None,
+        "ae": [],
     }
 
     if isinstance(model_index, dict):
@@ -210,8 +210,8 @@ def discover_components(model_index: dict[str, Any] | None, files_map: dict[str,
         text_keys = sorted([k for k in keys if re.fullmatch(r"text_encoder(_\d+)?", k or "")])
         components["text_encoders"] = text_keys
 
-        if "vae" in keys:
-            components["ae"] = "vae"
+        vae_keys = sorted([k for k in keys if re.fullmatch(r".*vae?", k or "")])
+        components["ae"] = vae_keys
 
     top_dirs = {f.split("/", 1)[0] for f in files_map if "/" in f}
 
@@ -221,8 +221,8 @@ def discover_components(model_index: dict[str, Any] | None, files_map: dict[str,
     if not components["text_encoders"]:
         components["text_encoders"] = sorted([d for d in top_dirs if re.fullmatch(r"text_encoder|mllm(_\d+)?", d or "")])
 
-    if components["ae"] is None and "vae" in top_dirs:
-        components["ae"] = "vae"
+    if not components["ae"]:
+        components["ae"] = sorted([d for d in top_dirs if re.fullmatch(r".*vae?", d or "")])
 
     return components
 
@@ -635,7 +635,7 @@ def search(repo_id: str) -> int:
 
     main_components = components["mains"]
     text_components = components["text_encoders"]
-    ae_component = components["ae"]
+    ae_components = components["ae"]
 
     main_files: list[str] = []
     for main_component in main_components:
@@ -643,7 +643,9 @@ def search(repo_id: str) -> int:
     te_files: list[str] = []
     for te_component in text_components:
         te_files.extend(component_weight_files(te_component, files_map))
-    ae_files = component_weight_files(ae_component, files_map)
+    ae_files: list[str] = []
+    for ae_component in ae_components:
+        ae_files.extend(component_weight_files(ae_component, files_map))
 
     fs = hf.HfFileSystem(token=token)
 
@@ -674,8 +676,12 @@ def search(repo_id: str) -> int:
         arch = arch_from_config(cfg, component_type="te")
         te_arches.append(arch if arch is not None else te_component)
 
-    ae_cfg = component_config(ae_component, repo_id, token)
-    ae_arch = arch_from_config(ae_cfg, component_type="ae")
+    ae_arches: list[str] = []
+    for ae_component in ae_components:
+        cfg = component_config(ae_component, repo_id, token)
+        arch = arch_from_config(cfg, component_type="ae")
+        ae_arches.append(arch if arch is not None else ae_component)
+
     model_class = class_from_model_index(model_index)
     if model_class is None:
         first_main_class = next((c for c in main_component_classes if isinstance(c, str) and c.strip()), None)
@@ -707,10 +713,14 @@ def search(repo_id: str) -> int:
         "dit": ", ".join(main_dit_entries) if len(main_dit_entries) > 0 else None,
         "dit_params": model_params_raw,
         "dit_size": model_size_raw,
+        "dit_size_gb": round(model_size_raw / (1024**3), 2) if isinstance(model_size_raw, int) else None,
         "te": ", ".join(te_arches) if len(te_arches) > 0 else None,
         "te_params": te_params_raw,
         "te_size": te_size_raw,
-        "ae": ae_arch,
+        "te_size_gb": round(te_size_raw / (1024**3), 2) if isinstance(te_size_raw, int) else None,
+        "ae": ", ".join(ae_arches) if len(ae_arches) > 0 else None,
+        "ae_size": ae_size_raw,
+        "ae_size_gb": round(ae_size_raw / (1024**3), 2) if isinstance(ae_size_raw, int) else None,
         "downloads": downloads_int,
         "tags": tags,
     }
