@@ -1037,8 +1037,7 @@ def load_diffuser(checkpoint_info: CheckpointInfo | None = None, op='model', rev
         if op == 'model' and not (os.path.isdir(checkpoint_info.path) or checkpoint_info.type == 'huggingface'):
             if getattr(shared.sd_model, 'sd_checkpoint_info', None) is not None and vae_file is not None:
                 sd_vae.apply_vae_config(shared.sd_model.sd_checkpoint_info.filename, vae_file, sd_model)
-        else:
-            move_model(sd_model, devices.device)
+        # move_model(sd_model, devices.device)
         timer.load.record("move")
 
     except Exception as e:

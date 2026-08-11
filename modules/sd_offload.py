@@ -372,7 +372,7 @@ def apply_none_offload(sd_model, quiet:bool=False):
         sd_model = accelerate.hooks.remove_hook_from_module(sd_model, recurse=True)
     except Exception:
         pass
-    sd_models.move_model(sd_model, devices.device)
+    sd_models.move_model(sd_model, devices.device, force=True)
 
 
 def set_diffuser_offload(sd_model, op:str='model', quiet:bool=False, force:bool=False):
@@ -395,7 +395,6 @@ def set_diffuser_offload(sd_model, op:str='model', quiet:bool=False, force:bool=
     if shared.opts.diffusers_offload_mode == "none":
         log.warning('Offload: type=none "use balanced offload with model type set not to offload"')
         apply_none_offload(sd_model, quiet=quiet)
-        sd_models.move_model(sd_model, devices.device, force=True)
 
     if shared.opts.diffusers_offload_mode == "model" and hasattr(sd_model, "enable_model_cpu_offload"):
         log.warning('Offload: type=model "use balanced offload instead"')
