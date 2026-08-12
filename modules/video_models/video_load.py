@@ -98,39 +98,29 @@ def load_model(selected: models_def.Model):
         try:
             load_args, quant_args = model_quant.get_dit_args({}, module='TE', device_map=True)
 
-            # loader deduplication of text-encoder models
-            if selected.te_cls.__name__ == 'T5EncoderModel' and shared.opts.te_shared_te:
-                selected.te = 'Disty0/t5-xxl'
-                selected.te_folder = ''
-                selected.te_revision = None
-            if selected.te_cls.__name__ == 'UMT5EncoderModel' and shared.opts.te_shared_te:
-                if 'SDNQ' in selected.name:
-                    selected.te = 'Disty0/Wan2.2-T2V-A14B-SDNQ-uint4-svd-r32'
-                else:
-                    selected.te = 'Wan-AI/Wan2.2-TI2V-5B-Diffusers'
-                selected.te_folder = 'text_encoder'
-                selected.te_revision = None
-            if selected.te_cls.__name__ == 'LlamaModel' and shared.opts.te_shared_te:
-                selected.te = 'hunyuanvideo-community/HunyuanVideo'
-                selected.te_folder = 'text_encoder'
-                selected.te_revision = None
-            if selected.te_cls.__name__ == 'Qwen2_5_VLForConditionalGeneration' and shared.opts.te_shared_te:
-                selected.te = 'ai-forever/Kandinsky-5.0-T2V-Lite-sft-5s-Diffusers'
-                selected.te_folder = 'text_encoder'
-                selected.te_revision = None
-            if selected.te_cls.__name__ == 'Gemma3ForConditionalGeneration' and shared.opts.te_shared_te:
-                if 'SDNQ' in selected.name:
-                    selected.te = 'OzzyGT/LTX-2.3-sdnq-dynamic-int4'
-                else:
-                    selected.te = 'OzzyGT/LTX-2.3'
-                selected.te_folder = 'text_encoder'
-                selected.te_revision = None
+            # loader deduplication of text-encoder models: picked per load, not written back onto
+            # the registry row where it would outlive the setting
+            te_repo, te_folder, te_revision = selected.te, selected.te_folder, selected.te_revision
+            if shared.opts.te_shared_te:
+                te_cls_name = selected.te_cls.__name__
+                if te_cls_name == 'T5EncoderModel':
+                    te_repo, te_folder, te_revision = 'Disty0/t5-xxl', '', None
+                elif te_cls_name == 'UMT5EncoderModel':
+                    te_repo = 'Disty0/Wan2.2-T2V-A14B-SDNQ-uint4-svd-r32' if 'SDNQ' in selected.name else 'Wan-AI/Wan2.2-TI2V-5B-Diffusers'
+                    te_folder, te_revision = 'text_encoder', None
+                elif te_cls_name == 'LlamaModel':
+                    te_repo, te_folder, te_revision = 'hunyuanvideo-community/HunyuanVideo', 'text_encoder', None
+                elif te_cls_name == 'Qwen2_5_VLForConditionalGeneration':
+                    te_repo, te_folder, te_revision = 'ai-forever/Kandinsky-5.0-T2V-Lite-sft-5s-Diffusers', 'text_encoder', None
+                elif te_cls_name == 'Gemma3ForConditionalGeneration':
+                    te_repo = 'OzzyGT/LTX-2.3-sdnq-dynamic-int4' if 'SDNQ' in selected.name else 'OzzyGT/LTX-2.3'
+                    te_folder, te_revision = 'text_encoder', None
 
-            log.debug(f'Load video: module=te repo="{selected.te or selected.repo}" folder="{selected.te_folder}" cls={selected.te_cls.__name__} quant={model_quant.get_quant_type(quant_args)} loader={_loader("transformers")}')
+            log.debug(f'Load video: module=te repo="{te_repo or selected.repo}" folder="{te_folder}" cls={selected.te_cls.__name__} quant={model_quant.get_quant_type(quant_args)} loader={_loader("transformers")}')
             kwargs["text_encoder"] = selected.te_cls.from_pretrained(
-                pretrained_model_name_or_path=selected.te or selected.repo,
-                subfolder=selected.te_folder,
-                revision=selected.te_revision or selected.repo_revision,
+                pretrained_model_name_or_path=te_repo or selected.repo,
+                subfolder=te_folder,
+                revision=te_revision or selected.repo_revision,
                 cache_dir=shared.opts.hfcache_dir,
                 **load_args,
                 **quant_args,
