@@ -996,6 +996,17 @@ def load_diffuser(checkpoint_info: CheckpointInfo | None = None, op='model', rev
             log.error(f'Load {op}: name="{checkpoint_info.name if checkpoint_info is not None else None}" not loaded')
             return
 
+        # a family loader that returns None falls through to the generic folder loader, and for a modular pipeline that
+        # yields an object holding nothing but its from_config helpers, since a modular load registers the fetched
+        # components empty until load_components runs. it reports as a loaded model and then fails on the first
+        # component something reaches, far from the cause
+        specs = getattr(sd_model, '_component_specs', None) # pylint: disable=protected-access
+        if isinstance(specs, dict):
+            fetched = [name for name, spec in specs.items() if getattr(spec, 'default_creation_method', None) == 'from_pretrained']
+            if len(fetched) > 0 and all(getattr(sd_model, name, None) is None for name in fetched):
+                log.error(f'Load {op}: name="{checkpoint_info.name if checkpoint_info is not None else None}" cls={sd_model.__class__.__name__} no components loaded')
+                return
+
         set_overrides(sd_model, checkpoint_info, model_type)
         set_defaults(sd_model, checkpoint_info)
 

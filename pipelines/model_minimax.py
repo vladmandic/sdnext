@@ -20,15 +20,15 @@ def load_minimax(checkpoint_info, diffusers_load_config=None): # pylint: disable
         workflow=workflow,
         offline_args=offline_args,
         base=True,
+        load_config=diffusers_load_config,
     )
     if pipe is None:
         return None
-    if pipe.text_encoder is None:
-        # TODO minimax missing te: we should never be here
-        import transformers
-        from pipelines import generic
-        text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.Qwen3VLForConditionalGeneration, load_config=diffusers_load_config, allow_shared=False)
-        pipe.update_components(text_encoder=text_encoder)
+    missing = video_modular.missing_components(pipe, workflow)
+    if missing:
+        # a component that failed to build is unusable, and loading it by another route only defers the failure into generation as corrupt output
+        log.error(f'Load model: type=MiniMaxH3 repo="{repo_id}" workflow={workflow} missing={missing}')
+        return None
 
     video_modular.install_state_hook(pipe)
     video_load.loaded_model = None # image-path load invalidates the video tab's name cache

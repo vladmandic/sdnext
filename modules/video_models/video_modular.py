@@ -1,7 +1,7 @@
 import time
 import logging
 import torch
-from modules import shared, errors, devices, model_quant
+from modules import shared, errors, devices
 from modules.logger import log
 
 
@@ -22,7 +22,64 @@ def is_modular(obj) -> bool:
     return 'Modular' in cls.__name__
 
 
-def load_modular_pipe(repo_cls, repo: str, workflow: str | None = None, revision: str | None = None, offline_args: dict | None = None, base: bool = False):
+def preload_components(pipe, workflow: str | None, load_config: dict | None = None) -> dict:
+    """Load the denoiser and text encoder through the shared loaders rather than the pipeline's own.
+
+    `load_components` fetches every component into the pipeline's cache directory with no
+    single-file override, no shared text encoder and no per-component quantization control.
+    The shared loaders do all three, and everything they need is already on the spec: repo,
+    subfolder and class. Components differ per architecture, so each is recognized by the
+    class its spec declares rather than by name.
+
+    Only what the loaded workflow asks for is fetched, so an unused checkpoint partition is
+    never pulled. `load_components` afterwards loads whatever is still unset, which is the
+    tokenizer, processors, schedulers and VAEs.
+    """
+    from pipelines import generic
+    specs = getattr(pipe, '_component_specs', {}) # pylint: disable=protected-access
+    loaded = {}
+    for name in missing_components(pipe, workflow):
+        spec = specs.get(name)
+        if spec is None or getattr(spec, 'default_creation_method', None) != 'from_pretrained':
+            continue
+        repo = getattr(spec, 'pretrained_model_name_or_path', None)
+        cls = getattr(spec, 'type_hint', None)
+        if not repo or cls is None:
+            continue
+        origin = getattr(cls, '__module__', '') or ''
+        cls_name = getattr(cls, '__name__', '') or ''
+        subfolder = getattr(spec, 'subfolder', None) or name
+        component = None
+        if origin.startswith('diffusers') and ('Transformer' in cls_name or 'UNet' in cls_name):
+            component = generic.load_transformer(repo, cls_name=cls, load_config=load_config, subfolder=subfolder)
+        elif origin.startswith('transformers') and 'text_encoder' in name:
+            # sharing stays off: the shared map matches on class plus a substring of the repo name, so a
+            # quantized repo can be redirected to an unrelated model's encoder. enable it per arch once
+            # the pipeline's own encoder is known to be interchangeable with the shared one
+            component = generic.load_text_encoder(repo, cls_name=cls, load_config=load_config, subfolder=subfolder, allow_shared=False)
+        if component is not None:
+            loaded[name] = component
+    return loaded
+
+
+def missing_components(pipe, workflow: str | None) -> list:
+    """Components the loaded workflow declares that did not materialize.
+
+    A partition the workflow does not use is absent by design, so the comparison is
+    against the workflow's own expected components rather than every declared spec.
+    """
+    blocks = getattr(pipe, '_blocks', None) # pylint: disable=protected-access
+    if blocks is None:
+        return []
+    try:
+        expected = blocks.get_workflow(workflow) if workflow else blocks
+        names = [spec.name for spec in expected.expected_components]
+    except Exception:
+        names = list(getattr(pipe, '_component_specs', {})) # pylint: disable=protected-access
+    return [name for name in names if getattr(pipe, name, None) is None]
+
+
+def load_modular_pipe(repo_cls, repo: str, workflow: str | None = None, revision: str | None = None, offline_args: dict | None = None, base: bool = False, load_config: dict | None = None):
     if repo_cls is None or isinstance(repo_cls, str):
         log.error(f'Load modular: repo="{repo}" cls="{repo_cls}" pipeline class not found: diffusers too old')
         return None
@@ -37,34 +94,29 @@ def load_modular_pipe(repo_cls, repo: str, workflow: str | None = None, revision
             cache_dir=cache_dir,
             **offline_args,
         )
-        # workflow selection stays out of from_pretrained: pruning the blocks tree to one task would disable runtime auto-dispatch between them; only the component fetch is restricted
-        load_kwargs = {}
-        quant_config = {}
-        quant_args = model_quant.create_config(module='Model')
-        # TODO load_modular: need to handle component names dynamically
-        if 'quantization_config' in quant_args:
-            quant_config['transformer'] = quant_args['quantization_config']
-            quant_config['transformer_ref'] = quant_args['quantization_config']
-        te_args = model_quant.create_config(module='TE', modules_to_not_convert=['.model.visual']) # the conditioner's vision tower stays unquantized: quantized vision blocks have no validated precedent and only run for keyframe workflows
-        if 'quantization_config' in te_args:
-            quant_config['text_encoder'] = te_args['quantization_config']
-        if quant_config:
-            # per-component dict without a default entry: only the listed components quantize while loading, everything else loads unquantized
-            load_kwargs['quantization_config'] = quant_config
-            log.debug(f'Load modular: quant={next(iter(quant_config.values())).__class__.__name__} modules={list(quant_config)}')
+        # the workflow restricts the component fetch only: passing it to from_pretrained instead would prune the blocks tree to one task and disable runtime dispatch between them
+        preloaded = preload_components(pipe, workflow, load_config=load_config)
+        if preloaded:
+            pipe.update_components(**preloaded) # registered before the rest, which load_components then skips
+            log.debug(f'Load modular: preloaded={list(preloaded)}')
         pipe.load_components(
             workflow=workflow,
             dtype=devices.dtype,
             cache_dir=cache_dir,
-            **load_kwargs,
             **offline_args,
         )
         loaded = [name for name, component in pipe.components.items() if component is not None]
         empty = [name for name, component in pipe.components.items() if component is None]
-        pipe.sdnext_video_workflow = workflow # lets a pipe loaded outside the video registry report its own workflow
+        missing = missing_components(pipe, workflow)
+        pipe.sdnext_missing_components = missing # a caller that can recover a component clears its own entry
+        pipe.sdnext_video_workflow = workflow # the workflow this pipe was loaded for, which is what the reference-workflow guard reads; the executed task is chosen per request
         if hasattr(pipe, 'min_duration') and hasattr(pipe, 'fps'):
             pipe.sdnext_supported_min_frames = int(pipe.min_duration * pipe.fps) # fresh pipes report the true floor; still mode gates per instance
         log.info(f'Load modular: cls={pipe.__class__.__name__} workflow={workflow} components={loaded} empty={empty} time={time.time()-t0:.2f}')
+        if missing:
+            # load_components builds each component in its own try/except and reports a failure as a warning on the
+            # diffusers logger, so the reason is in the log above this line rather than in the exception path
+            log.error(f'Load modular: cls={pipe.__class__.__name__} workflow={workflow} missing={missing} components the workflow requires did not load')
         return pipe
     except Exception as e:
         log.error(f'Load modular: repo="{repo}" workflow={workflow} {e}')
