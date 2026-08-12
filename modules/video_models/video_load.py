@@ -143,12 +143,13 @@ def load_model(selected: models_def.Model):
     # transformer
     if selected.dit_cls is not None:
         try:
-            def load_dit_folder(dit_folder):
-                if dit_folder is not None and dit_folder not in kwargs:
+            def load_dit_folder(dit_folder, dit_kwarg=None):
+                dit_kwarg = dit_kwarg or dit_folder # ltx-2.5 keeps its dev transformer in transformer_full
+                if dit_folder is not None and dit_kwarg not in kwargs:
                     # get a new quant arg on every loop to prevent the quant config classes getting entangled
                     load_args, quant_args = model_quant.get_dit_args({}, module='Model', device_map=True)
-                    log.debug(f'Load video: module=transformer repo="{selected.dit or selected.repo}" module="{dit_folder}" folder="{dit_folder}" cls={selected.dit_cls.__name__} quant={model_quant.get_quant_type(quant_args)} loader={_loader("diffusers")}')
-                    kwargs[dit_folder] = selected.dit_cls.from_pretrained(
+                    log.debug(f'Load video: module=transformer repo="{selected.dit or selected.repo}" module="{dit_kwarg}" folder="{dit_folder}" cls={selected.dit_cls.__name__} quant={model_quant.get_quant_type(quant_args)} loader={_loader("diffusers")}')
+                    kwargs[dit_kwarg] = selected.dit_cls.from_pretrained(
                         pretrained_model_name_or_path=selected.dit or selected.repo,
                         subfolder=dit_folder,
                         revision=selected.dit_revision or selected.repo_revision,
@@ -158,15 +159,17 @@ def load_model(selected: models_def.Model):
                         **offline_args,
                     )
                 else:
-                    log.debug(f'Load video: module=transformer repo="{selected.dit or selected.repo}" module="{dit_folder}" folder="{dit_folder}" cls={selected.dit_cls.__name__} loader={_loader("diffusers")} skip')
+                    log.debug(f'Load video: module=transformer repo="{selected.dit or selected.repo}" module="{dit_kwarg}" folder="{dit_folder}" cls={selected.dit_cls.__name__} loader={_loader("diffusers")} skip')
 
             if selected.dit_folder is None:
                 selected.dit_folder = ['transformer']
             if isinstance(selected.dit_folder, list) or isinstance(selected.dit_folder, tuple):
+                if selected.dit_kwarg is not None:
+                    log.warning(f'Load video: model="{selected.name}" dit_kwarg unsupported with multiple folders')
                 for dit_folder in selected.dit_folder: # wan a14b has transformer and transformer_2
                     load_dit_folder(dit_folder)
             else:
-                load_dit_folder(selected.dit_folder)
+                load_dit_folder(selected.dit_folder, selected.dit_kwarg)
         except Exception as e:
             log.error(f'video load: module=transformer cls={selected.dit_cls.__name__} {e}')
             errors.display(e, 'video')

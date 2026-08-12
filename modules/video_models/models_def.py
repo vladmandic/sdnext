@@ -16,6 +16,7 @@ class Model:
     dit: str = None
     dit_cls: classmethod = None
     dit_folder: str = 'transformer'
+    dit_kwarg: str = None # pipeline argument the folder loads into, when the two differ
     dit_revision: str = None
     te: str = None
     te_cls: classmethod = None
