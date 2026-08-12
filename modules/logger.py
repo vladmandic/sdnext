@@ -291,7 +291,7 @@ def setup_logging(debug=None, trace=None, filename=None):
     if os.environ.get('SD_TRANSFORMERS_DEBUG', None) is not None:
         logging.getLogger("transformers").setLevel(logging.DEBUG)
     else:
-        logging.getLogger("transformers").setLevel(logging.WARNING)
+        logging.getLogger("transformers").setLevel(logging.ERROR)
     if os.environ.get('SD_TORCH_DEBUG', None) is not None:
         logging.getLogger("torch").setLevel(logging.DEBUG)
     else:

@@ -183,8 +183,21 @@ def get_defaults(model, kwargs):
     remove = ['return_dict', 'output_type', 'num_images_per_prompt', 'callback', 'callback_on_step_end_tensor_inputs']
     default_cfg = 0
     try:
-        signature = inspect.signature(type(model).__call__, follow_wrapped=True)
-        defaults = {k: v.default for k, v in signature.parameters.items() if v.default is not inspect.Parameter.empty and v.default is not None} # get all defaults
+        defaults = {}
+        if hasattr(model, 'blocks') and hasattr(model.blocks, 'inputs'):
+            for input_param in model.blocks.inputs:
+                if input_param.name is None:
+                    continue
+                if input_param.default is None:
+                    continue
+                if input_param.name in kwargs or input_param.name in remove:
+                    continue
+                defaults[input_param.name] = input_param.default
+
+        if not defaults:
+            signature = inspect.signature(type(model).__call__, follow_wrapped=True)
+            defaults = {k: v.default for k, v in signature.parameters.items() if v.default is not inspect.Parameter.empty and v.default is not None} # get all defaults
+
         defaults = {k: v for k, v in defaults.items() if k not in kwargs} # only log defaults that are not already set by kwargs
         defaults = {k: v for k, v in defaults.items() if k not in remove} # remove common args that are not useful to log
         log.debug(f'Pipeline: cls={model.__class__.__name__} defaults={defaults}')
@@ -222,9 +235,9 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:l
             model.register_to_config(boundary_ratio=boundary_target)
     if hasattr(model, "set_progress_bar_config"):
         if disable_pbar:
-            model.set_progress_bar_config(bar_format='Progress {rate_fmt}{postfix} {bar} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining} ' + '\x1b[38;5;71m' + desc, ncols=80, colour='#327fba', disable=disable_pbar)
+            model.set_progress_bar_config(bar_format='Progress {rate_fmt}{postfix} {bar:15} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining} ' + '\x1b[38;5;71m' + desc, ncols=120, colour='#327fba', disable=disable_pbar)
         else:
-            model.set_progress_bar_config(bar_format='Progress {rate_fmt}{postfix} {bar} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining} ' + '\x1b[38;5;71m' + desc, ncols=80, colour='#327fba')
+            model.set_progress_bar_config(bar_format='Progress {rate_fmt}{postfix} {bar:15} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining} ' + '\x1b[38;5;71m' + desc, ncols=120, colour='#327fba')
 
     possible = get_params(model)
 

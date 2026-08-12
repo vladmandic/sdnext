@@ -4,9 +4,9 @@ import copy
 import time
 import transformers
 import diffusers
-from modules import shared, errors, sd_models, sd_checkpoint, model_quant, devices, sd_hijack_te, sd_hijack_vae
+from modules import shared, errors, sd_models, sd_checkpoint, model_quant, devices, sd_hijack_te, sd_hijack_vae, modular_load
 from modules.logger import log
-from modules.video_models import models_def, video_utils, video_overrides, video_cache, video_modular
+from modules.video_models import models_def, video_utils, video_overrides, video_cache
 
 
 def _loader(component):
@@ -151,8 +151,9 @@ def load_model(selected: models_def.Model):
 
     # model
     try:
-        if selected.workflow is not None or video_modular.is_modular(selected.repo_cls):
-            shared.sd_model = video_modular.load_modular(selected, offline_args)
+        if selected.workflow is not None or modular_load.is_modular(selected.repo_cls):
+            from modules.modular_load import load_modular_pipe
+            return load_modular_pipe(selected.repo_cls, selected.repo, workflow=selected.workflow, revision=selected.repo_revision, offline_args=offline_args, base=selected.base)
         elif selected.repo_cls is None:
             shared.sd_model = load_custom(selected.repo)
         else:
@@ -208,12 +209,12 @@ def load_model(selected: models_def.Model):
         shared.sd_model.vae.enable_tiling()
         tiling = True
     if hasattr(shared.sd_model, "set_progress_bar_config"):
-        shared.sd_model.set_progress_bar_config(bar_format='Progress {rate_fmt}{postfix} {bar} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining} ' + '\x1b[38;5;71m', ncols=80, colour='#327fba')
+        shared.sd_model.set_progress_bar_config(bar_format='Progress {rate_fmt}{postfix} {bar:15} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining} ' + '\x1b[38;5;71m', ncols=120, colour='#327fba')
 
     shared.sd_model = model_quant.do_post_load_quant(shared.sd_model, allow=False)
     sd_models.set_diffuser_offload(shared.sd_model)
-    if video_modular.is_modular(shared.sd_model):
-        video_modular.install_state_hook(shared.sd_model)
+    if modular_load.is_modular(shared.sd_model):
+        modular_load.install_state_hook(shared.sd_model)
 
     loaded_model = selected.name
     msg = f'Load video: cls={shared.sd_model.__class__.__name__} model="{selected.name}" time={t1-t0:.2f}'

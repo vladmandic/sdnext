@@ -893,7 +893,7 @@ def set_defaults(sd_model, checkpoint_info: CheckpointInfo):
     sd_model.logvar = sd_model.logvar.to(devices.device) if hasattr(sd_model, 'logvar') else None # fix for training
     shared.opts.data["sd_checkpoint_hash"] = checkpoint_info.sha256
     if hasattr(sd_model, "set_progress_bar_config"):
-        sd_model.set_progress_bar_config(bar_format='Progress {rate_fmt}{postfix} {bar} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining}', ncols=80, colour='#327fba')
+        sd_model.set_progress_bar_config(bar_format='Progress {rate_fmt}{postfix} {bar:15} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining}', ncols=120, colour='#327fba')
 
 
 def load_diffuser(checkpoint_info: CheckpointInfo | None = None, op='model', revision=None): # pylint: disable=unused-argument

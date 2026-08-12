@@ -11,7 +11,7 @@ from pipelines.generic_shared import shared_te_map
 debug = os.environ.get('SD_LOAD_DEBUG', None) is not None
 
 
-def get_shared(cls, repo_id, subfolder=None, variant=None):
+def get_shared(cls, repo_id, subfolder=None, variant=None, shared_id: str | None = None):
     args = {}
     if variant is not None:
         args['variant'] = variant
@@ -22,7 +22,8 @@ def get_shared(cls, repo_id, subfolder=None, variant=None):
         if isinstance(identifiers, str):
             identifiers = [identifiers]
         identifiers = [identifier.lower() for identifier in identifiers if identifier is not None]
-        if item['cls'] == cls and (not identifiers or any(identifier in repo_id.lower() for identifier in identifiers)):
+        shared_id = shared_id or repo_id.lower()
+        if item['cls'] == cls and (not identifiers or any(identifier in shared_id for identifier in identifiers)):
             if item.get('config_class', None) is not None and item.get('config_path', None) is not None:
                 with open(item['config_path'], encoding='utf8') as f:
                     args['config'] = item['config_class'](**json.load(f))
@@ -91,6 +92,7 @@ def load_text_encoder(
         modules_to_not_convert=None,
         modules_dtype_dict=None,
         use_safetensors=True,
+        shared_id: str | None = None,
         **kwargs):
 
     if shared.state.interrupted:
@@ -146,7 +148,7 @@ def load_text_encoder(
         # 3. load shared from repo
         if allow_shared and (text_encoder is None):
             log.debug(f'Load model: text_encoder="{repo_id}" cls={cls_name.__name__} quant="{quant_type}" loader={get_loader("transformers")}')
-            target_repo, extra_args = get_shared(cls_name, repo_id, subfolder=subfolder, variant=variant)
+            target_repo, extra_args = get_shared(cls_name, repo_id, subfolder=subfolder, variant=variant, shared_id=shared_id)
             text_encoder = cls_name.from_pretrained(
                 target_repo,
                 cache_dir=shared.opts.hfcache_dir,

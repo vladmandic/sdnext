@@ -428,7 +428,8 @@ def print_stats():
 
         from modules.sd_models_compile import update_compile_times
         update_compile_times()
-        dynamo_dct = timer.dynamo.dct(min_time=2.0, no_total=True)
+        dynamo_dct = timer.dynamo.dct(min_time=0.5, no_total=True)
+        timer.dynamo.reset()
         if dynamo_dct:
             log.debug(f'Processed: dynamo={dynamo_dct}')
 

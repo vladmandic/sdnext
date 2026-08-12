@@ -4,7 +4,8 @@ from modules.logger import log
 
 
 def load_minimax(checkpoint_info, diffusers_load_config=None): # pylint: disable=unused-argument
-    from modules.video_models import video_modular, video_load
+    from modules.video_models import video_load
+    from modules.modular_load import load_modular_pipe
     repo_id = sd_models.path_to_repo(checkpoint_info)
     sd_models.hf_auth_check(checkpoint_info)
     if repo_id is None or repo_id.lower() == 'none':
@@ -14,7 +15,7 @@ def load_minimax(checkpoint_info, diffusers_load_config=None): # pylint: disable
     log.debug(f'Load model: type=MiniMaxH3 repo="{repo_id}" workflow={workflow} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype}')
 
     repo_cls = diffusers.MiniMaxH3ModularPipeline
-    pipe = video_modular.load_modular_pipe(
+    pipe = load_modular_pipe(
         repo_cls,
         repo_id,
         workflow=workflow,
@@ -24,13 +25,10 @@ def load_minimax(checkpoint_info, diffusers_load_config=None): # pylint: disable
     )
     if pipe is None:
         return None
-    missing = video_modular.missing_components(pipe, workflow)
-    if missing:
-        # a component that failed to build is unusable, and loading it by another route only defers the failure into generation as corrupt output
-        log.error(f'Load model: type=MiniMaxH3 repo="{repo_id}" workflow={workflow} missing={missing}')
-        return None
 
-    video_modular.install_state_hook(pipe)
+    if hasattr(pipe, 'min_duration') and hasattr(pipe, 'fps'):
+        pipe.sdnext_supported_min_frames = int(pipe.min_duration * pipe.fps) # fresh pipes report the true floor; still mode gates per instance
+
     video_load.loaded_model = None # image-path load invalidates the video tab's name cache
     if hasattr(pipe, 'vae') and hasattr(pipe.vae, 'enable_tiling'):
         pipe.vae.enable_tiling()

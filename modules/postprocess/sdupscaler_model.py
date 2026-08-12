@@ -33,7 +33,7 @@ class UpscalerDiffusion(Upscaler):
         else:
             model = diffusers.DiffusionPipeline.from_pretrained(scaler.data_path, cache_dir=shared.opts.diffusers_dir, torch_dtype=devices.dtype)
             if hasattr(model, "set_progress_bar_config"):
-                model.set_progress_bar_config(bar_format='Progress {rate_fmt}{postfix} {bar} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining} ' + '\x1b[38;5;71m' + 'Upscale', ncols=80, colour='#327fba')
+                model.set_progress_bar_config(bar_format='Progress {rate_fmt}{postfix} {bar:15} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining} ' + '\x1b[38;5;71m' + 'Upscale', ncols=120, colour='#327fba')
             set_diffuser_options(model, vae=None, op='upscaler')
             self.models[path] = model
         return self.models[path]

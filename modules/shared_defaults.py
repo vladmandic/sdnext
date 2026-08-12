@@ -21,12 +21,12 @@ def get_default_modes(cmd_opts, mem_stat):
                 cmd_opts.medvram = True # VAE Tiling and other stuff
                 default_offload_mode = "balanced"
                 default_diffusers_offload_min_gpu_memory = 0
-                default_diffusers_offload_always = ', '.join(['T5EncoderModel', 'UMT5EncoderModel'])
+                default_diffusers_offload_always = ''
                 log.info(f"Device detect: memory={gpu_memory:.1f} default=balanced optimization=medvram")
-            elif gpu_memory >= 24:
+            elif gpu_memory >= 22:
                 default_offload_mode = "balanced"
                 default_diffusers_offload_max_gpu_memory = 0.8
-                default_diffusers_offload_always = ', '.join(['T5EncoderModel', 'UMT5EncoderModel'])
+                default_diffusers_offload_always = ''
                 default_diffusers_offload_never = ', '.join(['CLIPTextModel', 'CLIPTextModelWithProjection', 'AutoencoderKL'])
                 log.info(f"Device detect: memory={gpu_memory:.1f} default=balanced optimization=highvram")
             else:

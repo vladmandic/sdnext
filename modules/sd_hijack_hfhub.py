@@ -1,5 +1,6 @@
 import os
 import time
+import tqdm
 from modules.logger import log
 
 
@@ -54,9 +55,10 @@ def xet_get_hijack(*args, **kwargs):
     if fn and not fn.endswith(".json"):
         log.debug(f'Download: type=xet mode="{opts.hf_transfer_mode}" fn="{fn}" size={size}')
     debug(f'Download start: type=xet args={args} kwargs={kwargs}')
-    # import tqdm # TODO xet_download: hijack progress bar
-    # bar_format = 'Download {rate_fmt}{postfix} {bar} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining} ' + '\x1b[38;5;71m' + '{desc}' + '\x1b[0m'
-    # kwargs['_tqdm_bar'] = tqdm.tqdm(*args, bar_format=bar_format, ncols=80, colour='#327fba', **kwargs)
+
+    bar_format = 'Download {percentage:3.0f}% {bar:15} {n:.1f}/{total:.1f}{postfix} {elapsed} {remaining} ' + '\x1b[38;5;71m' + '{desc}' + '\x1b[0m'
+    kwargs['_tqdm_bar'] = tqdm.tqdm(*args, bar_format=bar_format, colour='#327fba', unit='MiB', unit_scale=1/(1024*1024), desc=fn, total=size, ncols=120)
+
     res = orig_xet_get(*args, **kwargs)
     debug(f'Download end: type=xet res={res}')
     state.end(jobid)

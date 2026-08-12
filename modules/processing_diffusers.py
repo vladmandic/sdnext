@@ -76,6 +76,7 @@ def process_pre(p: processing.StableDiffusionProcessing):
     log.info('Processing modifiers: apply')
     try:
         # apply-with-unapply
+        # sd_hijack_compile.install()
         sd_models_compile.check_deepcache(enable=True)
         ipadapter.apply(shared.sd_model, p)
         token_merge.apply_token_merging(shared.sd_model)
@@ -235,6 +236,9 @@ def process_base(p: processing.StableDiffusionProcessing):
     if hasattr(shared.sd_model, 'postprocess') and callable(shared.sd_model.postprocess):
         output = shared.sd_model.postprocess(p, output)
 
+    if hasattr(shared.sd_model, 'sdnext_phaseid'):
+        shared.state.end(shared.sd_model.sdnext_phaseid)
+        shared.sd_model.sdnext_phaseid = None
     shared.state.end(jobid)
     shared.state.nextjob()
     return output
@@ -530,8 +534,8 @@ def update_pipeline(sd_model, p: processing.StableDiffusionProcessing):
     updated_model = sd_model
     if 'MiniMaxH3' in sd_model.__class__.__name__ and not isinstance(p, processing.StableDiffusionProcessingVideo):
         # image tabs run the model in still mode; the video tab applies its own overrides
-        from modules.video_models import video_modular
-        video_modular.apply_minimax_overrides(p, sd_model, still=True, audio=False)
+        from modules.video_models import video_minimax
+        video_minimax.apply_overrides(p, sd_model, still=True, audio=False)
         if getattr(p, 'detailer_enabled', False):
             log.warning(f'Processing: cls={sd_model.__class__.__name__} detailer not supported')
             p.detailer_enabled = False

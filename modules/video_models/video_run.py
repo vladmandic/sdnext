@@ -2,9 +2,9 @@ import os
 import copy
 import time
 from dataclasses import dataclass
-from modules import shared, errors, sd_models, processing, devices, images, ui_common, scripts_manager
+from modules import shared, errors, sd_models, processing, devices, images, ui_common, scripts_manager, modular_load
 from modules.logger import log
-from modules.video_models import models_def, video_utils, video_load, video_vae, video_overrides, video_save, video_modular
+from modules.video_models import models_def, video_utils, video_load, video_vae, video_overrides, video_save
 from modules.paths import resolve_output_path
 
 
@@ -49,7 +49,7 @@ def resolve_model(engine: str | None, model: str | None) -> tuple[models_def.Mod
         raise VideoError(f'no video model loaded: cls={cls} select engine and model or load a video-capable checkpoint first', 400)
     pipe = shared.sd_model
     workflow = getattr(pipe, 'sdnext_video_workflow', None)
-    if workflow is None and video_modular.is_modular(pipe):
+    if workflow is None and modular_load.is_modular(pipe):
         workflow = models_def.workflow_for_class(cls) or 'auto' # modular pipes dispatch on inputs, so any workflow marker selects the modular branch
     ckpt = getattr(pipe, 'sd_checkpoint_info', None)
     selected = models_def.Model(

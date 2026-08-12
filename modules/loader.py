@@ -248,14 +248,14 @@ timer.startup.record("cv2")
 
 class _tqdm_cls:
     def __call__(self, *args, **kwargs):
-        bar_format = 'Progress {rate_fmt}{postfix} {bar} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining} ' + '\x1b[38;5;71m' + '{desc}' + '\x1b[0m'
-        return tqdm_lib.tqdm(*args, bar_format=bar_format, ncols=80, colour='#327fba', **kwargs)
+        bar_format = 'Progress {rate_fmt}{postfix} {bar:15} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining} ' + '\x1b[38;5;71m' + '{desc}' + '\x1b[0m'
+        return tqdm_lib.tqdm(*args, bar_format=bar_format, ncols=120, colour='#327fba', **kwargs)
 
 class _tqdm_old(tqdm_lib.tqdm):
     def __init__(self, *args, **kwargs):
         kwargs.pop("name", None)
-        kwargs['bar_format'] = 'Progress {rate_fmt}{postfix} {bar} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining} ' + '\x1b[38;5;71m' + '{desc}' + '\x1b[0m'
-        kwargs['ncols'] = 80
+        kwargs['bar_format'] = 'Progress {rate_fmt}{postfix} {bar:15} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining} ' + '\x1b[38;5;71m' + '{desc}' + '\x1b[0m'
+        kwargs['ncols'] = 120
         super().__init__(*args, **kwargs)
 
 try:
