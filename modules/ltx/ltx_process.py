@@ -32,11 +32,28 @@ def _prompt_tensors_to_device(*tensors):
     return tuple(t.to(device=devices.device) if torch.is_tensor(t) else t for t in tensors)
 
 
+def identity_ltx2_guidance() -> dict:
+    # Named rather than omitted: pipeline defaults track the current upstream model, so a missing
+    # term guides a schedule that already bakes it in.
+    return {
+        'stg_scale': 0.0,
+        'modality_scale': 1.0,
+        'guidance_rescale': 0.0,
+        'spatio_temporal_guidance_blocks': None,
+        'audio_guidance_scale': 1.0,
+        'audio_stg_scale': 0.0,
+        'audio_modality_scale': 1.0,
+        'audio_guidance_rescale': 0.0,
+    }
+
+
 def _canonical_ltx2_guidance(caps) -> dict:
     # Four-way composition (cfg + stg + modality + rescale) from huggingface/diffusers#13217.
-    # Distilled bakes these into its sigma schedule; skip or we double-apply.
-    if caps.family != '2.x' or caps.is_distilled:
+    # Distilled bakes these into its sigma schedule and runs at identity.
+    if caps.family != '2.x':
         return {}
+    if caps.is_distilled:
+        return identity_ltx2_guidance()
     return {
         'stg_scale': caps.stg_default_scale,
         'modality_scale': caps.modality_default_scale,
@@ -58,14 +75,7 @@ def _canonical_stage2_kwargs() -> dict:
         'sigmas': list(STAGE_2_DISTILLED_SIGMA_VALUES),
         'noise_scale': float(STAGE_2_DISTILLED_SIGMA_VALUES[0]),
         'guidance_scale': 1.0,
-        'stg_scale': 0.0,
-        'modality_scale': 1.0,
-        'guidance_rescale': 0.0,
-        'audio_guidance_scale': 1.0,
-        'audio_stg_scale': 0.0,
-        'audio_modality_scale': 1.0,
-        'audio_guidance_rescale': 0.0,
-        'spatio_temporal_guidance_blocks': None,
+        **identity_ltx2_guidance(),
     }
 
 
@@ -104,8 +114,8 @@ def _latent_pass(caps, prompt_embeds, prompt_attention_mask, negative_prompt_emb
         base_args['sigmas'] = list(DISTILLED_SIGMA_VALUES)
         base_args.pop('num_inference_steps', None)
     base_args.update(_canonical_ltx2_guidance(caps))
-    if caps.use_cross_timestep:
-        base_args['use_cross_timestep'] = True
+    if caps.family == '2.x':
+        base_args['use_cross_timestep'] = caps.use_cross_timestep
     log.debug(f'Video: cls={shared.sd_model.__class__.__name__} op=latent_pass args_keys={list(base_args.keys())}')
     result = shared.sd_model(**base_args)
     latents = result.frames[0] if hasattr(result, 'frames') else None
@@ -316,6 +326,8 @@ def run_ltx(task_id,
             p.task_args['sigmas'] = list(DISTILLED_SIGMA_VALUES)
             p.task_args.pop('num_inference_steps', None)
         p.task_args.update(_canonical_ltx2_guidance(caps))
+        if caps.family == '2.x':
+            p.task_args['use_cross_timestep'] = caps.use_cross_timestep
 
         framewise = caps.family == '0.9'
         set_vae_params(p, framewise=framewise)
@@ -499,8 +511,8 @@ def run_ltx(task_id,
                 # Thread Stage-1 I2V init image through Stage 2 so first-frame identity survives refine.
                 if caps.is_i2v and caps.repo_cls_name in ('LTXImageToVideoPipeline', 'LTX2ImageToVideoPipeline') and p.task_args.get('image') is not None:
                     refine_args['image'] = p.task_args['image']
-                if caps.family == '2.x' and caps.use_cross_timestep:
-                    refine_args['use_cross_timestep'] = True
+                if caps.family == '2.x':
+                    refine_args['use_cross_timestep'] = caps.use_cross_timestep
                 # output_type='latent' skips the post-loop audio_vae + vocoder pass when audio
                 # is unwanted; per-step audio cross-attention still runs for video conditioning.
                 # Internal video decode is also skipped; vae_decode below picks it up.
