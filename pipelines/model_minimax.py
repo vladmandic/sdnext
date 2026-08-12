@@ -20,6 +20,7 @@ def load_minimax(checkpoint_info, diffusers_load_config=None): # pylint: disable
         workflow=workflow,
         offline_args=offline_args,
         base=True,
+        load_config=diffusers_load_config,
     )
     if pipe is None:
         return None
