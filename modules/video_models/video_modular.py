@@ -22,6 +22,49 @@ def is_modular(obj) -> bool:
     return 'Modular' in cls.__name__
 
 
+def component_quant_config(pipe) -> dict:
+    """Per-component quantization config, read off the pipeline's own component specs.
+
+    Component names differ per architecture, so denoisers and text encoders are
+    recognized by the class each spec declares rather than listed here. The result
+    carries no default entry, so anything unrecognized loads unquantized.
+    """
+    model_args = model_quant.create_config(module='Model')
+    config = {}
+    for name, spec in getattr(pipe, '_component_specs', {}).items(): # pylint: disable=protected-access
+        if getattr(spec, 'default_creation_method', None) != 'from_pretrained':
+            continue
+        cls = getattr(spec, 'type_hint', None)
+        origin = getattr(cls, '__module__', '') or ''
+        cls_name = getattr(cls, '__name__', '') or ''
+        if origin.startswith('transformers') and 'text_encoder' in name:
+            # MiniMax-H3's conditioner keeps its vision tower unquantized, which other arches on the same
+            # class do not do; a second modular arch would want this passed in rather than assumed here
+            te_args = model_quant.create_config(module='TE', modules_to_not_convert=['.model.visual'])
+            if 'quantization_config' in te_args:
+                config[name] = te_args['quantization_config']
+        elif origin.startswith('diffusers') and ('Transformer' in cls_name or 'UNet' in cls_name) and 'quantization_config' in model_args:
+            config[name] = model_args['quantization_config']
+    return config
+
+
+def missing_components(pipe, workflow: str | None) -> list:
+    """Components the loaded workflow declares that did not materialize.
+
+    A partition the workflow does not use is absent by design, so the comparison is
+    against the workflow's own expected components rather than every declared spec.
+    """
+    blocks = getattr(pipe, '_blocks', None) # pylint: disable=protected-access
+    if blocks is None:
+        return []
+    try:
+        expected = blocks.get_workflow(workflow) if workflow else blocks
+        names = [spec.name for spec in expected.expected_components]
+    except Exception:
+        names = list(getattr(pipe, '_component_specs', {})) # pylint: disable=protected-access
+    return [name for name in names if getattr(pipe, name, None) is None]
+
+
 def load_modular_pipe(repo_cls, repo: str, workflow: str | None = None, revision: str | None = None, offline_args: dict | None = None, base: bool = False):
     if repo_cls is None or isinstance(repo_cls, str):
         log.error(f'Load modular: repo="{repo}" cls="{repo_cls}" pipeline class not found: diffusers too old')
@@ -37,19 +80,10 @@ def load_modular_pipe(repo_cls, repo: str, workflow: str | None = None, revision
             cache_dir=cache_dir,
             **offline_args,
         )
-        # workflow selection stays out of from_pretrained: pruning the blocks tree to one task would disable runtime auto-dispatch between them; only the component fetch is restricted
+        # the workflow restricts the component fetch only: passing it to from_pretrained instead would prune the blocks tree to one task and disable runtime dispatch between them
         load_kwargs = {}
-        quant_config = {}
-        quant_args = model_quant.create_config(module='Model')
-        # TODO load_modular: need to handle component names dynamically
-        if 'quantization_config' in quant_args:
-            quant_config['transformer'] = quant_args['quantization_config']
-            quant_config['transformer_ref'] = quant_args['quantization_config']
-        te_args = model_quant.create_config(module='TE', modules_to_not_convert=['.model.visual']) # the conditioner's vision tower stays unquantized: quantized vision blocks have no validated precedent and only run for keyframe workflows
-        if 'quantization_config' in te_args:
-            quant_config['text_encoder'] = te_args['quantization_config']
+        quant_config = component_quant_config(pipe)
         if quant_config:
-            # per-component dict without a default entry: only the listed components quantize while loading, everything else loads unquantized
             load_kwargs['quantization_config'] = quant_config
             log.debug(f'Load modular: quant={next(iter(quant_config.values())).__class__.__name__} modules={list(quant_config)}')
         pipe.load_components(
@@ -61,10 +95,16 @@ def load_modular_pipe(repo_cls, repo: str, workflow: str | None = None, revision
         )
         loaded = [name for name, component in pipe.components.items() if component is not None]
         empty = [name for name, component in pipe.components.items() if component is None]
-        pipe.sdnext_video_workflow = workflow # lets a pipe loaded outside the video registry report its own workflow
+        missing = missing_components(pipe, workflow)
+        pipe.sdnext_missing_components = missing # a caller that can recover a component clears its own entry
+        pipe.sdnext_video_workflow = workflow # the workflow this pipe was loaded for, which is what the reference-workflow guard reads; the executed task is chosen per request
         if hasattr(pipe, 'min_duration') and hasattr(pipe, 'fps'):
             pipe.sdnext_supported_min_frames = int(pipe.min_duration * pipe.fps) # fresh pipes report the true floor; still mode gates per instance
         log.info(f'Load modular: cls={pipe.__class__.__name__} workflow={workflow} components={loaded} empty={empty} time={time.time()-t0:.2f}')
+        if missing:
+            # load_components builds each component in its own try/except and reports a failure as a warning on the
+            # diffusers logger, so the reason is in the log above this line rather than in the exception path
+            log.error(f'Load modular: cls={pipe.__class__.__name__} workflow={workflow} missing={missing} components the workflow requires did not load')
         return pipe
     except Exception as e:
         log.error(f'Load modular: repo="{repo}" workflow={workflow} {e}')
