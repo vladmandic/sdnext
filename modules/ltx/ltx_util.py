@@ -37,7 +37,19 @@ def load_model(engine: str, model: str):
     timer.process.add('offload', t2 - t1)
 
 
+def upsample_pipe_stale(upsample_pipe, upsample_repo_id) -> bool:
+    # bound to one repo and borrowing the model's VAE; both change with the model, and a VAE from
+    # an unloaded model holds meta tensors
+    if upsample_pipe is None:
+        return False
+    if getattr(upsample_pipe, 'sdnext_upsample_repo', None) != upsample_repo_id:
+        return True
+    return upsample_pipe.vae is not getattr(shared.sd_model, 'vae', None)
+
+
 def load_upsample(upsample_pipe, upsample_repo_id):
+    if upsample_pipe_stale(upsample_pipe, upsample_repo_id):
+        upsample_pipe = None
     if upsample_pipe is None:
         t0 = time.time()
         from diffusers.pipelines.ltx.pipeline_ltx_latent_upsample import LTXLatentUpsamplePipeline
@@ -48,14 +60,17 @@ def load_upsample(upsample_pipe, upsample_repo_id):
             cache_dir=shared.opts.hfcache_dir,
             torch_dtype=devices.dtype,
         )
+        upsample_pipe.sdnext_upsample_repo = upsample_repo_id
         t1 = time.time()
         timer.process.add('load', t1 - t0)
     return upsample_pipe
 
 
-def load_upsample_2x(upsample_pipe, upsample_repo_id):
+def load_upsample_2x(upsample_pipe, upsample_repo_id, variant: str = '2.x'):
     # 2.x ships the upsampler as a bare nn.Module in a subfolder; no from_pretrained on the
     # pipeline wrapper, so we load the model + construct the pipeline manually.
+    if upsample_pipe_stale(upsample_pipe, upsample_repo_id):
+        upsample_pipe = None
     if upsample_pipe is None:
         t0 = time.time()
         from diffusers.pipelines.ltx2.pipeline_ltx2_latent_upsample import LTX2LatentUpsamplePipeline
@@ -74,40 +89,61 @@ def load_upsample_2x(upsample_pipe, upsample_repo_id):
         )
         # Synthetic checkpoint_info gives this pipe its own OffloadHook cache slot, so routing
         # it through apply_balanced_offload does not invalidate the main pipe's module map
-        # (sd_offload.py:488 keys on sd_checkpoint_info.name).
-        upsample_pipe.sd_checkpoint_info = sd_checkpoint.CheckpointInfo('ltx-upsampler-2.x')
+        # (sd_offload keys on sd_checkpoint_info.name). Variant is in the name since each loads
+        # different weights and the slot also names the disk offload folder.
+        upsample_pipe.sdnext_upsample_repo = upsample_repo_id
+        upsample_pipe.sd_checkpoint_info = sd_checkpoint.CheckpointInfo(f'ltx-upsampler-{variant}')
         t1 = time.time()
         timer.process.add('load', t1 - t0)
     return upsample_pipe
 
 
+def scheduler_shift_key(scheduler) -> str | None:
+    # UniPC and its relatives call the static shift flow_shift; flow-match schedulers call it shift.
+    config = getattr(scheduler, 'config', None)
+    if config is None:
+        return None
+    for key in ('flow_shift', 'shift'):
+        if hasattr(config, key):
+            return key
+    return None
+
+
 @contextmanager
-def ltx_scheduler_opts(sd_model, *, dynamic_shift=None, sampler_shift=None):
-    # Run-scoped override of shared.opts scheduler settings and scheduler.config. Snapshots
-    # five pieces of state (shared.opts dynamic_shift + shift, scheduler object, default_scheduler
-    # snapshot, and scheduler.config use_dynamic_shifting + flow_shift) and restores every one on
-    # exit. Keeps run-specific sampler settings out of config.json and prevents default_scheduler
-    # from getting clobbered by a deepcopy of the mutated scheduler at video_load.py:171. The
-    # scheduler-object restore matters for Stage 2 refine, which swaps the scheduler entirely.
+def ltx_scheduler_opts(sd_model, *, dynamic_shift=None, sampler_shift=None, shift_terminal=None):
+    # Run-scoped override of shared.opts scheduler settings and scheduler.config, restored on every
+    # exit path. Keeps run settings out of config.json, protects default_scheduler from a deepcopy
+    # of the mutated scheduler, and restores the scheduler object that Stage 2 refine swaps out.
     orig_dynamic_shift = shared.opts.schedulers_dynamic_shift
     orig_sampler_shift = shared.opts.schedulers_shift
     orig_scheduler = sd_model.scheduler
     orig_default_scheduler = getattr(sd_model, 'default_scheduler', None)
-    orig_use_dynamic_shifting = getattr(orig_scheduler.config, 'use_dynamic_shifting', None) if hasattr(orig_scheduler, 'config') else None
-    orig_flow_shift = getattr(orig_scheduler.config, 'flow_shift', None) if hasattr(orig_scheduler, 'config') else None
+    restore = {}
+
+    def write_config(values: dict):
+        scheduler = getattr(sd_model, 'scheduler', None)
+        if not values or scheduler is None or not hasattr(scheduler, 'config') or not hasattr(scheduler, 'register_to_config'):
+            return
+        for key, value in values.items():
+            setattr(scheduler.config, key, value)
+        scheduler.register_to_config(**values)
+
+    def override_config(key, value):
+        # only written keys are restored, so a key stored as None returns to None
+        if key is None or value is None or not hasattr(getattr(orig_scheduler, 'config', None), key):
+            return
+        restore[key] = getattr(orig_scheduler.config, key)
+        write_config({key: value})
 
     try:
         if dynamic_shift is not None:
             shared.opts.data['schedulers_dynamic_shift'] = dynamic_shift
         if sampler_shift is not None:
             shared.opts.data['schedulers_shift'] = sampler_shift
-        if hasattr(sd_model, 'scheduler') and hasattr(sd_model.scheduler, 'config') and hasattr(sd_model.scheduler, 'register_to_config'):
-            if dynamic_shift is not None and hasattr(sd_model.scheduler.config, 'use_dynamic_shifting'):
-                sd_model.scheduler.config.use_dynamic_shifting = dynamic_shift
-                sd_model.scheduler.register_to_config(use_dynamic_shifting=dynamic_shift)
-            if sampler_shift is not None and sampler_shift >= 0 and hasattr(sd_model.scheduler.config, 'flow_shift'):
-                sd_model.scheduler.config.flow_shift = sampler_shift
-                sd_model.scheduler.register_to_config(flow_shift=sampler_shift)
+        override_config('use_dynamic_shifting', dynamic_shift)
+        if sampler_shift is not None and sampler_shift >= 0:
+            override_config(scheduler_shift_key(orig_scheduler), sampler_shift)
+        override_config('shift_terminal', shift_terminal)
         yield
     finally:
         shared.opts.data['schedulers_dynamic_shift'] = orig_dynamic_shift
@@ -116,14 +152,7 @@ def ltx_scheduler_opts(sd_model, *, dynamic_shift=None, sampler_shift=None):
             sd_model.scheduler = orig_scheduler
         if orig_default_scheduler is not None and sd_model.default_scheduler is not orig_default_scheduler:
             sd_model.default_scheduler = orig_default_scheduler
-        if hasattr(sd_model.scheduler, 'config') and hasattr(sd_model.scheduler, 'register_to_config'):
-            if orig_use_dynamic_shifting is not None and hasattr(sd_model.scheduler.config, 'use_dynamic_shifting'):
-                sd_model.scheduler.config.use_dynamic_shifting = orig_use_dynamic_shifting
-                sd_model.scheduler.register_to_config(use_dynamic_shifting=orig_use_dynamic_shifting)
-            if orig_flow_shift is not None and hasattr(sd_model.scheduler.config, 'flow_shift'):
-                sd_model.scheduler.config.flow_shift = orig_flow_shift
-                sd_model.scheduler.register_to_config(flow_shift=orig_flow_shift)
-        # log.debug(f'LTX: scheduler/opts restored dynamic_shift={orig_dynamic_shift} sampler_shift={orig_sampler_shift}')
+        write_config(restore)
 
 
 def _condition_cls(family: str):
