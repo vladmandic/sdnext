@@ -29,6 +29,7 @@ def _model_change(model_name: str):
             gr.update(interactive=False),  # decode_timestep
             gr.update(interactive=False),  # image_cond_noise_scale
             gr.update(visible=False),   # audio_accordion
+            gr.update(visible=False, value=False),  # auto_duration
         )
     # 2.x refine runs fixed canonical schedules; refine_strength only feeds 0.9.x LTXConditionPipeline.
     refine_strength_interactive = caps.family == '0.9'
@@ -36,6 +37,7 @@ def _model_change(model_name: str):
     # Distilled T2V/I2V). auto_refine_upsample at ltx_process.py:179 couples the stages once Refine
     # is on. Condition variants are excluded by supports_two_stage_refine.
     refine_default = caps.supports_two_stage_refine
+    auto_duration_update =gr.update(visible=True) if caps.supports_auto_duration else gr.update(visible=False, value=False)
     return (
         gr.update(visible=caps.supports_input_media),
         gr.update(visible=caps.supports_multi_condition),
@@ -52,6 +54,7 @@ def _model_change(model_name: str):
         gr.update(interactive=caps.supports_decode_timestep),
         gr.update(interactive=caps.supports_image_cond_noise_scale),
         gr.update(visible=caps.supports_audio),
+        auto_duration_update,
     )
 
 
@@ -71,6 +74,8 @@ def create_ui(prompt, negative, styles, overrides, script_inputs, mp4_fps, mp4_i
                     seed = gr.Number(label='LTX seed', value=-1, elem_id='ltx_seed', container=True)
                     random_seed = ToolButton(ui_symbols.random, elem_id='ltx_seed_random')
                     random_seed.click(fn=lambda: -1, show_progress='hidden', inputs=[], outputs=[seed])
+                with gr.Row():
+                    auto_duration = gr.Checkbox(label='LTX auto duration', value=False, elem_id='ltx_auto_duration', visible=False)
             input_media_accordion = gr.Accordion(open=False, label="Input media", elem_id='ltx_input_media_accordion', visible=False)
             with input_media_accordion:
                 ltx_init_image = gr.Image(label='Image', elem_id='ltx_init_image', type='pil', image_mode='RGB', width=256, height=256)
@@ -145,6 +150,7 @@ def create_ui(prompt, negative, styles, overrides, script_inputs, mp4_fps, mp4_i
             decode_timestep,
             image_cond_noise_scale,
             audio_accordion,
+            auto_duration,
         ],
     )
 
@@ -155,7 +161,7 @@ def create_ui(prompt, negative, styles, overrides, script_inputs, mp4_fps, mp4_i
     video_inputs = [
         model,
         prompt, negative, styles,
-        width, height, frames,
+        width, height, frames, auto_duration,
         steps, sampler_index,
         guidance_scale, sampler_shift, dynamic_shift,
         seed,

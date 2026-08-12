@@ -12,16 +12,12 @@ from modules.ltx.ltx_util import get_bucket, get_frames, load_model, load_upsamp
 apply_ltx_diffusers_patch()
 from modules.processing_callbacks import diffusers_callback
 from modules.video_models.video_vae import set_vae_params
-from modules.video_models.video_save import save_video
+from modules.video_models.video_save import save_video, get_audio_rate
 from modules.video_models.video_utils import check_av
 
 
 debug = log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None else lambda *args, **kwargs: None
 upsample_repo_id_09 = 'a-r-r-o-w/LTX-Video-0.9.7-Latent-Spatial-Upsampler-diffusers'
-# Upsampler weights are tied to the family VAE; using the wrong one preserves structure
-# but drifts per-channel latent statistics (decodes desaturated / crushed contrast).
-upsample_repo_id_20 = 'Lightricks/LTX-2'
-upsample_repo_id_23 = 'CalamitousFelicitousness/LTX-2.3-Spatial-Upsampler-x2-1.1-Diffusers'
 upsample_pipe = None
 upsample_pipe_2x = None
 
@@ -93,7 +89,7 @@ def _latent_pass(caps, prompt_embeds, prompt_attention_mask, negative_prompt_emb
         'negative_prompt_attention_mask': negative_prompt_attention_mask,
         'width': get_bucket(width),
         'height': get_bucket(height),
-        'num_frames': get_frames(frames),
+        'num_frames': get_frames(frames) if frames is not None else None, # None defers to the duration head
         'num_inference_steps': steps,
         'generator': get_generator(seed),
         'callback_on_step_end': diffusers_callback,
@@ -131,6 +127,7 @@ def run_ltx(task_id,
             width: int,
             height: int,
             frames: int,
+            auto_duration: bool,
             steps: int,
             sampler_index: int,
             guidance_scale: float,
@@ -198,6 +195,10 @@ def run_ltx(task_id,
         if caps is None or not shared.sd_model.__class__.__name__.startswith('LTX'):
             yield from abort(f'Video: cls={shared.sd_model.__class__.__name__} selected model is not LTX', ok=True)
             return
+
+        auto_frames = bool(auto_duration) and caps.supports_auto_duration
+        if auto_duration and not auto_frames:
+            log.warning(f'LTX: model="{model}" auto duration unsupported, using frames={get_frames(frames)}')
 
         # Lightricks TI2VidTwoStagesPipeline: Stage 1 at half-res, 2x upsample, Stage 2 refine at target.
         # Auto-couple when the user picks Refine but not Upsample. Both Dev and Distilled refine paths
@@ -328,14 +329,15 @@ def run_ltx(task_id,
         p.task_args.update(_canonical_ltx2_guidance(caps))
         if caps.family == '2.x':
             p.task_args['use_cross_timestep'] = caps.use_cross_timestep
+        if auto_frames:
+            p.task_args['num_frames'] = None
 
         framewise = caps.family == '0.9'
         set_vae_params(p, framewise=framewise)
 
         # Scheduler + shared.opts mutation is wrapped in ltx_scheduler_opts so restore runs on
-        # every exit path (normal return, abort, interrupt, Stage 2 scheduler swap). See the
-        # helper's docstring for the five pieces of state it snapshots.
-        with ltx_scheduler_opts(shared.sd_model, dynamic_shift=dynamic_shift, sampler_shift=sampler_shift):
+        # every exit path (normal return, abort, interrupt, Stage 2 scheduler swap).
+        with ltx_scheduler_opts(shared.sd_model, dynamic_shift=dynamic_shift, sampler_shift=sampler_shift, shift_terminal=caps.scheduler_shift_terminal):
             if selected is not None:
                 video_overrides.set_overrides(p, selected)
 
@@ -382,7 +384,7 @@ def run_ltx(task_id,
                         negative_prompt_attention_mask=negative_prompt_attention_mask,
                         width=base_w,
                         height=base_h,
-                        frames=frames,
+                        frames=None if auto_frames else frames,
                         steps=steps,
                         guidance_scale=p.cfg_scale,
                         mp4_fps=mp4_fps,
@@ -391,6 +393,11 @@ def run_ltx(task_id,
                         seed=p.seed,
                         image=p.task_args.get('image'),
                     )
+                    if auto_frames and torch.is_tensor(latents):
+                        # upsample and refine take the realized length; re-predicting would drift
+                        frames = (latents.shape[-3] - 1) * getattr(shared.sd_model, 'vae_temporal_compression_ratio', 8) + 1
+                        p.frames = frames
+                        log.debug(f'LTX: auto duration frames={frames}')
                 else:
                     processed = processing.process_images(p)
                     if processed is None or processed.images is None or len(processed.images) == 0:
@@ -451,8 +458,7 @@ def run_ltx(task_id,
                         upsample_pipe = sd_models.apply_balanced_offload(upsample_pipe, exclude=upsample_exclude, silent=True)
                     else:
                         global upsample_pipe_2x # pylint: disable=global-statement
-                        upsample_repo = upsample_repo_id_23 if caps.variant == '2.3' else upsample_repo_id_20
-                        upsample_pipe_2x = load_upsample_2x(upsample_pipe_2x, upsample_repo)
+                        upsample_pipe_2x = load_upsample_2x(upsample_pipe_2x, caps.upsample_repo, caps.variant)
                         upsample_pipe_2x = sd_models.apply_balanced_offload(upsample_pipe_2x, exclude=upsample_exclude, silent=True)
                         # 2.x base pass returns denormalized latents; latents_normalized=False tells the
                         # upsampler "already raw, do not denormalize again".
@@ -534,12 +540,15 @@ def run_ltx(task_id,
                             shift_terminal=None,
                         )
                         if caps.supports_canonical_stage2:
-                            log.debug(f'LTX: stage=2 distilled=LoRA repo={caps.stage2_dev_lora_repo}')
+                            log.debug(f'LTX: stage=2 distilled=LoRA repo={caps.stage2_dev_lora_repo} weight={caps.stage2_dev_lora_weight}')
                             offline_args = {'local_files_only': True} if shared.opts.offline_mode else {}
+                            # 2.5 keeps the LoRA in the model repo, so the file has to be named
+                            lora_args ={'weight_name': caps.stage2_dev_lora_weight} if caps.stage2_dev_lora_weight is not None else {}
                             shared.sd_model.load_lora_weights(
                                 caps.stage2_dev_lora_repo,
                                 adapter_name=STAGE2_DEV_LORA_ADAPTER,
                                 cache_dir=shared.opts.hfcache_dir,
+                                **lora_args,
                                 **offline_args,
                             )
                             shared.sd_model.set_adapters([STAGE2_DEV_LORA_ADAPTER], [1.0])
@@ -628,10 +637,7 @@ def run_ltx(task_id,
             if not audio_enable:
                 audio = None
 
-            try:
-                aac_sample_rate = shared.sd_model.vocoder.config.output_sampling_rate
-            except Exception:
-                aac_sample_rate = 24000
+            aac_sample_rate = get_audio_rate(p)
 
             if mp4_interpolate > 0 and pixels is not None:
                 p.video_interpolate = mp4_interpolate
