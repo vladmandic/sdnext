@@ -286,8 +286,8 @@ def setup_logging(debug=None, trace=None, filename=None):
         logging.getLogger("diffusers").setLevel(logging.DEBUG)
         logging.getLogger("diffusers.modular_pipelines").setLevel(logging.DEBUG)
     else:
-        logging.getLogger("diffusers").setLevel(logging.WARNING)
-        logging.getLogger("diffusers.modular_pipelines").setLevel(logging.WARNING)
+        logging.getLogger("diffusers").setLevel(logging.ERROR)
+        logging.getLogger("diffusers.modular_pipelines").setLevel(logging.ERROR)
     if os.environ.get('SD_TRANSFORMERS_DEBUG', None) is not None:
         logging.getLogger("transformers").setLevel(logging.DEBUG)
     else:

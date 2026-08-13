@@ -207,10 +207,10 @@ class OnDemandHook(accelerate.hooks.ModelHook):
         param = next(module.parameters(), None)
         if param is not None and not devices.same_device(param.device, devices.device):
             t0 = time.time()
-            module.to(devices.device)
+            module.to(devices.device, non_blocking=shared.opts.diffusers_offload_nonblocking)
             dt = time.time() - t0
             process_timer.add('onload', dt)
-            log.debug(f'Offload: type=ondemand op=onload module={module.__class__.__name__} time={dt:.3f}')
+            log.debug(f'Offload: type=ondemand op=onload module={module.__class__.__name__} nonblocking={shared.opts.diffusers_offload_nonblocking} time={dt:.3f}')
         return args, kwargs
 
 
@@ -240,7 +240,7 @@ def set_group_vae(sd_model, module, module_name: str) -> str:
     return 'ondemand'
 
 
-def offload_ondemand(sd_model):
+def offload_ondemand(sd_model, include=[], exclude=[], reason=''):
     """Return on-demand components to cpu once their outputs are materialized."""
     if sd_model is None:
         return
@@ -249,14 +249,18 @@ def offload_ondemand(sd_model):
         sd_model = sd_model.pipe
         names = getattr(sd_model, 'sdnext_ondemand_modules', None)
     for module_name in names or []:
+        if include and module_name not in include:
+            continue
+        if exclude and module_name in exclude:
+            continue
         module = getattr(sd_model, module_name, None)
         param = next(module.parameters(), None) if module is not None else None
         if param is not None and not devices.same_device(param.device, devices.cpu):
             t0 = time.time()
-            module.to(devices.cpu)
+            module.to(devices.cpu, non_blocking=shared.opts.diffusers_offload_nonblocking)
             dt = time.time() - t0
             process_timer.add('offload', dt)
-            log.debug(f'Offload: type=ondemand op=offload module={module_name} time={dt:.3f}')
+            log.debug(f'Offload: type=ondemand op=offload module={module_name} nonblocking={shared.opts.diffusers_offload_nonblocking} reason="{reason}" time={dt:.3f}')
 
 
 def report_group_stats(sd_model, module_names):

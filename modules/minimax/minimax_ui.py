@@ -19,7 +19,8 @@ def create_ui(prompt, _negative, styles, overrides, script_inputs, mp4_fps, mp4_
                 minimax_models = [m.name for m in models['MiniMax']] if 'MiniMax' in models else ['None']
                 model = gr.Dropdown(label='MiniMax model', choices=minimax_models, value=minimax_models[0], elem_id="minimax_model")
                 btn_load = ToolButton(ui_symbols.loading, elem_id="video_model_load_minimax")
-                workflow = gr.Textbox(value='', label='Workflow', elem_id='minimax_workflow', show_label=True, interactive=False)
+            with gr.Row():
+                workflow = gr.Label(value='', label='Workflow', elem_id='minimax_workflow', show_label=False)
             with gr.Accordion(open=True, label='Parameters', elem_id='minimax_param_accordion') as _param_accordion:
                 with gr.Row():
                     width, height = ui_sections.create_resolution_inputs('minimax', default_width=832, default_height=480, step=32)
@@ -39,7 +40,7 @@ def create_ui(prompt, _negative, styles, overrides, script_inputs, mp4_fps, mp4_
             with gr.Accordion(open=False, label="Reference media", elem_id='minimax_reference_accordion', visible=True) as reference_accordion:
                 gr.HTML("""Upload up to 9 images, 3 videos, and 3 audio files<br>
                            The total number of files must not exceed 12<br><br>""", elem_id='minimax_reference_media_info', elem_classes=['smaller'])
-                reference_images = gr.Files(label="Reference media", interactive=True, elem_id="minimax_reference_media", type="file", file_count="multiple", visible=True)
+                reference_media = gr.Files(label="Reference media", interactive=True, elem_id="minimax_reference_media", visible=True)
 
         with gr.Column(elem_id='minimax-output-column', scale=2) as _column_output:
             with gr.Row():
@@ -56,7 +57,7 @@ def create_ui(prompt, _negative, styles, overrides, script_inputs, mp4_fps, mp4_
             workflow = 'fl2va' if init_image is not None else 't2va'
         else:
             workflow = model_info.workflow
-        return gr.update(value=workflow), gr.update(visible=workflow != 'ref2va'), gr.update(visible=workflow == 'ref2va')
+        return gr.update(value=f'Workflow: {workflow}'), gr.update(visible=workflow != 'ref2va'), gr.update(visible=workflow == 'ref2va')
 
     def on_load(model_name: str):
         model_info = next((m for m in models['MiniMax'] if m.name == model_name), None)
@@ -75,7 +76,7 @@ def create_ui(prompt, _negative, styles, overrides, script_inputs, mp4_fps, mp4_
         prompt, styles,
         width, height, frames,
         steps, seed,
-        init_image, last_image, reference_images,
+        init_image, last_image, reference_media,
         mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, mp4_thumb,
         audio_enable,
         overrides,

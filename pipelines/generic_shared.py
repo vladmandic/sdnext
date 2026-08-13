@@ -98,6 +98,19 @@ shared_te_map = {
         'target_repo': 'Qwen/Qwen3-VL-8B-Instruct',
     },
 
+    'Qwen3-VL 32B Conditional': {
+        'cls': transformers.Qwen3VLForConditionalGeneration,
+        'target_repo': 'MiniMaxAI/MiniMax-H3',
+        'identifier': ['MiniMax-H3'],
+        'target_subfolder': 'text_encoder',
+    },
+    'Qwen3-VL 32B Conditional SDNQ-UInt4': {
+        'cls': transformers.Qwen3VLForConditionalGeneration,
+        'target_repo': 'OzzyGT/MiniMax_H3_sdnq_dynamic_4bit',
+        'identifier': ['MiniMax_H3_sdnq'],
+        'target_subfolder': 'text_encoder',
+    },
+
     'Qwen3-VL 2B Conditional': {
         'cls': transformers.Qwen3VLForConditionalGeneration,
         'target_repo': 'SeFi-Image/SeFi-Image-1B-Base',

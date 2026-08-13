@@ -1,7 +1,7 @@
 import time
 import logging
 import torch
-from modules import shared, errors, devices
+from modules import shared, errors, devices, sd_offload
 from modules.logger import log
 
 
@@ -35,10 +35,14 @@ def install_state_hook(pipe):
             jobid = getattr(pipe, 'sdnext_phaseid', None) # previous jobid if any
             shared.state.end(jobid) # clear the previous job if exists
             pipe.sdnext_phaseid = shared.state.begin(phase) # start a new job for the current phase
-            log.debug(f'Pipeline: phase={phase} cls={pipe.__class__.__name__} module={module.__class__.__name__ if module is not None else None}')
+            log.debug(f'Pipeline: phase={phase.replace(" ", "")} cls={pipe.__class__.__name__} module={module.__class__.__name__ if module is not None else None}')
+            return True
+        return False
 
     def _pre_transformer_hook(module, args): # pylint: disable=unused-argument
-        set_phase('Generate', module)
+        new_phase = set_phase('Generate', module)
+        if new_phase:
+            sd_offload.offload_ondemand(pipe, exclude=['transformer', 'transformer_ref'], reason='generate')
         if shared.state.sampling_steps == 0 and getattr(pipe, 'num_timesteps', 0) > 0:
             shared.state.sampling_steps = pipe.num_timesteps
         if shared.state.paused:
@@ -52,17 +56,23 @@ def install_state_hook(pipe):
             raise AssertionError('Interrupted...')
 
     def _pre_text_encode_hook(module, args): # pylint: disable=unused-argument
-        set_phase('TextEncode', module)
+        new_phase = set_phase('Text Encode', module)
+        if new_phase:
+            sd_offload.offload_ondemand(pipe, exclude=['text_encoder'], reason='text encode')
         if shared.state.interrupted or shared.state.skipped:
             raise AssertionError('Interrupted...')
 
     def _pre_vae_decode_hook(module, args): # pylint: disable=unused-argument
-        set_phase('Decode', module)
+        new_phase = set_phase('Decode', module)
+        if new_phase:
+            sd_offload.offload_ondemand(pipe, exclude=['vae', 'audio_vae'], reason='vae decode')
         if shared.state.interrupted or shared.state.skipped: # fires per tile, so tiled decodes abort promptly
             raise AssertionError('Interrupted...')
 
     def _pre_vae_encode_hook(module, args): # pylint: disable=unused-argument
-        set_phase('Encode', module)
+        new_phase = set_phase('Encode', module)
+        if new_phase:
+            sd_offload.offload_ondemand(pipe, exclude=['vae', 'audio_vae'], reason='vae encode')
         if shared.state.interrupted or shared.state.skipped: # fires per tile, so tiled encodes abort promptly
             raise AssertionError('Interrupted...')
 
@@ -132,12 +142,12 @@ def preload_components(pipe, workflow: str | None, load_config: dict | None = No
         subfolder = getattr(spec, 'subfolder', None) or name
         component = None
         if origin.startswith('diffusers') and ('Transformer' in cls_name or 'UNet' in cls_name):
-            component = generic.load_transformer(repo, cls_name=cls, load_config=load_config, subfolder=subfolder)
+            component = generic.load_transformer(repo, cls_name=cls, load_config=load_config, subfolder=subfolder, trust_remote_code=True)
         elif origin.startswith('transformers') and 'text_encoder' in name:
             # sharing stays off: the shared map matches on class plus a substring of the repo name, so a
             # quantized repo can be redirected to an unrelated model's encoder. enable it per arch once
             # the pipeline's own encoder is known to be interchangeable with the shared one
-            component = generic.load_text_encoder(repo, cls_name=cls, load_config=load_config, subfolder=subfolder, allow_shared=False)
+            component = generic.load_text_encoder(repo, cls_name=cls, load_config=load_config, subfolder=subfolder)
         if component is not None:
             loaded[name] = component
     return loaded
@@ -184,6 +194,7 @@ def load_modular_pipe(repo_cls, repo: str, workflow: str | None = None, revision
             workflow=workflow,
             dtype=devices.dtype,
             cache_dir=cache_dir,
+            trust_remote_code=True,
             **offline_args,
         )
         loaded = [name for name, component in pipe.components.items() if component is not None]

@@ -93,6 +93,7 @@ def load_text_encoder(
         modules_dtype_dict=None,
         use_safetensors=True,
         shared_id: str | None = None,
+        trust_remote_code=False,
         **kwargs):
 
     if shared.state.interrupted:
@@ -116,6 +117,8 @@ def load_text_encoder(
         load_args['dtype'] = dtype
         if use_safetensors:
             load_args['use_safetensors'] = True
+        if trust_remote_code:
+            load_args['trust_remote_code'] = True
 
         # 1. load override from local file
         local_file = None

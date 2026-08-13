@@ -37,7 +37,7 @@ def apply_overrides(p, pipe, still: bool = False, audio: bool = True):
     pipe.vae.enable_tiling() # model always tiles; the shared vae params path may have disabled it
     set_audio(pipe, audio)
     p.task_args['output'] = ['videos', 'audio', 'sampling_rate'] if audio else ['videos']
-    p.task_args['output_type'] = 'pil' # the image path otherwise requests latent output, which the decode block rejects
+    p.task_args['output_type'] = 'pil' if still else 'np'
     p.video_still = still
 
 

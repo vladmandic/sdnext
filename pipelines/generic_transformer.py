@@ -22,6 +22,7 @@ def load_transformer(
         use_safetensors=True,
         native_spec=None,
         override_slot='primary',
+        trust_remote_code=False,
         **kwargs):
 
     """Load a DiT transformer from the base repo, or from a user-selected
@@ -66,6 +67,8 @@ def load_transformer(
                 load_args['variant'] = variant
             if use_safetensors:
                 load_args['use_safetensors'] = True
+            if trust_remote_code:
+                load_args['trust_remote_code'] = True
             return cls_name.from_pretrained(
                 repo_id,
                 cache_dir=shared.opts.hfcache_dir,
