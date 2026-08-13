@@ -1,6 +1,13 @@
 # Change Log for SD.Next
 
-## Update for 2026-08-11
+## TODO
+
+- video API: video, text2image, image2image
+- MiniMax-H3
+- LTX-2.5
+- Group offloading in 16gb
+
+## Update for 2026-08-13
 
 - **Detailer**: Pretty much *detailer.next* :)  
   Detailer detection models were traditionally *YOLO* models, but now we can also use:  
@@ -18,10 +25,11 @@
 - [SDNQ](https://github.com/Disty0/sdnq) is now a separate package and no longer part of sdnext repo  
   installed and used internally by sd.next, but also supported by diffusers natively  
 - **Server**
-  - update handlers for all authenticated workflows
   - nunchaku-lite support for `torch==2.13`
+  - update handlers for all authenticated workflows
+  - update handlers for all hf-based progress bars
   - log long torch autotune operations
-  - utilize torch.accelerator
+  - utilize `torch.accelerator` where available
   - add `SD_DIFFUSERS_DEBUG` and `SD_TRANSFORMERS_DEBUG` env variables to trace diffusers and transformers internal operations  
 - **Removed**
   - remove DirectML support  
@@ -33,6 +41,7 @@
   - improve handling of hf auth
   - improve pipeline detection for non-cached models
   - cleanup alt offload codepaths
+  - hf progress bars
 
 ## Update for 2026-08-07
 

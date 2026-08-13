@@ -590,7 +590,7 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
     p.ops = list(set(p.ops))
 
     if not p.disable_extra_networks:
-        log.info(f'Processed: images={len(output_images)} its={(p.steps * len(output_images)) / (t1 - t0):.2f} ops={p.ops}')
+        log.info(f'Processed: images={len(output_images)} its={(p.steps * len(output_images)) / (t1 - t0):.3f} ops={p.ops}')
         print_stats()
 
     if shared.cmd_opts.lowvram or shared.cmd_opts.medvram:

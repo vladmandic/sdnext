@@ -19,8 +19,8 @@ debug_log = log.trace if debug_enabled else lambda *args, **kwargs: None
 disable_pbar = os.environ.get('SD_DISABLE_PBAR', None) is not None
 
 
-def task_modular_kwargs(p, model): # pylint: disable=unused-argument
-    # model_cls = model.__class__.__name__
+def task_modular_kwargs(p, model):
+    model_cls = model.__class__.__name__
     task_args = {}
     p.ops.append('modular')
 
@@ -33,6 +33,15 @@ def task_modular_kwargs(p, model): # pylint: disable=unused-argument
     mask_image = p.task_args.get('image_mask', None) or getattr(p, 'image_mask', None) or getattr(p, 'mask', None)
     if mask_image is not None:
         task_args['mask_image'] = mask_image
+
+    if model_cls in ['MiniMaxH3ModularPipeline'] and task_args.get('image', None) is not None:
+        if len(task_args.get('image', [])) > 2:
+            task_args['normalized_references'] = task_args['image']
+            task_args.pop('image', None) # remove image, only use normalized_references
+        elif len(task_args.get('image', [])) > 1:
+            task_args['last_image'] = task_args['image'][1]
+        if len(task_args.get('image', [])) > 0:
+            task_args['image'] = task_args['image'][0]
 
     if debug_enabled:
         debug_log(f'Process task specific args: {task_args}')
@@ -170,13 +179,15 @@ def task_specific_kwargs(p, model):
 
 
 def get_params(model):
+    possible = []
     if hasattr(model, 'blocks') and hasattr(model.blocks, 'inputs'): # modular pipeline
         possible = [input_param.name for input_param in model.blocks.inputs]
-        return possible + ['output'] # __call__ param selecting which state values to return, not a block input
+        possible += ['output'] # __call__ param selecting which state values to return, not a block input
     else:
         signature = inspect.signature(type(model).__call__, follow_wrapped=True)
         possible = list(signature.parameters)
-        return possible
+    possible = [p for p in possible if p not in ['self', 'kwargs', None]]
+    return possible
 
 
 def get_defaults(model, kwargs):
@@ -241,8 +252,7 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:l
 
     possible = get_params(model)
 
-    if debug_enabled:
-        debug_log(f'Process pipeline possible: {possible}')
+    log.debug(f'Pipeline: cls={cls} possible={possible}')
     steps = kwargs.get("num_inference_steps", None) or len(getattr(p, 'timesteps', ['1']))
     clip_skip = kwargs.pop("clip_skip", 1)
 

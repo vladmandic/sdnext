@@ -29,12 +29,12 @@ def install_state_hook(pipe):
         runner_log.addFilter(InterruptLogFilter())
 
     def set_phase(phase: str, module: torch.nn.Module | None = None):
-        # every stage runs inside one pipeline call, so the forward hooks are the only place the current stage is visible; state.begin clears the label per job
+        # every stage runs inside one pipeline call, so the forward hooks are the only place the current stage is visible
         if getattr(pipe, 'sdnext_phase', None) != phase:
             pipe.sdnext_phase = phase
-            jobid = getattr(pipe, 'sdnext_phaseid', None)
-            shared.state.end(jobid)
-            pipe.sdnext_phaseid = shared.state.begin(phase)
+            jobid = getattr(pipe, 'sdnext_phaseid', None) # previous jobid if any
+            shared.state.end(jobid) # clear the previous job if exists
+            pipe.sdnext_phaseid = shared.state.begin(phase) # start a new job for the current phase
             log.debug(f'Pipeline: phase={phase} cls={pipe.__class__.__name__} module={module.__class__.__name__ if module is not None else None}')
 
     def _pre_transformer_hook(module, args): # pylint: disable=unused-argument
@@ -179,7 +179,7 @@ def load_modular_pipe(repo_cls, repo: str, workflow: str | None = None, revision
         preloaded = preload_components(pipe, workflow, load_config=load_config)
         if preloaded:
             pipe.update_components(**preloaded) # registered before the rest, which load_components then skips
-            log.debug(f'Load modular: preloaded={list(preloaded)}')
+            log.debug(f'Load modular: cls={pipe.__class__.__name__} preloaded={list(preloaded)}')
         pipe.load_components(
             workflow=workflow,
             dtype=devices.dtype,

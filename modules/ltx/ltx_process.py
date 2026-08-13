@@ -670,7 +670,7 @@ def run_ltx(task_id,
             memory = shared.mem_mon.summary()
             total_time = max(t_end - t0, 1e-6)
             fps = f'{num_frames/total_time:.2f}'
-            its = f'{(steps)/total_time:.2f}'
+            its = f'{(steps)/total_time:.3f}'
 
             shared.state.end(videojob)
             progress.finish_task(task_id)
