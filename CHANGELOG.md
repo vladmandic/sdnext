@@ -1,9 +1,5 @@
 # Change Log for SD.Next
 
-## TODO
-
-- MiniMax-H3: geo-locked
-
 ## Update for 2026-08-13
 
 - **Models**
