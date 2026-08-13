@@ -20,7 +20,7 @@ def create_ui(prompt, _negative, styles, overrides, script_inputs, mp4_fps, mp4_
                 model = gr.Dropdown(label='MiniMax model', choices=minimax_models, value=minimax_models[0], elem_id="minimax_model")
                 btn_load = ToolButton(ui_symbols.loading, elem_id="video_model_load_minimax")
             with gr.Row():
-                workflow = gr.Label(value='', label='Workflow', elem_id='minimax_workflow', show_label=False)
+                workflow = gr.Label(value='', label='Workflow', elem_id='minimax_workflow', show_label=False, elem_classes=['highlighted-label'])
             with gr.Accordion(open=True, label='Parameters', elem_id='minimax_param_accordion') as _param_accordion:
                 with gr.Row():
                     width, height = ui_sections.create_resolution_inputs('minimax', default_width=832, default_height=480, step=32)

@@ -37,7 +37,7 @@ def load_model(model: str):
     return None
 
 
-def prepare_inputs(workflow: str, p: processing.StableDiffusionProcessingVideo, init_image, last_image, reference_media):
+def prepare_inputs(workflow: str, p: processing.StableDiffusionProcessingVideo, init_image: Image.Image | None, last_image: Image.Image | None, reference_media: list | None):
     from diffusers.modular_pipelines.minimax_h3 import MiniMaxH3ImageReference, MiniMaxH3VideoReference, MiniMaxH3AudioReference
     if workflow == 'fl2va':
         if init_image is not None:
@@ -46,6 +46,8 @@ def prepare_inputs(workflow: str, p: processing.StableDiffusionProcessingVideo, 
             p.task_args['last_image'] = last_image
         log.debug(f'Prepare inputs: workflow={workflow} first={init_image} last={last_image}')
     if workflow == 'ref2va':
+        if reference_media is None or len(reference_media) == 0:
+            return
         files = []
         references = []
         for fn in reference_media:
@@ -72,10 +74,13 @@ def prepare_inputs(workflow: str, p: processing.StableDiffusionProcessingVideo, 
 
 
 def generate(task_id, _ui_state,
-             model, workflow,
+             model,
+             workflow,
              prompt, styles,
-             width, height, frames,
-             steps, seed,
+             width, height,
+             frames,
+             steps,
+             seed,
              init_image, last_image, reference_media,
              mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, mp4_thumb,
              audio_enable,
@@ -124,6 +129,8 @@ def generate(task_id, _ui_state,
 
         _processed: processing.Processed = scripts_manager.scripts_video.run(p, *args)
         processed = processing.process_images(p)
+
+        sd_models.offload_ondemand(shared.sd_model, reason='finish')
 
         # init vars
         pixels = None
