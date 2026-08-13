@@ -40,7 +40,7 @@ export function checkPaused(state) {
 }
 
 export function setProgress(res?: any) {
-  const elements = ['txt2img_generate', 'img2img_generate', 'extras_generate', 'control_generate', 'video_generate', 'framepack_generate'];
+  const elements = ['txt2img_generate', 'img2img_generate', 'extras_generate', 'control_generate', 'video_generate', 'framepack_generate', 'ltx_generate', 'minimax_generate'];
   const progress = res?.progress || 0;
   const job = res?.textinfo || res?.job || ''; // stage label when the backend reports one, job name otherwise
   let perc: string;

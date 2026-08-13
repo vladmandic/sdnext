@@ -11022,9 +11022,9 @@ function checkPaused(state) {
   if (v_el) v_el.innerText = lastState.paused ? "Resume" : "Pause";
 }
 function setProgress(res) {
-  const elements = ["txt2img_generate", "img2img_generate", "extras_generate", "control_generate", "video_generate", "framepack_generate"];
+  const elements = ["txt2img_generate", "img2img_generate", "extras_generate", "control_generate", "video_generate", "framepack_generate", "ltx_generate", "minimax_generate"];
   const progress = res?.progress || 0;
-  const job = res?.job || "";
+  const job = res?.textinfo || res?.job || "";
   let perc;
   let eta = "";
   if (job === "VAE") perc = "Decode";
@@ -11044,7 +11044,7 @@ function setProgress(res) {
   const elPerf = document.getElementById("control-performance");
   let hint = "";
   if (elPerf && res) {
-    const jobTxt = res.job && res.job !== "" ? ` | Job ${res.job}` : "";
+    const jobTxt = res.job && res.job !== "" ? ` | Job ${res.job}${res.textinfo ? `: ${res.textinfo}` : ""}` : "";
     const batchTxt = res.batch > 0 ? ` | Batch ${res.batch}/${res.batches}` : "";
     const stateTxt = res.queued ? "Queued" : res.paused ? "Paused" : res.completed ? "Completed" : res.active ? "Active" : "Idle";
     const stepsTxt = res.step > 0 ? ` | Step ${res.step}/${res.steps}` : "";
@@ -11074,7 +11074,7 @@ function setProgress(res) {
   }
   const el2 = document.getElementById("control-performance");
   if (el2 && res) {
-    const jobTxt = res.job && res.job !== "" ? ` | Job ${res.job}` : "";
+    const jobTxt = res.job && res.job !== "" ? ` | Job ${res.job}${res.textinfo ? `: ${res.textinfo}` : ""}` : "";
     const batchTxt = res.batch > 0 ? ` | Batch ${res.batch}/${res.batches}` : "";
     const stateTxt = res.queued ? "Queued" : res.paused ? "Paused" : res.completed ? "Completed" : res.active ? "Active" : "Idle";
     const stepsTxt = res.step > 0 ? ` | Step ${res.step}/${res.steps}` : "";
@@ -11533,6 +11533,14 @@ function submit_ltx(...args) {
   args[0] = id;
   return args;
 }
+function submit_minimax(...args) {
+  const id = randomId();
+  log("submitMiniMax", id);
+  requestProgress(id, null, null);
+  window.submit_state = "";
+  args[0] = id;
+  return args;
+}
 function submit_video_wrapper(...args) {
   const modernEl = gradioApp().querySelector(".video_output.fade-in");
   let id = modernEl ? modernEl.id : args[0];
@@ -11864,6 +11872,7 @@ window.submit_control = submit_control;
 window.submit_framepack = submit_framepack;
 window.submit_img2img = submit_img2img;
 window.submit_ltx = submit_ltx;
+window.submit_minimax = submit_minimax;
 window.submit_postprocessing = submit_postprocessing;
 window.submit = submit_txt2img;
 window.submit_txt2img = submit_txt2img;

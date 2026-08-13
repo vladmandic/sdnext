@@ -347,6 +347,15 @@ function submit_ltx(...args) {
   return args;
 }
 
+function submit_minimax(...args) {
+  const id = randomId();
+  log('submitMiniMax', id);
+  requestProgress(id, null, null);
+  window.submit_state = '';
+  args[0] = id;
+  return args;
+}
+
 function submit_video_wrapper(...args) {
   const modernEl = gradioApp().querySelector('.video_output.fade-in');
   let id = modernEl ? modernEl.id : args[0];
@@ -842,6 +851,7 @@ window.submit_control = submit_control;
 window.submit_framepack = submit_framepack;
 window.submit_img2img = submit_img2img;
 window.submit_ltx = submit_ltx;
+window.submit_minimax = submit_minimax;
 window.submit_postprocessing = submit_postprocessing;
 window.submit = submit_txt2img; // compatibility alias
 window.submit_txt2img = submit_txt2img;

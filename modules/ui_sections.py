@@ -70,9 +70,9 @@ def create_toprow(is_img2img: bool = False, id_part: str | None = None, generate
     return prompt, styles, negative_prompt, submit, reprocess, button_paste, button_extra, token_counter, token_button, negative_token_counter, negative_token_button
 
 
-def create_resolution_inputs(tab, default_width=1024, default_height=1024):
-    width = gr.Slider(minimum=64, maximum=4096, step=8, label="Width", value=default_width, elem_id=f"{tab}_width")
-    height = gr.Slider(minimum=64, maximum=4096, step=8, label="Height", value=default_height, elem_id=f"{tab}_height")
+def create_resolution_inputs(tab, default_width=1024, default_height=1024, step=8):
+    width = gr.Slider(minimum=64, maximum=4096, step=step, label="Width", value=default_width, elem_id=f"{tab}_width")
+    height = gr.Slider(minimum=64, maximum=4096, step=step, label="Height", value=default_height, elem_id=f"{tab}_height")
     ar_list = ['AR'] + [x.strip() for x in shared.opts.aspect_ratios.split(',') if x.strip() != '']
     gr.Dropdown(show_label=False, interactive=True, choices=ar_list, value=ar_list[0], elem_id=f"{tab}_ar", elem_classes=["ar-dropdown"])  # aspect-ratio linking wired client-side in ui/resolutionLock.ts
     res_switch_btn = ToolButton(value=ui_symbols.switch, elem_id=f"{tab}_res_btn_swap")

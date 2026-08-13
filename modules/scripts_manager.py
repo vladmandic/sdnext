@@ -606,6 +606,9 @@ class ScriptRunner:
         return inputs
 
     def run(self, p: StableDiffusionProcessing, *args) -> Processed | None:
+        from modules import shared
+        if not shared.sd_loaded:
+            return None
         s = ScriptSummary('run')
         script_index = args[0] if len(args) > 0 else 0
         if (script_index is None) or (script_index == 0):
@@ -661,6 +664,9 @@ class ScriptRunner:
         s.report()
 
     def process(self, p: StableDiffusionProcessing, **kwargs):
+        from modules import shared
+        if not shared.sd_loaded:
+            return None
         s = ScriptSummary('process')
         for script in self.alwayson_scripts:
             try:
@@ -673,6 +679,9 @@ class ScriptRunner:
         s.report()
 
     def process_images(self, p: StableDiffusionProcessing, **kwargs):
+        from modules import shared
+        if not shared.sd_loaded:
+            return None
         s = ScriptSummary('process_images')
         processed = None
         for script in self.alwayson_scripts:
@@ -701,6 +710,9 @@ class ScriptRunner:
         s.report()
 
     def process_batch(self, p: StableDiffusionProcessing, **kwargs):
+        from modules import shared
+        if not shared.sd_loaded:
+            return None
         s = ScriptSummary('process-batch')
         for script in self.alwayson_scripts:
             try:

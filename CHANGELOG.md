@@ -3,7 +3,7 @@
 ## TODO
 
 - video API: video, text2image, image2image
-- MiniMax-H3
+- MiniMax-H3: geo-locked
 - LTX-2.5
 - Group offloading in 16gb
 

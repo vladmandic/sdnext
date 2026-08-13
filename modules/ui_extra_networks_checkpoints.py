@@ -173,7 +173,7 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
                 cls = record['info']['_class_name']
                 if isinstance(cls, list):
                     cls = cls[-1]
-                record['version'] = cls.replace('Pipeline', '').replace('Image', '')
+                record['version'] = cls.replace('Pipeline', '').replace('Image', '').replace('Modular', '')
             else:
                 record['version'] = ''
             record['version'] = version_map.get(record['version'], record['version'])

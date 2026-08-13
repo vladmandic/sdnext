@@ -3,7 +3,7 @@ from modules import shared, devices, sd_models
 from modules.logger import log
 
 
-def load_minimax(checkpoint_info, diffusers_load_config=None): # pylint: disable=unused-argument
+def load_minimax(checkpoint_info, diffusers_load_config = None, workflow: str | None = None):
     from modules.video_models import video_load
     from modules.modular_load import load_modular_pipe
     repo_id = sd_models.path_to_repo(checkpoint_info)
@@ -11,7 +11,7 @@ def load_minimax(checkpoint_info, diffusers_load_config=None): # pylint: disable
     if repo_id is None or repo_id.lower() == 'none':
         return None
     offline_args = {'local_files_only': True} if shared.opts.offline_mode else {}
-    workflow = (getattr(checkpoint_info, 'subfolder', None) or 'fl2va').lower() # one repo holds both checkpoint partitions; reference entries select ref2va via the subfolder tag
+    workflow = (workflow or getattr(checkpoint_info, 'subfolder', None) or 'fl2va').lower() # one repo holds both checkpoint partitions; reference entries select ref2va via the subfolder tag
     log.debug(f'Load model: type=MiniMaxH3 repo="{repo_id}" workflow={workflow} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype}')
 
     repo_cls = diffusers.MiniMaxH3ModularPipeline
