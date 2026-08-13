@@ -2,13 +2,14 @@
 
 ## TODO
 
-- video API: video, text2image, image2image
 - MiniMax-H3: geo-locked
-- LTX-2.5
-- Group offloading in 16gb
 
 ## Update for 2026-08-13
 
+- **Models**
+  - [MiniMax H3](https://huggingface.co/MiniMaxAI/MiniMax-H3) in *base* and *ref* variants
+    MiniMax-H3 is an amazing, but absolutely massive at 32B text-encoder and 33B transformer video model  
+    for details, see [MiniMax wiki page](wiki/MiniMax)
 - **Detailer**: Pretty much *detailer.next* :)  
   Detailer detection models were traditionally *YOLO* models, but now we can also use:  
   - [Facebook-SAM3](https://huggingface.co/facebook/sam3) hybrid promptable concept segmentation and detection network
@@ -31,6 +32,10 @@
   - log long torch autotune operations
   - utilize `torch.accelerator` where available
   - add `SD_DIFFUSERS_DEBUG` and `SD_TRANSFORMERS_DEBUG` env variables to trace diffusers and transformers internal operations  
+- **API**
+  - full support for video generation using api  
+    *note*: video api uses async workflow where you submit request and then later download the result  
+    new endpoints: `/sdapi/v1/video`, `/sdapi/v1/video/models`, `/sdapi/v1/video/file`  
 - **Removed**
   - remove DirectML support  
     latest release was over 2 years ago and is not compatible with modern frameworks  
