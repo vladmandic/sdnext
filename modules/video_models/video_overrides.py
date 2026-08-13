@@ -45,7 +45,6 @@ def load_override(selected: Model, **load_args):
             subfolder='connectors',
             torch_dtype=devices.dtype,
             cache_dir=shared.opts.hfcache_dir,
-            ignore_patterns=['connectors/diffusion_pytorch_model.safetensors'],
             **load_args,
         )
     # WAN

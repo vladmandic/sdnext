@@ -2,6 +2,7 @@ import os
 import sys
 import copy
 import time
+import torch
 import transformers
 import diffusers
 from modules import shared, errors, sd_models, sd_checkpoint, model_quant, devices, sd_hijack_te, sd_hijack_vae, modular_load
@@ -19,6 +20,27 @@ def _loader(component):
 
 
 loaded_model = None
+
+
+def snapshot_without(repo: str, ignore_patterns, revision: str | None = None, passed=None, **offline_args) -> str:
+    """Materialize a repo snapshot minus ignore_patterns and return the local folder.
+
+    DiffusionPipeline.download builds its own ignore list from the passed components and never
+    reads the caller's, so repo files that no component claims are fetched regardless. Doing the
+    snapshot here and handing from_pretrained a folder skips its download path entirely, which
+    also means the component folders it would have pruned have to be pruned here instead.
+    """
+    if not ignore_patterns:
+        return repo
+    from huggingface_hub import snapshot_download
+    patterns = list(ignore_patterns) + [f'{name}/*' for name in (passed or [])]
+    try:
+        folder = snapshot_download(repo, revision=revision, cache_dir=shared.opts.hfcache_dir, ignore_patterns=patterns, **offline_args)
+    except Exception as e:
+        log.warning(f'Load video: module=snapshot repo="{repo}" ignore={patterns} {e}')
+        return repo
+    log.debug(f'Load video: module=snapshot repo="{repo}" ignore={patterns}')
+    return folder
 
 
 def load_custom(model_name: str):
@@ -159,8 +181,10 @@ def load_model(selected: models_def.Model):
         else:
             log.debug(f'Load video: module=pipe repo="{selected.repo}" cls={selected.repo_cls.__name__}')
             sd_models.hf_prefetch_configs(selected.repo, {}, 'video')
+            passed = [k for k, v in kwargs.items() if isinstance(v, torch.nn.Module)]
+            repo_path = snapshot_without(selected.repo, kwargs.pop('ignore_patterns', None), selected.repo_revision, passed=passed, **offline_args)
             shared.sd_model = selected.repo_cls.from_pretrained(
-                pretrained_model_name_or_path=selected.repo,
+                pretrained_model_name_or_path=repo_path,
                 revision=selected.repo_revision,
                 cache_dir=shared.opts.hfcache_dir,
                 torch_dtype=devices.dtype,
