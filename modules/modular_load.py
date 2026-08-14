@@ -144,9 +144,7 @@ def preload_components(pipe, workflow: str | None, load_config: dict | None = No
         if origin.startswith('diffusers') and ('Transformer' in cls_name or 'UNet' in cls_name):
             component = generic.load_transformer(repo, cls_name=cls, load_config=load_config, subfolder=subfolder, trust_remote_code=True)
         elif origin.startswith('transformers') and 'text_encoder' in name:
-            # sharing stays off: the shared map matches on class plus a substring of the repo name, so a
-            # quantized repo can be redirected to an unrelated model's encoder. enable it per arch once
-            # the pipeline's own encoder is known to be interchangeable with the shared one
+            # shared substitution is on: the map matches class plus a substring of the repo name, so its entries have to run narrow before broad
             component = generic.load_text_encoder(repo, cls_name=cls, load_config=load_config, subfolder=subfolder)
         if component is not None:
             loaded[name] = component
