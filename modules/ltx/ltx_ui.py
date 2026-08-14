@@ -67,8 +67,9 @@ def create_ui(prompt, negative, styles, overrides, script_inputs, mp4_fps, mp4_i
                 ltx_models = [m.name for m in models['LTX Video']] if 'LTX Video' in models else ['None']
                 model = gr.Dropdown(label='LTX model', choices=ltx_models, value=ltx_models[0], elem_id="ltx_model")
                 btn_load = ToolButton(ui_symbols.loading, elem_id="video_model_load_ltx")
-            with gr.Accordion(open=False, label='Size', elem_id='ltx_size_accordion'):
-                width, height = ui_sections.create_resolution_inputs('ltx', default_width=832, default_height=480)
+            with gr.Accordion(open=True, label='Parameters', elem_id='ltx_size_accordion'):
+                with gr.Row():
+                    width, height = ui_sections.create_resolution_inputs('ltx', default_width=1024, default_height=576, step=64)
                 with gr.Row():
                     frames = gr.Slider(label='LTX frames', minimum=1, maximum=1024, step=1, value=121, elem_id='ltx_frames')
                     seed = gr.Number(label='LTX seed', value=-1, elem_id='ltx_seed', container=True)

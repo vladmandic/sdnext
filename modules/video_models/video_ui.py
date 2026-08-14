@@ -98,7 +98,7 @@ def create_ui(prompt, negative, styles, overrides, script_inputs, mp4_fps, mp4_i
                     guidance_true = gr.Slider(label='True guidance', minimum=-1.0, maximum=14.0, step=0.1, value=-1.0, elem_id="video_guidance_true")
             with gr.Accordion(open=False, label="Size", elem_id='video_size_accordion'):
                 with gr.Row():
-                    width, height = ui_sections.create_resolution_inputs('video', default_width=832, default_height=480)
+                    width, height = ui_sections.create_resolution_inputs('video', default_width=1024, default_height=576, step=16)
                 with gr.Row():
                     frames = gr.Slider(label='Frames', minimum=1, maximum=1024, step=1, value=17, elem_id="video_frames")
                     seed = gr.Number(label='Initial seed', value=-1, elem_id="video_seed", container=True)

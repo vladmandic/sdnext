@@ -23,7 +23,7 @@ def create_ui(prompt, _negative, styles, overrides, script_inputs, mp4_fps, mp4_
                 workflow = gr.Label(value='', label='Workflow', elem_id='minimax_workflow', show_label=False, elem_classes=['highlighted-label'])
             with gr.Accordion(open=True, label='Parameters', elem_id='minimax_param_accordion') as _param_accordion:
                 with gr.Row():
-                    width, height = ui_sections.create_resolution_inputs('minimax', default_width=832, default_height=480, step=32)
+                    width, height = ui_sections.create_resolution_inputs('minimax', default_width=1024, default_height=576, step=32)
                 with gr.Row():
                     steps = gr.Slider(minimum=2, maximum=100, step=1, label="Steps", elem_id='minimax_steps', value=30)
                     frames = gr.Slider(label='Frames', minimum=22, maximum=345, step=17, value=107, elem_id='minimax_frames')

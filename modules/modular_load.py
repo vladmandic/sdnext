@@ -138,7 +138,7 @@ def preload_components(pipe, workflow: str | None, load_config: dict | None = No
         if not repo or cls is None:
             continue
         origin = getattr(cls, '__module__', '') or ''
-        cls_name = getattr(cls, '__name__', '') or ''
+        cls_name = getattr(cls, '__name__', '') or '' # TODO preload: components with remote code resolve to cls none
         subfolder = getattr(spec, 'subfolder', None) or name
         component = None
         if origin.startswith('diffusers') and ('Transformer' in cls_name or 'UNet' in cls_name):
