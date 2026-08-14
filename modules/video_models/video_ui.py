@@ -11,7 +11,7 @@ debug = log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None else lam
 
 # Engines surfaced on their own dedicated tab; hide from the general Video tab dropdown
 # so users aren't offered two paths to the same models.
-HIDDEN_ENGINES = {'LTX Video'}
+HIDDEN_ENGINES = {'LTX Video', 'MiniMax'}
 
 
 def visible_engines():
