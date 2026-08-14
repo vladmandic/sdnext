@@ -17,17 +17,24 @@ def load_override(selected: Model, **load_args):
     # LTX
     if 'LTXVideo 0.9.5 I2V' in selected.name:
         kwargs['vae'] = diffusers.AutoencoderKLLTXVideo.from_pretrained(selected.repo, subfolder="vae", torch_dtype=torch.float32, cache_dir=shared.opts.hfcache_dir, **load_args)
-    # OzzyGT LTX-2.3 mirrors pack connectors/ twice by design: sharded (*-00001-of-0000N +
-    # .index.json) and unsharded diffusion_pytorch_model.safetensors of the byte-identical
-    # weights. snapshot_download faithfully fetches both; diffusers' component loader picks
-    # sharded when the index is present. ignore_patterns skips the ~6.3 GB unsharded copy
-    # without reaching for a cleaner upstream mirror.
+    # OzzyGT LTX-2.3 mirrors and the LTX-2.5 repo pack connectors/ twice by design: sharded
+    # (*-00001-of-0000N + .index.json) and unsharded diffusion_pytorch_model.safetensors of the
+    # byte-identical weights. snapshot_download faithfully fetches both; diffusers' component
+    # loader picks sharded when the index is present. ignore_patterns skips the ~6.3 GB unsharded
+    # copy without reaching for a cleaner upstream mirror.
     ltx2_redundant_connector_repos = {
         'OzzyGT/LTX-2.3',
         'OzzyGT/LTX-2.3-sdnq-dynamic-int4',
     }
-    if selected.repo in ltx2_redundant_connector_repos:
-        kwargs['ignore_patterns'] = ['connectors/diffusion_pytorch_model.safetensors']
+    ltx2_ignore = []
+    if selected.repo in ltx2_redundant_connector_repos or 'LTXVideo 2.5' in selected.name:
+        ltx2_ignore.append('connectors/diffusion_pytorch_model.safetensors')
+    if 'LTXVideo 2.5' in selected.name:
+        # the pipeline fetch pulls every model-index folder except passed components: transformer_full
+        # is not one, the diffusion decoder is a separate pipeline, the LoRA is fetched on demand
+        ltx2_ignore += ['transformer_full/*', 'diffusion_decoder/*', 'ltx-2.5-22b-distilled-lora-450-bf16.safetensors']
+    if ltx2_ignore:
+        kwargs['ignore_patterns'] = ltx2_ignore
     # LTX2TextConnectors weights are byte-identical across all 2.3 variants (verified by blob
     # hash). Pre-load from a canonical repo so per-variant fetches skip connectors/ entirely.
     # FP16 variants share OzzyGT/LTX-2.3; SDNQ variants share the pre-quantized mirror.

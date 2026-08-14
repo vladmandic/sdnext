@@ -11,6 +11,16 @@ from modules.logger import log
 from modules.video_models.video_utils import check_av
 
 
+def get_audio_rate(p=None, default: int = 24000) -> int:
+    # pipeline output wins when it reports a rate, else the loaded vocoder: LTX-2.0 runs at 24k,
+    # 2.3 and 2.5 at 48k, and muxing at the wrong rate shifts the pitch
+    rate = getattr(p, 'audio_sampling_rate', None) if p is not None else None
+    if not rate:
+        vocoder = getattr(shared.sd_model, 'vocoder', None)
+        rate = getattr(getattr(vocoder, 'config', None), 'output_sampling_rate', None)
+    return int(rate) if rate else default
+
+
 def get_video_filename(p:processing.StableDiffusionProcessingVideo):
     from modules.image.namegen import FilenameGenerator
     from modules.paths import resolve_output_path

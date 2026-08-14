@@ -5,6 +5,15 @@
 - **Models**
   - [MiniMax H3](https://huggingface.co/MiniMaxAI/MiniMax-H3) in *base* and *ref* variants
     MiniMax-H3 is an amazing, but absolutely massive at 32B text-encoder and 33B transformer video model  
+    for details, see [MiniMax wiki page](wiki/MiniMax)
+  - [LTX-2.5](https://huggingface.co/Lightricks/LTX-2.5) from Lightricks  
+    22B joint audio and video generation in *Distilled* and *Dev* variants,  
+    each as *text-to-video*, *image-to-video* and *conditioning* rows  
+    paired with a *Gemma 4* text encoder and a duration head:  
+    tick *auto duration* and the clip length is predicted from the prompt instead of set by hand  
+    *note*: LTX-2.5 is a [gated model](https://vladmandic.github.io/sdnext-docs/Gated/)  
+    *note*: image conditioning is now re-compressed to match what the models were trained on,  
+    at CRF 18 for LTX-2.5 and 33 for earlier LTX-2.x versions  
     see [MiniMax wiki page](wiki/MiniMax) for details and usage instructions  
 - **Detailer**: Pretty much *detailer.next* :)  
   Detailer detection models were traditionally *YOLO* models, but now we can also use:  
@@ -43,6 +52,12 @@
   - improve pipeline detection for non-cached models
   - cleanup alt offload codepaths
   - hf progress bars
+  - ltx: send the guidance stack and cross-timestep on every 2.x call path
+  - ltx: distilled variants no longer force dynamic shifting on, which remapped their sigma schedule
+  - ltx: sampler shift now reaches flow-match schedulers
+  - ltx: reload the latent upsampler when the model or its repo changes
+  - video: take the audio sample rate from the loaded vocoder
+  - video: keep the shared text encoder out of the registry rows
   - processing stats reporting
   - image metadata handle correct image index
 

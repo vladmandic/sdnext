@@ -16,6 +16,7 @@ class Model:
     dit: str = None
     dit_cls: classmethod = None
     dit_folder: str = 'transformer'
+    dit_kwarg: str = None # pipeline argument the folder loads into, when the two differ
     dit_revision: str = None
     te: str = None
     te_cls: classmethod = None
@@ -147,6 +148,52 @@ try:
         ],
         'LTX Video': [
             Model(name='None'),
+
+            Model(name='─────── LTX-2.5 ───────'),
+            Model(name='─── Distilled ───'),
+            Model(name='LTXVideo 2.5 22B T2V Distilled',
+                url='https://huggingface.co/Lightricks/LTX-2.5',
+                repo='Lightricks/LTX-2.5-Diffusers',
+                repo_cls='LTX2Pipeline',
+                te_cls='Gemma4UnifiedForConditionalGeneration',
+                dit_cls='LTX2VideoTransformer3DModel'),
+            Model(name='LTXVideo 2.5 22B I2V Distilled',
+                url='https://huggingface.co/Lightricks/LTX-2.5',
+                repo='Lightricks/LTX-2.5-Diffusers',
+                repo_cls='LTX2ImageToVideoPipeline',
+                te_cls='Gemma4UnifiedForConditionalGeneration',
+                dit_cls='LTX2VideoTransformer3DModel'),
+            Model(name='LTXVideo 2.5 22B Condition Distilled',
+                url='https://huggingface.co/Lightricks/LTX-2.5',
+                repo='Lightricks/LTX-2.5-Diffusers',
+                repo_cls='LTX2ConditionPipeline',
+                te_cls='Gemma4UnifiedForConditionalGeneration',
+                dit_cls='LTX2VideoTransformer3DModel'),
+            Model(name='─── Dev ───'), # transformer_full is the guided model, transformer the distilled one
+            Model(name='LTXVideo 2.5 22B T2V Dev',
+                url='https://huggingface.co/Lightricks/LTX-2.5',
+                repo='Lightricks/LTX-2.5-Diffusers',
+                repo_cls='LTX2Pipeline',
+                te_cls='Gemma4UnifiedForConditionalGeneration',
+                dit_cls='LTX2VideoTransformer3DModel',
+                dit_folder='transformer_full',
+                dit_kwarg='transformer'),
+            Model(name='LTXVideo 2.5 22B I2V Dev',
+                url='https://huggingface.co/Lightricks/LTX-2.5',
+                repo='Lightricks/LTX-2.5-Diffusers',
+                repo_cls='LTX2ImageToVideoPipeline',
+                te_cls='Gemma4UnifiedForConditionalGeneration',
+                dit_cls='LTX2VideoTransformer3DModel',
+                dit_folder='transformer_full',
+                dit_kwarg='transformer'),
+            Model(name='LTXVideo 2.5 22B Condition Dev',
+                url='https://huggingface.co/Lightricks/LTX-2.5',
+                repo='Lightricks/LTX-2.5-Diffusers',
+                repo_cls='LTX2ConditionPipeline',
+                te_cls='Gemma4UnifiedForConditionalGeneration',
+                dit_cls='LTX2VideoTransformer3DModel',
+                dit_folder='transformer_full',
+                dit_kwarg='transformer'),
 
             Model(name='─────── LTX-2.3 v1.1 ───────'),
             Model(name='LTXVideo 2.3-1.1 22B T2V Distilled',

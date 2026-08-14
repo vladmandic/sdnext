@@ -9,7 +9,7 @@ class LTXCaps:
     name: str
     repo_cls_name: str
     family: str  # '0.9' or '2.x'
-    variant: str  # '0.9', '2.0', '2.3' (finer-grained sub-variant)
+    variant: str  # '0.9', '2.0', '2.3', '2.5' (finer-grained sub-variant)
     is_distilled: bool
     is_i2v: bool
     supports_input_media: bool
@@ -41,6 +41,13 @@ class LTXCaps:
     # for refine; same-res refine oversaturates. Condition variants rebuild conditions per stage.
     supports_two_stage_refine: bool = False
     stage2_dev_lora_repo: Optional[str] = None
+    # 2.5 keeps the stage 2 LoRA in the model repo; 2.0 and 2.3 each have their own
+    stage2_dev_lora_weight: Optional[str] = None
+    # tied to the family VAE: the wrong one drifts per-channel latent statistics
+    upsample_repo: Optional[str] = None
+    # 2.5 ships the distilled scheduler config, so its Dev rows restore the terminal shift
+    scheduler_shift_terminal: Optional[float] = None
+    supports_auto_duration: bool = False
 
 
 CONDITION_CLASSES = {'LTXConditionPipeline', 'LTX2ConditionPipeline'}
@@ -84,7 +91,12 @@ def get_caps(model_name: str) -> Optional[LTXCaps]:
     family = '2.x' if is_ltx2 else '0.9'
     # 2.x sub-variant detection: unknown 2.x mirrors fall through to '2.0' (conservative default).
     if is_ltx2:
-        variant = '2.3' if '2.3' in model_name else '2.0'
+        if '2.5' in model_name:
+            variant = '2.5'
+        elif '2.3' in model_name:
+            variant = '2.3'
+        else:
+            variant = '2.0'
     else:
         variant = '0.9'
     is_distilled = 'Distilled' in model_name
@@ -106,11 +118,12 @@ def get_caps(model_name: str) -> Optional[LTXCaps]:
         supports_stg=is_ltx2,
         supports_audio=is_ltx2,
         supports_frame_rate_kwarg=is_ltx2,
-        use_cross_timestep=(variant == '2.3'),
+        use_cross_timestep=variant in ('2.3', '2.5'),
         default_cfg=3.0,
         default_steps=30 if is_ltx2 else 50,
         default_sampler_shift=-1.0,
-        default_dynamic_shift=is_ltx2,
+        # distilled ships use_dynamic_shifting=False and runs explicit sigmas, which shifting remaps
+        default_dynamic_shift=is_ltx2 and not is_distilled,
         default_width=768,
         default_height=512,
         default_frames=121 if is_ltx2 else 161,
@@ -122,7 +135,10 @@ def get_caps(model_name: str) -> Optional[LTXCaps]:
         caps.default_steps = 8
 
     if is_ltx2 and not is_distilled:
-        if variant == '2.3':
+        if variant == '2.5':
+            caps.stage2_dev_lora_repo = 'Lightricks/LTX-2.5-Diffusers'
+            caps.stage2_dev_lora_weight = 'ltx-2.5-22b-distilled-lora-450-bf16.safetensors'
+        elif variant == '2.3':
             caps.stage2_dev_lora_repo = 'CalamitousFelicitousness/LTX-2.3-distilled-lora-384-Diffusers'
         elif variant == '2.0':
             caps.stage2_dev_lora_repo = 'CalamitousFelicitousness/LTX-2.0-distilled-lora-384-Diffusers'
@@ -130,16 +146,22 @@ def get_caps(model_name: str) -> Optional[LTXCaps]:
     caps.supports_two_stage_refine = is_ltx2
 
     if is_ltx2:
-        if variant == '2.3':
+        if variant == '2.5':
+            caps.upsample_repo = 'Lightricks/LTX-2.5-Diffusers'
             caps.stg_default_blocks = [28]
-        elif variant == '2.0':
-            caps.stg_default_blocks = [29]
+            caps.supports_auto_duration = True
+        elif variant == '2.3':
+            caps.upsample_repo = 'CalamitousFelicitousness/LTX-2.3-Spatial-Upsampler-x2-1.1-Diffusers'
+            caps.stg_default_blocks = [28]
         else:
-            caps.stg_default_blocks = [28]
+            caps.upsample_repo = 'Lightricks/LTX-2'
+            caps.stg_default_blocks = [29]
         if not is_distilled:
             # canonical T2V composition from huggingface/diffusers#13217
             caps.stg_default_scale = 1.0
             caps.modality_default_scale = 3.0
             caps.guidance_rescale_default = 0.7
+            if variant == '2.5':
+                caps.scheduler_shift_terminal = 0.1
 
     return caps
