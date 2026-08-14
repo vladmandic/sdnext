@@ -130,7 +130,7 @@ def generate(task_id, _ui_state,
         _processed: processing.Processed = scripts_manager.scripts_video.run(p, *args)
         processed = processing.process_images(p)
 
-        sd_models.offload_ondemand(shared.sd_model, reason='finish', force=True) # force offload all loaded modules to cpu
+        sd_models.offload_ondemand(shared.sd_model, reason='finish', force=True) # return the on-demand components to cpu between stages
         devices.torch_gc(force=True) # free gpu memory before saving video
 
         # init vars

@@ -27,7 +27,7 @@ def load_minimax(checkpoint_info, diffusers_load_config = None, workflow: str | 
     if pipe is None:
         return None
     pipe.sd_checkpoint_info = checkpoint_info
-    pipe.sdnext_force_offload = True # very large model so this triggers force-offload on each stage
+    pipe.sdnext_force_offload = True # very large model, so each stage ends with an on-demand offload sweep
     if hasattr(pipe, 'min_duration') and hasattr(pipe, 'fps'):
         pipe.sdnext_supported_min_frames = int(pipe.min_duration * pipe.fps) # fresh pipes report the true floor; still mode gates per instance
 

@@ -249,27 +249,31 @@ def offload_ondemand(sd_model, include=[], exclude=[], reason='', force=False):
     """Return on-demand components to cpu once their outputs are materialized."""
     if sd_model is None:
         return
-    if force: # if force, all loaded modules are candidates
-        names = [name for name, component in sd_model.components.items() if isinstance(component, torch.nn.Module)]
-    else:
-        names = getattr(sd_model, 'sdnext_ondemand_modules', None)
-    if not names and hasattr(sd_model, 'pipe'):
-        sd_model = sd_model.pipe
-        names = getattr(sd_model, 'sdnext_ondemand_modules', None)
-    for module_name in names or []:
-        if include and module_name not in include:
-            continue
-        if exclude and module_name in exclude:
-            continue
-        module = getattr(sd_model, module_name, None)
-        param = next(module.parameters(), None) if module is not None else None
-        if param is not None and not devices.same_device(param.device, devices.cpu):
-            t0 = time.time()
-            module.to(devices.cpu, non_blocking=shared.opts.diffusers_offload_nonblocking)
-            dt = time.time() - t0
-            process_timer.add('offload', dt)
-            debug_move(f'Offload: type=ondemand op=offload module={module_name} nonblocking={shared.opts.diffusers_offload_nonblocking} reason="{reason}" time={dt:.3f}')
-            devices.torch_gc()
+    moved = []
+    for pipe in get_pipe_variants(sd_model):
+        names = get_module_names(pipe) if force else (getattr(pipe, 'sdnext_ondemand_modules', None) or []) # force enumerates the pipe rather than the list a load pass left on it
+        for module_name in names:
+            if include and module_name not in include:
+                continue
+            if exclude and module_name in exclude:
+                continue
+            module = getattr(pipe, module_name, None)
+            if not isinstance(module, torch.nn.Module) or not getattr(module, 'sdnext_ondemand', False):
+                continue # nothing else has an onload to bring it back
+            param = next(module.parameters(), None)
+            if param is None or devices.same_device(param.device, devices.cpu):
+                continue
+            try:
+                t0 = time.time()
+                module.to(devices.cpu, non_blocking=shared.opts.diffusers_offload_nonblocking)
+                dt = time.time() - t0
+                process_timer.add('offload', dt)
+                moved.append(module_name)
+                debug_move(f'Offload: type=ondemand op=offload module={module_name} nonblocking={shared.opts.diffusers_offload_nonblocking} reason="{reason}" time={dt:.3f}')
+            except Exception as e:
+                log.warning(f'Offload: type=ondemand op=offload module={module_name} {e}')
+    if moved:
+        devices.torch_gc(reason='ondemand')
 
 
 def report_group_stats(sd_model, module_names):
