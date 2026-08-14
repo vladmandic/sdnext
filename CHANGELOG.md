@@ -48,6 +48,8 @@
   - improve handling of hf auth
   - improve pipeline detection for non-cached models
   - cleanup alt offload codepaths
+  - offload: text encoders no longer take the denoiser profile on modular pipelines
+  - offload: components entered through encode or decode are detected by structure rather than by name
   - hf progress bars
   - ltx: send the guidance stack and cross-timestep on every 2.x call path
   - ltx: distilled variants no longer force dynamic shifting on, which remapped their sigma schedule
