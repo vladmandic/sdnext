@@ -3,18 +3,15 @@
 ## Update for 2026-08-14
 
 - **Models**
-  - [MiniMax H3](https://huggingface.co/MiniMaxAI/MiniMax-H3) in *base* and *ref* variants
-    MiniMax-H3 is an amazing, but absolutely massive at 32B text-encoder and 33B transformer video model  
-    for details, see [MiniMax wiki page](wiki/MiniMax)
-  - [LTX-2.5](https://huggingface.co/Lightricks/LTX-2.5) from Lightricks  
-    22B joint audio and video generation in *Distilled* and *Dev* variants,  
-    each as *text-to-video*, *image-to-video* and *conditioning* rows  
-    paired with a *Gemma 4* text encoder and a duration head:  
-    tick *auto duration* and the clip length is predicted from the prompt instead of set by hand  
+  - [MiniMax H3](https://huggingface.co/MiniMaxAI/MiniMax-H3) available in *base* and *ref* variants  
+    MiniMax-H3 is an amazing video model, but absolutely massive at 33B transformer with 32B qwen3-vl text-encoder  
+    with support for *t2v, i2v, fl2v, ref2v, t2i, i2i* workflows  
+    see [MiniMax docs page](https://vladmandic.github.io/sdnext-docs/MiniMax) for details and usage instructions  
+  - [Lightricks LTX-2.5](https://huggingface.co/Lightricks/LTX-2.5) available in *distilled* and *dev* variants  
+    LTX-2.5 is a 22B transformer with 12B gemma-4 text-encoder  
+    with support for *t2v, i2v, cond2v* workflows  
+    see [LTX docs page](https://vladmandic.github.io/sdnext-docs/LTX) for details and usage instructions  
     *note*: LTX-2.5 is a [gated model](https://vladmandic.github.io/sdnext-docs/Gated/)  
-    *note*: image conditioning is now re-compressed to match what the models were trained on,  
-    at CRF 18 for LTX-2.5 and 33 for earlier LTX-2.x versions  
-    see [MiniMax wiki page](wiki/MiniMax) for details and usage instructions  
 - **Detailer**: Pretty much *detailer.next* :)  
   Detailer detection models were traditionally *YOLO* models, but now we can also use:  
   - [Facebook-SAM3](https://huggingface.co/facebook/sam3) hybrid promptable concept segmentation and detection network
