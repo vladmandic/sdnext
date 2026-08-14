@@ -684,6 +684,8 @@ def run_ltx(task_id,
             else:
                 w, h = p.width, p.height
             del pixels
+            if audio is not None:
+                del audio
 
             resolution = f'{w}x{h}' if num_frames > 0 else None
             summary = timer.process.summary(min_time=0.25, total=False).replace('=', ' ')

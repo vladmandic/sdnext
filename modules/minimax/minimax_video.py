@@ -174,6 +174,8 @@ def generate(task_id, _ui_state,
         )
         _n, _c, _t, h, w = pixels.shape
         del pixels
+        if audio is not None:
+            del audio
 
         t1 = time.time()
         progress.finish_task(task_id)
