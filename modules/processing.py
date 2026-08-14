@@ -417,7 +417,7 @@ def process_samples(p: StableDiffusionProcessing, samples):
 
 
 def print_stats():
-    log.debug(f'Processed: timers={timer.process.dct()}')
+    log.debug(f'Processed: timers={timer.process.dct(no_total=True)}')
     log.debug(f'Processed: memory={memstats.memory_stats()}')
 
     if devices.triton_ok:
@@ -428,13 +428,14 @@ def print_stats():
 
         from modules.sd_models_compile import update_compile_times
         update_compile_times()
-        dynamo_dct = timer.dynamo.dct(min_time=0.5, no_total=True)
+        dynamo_dct = timer.dynamo.dct(min_time=1.0, no_total=True)
         timer.dynamo.reset()
         if dynamo_dct:
             log.debug(f'Processed: dynamo={dynamo_dct}')
 
 
 def process_images_inner(p: StableDiffusionProcessing) -> Processed:
+    t0 = time.time()
     if type(p.prompt) == list:
         assert len(p.prompt) > 0
     else:
@@ -453,7 +454,7 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
     jobid = shared.state.begin('Process')
     shared.state.batch_count = p.n_iter
     with devices.inference_context():
-        t0 = time.time()
+        t1 = time.time()
         if not hasattr(p, 'skip_init'):
             p.init(p.all_prompts, p.all_seeds, p.all_subseeds)
         debug(f'Processing inner: args={vars(p)}')
@@ -553,7 +554,8 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
                 shared.sd_model.restore_pipeline()
             shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.TEXT_2_IMAGE)
 
-        t1 = time.time()
+        t2 = time.time()
+        timer.process.add('process', t2 - t1)
 
         p.color_corrections = None
         index_of_first_image = 0
@@ -588,9 +590,12 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
         p.scripts.postprocess(p, results)
     timer.process.record('post')
     p.ops = list(set(p.ops))
+    t3 = time.time()
+    timer.process.add('wall', t3 - t0)
 
     if not p.disable_extra_networks:
-        log.info(f'Processed: images={len(output_images)} its={(p.steps * len(output_images)) / (t1 - t0):.3f} ops={p.ops}')
+        its = (p.steps * len(output_images)) / (t2 - t1)
+        log.info(f'Processed: images={len(output_images)} its={its:.3f} ops={p.ops}')
         print_stats()
 
     if shared.cmd_opts.lowvram or shared.cmd_opts.medvram:

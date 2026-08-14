@@ -138,8 +138,6 @@ def create_settings(cmd_opts):
         "offload_sep": OptionInfo("<h2>Model Offloading</h2>", "", gr.HTML),
         "diffusers_offload_mode": OptionInfo(startup_offload_mode, "Model offload mode", gr.Radio, {"choices": ['none', 'balanced', 'group', 'model', 'sequential']}),
         "diffusers_offload_nonblocking": OptionInfo(False, "Non-blocking move operations"),
-        "caption_offload": OptionInfo(True, "Offload caption models"),
-        "caption_to_gpu": OptionInfo(True, "Load caption models direct to GPU"),
         "offload_balanced_sep": OptionInfo("<h2>Balanced Offload</h2>", "", gr.HTML),
         "diffusers_offload_pre": OptionInfo(True, "Offload during pre-forward", gr.Checkbox, {"visible": False}),
         "diffusers_offload_streams": OptionInfo(False, "Offload using streams"),
@@ -155,6 +153,9 @@ def create_settings(cmd_opts):
         'group_offload_record': OptionInfo(False, "Record torch streams", gr.Checkbox),
         'group_offload_pin': OptionInfo(True, "Pin offload memory", gr.Checkbox),
         'group_offload_blocks': OptionInfo(1, "Offload blocks", gr.Number),
+        "caption_offload_sep": OptionInfo("<h2>Caption Model Offloading</h2>", "", gr.HTML),
+        "caption_offload": OptionInfo(True, "Offload caption models"),
+        "caption_to_gpu": OptionInfo(True, "Load caption models direct to GPU"),
     }))
 
     # --- Model Quantization ---

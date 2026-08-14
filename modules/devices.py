@@ -143,7 +143,10 @@ def get_gpu_info():
                 }
             elif backend == 'cuda' or backend == 'zluda':
                 return {
-                    'device': f'{torch.cuda.get_device_name(torch.cuda.current_device())} n={torch.cuda.device_count()} arch={torch.cuda.get_arch_list()[-1]} capability={torch.cuda.get_device_capability(device)}',
+                    'device': f'"{torch.cuda.get_device_name(torch.cuda.current_device())}"',
+                    'count': torch.cuda.device_count(),
+                    'arch': torch.cuda.get_arch_list()[-1],
+                    'capability': torch.cuda.get_device_capability(torch.cuda.current_device()),
                     'cuda': torch.version.cuda,
                     'cudnn': torch.backends.cudnn.version(),
                     'driver': get_driver(),
