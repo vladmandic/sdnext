@@ -143,7 +143,8 @@ def apply_file_wildcards(prompt, replaced = None, not_found = None, recursion=0,
                             if '|' in choice:
                                 choice = random.choice(choice.split('|')).strip(' []{}\n')
                             prompt = prompt.replace(f"__{wildcard}__", choice, 1)
-                            log.debug(f'Apply wildcard: select="{wildcard}" choice="{choice}" file="{file}" choices={len(lines)}')
+                            if debug_enabled:
+                                log.debug(f'Apply wildcard: select="{wildcard}" choice="{choice}" file="{file}" choices={len(lines)}')
                             replaced.append(wildcard)
                             return prompt, True
                 except Exception as e:

@@ -683,6 +683,8 @@ def run_ltx(task_id,
                 h, w = pixels.shape[-2], pixels.shape[-1]
             else:
                 w, h = p.width, p.height
+            del pixels
+
             resolution = f'{w}x{h}' if num_frames > 0 else None
             summary = timer.process.summary(min_time=0.25, total=False).replace('=', ' ')
             memory = shared.mem_mon.summary()

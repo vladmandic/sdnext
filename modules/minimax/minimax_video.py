@@ -3,7 +3,7 @@ import time
 from PIL import Image
 import numpy as np
 from modules.logger import log
-from modules import shared, processing, timer, progress, paths, sd_models, scripts_manager, call_queue, memstats, processing_video
+from modules import shared, devices, processing, timer, progress, paths, sd_models, scripts_manager, call_queue, memstats, processing_video
 from modules.video_models import models_def, video_save, video_utils
 
 
@@ -130,7 +130,8 @@ def generate(task_id, _ui_state,
         _processed: processing.Processed = scripts_manager.scripts_video.run(p, *args)
         processed = processing.process_images(p)
 
-        sd_models.offload_ondemand(shared.sd_model, reason='finish')
+        sd_models.offload_ondemand(shared.sd_model, reason='finish', force=True) # force offload all loaded modules to cpu
+        devices.torch_gc(force=True) # free gpu memory before saving video
 
         # init vars
         pixels = None
@@ -172,6 +173,7 @@ def generate(task_id, _ui_state,
             metadata={},
         )
         _n, _c, _t, h, w = pixels.shape
+        del pixels
 
         t1 = time.time()
         progress.finish_task(task_id)

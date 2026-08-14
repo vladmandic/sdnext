@@ -617,6 +617,7 @@ def process_diffusers(p: processing.StableDiffusionProcessing):
     if hasattr(p, 'dummy'):
         images = [Image.new(mode='RGB', size=(p.width, p.height))]
         return images
+
     if 'base' not in p.skip:
         output = process_base(p)
     else:

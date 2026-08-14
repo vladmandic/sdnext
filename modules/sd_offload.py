@@ -19,7 +19,6 @@ debug_move = log.trace if debug else lambda *args, **kwargs: None
 offload_allow_none = ['sd', 'sdxl']
 offload_post = ['h1']
 offload_hook_instance = None
-group_offload_vae_limit = 1.0 # GB; vae-class components above this rest on cpu and onload whole at encode/decode
 balanced_offload_exclude = ['CogView4Pipeline', 'MeissonicPipeline']
 no_split_module_classes = [
     "Linear", "Conv1d", "Conv2d", "Conv3d", "ConvTranspose1d", "ConvTranspose2d", "ConvTranspose3d", "Embedding",
@@ -180,11 +179,10 @@ def set_group_resident(module):
     module.to(devices.device)
 
 
-def group_offload_role(module_name: str, module) -> str:
-    cls = module.__class__.__name__
-    if 'vae' in module_name.lower() or cls.startswith(('Autoencoder', 'VQModel', 'AsymmetricAutoencoder', 'ConsistencyDecoder')):
-        return 'resident'
-    if module_name.startswith(('text_encoder', 'image_encoder', 'safety_checker')):
+def group_offload_role(module_name) -> str:
+    if any(m in module_name for m in ['vae']):
+        return 'vae'
+    if any(m in module_name for m in ['text_encoder', 'image_encoder', 'safety_checker']):
         return 'aux'
     return 'main'
 
@@ -208,24 +206,22 @@ class OnDemandHook(accelerate.hooks.ModelHook):
         if param is not None and not devices.same_device(param.device, devices.device):
             t0 = time.time()
             module.to(devices.device, non_blocking=shared.opts.diffusers_offload_nonblocking)
-            dt = time.time() - t0
-            process_timer.add('onload', dt)
-            log.debug(f'Offload: type=ondemand op=onload module={module.__class__.__name__} nonblocking={shared.opts.diffusers_offload_nonblocking} time={dt:.3f}')
+            t1 = time.time()
+            process_timer.add('onload', t1 - t0)
+            debug_move(f'Offload: type=ondemand op=onload module={module.__class__.__name__} nonblocking={shared.opts.diffusers_offload_nonblocking} time={t1 - t0:.3f}') # working so no need to log
         return args, kwargs
 
 
-def set_group_vae(sd_model, module, module_name: str) -> str:
-    """Placement policy for vae-class components, which never take group hooks. Small
-    components stay resident; components above group_offload_vae_limit rest on cpu and
-    onload whole when their decode or encode entry point fires."""
-    size_gb, _params = get_module_size(module)
-    if size_gb < group_offload_vae_limit or not has_entry_bridge(module):
-        set_group_resident(module)
+def apply_group_offload_vae(sd_model, module, module_name: str) -> str:
+    """Placement policy for vae-class components, which never take group hooks. Components onload whole when their decode or encode entry point fires."""
+    if not has_entry_bridge(module):
+        log.warning(f'Offload: type=group module={module_name} class={module.__class__.__name__} no entry bridge')
+        set_group_resident(module) # TODO group offload: this will fail as vae will end up on cpu and there will be nothing to pull it back on gpu
         module.sdnext_ondemand = False # a lingering stamp would let the seams offload a component with no onload hook
         names = getattr(sd_model, 'sdnext_ondemand_modules', None) or []
         if module_name in names:
             sd_model.sdnext_ondemand_modules = [n for n in names if n != module_name]
-        return 'resident'
+        return False
     if not getattr(module, 'sdnext_ondemand', False) or not hasattr(module, '_hf_hook'):
         if hasattr(module, '_hf_hook'):
             module = accelerate.hooks.remove_hook_from_module(module, recurse=True)
@@ -237,14 +233,17 @@ def set_group_vae(sd_model, module, module_name: str) -> str:
     names = getattr(sd_model, 'sdnext_ondemand_modules', None) or []
     if module_name not in names:
         sd_model.sdnext_ondemand_modules = names + [module_name]
-    return 'ondemand'
+    return True
 
 
-def offload_ondemand(sd_model, include=[], exclude=[], reason=''):
+def offload_ondemand(sd_model, include=[], exclude=[], reason='', force=False):
     """Return on-demand components to cpu once their outputs are materialized."""
     if sd_model is None:
         return
-    names = getattr(sd_model, 'sdnext_ondemand_modules', None)
+    if force: # if force, all loaded modules are candidates
+        names = [name for name, component in sd_model.components.items() if isinstance(component, torch.nn.Module)]
+    else:
+        names = getattr(sd_model, 'sdnext_ondemand_modules', None)
     if not names and hasattr(sd_model, 'pipe'):
         sd_model = sd_model.pipe
         names = getattr(sd_model, 'sdnext_ondemand_modules', None)
@@ -260,7 +259,8 @@ def offload_ondemand(sd_model, include=[], exclude=[], reason=''):
             module.to(devices.cpu, non_blocking=shared.opts.diffusers_offload_nonblocking)
             dt = time.time() - t0
             process_timer.add('offload', dt)
-            log.debug(f'Offload: type=ondemand op=offload module={module_name} nonblocking={shared.opts.diffusers_offload_nonblocking} reason="{reason}" time={dt:.3f}')
+            debug_move(f'Offload: type=ondemand op=offload module={module_name} nonblocking={shared.opts.diffusers_offload_nonblocking} reason="{reason}" time={dt:.3f}')
+            devices.torch_gc()
 
 
 def report_group_stats(sd_model, module_names):
@@ -286,25 +286,20 @@ def apply_modular_group_offload(sd_model):
         sd_model.sdnext_modular_offload_warned = True
         log.warning(f'Offload: desired={shared.opts.diffusers_offload_mode} override=group reason="modular pipeline"')
     applied = []
-    for name in ('transformer', 'transformer_ref'):
-        transformer = getattr(sd_model, name, None)
-        if transformer is not None and apply_group_offload_component(transformer, name, main=True):
-            applied.append(name)
-    text_encoder = getattr(sd_model, 'text_encoder', None)
-    if text_encoder is not None:
-        # offload targets the inner model when present: conditioning may call it directly,
-        # and hooks on the wrapper forward would never fire
-        if apply_group_offload_component(getattr(text_encoder, 'model', text_encoder), 'text_encoder', main=False):
-            applied.append('text_encoder')
-    for name in ('vae', 'audio_vae'):
-        component = getattr(sd_model, name, None)
-        if component is not None:
-            placement = set_group_vae(sd_model, component, name)
-            applied.append(f'{name}:{placement}')
-    # has_accelerate stays unset: group hooks are not accelerate hooks, and the modular
-    # pipeline's own to() skips group-offloaded components when move_model runs
-    if any(':' not in name for name in applied):
-        log.info(f'Offload: type=group type={shared.opts.group_offload_type} modules={applied}')
+    loaded = [name for name, component in sd_model.components.items() if isinstance(component, torch.nn.Module)]
+    for name in loaded:
+        module = getattr(sd_model, name, None)
+        if 'text_encoder' in name:
+            if apply_group_offload_component(getattr(module, 'model', module), name, main=False):
+                applied.append(name)
+        if 'vae' in name:
+            if apply_group_offload_vae(sd_model, module, name):
+                applied.append(name)
+        else:
+            if apply_group_offload_component(module, name, main=True):
+                applied.append(name)
+    # has_accelerate stays unset: group hooks are not accelerate hooks, and the modular pipeline's own to() skips group-offloaded components when move_model runs
+    log.info(f'Offload: type=group type={shared.opts.group_offload_type} modules={applied}')
     report_group_stats(sd_model, ('transformer', 'transformer_ref', 'text_encoder', 'vae', 'audio_vae'))
 
 
@@ -315,9 +310,9 @@ def apply_group_offload(sd_model):
         if not isinstance(module, torch.nn.Module):
             continue
         try:
-            role = group_offload_role(module_name, module)
-            if role == 'resident':
-                if set_group_vae(sd_model, module, module_name) == 'ondemand':
+            role = group_offload_role(module_name)
+            if role == 'vae':
+                if apply_group_offload_vae(sd_model, module, module_name) == 'ondemand':
                     ondemand.append(module_name)
                 else:
                     resident.append(module_name)

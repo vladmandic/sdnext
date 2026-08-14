@@ -339,6 +339,7 @@ def run(selected: models_def.Model, *,
         mp4_interpolate=mp4_interpolate,
         metadata={},
     )
+    del pixels
     return VideoResult(images=processed.images, video_path=video_file, thumb_path=thumb_file, num_frames=num_frames, fps=float(save_fps), has_audio=waveform is not None, still=False, processed=processed)
 
 

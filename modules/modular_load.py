@@ -42,7 +42,7 @@ def install_state_hook(pipe):
     def _pre_transformer_hook(module, args): # pylint: disable=unused-argument
         new_phase = set_phase('Generate', module)
         if new_phase:
-            sd_offload.offload_ondemand(pipe, exclude=['transformer', 'transformer_ref'], reason='generate')
+            sd_offload.offload_ondemand(pipe, exclude=['transformer', 'transformer_ref'], reason='generate', force=hasattr(pipe, 'sdnext_force_offload'))
         if shared.state.sampling_steps == 0 and getattr(pipe, 'num_timesteps', 0) > 0:
             shared.state.sampling_steps = pipe.num_timesteps
         if shared.state.paused:
@@ -58,21 +58,21 @@ def install_state_hook(pipe):
     def _pre_text_encode_hook(module, args): # pylint: disable=unused-argument
         new_phase = set_phase('Text Encode', module)
         if new_phase:
-            sd_offload.offload_ondemand(pipe, exclude=['text_encoder'], reason='text encode')
+            sd_offload.offload_ondemand(pipe, exclude=['text_encoder'], reason='text encode', force=hasattr(pipe, 'sdnext_force_offload'))
         if shared.state.interrupted or shared.state.skipped:
             raise AssertionError('Interrupted...')
 
     def _pre_vae_decode_hook(module, args): # pylint: disable=unused-argument
         new_phase = set_phase('Decode', module)
         if new_phase:
-            sd_offload.offload_ondemand(pipe, exclude=['vae', 'audio_vae'], reason='vae decode')
+            sd_offload.offload_ondemand(pipe, exclude=['vae', 'audio_vae'], reason='vae decode', force=hasattr(pipe, 'sdnext_force_offload'))
         if shared.state.interrupted or shared.state.skipped: # fires per tile, so tiled decodes abort promptly
             raise AssertionError('Interrupted...')
 
     def _pre_vae_encode_hook(module, args): # pylint: disable=unused-argument
         new_phase = set_phase('Encode', module)
         if new_phase:
-            sd_offload.offload_ondemand(pipe, exclude=['vae', 'audio_vae'], reason='vae encode')
+            sd_offload.offload_ondemand(pipe, exclude=['vae', 'audio_vae'], reason='vae encode', force=hasattr(pipe, 'sdnext_force_offload'))
         if shared.state.interrupted or shared.state.skipped: # fires per tile, so tiled encodes abort promptly
             raise AssertionError('Interrupted...')
 
