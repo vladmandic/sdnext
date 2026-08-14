@@ -50,6 +50,8 @@
   - cleanup alt offload codepaths
   - offload: text encoders no longer take the denoiser profile on modular pipelines
   - offload: components entered through encode or decode are detected by structure rather than by name
+  - offload: group offload honors the never-offload and model-type exclusion settings
+  - offload: offload options take effect when changed instead of waiting for a model reload
   - hf progress bars
   - ltx: send the guidance stack and cross-timestep on every 2.x call path
   - ltx: distilled variants no longer force dynamic shifting on, which remapped their sigma schedule

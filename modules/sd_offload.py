@@ -24,6 +24,10 @@ group_offload_main = [ # component names entered once per denoising step
     "unet", "transformer", "transformer_2", "transformer_ref", "unconditional_transformer",
     "prior", "prior_prior", "decoder", "dit_model", "model", "controlnet",
 ] # a denoiser registered under any other name takes the aux profile until listed here
+offload_reapply_options = [ # settings that re-place loaded components when changed
+    "group_offload_type", "group_offload_stream", "group_offload_record", "group_offload_pin", "group_offload_blocks",
+    "diffusers_offload_nonblocking", "models_not_to_offload", "diffusers_offload_never", "diffusers_offload_always",
+]
 no_split_module_classes = [
     "Linear", "Conv1d", "Conv2d", "Conv3d", "ConvTranspose1d", "ConvTranspose2d", "ConvTranspose3d", "Embedding",
     "SDNQLinear", "SDNQConv1d", "SDNQConv2d", "SDNQConv3d", "SDNQConvTranspose1d", "SDNQConvTranspose2d", "SDNQConvTranspose3d", "SDNQEmbedding",
@@ -176,6 +180,30 @@ def apply_group_offload_component(module, module_name: str, main: bool) -> bool:
     return True
 
 
+def offload_list(opt: str) -> list:
+    return [m.strip() for m in re.split(';|,| ', opt) if len(m.strip()) > 2]
+
+
+def offload_matches(module, module_name: str | None, names: list) -> bool:
+    """Match against an always/never list by class name or by pipeline component name.
+    Component entries such as `text_encoder` cover every architecture without listing each encoder class."""
+    if module.__class__.__name__ in names:
+        return True
+    module_name = module_name or getattr(module, 'module_name', None)
+    return module_name is not None and module_name in names
+
+
+def offload_model_types() -> list:
+    return [m.lower().strip() for m in re.split(r'[ ,]+', shared.opts.models_not_to_offload) if m.strip()] # type codes like sd and f1 are two characters, so only empty fragments are dropped
+
+
+def offload_excluded(module_name: str, module) -> bool:
+    """Whether the offload exclusion settings keep this component on the accelerator."""
+    if shared.sd_model_type.lower() in offload_model_types():
+        return True
+    return offload_matches(module, module_name, offload_list(shared.opts.diffusers_offload_never))
+
+
 def set_group_resident(module) -> bool:
     """Keep a component on the accelerator with no hooks of any kind."""
     changed = False
@@ -194,6 +222,8 @@ def set_group_resident(module) -> bool:
 
 def group_offload_role(module_name: str, module) -> str:
     """Placement role for one component: resident to stay put, ondemand for whole-module onload, main for per-step denoisers, aux for the rest."""
+    if offload_excluded(module_name, module):
+        return 'resident'
     if has_entry_bridge(module):
         return 'ondemand' # encode and decode bypass the forward that group hooks scope to
     if callable(getattr(module, 'encode', None)) or callable(getattr(module, 'decode', None)):
@@ -325,6 +355,19 @@ def apply_group_offload(sd_model):
     return sd_model
 
 
+def reapply_offload():
+    """Re-place loaded components after an offload setting changed."""
+    global offload_hook_instance # pylint: disable=global-statement
+    if not shared.sd_loaded:
+        return
+    modular = sd_models.get_diffusers_task(shared.sd_model) == sd_models.DiffusersTaskType.MODULAR
+    if shared.opts.diffusers_offload_mode == 'group' or (modular and shared.opts.diffusers_offload_mode in {'model', 'sequential'}):
+        apply_group_offload(shared.sd_model)
+    elif shared.opts.diffusers_offload_mode == 'balanced':
+        offload_hook_instance = None # the hook snapshots the exclusion lists when constructed
+        apply_balanced_offload(shared.sd_model)
+
+
 def apply_model_offload(sd_model, quiet:bool=False):
     try:
         remove_group_offload(sd_model)
@@ -422,8 +465,8 @@ class OffloadHook(accelerate.hooks.ModelHook):
         self.min_watermark = shared.opts.diffusers_offload_min_gpu_memory
         self.max_watermark = shared.opts.diffusers_offload_max_gpu_memory
         self.cpu_watermark = shared.opts.diffusers_offload_max_cpu_memory
-        self.offload_always = [m.strip() for m in re.split(';|,| ', shared.opts.diffusers_offload_always) if len(m.strip()) > 2]
-        self.offload_never = [m.strip() for m in re.split(';|,| ', shared.opts.diffusers_offload_never) if len(m.strip()) > 2]
+        self.offload_always = offload_list(shared.opts.diffusers_offload_always)
+        self.offload_never = offload_list(shared.opts.diffusers_offload_never)
         self.gpu = int(shared.gpu_memory * shared.opts.diffusers_offload_max_gpu_memory * 1024*1024*1024)
         self.cpu = int(shared.cpu_memory * shared.opts.diffusers_offload_max_cpu_memory * 1024*1024*1024)
         self.offload_map = {}
@@ -455,12 +498,7 @@ class OffloadHook(accelerate.hooks.ModelHook):
         return sum(self.offload_map.values())
 
     def matches(self, module, names: list, module_name: str | None = None) -> bool:
-        """Match against an always/never list by class name or by pipeline component name.
-        Component entries such as `text_encoder` cover every architecture without listing each encoder class."""
-        if module.__class__.__name__ in names:
-            return True
-        module_name = module_name or getattr(module, 'module_name', None)
-        return module_name is not None and module_name in names
+        return offload_matches(module, module_name, names)
 
     def init_hook(self, module):
         return module
@@ -470,7 +508,7 @@ class OffloadHook(accelerate.hooks.ModelHook):
             return False
         if hasattr(module, 'nets') and any(hasattr(n, "offload_never") for n in module.nets):
             return False
-        if shared.sd_model_type.lower() in [m.lower().strip() for m in re.split(r'[ ,]+', shared.opts.models_not_to_offload)]:
+        if shared.sd_model_type.lower() in offload_model_types():
             return False
         return True
 
