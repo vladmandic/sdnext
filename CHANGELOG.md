@@ -44,6 +44,7 @@
   - cleanup alt offload codepaths
   - hf progress bars
   - processing stats reporting
+  - image metadata handle correct image index
 
 ## Update for 2026-08-07
 
