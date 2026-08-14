@@ -175,7 +175,7 @@ def load_model(selected: models_def.Model):
     try:
         if selected.workflow is not None or modular_load.is_modular(selected.repo_cls):
             from modules.modular_load import load_modular_pipe
-            return load_modular_pipe(selected.repo_cls, selected.repo, workflow=selected.workflow, revision=selected.repo_revision, offline_args=offline_args, base=selected.base)
+            shared.sd_model = load_modular_pipe(selected.repo_cls, selected.repo, workflow=selected.workflow, revision=selected.repo_revision, offline_args=offline_args, base=selected.base)
         elif selected.repo_cls is None:
             shared.sd_model = load_custom(selected.repo)
         else:
