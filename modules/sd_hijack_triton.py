@@ -49,11 +49,13 @@ def stop_progress(session):
 def bench_hook(orig):
     def wrapped(self, *args, config, **meta):
         from modules import shared
+        """
         if shared.state.textinfo != 'Autotune kernel':
             _textinfo = shared.state.textinfo
             shared.state.textinfo = 'Autotune kernel'
         else:
             _textinfo = None
+        """
         try:
             session = status['session']
             if session is None or session['owner'] is not self:
@@ -70,8 +72,10 @@ def bench_hook(orig):
         except Exception as e:
             log.debug(f'Kernel autotune: report error: {e}')
         res = orig(self, *args, config=config, **meta)
+        """
         if _textinfo is not None:
             shared.state.textinfo = _textinfo
+        """
         return res
     return wrapped
 

@@ -11,7 +11,6 @@
 - Chat-based interface, @vladmandic
 - Control tab verify overrides handling, @vladmandic
 - Cloud providers, @CalamitousFelicitousness
-- Video processing add/verify full API support, @CalamitousFelicitousness
 - Lora: new handler, @CalamitousFelicitousness
 - Processing -> Video capabilities, @vladmandic
   - `RIFE` in processing
@@ -19,7 +18,6 @@
 ### Unassigned
 
 - [Object clear](https://huggingface.co/jixin0101/ObjectClear) remover for Kanvas
-- [MiniMax H3](https://github.com/huggingface/diffusers/pull/14355)
 - Video models: add to Reference
 - Video models: support custom entries, finetunes
 - UI Lite vs Expert mode
