@@ -244,7 +244,7 @@ class APIVideo:
             if engine is not None and family.lower() != engine.lower():
                 continue
             for m in rows:
-                if m.name == 'None':
+                if not models_def.is_model(m):
                     continue
                 items.append(ItemVideoModel(
                     engine=family,

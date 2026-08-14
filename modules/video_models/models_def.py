@@ -738,23 +738,28 @@ except Exception as e:
     log.error(f'Networks: type="video" {e}')
 
 
+def is_model(row: Model) -> bool:
+    """Rows that name a loadable model; the 'None' placeholder and the dropdown separators do not."""
+    return row.name != 'None' and not row.name.startswith('─')
+
+
 def engines() -> list[str]:
     """Engine families with at least one real model, sentinel rows excluded."""
-    return [engine for engine, rows in models.items() if any(row.name != 'None' for row in rows)]
+    return [engine for engine, rows in models.items() if any(is_model(row) for row in rows)]
 
 
 def model_names(engine: str) -> list[str]:
     """Real model names for an engine, sentinel rows excluded."""
-    return [row.name for row in models.get(engine, []) if row.name != 'None']
+    return [row.name for row in models.get(engine, []) if is_model(row)]
 
 
 def find(engine: str, name: str) -> Model | None:
-    """Case-insensitive exact-name lookup; the 'None' sentinel rows are not models."""
+    """Case-insensitive exact-name lookup; sentinel rows are not models."""
     for family, rows in models.items():
         if family.lower() != (engine or '').lower():
             continue
         for row in rows:
-            if row.name != 'None' and row.name.lower() == (name or '').lower():
+            if is_model(row) and row.name.lower() == (name or '').lower():
                 return row
     return None
 
