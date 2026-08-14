@@ -14,6 +14,7 @@ def load_minimax(checkpoint_info, diffusers_load_config = None, workflow: str | 
     workflow = (workflow or getattr(checkpoint_info, 'subfolder', None) or 'fl2va').lower() # one repo holds both checkpoint partitions; reference entries select ref2va via the subfolder tag
     log.debug(f'Load model: type=MiniMaxH3 repo="{repo_id}" workflow={workflow} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype}')
 
+    sd_models.warn_group_offload(min_vram=20)
     repo_cls = diffusers.MiniMaxH3ModularPipeline
     pipe = load_modular_pipe(
         repo_cls,

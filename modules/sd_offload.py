@@ -796,10 +796,10 @@ def apply_balanced_offload(sd_model=None, exclude: list[str] | None = None, forc
                 report_model_stats(module_name, module)
 
     set_accelerate(sd_model)
-    t = time.time() - t0
-    process_timer.add('offload', t)
+    t1 = time.time()
+    process_timer.add('offload', t1 - t0)
     fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
-    debug_move(f'Apply offload: time={t:.2f} type=balanced fn={fn}')
+    debug_move(f'Apply offload: time={t1 - t0:.2f} type=balanced fn={fn}')
     if not cached:
         log.info(f'Model class={sd_model.__class__.__name__} modules={len(offload_hook_instance.offload_map)} size={offload_hook_instance.model_size():.3f}')
     return sd_model

@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-08-13
+## Update for 2026-08-14
 
 - **Models**
   - [MiniMax H3](https://huggingface.co/MiniMaxAI/MiniMax-H3) in *base* and *ref* variants
@@ -14,6 +14,7 @@
     *note*: LTX-2.5 is a [gated model](https://vladmandic.github.io/sdnext-docs/Gated/)  
     *note*: image conditioning is now re-compressed to match what the models were trained on,  
     at CRF 18 for LTX-2.5 and 33 for earlier LTX-2.x versions  
+    see [MiniMax wiki page](wiki/MiniMax) for details and usage instructions  
 - **Detailer**: Pretty much *detailer.next* :)  
   Detailer detection models were traditionally *YOLO* models, but now we can also use:  
   - [Facebook-SAM3](https://huggingface.co/facebook/sam3) hybrid promptable concept segmentation and detection network
@@ -38,8 +39,8 @@
   - add `SD_DIFFUSERS_DEBUG` and `SD_TRANSFORMERS_DEBUG` env variables to trace diffusers and transformers internal operations  
 - **API**
   - full support for video generation using api  
-    *note*: video api uses async workflow where you submit request and then later download the result  
     new endpoints: `/sdapi/v1/video`, `/sdapi/v1/video/models`, `/sdapi/v1/video/file`  
+    *note*: video api uses async workflow where you submit request and then later download the result  
 - **Removed**
   - remove DirectML support  
     latest release was over 2 years ago and is not compatible with modern frameworks  
@@ -57,6 +58,8 @@
   - ltx: reload the latent upsampler when the model or its repo changes
   - video: take the audio sample rate from the loaded vocoder
   - video: keep the shared text encoder out of the registry rows
+  - processing stats reporting
+  - image metadata handle correct image index
 
 ## Update for 2026-08-07
 

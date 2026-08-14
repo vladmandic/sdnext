@@ -11,6 +11,7 @@ from modules import timer, errors
 from modules.logger import log
 
 
+log.info('Initializing: packages')
 initialized = False
 errors.install()
 logging.getLogger("DeepSpeed").disabled = True

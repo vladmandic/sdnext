@@ -35,11 +35,12 @@ def return_stats(t: float | None = None):
         ooms = mem_mon_read.pop("oom")
         retries = mem_mon_read.pop("retries")
         vram = {k: v // 1048576 for k, v in mem_mon_read.items()}
-        peak = max(vram.get('active_peak', 0), vram.get('reserved_peak', 0), vram.get('used', 0))
-        used = round(100.0 * peak / vram.get('total', 0)) if vram.get('total', 0) > 0 else 0
-        if peak > 0:
-            gpu += f"| 🕮 GPU {peak} MB"
-            gpu += f" {used}%" if used > 0 else ''
+        peak_mb = max(vram.get('active_peak', 0), vram.get('reserved_peak', 0), vram.get('used', 0))
+        peak_gb = round(100.0 * peak_mb / 1024) / 100.0
+        used_perc = round(100.0 * peak_mb / vram.get('total', 0)) if vram.get('total', 0) > 0 else 0
+        if peak_mb > 0:
+            gpu += f"| 🕮 GPU {peak_gb} GB"
+            gpu += f" {used_perc}%" if used_perc > 0 else ''
             gpu += f" | Retries {retries} OOM {ooms}" if retries > 0 or ooms > 0 else ''
     ram = ram_stats()
     if ram['used'] > 0:

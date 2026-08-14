@@ -84,7 +84,7 @@
     "preview": "MiniMaxAI--MiniMax-H3.jpg",
     "desc": "Quantization of MiniMaxAI/MiniMax-H3 using SDNQ: dynamic 4-bit uint. Video with synchronized audio; in image tabs the model runs in experimental still mode.",
     "extras": "sampler: Default",
-    "size": 47.33,
+    "size": 64.80,
     "date": "2026 August"
   },
   "MiniMaxAI MiniMax-H3 sdnq-uint4 Ref2VA": {
@@ -93,24 +93,24 @@
     "subfolder": "ref2va",
     "desc": "Quantization of MiniMaxAI/MiniMax-H3 using SDNQ: dynamic 4-bit uint. Video with synchronized audio; in image tabs the model runs in experimental still mode.",
     "extras": "sampler: Default",
-    "size": 47.33,
+    "size": 64.80,
     "date": "2026 August"
   },
   "MiniMaxAI MiniMax-H3 Pruned sdnq-uint4": {
     "path": "OzzyGT/MiniMax_H3_sdnq_4bit_pruned",
-    "preview": "MiniMaxAI--MiniMax-H3.jpg",
+    "preview": "OzzyGT--MiniMax_H3_sdnq_4bit_pruned.jpg",
     "desc": "Quantization of MiniMaxAI/MiniMax-H3 using SDNQ: dynamic 4-bit uint. Video with synchronized audio; in image tabs the model runs in experimental still mode.",
     "extras": "sampler: Default",
-    "size": 47.33,
+    "size": 23.70,
     "date": "2026 August"
   },
   "MiniMaxAI MiniMax-H3 Pruned sdnq-uint4 Ref2VA": {
     "path": "OzzyGT/MiniMax_H3_sdnq_4bit_pruned",
-    "preview": "MiniMaxAI--MiniMax-H3.jpg",
+    "preview": "OzzyGT--MiniMax_H3_sdnq_4bit_pruned.jpg",
     "subfolder": "ref2va",
     "desc": "Quantization of MiniMaxAI/MiniMax-H3 using SDNQ: dynamic 4-bit uint. Video with synchronized audio; in image tabs the model runs in experimental still mode.",
     "extras": "sampler: Default",
-    "size": 47.33,
+    "size": 23.70,
     "date": "2026 August"
   },
   "Z-Image-Turbo sdnq-svd-uint4": {

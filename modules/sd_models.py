@@ -12,7 +12,7 @@ import torch
 import huggingface_hub as hf
 from modules.logger import log
 from modules import timer, paths, shared, modelloader, devices, script_callbacks, sd_vae, sd_unet, errors, sd_models_compile, sd_detect, model_quant, sd_hijack_te, sd_hijack_vae, sd_hijack_accelerate, sd_hijack_safetensors, sd_hijack_transformers, sd_hijack_hfhub, attention
-from modules.memstats import memory_stats
+from modules.memstats import memory_stats, gpu_stats
 from modules.shared_helpers import walk_files
 from modules.modeldata import model_data
 from modules.sd_checkpoint import CheckpointInfo, select_checkpoint, list_models, checkpoint_titles, get_closest_checkpoint_match, update_model_hashes, write_metadata, checkpoints_list # pylint: disable=unused-import
@@ -149,7 +149,8 @@ def set_vae_options(sd_model, vae=None, op:str='model', quiet:bool=False):
         ops['upcast'] = True
         sd_model.vqvae.to(torch.float32) # vqvae is producing nans in fp16
     if not quiet and len(ops) > 0:
-        log.quiet(quiet, f'Setting {op}: component=vae {ops}')
+        fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
+        log.quiet(quiet, f'Setting {op}: component=vae {ops} fn={fn}')
 
 
 def set_diffuser_options(sd_model, vae=None, op:str='model', offload:bool=True, quiet:bool=False):
@@ -1685,3 +1686,10 @@ def list_hfcache():
         checkpoint = CheckpointInfo(filename=f.path, name=path_to_repo(f.name), model_type='hfcache')
         checkpoints.append(checkpoint)
     return checkpoints
+
+
+def warn_group_offload(min_vram: int = 0):
+    vram = gpu_stats()
+    vram = round(vram['total'] if "total" in vram else 0)
+    if (0 < vram < min_vram) and (shared.opts.diffusers_offload_mode in ['none', 'balanced', 'model']):
+        log.warning(f'Load model: vram={vram} min={min_vram} offload={shared.opts.diffusers_offload_mode} recommended=group reason="insufficient vram"')
