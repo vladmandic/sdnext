@@ -25,8 +25,8 @@ def create_ui(prompt, _negative, styles, overrides, script_inputs, mp4_fps, mp4_
                 with gr.Row():
                     width, height = ui_sections.create_resolution_inputs('minimax', default_width=1024, default_height=576, step=32)
                 with gr.Row():
-                    steps = gr.Slider(minimum=2, maximum=100, step=1, label="Steps", elem_id='minimax_steps', value=30)
-                    frames = gr.Slider(label='Frames', minimum=22, maximum=345, step=17, value=107, elem_id='minimax_frames')
+                    steps = gr.Slider(minimum=2, maximum=100, step=1, label="MiniMax Steps", elem_id='minimax_steps', value=30)
+                    frames = gr.Slider(label='MiniMax Frames', minimum=22, maximum=345, step=17, value=107, elem_id='minimax_frames')
                 with gr.Row():
                     seed = gr.Number(label='Seed', value=-1, elem_id='minimax_seed', container=True)
                     random_seed = ToolButton(ui_symbols.random, elem_id='minimax_seed_random')

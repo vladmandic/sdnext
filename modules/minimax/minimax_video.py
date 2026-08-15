@@ -155,6 +155,18 @@ def generate(task_id, _ui_state,
         if pixels is None:
             return None, "MiniMax: No frames generated"
 
+        if mp4_interpolate > 0:
+            p.video_interpolate = mp4_interpolate
+            from modules.processing_video import apply_video_interpolation
+            print('HERE1', pixels.shape, pixels.min(), pixels.max())
+            # pixels is 5-D (N,C,T,H,W) in [-1,1]; RIFE needs 4-D (T,C,H,W) in [0,1]
+            x = pixels.squeeze(0).permute(1, 0, 2, 3)
+            x = (x.clamp(-1., 1.) + 1.0) * 0.5
+            x = apply_video_interpolation(p, x, count=mp4_interpolate) # sets p.video_interpolated otherwise main save_video would do it also
+            x = x * 2.0 - 1.0
+            pixels = x.permute(1, 0, 2, 3).unsqueeze(0)
+            print('HERE2', pixels.shape, pixels.min(), pixels.max())
+
         save_fps = mp4_fps * processing_video.interpolation_factor(p)
         num_frames, video_file, _thumb = video_save.save_video(
             p=p,
