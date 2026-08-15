@@ -22,6 +22,8 @@ Covers:
 - ``apply_group_offload_ondemand`` return contract and idempotency
 - ``get_module_names`` on both pipeline kinds
 - the upstream markers the roles read
+- an inventory audit deriving the role of every component of every registered pipeline,
+  including which components turn resident under the shipped 22 GB never-offload default
 
 No running server required. Nothing is moved to the accelerator.
 
@@ -32,6 +34,7 @@ Usage:
 import os
 import sys
 import types
+import typing
 
 import torch
 
@@ -493,6 +496,156 @@ def test_mageflow_vae_carries_the_entry_bridge():
 
 
 # ============================================================
+# Inventory audit: what happens to every component sdnext registers
+# ============================================================
+
+inventory_cache = None
+inventory_aux_only = [] # pipelines that legitimately have no per-step component
+inventory_extra_pipelines = ['AnimateDiffPipeline', 'AnimateDiffSDXLPipeline'] # reached through scripts rather than the model registry
+never_default_22gb = 'CLIPTextModel, CLIPTextModelWithProjection, AutoencoderKL' # the shipped >=22 GB default from modules/shared_defaults.py
+
+
+def flatten_annotation(ann):
+    origin = typing.get_origin(ann)
+    if origin in (typing.Union, types.UnionType):
+        flat = []
+        for arg in typing.get_args(ann):
+            flat.extend(flatten_annotation(arg))
+        return flat
+    return [ann] if isinstance(ann, type) else []
+
+
+def pipeline_component_slots(cls):
+    """slot -> component classes from the init annotations, or from the component specs on modular pipelines."""
+    slots = []
+    try:
+        hints = typing.get_type_hints(cls.__init__)
+    except Exception:
+        hints = {}
+    for slot, ann in hints.items():
+        if slot == 'return':
+            continue
+        slots.extend((slot, comp) for comp in flatten_annotation(ann) if issubclass(comp, torch.nn.Module))
+    if slots:
+        return slots
+    try: # modular pipelines annotate no components; their specs carry the classes
+        specs = cls()._component_specs # pylint: disable=protected-access
+    except Exception:
+        return []
+    for slot, spec in specs.items():
+        comp = getattr(spec, 'type_hint', None)
+        if isinstance(comp, type) and issubclass(comp, torch.nn.Module):
+            slots.append((slot, comp))
+    return slots
+
+
+def collect_inventory():
+    """(pipeline class name, slot, component class) for every registered pipeline, plus the entries that cannot be audited statically."""
+    import diffusers
+    from modules import shared_items
+    from modules.video_models import models_def
+    classes = {}
+    unaudited = []
+    for name, cls in shared_items.pipelines.items():
+        if name in ('Autodetect', 'AutoPipeline', 'Diffusion'):
+            continue
+        if not isinstance(cls, type) or cls.__name__ == 'OnlinePipeline':
+            unaudited.append(name)
+            continue
+        classes[cls.__name__] = cls
+    for family in models_def.models.values():
+        for model in family:
+            cls = getattr(diffusers, model.repo_cls, None) if model.repo_cls else None
+            if cls is not None:
+                classes[cls.__name__] = cls
+            elif model.repo_cls:
+                unaudited.append(model.repo_cls)
+    for name in inventory_extra_pipelines:
+        cls = getattr(diffusers, name, None)
+        if cls is not None:
+            classes[cls.__name__] = cls
+        else:
+            unaudited.append(name)
+    rows = []
+    for cls_name, cls in sorted(classes.items()):
+        slots = pipeline_component_slots(cls)
+        if slots:
+            rows.extend((cls_name, slot, comp) for slot, comp in slots)
+        else:
+            unaudited.append(cls_name)
+    return rows, sorted(set(unaudited))
+
+
+def get_inventory():
+    global inventory_cache # pylint: disable=global-statement
+    if inventory_cache is None:
+        inventory_cache = collect_inventory()
+    return inventory_cache
+
+
+def weightless(cls):
+    """Instance with no weights: the role function reads only structure, never parameters."""
+    try:
+        return cls.__new__(cls)
+    except Exception:
+        return cls
+
+
+def inventory_roles(never=''):
+    rows, _unaudited = get_inventory()
+    saved = (shared.opts.diffusers_offload_never, shared.opts.models_not_to_offload)
+    shared.opts.diffusers_offload_never = never
+    shared.opts.models_not_to_offload = ''
+    try:
+        return {(pipe, slot, comp.__name__): sd_offload.group_offload_role(slot, weightless(comp)) for pipe, slot, comp in rows}
+    finally:
+        shared.opts.diffusers_offload_never, shared.opts.models_not_to_offload = saved
+
+
+def emit_inventory_table():
+    _rows, unaudited = get_inventory()
+    roles = inventory_roles()
+    pipes = {}
+    for (pipe, slot, _comp), role in roles.items():
+        pipes.setdefault(pipe, set()).add(f'{slot}:{role}')
+    for pipe in sorted(pipes):
+        log.info(f'  {pipe}: ' + ' '.join(sorted(pipes[pipe])))
+    flips = sorted(key for key, role in inventory_roles(never=never_default_22gb).items() if roles[key] != role)
+    for pipe, slot, comp in flips:
+        log.info(f'  resident under the 22 GB default: {pipe}.{slot} ({comp})')
+    log.info(f'  pipelines={len(pipes)} components={len(roles)} flips={len(flips)} unaudited={unaudited}')
+
+
+def test_inventory_covers_the_registered_pipelines():
+    rows, _unaudited = get_inventory()
+    covered = {pipe for pipe, _slot, _comp in rows}
+    assert len(covered) >= 40, f'inventory shrank to {len(covered)} pipelines'
+    assert len(rows) >= 150, f'inventory shrank to {len(rows)} component rows'
+
+
+def test_inventory_has_no_undecorated_entry_points():
+    # with empty exclusion settings, resident can only come from the missing-bridge arm
+    stranded = sorted(f'{pipe}.{slot} ({comp})' for (pipe, slot, comp), role in inventory_roles().items() if role == 'resident')
+    assert not stranded, f'components with encode or decode but no entry bridge: {stranded}'
+
+
+def test_inventory_optouts_take_ondemand():
+    rows, _unaudited = get_inventory()
+    roles = inventory_roles()
+    wrong = sorted({f'{pipe}.{slot} ({comp.__name__})' for pipe, slot, comp in rows if getattr(comp, '_supports_group_offloading', True) is False and roles[(pipe, slot, comp.__name__)] != 'ondemand'})
+    assert not wrong, f'opted-out classes not routed on-demand: {wrong}'
+
+
+def test_inventory_every_pipeline_has_a_denoiser():
+    # a denoiser placed on-demand by an upstream opt-out counts; a denoiser slot missing from group_offload_main does not
+    rows, _unaudited = get_inventory()
+    roles = inventory_roles()
+    placed = {pipe for pipe, slot, comp in rows if roles[(pipe, slot, comp.__name__)] == 'main' or getattr(comp, '_supports_group_offloading', True) is False}
+    missing = sorted({pipe for pipe, _slot, _comp in rows} - placed - set(inventory_aux_only))
+    assert not missing, f'no component takes the per-step profile in: {missing}'
+
+
+# ============================================================
 # Runner
 # ============================================================
 
@@ -548,6 +701,20 @@ def run_all():
         test_denoisers_do_not_carry_the_entry_bridge,
         test_upstream_still_opts_hunyuandit_out_of_group_offload,
         test_mageflow_vae_carries_the_entry_bridge,
+    ]:
+        run_test(cat, fn)
+
+    log.warning('=== inventory audit ===')
+    cat = category('inventory')
+    try:
+        emit_inventory_table()
+    except Exception as e:
+        record(cat, False, 'emit_inventory_table', f'exception: {e}')
+    for fn in [
+        test_inventory_covers_the_registered_pipelines,
+        test_inventory_has_no_undecorated_entry_points,
+        test_inventory_optouts_take_ondemand,
+        test_inventory_every_pipeline_has_a_denoiser,
     ]:
         run_test(cat, fn)
 
