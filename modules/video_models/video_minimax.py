@@ -82,3 +82,10 @@ def set_audio(pipe, enabled: bool):
     elif not enabled and 'audio' in sub:
         pipe.sdnext_audio_decode_block = sub.pop('audio')
         log.debug(f'Pipeline: cls={pipe.__class__.__name__} audio=disabled')
+
+
+def set_sampler_shift(pipe, video_shift: float = 12.0, audio_shift: float = 3.0):
+    if getattr(pipe, 'scheduler', None) is not None and getattr(pipe.scheduler, 'config', None) is not None:
+        pipe.scheduler.config.shift = video_shift
+    if getattr(pipe, 'audio_scheduler', None) is not None and getattr(pipe.audio_scheduler, 'config', None) is not None:
+        pipe.audio_scheduler.config.shift = audio_shift

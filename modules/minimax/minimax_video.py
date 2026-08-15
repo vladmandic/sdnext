@@ -82,6 +82,7 @@ def generate(task_id, _ui_state,
              steps,
              seed,
              init_image, last_image, reference_media,
+             video_shift, audio_shift,
              mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, mp4_thumb,
              audio_enable,
             _overrides,
@@ -119,7 +120,8 @@ def generate(task_id, _ui_state,
             ops=['video'],
         )
         video_minimax.apply_overrides(p, shared.sd_model, still=False, audio=audio_enable)
-        log.debug(f'Video: engine="{engine}" model="{model}" workflow={workflow} cls={shared.sd_model.__class__.__name__} kwargs={p.task_args}')
+        video_minimax.set_sampler_shift(shared.sd_model, video_shift=video_shift, audio_shift=audio_shift)
+        log.debug(f'Video: engine="{engine}" model="{model}" workflow={workflow} cls={shared.sd_model.__class__.__name__} shift={video_shift}:{audio_shift} kwargs={p.task_args}')
         processing.fix_seed(p)
         p.ops.append('video')
         p.scripts = scripts_manager.scripts_video
@@ -158,14 +160,12 @@ def generate(task_id, _ui_state,
         if mp4_interpolate > 0:
             p.video_interpolate = mp4_interpolate
             from modules.processing_video import apply_video_interpolation
-            print('HERE1', pixels.shape, pixels.min(), pixels.max())
             # pixels is 5-D (N,C,T,H,W) in [-1,1]; RIFE needs 4-D (T,C,H,W) in [0,1]
             x = pixels.squeeze(0).permute(1, 0, 2, 3)
             x = (x.clamp(-1., 1.) + 1.0) * 0.5
             x = apply_video_interpolation(p, x, count=mp4_interpolate) # sets p.video_interpolated otherwise main save_video would do it also
             x = x * 2.0 - 1.0
             pixels = x.permute(1, 0, 2, 3).unsqueeze(0)
-            print('HERE2', pixels.shape, pixels.min(), pixels.max())
 
         save_fps = mp4_fps * processing_video.interpolation_factor(p)
         num_frames, video_file, _thumb = video_save.save_video(
