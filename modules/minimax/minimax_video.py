@@ -3,7 +3,7 @@ import time
 from PIL import Image
 import numpy as np
 from modules.logger import log
-from modules import shared, devices, processing, timer, progress, paths, sd_models, scripts_manager, call_queue, memstats, processing_video
+from modules import shared, devices, errors, processing, timer, progress, paths, sd_models, scripts_manager, call_queue, memstats, processing_video
 from modules.video_models import models_def, video_save, video_utils
 
 
@@ -98,42 +98,6 @@ def generate(task_id, _ui_state,
         progress.start_task(task_id)
         memstats.reset_stats()
         timer.process.reset()
-        workflow = load_model(model) # override workflow based on loaded model
-        if not workflow:
-            progress.finish_task(task_id)
-            log.error('Video: model not loaded')
-            return None, 'Model not loaded'
-        p = processing.StableDiffusionProcessingVideo(
-            sd_model=shared.sd_model,
-            video_engine=engine,
-            video_model=model,
-            prompt=prompt,
-            styles=styles,
-            seed=int(seed) if seed is not None else -1,
-            steps=int(steps),
-            width=width,
-            height=height,
-            frames=frames,
-            do_not_save_grid=True,
-            do_not_save_samples=not mp4_frames,
-            outpath_samples=paths.resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_video),
-            ops=['video'],
-        )
-        video_minimax.apply_overrides(p, shared.sd_model, still=False, audio=audio_enable)
-        video_minimax.set_sampler_shift(shared.sd_model, video_shift=video_shift, audio_shift=audio_shift)
-        log.debug(f'Video: engine="{engine}" model="{model}" workflow={workflow} cls={shared.sd_model.__class__.__name__} shift={video_shift}:{audio_shift} kwargs={p.task_args}')
-        processing.fix_seed(p)
-        p.ops.append('video')
-        p.scripts = scripts_manager.scripts_video
-        p.script_args = args
-
-        prepare_inputs(workflow, p, init_image, last_image, reference_media)
-
-        _processed: processing.Processed = scripts_manager.scripts_video.run(p, *args)
-        processed = processing.process_images(p)
-
-        sd_models.offload_ondemand(shared.sd_model, reason='finish', force=True) # force offload all loaded modules to cpu
-        devices.torch_gc(force=True) # free gpu memory before saving video
 
         # init vars
         pixels = None
@@ -141,65 +105,109 @@ def generate(task_id, _ui_state,
         video_file = None
         aac_sample_rate = 32000
 
-        audio = getattr(processed, 'audio', None) if audio_enable else None
-        if audio is not None:
-            audio = audio[0].float().cpu() if audio.ndim == 3 else audio.float().cpu()
-            aac_sample_rate = getattr(shared.sd_model, 'audio_sampling_rate', 32000)
+        try:
+            workflow = load_model(model) # override workflow based on loaded model
+            if not workflow:
+                progress.finish_task(task_id)
+                log.error('Video: model not loaded')
+                return None, 'Model not loaded'
+            p = processing.StableDiffusionProcessingVideo(
+                sd_model=shared.sd_model,
+                video_engine=engine,
+                video_model=model,
+                prompt=prompt,
+                styles=styles,
+                seed=int(seed) if seed is not None else -1,
+                steps=int(steps),
+                width=width,
+                height=height,
+                frames=frames,
+                do_not_save_grid=True,
+                do_not_save_samples=not mp4_frames,
+                outpath_samples=paths.resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_video),
+                ops=['video'],
+            )
+            video_minimax.apply_overrides(p, shared.sd_model, still=False, audio=audio_enable)
+            video_minimax.set_sampler_shift(shared.sd_model, video_shift=video_shift, audio_shift=audio_shift)
+            log.debug(f'Video: engine="{engine}" model="{model}" workflow={workflow} cls={shared.sd_model.__class__.__name__} shift={video_shift}:{audio_shift} kwargs={p.task_args}')
+            processing.fix_seed(p)
+            p.ops.append('video')
+            p.scripts = scripts_manager.scripts_video
+            p.script_args = args
 
-        images = getattr(processed, 'images', [])
-        if isinstance(images, list):
-            pixels = video_save.images_to_tensor(images)
-        elif isinstance(images, np.ndarray):
-            pixels = video_save.numpy_to_tensor(images)
-        else:
-            log.error(f'Video: images={images} type={type(images)} unsupported')
+            prepare_inputs(workflow, p, init_image, last_image, reference_media)
 
-        if pixels is None:
-            return None, "MiniMax: No frames generated"
+            _processed: processing.Processed = scripts_manager.scripts_video.run(p, *args)
+            processed = processing.process_images(p)
 
-        if mp4_interpolate > 0:
-            p.video_interpolate = mp4_interpolate
-            from modules.processing_video import apply_video_interpolation
-            # pixels is 5-D (N,C,T,H,W) in [-1,1]; RIFE needs 4-D (T,C,H,W) in [0,1]
-            x = pixels.squeeze(0).permute(1, 0, 2, 3)
-            x = (x.clamp(-1., 1.) + 1.0) * 0.5
-            x = apply_video_interpolation(p, x, count=mp4_interpolate) # sets p.video_interpolated otherwise main save_video would do it also
-            x = x * 2.0 - 1.0
-            pixels = x.permute(1, 0, 2, 3).unsqueeze(0)
+            sd_models.offload_ondemand(shared.sd_model, reason='finish', force=True) # force offload all loaded modules to cpu
+            devices.torch_gc(force=True) # free gpu memory before saving video
 
-        save_fps = mp4_fps * processing_video.interpolation_factor(p)
-        num_frames, video_file, _thumb = video_save.save_video(
-            p=p,
-            pixels=pixels,
-            audio=audio,
-            mp4_fps=save_fps,
-            mp4_codec=mp4_codec,
-            mp4_opt=mp4_opt,
-            mp4_ext=mp4_ext,
-            mp4_sf=mp4_sf,
-            mp4_video=mp4_video,
-            mp4_frames=mp4_frames,
-            mp4_thumb=mp4_thumb,
-            mp4_interpolate=mp4_interpolate,
-            aac_sample_rate=aac_sample_rate,
-            metadata={},
-        )
-        _n, _c, _t, h, w = pixels.shape
-        del pixels
-        if audio is not None:
-            del audio
+            audio = getattr(processed, 'audio', None) if audio_enable else None
+            if audio is not None:
+                audio = audio[0].float().cpu() if audio.ndim == 3 else audio.float().cpu()
+                aac_sample_rate = getattr(shared.sd_model, 'audio_sampling_rate', 32000)
+
+            images = getattr(processed, 'images', [])
+            if isinstance(images, list):
+                pixels = video_save.images_to_tensor(images)
+            elif isinstance(images, np.ndarray):
+                pixels = video_save.numpy_to_tensor(images)
+            else:
+                log.error(f'Video: images={images} type={type(images)} unsupported')
+
+            if pixels is None:
+                return None, "MiniMax: No frames generated"
+
+            if mp4_interpolate > 0:
+                p.video_interpolate = mp4_interpolate
+                from modules.processing_video import apply_video_interpolation
+                # pixels is 5-D (N,C,T,H,W) in [-1,1]; RIFE needs 4-D (T,C,H,W) in [0,1]
+                x = pixels.squeeze(0).permute(1, 0, 2, 3)
+                x = (x.clamp(-1., 1.) + 1.0) * 0.5
+                x = apply_video_interpolation(p, x, count=mp4_interpolate) # sets p.video_interpolated otherwise main save_video would do it also
+                x = x * 2.0 - 1.0
+                pixels = x.permute(1, 0, 2, 3).unsqueeze(0)
+
+            save_fps = mp4_fps * processing_video.interpolation_factor(p)
+            num_frames, video_file, _thumb = video_save.save_video(
+                p=p,
+                pixels=pixels,
+                audio=audio,
+                mp4_fps=save_fps,
+                mp4_codec=mp4_codec,
+                mp4_opt=mp4_opt,
+                mp4_ext=mp4_ext,
+                mp4_sf=mp4_sf,
+                mp4_video=mp4_video,
+                mp4_frames=mp4_frames,
+                mp4_thumb=mp4_thumb,
+                mp4_interpolate=mp4_interpolate,
+                aac_sample_rate=aac_sample_rate,
+                metadata={},
+            )
+            _n, _c, _t, h, w = pixels.shape
+            del pixels
+            if audio is not None:
+                del audio
+
+        except Exception as e:
+            log.error(f'Video: engine="{engine}" model="{model}" workflow={workflow} {e}')
+            errors.display(e, 'Video')
+        finally:
+            jobid = getattr(shared.sd_model, 'sdnext_phaseid', None) # previous jobid if any
+            shared.state.end(jobid) # clear the previous job if exists
+            progress.finish_task(task_id)
+            p.close()
 
         t1 = time.time()
-        progress.finish_task(task_id)
-        p.close()
-
         resolution = f'{w}x{h}' if num_frames > 0 else None
         summary = timer.process.summary(min_time=0.25, total=False).replace('=', ' ')
         memory = shared.mem_mon.summary()
         total_time = max(t1 - t0, 1e-6)
         fps = f'{num_frames/total_time:.2f}'
         its = f'{(steps)/total_time:.3f}'
-        log.info(f'Processed: fn="{video_file}" frames={num_frames} fps={fps} its={its} resolution={resolution} time={total_time:.2f} timers={timer.process.dct()} memory={memstats.memory_stats()}')
+        log.info(f'Processed: fn="{video_file}" frames={num_frames} fps={fps} its={its} resolution={resolution} time={total_time:.2f} timers={timer.process.dct(no_total=True)} memory={memstats.memory_stats()}')
 
-        ui_text = f'MiniMax: Generation completed | File {video_file} | Frames {num_frames} | Resolution {resolution} | f/s {fps} | it/s {its} ' + f"<div class='performance'><p>{summary} {memory}</p></div>"
+        ui_text = f'Video | File {video_file} | Frames {num_frames} | Resolution {resolution} | f/s {fps} | it/s {its} ' + f"<div class='performance'><p>{summary} {memory}</p></div>"
         return video_file, ui_text
