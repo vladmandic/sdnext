@@ -130,6 +130,7 @@ def worker(
         else:
             end_latent = None
         sd_models.apply_balanced_offload(shared.sd_model)
+        sd_models.offload_ondemand(shared.sd_model, reason='vae encode') # group offload returns the vae through its on-demand placement rather than the balanced seam
         timer.process.add('encode', time.time()-t0)
         shared.state.end(jobid)
         return start_latent, end_latent
@@ -317,6 +318,7 @@ def worker(
                         current_pixels = framepack_vae.vae_decode(real_history_latents[:, :, :section_latent_frames], vae_type=vae_type).cpu()
                         history_pixels = utils.soft_append_bcthw(current_pixels, history_pixels, overlapped_frames)
                 sd_models.apply_balanced_offload(shared.sd_model)
+                sd_models.offload_ondemand(shared.sd_model, reason='vae decode')
                 timer.process.add('vae', time.time()-t_vae)
 
                 if is_last_section:
@@ -376,6 +378,7 @@ def worker(
         errors.display(e, 'FramePack')
 
     sd_models.apply_balanced_offload(shared.sd_model)
+    sd_models.offload_ondemand(shared.sd_model, reason='finish')
     stream.output_queue.push(('end', None))
     t1 = time.time()
     log.info(f'Processed: frames={total_generated_frames} fps={total_generated_frames/(t1-t0):.2f} its={(shared.state.sampling_step)/(t1-t0):.3f} time={t1-t0:.2f} timers={timer.process.dct()} memory={memstats.memory_stats()}')

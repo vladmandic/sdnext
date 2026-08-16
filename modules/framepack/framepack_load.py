@@ -196,7 +196,7 @@ def load_model(variant: str | None = None, pipeline: str | None = None, text_enc
 
         diffusers.loaders.peft._SET_ADAPTER_SCALE_FN_MAPPING['HunyuanVideoTransformer3DModelPacked'] = lambda model_cls, weights: weights # pylint: disable=protected-access
         log.info(f'FramePack load: model={shared.sd_model.__class__.__name__} variant="{variant}" type={shared.sd_model_type} time={t1-t0:.2f}')
-        sd_models.apply_balanced_offload(shared.sd_model)
+        sd_models.set_diffuser_offload(shared.sd_model)
         devices.torch_gc(force=True, reason='load')
 
     except Exception as e:
