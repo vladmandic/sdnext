@@ -1,7 +1,6 @@
 import os
 import tempfile
 from pathlib import Path
-from unicodedata import name
 from pydantic import BaseModel
 from fastapi import Request, Header, UploadFile, Form
 from fastapi.exceptions import HTTPException
