@@ -50,6 +50,8 @@ def parse_prompt_lines(text: str):
     fallback: list[str] = []
     for line in (text or '').split('\n'):
         line = line.strip()
+        if len(line) == 0:
+            continue # blank spacer lines don't count as a fallback entry
         m = class_tag_re.match(line)
         if m:
             names = [n.strip().lower() for n in m.group(1).split(',') if n.strip()]
