@@ -232,8 +232,8 @@ class Detailer():
             if detailer_opt(p, 'detailer_include_detections', 'detailer_save'):
                 annotated = self.draw_masks(annotated, items, p=p)
 
-            resolved_prompts = assign_prompts(prompt, items)
-            resolved_negatives = assign_prompts(negative, items)
+            resolved_prompts = assign_prompts(prompt, items, context=f'model="{name}" prompt')
+            resolved_negatives = assign_prompts(negative, items, context=f'model="{name}" negative')
             for j, item in enumerate(items):
                 if item.mask is None:
                     continue

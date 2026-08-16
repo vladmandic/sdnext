@@ -60,17 +60,26 @@ def parse_prompt_lines(text: str):
     return class_map, fallback
 
 
-def assign_prompts(text: str, items: list) -> list[str]:
+def assign_prompts(text: str, items: list, context: str | None = None) -> list[str]:
     """Resolve a detailer prompt/negative-prompt string into one entry per detection.
 
     Detections whose YOLO label matches a '[CLASS=name]' tag get that tag's text.
     Remaining detections fall back to the untagged lines, applied positionally in
     detection order and cycling if there are more detections than fallback lines
     (matching prior behavior when no class tags are used).
+
+    If 'context' is given, a warning is logged for any '[CLASS=name]' tag that
+    matched none of the current detections (typo guard: e.g. tagging 'hnad'
+    when the model's actual label is 'hand').
     """
     class_map, fallback = parse_prompt_lines(text)
     if len(fallback) == 0:
         fallback = ['']
+    labels = {(getattr(item, 'label', None) or '').strip().lower() for item in items}
+    if context:
+        unmatched = [name for name in class_map if name not in labels]
+        if len(unmatched) > 0:
+            log.warning(f'Detailer {context}: class tags did not match any detection: unmatched={unmatched} detected={sorted(labels)}')
     resolved = []
     fallback_idx = 0
     for item in items:
