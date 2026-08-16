@@ -57,7 +57,7 @@ Give some info about objects on background, describe the location (if seen). The
 /or if there are no characters
 "main content" : "long and detailed description of main content of image that might be the main focus if characters are missing",
 /
-"background" : "Detailed descritpion of background and it's content",
+"background" : "Detailed description of background and it's content",
 "image_effects" : "If there are some visual effects like fisheye distortion, chromatic aberration, glitches, messy drawing or anything else - write about it. If it's just a general anime art - omit this field."
 "texts" : "Speech bubbles, bars, marks, signs etc. with texts if present, else None",
 "atmosphere" : "...",
@@ -72,7 +72,7 @@ In special cases you can add extra keys.
 You need to think here and compare peoples/creatures that you see on the picture  with given popular tags, or descriptions, or your memories for each characters to determine who is who.
 If no characters are listed in input - just write here "No named characters"
 # 2. Key details
-Here you need to write about the key details on image, prefere using regular text.
+Here you need to write about the key details on image, prefer using regular text.
 # 3. Structured description
 ## General
 Write about general composition, content of image, background and all things that are not related to characters directly.
@@ -85,13 +85,13 @@ Mention image effect, style, camera angle
 </format>
 In general stick to shorter descriptions.
 """,
-"json_comic": """Use json-style caption to describe to comin, stick to following structure:
+"json_comic": """Use json-style caption to describe the comic, stick to following structure:
 {
-"comic_format": "menation the format, for example Comic of N frames",
+"comic_format": "mention the format, for example Comic of N frames",
 "1st_frame": "Main description of the content for fist frame",
 "2nd_frame": "Same for the second",
 ...
-"Nth_ftame": "...",
+"Nth_frame": "...",
 "character_1": "Describe the characters in comic",
 ...
 "character_N": "Separate description for each",
@@ -105,15 +105,15 @@ You need to think here and compare peoples/creatures that you see on the picture
 # 2. Key details
 Here you need to determine key details on comic and list them.
 # 3. Comic format
-In this section come up with the description of comic format, how many pages there are, horisontal/vertical orientation and other things. Optionally you can list main characters here.
+In this section come up with the description of comic format, how many pages there are, horizontal/vertical orientation and other things. Optionally you can list main characters here.
 # 4. Details for each frame
 ## 4.1 Frame 1 (position)
-Description for each frame, includding characters, objects, interactions, texts/speech bubbles and other things. Be detailed but not overdoo.
+Description for each frame, including characters, objects, interactions, texts/speech bubbles and other things. Be detailed but not overdoo.
 ## 4.2 Frame 2 (position)
 Same for each frame.
 ...
 # 5. Extra comment
-Here you should write general desciption and some other info about the image.
+Here you should write general description and some other info about the image.
 </format>
 """,
 "min_structured_json": """
@@ -127,7 +127,7 @@ Use json-style caption for given image with following structure:
 "texts" : "Speech bubbles, bars, marks, signs etc. with texts if present, else None",
 "watermarks" : "If present",
 }
-Prefere shorter description and tags.
+Prefer shorter description and tags.
 """,
 "chroma-style": """Your task is to describe the picture in very detail using a structure of 4 parts.
 ### 1. Regular Summary:

@@ -262,7 +262,7 @@ Originating as a service-pack update with a handful of fixes and quality-of-life
   - **First-Last-Frame** (FLF2V) support for Wan-2.2-I2V and LTX
   - add option: *compute settings -> force dtype on load*  
     use to force model components to override loading with desired dtype regardless of component config  
-  - add option: *backend settings -> force sychronize*  
+  - add option: *backend settings -> force synchronize*  
     enabled by default, disable to speed up processing but may cause image corruptions, especially during preview
   - add option: *model loading -> attempt to load incomplete model*  
     disabled by default, attempts to load model by mapping it to known model even if some components are missing  
@@ -399,7 +399,7 @@ And we have a new modular LoRA loader, new native Transformers loader and improv
   - **Samplers** reorganized into clear sampler categories
   - **Gallery** add clear cache button to folder menu
   - **Finetunes** improved support for loading model finetunes  
-    this also includes detecting compatibility and falbacks  
+    this also includes detecting compatibility and fallbacks  
   - **UV** much updated `--uv` support for fast installs  
     now also supports global `uv` if present in the system  
   - **Attention Dispatcher** new attention backends dispatcher  
