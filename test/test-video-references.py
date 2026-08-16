@@ -557,6 +557,47 @@ def test_short_video_is_rejected_after_the_decode():
 
 
 # ============================================================
+# Core seam
+# ============================================================
+
+def test_core_serves_the_caps():
+    from modules.video_models import video_run
+    assert video_run.reference_caps('ref2va') is caps(), 'the core served different caps than the resolver'
+    assert video_run.reference_caps('fl2va') is None, 'fl2va reported reference limits'
+    assert video_run.reference_caps(None) is None, 'a missing workflow reported reference limits'
+
+
+def test_core_gate_and_caps_table_agree():
+    from modules.video_models import video_run
+    assert set(video_run.REFERENCE_WORKFLOWS) == set(refs.REFERENCE_CAPS), f'{video_run.REFERENCE_WORKFLOWS} vs {sorted(refs.REFERENCE_CAPS)}'
+
+
+def test_core_gate_names_workflows_the_registry_carries():
+    from modules.video_models import models_def, video_run
+    known = {row.workflow for rows in models_def.models.values() for row in rows if getattr(row, 'workflow', None)}
+    assert set(video_run.REFERENCE_WORKFLOWS) <= known, f'{video_run.REFERENCE_WORKFLOWS} not among {sorted(known)}'
+
+
+def test_core_rejects_references_on_a_keyframe_model():
+    from modules.video_models import models_def, video_run
+    row = models_def.Model(name='test keyframe', workflow='fl2va')
+    expect_error(lambda: video_run.validate_references(row, [image()], None), 'requires a reference workflow')
+    assert video_run.validate_references(row, None, None) is None, 'a keyframe model resolved references'
+    assert video_run.validate_references(row, [], image()) is None, 'a keyframe model claimed its init image'
+
+
+def test_core_resolves_a_reference_model():
+    from modules.video_models import models_def, video_run
+    row = models_def.Model(name='test reference', workflow='ref2va')
+    expect_error(lambda: video_run.validate_references(row, None, None), 'No reference media provided')
+    if not has_diffusers():
+        return 'diffusers not installed'
+    built = video_run.validate_references(row, None, image()) # the init image stands in for a single reference
+    assert len(built) == 1 and built[0].kind == 'image', f'{built}'
+    return True
+
+
+# ============================================================
 # Runner
 # ============================================================
 
@@ -652,6 +693,17 @@ def run_all():
             test_built_video_carries_its_frame_rate,
             test_built_image_is_rgb,
             test_short_video_is_rejected_after_the_decode,
+        ]:
+            run_test(cat, fn)
+
+        log.warning('=== core seam ===')
+        cat = category('core')
+        for fn in [
+            test_core_serves_the_caps,
+            test_core_gate_and_caps_table_agree,
+            test_core_gate_names_workflows_the_registry_carries,
+            test_core_rejects_references_on_a_keyframe_model,
+            test_core_resolves_a_reference_model,
         ]:
             run_test(cat, fn)
 

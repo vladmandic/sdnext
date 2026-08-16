@@ -27,10 +27,10 @@ class ReqVideo(BaseModel):
     seed: int = Field(default=-1, title="Seed", description="Generation seed; -1 for random")
     guidance_scale: float = Field(default=-1.0, title="Guidance scale", description="CFG scale; -1 keeps the model default")
     guidance_true: float = Field(default=-1.0, title="True guidance", description="True CFG scale; -1 keeps the model default")
-    init_image: str | None = Field(default=None, title="Init image", description="Base64, data URI, or upload reference for the first-frame image")
+    init_image: str | None = Field(default=None, title="Init image", description="Base64 or data URI for the first-frame image; an upload reference resolves only where an extension provides the upload store")
     init_strength: float = Field(default=0.8, ge=0.0, le=1.0, title="Init strength", description="Denoising strength for the init image")
-    last_image: str | None = Field(default=None, title="Last image", description="Base64, data URI, or upload reference for the last-frame image")
-    references: list[str] = Field(default=[], title="References", description="Reference images for a reference workflow, in the order the model reads them; base64, data URIs, or upload references. At most 9, each within a 1:4 to 4:1 aspect ratio. Rejected on models that do not condition on references")
+    last_image: str | None = Field(default=None, title="Last image", description="Base64 or data URI for the last-frame image; an upload reference resolves only where an extension provides the upload store")
+    references: list[str] = Field(default=[], title="References", description="Reference images for a reference workflow, in the order the model reads them; base64 or data URIs, or upload references where an extension provides the upload store. Images only: the video core also conditions on video and audio references, which this endpoint cannot carry. At most 9, each within a 1:4 to 4:1 aspect ratio. Rejected on models that do not condition on references")
     vae_type: str = Field(default="Default", title="VAE type", description="Decode variant: Default, Tiny, Remote, or Upscale")
     vae_tile_frames: int = Field(default=16, ge=1, le=64, title="VAE tile frames", description="Frames per VAE decode tile")
     audio: bool = Field(default=True, title="Audio", description="Generate audio on models that support it")
@@ -142,11 +142,14 @@ class APIVideo:
         `send_thumbnail`. Artifacts above the base64 size cap return `video` empty with
         `video_path` set; fetch those via `GET /sdapi/v1/video/file`.
 
-        `init_image` and `last_image` accept base64 data, data URIs, or upload references.
+        `init_image` and `last_image` accept base64 data or data URIs. An `upload:` reference
+        resolves only where an extension registers an upload store; without one it is rejected.
         Models whose workflow is `ref2va` condition on `references` instead: an ordered list of
         images the prompt addresses as `<Picture 1>`, `<Picture 2>` and so on, following list
         order. A single reference may also be passed as `init_image`. Reference images do not
-        set the output canvas, and `last_image` is ignored.
+        set the output canvas, and `last_image` is ignored. The workflow also conditions on video
+        and audio references, addressed as `<Video i>` and `<Audio i>`, but they decode from files
+        rather than from the wire, so this endpoint carries images alone.
 
         Progress is reported on `GET /sdapi/v1/progress`; `POST /sdapi/v1/interrupt` cancels.
         Switching checkpoints via `override_settings` is not supported here; use

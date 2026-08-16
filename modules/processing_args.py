@@ -488,6 +488,8 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:l
             clean[k] = v.shape
         elif isinstance(v, list) and len(v) > 0 and (isinstance(v[0], torch.Tensor) or isinstance(v[0], np.ndarray)):
             clean[k] = [x.shape for x in v]
+        elif isinstance(v, list) and len(v) > 0 and hasattr(v[0], 'kind'): # media references carry decoded frames and waveforms
+            clean[k] = [getattr(x, 'kind', type(x).__name__) for x in v]
         elif not debug_enabled and k.endswith('_embeds'):
             del clean[k]
             clean['prompt'] = 'embeds'
