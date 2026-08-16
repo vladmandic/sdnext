@@ -145,6 +145,12 @@ def stub_video_reference(frames: int, fps: float):
     return types.SimpleNamespace(frames=[None] * frames, fps=fps, kind='video')
 
 
+def make_png(name: str, width: int = 64, height: int = 64) -> str:
+    fn = os.path.join(tmpdir, name)
+    image(width, height).save(fn)
+    return fn
+
+
 def make_wav(name: str, seconds: float = 1.0, rate: int = 32000, channels: int = 1) -> str:
     fn = os.path.join(tmpdir, name)
     with wave.open(fn, 'wb') as handle:
@@ -545,6 +551,13 @@ def test_built_image_is_rgb():
     assert built[0].image.mode == 'RGB', f'mode={built[0].image.mode}'
 
 
+def test_corrupt_file_is_rejected_cleanly():
+    if not has_diffusers():
+        return 'diffusers not installed'
+    # an unreadable file has to surface as a rejection naming it, not as a traceback out of the decoder
+    return expect_error(lambda: refs.resolve('ref2va', [touch('corrupt.png')]), 'decode failed')
+
+
 def test_short_video_is_rejected_after_the_decode():
     if not has_av():
         return 'av not installed'
@@ -594,6 +607,53 @@ def test_core_resolves_a_reference_model():
         return 'diffusers not installed'
     built = video_run.validate_references(row, None, image()) # the init image stands in for a single reference
     assert len(built) == 1 and built[0].kind == 'image', f'{built}'
+    return True
+
+
+# ============================================================
+# Tab delegation
+# ============================================================
+
+def test_tab_unwraps_gradio_file_entries():
+    from modules.minimax import minimax_video
+    fn = touch('unwrap.png')
+    assert minimax_video.unwrap_file(fn) == fn, 'a plain path was rewritten'
+    assert minimax_video.unwrap_file(types.SimpleNamespace(name=fn)) == fn, 'a tempfile wrapper was not unwrapped'
+    assert minimax_video.unwrap_file({'name': fn}) == fn, 'a dict entry was not unwrapped'
+
+
+def test_tab_keeps_keyframes_on_a_keyframe_workflow():
+    from modules.minimax import minimax_video
+    task_args = minimax_video.prepare_inputs('fl2va', image(), image(), None)
+    assert sorted(task_args) == ['image', 'last_image'], f'{sorted(task_args)}'
+
+
+def test_tab_reports_references_it_cannot_use():
+    # uploads survive the accordion hiding when the row changes, and dropping them silently reads as a working request
+    from modules.minimax import minimax_video
+    seen = []
+    original = minimax_video.log.warning
+    minimax_video.log.warning = lambda msg, *a, **k: seen.append(str(msg))
+    try:
+        task_args = minimax_video.prepare_inputs('fl2va', image(), None, [touch('stale.png')])
+    finally:
+        minimax_video.log.warning = original
+    assert any('not supported' in message for message in seen), f'{seen}'
+    assert 'references' not in task_args, 'a keyframe workflow claimed the references'
+
+
+def test_tab_rejections_name_the_reason():
+    from modules.minimax import minimax_video
+    return expect_error(lambda: minimax_video.prepare_inputs('ref2va', None, None, [touch('notes.txt')]), 'unsupported media type')
+
+
+def test_tab_resolves_references_through_the_shared_funnel():
+    from modules.minimax import minimax_video
+    if not has_diffusers():
+        return 'diffusers not installed'
+    task_args = minimax_video.prepare_inputs('ref2va', image(), None, [types.SimpleNamespace(name=make_png('tab.png'))])
+    assert list(task_args) == ['references'], f'{list(task_args)}'
+    assert [reference.kind for reference in task_args['references']] == ['image'], f'{task_args}'
     return True
 
 
@@ -692,6 +752,7 @@ def run_all():
             test_built_references_keep_the_request_order,
             test_built_video_carries_its_frame_rate,
             test_built_image_is_rgb,
+            test_corrupt_file_is_rejected_cleanly,
             test_short_video_is_rejected_after_the_decode,
         ]:
             run_test(cat, fn)
@@ -704,6 +765,17 @@ def run_all():
             test_core_gate_names_workflows_the_registry_carries,
             test_core_rejects_references_on_a_keyframe_model,
             test_core_resolves_a_reference_model,
+        ]:
+            run_test(cat, fn)
+
+        log.warning('=== tab delegation ===')
+        cat = category('tab')
+        for fn in [
+            test_tab_unwraps_gradio_file_entries,
+            test_tab_keeps_keyframes_on_a_keyframe_workflow,
+            test_tab_reports_references_it_cannot_use,
+            test_tab_rejections_name_the_reason,
+            test_tab_resolves_references_through_the_shared_funnel,
         ]:
             run_test(cat, fn)
 
