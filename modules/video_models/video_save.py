@@ -171,6 +171,25 @@ def add_audio_tensor(container, audio_stream, audio: torch.Tensor, sample_rate: 
     add_audio_packets(container, audio_stream, {"sr": sample_rate, "layout": layout, "frames": [audio_frame]})
 
 
+def parse_options(options):
+    if isinstance(options, dict):
+        return options
+    if not isinstance(options, str) or not options.strip():
+        return {}
+    parsed_options = {}
+    normalized = options.replace(',', ':') # Standardize delimiters by replacing commas with colons
+    for item in normalized.split(':'):
+        item = item.strip()
+        if not item:
+            continue
+        if '=' in item:
+            key, value = item.split('=', 1)
+            parsed_options[key.strip()] = value.strip()
+        else:
+            parsed_options[item] = '1' # Handle flag options without explicit '=' (e.g., 'fastseek')
+    return parsed_options
+
+
 def atomic_save_video(
     filename: str,
     tensor: torch.Tensor,
@@ -192,18 +211,7 @@ def atomic_save_video(
     savejob = shared.state.begin('Save video')
     frames, height, width, _channels = tensor.shape
     rate = round(fps)
-    parsed_options = {}
-    if isinstance(options, str):
-        for option in [opt.strip() for opt in options.split(',')]:
-            if '=' in option:
-                key, value = option.split('=', 1)
-            elif ':' in option:
-                key, value = option.split(':', 1)
-            else:
-                continue
-            parsed_options[key.strip()] = value.strip()
-    elif isinstance(options, dict):
-        parsed_options = options
+    parsed_options = parse_options(options)
     log.info(f'Video: file="{filename}" codec={codec} frames={frames} width={width} height={height} fps={rate} audio={audio is not None} sample_rate={sample_rate} options={parsed_options}')
     video_array = torch.as_tensor(tensor, dtype=torch.uint8).numpy(force=True)
     task = pbar.add_task('encoding', total=frames) if pbar is not None else None

@@ -6,6 +6,7 @@ from PIL import Image
 from installer import install
 from modules import shared, sd_models, timer, errors, devices
 from modules.logger import log
+from modules.video_models.video_codecs import codecs_config
 
 
 debug = log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None else lambda *args, **kwargs: None
@@ -64,7 +65,12 @@ def get_codecs():
     if av is None:
         return []
     codecs = []
+    practical_codecs = codecs_config.keys()
+    rejected = 0
     for codec in av.codecs_available:
+        if codec not in practical_codecs:
+            rejected += 1
+            continue
         try:
             c = av.Codec(codec, mode='w')
             if c.type == 'video' and c.is_encoder and len(c.video_formats) > 0:
@@ -74,11 +80,13 @@ def get_codecs():
             pass
     hw_codecs = [c for c in codecs if (c.capabilities & 0x40000 > 0) or (c.capabilities & 0x80000 > 0)]
     sw_codecs = [c for c in codecs if c not in hw_codecs]
-    log.debug(f'Video codecs: hardware={len(hw_codecs)} software={len(sw_codecs)}')
-    # for c in hw_codecs:
-    #     log.trace(f'codec={c.name} cname="{c.canonical_name}" decs="{c.long_name}" intra={c.intra_only} lossy={c.lossy} lossless={c.lossless} capabilities={c.capabilities} hw=True')
-    # for c in sw_codecs:
-    #     log.trace(f'codec={c.name} cname="{c.canonical_name}" decs="{c.long_name}" intra={c.intra_only} lossy={c.lossy} lossless={c.lossless} capabilities={c.capabilities} hw=False')
+    log.debug(f'Video codecs enum: hardware={len(hw_codecs)} software={len(sw_codecs)} rejected={rejected}')
+    """
+    for c in hw_codecs:
+        log.trace(f'codec={c.name} cname="{c.canonical_name}" decs="{c.long_name}" intra={c.intra_only} lossy={c.lossy} lossless={c.lossless} capabilities={c.capabilities} hw=True')
+    for c in sw_codecs:
+        log.trace(f'codec={c.name} cname="{c.canonical_name}" decs="{c.long_name}" intra={c.intra_only} lossy={c.lossy} lossless={c.lossless} capabilities={c.capabilities} hw=False')
+    """
     return ['none'] + [c.name for c in hw_codecs + sw_codecs]
 
 

@@ -59,21 +59,33 @@ def model_load(engine, model):
 
 
 def create_ui_outputs():
+    from modules.video_models import video_codecs
+    default_codec = 'libx264'
+    def on_codec_change(codec):
+        cfg = video_codecs.get_codec_dict(codec)
+        if not cfg:
+            return gr.update(value='unknown codec'), gr.update(value='mp4'), gr.update(value='')
+        return gr.update(value=cfg['name']), gr.update(value=cfg['ext'], choices=cfg['allowed_exts']), gr.update(value=cfg['options'])
+
     with gr.Row():
         with gr.Column(variant='compact', elem_id="video_outputs", elem_classes=['settings-column'], scale=1):
             with gr.Row():
-                mp4_fps = gr.Slider(label="FPS", minimum=1, maximum=60, value=24, step=1)
+                mp4_fps = gr.Slider(label="Target FPS", minimum=1, maximum=60, value=24, step=1)
                 mp4_interpolate = gr.Slider(label="Video interpolation", minimum=0, maximum=10, value=0, step=1)
             with gr.Row():
-                mp4_codec = gr.Dropdown(label="Video codec", choices=['none', 'libx264'], value='libx264', type='value')
+                mp4_codec = gr.Dropdown(label="Video codec", choices=video_codecs.get_codec_list(), value=default_codec, type='value')
                 ui_common.create_refresh_button(mp4_codec, video_utils.get_codecs, elem_id="video_mp4_codec_refresh")
-                mp4_ext = gr.Textbox(label="Video format", value='mp4', elem_id="video_mp4_ext")
-                mp4_opt = gr.Textbox(label="Video options", value='crf:16', elem_id="video_mp4_opt")
+                mp4_info = gr.Label(value=video_codecs.get_codec_name(default_codec), label='Codec info', elem_id='video_mp4_codec_label', show_label=False, elem_classes=['codec-label'])
             with gr.Row():
-                mp4_video = gr.Checkbox(label='Video save video', value=True, elem_id="video_mp4_video")
-                mp4_frames = gr.Checkbox(label='Video save frames', value=False, elem_id="video_mp4_frames")
-                mp4_sf = gr.Checkbox(label='Video save safetensors', value=False, elem_id="video_mp4_sf")
-                mp4_thumb = gr.Checkbox(label='Video save thumbnail', value=True, elem_id="video_mp4_thumb")
+                # mp4_ext = gr.Textbox(label="Video format", value='mp4', elem_id="video_mp4_ext")
+                mp4_ext = gr.Dropdown(label="Video format", choices=video_codecs.get_codec_allowed_exts(default_codec), value=video_codecs.get_codec_ext(default_codec), elem_id="video_mp4_ext")
+                mp4_opt = gr.Textbox(label="FFmpeg options", value=video_codecs.get_codec_options(default_codec), elem_id="video_mp4_opt")
+            with gr.Row():
+                mp4_video = gr.Checkbox(label='Save: video', value=True, elem_id="video_mp4_video")
+                mp4_frames = gr.Checkbox(label='Save: frames', value=False, elem_id="video_mp4_frames")
+                mp4_sf = gr.Checkbox(label='Save: safetensors', value=False, elem_id="video_mp4_sf")
+                mp4_thumb = gr.Checkbox(label='Save: thumbnail', value=True, elem_id="video_mp4_thumb")
+            mp4_codec.change(fn=on_codec_change, inputs=[mp4_codec], outputs=[mp4_info, mp4_ext, mp4_opt], show_progress='hidden')
     return mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, mp4_thumb
 
 
@@ -87,16 +99,7 @@ def create_ui(prompt, negative, styles, overrides, script_inputs, mp4_fps, mp4_i
                 model = gr.Dropdown(label='Video model', choices=[''], value='None', elem_id="video_model")
                 btn_load = ToolButton(ui_symbols.loading, elem_id="video_model_load")
             url = gr.HTML(label='Model URL', elem_id='video_model_url', value='<br><br>')
-            with gr.Accordion(open=False, label="Parameters", elem_id='video_parameters_accordion'):
-                steps, sampler_index = ui_sections.create_sampler_and_steps_selection(None, "video", default_steps=50)
-                with gr.Row():
-                    sampler_shift = gr.Slider(label='Sampler shift', minimum=-1.0, maximum=20.0, step=0.1, value=-1.0, elem_id="video_scheduler_shift")
-                    dynamic_shift = gr.Checkbox(label='Dynamic shift', value=False, elem_id="video_dynamic_shift")
-                    audio = gr.Checkbox(label='Audio', value=True, elem_id="video_audio")
-                with gr.Row():
-                    guidance_scale = gr.Slider(label='Guidance scale', minimum=-1.0, maximum=14.0, step=0.1, value=-1.0, elem_id="video_guidance_scale")
-                    guidance_true = gr.Slider(label='True guidance', minimum=-1.0, maximum=14.0, step=0.1, value=-1.0, elem_id="video_guidance_true")
-            with gr.Accordion(open=False, label="Size", elem_id='video_size_accordion'):
+            with gr.Accordion(open=False, label="Parameters", elem_id='video_params_accordion'):
                 with gr.Row():
                     width, height = ui_sections.create_resolution_inputs('video', default_width=1024, default_height=576, step=16)
                 with gr.Row():
@@ -105,6 +108,16 @@ def create_ui(prompt, negative, styles, overrides, script_inputs, mp4_fps, mp4_i
                     random_seed = ToolButton(ui_symbols.random, elem_id="video_seed_random")
                     reuse_seed = ToolButton(ui_symbols.reuse, elem_id="video_seed_reuse")
                     random_seed.click(fn=lambda: -1, show_progress='hidden', inputs=[], outputs=[seed])
+                with gr.Row():
+                    audio = gr.Checkbox(label='Audio Enabled', value=True, elem_id="video_audio")
+            with gr.Accordion(open=False, label="Advanced", elem_id='video_advanced_accordion'):
+                steps, sampler_index = ui_sections.create_sampler_and_steps_selection(None, "video", default_steps=30)
+                with gr.Row():
+                    sampler_shift = gr.Slider(label='Sampler shift', minimum=-1.0, maximum=20.0, step=0.1, value=-1.0, elem_id="video_scheduler_shift")
+                    dynamic_shift = gr.Checkbox(label='Dynamic shift', value=False, elem_id="video_dynamic_shift")
+                with gr.Row():
+                    guidance_scale = gr.Slider(label='Guidance scale', minimum=-1.0, maximum=14.0, step=0.1, value=-1.0, elem_id="video_guidance_scale")
+                    guidance_true = gr.Slider(label='True guidance', minimum=-1.0, maximum=14.0, step=0.1, value=-1.0, elem_id="video_guidance_true")
             with gr.Accordion(open=False, label="Inputs", elem_id='video_inputs_accordion'):
                 init_strength = gr.Slider(label='Init strength', minimum=0.0, maximum=1.0, step=0.01, value=0.8, elem_id="video_denoising_strength")
                 gr.HTML("<br>&nbsp Init image")

@@ -25,13 +25,16 @@ def create_ui(prompt, _negative, styles, overrides, script_inputs, mp4_fps, mp4_
                 with gr.Row():
                     width, height = ui_sections.create_resolution_inputs('minimax', default_width=1024, default_height=576, step=32)
                 with gr.Row():
-                    steps = gr.Slider(minimum=2, maximum=100, step=1, label="Steps", elem_id='minimax_steps', value=30)
-                    frames = gr.Slider(label='Frames', minimum=22, maximum=345, step=17, value=107, elem_id='minimax_frames')
+                    steps = gr.Slider(minimum=2, maximum=100, step=1, label="MiniMax Steps", elem_id='minimax_steps', value=30)
+                    frames = gr.Slider(label='MiniMax Frames', minimum=22, maximum=345, step=17, value=107, elem_id='minimax_frames')
+                with gr.Row():
+                    video_shift = gr.Slider(minimum=8.0, maximum=16.0, step=0.1, label="MiniMax Video Shift", elem_id='minimax_video_shift', value=12)
+                    audio_shift = gr.Slider(minimum=1.5, maximum=6.0, step=0.1, label="MiniMax Audio Shift", elem_id='minimax_audio_shift', value=3)
                 with gr.Row():
                     seed = gr.Number(label='Seed', value=-1, elem_id='minimax_seed', container=True)
                     random_seed = ToolButton(ui_symbols.random, elem_id='minimax_seed_random')
                     random_seed.click(fn=lambda: -1, show_progress='hidden', inputs=[], outputs=[seed])
-                    audio_enable = gr.Checkbox(label='Save audio', value=True, elem_id="minimax_audio_enable")
+                    audio_enable = gr.Checkbox(label='Audio Enabled', value=True, elem_id="minimax_audio_enable")
             with gr.Accordion(open=False, label="Input media", elem_id='minimax_input_media_accordion', visible=True) as input_accordion:
                 with gr.Row():
                     init_image = gr.Image(label='Image', elem_id='minimax_init_image', type='pil', image_mode='RGB', width=256, height=256)
@@ -77,6 +80,7 @@ def create_ui(prompt, _negative, styles, overrides, script_inputs, mp4_fps, mp4_
         width, height, frames,
         steps, seed,
         init_image, last_image, reference_media,
+        video_shift, audio_shift,
         mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, mp4_thumb,
         audio_enable,
         overrides,

@@ -8,6 +8,7 @@ import diffusers
 from modules import shared, errors, sd_models, sd_checkpoint, model_quant, devices, sd_hijack_te, sd_hijack_vae, modular_load
 from modules.logger import log
 from modules.video_models import models_def, video_utils, video_overrides, video_cache
+from pipelines import generic
 
 
 def _loader(component):
@@ -92,77 +93,41 @@ def load_model(selected: models_def.Model):
         os.unsetenv('HF_HUB_OFFLINE')
 
     kwargs = video_overrides.load_override(selected, **offline_args)
+    sd_models.hf_auth_check(selected.repo)
 
     # text encoder
     if selected.te_cls is not None:
-        try:
-            load_args, quant_args = model_quant.get_dit_args({}, module='TE', device_map=True)
-
-            # loader deduplication of text-encoder models: picked per load, not written back onto
-            # the registry row where it would outlive the setting
-            te_repo, te_folder, te_revision = selected.te, selected.te_folder, selected.te_revision
-            if shared.opts.te_shared_te:
-                te_cls_name = selected.te_cls.__name__
-                if te_cls_name == 'T5EncoderModel':
-                    te_repo, te_folder, te_revision = 'Disty0/t5-xxl', '', None
-                elif te_cls_name == 'UMT5EncoderModel':
-                    te_repo = 'Disty0/Wan2.2-T2V-A14B-SDNQ-uint4-svd-r32' if 'SDNQ' in selected.name else 'Wan-AI/Wan2.2-TI2V-5B-Diffusers'
-                    te_folder, te_revision = 'text_encoder', None
-                elif te_cls_name == 'LlamaModel':
-                    te_repo, te_folder, te_revision = 'hunyuanvideo-community/HunyuanVideo', 'text_encoder', None
-                elif te_cls_name == 'Qwen2_5_VLForConditionalGeneration':
-                    te_repo, te_folder, te_revision = 'ai-forever/Kandinsky-5.0-T2V-Lite-sft-5s-Diffusers', 'text_encoder', None
-                elif te_cls_name == 'Gemma3ForConditionalGeneration':
-                    te_repo = 'OzzyGT/LTX-2.3-sdnq-dynamic-int4' if 'SDNQ' in selected.name else 'OzzyGT/LTX-2.3'
-                    te_folder, te_revision = 'text_encoder', None
-
-            log.debug(f'Load video: module=te repo="{te_repo or selected.repo}" folder="{te_folder}" cls={selected.te_cls.__name__} quant={model_quant.get_quant_type(quant_args)} loader={_loader("transformers")}')
-            kwargs["text_encoder"] = selected.te_cls.from_pretrained(
-                pretrained_model_name_or_path=te_repo or selected.repo,
-                subfolder=te_folder,
-                revision=te_revision or selected.repo_revision,
-                cache_dir=shared.opts.hfcache_dir,
-                **load_args,
-                **quant_args,
-                **offline_args,
-            )
-        except Exception as e:
-            log.error(f'video load: module=te cls={selected.te_cls.__name__} {e}')
-            errors.display(e, 'video')
+        te_repo, te_folder, te_revision = selected.te, selected.te_folder, selected.te_revision
+        kwargs["text_encoder"] = generic.load_text_encoder(
+            te_repo or selected.repo,
+            cls_name=selected.te_cls,
+            subfolder=te_folder,
+            revision=te_revision or selected.repo_revision,
+        )
 
     # transformer
     if selected.dit_cls is not None:
-        try:
-            def load_dit_folder(dit_folder, dit_kwarg=None):
-                dit_kwarg = dit_kwarg or dit_folder # ltx-2.5 keeps its dev transformer in transformer_full
-                if dit_folder is not None and dit_kwarg not in kwargs:
-                    # get a new quant arg on every loop to prevent the quant config classes getting entangled
-                    load_args, quant_args = model_quant.get_dit_args({}, module='Model', device_map=True)
-                    log.debug(f'Load video: module=transformer repo="{selected.dit or selected.repo}" module="{dit_kwarg}" folder="{dit_folder}" cls={selected.dit_cls.__name__} quant={model_quant.get_quant_type(quant_args)} loader={_loader("diffusers")}')
-                    kwargs[dit_kwarg] = selected.dit_cls.from_pretrained(
-                        pretrained_model_name_or_path=selected.dit or selected.repo,
-                        subfolder=dit_folder,
-                        revision=selected.dit_revision or selected.repo_revision,
-                        cache_dir=shared.opts.hfcache_dir,
-                        **load_args,
-                        **quant_args,
-                        **offline_args,
-                    )
-                else:
-                    log.debug(f'Load video: module=transformer repo="{selected.dit or selected.repo}" module="{dit_kwarg}" folder="{dit_folder}" cls={selected.dit_cls.__name__} loader={_loader("diffusers")} skip')
-
-            if selected.dit_folder is None:
-                selected.dit_folder = ['transformer']
-            if isinstance(selected.dit_folder, list) or isinstance(selected.dit_folder, tuple):
-                if selected.dit_kwarg is not None:
-                    log.warning(f'Load video: model="{selected.name}" dit_kwarg unsupported with multiple folders')
-                for dit_folder in selected.dit_folder: # wan a14b has transformer and transformer_2
-                    load_dit_folder(dit_folder)
+        def load_dit_folder(dit_folder, dit_kwarg=None):
+            dit_kwarg = dit_kwarg or dit_folder # ltx-2.5 keeps its dev transformer in transformer_full
+            if dit_folder is not None and dit_kwarg not in kwargs:
+                kwargs[dit_kwarg] = generic.load_transformer(
+                    selected.dit or selected.repo,
+                    cls_name=selected.dit_cls,
+                    subfolder=dit_folder,
+                    revision=selected.dit_revision or selected.repo_revision,
+                )
             else:
-                load_dit_folder(selected.dit_folder, selected.dit_kwarg)
-        except Exception as e:
-            log.error(f'video load: module=transformer cls={selected.dit_cls.__name__} {e}')
-            errors.display(e, 'video')
+                log.debug(f'Load video: module=transformer repo="{selected.dit or selected.repo}" module="{dit_kwarg}" folder="{dit_folder}" cls={selected.dit_cls.__name__} loader={_loader("diffusers")} skip')
+
+        if selected.dit_folder is None:
+            selected.dit_folder = ['transformer']
+        if isinstance(selected.dit_folder, list) or isinstance(selected.dit_folder, tuple):
+            if selected.dit_kwarg is not None:
+                log.warning(f'Load video: model="{selected.name}" dit_kwarg unsupported with multiple folders')
+            for dit_folder in selected.dit_folder: # wan a14b has transformer and transformer_2
+                load_dit_folder(dit_folder)
+        else:
+            load_dit_folder(selected.dit_folder, selected.dit_kwarg)
 
     # model
     try:

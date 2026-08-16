@@ -31,11 +31,20 @@
   - [ImageDB](https://github.com/vladmandic/imagedb)
 - Unify *huggingface* and *diffusers* model folders
 
+### Roadmap
+
+- Object clear remover for Kanvas
+- OpenAI API interface for image generation
+- Lightweight scheduler/queue manager
+- Distraction-free UI mode with prompt-only
+- Revisit transformer caching for modular pipelines
+- Revisit guidance for modular pipelines
+- Implement modular for some image models
+
 ### OnHold
 
 - [nVidia-VFX](https://pypi.org/project/nvidia-vfx/): not compatible with latest nVidia drivers
 - [QuantFunc](https://huggingface.co/QuantFunc/Klein-9B-Series): once its released as sdk
-- [nVidia LocateAnything](https://huggingface.co/nvidia/LocateAnything-3B) detection for Detailer, once its compatible with transformers==5
 - LoRA add OMI format support for SD35/FLUX.1
 - Remote Text-Encoder support, sidelined for the moment
 - Multi-user support

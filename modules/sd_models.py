@@ -1605,27 +1605,29 @@ def unload_model_weights(op='model'):
         log.debug(f'Unload {op}: {memory_stats()}  fn={fn}')
 
 
-def hf_auth_check(checkpoint_info: CheckpointInfo, force:bool=False):
+def hf_auth_check(checkpoint_info: CheckpointInfo | str, force:bool=False):
     if shared.opts.offline_mode:
         log.info('Offline mode: skipping auth check')
         return False
     login = None
     if not force:
         try:
-            if (checkpoint_info.path.endswith('.safetensors') and os.path.isfile(checkpoint_info.path)): # skip check for single-file safetensors models
+            fn = checkpoint_info.path if isinstance(checkpoint_info, CheckpointInfo) else checkpoint_info
+            if (fn.endswith('.safetensors') and os.path.isfile(fn)): # skip check for single-file safetensors models
                 return True
-            if os.path.exists(checkpoint_info.path) and os.path.isdir(checkpoint_info.path) and any(os.path.isfile(os.path.join(checkpoint_info.path, f)) for f in ('model_index.json', 'modular_model_index.json')): # skip check for local diffusers folders
+            if os.path.exists(fn) and os.path.isdir(fn) and any(os.path.isfile(os.path.join(fn, f)) for f in ('model_index.json', 'modular_model_index.json')): # skip check for local diffusers folders
                 return True
         except Exception:
             pass
-    repo_id = path_to_repo(checkpoint_info)
+    repo_id = path_to_repo(checkpoint_info) # already handles str or CheckpointInfo
     if repo_id is None or '/' not in repo_id:
         # log.warning(f'Auth: repo="{repo_id}" invalid repo id')
         return False
     auth_ok = False
     try:
         login = modelloader.hf_login()
-        hf.auth_check(repo_id, write=False)
+        token = os.environ.get('HF_TOKEN', None)
+        hf.auth_check(repo_id, write=False, token=token)
         auth_ok = True
     except Exception as e:
         log.error(f'Auth: repo="{repo_id}" login={login} auth={auth_ok} {e}')

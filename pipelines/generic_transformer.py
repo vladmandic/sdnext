@@ -111,7 +111,7 @@ def load_transformer(
         if local_file is not None and local_file.lower().endswith('.gguf'):
             log.debug(f'Load model: transformer="{local_file}" cls={cls_name.__name__} quant="{quant_type}" loader={get_loader("diffusers")} args={load_args}')
             from modules import ggml
-            ggml.load_gguf_diffusers(local_file, cls=cls_name, compute_dtype=dtype, config=repo_id, subfolder=subfolder, variant=variant)
+            transformer = ggml.load_gguf_diffusers(local_file, cls=cls_name, compute_dtype=dtype, config=repo_id, subfolder=subfolder, variant=variant)
             # transformer = model_quant.do_post_load_quant(transformer, allow=quant_type is not None)
 
         # 2. load safetensors with native loader if spec is available

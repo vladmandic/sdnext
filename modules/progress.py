@@ -20,6 +20,7 @@ def start_task(id_task):
     global current_task # pylint: disable=global-statement
     current_task = id_task
     pending_tasks.pop(id_task, None)
+    log.debug(f'State: start id={id_task} pending={len(pending_tasks)} finished={len(finished_tasks)}')
 
 
 def record_results(id_task, res):
@@ -30,10 +31,12 @@ def record_results(id_task, res):
 
 def finish_task(id_task):
     global current_task # pylint: disable=global-statement
+    log.debug(f'State: end id={id_task}')
     if current_task == id_task:
         current_task = None
-    finished_tasks.append(id_task)
-    if len(finished_tasks) > 16:
+    if id_task not in finished_tasks:
+        finished_tasks.append(id_task)
+    if len(finished_tasks) > 1024*1024:
         finished_tasks.pop(0)
 
 
