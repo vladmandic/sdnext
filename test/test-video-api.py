@@ -208,6 +208,7 @@ class VideoAPITest:
         self._category = 'still'
         print("\n--- Still Mode Tests ---")
         data, elapsed = self._video({'frames': 1})
+        # matches the workflow named in the resolver's nothing-to-condition-on rejection; rewording it there skips every later category
         if data.get('error') == 400 and 'ref2va' in str(data.get('detail', '')):
             self.ref2va = True # the loaded model conditions on references; every later request carries one
             data, elapsed = self._video({'frames': 1})
