@@ -5,7 +5,7 @@ import gradio as gr
 from PIL import Image, ImageDraw
 from modules.logger import log
 from modules import shared, processing, devices, processing_class, ui_common, ui_components, ui_symbols, images, extra_networks, sd_models
-from modules.detailer import DetailerResult, detailer_opt
+from modules.detailer import DetailerResult, detailer_opt, assign_prompts
 
 
 class Detailer():
@@ -175,8 +175,6 @@ class Detailer():
             else:
                 negative = negative.replace('[PROMPT]', orig_negative)
                 negative = negative.replace('[prompt]', orig_negative)
-            prompt_lines = 99 * [p.strip() for p in prompt.split('\n')]
-            negative_lines = 99 * [n.strip() for n in negative.split('\n')]
 
             args = {
                 'detailer': True,
@@ -234,13 +232,15 @@ class Detailer():
             if detailer_opt(p, 'detailer_include_detections', 'detailer_save'):
                 annotated = self.draw_masks(annotated, items, p=p)
 
+            resolved_prompts = assign_prompts(prompt, items)
+            resolved_negatives = assign_prompts(negative, items)
             for j, item in enumerate(items):
                 if item.mask is None:
                     continue
                 pc.keep_prompts = True
                 shared.sd_model.fail_on_switch_error = True
-                pc.prompt = prompt_lines[i*len(items)+j]
-                pc.negative_prompt = negative_lines[i*len(items)+j]
+                pc.prompt = resolved_prompts[j]
+                pc.negative_prompt = resolved_negatives[j]
                 pc.prompts = [pc.prompt]
                 pc.negative_prompts = [pc.negative_prompt]
                 pc.prompts, pc.network_data = extra_networks.parse_prompts(pc.prompts, pc.network_data)
