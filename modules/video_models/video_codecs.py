@@ -5,14 +5,14 @@ codecs_config = {
         'desc': 'Standard for web and streaming compatibility.',
         'ext': 'mp4',
         'allowed_exts': ['mp4', 'mkv', 'mov', 'ts'],
-        'options': 'crf=18:preset=p4',
+        'options': 'crf=18:preset=medium',
     },
     'libx264rgb': {
         'name': 'H.264 Lossless RGB',
-        'desc': 'Lossless recording for screen capture.',
+        'desc': 'Lossless recording for screen capture / pure RGB.',
         'ext': 'mp4',
         'allowed_exts': ['mp4', 'mkv', 'mov'],
-        'options': 'crf=0:preset=p4',
+        'options': 'crf=0:preset=fast',
     },
     'libx265': {
         'name': 'HEVC / H.265',
@@ -26,21 +26,21 @@ codecs_config = {
         'desc': 'Legacy open video format for WebM.',
         'ext': 'webm',
         'allowed_exts': ['webm', 'mkv'],
-        'options': 'crf=10:b=0',
+        'options': 'crf=10:b:v=0',
     },
     'libvpx-vp9': {
         'name': 'VP9 Video',
         'desc': 'Royalty-free web video format.',
         'ext': 'webm',
         'allowed_exts': ['webm', 'mkv'],
-        'options': 'crf=23:b=0',
+        'options': 'crf=23:b:v=0',
     },
     'libsvtav1': {
-        'name': 'AV1',
+        'name': 'AV1 (SVT-AV1)',
         'desc': 'Next-gen open codec with high compression.',
         'ext': 'mp4',
         'allowed_exts': ['mp4', 'mkv', 'webm'],
-        'options': 'crf=26:preset=5',
+        'options': 'preset=5:crf=26',
     },
     'mpeg4': {
         'name': 'MPEG-4 Part 2',
@@ -63,21 +63,21 @@ codecs_config = {
         'desc': 'Fast NVIDIA GPU encoding.',
         'ext': 'mp4',
         'allowed_exts': ['mp4', 'mkv', 'mov', 'ts'],
-        'options': 'rc=vbr:cq=19:preset=p5',
+        'options': 'rc=constqp:qp=19:preset=p5',
     },
     'hevc_nvenc': {
         'name': 'HEVC / H.265 (NVIDIA)',
         'desc': 'Fast high-efficiency NVIDIA GPU encoding.',
         'ext': 'mp4',
         'allowed_exts': ['mp4', 'mkv', 'mov', 'ts'],
-        'options': 'rc=vbr:cq=23:preset=p5',
+        'options': 'rc=constqp:qp=23:preset=p5',
     },
     'av1_nvenc': {
         'name': 'AV1 (NVIDIA)',
         'desc': 'Fast AV1 encoding for NVIDIA RTX 40+.',
         'ext': 'mp4',
         'allowed_exts': ['mp4', 'mkv', 'webm'],
-        'options': 'rc=vbr:cq=26:preset=p5',
+        'options': 'rc=constqp:qp=26:preset=p5',
     },
 
     # --- Hardware Accelerated: Intel QSV ---
@@ -116,24 +116,24 @@ codecs_config = {
         'desc': 'Hardware encoding for AMD GPUs on Windows.',
         'ext': 'mp4',
         'allowed_exts': ['mp4', 'mkv', 'mov', 'ts'],
-        'options': 'rc=cqp:qp_i=18:qp_p=18:quality=quality',
+        'options': 'rc=cqp:qp_i=18:qp_p=18:quality=balanced',
     },
     'hevc_amf': {
         'name': 'HEVC / H.265 (AMD AMF)',
         'desc': 'Hardware HEVC encoding for AMD GPUs on Windows.',
         'ext': 'mp4',
         'allowed_exts': ['mp4', 'mkv', 'mov', 'ts'],
-        'options': 'rc=cqp:qp_i=22:qp_p=22:quality=quality',
+        'options': 'rc=cqp:qp_i=22:qp_p=22:quality=balanced',
     },
     'av1_amf': {
         'name': 'AV1 (AMD AMF)',
         'desc': 'Hardware AV1 encoding for AMD RX 7000+.',
         'ext': 'mp4',
         'allowed_exts': ['mp4', 'mkv', 'webm'],
-        'options': 'rc=cqp:qp_i=26:qp_p=26:quality=quality',
+        'options': 'rc=cqp:qp_i=26:qp_p=26:quality=balanced',
     },
 
-    # --- Hardware Accelerated: AMD / Linux (VAAPI) ---
+    # --- Hardware Accelerated: Linux (VAAPI) ---
     'h264_vaapi': {
         'name': 'H.264 (VAAPI Linux)',
         'desc': 'Hardware encoding via Linux VAAPI.',
@@ -157,26 +157,12 @@ codecs_config = {
     },
 
     # --- Professional / Editing / Archival ---
-    'prores': {
-        'name': 'Apple ProRes',
-        'desc': 'High-performance video editing standard.',
-        'ext': 'mov',
-        'allowed_exts': ['mov', 'mkv'],
-        'options': 'profile=3',
-    },
     'prores_ks': {
         'name': 'Apple ProRes (iCodec)',
-        'desc': 'Open ProRes implementation for editing.',
+        'desc': 'Universal ProRes encoder for editing suites.',
         'ext': 'mov',
         'allowed_exts': ['mov', 'mkv'],
-        'options': 'profile=3',
-    },
-    'dnxhd': {
-        'name': 'Avid DNxHD / DNxHR',
-        'desc': 'Broadcast editing format for Avid workflows.',
-        'ext': 'mov',
-        'allowed_exts': ['mov', 'mkv', 'mxf'],
-        'options': 'b=185M',
+        'options': 'profile=3',  # 3 = ProRes 422 HQ
     },
     'ffv1': {
         'name': 'Lossless Archival (FFV1)',
@@ -207,6 +193,7 @@ codecs_config = {
         'options': '',
     },
 }
+
 
 def get_codec_list():
     return ['none'] + list(codecs_config.keys())
