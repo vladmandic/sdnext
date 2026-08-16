@@ -68,14 +68,16 @@ class MoDScript(scripts_manager.Script):
         return y_prompts, y_guidance
 
     def check_dependencies(self):
-        from installer import install
-        install('ligo-segments')
+        from installer import install_ligo_segments
         try:
-            from ligo.segments import segment # pylint: disable=unused-import
-            return True
-        except Exception as e:
-            log.error(f'MoD: {e}')
-        return False
+            from launch import args as launch_args
+            reinstall = getattr(launch_args, 'reinstall', False)
+        except Exception:
+            reinstall = False
+        if not install_ligo_segments(reinstall=reinstall):
+            return False
+        from ligo.segments import segment # pylint: disable=unused-import
+        return True
 
     def run(self, p: processing.StableDiffusionProcessing, *args): # pylint: disable=arguments-differ, unused-argument
         if shared.sd_model_type not in supported_models:

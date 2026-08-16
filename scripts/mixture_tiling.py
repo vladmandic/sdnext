@@ -4,20 +4,17 @@ from modules import shared, devices, scripts_manager, processing, sd_models
 from modules.logger import log
 
 
-checked_ok = False
-
-
 def check_dependencies():
-    global checked_ok # pylint: disable=global-statement
-    from installer import install
-    install('ligo-segments')
+    from installer import install_ligo_segments
     try:
-        from ligo.segments import segment # pylint: disable=unused-import
-        checked_ok = True
-        return True
-    except Exception as e:
-        log.error(f'Mixture tiling: {e}')
+        from launch import args as launch_args
+        reinstall = getattr(launch_args, 'reinstall', False)
+    except Exception:
+        reinstall = False
+    if not install_ligo_segments(reinstall=reinstall):
         return False
+    from ligo.segments import segment # pylint: disable=unused-import
+    return True
 
 
 class MixtureTilingScript(scripts_manager.Script):
@@ -41,9 +38,8 @@ class MixtureTilingScript(scripts_manager.Script):
         return x_size, y_size, x_overlap, y_overlap
 
     def run(self, p: processing.StableDiffusionProcessing, x_size, y_size, x_overlap, y_overlap): # pylint: disable=arguments-differ
-        if not checked_ok:
-            if not check_dependencies():
-                return None
+        if not check_dependencies():
+            return None
         prompts = p.prompt.splitlines()
         if len(prompts) != x_size * y_size:
             log.error(f'Mixture tiling prompt count mismatch: prompts={len(prompts)} required={x_size * y_size}')

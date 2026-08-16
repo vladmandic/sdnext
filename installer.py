@@ -13,6 +13,12 @@ import cProfile
 import importlib
 import importlib.util
 import importlib.metadata
+import hashlib
+import urllib.request
+import urllib.error
+import tempfile
+import tarfile
+import re
 
 
 class Dot(dict): # dot notation access to dictionary attributes
@@ -1300,6 +1306,260 @@ def install_insightface():
     install('albumentationsx', quiet=True)
     install('facexlib', no_deps=True)
     install_pydantic()
+
+
+def _get_ligo_segments_metadata() -> tuple[str, str, str] | None:
+    """Fetch latest ligo-segments version, SHA256, and download URL from PyPI.
+
+    Returns:
+        Tuple of (version, sha256, url) or None if fetch fails
+    """
+    try:
+        req = urllib.request.Request(
+            'https://pypi.org/pypi/ligo-segments/json',
+            headers={'User-Agent': 'SDNext/1.0'}
+        )
+        with urllib.request.urlopen(req, timeout=10) as response:
+            data = json.loads(response.read().decode())
+
+        version = data['info']['version']
+
+        # Find sdist URL and SHA256
+        for url_info in data['urls']:
+            if url_info['packagetype'] == 'sdist':
+                sha256 = url_info['digests']['sha256']
+                url = url_info['url']
+                return version, sha256, url
+
+        log.error('No sdist found for ligo-segments on PyPI')
+        return None
+
+    except Exception as e:
+        log.debug(f'Failed to fetch ligo-segments metadata from PyPI: {e}')
+        return None
+
+
+def _download_with_retry(url: str, dest: str, expected_sha256: str, max_retries: int = 3) -> bool:
+    """Download file with retry and SHA256 verification"""
+    for attempt in range(max_retries):
+        try:
+            req = urllib.request.Request(url, headers={'User-Agent': 'SDNext/1.0'})
+            with urllib.request.urlopen(req, timeout=30) as response:
+                content = response.read()
+
+            # Verify SHA256
+            actual_sha256 = hashlib.sha256(content).hexdigest()
+            if actual_sha256 != expected_sha256:
+                log.error(f'Checksum mismatch for {url}: expected {expected_sha256}, got {actual_sha256}')
+                return False
+
+            with open(dest, 'wb') as f:
+                f.write(content)
+            return True
+        except urllib.error.URLError as e:
+            log.warning(f'Download failed (attempt {attempt + 1}/{max_retries}): {e}')
+            if attempt < max_retries - 1:
+                time.sleep(2 ** attempt)
+        except Exception as e:
+            log.error(f'Unexpected error downloading {url}: {e}')
+            return False
+    return False
+
+
+def _check_build_dependencies() -> bool:
+    """Check if build dependencies are available for building from source.
+
+    Returns:
+        True if all build dependencies are available, False otherwise
+    """
+    missing = []
+
+    # Check for setuptools
+    try:
+        import setuptools
+    except ImportError:
+        missing.append('setuptools')
+
+    # Check for wheel
+    try:
+        import wheel
+    except ImportError:
+        missing.append('wheel')
+
+    # Check for Cython (required for ligo-segments)
+    try:
+        import Cython
+    except ImportError:
+        missing.append('Cython')
+
+    # Check for C compiler
+    if platform.system() == 'Windows':
+        # On Windows, check for Visual Studio Build Tools or MinGW
+        compiler_found = False
+        # Check for MSVC
+        if shutil.which('cl.exe'):
+            compiler_found = True
+        # Check for MinGW
+        if shutil.which('gcc.exe'):
+            compiler_found = True
+        if not compiler_found:
+            missing.append('C compiler (Visual Studio Build Tools or MinGW)')
+    else:
+        # On Linux/macOS, check for gcc/clang
+        if not (shutil.which('gcc') or shutil.which('clang')):
+            missing.append('C compiler (gcc or clang)')
+
+    if missing:
+        log.error(f'Missing build dependencies for ligo-segments: {", ".join(missing)}')
+        log.error('Please install them and retry. On Windows: install Visual Studio Build Tools. On Linux: install build-essential and python3-dev')
+        return False
+
+    return True
+
+
+def _patch_ligo_segments_source(src_dir: str) -> bool:
+    """Apply Python 3.12+ compatibility patches to ligo-segments C source.
+
+    Replaces both PyObject_HEAD_INIT(NULL) and PyVarObject_HEAD_INIT(NULL, 0)
+    with PyVarObject_HEAD_INIT(&PyType_Type, 0) in all .c files under src/.
+
+    Args:
+        src_dir: Path to extracted ligo-segments source directory
+
+    Returns:
+        True if all patches applied successfully, False otherwise
+    """
+    src_path = os.path.join(src_dir, 'src')
+    if not os.path.isdir(src_path):
+        log.error(f'src directory not found: {src_path}')
+        return False
+
+    # Regex patterns to match both problematic macro invocations
+    patterns = [
+        (re.compile(r'PyObject_HEAD_INIT\(NULL\)'), 'PyVarObject_HEAD_INIT(&PyType_Type, 0)'),
+        (re.compile(r'PyVarObject_HEAD_INIT\(NULL,\s*0\)'), 'PyVarObject_HEAD_INIT(&PyType_Type, 0)'),
+    ]
+
+    c_files = [f for f in os.listdir(src_path) if f.endswith('.c')]
+    if not c_files:
+        log.warning(f'No .c files found in {src_path}')
+        return True  # Not an error - maybe no C extensions needed
+
+    patched_count = 0
+    for c_file in c_files:
+        c_path = os.path.join(src_path, c_file)
+        try:
+            with open(c_path, 'r') as f:
+                content = f.read()
+
+            original_content = content
+            for pattern, replacement in patterns:
+                content, count = pattern.subn(replacement, content)
+                patched_count += count
+
+            if content != original_content:
+                with open(c_path, 'w') as f:
+                    f.write(content)
+                log.debug(f'Patched {c_file}: {patched_count} replacements')
+            else:
+                log.debug(f'No changes needed in {c_file}')
+
+        except Exception as e:
+            log.error(f'Failed to process {c_file}: {e}')
+            return False
+
+    if patched_count == 0:
+        log.warning('No patterns matched - source may already be patched or use different macros')
+    else:
+        log.info(f'Applied {patched_count} patches across {len(c_files)} C files')
+
+    return True
+
+
+def _needs_source_build() -> bool:
+    """Return True if we need to build from patched source (Python >= 3.12)"""
+    return sys.version_info >= (3, 12)
+
+
+def install_ligo_segments(reinstall: bool = False) -> bool:
+    """Install ligo-segments with Python 3.12+ compatibility patch.
+
+    On Python >= 3.12: builds from patched source (wheels don't exist for 3.12+)
+    On Python < 3.12: uses standard wheel via pip install
+
+    Args:
+        reinstall: Force reinstall even if already installed
+    """
+    t_start = time.time()
+
+    if installed('ligo-segments', quiet=True) and not reinstall:
+        ts('ligo-segments', t_start)
+        return True
+
+    # Fetch latest metadata from PyPI
+    metadata = _get_ligo_segments_metadata()
+    if metadata is None:
+        log.error('Failed to fetch ligo-segments metadata from PyPI')
+        return False
+
+    version, sha256, url = metadata
+    log.info(f'Installing ligo-segments version {version}')
+
+    # Python < 3.12 can use the standard wheel - no patching needed
+    if not _needs_source_build():
+        log.info('Installing ligo-segments (using wheel)...')
+        res = pip(f'install ligo-segments=={version}', ignore=False)
+        if res and res.returncode != 0:
+            log.error('Failed to install ligo-segments wheel')
+            return False
+        ts('ligo-segments', t_start)
+        return True
+
+    # Python >= 3.12: build from patched source
+    log.info('Installing ligo-segments with Py3.12+ patch (building from source)...')
+
+    # Check build dependencies before attempting source build
+    if not _check_build_dependencies():
+        return False
+
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            archive = os.path.join(tmpdir, f'ligo-segments-{version}.tar.gz')
+
+            # Download with verification
+            if not _download_with_retry(url, archive, sha256):
+                log.error('Failed to download ligo-segments source')
+                return False
+
+            # Extract
+            try:
+                with tarfile.open(archive, 'r:gz') as tar:
+                    tar.extractall(tmpdir)
+            except tarfile.TarError as e:
+                log.error(f'Failed to extract ligo-segments archive: {e}')
+                return False
+
+            src_dir = os.path.join(tmpdir, f'ligo-segments-{version}')
+            if not os.path.exists(src_dir):
+                log.error(f'Extracted source directory not found: {src_dir}')
+                return False
+
+            # Apply patches
+            if not _patch_ligo_segments_source(src_dir):
+                return False
+
+            # Install from patched source
+            res = pip(f'install --no-build-isolation {src_dir}', ignore=False)
+            if res is None or res.returncode != 0:
+                log.error('Failed to install patched ligo-segments from source')
+                return False
+
+    except Exception as e:
+        log.error(f'Unexpected error installing ligo-segments: {e}')
+        return False
+
+    ts('ligo-segments', t_start)
+    return True
 
 
 def install_optional():
