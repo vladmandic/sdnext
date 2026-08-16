@@ -69,9 +69,9 @@ class MoDScript(scripts_manager.Script):
 
     def check_dependencies(self):
         from installer import install
-        install('ligo-segments')
+        install('igwn-segments')
         try:
-            from ligo.segments import segment # pylint: disable=unused-import
+            from igwn_segments import segment # pylint: disable=unused-import
             return True
         except Exception as e:
             log.error(f'MoD: {e}')

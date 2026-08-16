@@ -823,8 +823,8 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
 
             debug_log(f'Control: pipeline units={len(active_model)} process={len(active_process)} outputs={len(output_images)}')
     except Exception as e:
-        log.error(f'Control: type={unit_type} units={len(active_model)} {e}')
-        errors.display(e, 'Control')
+        log.error(f'Generate: {e}')
+        errors.display(e, 'Generate')
 
     if len(output_images) == 0:
         output_images = None

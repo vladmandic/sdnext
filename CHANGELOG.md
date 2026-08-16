@@ -69,6 +69,7 @@
   - log: processing stats reporting
   - metadata: image metadata handle correct image index
   - gguf: transformer loader
+  - scripts: mixture-of-diffusers and mixture-tiling update to use igwn-segments
 
 ## Update for 2026-08-07
 
