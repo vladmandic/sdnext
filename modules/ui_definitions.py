@@ -93,6 +93,7 @@ def create_settings(cmd_opts):
         "sd_parallel_load": OptionInfo(True, "Model load using multiple threads"),
         "sd_checkpoint_autodownload": OptionInfo(True, "Model auto-download on demand"),
         "stream_load": OptionInfo(False, "Model load using streams", gr.Checkbox),
+        "diffusers_disable_mmap": OptionInfo(False, "Model load without mmap", gr.Checkbox),
         "diffusers_to_gpu": OptionInfo(False, "Model load model direct to GPU"),
         "runai_streamer_diffusers": OptionInfo(False, "Diffusers load using Run:ai streamer", gr.Checkbox),
         "runai_streamer_transformers": OptionInfo(False, "Transformers load using Run:ai streamer", gr.Checkbox),
