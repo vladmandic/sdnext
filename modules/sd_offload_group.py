@@ -96,7 +96,7 @@ def apply_group_offload_component(module, module_name: str, main: bool) -> bool:
     module.sdnext_ondemand = False # group placement replaces any on-demand hook
     remove_group_offload_component(module)
     module.requires_grad_(False)
-    log.debug(f'Offload: type=group op=apply type={shared.opts.group_offload_type} module={module_name} pin={cfg["use_stream"] and not cfg["low_cpu_mem_usage"]}') # before the apply: pinning large components takes a while and would otherwise run silently
+    s.debug_move(f'Offload: type=group op=apply type={shared.opts.group_offload_type} module={module_name} pin={cfg["use_stream"] and not cfg["low_cpu_mem_usage"]}') # before the apply: pinning large components takes a while and would otherwise run silently
     module.sdnext_group_offload_sig = 'partial' # a raise below leaves hooks that only a non-empty signature will remove
     apply_group_offloading(module, onload_device=devices.device, offload_device=devices.cpu, **cfg)
     module.sdnext_group_offload_sig = sig
@@ -126,7 +126,7 @@ def group_offload_role(module_name: str, module) -> str:
     if has_entry_bridge(module):
         return 'ondemand' # encode and decode bypass the forward that group hooks scope to
     if callable(getattr(module, 'encode', None)) or callable(getattr(module, 'decode', None)):
-        log.warning(f'Offload: type=group module={module_name} cls={module.__class__.__name__} bridge=missing role=resident') # decorate the entry points with apply_forward_hook to make the component offloadable
+        s.debug_move(f'Offload: type=group module={module_name} cls={module.__class__.__name__} bridge=missing role=resident') # decorate the entry points with apply_forward_hook to make the component offloadable
         return 'resident' # nothing fires an onload for an undecorated entry point, so any hook placement strands the weights on cpu
     if not getattr(module, '_supports_group_offloading', True):
         return 'ondemand' # upstream marks modules that read submodule weights outside those submodules' forward
