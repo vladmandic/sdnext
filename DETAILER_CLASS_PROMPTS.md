@@ -75,6 +75,12 @@ This had to be aggregate rather than per-model: chaining two detailer models wit
 
 **It cannot tell a typo apart from a legitimate miss.** A correctly-spelled `[CLASS=face]` on an image where the face model simply found nothing this run (occluded, low confidence, out of frame) produces the exact same warning text as a real misspelling — the check only knows "declared tag X never matched a detection this generation," not *why*. To tell them apart, cross-reference the tag against the model's real vocabulary in the one-time `Load: type=Detailer name='...' ... classes=[...]` line printed when that model first loads; if your tag is in that list verbatim, it's not a typo, the class just wasn't found this time. That said, the warning is still useful either way it fires: it's a reliable signal that **"the `[CLASS=face]` prompt was not applied to anything this generation,"** regardless of the underlying cause — worth knowing on its own, independent of diagnosing why.
 
+### Visual debugging: "Include detections"
+
+SD.Next's Detailer already ships a checkbox for this, unrelated to this patch — **"Include detections"** (`detailer_include_detections` / `detailer_save`), in the same Detailer panel as the model list and prompt fields. Enable it and every generation produces a second output image, annotated with a semi-transparent overlay on each detected region plus a text label showing its index, class name, and confidence score (e.g. `1 face 0.87`).
+
+Paired with `[CLASS=name]` tagging, this turns the log-reading exercise above into something you can just look at: enable it once, generate, and see directly which region got tagged as which class — no cross-referencing warnings or the `Load:` line required. It's the fastest way to confirm your tags line up with what the model is actually calling things, especially the first time you wire up a new multi-class model.
+
 ## Implementation
 
 Three files touched, all in `modules/detailer/`:
