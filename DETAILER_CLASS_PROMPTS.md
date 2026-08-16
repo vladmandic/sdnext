@@ -2,6 +2,10 @@
 
 > **Status:** unofficial patch, not an upstream PR. Tested against SD.Next build `2026-08-07` (commit `ea889af1c`). Lives on this fork's branch: `claude/sdnext-detailer-class-prompts-sunhax`.
 
+## Authorship
+
+The code in this patch was written by **Claude Code** (Anthropic's AI coding agent), working interactively with me as the fork owner. I described the problem, directed the design (the `[CLASS=name]` syntax, the fallback rules, the typo-warning behavior), reviewed every diff before it was committed, and ran real generations against my own installation to validate it — including finding the blank-line fallback bug and the `Merge detailers` incompatibility through targeted testing, not by inspection alone. I didn't hand-write the diff line by line, but I own the design decisions and the testing that backs the claims in this document.
+
 ## TL;DR
 
 The Detailer (ADetailer equivalent) assigns multi-line prompts to detections **by position**, not by what was actually detected. With a multi-class YOLO model, detection order isn't guaranteed to stay stable between runs, so line 1 of your prompt doesn't reliably mean "the same body part" every time.
