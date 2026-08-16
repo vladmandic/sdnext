@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-08-14
+## Update for 2026-08-16
 
 - **Models**
   - [MiniMax H3](https://huggingface.co/MiniMaxAI/MiniMax-H3) available in *base* and *ref* variants  
@@ -60,8 +60,10 @@
   - ltx: reload the latent upsampler when the model or its repo changes
   - video: take the audio sample rate from the loaded vocoder
   - video: keep the shared text encoder out of the registry rows
+  - video: use generic loader methods
   - processing stats reporting
   - image metadata handle correct image index
+  - gguf transformer loader
 
 ## Update for 2026-08-07
 

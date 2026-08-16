@@ -214,6 +214,7 @@ from tqdm.rich import tqdm # pylint: disable=W0611,C0411
 try:
     logging.getLogger("diffusers.guiders").setLevel(logging.ERROR)
     logging.getLogger("diffusers.loaders.single_file").setLevel(logging.ERROR)
+    logging.getLogger("huggingface_hub._login").setLevel(logging.ERROR)
     import diffusers.utils.import_utils # pylint: disable=W0611,C0411
     diffusers.utils.import_utils._k_diffusion_available = True # pylint: disable=protected-access # monkey-patch since we use k-diffusion from git
     diffusers.utils.import_utils._k_diffusion_version = '0.0.12' # pylint: disable=protected-access

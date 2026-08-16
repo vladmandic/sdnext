@@ -88,6 +88,7 @@ def load_text_encoder(
         allow_quant=True,
         allow_shared=True,
         variant=None,
+        revision=None,
         dtype=None,
         modules_to_not_convert=None,
         modules_dtype_dict=None,
@@ -167,6 +168,8 @@ def load_text_encoder(
                 load_args['subfolder'] = subfolder
             if variant is not None:
                 load_args['variant'] = variant
+            if revision is not None:
+                load_args['revision'] = revision
             text_encoder = cls_name.from_pretrained(
                 repo_id,
                 cache_dir=shared.opts.hfcache_dir,
