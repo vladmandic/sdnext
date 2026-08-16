@@ -34,6 +34,21 @@ plain line with no tag → fallback pool
 - Whitespace around `=` is tolerated — `[CLASS = face]`, `[CLASS= face]`, `[CLASS =face]` all parse the same. There must be **no** space between `[` and `class` itself.
 - Class names are matched case-insensitively against the label YOLO reports (`model.names`), and comma-separated lists route multiple classes to the same text.
 - Lines with no tag are pooled as **positional fallback** — applied, in order, to any detection whose class had no matching tag, cycling if there are more untagged detections than fallback lines. A prompt with zero `[CLASS=...]` tags behaves exactly like it did before this patch.
+- Blank spacer lines are ignored when building the fallback pool (a blank line between a tagged and an untagged line doesn't consume a fallback slot).
+
+### Don't rely on fallback order for multiple classes
+
+The fallback pool is filled **positionally**, matching the untagged lines to untagged detections *in the order each is encountered* — it has no idea what a line's text is about. Writing two distinct untagged lines and expecting each to land on "the right" class is just re-introducing the exact positional-order problem this patch exists to fix, one level down:
+
+```
+[CLASS=pussy] pussy prompt text
+face prompt text, no tag
+nipple prompt text, no tag
+```
+
+If detections come back as `[pussy, face, nipple]` this run, the untagged lines happen to land correctly (`face` → face text, `nipple` → nipple text). If a later run returns `[pussy, nipple, face]` instead — a perfectly normal reordering — the same untagged lines land **swapped**: `nipple` gets the face text, `face` gets the nipple text. Silent, no warning, because both class names are still real detections; it's just wired by position.
+
+**This is expected behavior, not a bug.** Any class you actually want to distinguish must get its own explicit `[CLASS=name]` tag. Reserve untagged lines for text you're fine applying to *any* leftover detection regardless of which class it is (e.g. a generic quality boost) — not for a second or third class-specific template.
 
 ### What an untagged/unmatched detection gets
 
