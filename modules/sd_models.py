@@ -904,6 +904,7 @@ def load_diffuser(checkpoint_info: CheckpointInfo | None = None, op='model', rev
     timer.load.record("diffusers")
     diffusers_load_config = {
         "low_cpu_mem_usage": True,
+        "disable_mmap": shared.opts.diffusers_disable_mmap,
         "torch_dtype": devices.dtype,
         "load_connected_pipeline": True,
         "safety_checker": None, # sd15 specific but we cant know ahead of time
