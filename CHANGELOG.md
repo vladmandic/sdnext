@@ -43,6 +43,8 @@
   - full support for video generation using api  
     new endpoints: `/sdapi/v1/video`, `/sdapi/v1/video/models`, `/sdapi/v1/video/file`  
     *note*: video api uses async workflow where you submit request and then later download the result  
+  - authentication for websocket connection
+  - allowed path validation for endpoints that get/put files
 - **Other**
   - ar display ration on manual resolution change
 - **Removed**

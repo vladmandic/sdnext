@@ -10996,7 +10996,7 @@ var progressTimeout = 180;
 var startTimeout = 5;
 function setRefreshInterval() {
   refreshInterval = window.opts.live_preview_refresh_period || 500;
-  log("refreshInterval", { visibile: document.visibilityState, interval: refreshInterval });
+  log("refreshInterval", { visible: document.visibilityState, interval: refreshInterval });
   document.addEventListener("visibilitychange", () => {
     if (window.opts.live_preview_require_focus !== false && document.hidden) refreshInterval = Math.max(2500, window.opts.live_preview_refresh_period || 1e3);
     else refreshInterval = window.opts.live_preview_refresh_period || 1e3;
