@@ -33,8 +33,9 @@ def group_offload_strip(sd_model, component_name: str, stripped: dict):
     lost on the next onload. With hooks removed the weights rest on cpu and the component
     reports its truthful device, so writes land in place; the offload reapply at the end
     of the pass snapshots the result into fresh groups."""
+    from modules.sd_offload_group import remove_group_offload_component
     component = getattr(sd_model, component_name, None)
-    sd_models.remove_group_offload_component(component)
+    remove_group_offload_component(component)
     stripped[component_name] = component.device
     return stripped[component_name]
 

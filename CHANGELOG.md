@@ -31,6 +31,7 @@
   - nunchaku-lite support for `torch==2.13`
   - update handlers for all authenticated workflows
   - update handlers for all hf-based progress bars
+  - offload options take effect immediately without restart/reload
   - log long torch autotune operations
   - utilize `torch.accelerator` where available
   - add `SD_DIFFUSERS_DEBUG` and `SD_TRANSFORMERS_DEBUG` env variables to trace diffusers and transformers internal operations  
@@ -47,18 +48,17 @@
   - remove DirectML support  
     latest release was over 2 years ago and is not compatible with modern frameworks  
 - **Fixes**
-  - init hf env variables before gradio load
-  - lora skip init and rebuild offload state
-  - lora keep network multiplier on change
-  - improve handling of hf auth
-  - improve pipeline detection for non-cached models
-  - cleanup alt offload codepaths
+  - hf: init hf env variables before gradio load
+  - lora: skip init and rebuild offload state
+  - lora: keep network multiplier on change
+  - auth: improve handling of hf auth
+  - load: improve pipeline detection for non-cached models
+  - offload: cleanup alt offload codepaths
   - offload: text encoders no longer take the denoiser profile on modular pipelines
   - offload: components entered through encode or decode are detected by structure rather than by name
   - offload: group offload honors the never-offload and model-type exclusion settings
-  - offload: offload options take effect when changed instead of waiting for a model reload
   - settings: offload settings grouped into shared overrides and per-mode sections
-  - hf progress bars
+  - log: hf progress bars
   - ltx: send the guidance stack and cross-timestep on every 2.x call path
   - ltx: distilled variants no longer force dynamic shifting on, which remapped their sigma schedule
   - ltx: sampler shift now reaches flow-match schedulers
@@ -66,9 +66,9 @@
   - video: take the audio sample rate from the loaded vocoder
   - video: keep the shared text encoder out of the registry rows
   - video: use generic loader methods
-  - processing stats reporting
-  - image metadata handle correct image index
-  - gguf transformer loader
+  - log: processing stats reporting
+  - metadata: image metadata handle correct image index
+  - gguf: transformer loader
 
 ## Update for 2026-08-07
 

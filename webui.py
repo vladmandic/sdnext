@@ -201,7 +201,7 @@ def load_model():
     shared.opts.onchange("sd_unet_secondary", wrap_queued_call(lambda: modules.sd_unet.load_unet_secondary(shared.sd_model)), call=False)
     shared.opts.onchange("sd_text_encoder", wrap_queued_call(lambda: modules.sd_models.reload_text_encoder()), call=False)
     shared.opts.onchange("temp_dir", modules.gr_tempdir.on_tmpdir_changed)
-    for opt in modules.sd_models.offload_reapply_options:
+    for opt in modules.sd_offload_state.offload_reapply_options:
         shared.opts.onchange(opt, wrap_queued_call(modules.sd_models.reapply_offload), call=False)
     timer.startup.record("onchange")
 
