@@ -46,7 +46,6 @@ typing-extensions==4.16.0
 sentencepiece==0.2.1
 
 # lint
-ty
 ruff
 pylint
 pre-commit

@@ -46,7 +46,7 @@
     "ty": ". venv/bin/activate && ty check --force-exclude",
     "codespell": ". venv/bin/activate && codespell",
     "compile": ". venv/bin/activate && python test/test-compile.py",
-    "full": "npm run lint && npm run codespell && npm run ty && npm run pyright"
+    "full": "npm run precommit && npm run eslint && npm run tsc && npm run ruff && npm run pylint && npm run codespell && npm run ty && npm run pyright"
   },
   "devDependencies": {
     "@eslint/compat": "^2.1.0",

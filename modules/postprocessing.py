@@ -1,8 +1,5 @@
 import os
-import tempfile
-
 from PIL import Image
-
 from modules import shared, images, devices, errors, scripts_manager, scripts_postprocessing, infotext
 from modules.logger import log
 from modules.shared import opts
