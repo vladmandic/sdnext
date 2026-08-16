@@ -35,6 +35,7 @@
   - log long torch autotune operations
   - utilize `torch.accelerator` where available
   - add `SD_DIFFUSERS_DEBUG` and `SD_TRANSFORMERS_DEBUG` env variables to trace diffusers and transformers internal operations  
+  - model load add option to not use `mmap`, thanks @cjmcgee
 - **Video**
   - reorganized *video* tab
   - better support for video codeces and formats
