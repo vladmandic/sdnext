@@ -17,7 +17,7 @@ def format_rex_prompt(prompt: str) -> str:
     return f"<|grounding|>{clean_prompt}"
 
 
-def load(self, model_name: str | None = None) -> tuple[str, transformers.AutoModelForCausalLM]: # pylint: disable=unused-argument
+def load(self, model_name: str | None = None) -> tuple[str | None, transformers.AutoModelForCausalLM | object]: # pylint: disable=unused-argument
     cached = sd_offload_aux.get_aux_model(model_name)
     if cached is not None:
         return model_name, cached

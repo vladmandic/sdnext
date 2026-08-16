@@ -762,7 +762,7 @@ def llm_context():
         yield
 
 
-def torch_reset() -> bool:
+def torch_reset() -> None:
     """
     Resets PyTorch execution graph, flushes VRAM caches, and syncs streams.
     """

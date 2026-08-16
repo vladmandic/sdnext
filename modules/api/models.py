@@ -62,8 +62,8 @@ class PydanticModelGenerator:
         additional_fields: list[dict[str, Any]] | None = None,
         exclude_fields: list | None = None,
     ):
-        if exclude_fields is None:
-            exclude_fields = []
+        additional_fields = additional_fields or []
+        exclude_fields = exclude_fields or []
         def field_type_generator(_k, v):
             field_type = v.annotation
             return Optional[field_type]

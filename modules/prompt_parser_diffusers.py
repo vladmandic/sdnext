@@ -168,6 +168,7 @@ class PromptEmbedder:
                 self.negative_prompt_attention_masks = [self.negative_prompt_attention_masks[0]] * self.batchsize
             debug(f"Prompt cache: get={key}")
             return True
+        return False
 
     def compare_prompts(self):
         same = (self.prompts == [self.prompts[0]] * len(self.prompts) and self.negative_prompts == [self.negative_prompts[0]] * len(self.negative_prompts))

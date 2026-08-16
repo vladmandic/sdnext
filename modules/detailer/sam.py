@@ -6,7 +6,7 @@ from modules.detailer import DetailerResult, detailer_opt, get_mask
 from modules.logger import log
 
 
-def load(self, model_name: str | None = None) -> tuple[str, transformers.Sam3Model]: # pylint: disable=unused-argument
+def load(self, model_name: str | None = None) -> tuple[str | None, transformers.Sam3Model | object]: # pylint: disable=unused-argument
     cached = sd_offload_aux.get_aux_model(model_name)
     if cached is not None:
         return model_name, cached

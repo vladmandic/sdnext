@@ -345,7 +345,7 @@ class PeRFlowScheduler(SchedulerMixin, ConfigMixin):
         sample: torch.FloatTensor,
         timestep: Union[float, torch.FloatTensor],
         noise: Optional[torch.FloatTensor] = None,
-    ) -> torch.FloatTensor:
+    ) -> torch.Tensor:
         if noise is None:
             noise = torch.randn_like(sample)
         if not isinstance(timestep, torch.Tensor):
@@ -367,7 +367,7 @@ class PeRFlowScheduler(SchedulerMixin, ConfigMixin):
         original_samples: torch.FloatTensor,
         noise: torch.FloatTensor,
         timesteps: torch.IntTensor,
-    ) -> torch.FloatTensor:
+    ) -> torch.Tensor:
         # Make sure alphas_cumprod and timestep have same device and dtype as original_samples
         alphas_cumprod = self.alphas_cumprod.to(device=original_samples.device, dtype=original_samples.dtype)
         timesteps = timesteps.to(original_samples.device) - 1   # indexing from 0

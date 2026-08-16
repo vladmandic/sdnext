@@ -134,7 +134,7 @@ class Detailer():
             log.debug(f'Detailer: items={len(items)} filtered={len(filtered)}')
         return filtered
 
-    def draw_masks(self, image: Image.Image, items: list[DetailerResult], p=None) -> Image.Image:
+    def draw_masks(self, image: Image.Image, items: list[DetailerResult], p=None) -> Image.Image | np.ndarray:
         if not isinstance(image, Image.Image):
             image = Image.fromarray(image)
         image = image.convert('RGBA')

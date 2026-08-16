@@ -11,7 +11,7 @@ from modules.paths import resolve_output_path
 
 def run_postprocessing(extras_mode,
                        image,
-                       image_folder: list[tempfile.NamedTemporaryFile],
+                       image_folder: list[object],
                        input_dir,
                        output_dir,
                        video,

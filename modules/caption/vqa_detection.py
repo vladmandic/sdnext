@@ -288,7 +288,7 @@ def calculate_eye_position(face_bbox: dict) -> tuple:
     return (eye_x, eye_y)
 
 
-def draw_bounding_boxes(image: Image.Image, detections: list, points: list | None = None) -> Image.Image:
+def draw_bounding_boxes(image: Image.Image, detections: list, points: list | None = None) -> Image.Image | None:
     """
     Draw bounding boxes and/or points on an image.
 

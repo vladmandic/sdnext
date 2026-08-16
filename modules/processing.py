@@ -42,8 +42,8 @@ class Processed:
 
         self.prompt = p.prompt or ''
         self.negative_prompt = p.negative_prompt or ''
-        self.prompt = self.prompt if type(self.prompt) != list else self.prompt[0]
-        self.negative_prompt = self.negative_prompt if type(self.negative_prompt) != list else self.negative_prompt[0]
+        self.prompt = self.prompt[0] if isinstance(self.prompt, list) and self.prompt else self.prompt
+        self.negative_prompt = self.negative_prompt[0] if isinstance(self.negative_prompt, list) and self.negative_prompt else self.negative_prompt
         self.styles = p.styles
 
         self.bytes = binary

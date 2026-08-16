@@ -70,6 +70,8 @@ class NattenAttnProcessor:
         a = torch.softmax(qk, dim=-1)
         hidden_states = natten.functional.na2d_av(a, v, self.kernel_size, 1) # natten2dav
         hidden_states = rearrange(hidden_states, "n nh h w e -> n h w (nh e)")
+        if attn.to_out is None:
+            return hidden_states
         linear_proj, dropout = attn.to_out
         hidden_states = linear_proj(hidden_states)
         hidden_states = dropout(hidden_states)

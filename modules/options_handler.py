@@ -1,4 +1,5 @@
 from __future__ import annotations
+import builtins
 import os
 import sys
 import json
@@ -28,7 +29,7 @@ class Options:
     debug = os.environ.get('SD_CONFIG_DEBUG', None) is not None
     secrets_debug = os.environ.get("SD_SECRETS_DEBUG", None) is not None
 
-    def __init__(self, options_templates: dict[str, OptionInfo | LegacyOption] | None = None, restricted: set[str] | None = None, *, filename = '', secrets = ''):
+    def __init__(self, options_templates: dict[str, OptionInfo | LegacyOption] | None = None, restricted: builtins.set[str] | None = None, *, filename = '', secrets = ''):
         if options_templates is None:
             options_templates = {}
         if restricted is None:

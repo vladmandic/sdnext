@@ -19,7 +19,7 @@ def find_split_size(original_size: int, slice_block_size: int, slice_rate: int =
 
 # Find slice sizes for SDPA
 @cache
-def find_sdpa_slice_sizes(query_shape: tuple[int], key_shape: tuple[int], query_element_size: int, slice_rate: int = 2, trigger_rate: int = 3) -> tuple[bool, int]:
+def find_sdpa_slice_sizes(query_shape: tuple[int], key_shape: tuple[int], query_element_size: int, slice_rate: int = 2, trigger_rate: int = 3) -> tuple[bool, bool, bool, int, int, int]:
     batch_size, attn_heads, query_len, _ = query_shape
     _, _, key_len, _ = key_shape
 
@@ -53,7 +53,7 @@ def find_sdpa_slice_sizes(query_shape: tuple[int], key_shape: tuple[int], query_
 if devices.sdpa_pre_dyanmic_atten is None:
     devices.sdpa_pre_dyanmic_atten = torch.nn.functional.scaled_dot_product_attention
 @wraps(devices.sdpa_pre_dyanmic_atten)
-def dynamic_scaled_dot_product_attention(query: torch.FloatTensor, key: torch.FloatTensor, value: torch.FloatTensor, attn_mask: torch.FloatTensor | None = None, dropout_p: float = 0.0, is_causal: bool = False, scale: float | None = None, enable_gqa: bool = False, **kwargs) -> torch.FloatTensor:
+def dynamic_scaled_dot_product_attention(query: torch.FloatTensor, key: torch.FloatTensor, value: torch.FloatTensor, attn_mask: torch.FloatTensor | None = None, dropout_p: float = 0.0, is_causal: bool = False, scale: float | None = None, enable_gqa: bool = False, **kwargs) -> torch.Tensor:
     is_unsqueezed = False
     if query.dim() == 3:
         query = query.unsqueeze(0)

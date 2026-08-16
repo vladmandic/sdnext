@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Union
 import os
 from collections import UserDict
@@ -8,16 +10,13 @@ from modules.logger import log
 
 do_cache_folders = os.environ.get('SD_NO_CACHE', None) is None
 
-class Directory: # forward declaration
-    ...
-
 FilePathList = list[str]
 FilePathIterator = Iterator[str]
 DirectoryPathList = list[str]
 DirectoryPathIterator = Iterator[str]
-DirectoryList = list[Directory]
-DirectoryIterator = Iterator[Directory]
-DirectoryCollection = dict[str, Directory]
+DirectoryList = list['Directory']
+DirectoryIterator = Iterator['Directory']
+DirectoryCollection = dict[str, 'Directory']
 ExtensionFilter = Callable
 ExtensionList = list[str]
 RecursiveType = Union[bool, Callable]
@@ -35,7 +34,7 @@ def real_path(directory_path: str) -> str | None:
 
 
 @dataclass(frozen=True)
-class Directory(Directory): # pylint: disable=E0102
+class Directory:
     path: str = field(default_factory=str)
     files: FilePathList = field(default_factory=list)
     directories: DirectoryPathList = field(default_factory=list)
@@ -265,7 +264,7 @@ def unique_paths(directory_paths: DirectoryPathList) -> DirectoryPathIterator:
                 yield r
 
 
-def get_directories(*directory_paths: DirectoryPathList, fetch: bool = True, recursive: RecursiveType = True) -> DirectoryCollection:
+def get_directories(*directory_paths: DirectoryPathList, fetch: bool = True, recursive: RecursiveType = True) -> list[Directory]:
     dirs = unique_directories(directory_paths, recursive=recursive)
     return [d for d in (get_directory(p, fetch=fetch) for p in dirs) if d]
 

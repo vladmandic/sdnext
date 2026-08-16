@@ -270,7 +270,8 @@ class WaifuDiffusionTagger:
         character_count = 0
         rating_count = 0
 
-        for i, (tag_name, prob) in enumerate(zip(self.tags, probs, strict=False)):
+        tags = self.tags or []
+        for i, (tag_name, prob) in enumerate(zip(tags, probs, strict=False)):
             category = self.tag_categories[i]
             tag_lower = tag_name.lower()
 

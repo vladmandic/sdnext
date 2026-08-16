@@ -23,7 +23,7 @@ def set_sdnq_attention():
         from sdnq.kernels.triton_atten import sdnq_triton_atten
         sdpa_pre_sdnq_atten = torch.nn.functional.scaled_dot_product_attention
         @wraps(sdpa_pre_sdnq_atten)
-        def sdpa_sdnq_atten(query: torch.FloatTensor, key: torch.FloatTensor, value: torch.FloatTensor, attn_mask: torch.Tensor | None = None, dropout_p: float = 0.0, is_causal: bool = False, scale: float | None = None, enable_gqa: bool = False, **kwargs) -> torch.FloatTensor:
+        def sdpa_sdnq_atten(query: torch.FloatTensor, key: torch.FloatTensor, value: torch.FloatTensor, attn_mask: torch.Tensor | None = None, dropout_p: float = 0.0, is_causal: bool = False, scale: float | None = None, enable_gqa: bool = False, **kwargs) -> torch.Tensor:
             if (
                 query.device.type != "cpu"
                 and (query.shape[-2] >= 32 and key.shape[-2] >= 32)
@@ -57,7 +57,7 @@ def set_triton_flash_attention(backend: str):
 
             sdpa_pre_triton_flash_atten = torch.nn.functional.scaled_dot_product_attention
             @wraps(sdpa_pre_triton_flash_atten)
-            def sdpa_triton_flash_atten(query: torch.FloatTensor, key: torch.FloatTensor, value: torch.FloatTensor, attn_mask: torch.Tensor | None = None, dropout_p: float = 0.0, is_causal: bool = False, scale: float | None = None, enable_gqa: bool = False, **kwargs) -> torch.FloatTensor:
+            def sdpa_triton_flash_atten(query: torch.FloatTensor, key: torch.FloatTensor, value: torch.FloatTensor, attn_mask: torch.Tensor | None = None, dropout_p: float = 0.0, is_causal: bool = False, scale: float | None = None, enable_gqa: bool = False, **kwargs) -> torch.Tensor:
                 use_triton = (
                     query.shape[-1] <= 128
                     and attn_mask is None
@@ -98,7 +98,7 @@ def set_flex_attention():
 
         sdpa_pre_flex_atten = torch.nn.functional.scaled_dot_product_attention
         @wraps(sdpa_pre_flex_atten)
-        def sdpa_flex_atten(query: torch.FloatTensor, key: torch.FloatTensor, value: torch.FloatTensor, attn_mask: torch.Tensor | None = None, dropout_p: float = 0.0, is_causal: bool = False, scale: float | None = None, enable_gqa: bool = False, **kwargs) -> torch.FloatTensor: # pylint: disable=unused-argument
+        def sdpa_flex_atten(query: torch.FloatTensor, key: torch.FloatTensor, value: torch.FloatTensor, attn_mask: torch.Tensor | None = None, dropout_p: float = 0.0, is_causal: bool = False, scale: float | None = None, enable_gqa: bool = False, **kwargs) -> torch.Tensor: # pylint: disable=unused-argument
             score_mod = None
             block_mask = None
             if attn_mask is not None:
@@ -140,7 +140,7 @@ def set_ck_flash_attention(backend: str, device: torch.device):
 
         sdpa_pre_flash_atten = torch.nn.functional.scaled_dot_product_attention
         @wraps(sdpa_pre_flash_atten)
-        def sdpa_flash_atten(query: torch.FloatTensor, key: torch.FloatTensor, value: torch.FloatTensor, attn_mask: torch.Tensor | None = None, dropout_p: float = 0.0, is_causal: bool = False, scale: float | None = None, enable_gqa: bool = False, **kwargs) -> torch.FloatTensor:
+        def sdpa_flash_atten(query: torch.FloatTensor, key: torch.FloatTensor, value: torch.FloatTensor, attn_mask: torch.Tensor | None = None, dropout_p: float = 0.0, is_causal: bool = False, scale: float | None = None, enable_gqa: bool = False, **kwargs) -> torch.Tensor:
             use_flash = (
                 query.shape[-1] <= 128
                 and attn_mask is None
@@ -215,7 +215,7 @@ def set_sage_attention(backend: str, device: torch.device):
 
         sdpa_pre_sage_atten = torch.nn.functional.scaled_dot_product_attention
         @wraps(sdpa_pre_sage_atten)
-        def sdpa_sage_atten(query: torch.FloatTensor, key: torch.FloatTensor, value: torch.FloatTensor, attn_mask: torch.Tensor | None = None, dropout_p: float = 0.0, is_causal: bool = False, scale: float | None = None, enable_gqa: bool = False, **kwargs) -> torch.FloatTensor:
+        def sdpa_sage_atten(query: torch.FloatTensor, key: torch.FloatTensor, value: torch.FloatTensor, attn_mask: torch.Tensor | None = None, dropout_p: float = 0.0, is_causal: bool = False, scale: float | None = None, enable_gqa: bool = False, **kwargs) -> torch.Tensor:
             use_sage = (
                 query.shape[-1] in {128, 96, 64}
                 and attn_mask is None

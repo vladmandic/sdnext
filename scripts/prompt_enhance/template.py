@@ -90,7 +90,7 @@ def set_template(
             pass
         elif options.processor is None:
             log.error('Prompt enhance: image not supported by model')
-            return prompt # Return original text part if image cannot be processed
+            return prompt if prompt is not None else '' # Return original text part if image cannot be processed
 
     if has_image:
         chat_template = get_image_template(system, prompt, options, nsfw, has_system, has_prompt, has_processor, is_video, image)

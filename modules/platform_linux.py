@@ -5,9 +5,9 @@ from modules.logger import log
 
 class LinuxUtils():
     @staticmethod
-    def get_status() -> dict[str, float] | None:
+    def get_status() -> dict[str, int | float | str] | None:
         lines = []
-        status = {}
+        status: dict[str, int | float | str] = {}
         try:
             with open("/proc/self/status", encoding="utf-8") as handle:
                 lines = handle.readlines()
@@ -26,7 +26,7 @@ class LinuxUtils():
         return status
 
     @staticmethod
-    def get_smaps(limit: int = 8) -> list[dict[str, float | str]] | None:
+    def get_smaps(limit: int = 8) -> list[dict[str, int | float | str]] | None:
         try:
             with open("/proc/self/smaps", encoding="utf-8") as handle:
                 lines = handle.readlines()
@@ -70,7 +70,7 @@ class LinuxUtils():
                 current["shared"] += amount
         if current is not None:
             entries.append(current)
-        merged = {}
+        merged: dict[str, dict[str, int | float | str]] = {}
         for entry in entries:
             path = entry["path"]
             if path not in merged:
@@ -80,7 +80,7 @@ class LinuxUtils():
                 merged[path]["pss"] += entry["pss"]
                 merged[path]["private"] += entry["private"]
                 merged[path]["shared"] += entry["shared"]
-            top = sorted(merged.values(), key=lambda item: item["rss"], reverse=True)[:limit]
+            top: list[dict[str, int | float | str]] = sorted(merged.values(), key=lambda item: item["rss"], reverse=True)[:limit]
         for entry in top:
             entry["rss"] = round(entry["rss"] / 1024 / 1024, 3)
             entry["pss"] = round(entry["pss"] / 1024 / 1024, 3)

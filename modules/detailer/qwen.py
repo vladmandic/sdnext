@@ -56,7 +56,7 @@ def template(prompt: str, schema: str, min_confidence: float) -> list[dict]:
     ]
 
 
-def load(self, model_name: str | None = None) -> tuple[str, transformers.Qwen3VLForConditionalGeneration]: # pylint: disable=unused-argument
+def load(self, model_name: str | None = None) -> tuple[str | None, transformers.Qwen3VLForConditionalGeneration | object]: # pylint: disable=unused-argument
     cached = sd_offload_aux.get_aux_model(model_name)
     if cached is not None:
         return model_name, cached
@@ -70,7 +70,7 @@ def load(self, model_name: str | None = None) -> tuple[str, transformers.Qwen3VL
     quant_args = model_quant.create_config(module='LLM', modules_to_not_convert=['conv1d', 'linear_attn.conv1d'])
     model = transformers.Qwen3VLForConditionalGeneration.from_pretrained(**load_kwargs, **quant_args, attn_implementation="sdpa")
     model = model.eval()
-    model.processor: transformers.Qwen3VLProcessor = transformers.Qwen3VLProcessor.from_pretrained(**load_kwargs)
+    model.processor = transformers.Qwen3VLProcessor.from_pretrained(**load_kwargs)
     sd_offload_aux.register_aux(model_name, model)
     if shared.opts.detailer_unload:
         sd_offload_aux.offload_aux(model_name)

@@ -71,14 +71,14 @@ class Script:
         """this function should return the title of the script. This is what will be displayed in the dropdown menu."""
         raise NotImplementedError
 
-    def ui(self, is_img2img) -> list[IOComponent]:
+    def ui(self, is_img2img) -> list[IOComponent]: # ty: ignore
         """this function should create gradio UI elements. See https://gradio.app/docs/#components
         The return value should be an array of all components that are used in processing.
         Values of those returned components will be passed to run() and process() functions.
         """
         pass # pylint: disable=unnecessary-pass
 
-    def show(self, is_img2img) -> bool | AlwaysVisible: # pylint: disable=unused-argument
+    def show(self, is_img2img) -> bool | AlwaysVisible: # pylint: disable=unused-argument # ty: ignore
         """
         is_img2img is True if this function is called for the img2img interface, and False otherwise
         This function should return:

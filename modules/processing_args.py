@@ -148,7 +148,9 @@ def task_specific_kwargs(p, model):
         task_args['image'] = p.init_images
 
     if ('QwenImageLayeredPipeline' in model_cls) and (task_args.get('image', None) is not None):
-        task_args['image'] = [i.convert('RGBA') for i in task_args['image']]
+        image_items = task_args['image']
+        if isinstance(image_items, list):
+            task_args['image'] = [i.convert('RGBA') for i in image_items]
     if ('LatentConsistencyModelPipeline' in model_cls) and (len(p.init_images) > 0):
         p.ops.append('lcm')
         init_latents = [processing_vae.vae_encode(image, model=shared.sd_model, vae_type=p.vae_type).squeeze(dim=0) for image in p.init_images]

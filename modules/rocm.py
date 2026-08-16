@@ -96,14 +96,18 @@ class Agent:
     @overload
     def __init__(self, name: str): ...
     @overload
-    def __init__(self, device: 'torch.types.Device'): ...
+    def __init__(self, name: 'torch.types.Device'): ...
 
-    def __init__(self, arg):
-        if isinstance(arg, str):
-            name = arg
-        else: # assume arg is device-like object
+    def __init__(self, name: str | 'torch.types.Device' | None = None):
+        if isinstance(name, str):
+            arch_name = name
+        elif name is not None:
             import torch
-            name = getattr(torch.cuda.get_device_properties(arg), "gcnArchName", "gfx0000")
+            arch_name = getattr(torch.cuda.get_device_properties(name), "gcnArchName", "gfx0000")
+        else:
+            raise ValueError("ROCm Agent requires a GPU name or device")
+        arch_name = str(arch_name)
+        self.name = arch_name.split(':')[0]
         self.name = name.split(':')[0]
         self.gfx_version = Agent.parse_gfx_version(self.name)
         if self.gfx_version > 0x1000:
@@ -221,7 +225,7 @@ def find() -> ROCmEnvironment | None:
         return ROCmEnvironment(resolve_link("/opt/rocm"))
 
 
-def get_version() -> str:
+def get_version() -> str | None:
     try:
         if isinstance(environment, ROCmEnvironment):
             # We don't load the hip library that will not be used by PyTorch.

@@ -19,7 +19,7 @@ def format_grounding_dino_prompt(prompt: str) -> str:
     return ". ".join(items) + "."
 
 
-def load(self, model_name: str | None = None) -> tuple[str, transformers.AutoModelForZeroShotObjectDetection]: # pylint: disable=unused-argument
+def load(self, model_name: str | None = None) -> tuple[str | None, transformers.AutoModelForZeroShotObjectDetection | object]: # pylint: disable=unused-argument
     cached = sd_offload_aux.get_aux_model(model_name)
     if cached is not None:
         return model_name, cached

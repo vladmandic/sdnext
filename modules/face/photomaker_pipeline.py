@@ -1,7 +1,7 @@
 ### original <https://github.com/TencentARC/PhotoMaker/blob/main/photomaker/pipeline.py>
 
 import inspect
-from typing import Any, Union
+from typing import Any, Union, cast
 from collections.abc import Callable
 import PIL
 import torch
@@ -813,7 +813,8 @@ class PhotoMakerStableDiffusionXLPipeline(StableDiffusionXLPipeline):
                     callback_kwargs = {}
                     for k in callback_on_step_end_tensor_inputs:
                         callback_kwargs[k] = locals()[k]
-                    callback_outputs = callback_on_step_end(self, i, t, callback_kwargs)
+                    callback_on_step_end_fn = cast(Any, callback_on_step_end)
+                    callback_outputs = callback_on_step_end_fn(self, i, t, callback_kwargs)
 
                     latents = callback_outputs.pop("latents", latents)
                     prompt_embeds = callback_outputs.pop("prompt_embeds", prompt_embeds)
