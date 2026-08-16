@@ -252,7 +252,7 @@ def create_settings(cmd_opts):
         "dynamic_attention_trigger_rate": OptionInfo(1, "Dynamic Attention trigger rate", gr.Slider, {"minimum": 0.01, "maximum": max(gpu_memory,4)*2, "step": 0.01}),
 
         "sdnq_attention_sep": OptionInfo("<h2>SDNQ Attention</h2>", "", gr.HTML),
-        "sdnq_attention_smooth_k": OptionInfo(False, "SDNQ Attention use Smooth K", gr.Checkbox),
+        "sdnq_attention_smooth_k": OptionInfo(True, "SDNQ Attention use Smooth K", gr.Checkbox),
         "sdnq_attention_use_hadamard": OptionInfo(False, "SDNQ Attention use Hadamard", gr.Checkbox),
         "sdnq_attention_matmul_type": OptionInfo("enabled", "SDNQ Attention MatMul type", gr.Radio, {"choices": sdnq_matmul_modes}),
         "sdnq_attention_pv_matmul_type": OptionInfo("disabled", "SDNQ Attention PV MatMul type", gr.Radio, {"choices": sdnq_matmul_modes}),
