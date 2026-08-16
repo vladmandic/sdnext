@@ -54,6 +54,8 @@ If detections come back as `[pussy, face, nipple]` this run, the untagged lines 
 
 **This is expected behavior, not a bug.** Any class you actually want to distinguish must get its own explicit `[CLASS=name]` tag. Reserve untagged lines for text you're fine applying to *any* leftover detection regardless of which class it is (e.g. a generic quality boost) — not for a second or third class-specific template.
 
+(SD.Next's pre-existing "Sort detections" option, which orders detections left-to-right before assignment, was checked too — it has zero effect on `[CLASS=...]`-tagged classes and only slightly stabilizes this fallback-pool ordering, so it doesn't change the guidance above.)
+
 ### What an untagged/unmatched detection gets
 
 If a detection's class has no matching tag **and** there's no fallback line at all, it gets an **empty string**, not the main generation prompt. The "fall back to the main prompt when the Detailer field is empty" rule only fires when the *entire* field is empty before parsing — once you've typed anything (even just one `[CLASS=...]` line), that whole-field check no longer applies. If you want untagged classes to inherit the main prompt, add an explicit fallback line containing the literal token `[PROMPT]` (already substituted before parsing):
