@@ -73,6 +73,8 @@ WARNING detailer  Detailer prompt: class tags did not match any detection across
 
 This had to be aggregate rather than per-model: chaining two detailer models with disjoint classes (say, a face-only model and a separate NSFW segmentation model reporting `nipples`/`pussy`/`anus`/etc.) is a completely normal setup, and a naive per-model check would flag `[CLASS=pussy]` as unmatched on every pass through the face model, and `[CLASS=face]` as unmatched on every pass through the segmentation model — pure noise despite both tags being perfectly correct. The aggregate version only complains when a tag never matches *any* model in the chain, which is the actual signature of a typo.
 
+**It cannot tell a typo apart from a legitimate miss.** A correctly-spelled `[CLASS=face]` on an image where the face model simply found nothing this run (occluded, low confidence, out of frame) produces the exact same warning text as a real misspelling — the check only knows "declared tag X never matched a detection this generation," not *why*. To tell them apart, cross-reference the tag against the model's real vocabulary in the one-time `Load: type=Detailer name='...' ... classes=[...]` line printed when that model first loads; if your tag is in that list verbatim, it's not a typo, the class just wasn't found this time. That said, the warning is still useful either way it fires: it's a reliable signal that **"the `[CLASS=face]` prompt was not applied to anything this generation,"** regardless of the underlying cause — worth knowing on its own, independent of diagnosing why.
+
 ## Implementation
 
 Three files touched, all in `modules/detailer/`:
