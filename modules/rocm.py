@@ -94,20 +94,16 @@ class Agent:
         return result
 
     @overload
-    def __init__(self, name: str): ...
+    def __init__(self, name: str): ... # ty: ignore
     @overload
-    def __init__(self, name: 'torch.types.Device'): ...
+    def __init__(self, device: 'torch.types.Device'): ... # ty: ignore
 
-    def __init__(self, name: str | 'torch.types.Device' | None = None):
-        if isinstance(name, str):
-            arch_name = name
-        elif name is not None:
+    def __init__(self, arg):
+        if isinstance(arg, str):
+            name = arg
+        else: # assume arg is device-like object
             import torch
-            arch_name = getattr(torch.cuda.get_device_properties(name), "gcnArchName", "gfx0000")
-        else:
-            raise ValueError("ROCm Agent requires a GPU name or device")
-        arch_name = str(arch_name)
-        self.name = arch_name.split(':')[0]
+            name = getattr(torch.cuda.get_device_properties(arg), "gcnArchName", "gfx0000")
         self.name = name.split(':')[0]
         self.gfx_version = Agent.parse_gfx_version(self.name)
         if self.gfx_version > 0x1000:

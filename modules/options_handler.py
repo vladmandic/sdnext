@@ -1,5 +1,4 @@
 from __future__ import annotations
-import builtins
 import os
 import sys
 import json
@@ -15,6 +14,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
     from modules.options import OptionInfo
     from typing import Any
+    import builtins
 
 cmd_opts = cmd_args.parse_args()
 compatibility_opts = ['clip_skip', 'uni_pc_lower_order_final', 'uni_pc_order']

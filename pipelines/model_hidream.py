@@ -42,11 +42,11 @@ def load_hidream_o1(checkpoint_info, diffusers_load_config=None):
     from pipelines.hidream.scheduler_flashfloweuler import FlashFlowMatchEulerDiscreteScheduler
     generic.set_pipeline('HiDreamO1', HiDreamO1Pipeline)
 
-    load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='Model', device_map=True, allow_quant=True)
-    log.debug(f'Load model: type=HiDreamO1 repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')
+    log.debug(f'Load model: type=HiDreamO1 repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={diffusers_load_config}')
     if repo_id is None or repo_id.lower() == 'none':
         return None
 
+    load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='Model', device_map=True, allow_quant=True)
     o1_load_config = diffusers_load_config.copy()
     o1_load_config['trust_remote_code'] = True
 

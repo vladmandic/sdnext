@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from threading import Lock
 from pydantic import BaseModel, Field # pylint: disable=no-name-in-module
 from modules import errors, shared, processing_helpers
@@ -44,24 +44,29 @@ class ItemXYZ(BaseModel):
     include_text: bool = Field(title="Include text", default=False, description="Show generation parameters as text overlay")
 
 
-ReqControl = models.create_model_from_signature(
-    func = run.control_run,
-    model_name = "StableDiffusionProcessingControl",
-    additional_fields = [
-        {"key": "sampler_name", "type": str, "default": "Default"},
-        {"key": "script_name", "type": Optional[str], "default": None},
-        {"key": "script_args", "type": list, "default": []},
-        {"key": "send_images", "type": bool, "default": True},
-        {"key": "save_images", "type": bool, "default": False},
-        {"key": "alwayson_scripts", "type": dict, "default": {}},
-        {"key": "ip_adapter", "type": Optional[list[models.ItemIPAdapter]], "default": None, "exclude": True},
-        {"key": "face", "type": Optional[models.ItemFace], "default": None, "exclude": True},
-        {"key": "control", "type": Optional[list[ItemControl]], "default": [], "exclude": True},
-        {"key": "xyz", "type": Optional[ItemXYZ], "default": None, "exclude": True},
-        {"key": "extra", "type": Optional[dict], "default": {}, "exclude": True},
-        {"key": "init_control", "type": Optional[list], "default": None, "exclude": True},
-    ]
-)
+
+if TYPE_CHECKING:
+    class ReqControl(BaseModel): # tell static type checkers that ReqControl is a BaseModel subclass
+        pass
+else:
+    ReqControl = models.create_model_from_signature(
+        func = run.control_run,
+        model_name = "StableDiffusionProcessingControl",
+        additional_fields = [
+            {"key": "sampler_name", "type": str, "default": "Default"},
+            {"key": "script_name", "type": Optional[str], "default": None},
+            {"key": "script_args", "type": list, "default": []},
+            {"key": "send_images", "type": bool, "default": True},
+            {"key": "save_images", "type": bool, "default": False},
+            {"key": "alwayson_scripts", "type": dict, "default": {}},
+            {"key": "ip_adapter", "type": Optional[list[models.ItemIPAdapter]], "default": None, "exclude": True},
+            {"key": "face", "type": Optional[models.ItemFace], "default": None, "exclude": True},
+            {"key": "control", "type": Optional[list[ItemControl]], "default": [], "exclude": True},
+            {"key": "xyz", "type": Optional[ItemXYZ], "default": None, "exclude": True},
+            {"key": "extra", "type": Optional[dict], "default": {}, "exclude": True},
+            {"key": "init_control", "type": Optional[list], "default": None, "exclude": True},
+        ]
+    )
 if not hasattr(ReqControl, "__config__"):
     ReqControl.__config__ = models.DummyConfig
 

@@ -57,10 +57,10 @@ def load_hyimage3(checkpoint_info, diffusers_load_config=None): # pylint: disabl
         sd_models.allow_post_quant = False # we already handled it
         allow_quant = False
 
-    load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='Model', device_map=True, allow_quant=allow_quant)
     generic.set_pipeline('HunyuanImage3', transformers.AutoModelForCausalLM)
     if repo_id is None or repo_id.lower() == 'none':
         return None
+    load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='Model', device_map=True, allow_quant=allow_quant)
     pipe = transformers.AutoModelForCausalLM.from_pretrained(
         repo_id,
         cache_dir=shared.opts.diffusers_dir,

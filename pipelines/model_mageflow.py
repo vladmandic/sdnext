@@ -17,7 +17,6 @@ def load_mageflow(checkpoint_info, diffusers_load_config=None):
 
     from pipelines.mageflow import MageFlowPipeline, MageFlowTransformer2DModel
 
-    log.debug(f'Load model: type=MageFlow repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={diffusers_load_config}')
     generic.set_pipeline('MageFlow', MageFlowPipeline)
 
     if repo_id is None or repo_id.lower() == 'none':

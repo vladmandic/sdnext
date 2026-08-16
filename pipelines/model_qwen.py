@@ -13,8 +13,7 @@ def load_qwen(checkpoint_info, diffusers_load_config=None):
     sd_models.hf_auth_check(checkpoint_info)
     transformer = None
 
-    load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, module='Model')
-    log.debug(f'Load model: type=Qwen model="{checkpoint_info.name}" repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
+    log.debug(f'Load model: type=Qwen model="{checkpoint_info.name}" repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={diffusers_load_config}')
 
     if 'nunchaku-lite' in repo_id.lower():
         from modules.attention import hijack_kernels
@@ -79,6 +78,8 @@ def load_qwen(checkpoint_info, diffusers_load_config=None):
 
     if repo_id is None or repo_id.lower() == 'none':
         return None
+
+    load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, module='Model')
     repo_id, repo_subfolder = qwen.check_qwen_pruning(repo_id, repo_subfolder)
     if repo_subfolder is not None and repo_subfolder.startswith('nunchaku'):
         repo_subfolder = None
