@@ -2,6 +2,8 @@ import os
 import sys
 import time
 import inspect
+import importlib.util
+from dataclasses import dataclass
 from PIL import Image
 from installer import install
 from modules import shared, sd_models, timer, errors, devices
@@ -10,6 +12,24 @@ from modules.video_models.video_codecs import codecs_config
 
 
 debug = log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None else lambda *args, **kwargs: None
+MEDIA_EXTENSIONS = {
+    'image': ('.png', '.jpg', '.jpeg', '.webp'),
+    'video': ('.mp4', '.mov', '.avi'),
+    'audio': ('.wav', '.mp3', '.flac', '.aac'),
+}
+
+
+@dataclass
+class MediaProbe:
+    """What a container header reports, without decoding any of it."""
+    kind: str
+    fps: float | None = None
+    frames: int | None = None
+    duration: float | None = None # seconds
+    width: int | None = None
+    height: int | None = None
+    channels: int | None = None
+    sample_rate: int | None = None
 
 
 def queue_err(msg):
@@ -42,6 +62,55 @@ def check_av():
         log.error(f'av package: {e}')
         return False
     return av
+
+
+def has_torchaudio():
+    # never installed on demand: torchaudio wheels pin a torch build and would replace it under the running server
+    try:
+        return importlib.util.find_spec('torchaudio') is not None
+    except Exception:
+        return False
+
+
+def classify_extension(fn: str):
+    """Media kind of a filename, None when the extension is not one sdnext reads."""
+    lower = str(fn).lower()
+    for kind, extensions in MEDIA_EXTENSIONS.items():
+        if lower.endswith(extensions):
+            return kind
+    return None
+
+
+def probe_media(fn: str, kind: str):
+    """Container metadata for a media file, None when it cannot be opened. Reads headers only, so
+    a file too large or too short to use is rejected before anything decodes it."""
+    av = check_av()
+    if not av:
+        return None
+    probe = MediaProbe(kind=kind)
+    try:
+        with av.open(fn) as container:
+            if kind == 'video' and container.streams.video: # an audio file with cover art carries a video stream that is not frames
+                stream = container.streams.video[0]
+                rate = stream.average_rate or stream.guessed_rate # average_rate is a Fraction and can be a falsy 0/1, which is why the decoder falls back the same way
+                probe.fps = float(rate) if rate else None
+                probe.frames = stream.frames or None # 0 means the container carries no count, not an empty file
+                probe.width, probe.height = stream.codec_context.width, stream.codec_context.height
+                if stream.duration is not None and stream.time_base is not None:
+                    probe.duration = float(stream.duration * stream.time_base) # stream durations are in time_base units
+                elif container.duration is not None:
+                    probe.duration = container.duration / 1000000 # container durations are in AV_TIME_BASE units
+                elif probe.frames and probe.fps:
+                    probe.duration = probe.frames / probe.fps
+            if container.streams.audio:
+                stream = container.streams.audio[0]
+                # the soundtrack decoder converts to planar float keeping the container's own rate and layout, so these are the values it yields
+                probe.channels = getattr(stream, 'channels', None) or getattr(getattr(stream, 'layout', None), 'nb_channels', None)
+                probe.sample_rate = int(stream.codec_context.sample_rate)
+    except Exception as e:
+        debug(f'Video probe: file="{fn}" {e}')
+        return None
+    return probe
 
 
 def hijack_encode_image(*args, **kwargs):

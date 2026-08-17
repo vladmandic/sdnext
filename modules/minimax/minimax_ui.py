@@ -4,7 +4,7 @@ from modules import ui_sections, ui_symbols
 from modules.ui_components import ToolButton
 from modules.logger import log
 from modules.video_models.models_def import models
-from modules.minimax import minimax_video
+from modules.minimax import minimax_video, minimax_references
 
 
 debug = log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None else lambda *args, **kwargs: None
@@ -41,8 +41,9 @@ def create_ui(prompt, _negative, styles, overrides, script_inputs, mp4_fps, mp4_
                 with gr.Row():
                     last_image = gr.Image(label='Last image', elem_id='minimax_last_image', type='pil', image_mode='RGB', width=256, height=256)
             with gr.Accordion(open=False, label="Reference media", elem_id='minimax_reference_accordion', visible=True) as reference_accordion:
-                gr.HTML("""Upload up to 9 images, 3 videos, and 3 audio files<br>
-                           The total number of files must not exceed 12<br><br>""", elem_id='minimax_reference_media_info', elem_classes=['smaller'])
+                caps = minimax_references.get_reference_caps('ref2va')
+                gr.HTML(f"""Upload up to {caps.max_images} images, {caps.max_videos} videos, and {caps.max_audios} audio files<br>
+                           The total number of files must not exceed {caps.max_references}<br><br>""", elem_id='minimax_reference_media_info', elem_classes=['smaller'])
                 reference_media = gr.Files(label="Reference media", interactive=True, elem_id="minimax_reference_media", visible=True)
 
         with gr.Column(elem_id='minimax-output-column', scale=2) as _column_output:

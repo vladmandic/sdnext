@@ -1,4 +1,3 @@
-import os
 import time
 from PIL import Image
 import numpy as np
@@ -37,40 +36,32 @@ def load_model(model: str):
     return None
 
 
-def prepare_inputs(workflow: str, p: processing.StableDiffusionProcessingVideo, init_image: Image.Image | None, last_image: Image.Image | None, reference_media: list | None):
-    from diffusers.modular_pipelines.minimax_h3 import MiniMaxH3ImageReference, MiniMaxH3VideoReference, MiniMaxH3AudioReference
-    if workflow == 'fl2va':
-        if init_image is not None:
-            p.task_args['image'] = init_image
-        if last_image is not None:
-            p.task_args['last_image'] = last_image
-        log.debug(f'Prepare inputs: workflow={workflow} first={init_image} last={last_image}')
-    if workflow == 'ref2va':
-        if reference_media is None or len(reference_media) == 0:
-            return
-        files = []
-        references = []
-        for fn in reference_media:
-            try:
-                if hasattr(fn, 'name'): # gradio tempfile wrapper as files end up uploaded and not embedded
-                    fn = fn.name
-                if not os.path.exists(fn):
-                    log.warning(f'Prepare inputs: workflow={workflow} file="{fn}" not found')
-                    continue
-                if fn.lower().endswith((".png", ".jpg", ".jpeg", ".webp")):
-                    files.append(fn)
-                    references.append(MiniMaxH3ImageReference.from_file(fn))
-                elif fn.lower().endswith((".mp4", ".mov", ".avi")):
-                    files.append(fn)
-                    references.append(MiniMaxH3VideoReference.from_file(fn))
-                elif fn.lower().endswith((".wav", ".mp3", ".flac", ".aac")):
-                    files.append(fn)
-                    references.append(MiniMaxH3AudioReference.from_file(fn))
-            except Exception as e:
-                log.error(f'Prepare inputs: workflow={workflow} file="{fn}" {e}')
-        if len(references) > 0:
-            p.task_args['references'] = references
-        log.debug(f'Prepare inputs: workflow={workflow} files={files}')
+def unwrap_file(entry):
+    """The path behind a gradio file entry: an upload arrives as a tempfile wrapper or a dict, not a path."""
+    if hasattr(entry, 'name'):
+        return entry.name
+    if isinstance(entry, dict) and 'name' in entry:
+        return entry['name']
+    return entry
+
+
+def prepare_inputs(workflow: str | None, init_image: Image.Image | None, last_image: Image.Image | None, reference_media: list | None) -> dict:
+    """The task args a workflow conditions on, resolved before the model load so a rejected request costs nothing."""
+    from modules.minimax import minimax_references
+    if minimax_references.get_reference_caps(workflow) is not None:
+        entries = [unwrap_file(entry) for entry in (reference_media or [])]
+        references = minimax_references.resolve(workflow, entries, init_image)
+        log.debug(f'Prepare inputs: workflow={workflow} references={len(references)}')
+        return {'references': references}
+    task_args = {}
+    if init_image is not None:
+        task_args['image'] = init_image
+    if last_image is not None:
+        task_args['last_image'] = last_image
+    if reference_media:
+        log.warning(f'Video: op=reference workflow={workflow} references not supported, ignoring: count={len(reference_media)}')
+    log.debug(f'Prepare inputs: workflow={workflow} first={init_image} last={last_image}')
+    return task_args
 
 
 def generate(task_id, _ui_state,
@@ -90,7 +81,7 @@ def generate(task_id, _ui_state,
             **_kwargs,
            ):
     video_utils.check_av()
-    from modules.video_models import video_minimax
+    from modules.video_models import video_minimax, video_run
     progress.add_task_to_queue(task_id)
 
     with call_queue.get_lock():
@@ -100,12 +91,18 @@ def generate(task_id, _ui_state,
         timer.process.reset()
 
         # init vars
+        p = None
+        workflow = None # the incoming argument is the ui's display label, so the row and then the load supply the real one
         pixels = None
         num_frames = 0
         video_file = None
         aac_sample_rate = 32000
 
         try:
+            # resolved off the registry row so a bad reference is rejected before the load, the same as on the api path
+            selected = models_def.find(engine, model)
+            workflow = getattr(selected, 'workflow', None)
+            task_args = prepare_inputs(workflow, init_image, last_image, reference_media)
             workflow = load_model(model) # override workflow based on loaded model
             if not workflow:
                 progress.finish_task(task_id)
@@ -135,7 +132,7 @@ def generate(task_id, _ui_state,
             p.scripts = scripts_manager.scripts_video
             p.script_args = args
 
-            prepare_inputs(workflow, p, init_image, last_image, reference_media)
+            p.task_args.update(task_args)
 
             _processed: processing.Processed = scripts_manager.scripts_video.run(p, *args)
             processed = processing.process_images(p)
@@ -191,14 +188,18 @@ def generate(task_id, _ui_state,
             if audio is not None:
                 del audio
 
+        except video_run.VideoError as e: # a rejected input, so the reason belongs in the output box and not only in the log
+            log.error(f'Video: engine="{engine}" model="{model}" workflow={workflow} {e}')
+            return None, f'Error: {e}'
         except Exception as e:
             log.error(f'Video: engine="{engine}" model="{model}" workflow={workflow} {e}')
             errors.display(e, 'Video')
         finally:
-            jobid = getattr(shared.sd_model, 'sdnext_phaseid', None) # previous jobid if any
+            jobid = getattr(shared.sd_model, 'sdnext_phaseid', None) if shared.sd_loaded else None # sd_model loads on access, and a request rejected before the load must not trigger one
             shared.state.end(jobid) # clear the previous job if exists
             progress.finish_task(task_id)
-            p.close()
+            if p is not None: # a request rejected before the processing object exists has nothing to close
+                p.close()
 
         t1 = time.time()
         resolution = f'{w}x{h}' if num_frames > 0 else None
