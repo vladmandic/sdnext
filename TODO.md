@@ -2,8 +2,7 @@
 
 ## Short-term
 
-- Disable generate toolbar on video tab for non-model tabs
-- Add generate-forever to video tab
+- Test API remote
 - Create pre-quant for ltx
 - Create pre-quant for minimax-turbo
 - Update ltx wiki

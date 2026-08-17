@@ -41,6 +41,7 @@
 - **Video**
   - reorganized *video* tab
   - better support for video codeces and formats
+  - add *generate forever* button
 - **API**
   - full support for video generation using api  
     new endpoints: `/sdapi/v1/video`, `/sdapi/v1/video/models`, `/sdapi/v1/video/file`  
