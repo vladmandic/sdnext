@@ -64,7 +64,7 @@ def create_ui(prompt, negative, styles, _overrides, script_inputs, mp4_fps, mp4_
                 use_cfgzero = gr.Checkbox(label='FP enable CFGZero', value=False)
                 use_preview = gr.Checkbox(label='FP enable Preview', value=True)
                 attention = gr.Dropdown(label="FP attention", choices=['Default', 'Xformers', 'FlashAttention', 'SageAttention'], value='Default', type='value')
-                vae_type = gr.Dropdown(label="FP VAE", choices=['Full', 'Tiny', 'Remote'], value='Local', type='value')
+                vae_type = gr.Dropdown(label="FP VAE", choices=['Full', 'Tiny', 'Remote'], value='Full', type='value')
 
         with gr.Column(elem_id='framepack-output-column', scale=2) as _column_output:
             with gr.Tabs():
