@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-08-16
+## Update for 2026-08-17
 
 - **Models**
   - [MiniMax H3](https://huggingface.co/MiniMaxAI/MiniMax-H3) available in *base* and *ref* variants  
@@ -48,7 +48,9 @@
   - authentication for websocket connection
   - allowed path validation for endpoints that get/put files
 - **Other**
-  - ar display ration on manual resolution change
+  - Krea2: add *settings -> model options -> krea2 dense masking*
+    may provide significant speed-up on some gpus, disabled by default  
+  - AR display ratio on manual resolution change
 - **Removed**
   - remove DirectML support  
     latest release was over 2 years ago and is not compatible with modern frameworks  

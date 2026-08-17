@@ -1,6 +1,6 @@
 from threading import Lock
 from fastapi.responses import JSONResponse
-from modules import errors, shared, scripts_manager, ui
+from modules import errors, shared, scripts_manager
 from modules.api import models, script, helpers
 from modules.processing import StableDiffusionProcessingTxt2Img, StableDiffusionProcessingImg2Img, process_images
 from modules.paths import resolve_output_path

@@ -113,6 +113,8 @@ def create_settings(cmd_opts):
         "google_api_key": OptionInfo("", "Google cloud API key", gr.Textbox, secret=True, env_var='GOOGLE_API_KEY'),
         "google_project_id": OptionInfo("", "Google Cloud project ID", gr.Textbox, secret=True, env_var='GOOGLE_PROJECT_ID'),
         "google_location_id": OptionInfo("", "Google Cloud location ID", gr.Textbox),
+        "model_krea2_sep": OptionInfo("<h2>Krea 2</h2>", "", gr.HTML),
+        "model_krea2_dense": OptionInfo(False, "Use dense masking"),
         "model_sd3_sep": OptionInfo("<h2>Stable Diffusion 3.x</h2>", "", gr.HTML),
         "model_sd3_disable_te5": OptionInfo(False, "Disable T5 text encoder"),
         "model_h1_sep": OptionInfo("<h2>HiDream</h2>", "", gr.HTML),

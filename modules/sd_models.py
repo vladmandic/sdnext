@@ -906,7 +906,7 @@ def load_diffuser(checkpoint_info: CheckpointInfo | None = None, op='model', rev
     timer.load.record("diffusers")
     diffusers_load_config = {
         "low_cpu_mem_usage": True,
-        "dtype": devices.dtype,
+        "torch_dtype": devices.dtype,
         "load_connected_pipeline": True,
     }
     if shared.opts.stream_load:
@@ -1100,7 +1100,7 @@ def load_diffuser(checkpoint_info: CheckpointInfo | None = None, op='model', rev
         from modules import modelstats
         modelstats.analyze()
 
-    log.info(f"Load {op}: family={shared.sd_model_type} time={timer.load.dct()} native={get_native(sd_model)} memory={memory_stats()}")
+    log.info(f"Load {op}: type={shared.sd_model_type} time={timer.load.dct()} native={get_native(sd_model)} memory={memory_stats()}")
 
     from modules.platform import cleanup
     cleanup()

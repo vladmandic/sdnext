@@ -45,6 +45,9 @@ def load_krea2(checkpoint_info, diffusers_load_config=None):
         text_encoder=text_encoder,
         **load_args,
     )
+    pipe.task_args = {
+        'dense_mask': shared.opts.model_krea2_dense,
+    }
 
     generic.load_vae_override(pipe, diffusers_load_config)
 
