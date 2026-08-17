@@ -638,7 +638,10 @@ class ScriptRunner:
         script_index = args[0] if len(args) > 0 else 0
         if (script_index is None) or (script_index == 0):
             return processed
-        script = self.selectable_scripts[script_index - 1]
+        try:
+            script = self.selectable_scripts[script_index - 1]
+        except Exception:
+            script = None
         if script is None or not hasattr(script, 'after'):
             return processed
         parsed = []

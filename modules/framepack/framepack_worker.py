@@ -14,7 +14,7 @@ stream = None # AsyncStream
 def get_latent_paddings(mp4_fps, mp4_interpolate, latent_window_size, total_second_length, variant):
     try:
         real_fps = mp4_fps / (mp4_interpolate + 1)
-        is_f1 = variant == 'forward-only'
+        is_f1 = variant == 'Forward-Only'
         if is_f1:
             total_latent_sections = (total_second_length * real_fps) / (latent_window_size * 4)
             total_latent_sections = int(max(round(total_latent_sections), 1))
@@ -59,7 +59,7 @@ def worker(
     from modules.framepack.pipeline import utils
     from modules.framepack.pipeline import k_diffusion_hunyuan
 
-    is_f1 = variant == 'forward-only'
+    is_f1 = variant == 'Forward-Only'
     total_generated_frames = 0
     total_generated_latent_frames = 0
     latent_paddings = get_latent_paddings(mp4_fps, mp4_interpolate, latent_window_size, total_second_length, variant)

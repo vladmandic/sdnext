@@ -5,8 +5,9 @@ from modules.logger import log
 
 
 models = {
-    'bi-directional': 'lllyasviel/FramePackI2V_HY',
-    'forward-only': 'lllyasviel/FramePack_F1_I2V_HY_20250503',
+    'None': None,
+    'Bi-Directional': 'lllyasviel/FramePackI2V_HY',
+    'Forward-Only': 'lllyasviel/FramePack_F1_I2V_HY_20250503',
 }
 default_model = {
     'pipeline': { 'repo': 'hunyuanvideo-community/HunyuanVideo', 'subfolder': '' },
@@ -21,7 +22,7 @@ default_model = {
     'tokenizer_2': { 'repo': 'hunyuanvideo-community/HunyuanVideo', 'subfolder': 'tokenizer_2' },
     'feature_extractor': { 'repo': 'lllyasviel/flux_redux_bfl', 'subfolder': 'feature_extractor' },
     'image_encoder': { 'repo': 'lllyasviel/flux_redux_bfl', 'subfolder': 'image_encoder' },
-    'transformer': { 'repo': models.get('bi-directional'), 'subfolder': '' },
+    'transformer': { 'repo': models.get('Bi-Directional'), 'subfolder': '' },
 }
 model = default_model.copy()
 

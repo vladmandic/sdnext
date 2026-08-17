@@ -73,6 +73,8 @@ def init_default_script_args(script_runner):
             if script.ui(script.is_img2img):
                 ui_default_values = []
                 for elem in script.ui(script.is_img2img):
+                    if elem is None:
+                        continue
                     ui_default_values.append(elem.value)
                 script_args[script.args_from:script.args_to] = ui_default_values
     return script_args

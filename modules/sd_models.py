@@ -731,7 +731,7 @@ def load_diffuser_file(model_type: str, pipeline, checkpoint_info: CheckpointInf
             sd_model = load_sd3(checkpoint_info, diffusers_load_config)
         elif hasattr(pipeline, 'from_single_file'):
             diffusers.loaders.single_file_utils.CHECKPOINT_KEY_NAMES["clip"] = "cond_stage_model.transformer.text_model.embeddings.position_embedding.weight" # patch for diffusers==0.28.0
-            diffusers_load_config['safety_checker'] = None, # sd15 specific but we cant know ahead of time
+            diffusers_load_config['safety_checker'] = None # sd15 specific but we cant know ahead of time
             diffusers_load_config['requires_safety_checker'] = False # sd15 specific but we cant know ahead of time
             diffusers_load_config['use_safetensors'] = True
             diffusers_load_config.pop('cache_dir', None)

@@ -14,7 +14,7 @@ debug = os.environ.get('SD_QUEUE_DEBUG', None) is not None
 def get_lock():
     if debug:
         fn = f'{sys._getframe(3).f_code.co_name}:{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
-        log.debug(f'Queue: fn={fn} lock={queue_lock.locked()}')
+        log.debug(f'Queue: lock={queue_lock.locked()} fn={fn}')
     return queue_lock
 
 

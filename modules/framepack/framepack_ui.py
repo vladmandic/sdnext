@@ -18,7 +18,7 @@ def create_ui(prompt, negative, styles, _overrides, script_inputs, mp4_fps, mp4_
             with gr.Row():
                 generate = gr.Button('Generate', elem_id="framepack_generate_btn", variant='primary', visible=False)
             with gr.Row():
-                variant = gr.Dropdown(label="FP model variant", choices=list(framepack_load.models), value='bi-directional', type='value')
+                variant = gr.Dropdown(label="FP model variant", choices=list(framepack_load.models), value='None', type='value')
             with gr.Row():
                 resolution = gr.Slider(label="FP resolution", minimum=240, maximum=1088, value=640, step=16)
                 duration = gr.Slider(label="FP duration", minimum=1, maximum=120, value=4, step=0.1)

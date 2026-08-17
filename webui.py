@@ -83,7 +83,7 @@ def initialize():
     from modules.models_hf import hf_init
     hf_init()
 
-    log.critical(f'Paths: data="{modules.paths.data_path}" models="{modules.paths.models_path}" temp="{modules.paths.temp_dir}"')
+    log.info(f'Paths: data="{modules.paths.data_path}" models="{modules.paths.models_path}" temp="{modules.paths.temp_dir}"')
 
     modules.sd_checkpoint.init_metadata()
     modules.hashes.load_cache()

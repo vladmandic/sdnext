@@ -90,7 +90,7 @@ class APIGenerate:
         script_runner = scripts_manager.scripts_txt2img
         if not script_runner.scripts:
             script_runner.initialize_scripts(False)
-            ui.create_ui(None)
+            # ui.create_ui(None)
         if not self.default_script_arg_txt2img:
             self.default_script_arg_txt2img = script.init_default_script_args(script_runner)
         selectable_scripts, selectable_script_idx = script.get_selectable_script(txt2imgreq.script_name, script_runner)
@@ -141,7 +141,7 @@ class APIGenerate:
         script_runner = scripts_manager.scripts_img2img
         if not script_runner.scripts:
             script_runner.initialize_scripts(True)
-            ui.create_ui(None)
+            # ui.create_ui(None)
         if not self.default_script_arg_img2img:
             self.default_script_arg_img2img = script.init_default_script_args(script_runner)
         selectable_scripts, selectable_script_idx = script.get_selectable_script(img2imgreq.script_name, script_runner)

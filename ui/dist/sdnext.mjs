@@ -11507,9 +11507,9 @@ function submit_control(...args) {
   return res;
 }
 function submit_video(...args) {
-  log("submitVideo");
   clearGallery("video");
   const id = randomId();
+  log("submitVideo", id);
   requestProgress(id, null, gradioApp().getElementById("video_gallery"));
   const res = create_submit_args(args);
   res[0] = id;
@@ -11545,8 +11545,8 @@ function submit_video_wrapper(...args) {
   const modernEl = gradioApp().querySelector(".video_output.fade-in");
   let id = modernEl ? modernEl.id : args[0];
   id = id.replace("video-selector-", "");
-  log("submitVideoWrapper", id);
   const btn = gradioApp().getElementById(`${id}_generate_btn`);
+  log("submitVideoWrapper", { type: id, found: !!btn });
   if (btn) btn.click();
 }
 function submit_postprocessing(...args) {
