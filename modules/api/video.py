@@ -72,27 +72,14 @@ class ItemVideoModel(BaseModel):
     name: str = Field(title="Name", description="Model name; pass together with engine to select it")
     repo: str = Field(default="", title="Repo", description="Model repository or path")
     url: str = Field(default="", title="URL", description="Model information page")
-    mode: str = Field(title="Mode", description="Input mode: workflow, t2v, i2v, flf2v, vace, or animate")
+    mode: str = Field(title="Mode", description="Input mode: workflow, t2v, i2v, flf2v, vace, animate, condition, or unknown; condition models accept conditioning the generic path does not wire and run as text to video here")
     workflow: str | None = Field(default=None, title="Workflow", description="Modular workflow name when the model dispatches on inputs; ref2va conditions on references and ignores the keyframe images")
     base: bool = Field(default=False, title="Base", description="Also listed in the base checkpoint dropdown")
     loaded: bool = Field(default=False, title="Loaded", description="Currently loaded through the video registry")
 
 
 def model_mode(m: models_def.Model) -> str:
-    # mirrors the dispatch order in video_run.run: workflow models route on inputs, the rest on name markers
-    if m.workflow is not None:
-        return 'workflow'
-    if 'T2V' in m.name:
-        return 't2v'
-    if 'I2V' in m.name:
-        return 'i2v'
-    if 'FLF2V' in m.name:
-        return 'flf2v'
-    if 'VACE' in m.name:
-        return 'vace'
-    if 'Animate' in m.name:
-        return 'animate'
-    return 't2v'
+    return models_def.dispatch_mode(m)
 
 
 class APIVideo:

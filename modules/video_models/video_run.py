@@ -181,7 +181,8 @@ def run(selected: models_def.Model, *,
     p.do_not_save_grid = True
     p.do_not_save_samples = not mp4_frames
     p.outpath_samples = resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_video)
-    if getattr(selected, 'workflow', None) is not None:
+    mode = models_def.dispatch_mode(selected)
+    if mode == 'workflow':
         # modular workflows dispatch on which inputs are present; keyframes pass through
         # unresized since the pipeline defines its own canvas placement per anchor
         p.video_still = int(frames) <= 1
@@ -200,10 +201,10 @@ def run(selected: models_def.Model, *,
         elif int(mp4_fps) != 24:
             log.warning(f'Video: model="{selected.name}" fps={mp4_fps} model output is fixed at 24')
         log.debug(f'Video: op=modular workflow={selected.workflow} still={p.video_still} init={init_image} last={last_image} references={len(refs) if refs else 0}')
-    elif 'T2V' in selected.name:
+    elif mode == 't2v':
         if init_image is not None:
             log.warning('Video: op=T2V init image not supported')
-    elif 'I2V' in selected.name:
+    elif mode == 'i2v':
         if init_image is None:
             raise VideoError('No input image provided. Please upload or select an image.', 400)
         p.task_args['image'] = images.resize_image(resize_mode=2, im=init_image, width=p.width, height=p.height, upscaler_name=None, output_type='pil')
@@ -214,7 +215,7 @@ def run(selected: models_def.Model, *,
             log.warning(f'Video: op=I2V model="{selected.name}" last frame not supported, ignoring')
         else:
             log.debug(f'Video: op=I2V init={init_image} resized={p.task_args["image"]}')
-    elif 'FLF2V' in selected.name:
+    elif mode == 'flf2v':
         if init_image is None:
             raise VideoError('No input image provided. Please upload or select an image.', 400)
         if last_image is None:
@@ -222,11 +223,11 @@ def run(selected: models_def.Model, *,
         p.task_args['image'] = images.resize_image(resize_mode=2, im=init_image, width=p.width, height=p.height, upscaler_name=None, output_type='pil')
         p.task_args['last_image'] = images.resize_image(resize_mode=2, im=last_image, width=p.width, height=p.height, upscaler_name=None, output_type='pil')
         log.debug(f'Video: op=FLF2V init={init_image} last={last_image} resized={p.task_args["image"]}')
-    elif 'VACE' in selected.name:
+    elif mode == 'vace':
         if init_image is not None:
             p.task_args['reference_images'] = [images.resize_image(resize_mode=2, im=init_image, width=p.width, height=p.height, upscaler_name=None, output_type='pil')]
             log.debug(f'Video: op=VACE reference={init_image} resized={p.task_args["reference_images"]}')
-    elif 'Animate' in selected.name:
+    elif mode == 'animate':
         if init_image is None:
             raise VideoError('No input image provided. Please upload or select an image.', 400)
         p.task_args['image'] = images.resize_image(resize_mode=2, im=init_image, width=p.width, height=p.height, upscaler_name=None, output_type='pil')
@@ -234,6 +235,11 @@ def run(selected: models_def.Model, *,
         p.task_args['pose_video'] = [] # input pose video to condition the generation on. must be a list of PIL images.
         p.task_args['face_video'] = [] # input face video to condition the generation on. must be a list of PIL images.
         log.debug(f'Video: op=Animate init={p.task_args["image"]} pose={p.task_args["pose_video"]} face={p.task_args["face_video"]}')
+    elif mode == 'condition':
+        # the conditioning inputs these models accept are wired on the ltx tab, not here
+        log.warning(f'Video: op=condition model="{selected.name}" conditioning not supported here, running text to video')
+        if init_image is not None:
+            log.warning(f'Video: op=condition model="{selected.name}" init image not supported, ignoring')
     else:
         log.warning(f'Video: unknown model type "{selected.name}"')
 
