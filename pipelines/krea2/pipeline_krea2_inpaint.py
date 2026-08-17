@@ -53,7 +53,7 @@ class Krea2InpaintPipeline(Krea2Img2ImgPipeline):
     """Krea 2 inpainting pipeline."""
 
     @torch.no_grad()
-    def __call__(
+    def __call__( # pylint: disable=signature-differs
         self,
         prompt: Optional[Union[str, List[str]]] = None,
         negative_prompt: Optional[Union[str, List[str]]] = None,

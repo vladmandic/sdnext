@@ -121,8 +121,8 @@ def load_materialize_zero_init():
 
 class _FakeTokenizedBatch(SimpleNamespace):
     def to(self, device):
-        self.input_ids = self.input_ids.to(device)
-        self.attention_mask = self.attention_mask.to(device)
+        self.input_ids = self.input_ids.to(device) # pylint: disable=attribute-defined-outside-init
+        self.attention_mask = self.attention_mask.to(device) # pylint: disable=attribute-defined-outside-init
         return self
 
 
@@ -176,7 +176,7 @@ def run_dense_prompt_compaction_test():
         scheduler=fake_scheduler,
     )
     prompts = ["short", "longer prompt"]
-    hidden, mask = pipe.encode_prompt(prompts, device=torch.device("cpu"))
+    _hidden, mask = pipe.encode_prompt(prompts, device=torch.device("cpu"))
     assert mask.shape[1] < pipe.MAX_LENGTH
     assert mask.any(dim=0).all(), "Compacted prompt mask must contain no fully padded columns"
     del os.environ["SD_KREA2_DENSE"]
@@ -269,7 +269,7 @@ def run_comfy_quant_real_file():
     from pipelines.krea2 import KREA2_SPEC
 
     transformer, siblings = nt.load(local_file=path, repo_id=repo_id, spec=KREA2_SPEC, diffusers_cfg={})
-    assert siblings == {}
+    assert not siblings
 
     sdnq_layers = [m for m in transformer.modules() if m.__class__.__name__ == "SDNQLinear"]
     storage_dtypes = {m.weight.dtype for m in sdnq_layers}

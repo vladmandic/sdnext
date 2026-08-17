@@ -6,8 +6,6 @@ steps mirror the reference K2 inference code. This module imports only diffusers
 so the repos can ship it for standalone use; SD.Next-specific wiring lives in the loader.
 """
 
-import os
-
 import torch
 from einops import rearrange, repeat
 
