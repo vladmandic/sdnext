@@ -35,7 +35,9 @@
   - log long torch autotune operations
   - utilize `torch.accelerator` where available
   - add `SD_DIFFUSERS_DEBUG` and `SD_TRANSFORMERS_DEBUG` env variables to trace diffusers and transformers internal operations  
-  - model load add option to not use `mmap`, thanks @cjmcgee
+  - add settings -> model load -> *offload state dict* option  
+    reduces memory spikes during model load at the cost of disk i/o and slower load times  
+  - use `GRADIO_TEMP_DIR` env variable for temp folder if set
 - **Video**
   - reorganized *video* tab
   - better support for video codeces and formats

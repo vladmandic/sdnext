@@ -731,6 +731,8 @@ def load_diffuser_file(model_type: str, pipeline, checkpoint_info: CheckpointInf
             sd_model = load_sd3(checkpoint_info, diffusers_load_config)
         elif hasattr(pipeline, 'from_single_file'):
             diffusers.loaders.single_file_utils.CHECKPOINT_KEY_NAMES["clip"] = "cond_stage_model.transformer.text_model.embeddings.position_embedding.weight" # patch for diffusers==0.28.0
+            diffusers_load_config['safety_checker'] = None, # sd15 specific but we cant know ahead of time
+            diffusers_load_config['requires_safety_checker'] = False # sd15 specific but we cant know ahead of time
             diffusers_load_config['use_safetensors'] = True
             diffusers_load_config.pop('cache_dir', None)
             if shared.opts.stream_load:
@@ -904,12 +906,14 @@ def load_diffuser(checkpoint_info: CheckpointInfo | None = None, op='model', rev
     timer.load.record("diffusers")
     diffusers_load_config = {
         "low_cpu_mem_usage": True,
-        "disable_mmap": shared.opts.diffusers_disable_mmap,
-        "torch_dtype": devices.dtype,
+        "dtype": devices.dtype,
         "load_connected_pipeline": True,
-        "safety_checker": None, # sd15 specific but we cant know ahead of time
-        "requires_safety_checker": False, # sd15 specific but we cant know ahead of time
     }
+    if shared.opts.stream_load:
+        diffusers_load_config['disable_mmap'] = True
+    if shared.opts.offload_state_dict:
+        diffusers_load_config['offload_state_dict'] = True
+        diffusers_load_config['offload_folder'] = paths.temp_dir
     if revision is not None:
         diffusers_load_config['revision'] = revision
     if shared.opts.diffusers_model_load_variant != 'default':

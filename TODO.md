@@ -1,7 +1,13 @@
 # TODO
 
-## Issues
+## Short-term
 
+- Disable generate toolbar on video tab for non-model tabs
+- Add generate-forever to video tab
+- Create pre-quant for ltx
+- Create pre-quant for minimax-turbo
+- Update ltx wiki
+- Update video wiki
 - Inpaint: https://discord.com/channels/1101998836328697867/1130536562422186044/1506850651035144322
 
 ## Features

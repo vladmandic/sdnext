@@ -1,4 +1,5 @@
 import os
+import gc
 import sys
 import time
 import contextlib
@@ -205,7 +206,6 @@ def torch_gc(force: bool = False, fast: bool = False, reason: str | None = None)
         return gpu, used_gpu, ram, used_ram, oom
 
     global previous_oom # pylint: disable=global-statement
-    import gc
     from modules import timer, memstats
     from modules.shared import cmd_opts
 
@@ -231,6 +231,8 @@ def torch_gc(force: bool = False, fast: bool = False, reason: str | None = None)
     if force:
         # actual gc
         collected = gc.collect() if not fast else 0 # python gc
+        if collected > 0:
+            gc.collect() # deal with weakref cycles
         try:
             if hasattr(torch, "accelerator") and torch.accelerator.is_available(): # torch >= 2.6
                 if hasattr(torch.accelerator, "synchronize"):

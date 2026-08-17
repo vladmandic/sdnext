@@ -73,7 +73,7 @@ def get_all_locations(types: list[str] | None = []) -> list[Location]:
         locations.append(Location('LUTs', os.path.join(paths.models_path, 'LUTs'), 'Data'))
         locations.append(Location('Wiki', 'wiki', 'Data'))
     if types is None or 'All' in types or 'Cache' in types:
-        locations.append(Location('Temp', opts.temp_dir, 'Cache'))
+        locations.append(Location('Temp', paths.temp_dir, 'Cache'))
         locations.append(Location('XET', opts.xetcache_dir, 'Cache'))
         locations.append(Location('OpenVINO', opts.openvino_cache_path, 'Cache'))
         locations.append(Location('ONNX', opts.onnx_cached_models_path, 'Cache'))
