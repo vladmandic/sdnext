@@ -204,10 +204,7 @@ def process_base(p: processing.StableDiffusionProcessing):
             t1 = time.time()
             log.debug(f'Profile: pipeline call: {t1-t0:.2f}')
         if not hasattr(output, 'images') and hasattr(output, 'frames'):
-            if hasattr(output.frames[0], 'shape'):
-                log.debug(f'Generated: frames={output.frames[0].shape[1]}')
-            else:
-                log.debug(f'Generated: frames={len(output.frames[0])}')
+            log.debug(f'Generated: frames={len(output.frames[0])}')
             output.images = output.frames[0]
         if hasattr(output, 'images') and isinstance(output.images, np.ndarray):
             output.images = torch.from_numpy(output.images)
