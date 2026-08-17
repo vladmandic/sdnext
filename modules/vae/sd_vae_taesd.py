@@ -58,8 +58,8 @@ def warn_once(msg, variant=None):
 
 
 def get_model(model_cls, variant=None):
-    if variant is not None:
-        pass
+    if variant is not None: # the caller named the variant it wants; the ladder below only derives one
+        return model_cls, variant
     if model_cls in {'sd'}:
         model_cls = 'sd'
         variant = shared.opts.taesd_variant
