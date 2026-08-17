@@ -78,6 +78,7 @@
   - metadata: image metadata handle correct image index
   - gguf: transformer loader
   - scripts: mixture-of-diffusers and mixture-tiling update to use igwn-segments
+  - api: process
 
 ## Update for 2026-08-07
 
