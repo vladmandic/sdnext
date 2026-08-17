@@ -25,17 +25,12 @@ def engine_change(engine):
 
 
 def get_selected(engine, model):
-    found = [model.name for model in models_def.models.get(engine, [])]
-    if len(models_def.models[engine]) > 0 and len(found) > 0:
-        selected = [m for m in models_def.models[engine] if m.name == model][0]
-        return selected
-    return None
+    return models_def.find(engine, model)
 
 
 def model_change(engine, model):
     debug(f'Video change: engine="{engine}" model="{model}"')
-    found = [model.name for model in models_def.models.get(engine, [])]
-    selected = [m for m in models_def.models[engine] if m.name == model][0] if len(found) > 0 else None
+    selected = get_selected(engine, model)
     url = video_utils.get_url(selected.url if selected else None)
     return url
 
@@ -43,19 +38,21 @@ def model_change(engine, model):
 def model_load(engine, model):
     debug(f'Load video: engine="{engine}" model="{model}"')
     selected = get_selected(engine, model)
-    yield f'Video model loading: {selected.name}'
-    if selected:
-        if 'None' in selected.name:
+    if selected is None: # the dropdown lists the separators it groups models under, and they name no model
+        if model and model.startswith('─'):
+            msg = 'Video model not loaded: dropdown separator selected'
+        elif model in (None, '', 'None'):
             sd_models.unload_model_weights()
             msg = 'Video model unloaded'
         else:
-            from modules.video_models import video_load
-            msg = video_load.load_model(selected)
-    else:
-        sd_models.unload_model_weights()
-        msg = 'Video model unloaded'
+            msg = f'Video model not found: engine="{engine}" model="{model}"'
+        log.warning(msg)
+        yield msg
+        return
+    yield f'Video model loading: {selected.name}'
+    from modules.video_models import video_load
+    msg = video_load.load_model(selected)
     yield msg
-    return msg
 
 
 def create_ui_outputs():

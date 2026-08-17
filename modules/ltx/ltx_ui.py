@@ -128,9 +128,9 @@ def create_ui(prompt, negative, styles, overrides, script_inputs, mp4_fps, mp4_i
 
 
     def load_model(model_name: str):
-        ltx_util.load_model('LTX Video', model_name)
+        return ltx_util.load_model('LTX Video', model_name)
 
-    btn_load.click(fn=load_model, inputs=[model], outputs=[])
+    btn_load.click(fn=load_model, inputs=[model], outputs=[text])
 
     model.change(
         fn=_model_change,
