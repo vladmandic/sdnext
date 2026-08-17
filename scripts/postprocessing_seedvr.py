@@ -44,7 +44,7 @@ class ScriptSeedVR(scripts_postprocessing.ScriptPostprocessing):
                     from modules.ui_common import create_refresh_button
                     seedvr_codec = gr.Dropdown(label="Video codec", choices=['none', 'libx264'], value='libx264', type='value')
                     create_refresh_button(seedvr_codec, get_codecs, elem_id="video_mp4_codec_refresh")
-                    seedvr_codec_opt = gr.Textbox(label="Video options", value='crf:16', elem_id="video_mp4_opt")
+                    seedvr_codec_opt = gr.Textbox(label="Video options", value='crf=16', elem_id="video_mp4_opt")
 
         return {
             "seedvr_enabled": seedvr_enabled,

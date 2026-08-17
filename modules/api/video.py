@@ -38,7 +38,7 @@ class ReqVideo(BaseModel):
     mp4_interpolate: int = Field(default=0, ge=0, le=10, title="Interpolation", description="RIFE interpolation passes between frames")
     mp4_codec: str = Field(default="libx264", title="Codec", description="Video codec; none skips video encoding")
     mp4_ext: str = Field(default="mp4", title="Container", description="Container extension; the muxer is inferred from it")
-    mp4_opt: str = Field(default="crf:16", title="Codec options", description="Encoder options as comma-separated key:value pairs")
+    mp4_opt: str = Field(default="crf=16", title="Codec options", description="Encoder options as key=value pairs separated by : or ,")
     mp4_video: bool = Field(default=True, title="Save video", description="Write the video container to disk")
     mp4_frames: bool = Field(default=False, title="Save frames", description="Write individual frame images to disk")
     mp4_sf: bool = Field(default=False, title="Save safetensors", description="Write raw frames as a safetensors file")

@@ -26,14 +26,14 @@ codecs_config = {
         'desc': 'Legacy open video format for WebM.',
         'ext': 'webm',
         'allowed_exts': ['webm', 'mkv'],
-        'options': 'crf=10:b:v=0',
+        'options': 'crf=10:b=0',
     },
     'libvpx-vp9': {
         'name': 'VP9 Video',
         'desc': 'Royalty-free web video format.',
         'ext': 'webm',
         'allowed_exts': ['webm', 'mkv'],
-        'options': 'crf=23:b:v=0',
+        'options': 'crf=23:b=0',
     },
     'libsvtav1': {
         'name': 'AV1 (SVT-AV1)',
@@ -47,14 +47,14 @@ codecs_config = {
         'desc': 'Legacy format for old media players.',
         'ext': 'mp4',
         'allowed_exts': ['mp4', 'avi', 'mkv'],
-        'options': 'qscale:v=3',
+        'options': 'qmin=3:qmax=3',
     },
     'mjpeg': {
         'name': 'Motion JPEG',
         'desc': 'Sequence of JPEG frames; minimal CPU load.',
         'ext': 'avi',
         'allowed_exts': ['avi', 'mov', 'mkv'],
-        'options': 'qscale:v=3',
+        'options': 'qmin=3:qmax=3',
     },
 
     # --- Hardware Accelerated: NVIDIA NVENC ---
