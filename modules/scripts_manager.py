@@ -642,9 +642,10 @@ class ScriptRunner:
         if 'upscale' in script.title():
             if not hasattr(p, 'init_images') and p.task_args.get('image', None) is not None:
                 p.init_images = p.task_args['image']
-        parsed = []
-        if hasattr(script, 'args_to') and hasattr(script, 'args_from'):
-            parsed = p.per_script_args.get(script.title(), args[script.args_from:script.args_to])
+        parsed = resolve_script_args(script, args, p.per_script_args)
+        if parsed is None: # the script was selected by hand, so a vector that cannot drive it is worth saying out loud
+            log.error(f'Script: title="{script.title()}" args={len(args)} required={getattr(script, "args_to", None)} not run')
+            return None
         if hasattr(script, 'run'):
             processed = script.run(p, *parsed)
         else:
@@ -665,9 +666,10 @@ class ScriptRunner:
             script = None
         if script is None or not hasattr(script, 'after'):
             return processed
-        parsed = []
-        if hasattr(script, 'args_to') and hasattr(script, 'args_from'):
-            parsed = p.per_script_args.get(script.title(), args[script.args_from:script.args_to])
+        parsed = resolve_script_args(script, args, p.per_script_args)
+        if parsed is None:
+            log.error(f'Script: title="{script.title()}" args={len(args)} required={getattr(script, "args_to", None)} not run')
+            return processed
         after_processed = script.after(p, processed, *parsed)
         if after_processed is not None:
             processed = after_processed
