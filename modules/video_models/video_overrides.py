@@ -91,6 +91,7 @@ def set_overrides(p: processing.StableDiffusionProcessingVideo, selected: Model)
     if 'LTX' in cls:
         p.task_args['width'] = 32 * (p.width // 32)
         p.task_args['height'] = 32 * (p.height // 32)
+        p.frames = 8 * (p.frames // 8) + 1 # same rule the ltx tab applies, so both paths request a length the pipe keeps
     # WAN
     if 'Wan' in cls:
         p.task_args['width'] = 16 * (p.width // 16)
