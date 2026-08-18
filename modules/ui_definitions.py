@@ -257,6 +257,7 @@ def create_settings(cmd_opts):
         "sdnq_attention_sep": OptionInfo("<h2>SDNQ Attention</h2>", "", gr.HTML),
         "sdnq_attention_smooth_k": OptionInfo(True, "SDNQ Attention use Smooth K", gr.Checkbox),
         "sdnq_attention_use_hadamard": OptionInfo(False, "SDNQ Attention use Hadamard", gr.Checkbox),
+        "sdnq_attention_use_fp16_accum": OptionInfo(False, "SDNQ Attention use FP16 Accumulation", gr.Checkbox),
         "sdnq_attention_matmul_type": OptionInfo("enabled", "SDNQ Attention MatMul type", gr.Radio, {"choices": sdnq_matmul_modes}),
         "sdnq_attention_pv_matmul_type": OptionInfo("disabled", "SDNQ Attention PV MatMul type", gr.Radio, {"choices": sdnq_matmul_modes}),
         "sdnq_attention_hadamard_group_size": OptionInfo(256, "SDNQ Attention Hadamard Group Size", gr.Slider, {"minimum": 4, "maximum": 1024, "step": 1}),
