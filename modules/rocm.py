@@ -136,7 +136,7 @@ class Agent:
         if self.gfx_version is None:
             return None
         gfx = self.name if self.name.startswith("gfx") else f"gfx{self.gfx_version:04x}"
-        if (self.gfx_version & 0xFFF0) in (0x1200, 0x1100):
+        if self.gfx_version & 0xFFF0 in (0x1200, 0x1100):
             return f"whl-multi-arch/amd-torch-device-{gfx}"
         if self.gfx_version in (0x1150, 0x1151, 0x1152, 0x1153):
             return f"whl-multi-arch/amd-torch-device-{gfx}"
