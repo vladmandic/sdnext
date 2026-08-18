@@ -6,7 +6,7 @@
 - Create pre-quant for ltx
 - Create pre-quant for minimax-turbo
 - Update ltx wiki
-- Update video wiki
+- Productize benchmark tool
 - Inpaint: https://discord.com/channels/1101998836328697867/1130536562422186044/1506850651035144322
 
 ## Features
@@ -19,22 +19,19 @@
 - Lora: new handler, @CalamitousFelicitousness
 - Processing -> Video capabilities, @vladmandic
   - `RIFE` in processing
+- - [Object clear](https://huggingface.co/jixin0101/ObjectClear) remover for Kanvas, @vladmandic
 
 ### Unassigned
 
-- [Object clear](https://huggingface.co/jixin0101/ObjectClear) remover for Kanvas
 - Video models: add to Reference
-- Video models: support custom entries, finetunes
 - UI Lite vs Expert mode
 - Auto handle scheduler `prediction_type`
-- Cache models in memory
 - JSON image metadata
 - Expand custom VAE support
 - Refactor: remove obsolete code:
   - Remove `olive-ai`
 - Integrate natural language image search
   - [ImageDB](https://github.com/vladmandic/imagedb)
-- Unify *huggingface* and *diffusers* model folders
 
 ### Roadmap
 
@@ -45,6 +42,7 @@
 - Revisit transformer caching for modular pipelines
 - Revisit guidance for modular pipelines
 - Implement modular for some image models
+- Video models: support finetunes
 
 ### OnHold
 
@@ -55,6 +53,8 @@
 - Multi-user support
 - Settings profile manager
 - TensorRT acceleration
+- Cache models in memory
+- Unify *huggingface* and *diffusers* model folders
 
 ### Modular
 

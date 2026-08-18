@@ -1,6 +1,21 @@
 # Change Log for SD.Next
 
-## Update for 2026-08-18
+## Highlights for 2026-08-18
+
+Time for a new release, this is a larger one!
+Main focus is improving video workflows which also brings full support for new [MiniMax H3](https://vladmandic.github.io/sdnext-docs/MiniMax) and [LTXVideo-2.5](https://vladmandic.github.io/sdnext-docs/LTX)
+
+*What else?*
+- [Detailer.next](https://vladmandic.github.io/sdnext-docs/Detailer) with new support for *vision-language models* and *per-class prompts*
+- New [group offload](https://vladmandic.github.io/sdnext-docs/Offload/#group) option which is more aggressive thant the default balanced offload
+- Extended model support for [Nunchaku-Lite](https://github.com/rootonchair/nunchaku-lite) engine
+- A lot of [SDNQ](https://github.com/Disty0/sdnq) *quantization and attention* optimizations and features
+
+Plus quite a lot more, see full [changelog](https://github.com/vladmandic/automatic/blob/dev/CHANGELOG.md) for details!
+
+[Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
+
+## Details for 2026-08-18
 
 - **Models**
   - [MiniMax H3](https://huggingface.co/MiniMaxAI/MiniMax-H3) available in *base* and *ref* variants  
@@ -51,6 +66,9 @@
   - Krea2: add *settings -> model options -> krea2 dense masking*
     may provide significant speed-up on some gpus, disabled by default  
   - AR display ratio on manual resolution change
+- **Wiki**
+  - major updates: *Offload, Detailer, Video, MiniMax, LTX*
+  - minor updates: *Intel-ARC, FramePack, Parameters, API, Installation, SDNQ-Quantization, CLI-Arguments*
 - **Removed**
   - remove DirectML support  
     latest release was over 2 years ago and is not compatible with modern frameworks  
