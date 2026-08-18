@@ -5,7 +5,7 @@ import gradio as gr
 from PIL import Image, ImageDraw
 from modules.logger import log
 from modules import shared, processing, devices, processing_class, ui_common, ui_components, ui_symbols, images, extra_networks, sd_models
-from modules.detailer import DetailerResult, detailer_opt
+from modules.detailer import DetailerResult, detailer_opt, assign_prompts, parse_prompt_lines
 
 
 class Detailer():
@@ -135,6 +135,30 @@ class Detailer():
         annotated = Image.fromarray(np_image)
         image = None
 
+        # detailer_prompt/negative are the same for every model in the chain, so resolve them once
+        orig_prompt: str = orig_p.get('all_prompts', [''])[0]
+        orig_negative: str = orig_p.get('all_negative_prompts', [''])[0]
+        prompt: str = orig_p.get('detailer_prompt', '')
+        negative: str = orig_p.get('detailer_negative', '')
+        if prompt is None or len(prompt) == 0:
+            prompt = orig_prompt
+        else:
+            prompt = prompt.replace('[PROMPT]', orig_prompt)
+            prompt = prompt.replace('[prompt]', orig_prompt)
+        if len(negative) == 0:
+            negative = orig_negative
+        else:
+            negative = negative.replace('[PROMPT]', orig_negative)
+            negative = negative.replace('[prompt]', orig_negative)
+
+        # track which '[CLASS=name]' tags get matched by any model in the chain, to warn on genuine typos only
+        prompt_classes, _ = parse_prompt_lines(prompt)
+        negative_classes, _ = parse_prompt_lines(negative)
+        prompt_classes = set(prompt_classes.keys())
+        negative_classes = set(negative_classes.keys())
+        matched_prompt_classes = set()
+        matched_negative_classes = set()
+
         for i, model_val in enumerate(models):
             if ':' in model_val:
                 model_name, model_args = model_val.split(':', 1)
@@ -161,22 +185,6 @@ class Detailer():
                 items = self.merge(items)
 
             shared.opts.data['mask_apply_overlay'] = True
-            orig_prompt: str = orig_p.get('all_prompts', [''])[0]
-            orig_negative: str = orig_p.get('all_negative_prompts', [''])[0]
-            prompt: str = orig_p.get('detailer_prompt', '')
-            negative: str = orig_p.get('detailer_negative', '')
-            if prompt is None or len(prompt) == 0:
-                prompt = orig_prompt
-            else:
-                prompt = prompt.replace('[PROMPT]', orig_prompt)
-                prompt = prompt.replace('[prompt]', orig_prompt)
-            if len(negative) == 0:
-                negative = orig_negative
-            else:
-                negative = negative.replace('[PROMPT]', orig_negative)
-                negative = negative.replace('[prompt]', orig_negative)
-            prompt_lines = 99 * [p.strip() for p in prompt.split('\n')]
-            negative_lines = 99 * [n.strip() for n in negative.split('\n')]
 
             args = {
                 'detailer': True,
@@ -234,13 +242,18 @@ class Detailer():
             if detailer_opt(p, 'detailer_include_detections', 'detailer_save'):
                 annotated = self.draw_masks(annotated, items, p=p)
 
+            labels_this_pass = {(item.label or '').strip().lower() for item in items}
+            matched_prompt_classes |= (prompt_classes & labels_this_pass)
+            matched_negative_classes |= (negative_classes & labels_this_pass)
+            resolved_prompts = assign_prompts(prompt, items)
+            resolved_negatives = assign_prompts(negative, items)
             for j, item in enumerate(items):
                 if item.mask is None:
                     continue
                 pc.keep_prompts = True
                 shared.sd_model.fail_on_switch_error = True
-                pc.prompt = prompt_lines[i*len(items)+j]
-                pc.negative_prompt = negative_lines[i*len(items)+j]
+                pc.prompt = resolved_prompts[j]
+                pc.negative_prompt = resolved_negatives[j]
                 pc.prompts = [pc.prompt]
                 pc.negative_prompts = [pc.negative_prompt]
                 pc.prompts, pc.network_data = extra_networks.parse_prompts(pc.prompts, pc.network_data)
@@ -292,6 +305,13 @@ class Detailer():
                 from modules.control.util import blend
                 p.image_mask = blend([np.array(m) for m in mask_all])
                 p.image_mask = Image.fromarray(p.image_mask)
+
+        unmatched_prompt = prompt_classes - matched_prompt_classes
+        if len(unmatched_prompt) > 0:
+            log.warning(f'Detailer prompt: class tags did not match any detection across models={models}: unmatched={sorted(unmatched_prompt)}')
+        unmatched_negative = negative_classes - matched_negative_classes
+        if len(unmatched_negative) > 0:
+            log.warning(f'Detailer negative: class tags did not match any detection across models={models}: unmatched={sorted(unmatched_negative)}')
 
         if image is not None:
             np_images.append(np.array(image))
