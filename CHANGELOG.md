@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-08-17
+## Update for 2026-08-18
 
 - **Models**
   - [MiniMax H3](https://huggingface.co/MiniMaxAI/MiniMax-H3) available in *base* and *ref* variants  
@@ -12,21 +12,20 @@
     with support for *t2v, i2v, cond2v* workflows  
     see [LTX docs page](https://vladmandic.github.io/sdnext-docs/LTX) for details and usage instructions  
     *note*: LTX-2.5 is a [gated model](https://vladmandic.github.io/sdnext-docs/Gated/)  
+  - [Nunchaku Lite](https://github.com/rootonchair/nunchaku-lite) now includes [Krea 2 Turbo](https://huggingface.co/lite-infer/krea-2-turbo-nunchaku-lite-int4_r32-bnb4-text-encoder) and [Flux.2-Klein](https://huggingface.co/lite-infer/flux.2-klein-4b-nunchaku-lite-int4_r32-bnb4-text-encoder) 4B and 9B  
+    Nunchaku-lite engine offers significant speed up through heavily optimized quants and kernels for nvidia gpus  
 - **Detailer**: Pretty much *detailer.next* :)  
   Detailer detection models were traditionally *YOLO* models, but now we can also use:  
   - [Facebook-SAM3](https://huggingface.co/facebook/sam3) hybrid promptable concept segmentation and detection network
   - [Qwen3-VL](https://huggingface.co/Qwen/Qwen3-VL-4B-Instruct) vision-language autoregressive foundation models, in *2B, 4B, and 8B* variants
   - [Florence-2](https://huggingface.co/microsoft/Florence-2-large) lightweight multi-task vision sequence-to-sequence models, in *base and large* variants
-  - [Grounding-DINO](https://huggingface.co/IDEA-Research/grounding-dino-base) open-vocabulary object detection models, in *tiny and base* variants
+  - [Grounding-DINO](https://huggingface.co/IDEA-Research/grounding-dino-base) open-vocabulary object detection models, in *tiny and base* variants  
 
-  select any of the above models in the detailer model selection dropdown  
-  and enter your human-readable target descriptions as *detailer instructions*  
-  for example: *glasses, optional hat, left hand, largest tree in the background*  
-  *note*: VL models are much larger, so use them with caution  
-  *note*: LLMs process data sequentially, meaning if a model cannot find one specific item, it may skip subsequent items in the prompt  
-  *note*: SAM3 is a [gated model](https://vladmandic.github.io/sdnext-docs/Gated/)  
+  additionally, detailer can now use per-class prompts, thanks @kirtasshh  
+  see [Detailer wiki page](https://vladmandic.github.io/sdnext-docs/Detailer) for details and usage instructions
 - [SDNQ](https://github.com/Disty0/sdnq) is now a separate package and no longer part of sdnext repo  
   installed and used internally by sd.next, but also supported by diffusers natively  
+  and sdnq development brings a lot of new optimizations, in both quantization and attention mechanisms  
 - **Server**
   - nunchaku-lite support for `torch==2.13`
   - update handlers for all authenticated workflows

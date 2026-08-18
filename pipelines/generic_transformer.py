@@ -54,6 +54,10 @@ def load_transformer(
         quant_type = model_quant.get_quant_type(quant_args)
         dtype = dtype or devices.dtype
 
+        if 'nunchaku-lite' in repo_id.lower():
+            from modules.attention import hijack_kernels
+            hijack_kernels()
+
         def load_from_repo():
             nonlocal quant_args
             log.debug(f'Load model: transformer="{repo_id}" cls={cls_name.__name__} subfolder={subfolder} loader={get_loader("diffusers")} args={load_args}')

@@ -14,10 +14,6 @@ def load_ernie_image(checkpoint_info, diffusers_load_config=None):
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, allow_quant=False)
     log.debug(f'Load model: type=ERNIE-Image repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args} pe={shared.opts.model_ernie_enable_pe}')
 
-    if 'nunchaku-lite' in repo_id.lower():
-        from modules.attention import hijack_kernels
-        hijack_kernels()
-
     from pipelines.ernie import ERNIE_SPEC
     transformer = generic.load_transformer(
         repo_id,

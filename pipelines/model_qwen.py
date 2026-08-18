@@ -15,10 +15,6 @@ def load_qwen(checkpoint_info, diffusers_load_config=None):
 
     log.debug(f'Load model: type=Qwen model="{checkpoint_info.name}" repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={diffusers_load_config}')
 
-    if 'nunchaku-lite' in repo_id.lower():
-        from modules.attention import hijack_kernels
-        hijack_kernels()
-
     if '2509' in repo_id or '2511' in repo_id:
         cls_name = diffusers.QwenImageEditPlusPipeline
         diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["qwen-image"] = diffusers.QwenImageEditPlusPipeline
