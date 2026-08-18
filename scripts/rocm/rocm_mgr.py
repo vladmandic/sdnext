@@ -154,7 +154,7 @@ def _get_libs_pkg() -> str:
             if therock:
                 suffix = therock.rsplit("/", 1)[-1]
                 if suffix.startswith("amd-torch-device-"):
-                    suffix = suffix[len("amd-torch-device-"):] 
+                    suffix = suffix[len("amd-torch-device-"):]
                 suffix = suffix.replace("-", "_")
                 folder = "_rocm_sdk_libraries_" + suffix
                 if folder in candidates:
