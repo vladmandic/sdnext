@@ -205,7 +205,7 @@ def atomic_save_video(
     if metadata is None:
         metadata = {}
     av = check_av()
-    if av is None or av is False:
+    if av is None:
         log.error('Video: ffmpeg/av not available')
         return
     savejob = shared.state.begin('Save video')

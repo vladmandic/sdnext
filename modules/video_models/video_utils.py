@@ -54,13 +54,14 @@ def supports_last_frame(model):
 
 
 def check_av():
+    """The av module, or None when it is unavailable; callers guard on the None."""
     install('av')
     try:
         import av
         av.logging.set_level(av.logging.ERROR) # pylint: disable=c-extension-no-member
     except Exception as e:
         log.error(f'av package: {e}')
-        return False
+        return None
     return av
 
 
