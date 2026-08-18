@@ -19,22 +19,27 @@ def get_frames(frames: int):
     return int(8 * (int(frames) // 8)) + 1
 
 
-def load_model(engine: str, model: str):
+def load_model(engine: str, model: str) -> str:
     if model is None or model == '' or model == 'None':
         shared.sd_model = None
-        return
-    t0 = time.time()
+        return 'Video model unloaded'
     from modules.video_models import models_def, video_load
-    selected: models_def.Model = [m for m in models_def.models[engine] if m.name == model][0]
+    selected = models_def.find(engine, model)
+    if selected is None: # the dropdown lists the separators it groups models under, and they name no model
+        msg = f'Video model not loaded: engine="{engine}" model="{model}"'
+        log.warning(msg)
+        return msg
+    t0 = time.time()
     # video_load owns the cache; pipe-class mismatch inside it invalidates the name-based hit
     # when Unload Models (or any external swap) silently replaced shared.sd_model.
     log.info(f'Load video: engine="{engine}" selected="{model}" {selected}')
-    video_load.load_model(selected)
+    msg = video_load.load_model(selected)
     t1 = time.time()
     shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
     t2 = time.time()
     timer.process.add('load', t1 - t0)
     timer.process.add('offload', t2 - t1)
+    return msg or f'Video model loaded: {selected.name}'
 
 
 def upsample_pipe_stale(upsample_pipe, upsample_repo_id) -> bool:

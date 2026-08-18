@@ -826,3 +826,61 @@ def pipeline_classes() -> set[str]:
             if row.custom is not None:
                 classes.add(row.custom)
     return classes
+
+
+NAME_MODES = ( # markers a row name carries to declare its inputs, in the order run() tests them
+    ('T2V', 't2v'),
+    ('I2V', 'i2v'),
+    ('FLF2V', 'flf2v'),
+    ('VACE', 'vace'),
+    ('Animate', 'animate'),
+)
+CLASS_MODES = { # the mode a pipeline class implies, for rows whose name declares nothing
+    'HunyuanVideoPipeline': 't2v',
+    'HunyuanVideo15Pipeline': 't2v',
+    'HunyuanVideoImageToVideoPipeline': 'i2v',
+    'HunyuanVideo15ImageToVideoPipeline': 'i2v',
+    'HunyuanSkyreelsImageToVideoPipeline': 'i2v',
+    'LTXPipeline': 't2v',
+    'LTX2Pipeline': 't2v',
+    'LTXImageToVideoPipeline': 'i2v',
+    'LTX2ImageToVideoPipeline': 'i2v',
+    'LTXConditionPipeline': 'condition',
+    'LTX2ConditionPipeline': 'condition',
+    'WanPipeline': 't2v',
+    'WanImageToVideoPipeline': 'i2v',
+    'WanVACEPipeline': 'vace',
+    'WanAnimatePipeline': 'animate',
+    'SkyReelsV2Pipeline': 't2v',
+    'SkyReelsV2DiffusionForcingPipeline': 't2v',
+    'SkyReelsV2ImageToVideoPipeline': 'i2v',
+    'SkyReelsV2DiffusionForcingImageToVideoPipeline': 'i2v',
+    'MochiPipeline': 't2v',
+    'LattePipeline': 't2v',
+    'AllegroPipeline': 't2v',
+    'CogVideoXPipeline': 't2v',
+    'CogVideoXImageToVideoPipeline': 'i2v',
+    'Cosmos2VideoToWorldPipeline': 'i2v',
+    'SanaVideoPipeline': 't2v',
+    'Kandinsky5T2VPipeline': 't2v',
+    'Kandinsky5I2VPipeline': 'i2v',
+    'MiniMaxH3ModularPipeline': 'workflow',
+    'GoogleVeoVideoPipeline': 't2v',
+}
+
+
+def dispatch_mode(row: Model) -> str:
+    """How a row's inputs are wired: workflow, t2v, i2v, flf2v, vace, animate, condition, or unknown.
+
+    Name markers are read before the pipeline class, since one class serves several modes: six
+    LTXConditionPipeline rows are named T2V or I2V and generate as such.
+    """
+    if row is None:
+        return 'unknown'
+    if row.workflow is not None:
+        return 'workflow'
+    for marker, mode in NAME_MODES:
+        if marker in (row.name or ''):
+            return mode
+    cls = row.repo_cls if isinstance(row.repo_cls, str) else getattr(row.repo_cls, '__name__', None)
+    return CLASS_MODES.get(cls or row.custom, 'unknown')
