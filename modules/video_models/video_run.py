@@ -29,6 +29,8 @@ class VideoResult:
     has_audio: bool
     still: bool
     processed: processing.Processed
+    width: int = 0 # what was generated, which is not what was requested whenever a runner rounds or a model picks
+    height: int = 0
 
 
 def resolve_model(engine: str | None, model: str | None) -> tuple[models_def.Model, bool]:
@@ -302,7 +304,8 @@ def run(selected: models_def.Model, *,
 
     if getattr(p, 'video_still', False):
         stills = processed.images[:1] # already trimmed in process_decode; defensive
-        return VideoResult(images=stills, video_path=None, thumb_path=None, num_frames=len(stills), fps=0.0, has_audio=False, still=True, processed=processed)
+        still_w, still_h = video_utils.pixel_size(stills, fallback=(p.width, p.height))
+        return VideoResult(images=stills, video_path=None, thumb_path=None, num_frames=len(stills), fps=0.0, has_audio=False, still=True, processed=processed, width=still_w, height=still_h)
 
     if hasattr(processed, 'images') and processed.images is not None:
         pixels = video_save.images_to_tensor(processed.images)
@@ -341,8 +344,9 @@ def run(selected: models_def.Model, *,
         mp4_interpolate=mp4_interpolate,
         metadata={},
     )
+    out_w, out_h = video_utils.pixel_size(processed.images, fallback=(p.width, p.height))
     del pixels
-    return VideoResult(images=processed.images, video_path=video_file, thumb_path=thumb_file, num_frames=num_frames, fps=float(save_fps), has_audio=waveform is not None, still=False, processed=processed)
+    return VideoResult(images=processed.images, video_path=video_file, thumb_path=thumb_file, num_frames=num_frames, fps=float(save_fps), has_audio=waveform is not None, still=False, processed=processed, width=out_w, height=out_h)
 
 
 def generate(task_id, ui_state,

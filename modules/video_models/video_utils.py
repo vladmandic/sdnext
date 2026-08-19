@@ -73,6 +73,26 @@ def has_torchaudio():
         return False
 
 
+def pixel_size(pixels, fallback: tuple[int, int] = (0, 0)) -> tuple[int, int]:
+    """Width and height of decoded frames, whether they arrive as PIL images or as a tensor.
+
+    The runners request a resolution and the model answers with another one often enough that
+    the request is not a usable substitute, so read it off the pixels and keep the fallback for
+    the case where nothing was decoded at all.
+    """
+    if isinstance(pixels, list):
+        return pixels[0].size if len(pixels) > 0 and hasattr(pixels[0], 'size') else fallback
+    ndim = getattr(pixels, 'ndim', None)
+    if ndim == 5: # NCTHW
+        return int(pixels.shape[-1]), int(pixels.shape[-2])
+    if ndim == 4: # NHWC
+        return int(pixels.shape[2]), int(pixels.shape[1])
+    shape = getattr(pixels, 'shape', None)
+    if shape is not None and len(shape) >= 2:
+        return int(shape[-1]), int(shape[-2])
+    return fallback
+
+
 def classify_extension(fn: str):
     """Media kind of a filename, None when the extension is not one sdnext reads."""
     lower = str(fn).lower()
