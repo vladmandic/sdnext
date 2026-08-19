@@ -51,7 +51,7 @@ def vae_decode_tiny(latents):
         taesd = taesd.to(device=devices.device, dtype=devices.dtype)
         latents = latents.transpose(1, 2) # pipe produces NCTHW and tae wants NTCHW
         images = taesd.decode_video(latents, parallel=False, show_progress_bar=False)
-        images = images.transpose(1, 2).mul_(2).sub_(1) # normalize
+        images = images.transpose(1, 2) # taehv decodes to [-1,1] already, which is the range the full vae path returns
         taesd = taesd.to(device=devices.cpu, dtype=devices.dtype)
     return images
 
