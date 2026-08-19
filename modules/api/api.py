@@ -1,7 +1,8 @@
 import os
 from threading import Lock
 from secrets import compare_digest
-from fastapi import FastAPI, APIRouter, Depends, Request
+from typing import Optional
+from fastapi import FastAPI, APIRouter, Depends, Request, Cookie
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.exceptions import HTTPException
 from modules import errors, shared, paths
@@ -185,16 +186,26 @@ class Api:
             self.app.add_api_route(f'{shared.opts.subpath}{path}', endpoint=fn, **kwargs)
         self.app.add_api_route(path, endpoint=fn, **kwargs)
 
-    def auth(self, credentials: HTTPBasicCredentials = Depends(HTTPBasic())):
+    def auth(
+            self,
+            request: Request, # pylint: disable=unused-argument
+            credentials: Optional[HTTPBasicCredentials] = Depends(HTTPBasic(auto_error=False)),
+            access_token: Optional[str] = Cookie(default=None, alias="access_token"),  # Change alias to your cookie name
+            access_token_unsecure: Optional[str] = Cookie(default=None, alias="access-token-unsecure"),
+        ):
         if not self.credentials:
             return True
-        if credentials.username in self.credentials:
-            if compare_digest(credentials.password, self.credentials[credentials.username]):
+        if (credentials is not None) and (credentials.username in self.credentials):
+            if compare_digest(credentials.password, self.credentials[credentials.username]): # client user + encoded password
                 return True
-            if hasattr(self.app, 'tokens') and (self.app.tokens is not None):
+            if hasattr(self.app, 'tokens') and (self.app.tokens is not None): # client sends token as password
                 if credentials.password in self.app.tokens.keys():
                     return True
-        log.error(f'API authentication: user="{credentials.username}"')
+        cookie_token = access_token or access_token_unsecure
+        if cookie_token and hasattr(self.app, 'tokens') and (self.app.tokens is not None): # client sets cookie with token
+            if cookie_token in self.app.tokens.keys():
+                return True
+        log.error(f'API authentication: user="{credentials.username if credentials else None}"')
         raise HTTPException(status_code=401, detail="Unauthorized", headers={"WWW-Authenticate": "Basic"})
 
     def get_session_start(self, req: Request, agent: str | None = None):
