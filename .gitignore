@@ -50,6 +50,7 @@ package-lock.json
 /outputs/**/*
 /models/**/*
 /tmp
+/benchmarks
 .*/
 cache
 tunableop_results*.csv

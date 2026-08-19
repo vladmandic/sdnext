@@ -289,8 +289,9 @@ def parse_cli():
     parser.add_argument("--skip-bench", action="store_true", help="skip benchmarks, run checks and the fp8 and compile probes only")
     parser.add_argument("--dtype", type=str, default="auto", choices=["auto", "bf16", "fp16"], help="tensor dtype for benchmarks; auto uses the dtype the webui selected for this gpu (default: %(default)s)")
     parser.add_argument("--config-timeout", type=int, default=300, help="best effort: abort a config whose compile plus first call exceeds this many seconds, 0 disables; cannot interrupt native-level hangs (default: %(default)s)")
-    parser.add_argument("--save", type=str, default=None, help="write a plain-text copy of all tables and notes to this file; keeps colors and live progress on the terminal, unlike piping through tee")
-    parser.add_argument("--json", type=str, default=None, help="write structured results (environment, probes, per-shape and dequant timings, recommendations) to this file")
+    parser.add_argument("--save", type=str, default="auto", help="plain-text copy of all tables and notes; 'auto' (default) names it <gpu>-t<torch>-<date>.txt in the output directory, 'none' disables, anything else is used as the path")
+    parser.add_argument("--json", type=str, default="auto", help="structured results (environment, probes, per-shape and dequant timings, recommendations); 'auto' (default) names it <gpu>-t<torch>-<date>.json in the output directory, 'none' disables, anything else is used as the path")
+    parser.add_argument("--outdir", type=str, default=None, help="directory for auto-named outputs (default: $SDNQ_BENCH_DIR, or benchmarks/ under the sdnext root)")
     args = parser.parse_args()
     sys.argv = sys.argv[:1] # sdnext parses argv again on import and rejects unknown arguments
     return args
@@ -866,6 +867,36 @@ def print_environment(fp8_result, prep_status, prep_detail, weight_dequant_resul
         fp8_compile_gate=fp8_compile_gate_flag(),
         weight_dequant_compile={name: dict(ok=ok, detail=detail) for name, (ok, detail) in (weight_dequant_result or {}).items()},
     )
+
+
+def resolve_output_paths(args):
+    # auto outputs follow the archive convention <gpu>-t<torch major.minor>-<mondd>, one
+    # stem shared by the txt/json pair, suffixed -2, -3... when the pair already exists
+    args.save = None if str(args.save).strip().lower() in {"none", ""} else args.save
+    args.json = None if str(args.json).strip().lower() in {"none", ""} else args.json
+    if args.save != "auto" and args.json != "auto":
+        return
+    try:
+        gpu = torch_device_module.get_device_name(torch.device(torch_device))
+    except Exception:
+        gpu = "gpu"
+    drop = {"nvidia", "geforce", "rtx", "gtx", "amd", "radeon", "rx", "intel", "arc", "graphics", "apple", "laptop", "gpu"}
+    tokens = ["".join(ch for ch in token if ch.isalnum()) for token in gpu.lower().replace("(r)", " ").replace("(tm)", " ").split()]
+    tokens = [token for token in tokens if token and token not in drop]
+    gpu_id = "".join(tokens) or "gpu"
+    torch_digits = "".join(str(torch.__version__).split("+", maxsplit=1)[0].split(".")[:2])
+    stem = f"{gpu_id}-t{torch_digits}-{time.strftime('%b%d').lower()}"
+    outdir = args.outdir or os.environ.get("SDNQ_BENCH_DIR", None) or os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "benchmarks")
+    outdir = os.path.expanduser(outdir)
+    os.makedirs(outdir, exist_ok=True)
+    candidate, counter = stem, 1
+    while os.path.exists(os.path.join(outdir, f"{candidate}.txt")) or os.path.exists(os.path.join(outdir, f"{candidate}.json")):
+        counter += 1
+        candidate = f"{stem}-{counter}"
+    if args.save == "auto":
+        args.save = os.path.join(outdir, f"{candidate}.txt")
+    if args.json == "auto":
+        args.json = os.path.join(outdir, f"{candidate}.json")
 
 
 def print_banner(selected, sections, args):
@@ -3516,6 +3547,7 @@ def main():
     if unknown:
         console.print(f"[red]unknown shape preset(s): {', '.join(unknown)}; available: {', '.join(shape_presets)}[/red]")
         sys.exit(1)
+    resolve_output_paths(args)
     global pending_outputs # pylint: disable=global-statement
     pending_outputs = dict(save=args.save, json=args.json, args=args, sections=sections, selected=selected)
     print_banner(selected, sections, args)
