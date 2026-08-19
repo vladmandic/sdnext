@@ -330,8 +330,10 @@ def vae_decode(latents, model, output_type='np', vae_type='Full', width=None, he
         latents = model._unpack_latents(latents.unsqueeze(0), latent_num_frames, height // 32, width // 32, model.transformer_spatial_patch_size, model.transformer_temporal_patch_size) # pylint: disable=protected-access
         latents = model._denormalize_latents(latents, model.vae.latents_mean, model.vae.latents_std, model.vae.config.scaling_factor) # pylint: disable=protected-access
     elif hasattr(model, '_unpack_latents') and hasattr(model, "vae_scale_factor") and width is not None and height is not None and latents.ndim == 3: # FLUX
-        latents = model._unpack_latents(latents, height, width, model.vae_scale_factor) # pylint: disable=protected-access
-
+        try:
+            latents = model._unpack_latents(latents, height, width, model.vae_scale_factor) # pylint: disable=protected-access
+        except Exception:
+            latents = model._unpack_latents(latents, height, width) # pylint: disable=protected-access # pythoning ask-for-forgiveness if method does not support vae_scale_factor
     if latents.ndim == 3: # lost a batch dim in hires
         latents = latents.unsqueeze(0)
     if latents.shape[-1] <= 4: # not a latent, likely an image

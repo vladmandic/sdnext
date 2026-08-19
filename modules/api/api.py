@@ -11,6 +11,7 @@ from modules.api import models, endpoints, script, helpers, server, generate, pr
 
 
 errors.install()
+auth_map = []
 
 
 class Api:
@@ -186,6 +187,13 @@ class Api:
             self.app.add_api_route(f'{shared.opts.subpath}{path}', endpoint=fn, **kwargs)
         self.app.add_api_route(path, endpoint=fn, **kwargs)
 
+    def add_auth(self, host: str, user: str, method: str):
+        msg = f"ip={host} user={user} method={method}"
+        if msg in auth_map:
+            return
+        auth_map.append(msg)
+        log.debug(f'Client auth: {msg}')
+
     def auth(
             self,
             request: Request, # pylint: disable=unused-argument
@@ -194,16 +202,20 @@ class Api:
             access_token_unsecure: Optional[str] = Cookie(default=None, alias="access-token-unsecure"),
         ):
         if not self.credentials:
+            self.add_auth(host=request.client.host, user=credentials.username if credentials else None, method="none")
             return True
         if (credentials is not None) and (credentials.username in self.credentials):
             if compare_digest(credentials.password, self.credentials[credentials.username]): # client user + encoded password
+                self.add_auth(host=request.client.host, user=credentials.username if credentials else None, method="digest")
                 return True
             if hasattr(self.app, 'tokens') and (self.app.tokens is not None): # client sends token as password
                 if credentials.password in self.app.tokens.keys():
+                    self.add_auth(host=request.client.host, user=credentials.username if credentials else None, method="token")
                     return True
         cookie_token = access_token or access_token_unsecure
         if cookie_token and hasattr(self.app, 'tokens') and (self.app.tokens is not None): # client sets cookie with token
             if cookie_token in self.app.tokens.keys():
+                self.add_auth(host=request.client.host, user=None, method="cookie")
                 return True
         log.error(f'API authentication: user="{credentials.username if credentials else None}"')
         raise HTTPException(status_code=401, detail="Unauthorized", headers={"WWW-Authenticate": "Basic"})
@@ -212,7 +224,7 @@ class Api:
         """Log a new browser session with client IP, authenticated user, and user-agent string."""
         token = req.cookies.get("access-token") or req.cookies.get("access-token-unsecure")
         user = self.app.tokens.get(token) if hasattr(self.app, 'tokens') else None
-        log.info(f'Browser session: user={user} client={req.client.host} agent={agent}')
+        log.info(f'Client session: user={user} client={req.client.host} agent={agent}')
         return {}
 
     def launch(self):

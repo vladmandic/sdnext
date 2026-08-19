@@ -198,7 +198,7 @@ def install():
         from triton import knobs
         from triton.runtime.autotuner import Autotuner
     except Exception as e:
-        log.debug(f'Kernel autotune: reporting unavailable: {e}')
+        log.debug(f'Kernel autotune: {e}')
         return
     try:
         knobs.autotuning.listener = make_autotune_listener(getattr(knobs.autotuning, 'listener', None))

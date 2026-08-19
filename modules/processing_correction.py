@@ -155,7 +155,10 @@ def _unpack_latents(latents, pipe, p):
         height = getattr(p, 'height', 1024)
     if hasattr(pipe, '_unpack_latents') and hasattr(pipe, 'vae_scale_factor'):
         # Flux 1 / Bria: use pipeline's own unpack method
-        unpacked = pipe._unpack_latents(latents, height, width, vae_scale)  # pylint: disable=protected-access
+        try:
+            unpacked = pipe._unpack_latents(latents, height, width, vae_scale)  # pylint: disable=protected-access
+        except Exception:
+            unpacked = pipe._unpack_latents(latents, height, width)  # pylint: disable=protected-access # pythoning ask-for-forgiveness if method does not support vae_scale_factor
         return unpacked, 'flux1'
     if hasattr(pipe, '_unpatchify_latents'):
         # Flux 2: manual reshape [B, seq_len, patch_channels] -> [B, C, H, W]

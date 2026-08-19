@@ -7,7 +7,7 @@ Main focus is improving video workflows which also brings full support for new [
 
 *What else?*
 - [Detailer.next](https://vladmandic.github.io/sdnext-docs/Detailer) with new support for *vision-language models* and *per-class prompts*
-- New [group offload](https://vladmandic.github.io/sdnext-docs/Offload/#group) option which is more aggressive thant the default balanced offload
+- New [group offload](https://vladmandic.github.io/sdnext-docs/Offload/#group) option which is more aggressive than the default balanced offload
 - Extended model support for [Nunchaku-Lite](https://github.com/rootonchair/nunchaku-lite) engine
 - A lot of [SDNQ](https://github.com/Disty0/sdnq) *quantization and attention* optimizations and features
 
@@ -41,8 +41,10 @@ Plus quite a lot more, see full [changelog](https://github.com/vladmandic/automa
 - [SDNQ](https://github.com/Disty0/sdnq) is now a separate package and no longer part of sdnext repo  
   installed and used internally by sd.next, but also supported by diffusers natively  
   and sdnq development brings a lot of new optimizations, in both quantization and attention mechanisms  
-- **Server**
+- **Compute**
+  - torch-rocm for windows switch to *whl-multi-arch* distribution  
   - nunchaku-lite support for `torch==2.13`
+- **Server**
   - update handlers for all authenticated workflows
   - update handlers for all hf-based progress bars
   - offload options take effect immediately without restart/reload
@@ -52,6 +54,7 @@ Plus quite a lot more, see full [changelog](https://github.com/vladmandic/automa
   - add settings -> model load -> *offload state dict* option  
     reduces memory spikes during model load at the cost of disk i/o and slower load times  
   - use `GRADIO_TEMP_DIR` env variable for temp folder if set
+  - update ui login form
 - **Video**
   - reorganized *video* tab
   - better support for video codeces and formats
@@ -62,6 +65,7 @@ Plus quite a lot more, see full [changelog](https://github.com/vladmandic/automa
     *note*: video api uses async workflow where you submit request and then later download the result  
   - authentication for websocket connection
   - allowed path validation for endpoints that get/put files
+  - log auth methods
 - **Other**
   - Krea2: add *settings -> model options -> krea2 dense masking*
     may provide significant speed-up on some gpus, disabled by default  
@@ -96,6 +100,8 @@ Plus quite a lot more, see full [changelog](https://github.com/vladmandic/automa
   - gguf: transformer loader
   - scripts: mixture-of-diffusers and mixture-tiling update to use igwn-segments
   - api: process
+  - api: auth via remote-ip
+  - krea2: fallback to base pipeline/transformer for nunchaku-lite
 
 ## Update for 2026-08-07
 

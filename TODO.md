@@ -2,24 +2,33 @@
 
 ## Short-term
 
-- Test API remote
-- Create pre-quant for ltx
-- Create pre-quant for minimax-turbo
-- Update ltx wiki
-- Productize benchmark tool
-- Inpaint: https://discord.com/channels/1101998836328697867/1130536562422186044/1506850651035144322
+- Update LTX wiki, @CalamitousFelicitousness
+- Productize benchmark tool, @CalamitousFelicitousness
+- Nunchaku-Lite Krea2 errors, @vladmandic
+- Inpaint: https://discord.com/channels/1101998836328697867/1130536562422186044/1506850651035144322, @vladmandic
+- Lora: new handler, @CalamitousFelicitousness
+- Control tab verify overrides handling, @vladmandic
+- Create pre-quant for LTX-2.5
+- Create pre-quant for MiniMax-H3-Turbo
 
 ## Features
 
+### Roadmap
+
+- Video upscaling: nvidia-vfx, ltx-upscaler, etc.
+- Video capabilities to processing tab, add RIFE, upscaling (once available)
+- Object clear remover for Kanvas: [Object clear](https://huggingface.co/jixin0101/ObjectClear)
+- OpenAI API interface for image generation
+- Lightweight scheduler/queue manager
+- Distraction-free UI mode with prompt-only, chat-based interface
+- Revisit transformer caching for modular pipelines
+- Revisit guidance for modular pipelines
+- Implement modular for some image models
+- Video models: support finetunes
+
 ### Assigned
 
-- Chat-based interface, @vladmandic
-- Control tab verify overrides handling, @vladmandic
-- Cloud providers, @CalamitousFelicitousness
-- Lora: new handler, @CalamitousFelicitousness
-- Processing -> Video capabilities, @vladmandic
-  - `RIFE` in processing
-- - [Object clear](https://huggingface.co/jixin0101/ObjectClear) remover for Kanvas, @vladmandic
+- Support cloud providers, @CalamitousFelicitousness
 
 ### Unassigned
 
@@ -32,17 +41,6 @@
   - Remove `olive-ai`
 - Integrate natural language image search
   - [ImageDB](https://github.com/vladmandic/imagedb)
-
-### Roadmap
-
-- Object clear remover for Kanvas
-- OpenAI API interface for image generation
-- Lightweight scheduler/queue manager
-- Distraction-free UI mode with prompt-only
-- Revisit transformer caching for modular pipelines
-- Revisit guidance for modular pipelines
-- Implement modular for some image models
-- Video models: support finetunes
 
 ### OnHold
 
