@@ -47,6 +47,7 @@ import json
 import math
 import time
 import signal
+import inspect
 import logging
 import argparse
 import tempfile
@@ -133,6 +134,8 @@ block_attention_specs = {
     "atten int8 smooth": dict(matmul_dtype="auto", pv_matmul_dtype="auto", smooth_k=True),
     "atten int8 hadamard": dict(matmul_dtype="auto", pv_matmul_dtype="auto", use_hadamard=True),
     "atten full": dict(matmul_dtype="auto", pv_matmul_dtype="int8", smooth_k=True, use_hadamard=True),
+    "atten pv accum": dict(matmul_dtype="auto", pv_matmul_dtype="disabled", use_fp16_accum=True), # the sage-style unsafe mode
+    "atten fp16 accum": dict(matmul_dtype="float16", pv_matmul_dtype="float16", use_fp16_accum=True), # the scaled overflow-proof mode
     "sage": "sage", # external baselines, resolved to the sage wrappers in build_bench_block
     "sage fp16 accum": "sagefp16",
 }
@@ -149,6 +152,8 @@ block_configs = [
     ("int8-mm-smooth", dict(weights_dtype="int8"), True, "atten int8 smooth"),
     ("int8-mm-hadamard", dict(weights_dtype="int8"), True, "atten int8 hadamard"),
     ("int8-mm-atten-full", dict(weights_dtype="int8"), True, "atten full"),
+    ("int8-mm-pvaccum", dict(weights_dtype="int8"), True, "atten pv accum"),
+    ("int8-mm-fp16accum", dict(weights_dtype="int8"), True, "atten fp16 accum"),
     ("int8-mm-sage", dict(weights_dtype="int8"), True, "sage"),
     ("int8-mm-sagefp16", dict(weights_dtype="int8"), True, "sage fp16 accum"),
     ("int6", dict(weights_dtype="int6"), False, "sdpa"),
@@ -161,7 +166,8 @@ block_configs = [
 ]
 
 # benchmark configs: id, label, kwargs for sdnq_triton_atten (None = external baseline);
-# fp8 configs run only on gpus where the float8 probe passes
+# fp8 configs run only on gpus where the float8 probe passes, accum configs only where the
+# installed sdnq has the use_fp16_accum kwarg
 bench_configs = [
     ("base", "torch sdpa", None),
     ("sage", "sageattention", None), # label resolved to the dispatched kernel by sage_kernel_label
@@ -173,15 +179,22 @@ bench_configs = [
     ("hadamard", "sdnq int8 qk + hadamard", dict(matmul_dtype="auto", pv_matmul_dtype="auto", use_hadamard=True)),
     ("smooth_hadamard", "sdnq int8 qk + smooth + hadamard", dict(matmul_dtype="auto", pv_matmul_dtype="auto", smooth_k=True, use_hadamard=True)),
     ("fp16pv", "sdnq int8 qk + fp16 pv", dict(matmul_dtype="auto", pv_matmul_dtype="float16")),
+    ("fp16pv-accum", "sdnq int8 qk + fp16 pv, scaled fp16 accum", dict(matmul_dtype="auto", pv_matmul_dtype="float16", use_fp16_accum=True)),
     ("int8pv", "sdnq int8 qk + int8 pv", dict(matmul_dtype="auto", pv_matmul_dtype="int8")),
     ("fp8pv", "sdnq int8 qk + fp8 pv", dict(matmul_dtype="auto", pv_matmul_dtype="float8_e4m3fn")),
+    ("pvaccum", "sdnq int8 qk + unquantized pv, fp16 accum (unsafe)", dict(matmul_dtype="auto", pv_matmul_dtype="disabled", use_fp16_accum=True)),
     ("full", "sdnq int8 qk + smooth + hadamard + int8 pv", dict(matmul_dtype="auto", pv_matmul_dtype="int8", smooth_k=True, use_hadamard=True)),
     ("fp16qk", "sdnq fp16 qk", dict(matmul_dtype="float16", pv_matmul_dtype="auto")),
+    ("fp16full", "sdnq fp16 qk + fp16 pv", dict(matmul_dtype="float16", pv_matmul_dtype="float16")),
+    ("fp16full-accum", "sdnq fp16 qk + fp16 pv, scaled fp16 accum", dict(matmul_dtype="float16", pv_matmul_dtype="float16", use_fp16_accum=True)),
     ("fp8qk", "sdnq fp8 qk", dict(matmul_dtype="float8_e4m3fn", pv_matmul_dtype="auto")),
     ("fp8full", "sdnq fp8 qk + fp8 pv", dict(matmul_dtype="float8_e4m3fn", pv_matmul_dtype="float8_e4m3fn")),
 ]
-# external baselines are compared against but never starred or recommended as sdnq configs
+# external baselines are compared against but never starred or recommended as sdnq configs;
+# the unsafe accum mode is measured and displayed under the same rule, since its overflow
+# tail lives outside what mean error can see
 external_config_ids = ("base", "sage", "sagefp16", "amdflash")
+unsafe_config_ids = ("pvaccum",)
 # every preset runs the full config list (availability gates still apply per config); only
 # hard technical exclusions live here, never runtime trims. sd15: compiling hadamard with
 # a non pow2 head dim currently hangs torch inductor
@@ -255,6 +268,7 @@ atten_settings = [
     ("sdnq_attention_pv_matmul_type", "PV MatMul type"),
     ("sdnq_attention_smooth_k", "Use Smooth K"),
     ("sdnq_attention_use_hadamard", "Use Hadamard"),
+    ("sdnq_attention_use_fp16_accum", "Use FP16 Accumulation"),
     ("sdnq_attention_hadamard_group_size", "Hadamard Group Size"),
 ]
 
@@ -388,6 +402,43 @@ def load_sdnext():
     # display; failures still surface as exceptions in the tables
     logging.getLogger("torch._inductor").setLevel(logging.CRITICAL + 1)
     return True
+
+
+def atten_supports_fp16_accum():
+    # accum rows need the use_fp16_accum kwarg; skip them on older sdnq builds instead of
+    # failing every row with a TypeError. the kernel entry is wrapped by an inference-context
+    # decorator, so unwrap before reading the signature
+    if sdnq_triton_atten is None:
+        return False
+    try:
+        return "use_fp16_accum" in inspect.signature(inspect.unwrap(sdnq_triton_atten)).parameters
+    except (TypeError, ValueError):
+        return False
+
+
+def triton_mm_supports_fp16_accum():
+    try:
+        from sdnq.kernels import triton_mm, triton_scaled_mm
+        return hasattr(triton_mm, "USE_FP16_ACCUM") and hasattr(triton_scaled_mm, "USE_FP16_ACCUM")
+    except Exception:
+        return False
+
+
+@contextmanager
+def triton_mm_fp16_accum():
+    # SDNQ_TRITON_MM_USE_FP16_ACCUM is read once at import into module globals that the
+    # kernel wrappers reread per call (they are triton_op custom ops, so the read happens at
+    # runtime even under torch.compile), and the flag is part of the autotune key, so both
+    # variants cache side by side. sdnq_triton_mm holds its own imported copy of the global,
+    # so both module namespaces get the flip
+    from sdnq.kernels import triton_mm, triton_scaled_mm
+    saved = (triton_mm.USE_FP16_ACCUM, triton_scaled_mm.USE_FP16_ACCUM)
+    triton_mm.USE_FP16_ACCUM = True
+    triton_scaled_mm.USE_FP16_ACCUM = True
+    try:
+        yield
+    finally:
+        triton_mm.USE_FP16_ACCUM, triton_scaled_mm.USE_FP16_ACCUM = saved
 
 
 def sage_attention():
@@ -774,9 +825,9 @@ def print_environment(fp8_result, prep_status, prep_detail, weight_dequant_resul
     else:
         lines.append(f"compiled input prep: [red]failing, every sdnq attention call errors at generation[/red] [dim]({escape(prep_detail)})[/dim]")
         if prep_status == "failing_dynamic":
-            lines.append("  fix, verified on this machine: set SDNQ_COMPILE_KWARGS='{\"dynamic\": false}' (recompiles per shape); or install msvc build tools; or disable Compute Settings -> SDNQ -> Dequantize using torch.compile")
+            lines.append("  fix, verified on this machine: set SDNQ_COMPILE_KWARGS='{\"dynamic\": false}' (recompiles per shape); or install msvc build tools; or set SDNQ_USE_TORCH_COMPILE=0")
         else:
-            lines.append("  fix: install a host c++ compiler (msvc build tools on windows), or disable Compute Settings -> SDNQ -> Dequantize using torch.compile")
+            lines.append("  fix: install a host c++ compiler (msvc build tools on windows), or set SDNQ_USE_TORCH_COMPILE=0")
     if weight_dequant_result is not None:
         gate_flag = fp8_compile_gate_flag()
         e4m3_ok, e4m3_detail = weight_dequant_result["float8_e4m3fn"]
@@ -788,10 +839,12 @@ def print_environment(fp8_result, prep_status, prep_detail, weight_dequant_resul
             if gate_flag is False:
                 lines.append(f"  sdnq upcasts e4m3 weights to {dtype_label()} before the compiled dequant, so generation is safe and the fp8 rows below are measured that way (SDNQ_ALLOW_FP8_COMPILE overrides)")
             elif gate_flag is None:
-                lines.append("  [red]this sdnq build has no fp8 compile gate: loading fp8 storage weights with Dequantize using torch.compile enabled fails at generation[/red]")
+                lines.append("  [red]this sdnq build has no fp8 compile gate: loading fp8 storage weights with sdnq torch.compile active fails at generation (SDNQ_USE_TORCH_COMPILE=0 avoids it)[/red]")
         e5m2_verdict = "[green]supported[/green]" if e5m2_ok else f"[red]fails[/red] [dim]({escape(e5m2_detail)})[/dim]"
         lines.append(f"compiled weight dequant, float8_e5m2 storage: {e5m2_verdict}")
-    overrides = [f"{key}={value}" for key, value in os.environ.items() if key.startswith("SDNQ_TRITON_ATTEN") or key.startswith("SDNQ_ALLOW_FP8") or key.startswith("SDNQ_COMPILE")]
+    if not atten_supports_fp16_accum():
+        lines.append("fp16 accumulation kwarg: [yellow]absent in this sdnq build, accum rows skipped[/yellow]")
+    overrides = [f"{key}={value}" for key, value in os.environ.items() if key.startswith("SDNQ_TRITON_ATTEN") or key.startswith("SDNQ_TRITON_MM") or key.startswith("SDNQ_ALLOW_FP8") or key.startswith("SDNQ_COMPILE")]
     if overrides:
         lines.append(f"env overrides: {' '.join(overrides)}")
     emit(Panel("\n".join(lines), title="environment", box=ROUNDED_BOX))
@@ -807,6 +860,8 @@ def print_environment(fp8_result, prep_status, prep_detail, weight_dequant_resul
         dtype=dtype_label(),
         **runtime_versions,
         fp8_attention_matmul=fp8_result["qk"][0] if fp8_result is not None else None,
+        atten_fp16_accum=atten_supports_fp16_accum(),
+        triton_mm_fp16_accum=os.environ.get("SDNQ_TRITON_MM_USE_FP16_ACCUM", None),
         compiled_input_prep=prep_status,
         fp8_compile_gate=fp8_compile_gate_flag(),
         weight_dequant_compile={name: dict(ok=ok, detail=detail) for name, (ok, detail) in (weight_dequant_result or {}).items()},
@@ -1121,6 +1176,21 @@ def run_correctness():
     ko[:, :, :2, :] *= 1000.0
     checks.append(("stress: 1000x outlier keys", (qs, ko, vs), {}, {}))
     checks.append(("stress: fp16 100x activations", ((qs * 100.0).to(torch.float16), (ks * 100.0).to(torch.float16), (vs * 100.0).to(torch.float16)), {}, {}))
+    # value-side stress: the existing rows perturb k (the qk-quant failure axis); the unsafe
+    # pv accumulation (the accum flag with an unquantized pv, the sage-style fast mode) fails
+    # on v instead. unnormalized softmax weights are <= 1 each until the epilogue normalize,
+    # so near-uniform scores with same-sign values push one 16-wide kv-block dot past the
+    # fp16 max: those rows pass by overflowing, while the scaled paths must stay finite
+    vo = vs.clone()
+    vo[:, :, :2, :] *= 1000.0
+    checks.append(("stress: 1000x outlier values", (qs, ks, vo), {}, {}))
+    qu = qs * 1e-3 # near-zero scores: every unnormalized softmax weight ~1
+    vu = vs.abs() * 10000.0 # same-sign, below the fp16 cast limit
+    checks.append(("stress: uniform attention 10000x values", (qu, ks, vu), {}, {}))
+    if atten_supports_fp16_accum():
+        checks.append(("stress: uniform 10000x values, scaled fp16 accum", (qu, ks, vu), {}, dict(matmul_dtype="float16", pv_matmul_dtype="float16", use_fp16_accum=True)))
+        checks.append(("stress: uniform 10000x values, unsafe pv accum", (qu, ks, vu), {}, dict(pv_matmul_dtype="disabled", use_fp16_accum=True)))
+        checks.append(("stress: bf16 100000x values, unsafe pv accum", (qs.to(torch.bfloat16), ks.to(torch.bfloat16), vs.to(torch.bfloat16) * 100000.0), {}, dict(pv_matmul_dtype="disabled", use_fp16_accum=True)))
 
     table = Table(box=box.SIMPLE_HEAVY)
     table.add_column("code path")
@@ -1128,7 +1198,7 @@ def run_correctness():
     table.add_column("int8 error", justify="right")
     table.add_column("int8 max token", justify="right")
     table.add_column("result", justify="center")
-    panel = Panel(table, title="kernel correctness", subtitle="[dim]small shapes, vs fp32 sdpa reference; stress rows pass on finite output[/dim]", box=ROUNDED_BOX, expand=False)
+    panel = Panel(table, title="kernel correctness", subtitle="[dim]small shapes, vs fp32 sdpa reference; stress rows pass on finite output, unsafe accum rows by overflowing[/dim]", box=ROUNDED_BOX, expand=False)
     failed = []
     details = {}
     # checks target kernel behavior, so the input prep runs eager via a module-global swap.
@@ -1158,17 +1228,24 @@ def run_correctness():
                     err_plain = rel_err(plain, ref)
                     err_quant = rel_err(quant, ref)
                     max_err = max_token_err(quant, ref)
-                    finite = bool(torch.isfinite(plain).all().item() and torch.isfinite(quant).all().item())
-                    if name.startswith("stress:"):
+                    finite_quant = bool(torch.isfinite(quant).all().item())
+                    finite = bool(torch.isfinite(plain).all().item()) and finite_quant
+                    expect_overflow = name.endswith("unsafe pv accum")
+                    if expect_overflow:
+                        ok = not finite_quant # the row demonstrates the overflow; finite output means the demonstration failed, not that the mode is safe
+                    elif name.startswith("stress:"):
                         ok = finite
                     else:
                         ok = finite and err_plain < 0.01 and err_quant < 0.2
                     if not ok:
                         failed.append(name)
                     details[name] = dict(kernel_err=err_plain, int8_err=err_quant, max_token_err=max_err, finite=finite, ok=ok)
-                    verdict = "[green]pass[/green]" if ok else "[red]fail[/red]"
-                    if not finite:
+                    if expect_overflow:
+                        verdict = "[yellow]overflows (as designed)[/yellow]" if ok else "[red]did not overflow[/red]"
+                    elif not finite:
                         verdict = "[red]non-finite[/red]"
+                    else:
+                        verdict = "[green]pass[/green]" if ok else "[red]fail[/red]"
                     table.add_row(name, err_cell(err_plain), err_cell(err_quant), err_cell(max_err), verdict)
                 except Exception as e:
                     failed.append(name)
@@ -1261,6 +1338,8 @@ def bench_shape(preset, iters, warmup, position=None, config_timeout=300, fp8_re
         if config_id == "fp8pv" and not (fp8_result and fp8_result["pv"][0]):
             continue
         if config_id == "fp8full" and not (fp8_result and fp8_result["qk"][0] and fp8_result["pv"][0]):
+            continue
+        if kwargs is not None and kwargs.get("use_fp16_accum") and not atten_supports_fp16_accum():
             continue
         selected_configs.append((config_id, config_label(config_id, label), kwargs))
 
@@ -1488,7 +1567,7 @@ def bench_dequant_shape(shape_label, out_features, in_features, iters, warmup, p
 
             # eager-mode forward: the dequantizer's __call__ resolves dequantize_weight_compiled
             # as a module global at call time, so pointing it at the eager function for the
-            # bench matches the webui with Dequantize using torch.compile off. do not toggle
+            # bench matches the webui with sdnq torch.compile off (SDNQ_USE_TORCH_COMPILE=0). do not toggle
             # torch._dynamo.config.disable instead: code objects called during a disable window
             # keep their skip marking and never compile again in this process
             from sdnq import dequantizer as dequantizer_module
@@ -1680,7 +1759,12 @@ def bench_float_mm_alternatives(shape_label, out_features, in_features, plain_re
     panel = Panel(table, title=f"float weights, explicit MatMul type: {shape_label} {dtype_label()}", subtitle="[dim]quantized matmul with the MatMul type set explicitly; dequant path and enabled rows repeated dimmed; vs dequant above x1.00 = faster than the dequant-path forward[/dim]", box=ROUNDED_BOX, expand=False)
 
     results = {}
-    runs = [(dtype_id, label, cfg, mm_dtype) for dtype_id, label, cfg in dtype_configs for mm_dtype in float_mm_alternative_dtypes]
+    # the accum variant repeats the float16 mm with the triton fp16-accum globals flipped
+    # in-process; the env var is not a dropdown value, so its rows never enter candidacy
+    mm_variants = [(mm_dtype, False) for mm_dtype in float_mm_alternative_dtypes]
+    if triton_mm_supports_fp16_accum() and "float16" in float_mm_alternative_dtypes:
+        mm_variants.append(("float16", True))
+    runs = [(dtype_id, label, cfg, mm_dtype, accum) for dtype_id, label, cfg in dtype_configs for mm_dtype, accum in mm_variants]
     progress, task = live_progress()
     with Live(Group(panel, progress), console=console, refresh_per_second=4) as live:
         weight = make_source_weight(out_features, in_features)
@@ -1689,8 +1773,8 @@ def bench_float_mm_alternatives(shape_label, out_features, in_features, plain_re
         x = torch.randn(dequant_forward_tokens, in_features, device=torch_device, dtype=bench_dtype, generator=generator)
         ref_out = fp32_linear_reference(x, weight_fp32)
         added_plain = set()
-        for index, (dtype_id, label, cfg, mm_dtype) in enumerate(runs, start=1):
-            row_label = f"{label} + {mm_dtype} mm"
+        for index, (dtype_id, label, cfg, mm_dtype, accum) in enumerate(runs, start=1):
+            row_label = f"{label} + {mm_dtype} mm" + (", fp16 accum" if accum else "")
             def phase(step, current_label=row_label, current_index=index):
                 progress.update(task, description=f"float mm {current_index}/{len(runs)}  {current_label}: {step}")
             plain = plain_results.get(dtype_id) or {}
@@ -1703,8 +1787,8 @@ def bench_float_mm_alternatives(shape_label, out_features, in_features, plain_re
                     table.add_row(f"[dim]{label} + enabled ({plain.get('mm_dtype')})[/dim]", "-", f"[dim]{plain['mm_ms']:8.3f} ms[/dim]", f"[dim]{plain['mm_err']:.5f}[/dim]" if plain.get("mm_err") else "-", f"[dim]{speedup_cell(fwd_ms, plain['mm_ms'])}[/dim]" if fwd_ms else "-")
                 elif plain.get("mm_error"):
                     table.add_row(f"[dim]{label} + enabled ({plain.get('mm_dtype') or 'float8_e4m3fn'})[/dim]", "-", failure_text(RuntimeError(plain["mm_error"])), "-", "-")
-            entry = dict(quant_s=None, mm_ms=None, mm_err=None, mm_dtype=None)
-            results[f"{dtype_id}+{mm_dtype}"] = entry
+            entry = dict(quant_s=None, mm_ms=None, mm_err=None, mm_dtype=None, fp16_accum=accum)
+            results[f"{dtype_id}+{mm_dtype}" + ("+accum" if accum else "")] = entry
             progress.reset(task)
             phase("quantizing")
             try:
@@ -1715,7 +1799,10 @@ def bench_float_mm_alternatives(shape_label, out_features, in_features, plain_re
                 table.add_row(row_label, "-", failure_text(e), "-", "-")
                 continue
 
-            def mm_fn(current=layer):
+            def mm_fn(current=layer, use_accum=accum):
+                if use_accum:
+                    with triton_mm_fp16_accum():
+                        return current(x)
                 return current(x)
 
             try:
@@ -2408,10 +2495,16 @@ def bench_block_geometry(iters, warmup, config_timeout=300, selected=None):
     # component speedups and errors do not compose multiplicatively
     configs = [c for c in block_configs if selected is None or c[0] in selected]
     sage_missing = {"sage": sage_attention() is None, "sage fp16 accum": sage_attention_fp16_accum() is None}
-    skipped = [config_id for config_id, _w, _mm, spec in configs if sage_missing.get(spec, False)]
+    accum_missing = not atten_supports_fp16_accum()
+    def spec_unavailable(spec):
+        if sage_missing.get(spec, False):
+            return True
+        spec_kwargs = block_attention_specs.get(spec)
+        return accum_missing and isinstance(spec_kwargs, dict) and bool(spec_kwargs.get("use_fp16_accum"))
+    skipped = [config_id for config_id, _w, _mm, spec in configs if spec_unavailable(spec)]
     if skipped:
         configs = [c for c in configs if c[0] not in skipped]
-        emit(f"[dim]block: skipping {', '.join(skipped)}, sageattention (or this accumulation mode) is unavailable here[/dim]")
+        emit(f"[dim]block: skipping {', '.join(skipped)}, sageattention or the sdnq accumulation kwarg is unavailable here[/dim]")
     if not configs:
         return {}
     hidden, heads, mlp_dim, tokens = block_geometry["hidden"], block_geometry["heads"], block_geometry["mlp_dim"], block_geometry["tokens"]
@@ -2515,7 +2608,7 @@ def bench_block_geometry(iters, warmup, config_timeout=300, selected=None):
     if current_id and results.get(current_id, {}).get("ms"):
         notes.append(f"current config runs the {results[current_id]['label']} row for int8-quantized models")
     if any(entry.get("ms") for config_id, entry in results.items() if config_id.endswith("sagefp16")):
-        notes.append("sage fp16 accum: benchmark-only, no sdnext setting reaches it (sage pins fp32 accum on sm86)")
+        notes.append("sage fp16 accum: benchmark-only for sage (sdnext pins its fp32 accum); the equivalent sdnq mode is the FP16 Accumulation checkbox with pv matmul disabled, same overflow tail")
     if notes:
         emit(Panel("\n".join(notes), title="block notes", box=ROUNDED_BOX))
     return results
@@ -2529,7 +2622,7 @@ def measured(results, config_id):
 
 def best_config(results):
     # lowest error among rows within 5% of the fastest sdnq time
-    candidates = [(config_id, entry["ms"], entry["err"]) for config_id, entry in results.items() if entry.get("ms") is not None and config_id not in external_config_ids]
+    candidates = [(config_id, entry["ms"], entry["err"]) for config_id, entry in results.items() if entry.get("ms") is not None and config_id not in external_config_ids and config_id not in unsafe_config_ids]
     if not candidates:
         return None
     fastest = min(ms for _config_id, ms, _err in candidates)
@@ -2549,6 +2642,7 @@ def config_settings(kwargs):
         "pv": "disabled" if pv == "auto" else pv,
         "smooth": bool(kwargs.get("smooth_k", False)),
         "hadamard": bool(kwargs.get("use_hadamard", False)),
+        "accum": bool(kwargs.get("use_fp16_accum", False)),
     }
 
 
@@ -2564,6 +2658,8 @@ def select_attention_config(results):
         settings = config_settings(kwargs)
         if settings is None:
             continue
+        if settings["accum"] and settings["pv"] == "disabled":
+            continue # the unsafe accumulation combo is never a candidate; the accum row cites it directly
         ms, err = measured(results, config_id)
         if ms is None:
             continue
@@ -2691,11 +2787,11 @@ def build_recommendations(all_results, fp8_result, prep_status, block_results=No
     by_settings = {}
     for entry in pool + capped:
         s = entry["settings"]
-        by_settings[(s["matmul"], s["pv"], s["smooth"], s["hadamard"])] = entry
+        by_settings[(s["matmul"], s["pv"], s["smooth"], s["hadamard"], s["accum"])] = entry
 
     def sibling(entry, **overrides):
         s = dict(entry["settings"], **overrides)
-        other = by_settings.get((s["matmul"], s["pv"], s["smooth"], s["hadamard"]))
+        other = by_settings.get((s["matmul"], s["pv"], s["smooth"], s["hadamard"], s["accum"]))
         return None if other is entry else other
 
     def block_buyback_survives(block_config_id):
@@ -2757,6 +2853,35 @@ def build_recommendations(all_results, fp8_result, prep_status, block_results=No
         rows.append(("PV MatMul type", current("sdnq_attention_pv_matmul_type"), current("sdnq_attention_pv_matmul_type"), "the qk verdict above is inconclusive; pv follows it"))
     else:
         rows.append(("PV MatMul type", current("sdnq_attention_pv_matmul_type"), "disabled", "qk quantization is not recommended above; pv on an unquantized qk path was not measured"))
+
+    # the accumulation flag only changes fp16 dots: scaled and overflow-proof on quantized
+    # float16 types, inert on int8 types, and the sage-style unsafe mode on an unquantized
+    # pv. only the scaled combos are candidates; the unsafe one is cited, never recommended
+    accum_key = "sdnq_attention_use_fp16_accum"
+    if atten_supports_fp16_accum():
+        accum_current = current(accum_key) if hasattr(shared.opts, accum_key) else "-"
+        pvaccum_ms, _pvaccum_err = measured(results, "pvaccum")
+        unsafe_note = "with an unquantized pv the flag is the sage-style unsafe accumulation instead (the stress rows demonstrate its overflow)"
+        if pvaccum_ms and int8_ms:
+            unsafe_note += f", measured x{int8_ms / pvaccum_ms:.2f} vs int8 qk"
+        if use_quantized and chosen["settings"]["accum"]:
+            without = sibling(chosen, accum=False)
+            accum_reason = f"part of the selected config ({chosen['label']})"
+            if without:
+                accum_reason = f"scaled fp16 accumulation measured x{without['ms'] / chosen['ms']:.2f} over the same stack without it"
+                if chosen["err"] and without["err"]:
+                    accum_reason += f", error {chosen['err']:.5f} vs {without['err']:.5f}"
+            accum_reason += "; safe here because every fp16 dot in the stack is quantized and pre-scaled"
+            rows.append(("Use FP16 Accumulation", accum_current, "True", accum_reason))
+        elif qk_inconclusive:
+            rows.append(("Use FP16 Accumulation", accum_current, accum_current, "the qk verdict above is inconclusive; the accumulation flag follows it"))
+        else:
+            best_accum = best_in_subset([entry for entry in pool + capped if entry["settings"]["accum"]])
+            if chosen is not None and best_accum is not None:
+                accum_reason = f"the strongest scaled-accum config ({best_accum['label']}) measured x{chosen['ms'] / best_accum['ms']:.2f} the speed of the selected config"
+            else:
+                accum_reason = "no scaled-accum config was measured at this shape"
+            rows.append(("Use FP16 Accumulation", accum_current, "False", f"{accum_reason}; {unsafe_note}"))
 
     def toggle_row(setting_key, ui_name, on, buyback_reason, subset, block_config_id, caveat=None):
         # a toggle the selected config carries keeps the buyback evidence as its reason;
@@ -2849,7 +2974,7 @@ def build_recommendations(all_results, fp8_result, prep_status, block_results=No
     if prep_status == "failing_dynamic":
         notes.append("[red]generation fails here: compile cannot build the dynamic-shape prep. fix: set SDNQ_COMPILE_KWARGS='{\"dynamic\": false}' (verified on this machine) or install msvc build tools; numbers above use that workaround[/red]")
     elif prep_status == "failing":
-        notes.append("[red]generation fails here: torch compile is broken. fix: disable Dequantize using torch.compile or install msvc build tools; numbers above use eager prep[/red]")
+        notes.append("[red]generation fails here: torch compile is broken. fix: set SDNQ_USE_TORCH_COMPILE=0 or install msvc build tools; numbers above use eager prep[/red]")
     if not fp8_result["qk"][0]:
         if fp8_failure_is_capability(fp8_result["qk"][1]):
             notes.append("[red]float8_e4m3fn unsupported on this gpu: selecting it in either dropdown fails generation[/red]")
@@ -2859,8 +2984,11 @@ def build_recommendations(all_results, fp8_result, prep_status, block_results=No
     if sage_ms and int8_ms:
         notes.append(f"vs sage at {reference}: sdnq int8 {int8_ms:.2f} ms, sage {sage_ms:.2f} ms; sdnq also covers masks, gqa, causal")
     sagefp16_ms, _sagefp16_err = measured(results, "sagefp16")
-    if sagefp16_ms:
-        notes.append("sage fp16 accum: benchmark-only, no sdnext setting reaches it (sage pins fp32 accum on sm86)")
+    pvaccum_ms, _pvaccum_err = measured(results, "pvaccum")
+    if sagefp16_ms and pvaccum_ms:
+        notes.append(f"sage fp16 accum {sagefp16_ms:.2f} ms vs sdnq unquantized-pv accum {pvaccum_ms:.2f} ms: the same accumulation mode with the same overflow tail; sdnext reaches the sdnq one via SDNQ Attention use FP16 Accumulation with PV MatMul disabled, sage itself stays pinned to fp32 accum")
+    elif sagefp16_ms:
+        notes.append("sage fp16 accum: benchmark-only for sage (sdnext pins its fp32 accum on sm86); the equivalent sdnq mode is the unquantized-pv accum config")
     # compare flash against the config the verdict above actually recommends
     amdflash_ms, _amdflash_err = measured(results, "amdflash")
     if amdflash_ms:
@@ -2932,10 +3060,12 @@ def build_dequant_recommendations(dequant_results, weight_dequant_result, varian
     mode_ids = {cfg["weights_dtype"]: dtype_id for dtype_id, _label, cfg in dequant_dtype_configs}
     mm_id = mode_ids.get(weights_mode, "int8")
 
-    # the compile toggle is output-neutral (dequant drift is checked separately), so its verdict
-    # is a symmetric faster/slower test (margin 1.0) at the layer-forward scope the option gates,
-    # voted across every measured shape; the standalone kernel can lose to eager on small layers
-    # from launch overhead alone, which is why it never decides this row
+    # the compile toggle became automatic: sdnq compiles whenever triton is available and
+    # SDNQ_USE_TORCH_COMPILE is the only override, so the verdict is a note addressed to the
+    # env var rather than a settings row. it stays a symmetric faster/slower test (margin 1.0)
+    # at the layer-forward scope compile gates, voted across every measured shape; the
+    # standalone kernel can lose to eager on small layers from launch overhead alone, which
+    # is why it never decides the verdict
     compile_id = mm_id if entry(mm_id).get("fwd_eager_ms") and entry(mm_id).get("fwd_compiled_ms") else "int8"
     fwd_votes = []
     for shape_label in dequant_results:
@@ -2945,35 +3075,33 @@ def build_dequant_recommendations(dequant_results, weight_dequant_result, varian
             test = speed_verdict(fwd_compiled, fwd_eager, sigma=pair_sigma(vote_row, "fwd_compiled_ms", vote_row, "fwd_eager_ms"), margin=1.0)
             fwd_votes.append((fwd_eager / fwd_compiled, test))
     int8_eager, int8_compiled = entry("int8").get("eager_ms"), entry("int8").get("compiled_ms")
+    try:
+        from sdnq.common import use_torch_compile as compile_active
+    except Exception:
+        compile_active = None
+    compile_origin = "SDNQ_USE_TORCH_COMPILE" if os.environ.get("SDNQ_USE_TORCH_COMPILE", None) is not None else "automatic with triton"
+    compile_state = {True: "on", False: "off"}.get(compile_active, "unknown")
+    compile_note = None
     if fwd_votes:
         ratios = sorted(ratio for ratio, _test in fwd_votes)
         span = f"x{ratios[0]:.2f}" if len(ratios) == 1 else f"x{ratios[0]:.2f}-x{ratios[-1]:.2f}"
         scope_text = f"{compile_id} layer forward measured {span} compiled vs eager across {len(fwd_votes)} shape{'s' if len(fwd_votes) > 1 else ''}"
         kinds = {test for _ratio, test in fwd_votes}
         if "faster" in kinds and "not_faster" not in kinds:
-            compile_choice, compile_reason = "True", scope_text
+            verdict_text = "keep it on" if compile_active in {True, None} else "[yellow]compiled is faster here, drop SDNQ_USE_TORCH_COMPILE=0[/yellow]"
         elif "not_faster" in kinds and "faster" not in kinds:
-            compile_choice, compile_reason = "False", scope_text
+            verdict_text = "SDNQ_USE_TORCH_COMPILE=0 would help on this gpu" if compile_active in {True, None} else "keeping it off matches the measurement"
         elif "faster" in kinds:
             n_faster = sum(1 for _ratio, test in fwd_votes if test == "faster")
             n_slower = sum(1 for _ratio, test in fwd_votes if test == "not_faster")
-            compile_choice = current("sdnq_dequantize_compile")
-            compile_reason = f"{scope_text}; split verdict ({n_faster} faster, {n_slower} slower), keeping the current setting"
+            verdict_text = f"split verdict ({n_faster} faster, {n_slower} slower)"
         else:
-            compile_choice = current("sdnq_dequantize_compile")
-            compile_reason = f"{scope_text}, within this run's noise; keeping the current setting"
-        rows.append(("Dequantize using torch.compile", current("sdnq_dequantize_compile"), compile_choice, compile_reason))
+            verdict_text = "within this run's noise"
+        compile_note = f"dequant torch.compile ({compile_state}, {compile_origin}): {scope_text}; {verdict_text}"
     elif int8_eager and int8_compiled:
         compile_test = speed_verdict(int8_compiled, int8_eager, sigma=pair_sigma(entry("int8"), "compiled_ms", entry("int8"), "eager_ms"), margin=1.0)
-        compile_reason = f"int8 dequant kernel measured {ratio_text(int8_eager, int8_compiled)} compiled vs eager, no layer forward data"
-        if compile_test == "inconclusive":
-            compile_choice = current("sdnq_dequantize_compile")
-            compile_reason += "; within this run's noise, keeping the current setting"
-        else:
-            compile_choice = str(compile_test == "faster")
-        rows.append(("Dequantize using torch.compile", current("sdnq_dequantize_compile"), compile_choice, compile_reason))
-    elif int8_eager:
-        rows.append(("Dequantize using torch.compile", current("sdnq_dequantize_compile"), current("sdnq_dequantize_compile"), "compiled int8 dequant unavailable, keeping the current value"))
+        verdict_text = {"faster": "keep it on", "not_faster": "SDNQ_USE_TORCH_COMPILE=0 would help on this gpu", "inconclusive": "within this run's noise"}[compile_test]
+        compile_note = f"dequant torch.compile ({compile_state}, {compile_origin}): int8 dequant kernel measured {ratio_text(int8_eager, int8_compiled)} compiled vs eager, no layer forward data; {verdict_text}"
 
     # judge quantized matmul on the dtype the current config would quantize with, falling back to int8;
     # speed never wins alone: the faster path must also hold output error within recommend_error_cap
@@ -3021,6 +3149,9 @@ def build_dequant_recommendations(dequant_results, weight_dequant_result, varian
             mm_reason += f"; enabled resolves to {best_resolved} for {mm_id} weights"
         else:
             mm_reason += f"; enabled (float8_e4m3fn) failed on this gpu for {mm_id} weights"
+        accum_alt = float_mm.get(f"{mm_id}+float16+accum") or {}
+        if accum_alt.get("mm_ms"):
+            mm_reason += f"; float16 mm with SDNQ_TRITON_MM_USE_FP16_ACCUM=1 measured {accum_alt['mm_ms']:.3f} ms (env var, not a dropdown value)"
         if mm_test == "inconclusive" and err_ok:
             mm_choice = current("sdnq_quantize_matmul_mode")
             mm_reason += "; too close to the margin to call at this run's noise, keeping the current setting"
@@ -3157,6 +3288,8 @@ def build_dequant_recommendations(dequant_results, weight_dequant_result, varian
         emit("[green]current settings already match the recommendations[/green]")
 
     notes = []
+    if compile_note:
+        notes.append(compile_note)
     speedups = []
     for dtype_id, label, _cfg in dequant_dtype_configs:
         text = ratio_text(entry(dtype_id).get("eager_ms"), entry(dtype_id).get("compiled_ms"))
@@ -3410,7 +3543,7 @@ def main():
                 # a real compiled variant so the compiled fwd rows measure what enabling it gives
                 from sdnq import dequantizer as dequantizer_module
                 dequantizer_module.dequantize_weight_compiled = get_compiled_dequantize_weight()
-                emit("[yellow]Dequantize using torch.compile is off in the current config: compiled fwd rows are measured with a tool-compiled dequant, matching the webui after enabling it[/yellow]")
+                emit("[yellow]sdnq torch.compile is off (SDNQ_USE_TORCH_COMPILE=0): compiled fwd rows are measured with a tool-compiled dequant, matching the webui with it back on[/yellow]")
             for index, (shape_label, out_features, in_features) in enumerate(dequant_shapes, start=1):
                 dequant_results[shape_label] = bench_dequant_shape(shape_label, out_features, in_features, args.iters, args.warmup, position=(index, len(dequant_shapes)), config_timeout=args.config_timeout, selected_dtypes=selected_dtypes)
                 torch_device_module.empty_cache()
@@ -3452,7 +3585,7 @@ def main():
             atten_module.get_attn_inputs = torch.compile(inner, fullgraph=True, dynamic=False)
             emit("[yellow]dynamic-shape compile is broken here: benchmarking with the dynamic=false workaround applied, numbers match the webui after setting SDNQ_COMPILE_KWARGS='{\"dynamic\": false}'[/yellow]")
         elif prep_status == "failing":
-            emit("[yellow]torch compile is broken here: benchmarking with eager input prep, numbers match the webui after disabling Dequantize using torch.compile[/yellow]")
+            emit("[yellow]torch compile is broken here: benchmarking with eager input prep, numbers match the webui after setting SDNQ_USE_TORCH_COMPILE=0[/yellow]")
             from sdnq.kernels import triton_atten as atten_module
             inner = getattr(atten_module.get_attn_inputs, "_torchdynamo_orig_callable", None)
             if inner is not None: # swap in the eager prep; a disable toggle raises on torch 2.13+
