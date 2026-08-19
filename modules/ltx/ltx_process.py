@@ -119,6 +119,16 @@ def _latent_pass(caps, prompt_embeds, prompt_attention_mask, negative_prompt_emb
     return latents
 
 
+def reject(msg: str, code: int):
+    """Refuse the run with a logged reason. The message otherwise only travels in the raised error,
+    and a caller that turns it into a string leaves no trace of why the job did nothing."""
+    if code >= 500:
+        log.error(f'Video: op=ltx code={code} {msg}')
+    else:
+        log.info(f'Video: op=ltx code={code} {msg}')
+    raise video_run.VideoError(msg, code)
+
+
 def run(model: str, *,
         prompt: str,
         negative: str = '',
@@ -170,21 +180,21 @@ def run(model: str, *,
     so it takes no vae_type: the decode is always full.
     """
     if model is None or len(model) == 0 or model == 'None':
-        raise video_run.VideoError('no model selected', 400)
+        reject('no model selected', 400)
     if model.startswith('─'):
-        raise video_run.VideoError('dropdown separator selected, pick an actual model below', 400)
+        reject('dropdown separator selected, pick an actual model below', 400)
     if mp4_video and video_utils.check_av() is None:
-        raise video_run.VideoError('video encoding is unavailable: the av package failed to load', 500)
+        reject('video encoding is unavailable: the av package failed to load', 500)
 
     engine = 'LTX Video'
     load_model(engine, model)
     caps = ltx_capabilities.get_caps(model)
     cls = shared.sd_model.__class__.__name__ if shared.sd_loaded else None
     if caps is None or cls is None or not cls.startswith('LTX'):
-        raise video_run.VideoError(f'selected model is not LTX: model="{model}" cls={cls}', 400)
+        reject(f'selected model is not LTX: model="{model}" cls={cls}', 400)
     takes_init_image = caps.is_i2v and caps.repo_cls_name in I2V_IMAGE_CLASSES
     if takes_init_image and init_image is None:
-        raise video_run.VideoError('No input image provided. Please upload or select an image.', 400)
+        reject('No input image provided. Please upload or select an image.', 400)
 
     steps = int(steps) if steps is not None and int(steps) > 0 else caps.default_steps
     cfg_scale = float(guidance_scale) if guidance_scale is not None and guidance_scale > 0 else caps.default_cfg
@@ -394,8 +404,8 @@ def run(model: str, *,
                         # process_images swallows the interrupt assertion, so an empty result is the
                         # only place a cancel and a genuine failure are still distinguishable
                         if shared.state.interrupted or shared.state.skipped:
-                            raise video_run.VideoError('interrupted', 499)
-                        raise video_run.VideoError('process_images returned no frames', 500)
+                            reject('interrupted', 499)
+                        reject('process_images returned no frames', 500)
                     pixels = processed.images
                     raw_audio = getattr(processed, 'audio', None)
                     if raw_audio is not None:

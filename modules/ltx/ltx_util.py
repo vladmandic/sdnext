@@ -65,6 +65,9 @@ def load_upsample(upsample_pipe, upsample_repo_id):
             cache_dir=shared.opts.hfcache_dir,
             torch_dtype=devices.dtype,
         )
+        # only the upsampler, since the pipe borrows the model's vae and moving the whole pipe
+        # would drag that along into the meta tensors the caller's offload exclude avoids
+        upsample_pipe.latent_upsampler.to(devices.device)
         upsample_pipe.sdnext_upsample_repo = upsample_repo_id
         t1 = time.time()
         timer.process.add('load', t1 - t0)
