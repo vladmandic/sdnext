@@ -152,7 +152,10 @@ def _get_libs_pkg() -> str:
             agent = _rocm.Agent(i)
             therock = agent.therock
             if therock:
-                suffix = therock.split("/")[-1].replace("-", "_")
+                suffix = therock.rsplit("/", 1)[-1]
+                if suffix.startswith("amd-torch-device-"):
+                    suffix = suffix[len("amd-torch-device-"):]
+                suffix = suffix.replace("-", "_")
                 folder = "_rocm_sdk_libraries_" + suffix
                 if folder in candidates:
                     _libs_pkg_cache = folder

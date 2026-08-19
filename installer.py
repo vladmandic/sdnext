@@ -699,7 +699,7 @@ def install_rocm_zluda():
 
     if sys.platform == "win32" and (not args.use_zluda) and (device is not None) and (device.therock is not None) and not installed("rocm"):
         check_python(supported_minors=[11, 12, 13], reason='ROCm-Windows: python==3.11/3.12/3.13 required')
-        install(f"rocm[devel,libraries] --index-url https://rocm.nightlies.amd.com/{device.therock}")
+        install("rocm-sdk-devel --index-url https://rocm.nightlies.amd.com/whl-multi-arch")
         rocm.refresh()
 
     msg = f'ROCm: version={rocm.version}'
@@ -733,9 +733,16 @@ def install_rocm_zluda():
         else: # TODO rocm: switch to pytorch source when it becomes available
             if device is None:
                 log.error('ROCm: no agent found - make sure that graphics driver is installed and up to date')
-            if isinstance(rocm.environment, rocm.PythonPackageEnvironment):
+            if device is not None and device.therock is not None:
                 check_python(supported_minors=[11, 12, 13], reason='ROCm-Windows: python==3.11/3.12/3.13 required')
-                torch_command = os.environ.get('TORCH_COMMAND', f'torch torchvision --index-url https://rocm.nightlies.amd.com/{device.therock}')
+                # Extract device-specific package family from therock path (e.g., 'amd-torch-device-gfx1030' from 'whl-multi-arch/amd-torch-device-gfx1030')
+                torch_family = device.therock.rsplit('/', 1)[-1]
+                torchvision_family = torch_family.replace('amd-torch-device-', 'amd-torchvision-device-')
+                # Use device-specific index for torch/torchvision, with root index as fallback for torchaudio and other packages
+                torch_command = os.environ.get('TORCH_COMMAND', f'{torch_family} {torchvision_family} torchaudio --index-url https://rocm.nightlies.amd.com/{device.therock} --extra-index-url https://rocm.nightlies.amd.com/whl-multi-arch')
+            elif isinstance(rocm.environment, rocm.PythonPackageEnvironment):
+                check_python(supported_minors=[11, 12, 13], reason='ROCm-Windows: python==3.11/3.12/3.13 required')
+                torch_command = os.environ.get('TORCH_COMMAND', 'torch torchvision torchaudio --index-url https://rocm.nightlies.amd.com/whl-multi-arch')
             else:
                 check_python(supported_minors=[12], reason='ROCm-Windows: preview python==3.12 required')
                 # torch 2.8.0a0 is the last version with rocm 6.4 support

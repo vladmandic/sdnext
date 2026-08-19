@@ -133,28 +133,15 @@ class Agent:
 
     @property
     def therock(self) -> str | None:
-        if (self.gfx_version & 0xFFF0) == 0x1200:
-            return "v2/gfx120X-all"
-        if (self.gfx_version & 0xFFF0) == 0x1100:
-            return "v2/gfx110X-all"
-        if self.gfx_version == 0x1150:
-            return "v2-staging/gfx1150"
-        if self.gfx_version == 0x1151:
-            return "v2/gfx1151"
-        if self.gfx_version == 0x1152:
-            return "v2-staging/gfx1152"
-        if self.gfx_version == 0x1153:
-            return "v2-staging/gfx1153"
-        if self.gfx_version in (0x1030, 0x1031, 0x1032, 0x1034,):
-            return "v2-staging/gfx103X-dgpu"
-        #if (self.gfx_version & 0xFFF0) == 0x1010:
-        #    return "gfx101X-dgpu"
-        #if (self.gfx_version & 0xFFF0) == 0x900:
-        #    return "gfx90X-dcgpu"
-        #if (self.gfx_version & 0xFFF0) == 0x940:
-        #    return "gfx94X-dcgpu"
-        #if self.gfx_version == 0x950:
-        #    return "gfx950-dcgpu"
+        if self.gfx_version is None:
+            return None
+        gfx = self.name if self.name.startswith("gfx") else f"gfx{self.gfx_version:04x}"
+        if self.gfx_version & 0xFFF0 in (0x1200, 0x1100):
+            return f"whl-multi-arch/amd-torch-device-{gfx}"
+        if self.gfx_version in (0x1150, 0x1151, 0x1152, 0x1153):
+            return f"whl-multi-arch/amd-torch-device-{gfx}"
+        if self.gfx_version in (0x1030, 0x1031, 0x1032, 0x1033, 0x1034, 0x1035, 0x1036):
+            return f"whl-multi-arch/amd-torch-device-{gfx}"
         return None
 
     def get_gfx_version(self) -> str | None:
