@@ -396,6 +396,14 @@ def load_sdnext():
     # importing modules.shared installs the configured sdp override hijacks in this process;
     # restore stock sdpa so baselines and references measure torch itself
     torch.nn.functional.scaled_dot_product_attention = stock_sdpa
+    # the triton autotune hijack draws its own rich progress bar on the logger console during
+    # sweeps; a second live display on this tty tramples the benchmark's live tables (stale
+    # border lines left in scrollback), so disarm the bar and keep the hijack's bookkeeping
+    try:
+        from modules import sd_hijack_triton
+        sd_hijack_triton.start_progress = lambda name, total: (None, None)
+    except Exception:
+        pass
     shared = shared_module
     devices = devices_module
     sdnq_triton_atten = atten
