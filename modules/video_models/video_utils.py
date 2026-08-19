@@ -3,6 +3,7 @@ import sys
 import time
 import inspect
 import importlib.util
+from contextlib import contextmanager
 from dataclasses import dataclass
 from PIL import Image
 from installer import install
@@ -71,6 +72,16 @@ def has_torchaudio():
         return importlib.util.find_spec('torchaudio') is not None
     except Exception:
         return False
+
+
+@contextmanager
+def phase(title: str):
+    """Scoped generation phase, so an abort cannot leave the job holding a stage that never ended."""
+    jobid = shared.state.begin(title)
+    try:
+        yield jobid
+    finally:
+        shared.state.end(jobid)
 
 
 def pixel_size(pixels, fallback: tuple[int, int] = (0, 0)) -> tuple[int, int]:

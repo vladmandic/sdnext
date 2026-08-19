@@ -33,6 +33,14 @@ class VideoResult:
     height: int = 0
 
 
+def normalize_override_settings(override_settings):
+    """Override settings as a dict. The ui control emits "setting: value" pairs; api callers send the dict."""
+    if isinstance(override_settings, (list, tuple)):
+        from modules.generation_parameters_copypaste import create_override_settings_dict
+        return create_override_settings_dict(override_settings)
+    return override_settings
+
+
 def resolve_model(engine: str | None, model: str | None) -> tuple[models_def.Model, bool]:
     """Return (selected, needs_load): a registry row when both names are given, or a synthesized
     row describing the already-loaded pipeline when both are omitted."""
@@ -140,9 +148,7 @@ def run(selected: models_def.Model, *,
             debug('Video: model still not loaded')
             raise VideoError('model not loaded', 500)
 
-    if isinstance(override_settings, (list, tuple)): # the ui override control emits "setting: value" pairs; always empty on the video tab since the control stays hidden
-        from modules.generation_parameters_copypaste import create_override_settings_dict
-        override_settings = create_override_settings_dict(override_settings)
+    override_settings = normalize_override_settings(override_settings) # always empty on the video tab, since the control stays hidden
 
     p = processing.StableDiffusionProcessingVideo(
         sd_model=shared.sd_model,
