@@ -180,6 +180,20 @@ def make_condition(condition_cls, family: str, frames, strength: float, is_video
     return condition_cls(image=frames, frame_index=index, strength=strength)
 
 
+def open_condition(src) -> Image.Image:
+    """A conditioning source as a PIL image, from a gradio upload handle or from an api reference.
+
+    A string goes to the api decoder, which reads base64 and upload refs, rather than being opened
+    as a path: naming a file is the caller's way of reading one it never uploaded.
+    """
+    if hasattr(src, 'name'):
+        return Image.open(src.name)
+    if isinstance(src, str):
+        from modules.api.api import decode_base64_to_image
+        return decode_base64_to_image(src)
+    return src
+
+
 def get_conditions(width, height, condition_strength, condition_images, condition_files, condition_video, condition_video_frames, condition_video_skip, family: str = '0.9', num_frames=None, condition_last=None):
     condition_cls = _condition_cls(family)
     if condition_cls is None:
@@ -188,10 +202,7 @@ def get_conditions(width, height, condition_strength, condition_images, conditio
     if condition_images is not None:
         for condition_image in condition_images:
             try:
-                if isinstance(condition_image, str):
-                    from modules.api.api import decode_base64_to_image
-                    condition_image = decode_base64_to_image(condition_image)
-                condition_image = condition_image.convert('RGB').resize((width, height), resample=Image.Resampling.LANCZOS)
+                condition_image = open_condition(condition_image).convert('RGB').resize((width, height), resample=Image.Resampling.LANCZOS)
                 conditions.append(make_condition(condition_cls, family, condition_image, condition_strength, is_video=False))
                 log.debug(f'Video condition: family={family} image={condition_image.size} strength={condition_strength}')
             except Exception as e:
@@ -200,11 +211,7 @@ def get_conditions(width, height, condition_strength, condition_images, conditio
         batch_images = []
         for fn in condition_files:
             try:
-                if hasattr(fn, 'name'):
-                    condition_image = Image.open(fn.name).convert('RGB').resize((width, height), resample=Image.Resampling.LANCZOS)
-                else:
-                    condition_image = fn.convert('RGB').resize((width, height), resample=Image.Resampling.LANCZOS)
-                batch_images.append(condition_image)
+                batch_images.append(open_condition(fn).convert('RGB').resize((width, height), resample=Image.Resampling.LANCZOS))
             except Exception as e:
                 log.error(f'LTX condition files: {e}')
         if len(batch_images) > 0:
@@ -222,10 +229,7 @@ def get_conditions(width, height, condition_strength, condition_images, conditio
             log.error(f'LTX condition video: {e}')
     if condition_last is not None:
         try:
-            if isinstance(condition_last, str):
-                from modules.api.api import decode_base64_to_image
-                condition_last = decode_base64_to_image(condition_last)
-            condition_last = condition_last.convert('RGB').resize((width, height), resample=Image.Resampling.LANCZOS)
+            condition_last = open_condition(condition_last).convert('RGB').resize((width, height), resample=Image.Resampling.LANCZOS)
             # 2.x reads index as a latent index and accepts -1 for the final frame; 0.9 uses a pixel index.
             last_index = -1 if family == '2.x' else max((num_frames or 1) - 1, 0)
             conditions.append(make_condition(condition_cls, family, condition_last, condition_strength, is_video=False, index=last_index))
