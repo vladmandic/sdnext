@@ -549,6 +549,97 @@ def test_partial_coverage_layers_stay_independent():
     return True
 
 
+@contextmanager
+def apply_method(value):
+    old = getattr(shared.opts, 'lora_sdnq_apply', 'exact')
+    shared.opts.lora_sdnq_apply = value
+    try:
+        yield
+    finally:
+        shared.opts.lora_sdnq_apply = old
+
+
+def test_mechanism_gate_declines_candidates():
+    """The requantize option must gate every svd-channel entry point and flip the apply-stamp token."""
+    layer = build_layer('uint4')
+    A, B, _D = make_delta()
+    l_common.loaded_networks.clear()
+    l_common.loaded_networks.append(make_net('one', layer, A, B))
+    wanted = (('one', 1.0, 1.0, None),)
+    try:
+        assert lora_sdnq.factor_candidate(layer, layer.network_layer_name, wanted)
+        with host_rank(64):
+            assert lora_sdnq.host_candidate(layer, layer.network_layer_name, wanted)
+        assert lora_sdnq.signature() == ''
+        with apply_method('requantize'):
+            assert not lora_sdnq.factor_candidate(layer, layer.network_layer_name, wanted)
+            with host_rank(64):
+                assert not lora_sdnq.host_candidate(layer, layer.network_layer_name, wanted)
+            assert lora_sdnq.signature() == '|quant=requantize'
+    finally:
+        l_common.loaded_networks.clear()
+    return True
+
+
+def test_requantize_option_routes_to_legacy_path():
+    """With the option set, a factorable set must take the classic backup-and-requantize path end to end."""
+    layer = build_layer('uint4')
+    A, B, _D = make_delta(sigma=3e-3)
+    net = make_net('one', layer, A, B)
+    with apply_method('requantize'), mock_model(lin=layer):
+        shared.opts.lora_fuse_native = False # a real quantized model forces backup mode; the mock carries no quantization config
+        Wdq0 = dq(layer)
+        activate(net)
+        assert not hasattr(layer, 'sdnq_lora_svd_stash'), 'legacy path must not touch the svd channel'
+        assert layer.svd_up is None, 'legacy path must leave the channel empty'
+        assert isinstance(layer.network_weights_backup, torch.Tensor), 'legacy path must take a tensor backup'
+        assert not torch.equal(dq(layer), Wdq0), 'legacy path must requantize the weights'
+        activate()
+        assert torch.equal(dq(layer), Wdq0), 'legacy restore must be bit-exact from backup'
+    return True
+
+
+def test_mechanism_flip_strips_attached_factors():
+    """Flipping to requantize with factors attached must strip them before the weight path takes the layer; flipping back must re-enter the factor path."""
+    layer = build_layer('uint4')
+    A, B, _D = make_delta(sigma=3e-3)
+    net = make_net('one', layer, A, B)
+    with mock_model(lin=layer):
+        shared.opts.lora_fuse_native = False # a real quantized model forces backup mode; the mock carries no quantization config
+        Wdq0 = dq(layer)
+        activate(net)
+        assert hasattr(layer, 'sdnq_lora_svd_stash'), 'default mechanism must take the factor path'
+        E_exact = dq(layer) - Wdq0
+        with apply_method('requantize'):
+            activate(net) # same set; the mechanism token in the apply stamp must force re-processing
+            assert not hasattr(layer, 'sdnq_lora_svd_stash'), 'flip must strip the attached factors'
+            assert layer.svd_up is None, 'stripped channel must be empty, or the requantized delta double-applies'
+            assert isinstance(layer.network_weights_backup, torch.Tensor), 'flipped layer must continue on the backup path'
+        activate(net) # flip back within the same loaded set
+        assert hasattr(layer, 'sdnq_lora_svd_stash'), 'flip back must re-enter the factor path'
+        assert torch.equal(dq(layer) - Wdq0, E_exact), 'exact re-apply must restore the base from backup before attaching'
+        activate()
+        assert torch.equal(dq(layer), Wdq0), 'unload must return bit-exact pristine'
+    return True
+
+
+def test_mechanism_flip_restore_pass_strips():
+    """A restore-only pass under the requantize option must still drop attached factors."""
+    layer = build_layer('uint4')
+    A, B, _D = make_delta(sigma=3e-3)
+    net = make_net('one', layer, A, B)
+    with mock_model(lin=layer):
+        Wdq0 = dq(layer)
+        activate(net)
+        assert hasattr(layer, 'sdnq_lora_svd_stash')
+        with apply_method('requantize'):
+            activate() # unload with the gate closed: the fallthrough strip is the only removal route
+            assert not hasattr(layer, 'sdnq_lora_svd_stash'), 'restore pass must strip the factors'
+            assert torch.equal(dq(layer), Wdq0), 'strip must restore bit-exact'
+            assert layer.network_current_names == (), 'stripped layer must be stamped restored'
+    return True
+
+
 CAT_HOST = category('hosting')
 
 
@@ -867,7 +958,9 @@ def run_tests():
     for fn in [test_network_activate_roundtrip]:
         run_test(CAT_E2E, fn)
     log.warning('=== Set transitions ===')
-    for fn in [test_mixed_family_transition_restores_base, test_partial_coverage_layers_stay_independent]:
+    for fn in [test_mixed_family_transition_restores_base, test_partial_coverage_layers_stay_independent,
+               test_mechanism_gate_declines_candidates, test_requantize_option_routes_to_legacy_path,
+               test_mechanism_flip_strips_attached_factors, test_mechanism_flip_restore_pass_strips]:
         run_test(CAT_TRANS, fn)
     log.warning('=== Hosting ===')
     for fn in [test_hosted_low_rank_delta_is_kept, test_hosted_dense_delta_beats_requant, test_hosted_skips_int8,

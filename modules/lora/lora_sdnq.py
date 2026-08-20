@@ -47,6 +47,16 @@ fallback_layers: list[str] = []
 hosted_layers: list[tuple[str, float, bool]] = []
 
 
+def enabled():
+    """True while the exact svd-channel machinery may take quantized layers; the requantize choice routes every layer to the legacy weight-rewrite path."""
+    return getattr(shared.opts, 'lora_sdnq_apply', 'exact') != 'requantize'
+
+
+def signature():
+    """Identity suffix for the per-module apply stamp; empty on the default exact mechanism."""
+    return '' if enabled() else '|quant=requantize'
+
+
 def get_module_factors(module, device, dtype, original_shape=None):
     """Return ``(up_eff, down)`` reproducing ``calc_updown`` exactly, or None.
 
@@ -82,6 +92,8 @@ def factor_candidate(self, network_layer_name, wanted_names, use_previous=False)
     factorable LoRA modules for this layer. An empty ``wanted_names`` is a
     removal request and qualifies whenever factors are currently attached.
     """
+    if not enabled():
+        return False # declined layers with factors still attached are stripped by the activate fallthrough
     if getattr(self, 'sdnq_dequantizer', None) is None or self.__class__.__name__ != 'SDNQLinear':
         return False
     if hasattr(self, 'sdnq_lora_svd_stash'):
@@ -182,6 +194,8 @@ def append_factors(self, ups, downs):
 
 def host_candidate(self, network_layer_name, wanted_names, use_previous=False):
     """True when a non-factorable set on this layer should be hosted as a truncated svd."""
+    if not enabled():
+        return False
     if int(getattr(shared.opts, 'lora_sdnq_host_rank', 0) or 0) <= 0:
         return False
     if getattr(self, 'sdnq_dequantizer', None) is None or self.__class__.__name__ != 'SDNQLinear':
@@ -276,7 +290,10 @@ def report_fallbacks():
             log.debug(f'Network load: type=LoRA quant=sdnq hosted={[(n, round(e, 3)) for n, e, _c in hosted_layers[:8]]}{"..." if len(hosted_layers) > 8 else ""}')
     hosted_layers.clear()
     if len(fallback_layers) > 0:
-        log.warning(f'Network load: type=LoRA quant=sdnq layers={len(fallback_layers)} non-factorable networks requantized in place (reduced fidelity on quantized weights)')
+        if enabled():
+            log.warning(f'Network load: type=LoRA quant=sdnq layers={len(fallback_layers)} non-factorable networks requantized in place (reduced fidelity on quantized weights)')
+        else:
+            log.info(f'Network load: type=LoRA quant=sdnq apply=requantize layers={len(fallback_layers)} reason=setting')
         if l.debug:
             log.debug(f'Network load: type=LoRA quant=sdnq requantized={fallback_layers[:8]}{"..." if len(fallback_layers) > 8 else ""}')
     fallback_layers.clear()

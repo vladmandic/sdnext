@@ -89,6 +89,7 @@ def network_activate(include=None, exclude=None):
         refused = 0
         with devices.inference_context(), pbar:
             wanted_names = tuple((x.name, x.te_multiplier, x.unet_multiplier, x.dyn_dim) for x in l.loaded_networks) if len(l.loaded_networks) > 0 else ()
+            stack_sig = lora_sdnq.signature() # apply-mechanism token tracked beside network_current_names so a settings-only flip re-applies
             applied_layers.clear()
             lora_sdnq.fallback_layers.clear() # a raise mid-pass leaves stale entries behind
             lora_sdnq.hosted_layers.clear()
@@ -99,7 +100,7 @@ def network_activate(include=None, exclude=None):
                 for _, module in modules[component]:
                     network_layer_name = getattr(module, 'network_layer_name', None)
                     current_names = getattr(module, "network_current_names", ())
-                    if getattr(module, 'weight', None) is None or shared.state.interrupted or (network_layer_name is None) or (current_names == component_wanted):
+                    if getattr(module, 'weight', None) is None or shared.state.interrupted or (network_layer_name is None) or (current_names == component_wanted and getattr(module, 'network_current_stack', '') == stack_sig):
                         if task is not None:
                             pbar.update(task, advance=1)
                         continue
@@ -115,6 +116,7 @@ def network_activate(include=None, exclude=None):
                                 applied_layers.append(network_layer_name)
                                 applied_weight += 1
                             module.network_current_names = component_wanted
+                            module.network_current_stack = stack_sig
                             if task is not None:
                                 pbar.update(task, advance=1)
                             continue
@@ -130,6 +132,7 @@ def network_activate(include=None, exclude=None):
                                     applied_layers.append(network_layer_name)
                                     applied_weight += 1
                                 module.network_current_names = component_wanted
+                                module.network_current_stack = stack_sig
                                 batch_updown, batch_ex_bias = None, None
                                 del batch_updown, batch_ex_bias
                                 if task is not None:
@@ -137,6 +140,13 @@ def network_activate(include=None, exclude=None):
                                 continue
                         batch_updown, batch_ex_bias = None, None
                         del batch_updown, batch_ex_bias
+                    stripped = lora_sdnq.remove_factors(module) # the mechanism gate can decline a layer still carrying attached factors; the weight path must start from the pristine channel
+                    if stripped and not component_wanted: # factor-mode layers have no tensor backup, dropping the factors is the whole restore
+                        module.network_current_names = ()
+                        module.network_current_stack = stack_sig
+                        if task is not None:
+                            pbar.update(task, advance=1)
+                        continue
                     backup_size += network_backup_weights(module, network_layer_name, component_wanted, fuse)
                     if not component_wanted:
                         weights_backup = getattr(module, "network_weights_backup", None)
@@ -161,6 +171,7 @@ def network_activate(include=None, exclude=None):
                     batch_updown, batch_ex_bias = None, None
                     del batch_updown, batch_ex_bias
                     module.network_current_names = component_wanted
+                    module.network_current_stack = stack_sig
                     if task is not None:
                         bs = round(backup_size/1024/1024/1024, 2) if backup_size > 0 else None
                         pbar.update(task, advance=1, description=f'networks={len(l.loaded_networks)} modules={active_components} layers={total} weights={applied_weight} bias={applied_bias} backup={bs} device={device}')
