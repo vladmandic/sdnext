@@ -646,6 +646,91 @@ def test_mechanism_flip_restore_pass_strips():
             assert not hasattr(layer, 'sdnq_lora_svd_stash'), 'restore pass must strip the factors'
             assert torch.equal(dq(layer), Wdq0), 'strip must restore bit-exact'
             assert layer.network_current_names == (), 'stripped layer must be stamped restored'
+
+def test_apply_restore_preserves_weight_storage():
+    """Apply and restore write into the existing parameter storage: kernel selection is
+    placement-sensitive, so a swapped-in Parameter shifts deterministic outputs bitwise."""
+    lin = torch.nn.Linear(IN_F, OUT_F, bias=True, dtype=torch.bfloat16, device=DEVICE)
+    with torch.no_grad():
+        lin.weight.copy_(torch.randn(OUT_F, IN_F, device=DEVICE) * 0.02)
+        lin.bias.copy_(torch.randn(OUT_F, device=DEVICE) * 0.01)
+    lin.network_layer_name = 'lora_transformer_storage'
+    lin.network_current_names = ()
+    W0 = lin.weight.detach().clone()
+    B0 = lin.bias.detach().clone()
+    wptr, bptr = lin.weight.data_ptr(), lin.bias.data_ptr()
+    A, B, _D = make_delta(seed=91, sigma=1e-2)
+    net = make_net('storage', lin, A, B)
+    with mock_model(lin=lin):
+        activate(net)
+        assert not torch.equal(lin.weight.detach(), W0), 'apply must change the weight'
+        assert lin.weight.data_ptr() == wptr, 'apply must write into the existing weight storage'
+        assert lin.bias.data_ptr() == bptr, 'apply must keep the bias storage'
+        activate()
+        assert torch.equal(lin.weight.detach(), W0), 'restore must be bit-exact'
+        assert torch.equal(lin.bias.detach(), B0), 'restore must be bit-exact on bias'
+        assert lin.weight.data_ptr() == wptr, 'restore must write into the existing weight storage'
+        assert lin.bias.data_ptr() == bptr, 'restore must write into the existing bias storage'
+    return True
+
+
+def fuse_fixture(te0):
+    """A plain bf16 Linear (unquantized, so fuse stays allowed) with one attached net at strength te0."""
+    lin = torch.nn.Linear(IN_F, OUT_F, bias=False, dtype=torch.bfloat16, device=DEVICE)
+    with torch.no_grad():
+        lin.weight.copy_(torch.randn(OUT_F, IN_F, device=DEVICE) * 0.02)
+    lin.network_layer_name = 'lora_transformer_fusefix'
+    lin.network_current_names = ()
+    A, B, D = make_delta(seed=17, sigma=1e-2)
+    net = make_net('fusefix', lin, A, B, te_mult=te0)
+    return lin, net, D
+
+
+def edit_strength(net, te):
+    """The production order for a strength edit: network_load stages the new values on the
+    shared net object, deactivate runs against the applied ones, activate promotes."""
+    l_common.previously_loaded_networks[:] = l_common.loaded_networks
+    net.pending_config = {'te': te, 'unet': [te] * 3, 'dyn': None}
+    networks.network_deactivate()
+    networks.network_activate()
+
+
+def test_fuse_promote_applies_new_multiplier():
+    """Fuse removal subtracts a recomputed delta, so the multipliers it reads must be the
+    applied ones: staged values promote only in network_activate, after the removal pass."""
+    lin, net, D = fuse_fixture(te0=0.5)
+    with mock_model(lin=lin):
+        shared.opts.lora_fuse_native = True
+        W0 = lin.weight.detach().float().clone()
+        activate(net)
+        assert isinstance(getattr(lin, 'network_weights_backup', None), bool), 'fuse mode must not take a tensor backup'
+        rho0 = rho_of(lin.weight.detach().float() - W0, D)
+        assert abs(rho0 - 0.5) < 0.05, f'rho={rho0:.3f} expected the initial strength'
+        edit_strength(net, 1.0)
+        assert net.te_multiplier == 1.0, 'activate must promote the staged multiplier'
+        rho1 = rho_of(lin.weight.detach().float() - W0, D)
+        assert abs(rho1 - 1.0) < 0.05, f'rho={rho1:.3f} expected the edited strength to apply, not the first one'
+    return True
+
+
+def test_fuse_change_then_remove_restores_pristine():
+    """Apply, edit, remove: the final subtraction must use the strength that was applied.
+    Pins the promote-after-deactivate ordering; a promote that runs before the removal
+    pass leaves half the delta baked into the weights."""
+    lin, net, D = fuse_fixture(te0=0.5)
+    with mock_model(lin=lin):
+        shared.opts.lora_fuse_native = True
+        W0 = lin.weight.detach().float().clone()
+        activate(net)
+        edit_strength(net, 1.0)
+        l_common.previously_loaded_networks[:] = l_common.loaded_networks
+        l_common.loaded_networks.clear()
+        networks.network_deactivate()
+        networks.network_activate()
+        resid = lin.weight.detach().float() - W0
+        rho2 = rho_of(resid, D)
+        assert abs(rho2) < 0.05, f'rho={rho2:.3f} removal must subtract the strength that was applied'
+        assert float(resid.abs().max()) < 2e-3, f'max={float(resid.abs().max()):.2e} removal must leave only rounding residue'
     return True
 
 
@@ -2275,6 +2360,33 @@ def test_rank_bucket_graph_reuse():
     return True
 
 
+def test_recompile_wall_resets_on_unload():
+    import sdnq.common as sdnq_common
+    if not sdnq_common.use_torch_compile:
+        return True
+    import torch._dynamo
+    import torch._dynamo.config as dcfg
+    from torch._dynamo.exc import FailOnRecompileLimitHit
+    old_acc = dcfg.accumulated_recompile_limit
+    dcfg.accumulated_recompile_limit = 4
+    try:
+        fn = sdnq_common.compile_func(lambda w, s: w.to(torch.float32) * s)
+        hit = False
+        for i in range(8): # fresh shapes stand in for model switches: the lifetime counter climbs even when old guards are dead
+            try:
+                fn(torch.randint(0, 255, (32 + 16 * i, 8), dtype=torch.uint8, device=DEVICE), torch.rand(32 + 16 * i, 1, device=DEVICE))
+            except FailOnRecompileLimitHit:
+                hit = True
+                break
+        assert hit, 'the lowered lifetime wall must trip on fullgraph recompiles'
+        sdnq_common.reset_compile_caches() # the unload-seam hook: counters and dead graphs cleared
+        fn(torch.randint(0, 255, (1024, 8), dtype=torch.uint8, device=DEVICE), torch.rand(1024, 1, device=DEVICE))
+    finally:
+        dcfg.accumulated_recompile_limit = old_acc
+        torch._dynamo.reset() # leave no wall residue for later tests
+    return True
+
+
 CAT_ROBUST = category('robustness')
 
 
@@ -2724,7 +2836,8 @@ def run_tests():
     log.warning('=== Set transitions ===')
     for fn in [test_mixed_family_transition_restores_base, test_partial_coverage_layers_stay_independent,
                test_mechanism_gate_declines_candidates, test_requantize_option_routes_to_legacy_path,
-               test_mechanism_flip_strips_attached_factors, test_mechanism_flip_restore_pass_strips]:
+               test_mechanism_flip_strips_attached_factors, test_mechanism_flip_restore_pass_strips,
+               test_apply_restore_preserves_weight_storage, test_fuse_promote_applies_new_multiplier, test_fuse_change_then_remove_restores_pristine]:
         run_test(CAT_TRANS, fn)
     log.warning('=== Hosting ===')
     for fn in [test_hosted_low_rank_delta_is_kept, test_hosted_dense_delta_beats_requant, test_hosted_skips_int8,
@@ -2761,7 +2874,7 @@ def run_tests():
                test_select_reset_reports_timing, test_select_weight_flip_calcs_on_accelerator]:
         run_test(CAT_SELECT, fn)
     log.warning('=== Compile ===')
-    for fn in [test_factor_add_inside_compiled_graph, test_rank_bucket_graph_reuse]:
+    for fn in [test_factor_add_inside_compiled_graph, test_rank_bucket_graph_reuse, test_recompile_wall_resets_on_unload]:
         run_test(CAT_COMPILE, fn)
     log.warning('=== Robustness ===')
     for fn in [test_remove_factors_after_device_move, test_stacked_shape_mismatch_falls_back]:
