@@ -1,8 +1,12 @@
 import time
 import inspect
 import torch
-from modules.logger import log
+import rich.progress as rp
+from modules.logger import log, console
 from modules import shared, upscaler
+
+
+pbar = rp.Progress(rp.TextColumn('[cyan]Upscale:'), rp.BarColumn(), rp.MofNCompleteColumn(), rp.TaskProgressColumn(), rp.TimeRemainingColumn(), rp.TimeElapsedColumn(), rp.TextColumn('[cyan]{task.description}'), console=console)
 
 
 def load_upscaler(upscaler_name: str) -> upscaler.UpscalerData | None:
@@ -43,19 +47,24 @@ def upscale_video(pixels: torch.Tensor, scale: float = 1.0, upscaler_name: str =
         return pixels
     outputs = []
     t0 = time.time()
-    for idx in range(frames.shape[2]):
-        frame = frames[:, :, idx, :, :] # BCHW
-        w = int(frame.shape[-1] * scale)
-        h = int(frame.shape[-2] * scale)
-        # upscale
-        frame = model.scaler.do_upscale(frame, model.name, output_type='tensor', quiet=True)
-        frame = frame * 2.0 - 1.0 # upscaler returns 0:1, need -1:1 for video
-        if frame.ndim == 3:
-            frame = frame.unsqueeze(0)
-        # interpolate to exact size
-        if frame.shape[-1] != w or frame.shape[-2] != h:
-            frame = torch.nn.functional.interpolate(frame, size=(h, w), mode='lanczos', align_corners=False, antialias=True)
-        outputs.append(frame)
+    with pbar:
+        num_frames = frames.shape[2]
+        task = pbar.add_task(total=num_frames, description='starting...')
+        for idx in range(num_frames):
+            pbar.update(task, advance=1, description=f'frame {idx + 1}/{num_frames}')
+            frame = frames[:, :, idx, :, :] # BCHW
+            w = int(frame.shape[-1] * scale)
+            h = int(frame.shape[-2] * scale)
+            # upscale
+            frame = model.scaler.do_upscale(frame, model.name, output_type='tensor', quiet=True)
+            frame = frame * 2.0 - 1.0 # upscaler returns 0:1, need -1:1 for video
+            if frame.ndim == 3:
+                frame = frame.unsqueeze(0)
+            # interpolate to exact size
+            if frame.shape[-1] != w or frame.shape[-2] != h:
+                frame = torch.nn.functional.interpolate(frame, size=(h, w), mode='lanczos', align_corners=False, antialias=True)
+            outputs.append(frame)
+        pbar.remove_task(task)
     outputs = torch.stack(outputs, dim=2)
     t1 = time.time()
     frames = outputs.shape[2]

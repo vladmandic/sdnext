@@ -92,7 +92,7 @@ class UpscalerSpandrel(Upscaler):
         self.model = spandrel.ModelLoader().load_from_file(model.local_data_path)
         self.model.to(devices.device).eval()
 
-    def do_upscale(self, img: Image.Image | torch.Tensor | np.ndarray, selected_model=None, output_type='pil', quiet=False):
+    def do_upscale(self, img: Image.Image | torch.Tensor | np.ndarray, selected_model: str | None = None, output_type='pil', quiet=False):
         try:
             if (self.model is None) or (self.selected != selected_model):
                 self.load_model(selected_model)

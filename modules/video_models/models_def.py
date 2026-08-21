@@ -537,7 +537,7 @@ try:
         ],
         'Mochi Video': [
             Model(name='None'),
-            Model(name='Mochi 1 T2V',
+            Model(name='Mochi 1 20B T2V',
                 url='https://huggingface.co/genmo/mochi-1-preview',
                 repo='genmo/mochi-1-preview',
                 repo_cls='MochiPipeline',
@@ -546,7 +546,7 @@ try:
         ],
         'Latte Video': [
             Model(name='None'),
-            Model(name='Latte 1 T2V',
+            Model(name='Latte 1 1B T2V',
                 url='https://huggingface.co/maxin-cn/Latte-1',
                 repo='maxin-cn/Latte-1',
                 repo_cls='LattePipeline',
@@ -555,7 +555,7 @@ try:
         ],
         'Allegro Video': [
             Model(name='None'),
-            Model(name='Allegro T2V',
+            Model(name='Allegro 2.8B T2V',
                 url='https://huggingface.co/rhymes-ai/Allegro',
                 repo='rhymes-ai/Allegro',
                 repo_cls='AllegroPipeline',
