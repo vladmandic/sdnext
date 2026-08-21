@@ -96,25 +96,75 @@ def save_transcript(path):
             file_console.print(renderable)
     console.print(f"results saved to {path}")
 
+def key_padding_mask(cfg, device, keep=0.75):
+    # boolean key-padding mask over the kv axis, first keep fraction of keys valid
+    kv_tokens = cfg.get("kv_tokens", cfg["tokens"])
+    attn_mask = torch.zeros(cfg["batch"], 1, 1, kv_tokens, device=device, dtype=torch.bool)
+    attn_mask[..., :int(kv_tokens * keep)] = True
+    return attn_mask
+
+
+def krea2_segment_mask(cfg, device):
+    # the transformer's segment_mask: text is padded to a fixed 512 tokens ahead of the
+    # image tokens and the padded tail is masked for queries and keys both, so padding
+    # query rows are fully masked and yield nan under sdpa (the model nan_to_num's them)
+    valid = torch.ones(cfg["batch"], cfg["tokens"], device=device, dtype=torch.bool)
+    valid[:, 128:512] = False
+    return valid.unsqueeze(1).unsqueeze(2) * valid.unsqueeze(1).unsqueeze(3)
+
+
+def build_preset_mask(cfg, device):
+    # dense masks come from the preset's mask_fn; the element guard keeps h3-scale presets
+    # from materializing multi-gigabyte masks, those shapes belong to block-granular masks
+    mask_fn = cfg.get("mask_fn")
+    if mask_fn is None:
+        return None
+    attn_mask = mask_fn(cfg, device)
+    if attn_mask is not None and attn_mask.numel() > 2**31:
+        raise ValueError(f"preset dense mask holds {attn_mask.numel():,} elements; this shape needs a block-granular mask, not a token mask")
+    return attn_mask
+
+
 shape_presets = {
     # geometry from the model transformer and text-encoder configs;
-    # optional keys: kv_tokens (cross-attention), kv_heads (gqa), causal
+    # optional keys: kv_tokens (cross-attention), kv_heads (gqa), causal,
+    # mask_fn (token-granular attn_mask builder), mask_nan_guard (fully-masked query
+    # rows nan under stock sdpa), iters/warmup (per-preset run overrides for very large
+    # shapes), ref_head_chunk (head-sliced fp32 reference to bound peak memory),
+    # sparse (token layout driving the sparse selector rows)
     "sd15": dict(batch=2, heads=8, tokens=4096, head_dim=40, desc="SD 1.5 unet self-attention at 512px, batched cfg, head dim padded 40 to 64"),
     "sdxl": dict(batch=2, heads=10, tokens=4096, head_dim=64, desc="SDXL unet self-attention at 1024px, batched cfg"),
     "sdxl-cross": dict(batch=2, heads=10, tokens=4096, kv_tokens=77, head_dim=64, desc="SDXL unet cross-attention at 1024px, 77 text tokens"),
     "qwen3-te": dict(batch=2, heads=16, kv_heads=8, tokens=512, head_dim=128, causal=True, desc="Qwen3 text encoder (Anima), causal gqa 16:8 heads, 512 token prompt"),
     "anima": dict(batch=1, heads=16, tokens=4096, head_dim=128, desc="Anima 1.0 self-attention at 1024px, one cfg pass"),
     "flux2": dict(batch=1, heads=32, tokens=4608, head_dim=128, desc="FLUX.2 Klein 9B joint attention at 1024px, 4096 image plus 512 text tokens"),
-    "krea2": dict(batch=1, heads=48, tokens=4608, head_dim=128, desc="Krea 2 12B joint attention at 1024px, 4096 image plus 512 text tokens (128 real), kv expanded from gqa 48:12, segment mask"),
+    "krea2": dict(batch=1, heads=48, tokens=4608, head_dim=128, mask_fn=krea2_segment_mask, mask_nan_guard=True, desc="Krea 2 12B joint attention at 1024px, 4096 image plus 512 text tokens (128 real), kv expanded from gqa 48:12, segment mask"),
     "wan22": dict(batch=1, heads=40, tokens=32760, head_dim=128, desc="Wan 2.2 A14B self-attention, 832x480 81 frames, one cfg pass"),
     "wan22-cfg": dict(batch=2, heads=40, tokens=32760, head_dim=128, desc="Wan 2.2 A14B self-attention, 832x480 81 frames, batched cfg"),
     "ltx2": dict(batch=1, heads=32, tokens=13376, head_dim=128, desc="LTX 2.3 self-attention, 1216x704 121 frames, one cfg pass"),
-    "masked": dict(batch=1, heads=32, tokens=4608, head_dim=128, desc="FLUX.2 Klein shape with boolean key-padding mask, 25% of keys masked"),
+    "h3": dict(batch=1, heads=56, tokens=38222, head_dim=128, iters=8, warmup=3, ref_head_chunk=14,
+        sparse=dict(layout=[("text", 0, 512), ("audio", 512, 926), ("video", 926, 38222)]),
+        desc="MiniMax H3 packed self-attention, 1344x768 124 frames (5.2s): 512 text + 414 audio + 37296 video rows, guidance-free"),
+    "h3-long": dict(batch=1, heads=56, tokens=109574, head_dim=128, iters=6, warmup=2, ref_head_chunk=8,
+        sparse=dict(layout=[("text", 0, 512), ("audio", 512, 1718), ("video", 1718, 109574)]),
+        desc="MiniMax H3 packed self-attention, 1344x768 362 frames (15.1s): 512 text + 1206 audio + 107856 video rows"),
+    "masked": dict(batch=1, heads=32, tokens=4608, head_dim=128, mask_fn=key_padding_mask, desc="FLUX.2 Klein shape with boolean key-padding mask, 25% of keys masked"),
 }
-full_run = ["sd15", "sdxl", "sdxl-cross", "qwen3-te", "anima", "flux2", "krea2", "wan22", "ltx2"]
+# sparse crossover probes at fixed h3 geometry; the smallest token count where a sparse row
+# beats dense past the verdict threshold is the measured minimum-sequence gate
+for gate_tokens in (2048, 4096, 8192, 16384, 32768, 65536):
+    shape_presets[f"gate-{gate_tokens // 1024}k"] = dict(
+        batch=1, heads=56, tokens=gate_tokens, head_dim=128,
+        sparse=dict(layout=[("text", 0, 512), ("video", 512, gate_tokens)]),
+        desc=f"sparse crossover probe at h3 geometry, {gate_tokens} tokens",
+        **(dict(iters=8, warmup=3) if gate_tokens >= 32768 else {}),
+    )
+full_run = ["sd15", "sdxl", "sdxl-cross", "qwen3-te", "anima", "flux2", "krea2", "wan22", "ltx2", "h3"]
+sparse_run = ["krea2", "h3", "h3-long"]
+gate_run = [f"gate-{tokens // 1024}k" for tokens in (2048, 4096, 8192, 16384, 32768, 65536)]
 # settings advice comes from a self-attention shape with the full config set; cross-attention
 # and text-encoder shapes measure the hijack's cost there but would mislead as global advice
-recommendation_presets = ["flux2", "krea2", "anima", "sdxl", "wan22", "ltx2", "sd15"]
+recommendation_presets = ["flux2", "krea2", "anima", "sdxl", "wan22", "ltx2", "h3", "sd15"]
 default_shapes = "sdxl,flux2"
 all_sections = ["attention", "dequant", "block"]
 
@@ -122,11 +172,16 @@ all_sections = ["attention", "dequant", "block"]
 # measures a complete configuration of weights dtype x matmul path x attention end to end
 # generic dit-block geometries from the model transformer configs: flux.1 (3072 wide,
 # 24 heads, 4x gelu ff, 4096 image plus 512 text tokens) and krea 2 (6144 wide, 48 heads
-# after gqa expansion, swiglu at 16384, same joint sequence)
+# after gqa expansion, swiglu at 16384, same joint sequence); optional keys: head_dim
+# (attention width when heads*head_dim != hidden) and mlp ("gelu" default or "swiglu")
 block_geometries = {
     "flux1": dict(hidden=3072, heads=24, mlp_dim=12288, tokens=4608),
     "krea2": dict(hidden=6144, heads=48, mlp_dim=16384, tokens=4608),
+    # minimax h3: attention wider than the residual stream (56*128 > 5376), swiglu mlp; the
+    # full 124-frame token count makes the block section long, so it runs only when selected
+    "h3": dict(hidden=5376, heads=56, head_dim=128, mlp_dim=14336, mlp="swiglu", tokens=38222, iters=6, warmup=2),
 }
+default_block_geometries = "flux1,krea2"
 block_geometry = block_geometries["flux1"] # active geometry; bench_block_section iterates
 block_attention_specs = {
     "sdpa": None, # stock torch sdpa
@@ -137,6 +192,19 @@ block_attention_specs = {
     "atten pv accum": dict(matmul_dtype="auto", pv_matmul_dtype="disabled", use_fp16_accum=True), # the sage-style unsafe mode
     "atten fp16 accum": dict(matmul_dtype="float16", pv_matmul_dtype="float16", use_fp16_accum=True), # the scaled overflow-proof mode
     "sage": "sage", # external baselines, resolved to the sage wrappers in build_bench_block
+    "sage fp16 accum": "sagefp16",
+}
+# attention-table config id measuring the same kernel as each block attention spec, for the
+# cross-instrument compute split; specs without a standalone row map to None
+block_spec_attention_ids = {
+    "sdpa": "base",
+    "atten int8": "int8",
+    "atten int8 smooth": "smooth",
+    "atten int8 hadamard": "hadamard",
+    "atten full": "full",
+    "atten pv accum": "pvaccum",
+    "atten fp16 accum": "fp16full-accum",
+    "sage": "sage",
     "sage fp16 accum": "sagefp16",
 }
 # id, weights config (None = bf16), use quantized matmul, attention spec; fp8/fp4 rows use the
@@ -282,7 +350,8 @@ def parse_cli():
     parser.add_argument("--mm-backends", type=str, default="none", help=f"comma-separated quantized-matmul backends to compare in one run: {', '.join(all_mm_backends)}; 'none' benches only the backend this device selects (default: %(default)s)")
     parser.add_argument("--mm-rounds", type=int, default=2, help="alternating rounds per matmul backend, fastest kept, so clock drift cancels instead of favouring one backend (default: %(default)s)")
     parser.add_argument("--block-configs", type=str, default="all", help=f"comma-separated combined block configs: {', '.join(config_id for config_id, _w, _mm, _a in block_configs)}; 'all' runs every one (default: %(default)s)")
-    parser.add_argument("--shapes", type=str, default=default_shapes, help=f"comma-separated attention shape presets: {', '.join(shape_presets)}; 'all' runs {', '.join(full_run)} (default: %(default)s)")
+    parser.add_argument("--block-geometries", type=str, default=default_block_geometries, help=f"comma-separated block geometries: {', '.join(block_geometries)}; 'all' runs every one (default: %(default)s)")
+    parser.add_argument("--shapes", type=str, default=default_shapes, help=f"comma-separated attention shape presets: {', '.join(shape_presets)}; 'all' runs {', '.join(full_run)}, 'sparse' and 'gate' run the sparse and crossover lists (default: %(default)s)")
     parser.add_argument("--iters", type=int, default=12, help="minimum timed iterations per config, scaled up for fast kernels (default: %(default)s)")
     parser.add_argument("--warmup", type=int, default=4, help="minimum warmup iterations per config, scaled up for fast kernels (default: %(default)s)")
     parser.add_argument("--skip-checks", action="store_true", help="skip kernel correctness checks")
@@ -545,13 +614,23 @@ def make_qkv(batch, heads, tokens, head_dim, structured=True, kv_heads=None, kv_
     return q, k, v
 
 
-def fp32_reference(q, k, v, **kwargs):
+def fp32_reference(q, k, v, head_chunk=0, **kwargs):
     # sdnext enables tf32 globally; a math-backend dispatch fallback would degrade the reference to tf32 precision
     tf32_matmul = torch.backends.cuda.matmul.allow_tf32
     tf32_cudnn = torch.backends.cudnn.allow_tf32
     torch.backends.cuda.matmul.allow_tf32 = False
     torch.backends.cudnn.allow_tf32 = False
     try:
+        if head_chunk and not kwargs.get("enable_gqa") and q.shape[1] > head_chunk:
+            # head-sliced reference: bounds the fp32 peak on very long sequences; gqa shapes
+            # keep the one-shot path since slicing q heads would have to regroup kv heads
+            attn_mask = kwargs.pop("attn_mask", None)
+            outs = []
+            for start in range(0, q.shape[1], head_chunk):
+                heads = slice(start, start + head_chunk)
+                mask_slice = attn_mask[:, heads] if attn_mask is not None and attn_mask.shape[1] > 1 else attn_mask
+                outs.append(torch.nn.functional.scaled_dot_product_attention(q[:, heads].to(torch.float32), k[:, heads].to(torch.float32), v[:, heads].to(torch.float32), attn_mask=mask_slice, **kwargs))
+            return torch.cat(outs, dim=1)
         return torch.nn.functional.scaled_dot_product_attention(q.to(torch.float32), k.to(torch.float32), v.to(torch.float32), **kwargs)
     finally:
         torch.backends.cuda.matmul.allow_tf32 = tf32_matmul
@@ -1009,35 +1088,56 @@ def make_source_weight(out_features, in_features, seed=1234):
 
 
 class BenchBlock(torch.nn.Module):
-    # dit-style block: fused qkv self-attention plus a gelu mlp, both with residuals; the
-    # attention_fn attribute is set per benchmark config (stock sdpa or sdnq attention)
-    def __init__(self, hidden, heads, mlp_dim, device=None, dtype=None):
+    # dit-style block: fused qkv self-attention plus a gelu or swiglu mlp, both with residuals;
+    # head_dim decouples attention width from hidden for models whose attention is wider than
+    # the residual stream; the attention_fn attribute is set per benchmark config
+    def __init__(self, hidden, heads, mlp_dim, head_dim=None, mlp="gelu", device=None, dtype=None):
         super().__init__()
         self.heads = heads
+        self.head_dim = head_dim if head_dim is not None else hidden // heads
+        self.mlp = mlp
+        inner = heads * self.head_dim
         self.norm1 = torch.nn.LayerNorm(hidden, elementwise_affine=False, device=device, dtype=dtype)
         self.norm2 = torch.nn.LayerNorm(hidden, elementwise_affine=False, device=device, dtype=dtype)
-        self.qkv = torch.nn.Linear(hidden, hidden * 3, bias=False, device=device, dtype=dtype)
-        self.proj = torch.nn.Linear(hidden, hidden, bias=False, device=device, dtype=dtype)
+        self.qkv = torch.nn.Linear(hidden, inner * 3, bias=False, device=device, dtype=dtype)
+        self.proj = torch.nn.Linear(inner, hidden, bias=False, device=device, dtype=dtype)
         self.up = torch.nn.Linear(hidden, mlp_dim, bias=False, device=device, dtype=dtype)
+        if mlp == "swiglu":
+            self.gate = torch.nn.Linear(hidden, mlp_dim, bias=False, device=device, dtype=dtype)
         self.down = torch.nn.Linear(mlp_dim, hidden, bias=False, device=device, dtype=dtype)
         self.attention_fn = None
 
     def forward(self, x):
-        batch, tokens, channels = x.shape
+        batch, tokens, _channels = x.shape
         h = self.norm1(x)
-        qkv = self.qkv(h).view(batch, tokens, 3, self.heads, channels // self.heads).permute(2, 0, 3, 1, 4)
-        attn = self.attention_fn(qkv[0], qkv[1], qkv[2]).transpose(1, 2).reshape(batch, tokens, channels)
+        qkv = self.qkv(h).view(batch, tokens, 3, self.heads, self.head_dim).permute(2, 0, 3, 1, 4)
+        attn = self.attention_fn(qkv[0], qkv[1], qkv[2]).transpose(1, 2).reshape(batch, tokens, self.heads * self.head_dim)
         x = x + self.proj(attn)
         h = self.norm2(x)
+        if self.mlp == "swiglu":
+            return x + self.down(torch.nn.functional.silu(self.gate(h)) * self.up(h))
         return x + self.down(torch.nn.functional.gelu(self.up(h)))
 
 
+def build_block_module(dtype=None):
+    # construct a block for the active geometry; every construction site goes through here so
+    # geometry keys are read in exactly one place
+    return BenchBlock(
+        block_geometry["hidden"], block_geometry["heads"], block_geometry["mlp_dim"],
+        head_dim=block_geometry.get("head_dim"), mlp=block_geometry.get("mlp", "gelu"),
+        device=torch_device, dtype=dtype if dtype is not None else bench_dtype,
+    )
+
+
 def make_block_master():
-    # one master weight set shared by every block config, so all rows quantize identical weights
-    hidden, heads, mlp_dim = block_geometry["hidden"], block_geometry["heads"], block_geometry["mlp_dim"]
-    block = BenchBlock(hidden, heads, mlp_dim, device=torch_device, dtype=bench_dtype)
+    # one master weight set shared by every block config, so all rows quantize identical weights;
+    # seed order keeps gelu geometries bitwise stable, swiglu appends its gate after up
+    block = build_block_module()
+    linears = [block.qkv, block.proj, block.up, block.down]
+    if hasattr(block, "gate"):
+        linears.append(block.gate)
     with torch.no_grad():
-        for seed, linear in enumerate((block.qkv, block.proj, block.up, block.down), start=1):
+        for seed, linear in enumerate(linears, start=1):
             linear.weight.copy_(make_source_weight(linear.out_features, linear.in_features, seed=seed))
     return {key: value.clone() for key, value in block.state_dict().items()}
 
@@ -1045,8 +1145,7 @@ def make_block_master():
 def build_bench_block(master_sd, weights_cfg, use_mm, attention_spec):
     from sdnq import SDNQConfig
     from sdnq.quantizer import apply_sdnq_to_module
-    hidden, heads, mlp_dim = block_geometry["hidden"], block_geometry["heads"], block_geometry["mlp_dim"]
-    block = BenchBlock(hidden, heads, mlp_dim, device=torch_device, dtype=bench_dtype)
+    block = build_block_module()
     block.load_state_dict(master_sd)
     block.eval()
     for param in block.parameters():
@@ -1343,22 +1442,14 @@ def bench_shape(preset, iters, warmup, position=None, config_timeout=300, fp8_re
     causal = preset_cfg.get("causal", False)
     gqa = kv_heads != heads
     description = preset_cfg["desc"]
+    iters = preset_cfg.get("iters", iters)
+    warmup = preset_cfg.get("warmup", warmup)
+    ref_head_chunk = preset_cfg.get("ref_head_chunk", 0)
     excluded_configs = preset_excluded_configs.get(preset, set())
     if preset == "sd15":
         emit("[yellow]sd15: hadamard configs skipped, compiling hadamard with a non pow2 head dim currently hangs torch inductor[/yellow]")
-    attn_mask = None
-    mask_nan_guard = False
-    if preset == "masked":
-        attn_mask = torch.zeros(batch, 1, 1, tokens, device=torch_device, dtype=torch.bool)
-        attn_mask[..., :int(tokens * 0.75)] = True
-    elif preset == "krea2":
-        # the transformer's segment_mask: text is padded to a fixed 512 tokens ahead of the
-        # image tokens and the padded tail is masked for queries and keys both, so padding
-        # query rows are fully masked and yield nan under sdpa (the model nan_to_num's them)
-        valid = torch.ones(batch, tokens, device=torch_device, dtype=torch.bool)
-        valid[:, 128:512] = False
-        attn_mask = valid.unsqueeze(1).unsqueeze(2) * valid.unsqueeze(1).unsqueeze(3)
-        mask_nan_guard = True
+    attn_mask = build_preset_mask(preset_cfg, torch_device)
+    mask_nan_guard = preset_cfg.get("mask_nan_guard", False)
     sage = sage_attention()
     sage_fp16 = sage_attention_fp16_accum()
     amd_flash = amd_triton_flash()
@@ -1413,7 +1504,7 @@ def bench_shape(preset, iters, warmup, position=None, config_timeout=300, fp8_re
         progress.update(task, description=f"{prefix}{preset}: preparing inputs and fp32 reference")
         q, k, v = make_qkv(batch, heads, tokens, head_dim, kv_heads=kv_heads, kv_tokens=kv_tokens)
         scale = head_dim ** -0.5
-        ref = fp32_reference(q, k, v, attn_mask=attn_mask, is_causal=causal, enable_gqa=gqa)
+        ref = fp32_reference(q, k, v, attn_mask=attn_mask, is_causal=causal, enable_gqa=gqa, head_chunk=ref_head_chunk)
         if mask_nan_guard:
             ref = torch.nan_to_num(ref)
         anchor_fn = None
@@ -2514,17 +2605,24 @@ def block_label(weights_cfg, use_mm, attention_spec):
     return f"{weights_part} + {attention_spec}"
 
 
-def bench_block_section(iters, warmup, config_timeout=300, selected=None):
+def bench_block_section(iters, warmup, config_timeout=300, selected=None, geometries=None):
     global block_geometry # pylint: disable=global-statement
     all_results = {}
     for family, geometry in block_geometries.items():
+        if geometries is not None and family not in geometries:
+            continue
         block_geometry = geometry
-        results = bench_block_geometry(iters, warmup, config_timeout=config_timeout, selected=selected)
+        geometry_iters = geometry.get("iters", iters)
+        geometry_warmup = geometry.get("warmup", warmup)
+        results = bench_block_geometry(geometry_iters, geometry_warmup, config_timeout=config_timeout, selected=selected)
         all_results[family] = results
-        report.setdefault("blocks", {})[family] = dict(geometry=dict(geometry), results=results)
-    # the first family also lands at the flat block key, which replays and the buyback
+        split = block_split_table(family, geometry, results)
+        report.setdefault("blocks", {})[family] = dict(geometry=dict(geometry), results=results, split=split)
+    if not all_results:
+        return {}
+    # the first family run also lands at the flat block key, which replays and the buyback
     # veto fall back to when no family matches the reference shape
-    primary = next(iter(block_geometries))
+    primary = next(iter(all_results))
     report["block"] = report["blocks"][primary]
     return all_results.get(primary, {})
 
@@ -2556,7 +2654,7 @@ def bench_block_geometry(iters, warmup, config_timeout=300, selected=None):
     table.add_column("out err", justify="right")
     table.add_column("max tok err", justify="right")
     table.add_column("err x4 blocks", justify="right")
-    panel = Panel(table, title=f"combined block: hidden={hidden} heads={heads} mlp={mlp_dim} tokens={tokens} {dtype_label()}", subtitle="[dim]dit block, fused qkv + gelu mlp with residuals; err vs an fp32 reference block, max tok = worst single token, x4 = four stacked blocks[/dim]", box=ROUNDED_BOX, expand=False)
+    panel = Panel(table, title=f"combined block: hidden={hidden} heads={heads} mlp={mlp_dim} tokens={tokens} {dtype_label()}", subtitle="[dim]dit block, fused qkv attention + mlp with residuals; err vs an fp32 reference block, max tok = worst single token, x4 = four stacked blocks[/dim]", box=ROUNDED_BOX, expand=False)
 
     def run_depth(block, x0, depth):
         h = x0
@@ -2572,7 +2670,7 @@ def bench_block_geometry(iters, warmup, config_timeout=300, selected=None):
         master = make_block_master()
         generator = torch.Generator(device=torch_device).manual_seed(7)
         x = torch.randn(1, tokens, hidden, device=torch_device, dtype=bench_dtype, generator=generator)
-        ref_block = BenchBlock(hidden, heads, mlp_dim, device=torch_device, dtype=torch.float32)
+        ref_block = build_block_module(dtype=torch.float32)
         ref_block.load_state_dict(master)
         ref_block.eval()
         def ref_attention(q, k, v):
@@ -2619,6 +2717,15 @@ def bench_block_geometry(iters, warmup, config_timeout=300, selected=None):
                 phase("measuring depth-4 error")
                 with torch.no_grad():
                     entry["err4"] = rel_err(run_depth(block, x, 4), ref_out4)
+                phase("timing identity-attention variant")
+                real_attention_fn = block.attention_fn
+                def identity_attention_fn(q, k, v): # pylint: disable=unused-argument # same shapes and permutes, zero attention flops
+                    return v
+                block.attention_fn = identity_attention_fn
+                try:
+                    entry["identity_ms"], entry["identity_ms_sigma"] = bench_stats(fn, warmup, iters, on_phase=phase)
+                finally:
+                    block.attention_fn = real_attention_fn
                 del block, out
                 if base_ms is None:
                     base_ms = entry["ms"]
@@ -2651,6 +2758,66 @@ def bench_block_geometry(iters, warmup, config_timeout=300, selected=None):
     if notes:
         emit(Panel("\n".join(notes), title="block notes", box=ROUNDED_BOX))
     return results
+
+
+def block_split_table(family, geometry, results):
+    # compute split per config from two independent instruments: A subtracts the identity-
+    # attention variant timed inside the block, B reads the standalone attention table at the
+    # same geometry from this run; a speedup ceiling is only stated where the two agree
+    head_dim = geometry.get("head_dim") or geometry["hidden"] // geometry["heads"]
+    expected_geometry = f"batch=1 heads={geometry['heads']} tokens={geometry['tokens']} head_dim={head_dim}"
+    attention_preset = None
+    for preset_name, data in (report.get("attention") or {}).items():
+        if data.get("geometry") == expected_geometry and not shape_presets.get(preset_name, {}).get("mask_fn"):
+            attention_preset = preset_name
+            break
+    attention_results = (report.get("attention") or {}).get(attention_preset, {}).get("results", {}) if attention_preset else {}
+    spec_by_config = {config_id: spec for config_id, _w, _mm, spec in block_configs}
+    budgets = (0.5, 0.3, 0.15)
+
+    table = Table(box=box.SIMPLE_HEAVY)
+    table.add_column("config")
+    table.add_column("block ms", justify="right")
+    table.add_column("rest ms", justify="right")
+    table.add_column("attn A", justify="right")
+    table.add_column("attn B", justify="right")
+    table.add_column("agree", justify="right")
+    for budget in budgets:
+        table.add_column(f"ceil@{int(budget * 100)}%", justify="right")
+
+    split = {}
+    for config_id, entry in results.items():
+        ms, identity_ms = entry.get("ms"), entry.get("identity_ms")
+        if not ms or not identity_ms:
+            continue
+        attn_a = ms - identity_ms
+        if attn_a <= 0:
+            continue
+        attention_id = block_spec_attention_ids.get(spec_by_config.get(config_id))
+        attention_entry = attention_results.get(attention_id) or {}
+        attn_b = attention_entry.get("ms")
+        agree = None
+        if attn_b:
+            # subtraction amplifies the relative sigma of instrument A by ms/attn_a
+            sigma_a = (row_sigma(entry) or 0.0) * (ms / attn_a)
+            sigma_b = row_sigma(attention_entry, "ms") or 0.0
+            threshold = max(verdict_z * math.sqrt(sigma_a * sigma_a + sigma_b * sigma_b), run_drift_sigma())
+            agree = abs(math.log(attn_a / attn_b)) <= threshold
+        ceilings = {budget: ms / (budget * attn_a + identity_ms) for budget in budgets} if agree else None
+        split[config_id] = dict(ms=ms, rest_ms=identity_ms, attn_a_ms=attn_a, attn_b_ms=attn_b, agree=agree, ceilings=ceilings)
+        agree_cell = "-" if agree is None else ("yes" if agree else "[yellow]no[/yellow]")
+        ceiling_cells = [f"{ceilings[budget]:.2f}x" if ceilings else "-" for budget in budgets]
+        table.add_row(entry["label"], f"{ms:8.3f} ms", f"{identity_ms:8.3f} ms", f"{attn_a:8.3f} ms", f"{attn_b:8.3f} ms" if attn_b else "-", agree_cell, *ceiling_cells)
+
+    if split:
+        subtitle = "[dim]rest = identity-attention variant; A = block minus rest, B = standalone attention table"
+        subtitle += f" ({attention_preset})" if attention_preset else " (no matching attention preset this run)"
+        subtitle += "; ceilings are per-block upper bounds at the given kv budget, generation adds te/vae/projections[/dim]"
+        emit(Panel(table, title=f"compute split: {family}", subtitle=subtitle, box=ROUNDED_BOX, expand=False))
+        disagreements = [config_id for config_id, row in split.items() if row["agree"] is False]
+        if disagreements:
+            emit(f"[yellow]split instruments disagree on {', '.join(disagreements)}; ceilings withheld there, treat the split with suspicion[/yellow]")
+    return split
 
 
 def measured(results, config_id):
@@ -3503,6 +3670,12 @@ def main():
             sys.exit(1)
     known_blocks = [config_id for config_id, _w, _mm, _a in block_configs]
     selected_blocks = None if args.block_configs.strip().lower() == "all" else [s.strip() for s in args.block_configs.split(",") if s.strip()]
+    selected_geometries = None if args.block_geometries.strip().lower() == "all" else [s.strip() for s in args.block_geometries.split(",") if s.strip()]
+    if selected_geometries is not None:
+        unknown_geometries = [s for s in selected_geometries if s not in block_geometries]
+        if unknown_geometries:
+            console.print(f"[red]unknown block geometry(ies): {', '.join(unknown_geometries)}; available: {', '.join(block_geometries)}[/red]")
+            sys.exit(1)
     if selected_blocks is not None:
         unknown_blocks = [s for s in selected_blocks if s not in known_blocks]
         if unknown_blocks:
@@ -3550,7 +3723,9 @@ def main():
             bench_dtype = devices.dtype
     else:
         bench_dtype = {"bf16": torch.bfloat16, "fp16": torch.float16}[args.dtype]
-    selected = list(full_run) if args.shapes.strip().lower() == "all" else [s.strip() for s in args.shapes.split(",") if s.strip()]
+    shapes_arg = args.shapes.strip().lower()
+    shape_run_aliases = {"all": full_run, "sparse": sparse_run, "gate": gate_run}
+    selected = list(shape_run_aliases[shapes_arg]) if shapes_arg in shape_run_aliases else [s.strip() for s in args.shapes.split(",") if s.strip()]
     unknown = [s for s in selected if s not in shape_presets]
     if unknown:
         console.print(f"[red]unknown shape preset(s): {', '.join(unknown)}; available: {', '.join(shape_presets)}[/red]")
@@ -3615,7 +3790,7 @@ def main():
         if free_vram_gb() < 3.0:
             emit(f"[yellow]skipping block benchmarks: needs about 3 gb free vram, {free_vram_gb():.1f} gb available[/yellow]")
         else:
-            bench_block_section(args.iters, args.warmup, config_timeout=args.config_timeout, selected=selected_blocks)
+            bench_block_section(args.iters, args.warmup, config_timeout=args.config_timeout, selected=selected_blocks, geometries=selected_geometries)
 
     if "attention" in sections:
         # bench the prep mode the advice points to: compiled, static workaround, or eager
