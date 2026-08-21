@@ -9,6 +9,7 @@ from modules.logger import log, console
 
 
 applied_layers: list[str] = []
+refused_writes: int = 0 # deltas the modules would not take on the last activate pass; infotext reports the network as partial
 native_active: bool = False
 default_components = ['text_encoder', 'text_encoder_2', 'text_encoder_3', 'text_encoder_4', 'unet', 'transformer', 'transformer_2', 'llm_adapter']
 
@@ -127,8 +128,9 @@ def network_activate(include=None, exclude=None):
 
             if task is not None and len(applied_layers) == 0:
                 pbar.remove_task(task) # hide progress bar for no action
-    global native_active # pylint: disable=global-statement
+    global native_active, refused_writes # pylint: disable=global-statement
     native_active = len(l.loaded_networks) > 0
+    refused_writes = refused
     l.timer.activate += time.time() - t0
     if refused > 0:
         log.error(f'Network load: type=LoRA networks={[n.name for n in l.loaded_networks]} weights={applied_weight} bias={applied_bias} refused={refused} network partially applied')

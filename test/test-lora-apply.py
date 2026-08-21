@@ -101,9 +101,13 @@ def make_linear(out_features: int, in_features: int, seed: int = 0):
 
 
 def stamp_fuse(module):
-    """Mark the module as network_backup_weights leaves it in fuse mode: no tensor backup."""
+    """Mark the module as network_backup_weights leaves it in fuse mode: no tensor backup.
+
+    The bias flag is only set when the module has one, same as the loader does.
+    """
     module.network_weights_backup = True
-    module.network_bias_backup = True
+    if getattr(module, 'bias', None) is not None:
+        module.network_bias_backup = True
 
 
 def stamp_backup(module, weight, bias):
@@ -187,6 +191,23 @@ def test_fuse_mismatched_bias_delta_is_refused():
     return True
 
 
+def test_fuse_bias_delta_without_a_bias_is_refused():
+    """A delta aimed at a bias the module does not have is counted, not silently dropped.
+
+    The loader lets this through on purpose: whole architectures are built
+    bias=False, so a stray diff_b is one unappliable key rather than the wrong
+    file. The apply pass is where it has to become visible.
+    """
+    module = torch.nn.Linear(8, 32, bias=False)
+    w0 = module.weight.detach().clone()
+    stamp_fuse(module)
+    written = network_apply_direct(module, torch.full_like(w0, 0.5), torch.full((32,), 0.25), device=CPU)
+    assert written == (True, False), f'reported {written}'
+    assert module.bias is None, 'a bias appeared on a module built without one'
+    assert_close(module.weight.detach(), w0 + 0.5, 'weight')
+    return True
+
+
 def test_fuse_mismatched_weight_delta_is_refused():
     """A weight delta that does not fit is dropped while the bias delta still lands."""
     module, w0, b0 = make_linear(32, 8)
@@ -248,6 +269,7 @@ def run_tests():
         test_fuse_deactivate_restores,
         test_fuse_mismatched_bias_delta_is_refused,
         test_fuse_mismatched_weight_delta_is_refused,
+        test_fuse_bias_delta_without_a_bias_is_refused,
     ]:
         run_test(CAT_FUSE, fn)
 

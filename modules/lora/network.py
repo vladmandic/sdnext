@@ -150,6 +150,7 @@ class Network:  # LoraModule
         self.dyn_dim = None
         self.pending_config = None # staged multipliers; network_activate promotes them after the removal pass so fuse removal subtracts the delta that was applied
         self.modules = {}
+        self.mismatch = 0 # deltas dropped for not fitting their target module; try_load_chain refuses the file when non-zero
         self.bundle_embeddings = {}
         self.mtime = None
         self.mentioned_name = None
