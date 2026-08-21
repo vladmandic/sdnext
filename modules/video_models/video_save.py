@@ -326,7 +326,7 @@ def save_video(
 
     if upscale_upscaler is not None and len(upscale_upscaler) > 0:
         t_upscale = time.time()
-        pixels = upscale_video(pixels, scale=upscale_scale, upscaler=upscale_upscaler)
+        pixels = upscale_video(pixels, scale=upscale_scale, upscaler_name=upscale_upscaler)
         timer.process.add('upscale', time.time()-t_upscale)
 
     t_save = time.time()
@@ -334,6 +334,7 @@ def save_video(
         pixels = pixels.unsqueeze(0)
     n, _c, t, h, w = pixels.shape
     size = pixels.element_size() * pixels.numel()
+    t_min, t_max = pixels.min().item(), pixels.max().item()
     log.debug(f'Video: video={mp4_video} export={mp4_frames} safetensors={mp4_sf} interpolate={mp4_interpolate}')
     if hasattr(audio, 'shape'):
         audio_txt = f'audio={audio.shape} aac={aac_sample_rate}' if audio is not None else 'no audio'
@@ -341,7 +342,7 @@ def save_video(
         audio_txt = f'audio={audio.get("format", None)} packets={len(audio.get("frames", []))} '
     else:
         audio_txt = None
-    log.debug(f'Video: encode={t} raw={size} latent={pixels.shape} {audio_txt} fps={mp4_fps} codec={mp4_codec} ext={mp4_ext} options="{mp4_opt}"')
+    log.debug(f'Video: encode={t} tensor={pixels.shape} min={t_min} max={t_max} bytes={size} {audio_txt} fps={mp4_fps} codec={mp4_codec} ext={mp4_ext} options="{mp4_opt}"')
     try:
         preparejob = shared.state.begin('Prepare video')
         if stream is not None:

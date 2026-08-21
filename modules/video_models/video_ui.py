@@ -1,4 +1,5 @@
 import os
+import inspect
 import gradio as gr
 from modules import sd_models, ui_common, ui_sections, ui_symbols, call_queue
 from modules.logger import log
@@ -56,11 +57,11 @@ def model_load(engine, model):
 
 
 def refresh_upscalers():
-    exclude = ['latent', 'interpolation', 'vips']
-    from modules import modelloader
-    upscalers = modelloader.load_upscalers()
-    upscalers = [x for x in upscalers if all(e not in x.lower() for e in exclude)]
-    return upscalers
+    from modules import shared, modelloader
+    modelloader.load_upscalers() # refresh
+    upscalers = [u for u in shared.sd_upscalers if 'output_type' in inspect.signature(u.scaler.do_upscale).parameters.keys()]
+    upscaler_names = ['None'] + [u.name for u in upscalers]
+    return upscaler_names
 
 
 def create_ui_outputs():

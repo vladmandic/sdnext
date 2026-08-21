@@ -98,7 +98,7 @@ class Upscaler:
         return scalers
 
     @abstractmethod
-    def do_upscale(self, img: Image.Image | Tensor, selected_model: str):
+    def do_upscale(self, img: Image.Image | Tensor, selected_model: str, output_type='pil'):
         return img
 
     def upscale(self, img: Image.Image | Tensor, scale, selected_model: str | None = None):
@@ -158,11 +158,11 @@ class UpscalerData:
     custom: bool = False
     name = None
     data_path = None
-    scale: int = 4
+    scale: int = 1
     scaler: Upscaler | None = None
     model: None
 
-    def __init__(self, name: str, path: str | None = None, upscaler: Upscaler | None = None, scale: int = 0, model=None):
+    def __init__(self, name: str, path: str | None = None, upscaler: Upscaler | None = None, scale: int = 1, model=None):
         self.name = name
         self.data_path = path
         self.local_data_path = path
