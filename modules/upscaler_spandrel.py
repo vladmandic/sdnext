@@ -42,7 +42,7 @@ class UpscalerSpandrel(Upscaler):
                         s.name = k
                         break
 
-    def process(self, img: Image.Image, output_type='pil', quiet=False) -> Image.Image:
+    def process(self, img: Image.Image, output_type='pil', quiet=False):
         if isinstance(img, Image.Image):
             from modules.image import convert
             img = img.convert('RGB')
