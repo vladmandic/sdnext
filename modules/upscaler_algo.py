@@ -1,7 +1,7 @@
 import time
 from PIL import Image
 from modules.upscaler import Upscaler, UpscalerData
-from modules.shared import log
+from modules.logger import log
 
 
 class UpscalerDCC(Upscaler):

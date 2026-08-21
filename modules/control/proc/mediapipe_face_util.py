@@ -1,6 +1,6 @@
 from typing import Mapping
 import numpy as np
-from modules.shared import log
+from modules.logger import log
 
 try:
     import mediapipe as mp

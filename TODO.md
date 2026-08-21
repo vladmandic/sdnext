@@ -4,7 +4,6 @@
 
 - Update LTX wiki, @CalamitousFelicitousness
 - Productize benchmark tool, @CalamitousFelicitousness
-- Nunchaku-Lite Krea2 errors, @vladmandic
 - Inpaint: https://discord.com/channels/1101998836328697867/1130536562422186044/1506850651035144322, @vladmandic
 - Lora: new handler, @CalamitousFelicitousness
 - Control tab verify overrides handling, @vladmandic
@@ -32,6 +31,7 @@
 
 ### Unassigned
 
+- Incorporate [prompting guides](https://github.com/CalamitousFelicitousness/ai-prompting-guides)
 - Video models: add to Reference
 - UI Lite vs Expert mode
 - Auto handle scheduler `prediction_type`

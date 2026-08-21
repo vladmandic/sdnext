@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Highlights for 2026-08-19
+## Highlights for 2026-08-21
 
 Time for a new release, this is a larger one!
 Main focus is improving video workflows which also brings full support for new [MiniMax H3](https://vladmandic.github.io/sdnext-docs/MiniMax) and [LTXVideo-2.5](https://vladmandic.github.io/sdnext-docs/LTX)
@@ -15,7 +15,7 @@ Plus quite a lot more, see full [changelog](https://github.com/vladmandic/automa
 
 [Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-## Details for 2026-08-19
+## Details for 2026-08-21
 
 - **Models**
   - [MiniMax H3](https://huggingface.co/MiniMaxAI/MiniMax-H3) available in *base* and *ref* variants  
@@ -59,6 +59,11 @@ Plus quite a lot more, see full [changelog](https://github.com/vladmandic/automa
   - reorganized *video* tab
   - better support for video codeces and formats
   - add *generate forever* button
+- **Upscalers**
+  - update *spandrel* integration  
+    moving forward, spandrel engine will be main upscaling engine for sdnext  
+    when downloading any upscaling models manually, place them in `models/Spandrel` folder  
+  - add several compact/light upscalers that are better suited for video upscaling  
 - **API**
   - full support for video generation using api  
     new endpoints: `/sdapi/v1/video`, `/sdapi/v1/video/models`, `/sdapi/v1/video/file`  

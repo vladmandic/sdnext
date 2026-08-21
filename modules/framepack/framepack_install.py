@@ -2,7 +2,7 @@ import os
 import shutil
 import git as gitpython
 from installer import install, git
-from modules.shared import log
+from modules.logger import log
 
 
 def rename(src:str, dst:str):
