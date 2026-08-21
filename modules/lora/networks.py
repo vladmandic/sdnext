@@ -82,6 +82,7 @@ def network_activate(include=None, exclude=None):
             pbar = nullcontext()
         applied_weight = 0
         applied_bias = 0
+        refused = 0
         with devices.inference_context(), pbar:
             wanted_names = tuple((x.name, x.te_multiplier, x.unet_multiplier, x.dyn_dim) for x in l.loaded_networks) if len(l.loaded_networks) > 0 else ()
             applied_layers.clear()
@@ -109,13 +110,14 @@ def network_activate(include=None, exclude=None):
                     else:
                         batch_updown, batch_ex_bias = network_calc_weights(module, network_layer_name, elimit=elimit)
                     if shared.opts.lora_fuse_native:
-                        network_apply_direct(module, batch_updown, batch_ex_bias, device=device)
+                        weight_written, bias_written = network_apply_direct(module, batch_updown, batch_ex_bias, device=device)
                     else:
-                        network_apply_weights(module, batch_updown, batch_ex_bias, device=device)
+                        weight_written, bias_written = network_apply_weights(module, batch_updown, batch_ex_bias, device=device)
                     if batch_updown is not None or batch_ex_bias is not None:
                         applied_layers.append(network_layer_name)
-                        applied_weight += 1 if batch_updown is not None else 0
-                        applied_bias += 1 if batch_ex_bias is not None else 0
+                        applied_weight += 1 if weight_written else 0
+                        applied_bias += 1 if bias_written else 0
+                        refused += (batch_updown is not None and not weight_written) + (batch_ex_bias is not None and not bias_written) # a delta the module would not take leaves that layer on its base value
                     batch_updown, batch_ex_bias = None, None
                     del batch_updown, batch_ex_bias
                     module.network_current_names = component_wanted
@@ -128,8 +130,10 @@ def network_activate(include=None, exclude=None):
     global native_active # pylint: disable=global-statement
     native_active = len(l.loaded_networks) > 0
     l.timer.activate += time.time() - t0
+    if refused > 0:
+        log.error(f'Network load: type=LoRA networks={[n.name for n in l.loaded_networks]} weights={applied_weight} bias={applied_bias} refused={refused} network partially applied')
     if l.debug and len(l.loaded_networks) > 0:
-        log.debug(f'Network load: type=LoRA networks={[n.name for n in l.loaded_networks]} modules={active_components} layers={total} weights={applied_weight} bias={applied_bias} backup={round(backup_size/1024/1024/1024, 2)} fuse={shared.opts.lora_fuse_native}:{shared.opts.lora_fuse_diffusers} device={device} time={l.timer.summary}')
+        log.debug(f'Network load: type=LoRA networks={[n.name for n in l.loaded_networks]} modules={active_components} layers={total} weights={applied_weight} bias={applied_bias} refused={refused} backup={round(backup_size/1024/1024/1024, 2)} fuse={shared.opts.lora_fuse_native}:{shared.opts.lora_fuse_diffusers} device={device} time={l.timer.summary}')
     modules.clear()
     if len(applied_layers) > 0 or shared.opts.diffusers_offload_mode == "sequential" or len(group_stripped) > 0:
         sd_models.set_diffuser_offload(sd_model, op="model")
@@ -171,6 +175,7 @@ def network_deactivate(include=None, exclude=None):
         else:
             task = None
             pbar = nullcontext()
+        refused = 0
         with devices.inference_context(), pbar:
             applied_layers.clear()
             for component in modules.keys():
@@ -185,18 +190,21 @@ def network_deactivate(include=None, exclude=None):
                         device = group_offload_strip(sd_model, component, group_stripped)
                     batch_updown, batch_ex_bias = network_calc_weights(module, network_layer_name, use_previous=True, elimit=elimit)
                     if shared.opts.lora_fuse_native:
-                        network_apply_direct(module, batch_updown, batch_ex_bias, device=device, deactivate=True)
+                        weight_written, bias_written = network_apply_direct(module, batch_updown, batch_ex_bias, device=device, deactivate=True)
                     else:
-                        network_apply_weights(module, batch_updown, batch_ex_bias, device=device, deactivate=True)
+                        weight_written, bias_written = network_apply_weights(module, batch_updown, batch_ex_bias, device=device, deactivate=True)
                     if batch_updown is not None or batch_ex_bias is not None:
                         applied_layers.append(network_layer_name)
+                        refused += (batch_updown is not None and not weight_written) + (batch_ex_bias is not None and not bias_written) # a delta the module would not take stays applied on that layer
                     del batch_updown, batch_ex_bias
                     module.network_current_names = ()
                     if task is not None:
                         pbar.update(task, advance=1, description=f'networks={len(l.previously_loaded_networks)} modules={active_components} layers={total} unapply={len(applied_layers)}')
     l.timer.deactivate = time.time() - t0
+    if refused > 0:
+        log.error(f'Network unload: type=LoRA networks={[n.name for n in l.previously_loaded_networks]} unapply={len(applied_layers)} refused={refused} network partially removed')
     if l.debug and len(l.previously_loaded_networks) > 0:
-        log.debug(f'Network deactivate: type=LoRA networks={[n.name for n in l.previously_loaded_networks]} modules={active_components} layers={total} apply={len(applied_layers)} fuse={shared.opts.lora_fuse_native}:{shared.opts.lora_fuse_diffusers} time={l.timer.summary}')
+        log.debug(f'Network deactivate: type=LoRA networks={[n.name for n in l.previously_loaded_networks]} modules={active_components} layers={total} apply={len(applied_layers)} refused={refused} fuse={shared.opts.lora_fuse_native}:{shared.opts.lora_fuse_diffusers} time={l.timer.summary}')
     modules.clear()
     if len(applied_layers) > 0 or shared.opts.diffusers_offload_mode == "sequential" or len(group_stripped) > 0:
         sd_models.set_diffuser_offload(sd_model, op="model")
