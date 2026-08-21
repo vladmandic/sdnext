@@ -10,7 +10,7 @@ from modules.minimax import minimax_video, minimax_references
 debug = log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None else lambda *args, **kwargs: None
 
 
-def create_ui(prompt, _negative, styles, overrides, script_inputs, mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, mp4_thumb):
+def create_ui(prompt, _negative, styles, overrides, script_inputs, mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, mp4_thumb, mp4_scale, mp4_upscaler):
     with gr.Row():
         with gr.Column(variant='compact', elem_id="minimax_settings", elem_classes=['settings-column'], scale=1):
             with gr.Row():
@@ -82,7 +82,9 @@ def create_ui(prompt, _negative, styles, overrides, script_inputs, mp4_fps, mp4_
         steps, seed,
         init_image, last_image, reference_media,
         video_shift, audio_shift,
-        mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, mp4_thumb,
+        mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt,
+        mp4_video, mp4_frames, mp4_sf, mp4_thumb,
+        mp4_scale, mp4_upscaler,
         audio_enable,
         overrides,
     ]

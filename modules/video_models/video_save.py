@@ -9,6 +9,7 @@ from PIL import Image
 from modules import shared, errors ,timer, rife, processing
 from modules.logger import log
 from modules.video_models.video_utils import check_av
+from modules.video_models.video_upscale import upscale_video
 
 
 def get_audio_rate(p=None, default: int = 24000) -> int:
@@ -285,6 +286,8 @@ def save_video(
     mp4_thumb: bool = True,  # save thumbnail
     mp4_interpolate: int = 0,  # rife interpolation
     aac_sample_rate: int = 24000,  # audio sample rate
+    upscale_scale: float = 1.0,  # upscale scale
+    upscale_upscaler: str = "",  # upscale upscaler
     stream=None,  # async progress reporting stream
     metadata: dict | None = None,  # metadata for video
     pbar=None,  # progress bar for video
@@ -320,6 +323,12 @@ def save_video(
     if not torch.is_tensor(pixels):
         log.error(f'Video: type={type(pixels)} not a tensor')
         return 0, output_video, None
+
+    if upscale_upscaler is not None and len(upscale_upscaler) > 0:
+        t_upscale = time.time()
+        pixels = upscale_video(pixels, scale=upscale_scale, upscaler=upscale_upscaler)
+        timer.process.add('upscale', time.time()-t_upscale)
+
     t_save = time.time()
     if pixels.ndim == 4:
         pixels = pixels.unsqueeze(0)
