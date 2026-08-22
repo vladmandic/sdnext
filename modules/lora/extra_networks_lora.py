@@ -73,6 +73,8 @@ def infotext(p):
     names = [i.name for i in l.loaded_networks]
     if len(names) > 0:
         p.extra_generation_params["LoRA networks"] = ", ".join(names)
+    if networks.refused_writes > 0: # the model took only part of what was loaded, so the names above do not describe what generated the image
+        p.extra_generation_params["LoRA refused"] = networks.refused_writes
     if shared.opts.lora_add_hashes_to_infotext:
         network_hashes = []
         for item in l.loaded_networks:
@@ -175,7 +177,7 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
     def signature(self, names: list[str], te_multipliers: list, unet_multipliers: list):
         return [f'{name}:{te}:{unet}' for name, te, unet in zip(names, te_multipliers, unet_multipliers, strict=False)]
 
-    def changed(self, requested: list[str], include: list[str] | None = None, exclude: list[str] | None = None) -> bool:
+    def changed(self, requested: list[str], include: list[str] | None = None, exclude: list[str] | None = None) -> tuple[bool, str]:
         if shared.opts.lora_force_reload:
             debug_log(f'Network check: type=LoRA requested={requested} status="forced"')
             return True, "forced"

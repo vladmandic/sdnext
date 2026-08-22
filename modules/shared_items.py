@@ -1,9 +1,14 @@
+import logging
 import diffusers
 
 
 class OnlinePipeline(diffusers.DiffusionPipeline):
     pass
 
+
+logging_level = logging.getLogger("diffusers").level
+logging.getLogger("diffusers").setLevel(logging.ERROR)
+logging.getLogger("diffusers.modular_pipelines").setLevel(logging.ERROR)
 
 pipelines = {
     'Autodetect': None,
@@ -55,6 +60,7 @@ pipelines = {
     'PixArtAlpha': getattr(diffusers, 'PixArtAlphaPipeline', None),
     'PixArtSigma': getattr(diffusers, 'PixArtSigmaPipeline', None),
     'PRXPixel': getattr(diffusers, 'PRXPixelPipeline', None),
+    'MiniMaxH3': getattr(diffusers, 'MiniMaxH3ModularPipeline', None),
     'Qwen': getattr(diffusers, 'QwenImagePipeline', None),
     'Sana': getattr(diffusers, 'SanaPipeline', None),
     'WanAI': getattr(diffusers, 'WanPipeline', None),
@@ -87,6 +93,8 @@ pipelines = {
     'SeFi': None,
     'MageFlow': None,
 }
+logging.getLogger("diffusers").setLevel(logging_level)
+logging.getLogger("diffusers.modular_pipelines").setLevel(logging_level)
 
 
 def postprocessing_scripts():

@@ -1,9 +1,12 @@
 import io
 import os
+from pathlib import Path
 import time
 import base64
+from secrets import compare_digest
 from urllib.parse import quote, unquote
 from fastapi.responses import JSONResponse
+from fastapi.exceptions import HTTPException
 from starlette.websockets import WebSocket, WebSocketState
 from pydantic import BaseModel, Field # pylint: disable=no-name-in-module
 from PIL import Image
@@ -138,6 +141,25 @@ def register_api(api): # register api
             log.error(f'Gallery image failed: file="{filepath}" | Error: {e}')
             return {}
 
+    def ws_authenticated(ws: WebSocket):
+        if not api.credentials and not getattr(shared.cmd_opts, 'auth_file', None):
+            return True
+        token = ws.cookies.get('access-token') or ws.cookies.get('access-token-unsecure')
+        if token and hasattr(api.app, 'tokens') and (api.app.tokens is not None) and token in (api.app.tokens):
+            return True
+        auth_header = ws.headers.get('authorization')
+        if auth_header and auth_header.lower().startswith('basic '):
+            try:
+                payload = base64.b64decode(auth_header.split(' ', 1)[1]).decode('utf-8')
+                username, password = payload.split(':', 1)
+            except Exception:
+                return False
+            if username in api.credentials and compare_digest(password, api.credentials[username]):
+                return True
+            if hasattr(api.app, 'tokens') and (api.app.tokens is not None) and (password in api.app.tokens):
+                return True
+        return False
+
     # @app.get('/sdapi/v1/browser/folders', response_model=list[dict])
     def get_folders():
         def make_folder(path, label=None):
@@ -190,6 +212,9 @@ def register_api(api): # register api
     async def get_thumb(file: str, exif: bool = False):
         try:
             decoded = unquote(file).replace('%3A', ':')
+            allowed_dirs = shared.demo.allowed_paths
+            if not any(Path(folder).absolute() in Path(file).absolute().parents for folder in allowed_dirs):
+                raise HTTPException(status_code=403, detail=f"file {file}: must be in one of allowed directories")
             if decoded.lower().endswith('.mp4'):
                 return JSONResponse(content=get_video_thumbnail(decoded))
             else:
@@ -203,6 +228,9 @@ def register_api(api): # register api
     async def ht_files(folder: str):
         try:
             t0 = time.time()
+            allowed_dirs = shared.demo.allowed_paths
+            if not any(Path(folder).absolute() in Path(folder).absolute().parents for folder in allowed_dirs):
+                raise HTTPException(status_code=403, detail=f"folder {folder}: must be in one of allowed directories")
             files = files_cache.directory_files(folder, recursive=True)
             lines = []
             for f in files:
@@ -223,6 +251,10 @@ def register_api(api): # register api
 
     @api.app.websocket("/sdapi/v1/browser/files")
     async def ws_files(ws: WebSocket):
+        if not ws_authenticated(ws):
+            log.error(f'WS unauthorized: client={ws.client.host}')
+            await ws.close(code=1008)
+            return
         try:
             await manager.connect(ws)
             folder = await ws.receive_text()
@@ -242,5 +274,5 @@ def register_api(api): # register api
             t1 = time.time()
             log.debug(f'Gallery: type=ws folder="{folder}" files={numFiles} time={t1-t0:.3f}')
         except Exception as e:
-            debug(f'Browser WS error: {e}')
+            debug(f'WS error: {e}')
         manager.disconnect(ws)

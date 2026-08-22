@@ -54,7 +54,6 @@ args = Dot({
     'skip_requirements': False,
     'skip_git': False,
     'skip_torch': False,
-    'use_directml': False,
     'use_ipex': False,
     'use_cuda': False,
     'use_rocm': False,
@@ -67,6 +66,7 @@ args = Dot({
     'uv': False,
 })
 git_commit = "unknown"
+sdnq_commit = "unknown"
 diffusers_commit = "unknown"
 transformers_commit = "unknown"
 restart_required = False
@@ -478,8 +478,8 @@ def get_platform():
             release = platform.release()
         return {
             'arch': platform.machine(),
-            'cpu': f'{platform.processor()}',
-            'system': platform.system(),
+            'cpu': f'"{platform.processor()}"',
+            'system': f'"{platform.system()}"',
             'release': release,
             'python': platform.python_version(),
             'locale': locale.getlocale(),
@@ -549,13 +549,43 @@ def check_python(supported_minors=None, experimental_minors=None, reason=None):
     ts('python', t_start)
 
 
+# register sdnq package from github submodule
+def register_sdnq(skip=False, devices=None, shared=None):
+    if not skip:
+        t_start = time.time()
+        fn = os.path.join('extensions-builtin', 'sdnq', 'src', 'sdnq', '__init__.py')
+        name = "sdnq"
+        spec = importlib.util.spec_from_file_location(name, fn)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[name] = module
+        spec.loader.exec_module(module) # this is where actual import happens
+        import sdnq # pylint: disable=unused-import # test import
+        ts('sdnq', t_start)
+    if devices is not None:
+        import sdnq
+        sdnq.sdnext.devices = devices
+        sdnq.quantizer.devices = devices
+        sdnq.dequantizer.devices = devices
+        sdnq.quant_utils.devices = devices
+        sdnq.kernel_wrappers.devices = devices
+    if shared is not None:
+        import sdnq
+        sdnq.sdnext.shared = shared
+        sdnq.quantizer.shared = shared
+        sdnq.dequantizer.shared = shared
+        sdnq.quant_utils.shared = shared
+        sdnq.kernel_wrappers.shared = shared
+        sdnq.common.shared = shared
+        sdnq.loader.shared = shared
+
+
 # check diffusers version
 def check_diffusers():
     t_start = time.time()
     if args.skip_all:
         return
-    target_commit = "6f2010e8bbe61fd2a81a659b858e298edcba8fab" # diffusers commit hash == 0.40.0.dev0 == 08-04-2026
-    # if args.use_rocm or args.use_zluda or args.use_directml:
+    target_commit = "d5baa4fb548294f47dbca49890abd4b291204c60" # diffusers commit hash == 0.40.0.dev0 == 08-15-2026
+    # if args.use_rocm or args.use_zluda:
     #     sha = '043ab2520f6a19fce78e6e060a68dbc947edb9f9' # lock diffusers versions for now
     pkg = package_spec('diffusers')
     parts = pkg.version.split('.') if pkg is not None else []
@@ -585,36 +615,21 @@ def check_transformers():
     # target_commit = '753d61104116eefc8ffc977327b441ee0c8d599f' # transformers commit hash == 4.57.6
     # target_commit = "cf8572d34e39818e42dbf220701fbd3eb5b5a82a" # transformers commit hash == 5.14.0.dev0 == 08-04-2026
     target_commit = "b70d02fc724d04c916832ca4ead03ff05e8fb1ee" # transformers commit hash == 5.13.0.dev0 == 07-03-2026
-    if args.use_directml:
-        target_transformers = '4.52.4'
-        target_tokenizers = '0.21.4'
-    else:
-        # target_transformers = '4.57.6'
-        target_transformers = None
-        target_tokenizers = '0.22.2'
-    if target_transformers is not None:
-        # Pinned release version (e.g. DirectML)
-        if args.reinstall or (pkg_transformers is None) or ((pkg_transformers.version != target_transformers) or (pkg_tokenizers is None) or ((pkg_tokenizers.version != target_tokenizers) and (not args.experimental))):
-            if pkg_transformers is None:
-                log.info(f'Install: package="transformers" version={target_transformers}')
-            else:
-                log.info(f'Update: package="transformers" current={pkg_transformers.version} target={target_transformers}')
-            pip('uninstall --yes transformers', ignore=True, quiet=True)
-            pip(f'install tokenizers=={target_tokenizers}', ignore=False, quiet=True)
-            pip(f'install transformers=={target_transformers}', ignore=False, quiet=True)
-    else:
-        # Git commit-pinned version
-        current = package_commit(pkg_transformers)
-        if args.reinstall or (pkg_transformers is None) or (pkg_transformers.version.startswith('4')) or (current != target_commit):
-            if pkg_transformers is None:
-                log.info(f'Install: package="transformers" commit={target_commit}')
-            else:
-                log.info(f'Update: package="transformers" current={pkg_transformers.version} commit={current} target={target_commit}')
-            pip('uninstall --yes transformers', ignore=True, quiet=True)
-            pip(f'install tokenizers=={target_tokenizers}', ignore=False, quiet=True)
-            pip(f'install git+https://github.com/huggingface/transformers@{target_commit}', ignore=False, quiet=True)
-            global transformers_commit # pylint: disable=global-statement
-            transformers_commit = target_commit
+    target_tokenizers = '0.22.2'
+    # Git commit-pinned version
+    current = package_commit(pkg_transformers)
+    if args.reinstall or (pkg_transformers is None) or (pkg_transformers.version.startswith('4')) or (current != target_commit):
+        if pkg_transformers is None:
+            log.info(f'Install: package="transformers" commit={target_commit}')
+        else:
+            log.info(f'Update: package="transformers" current={pkg_transformers.version} commit={current} target={target_commit}')
+        pip('uninstall --yes transformers', ignore=True, quiet=True)
+        pip(f'install tokenizers=={target_tokenizers}', ignore=False, quiet=True)
+        pip(f'install git+https://github.com/huggingface/transformers@{target_commit}', ignore=False, quiet=True)
+        global transformers_commit # pylint: disable=global-statement
+        transformers_commit = target_commit
+    if args.reinstall or (pkg_tokenizers is None) or (pkg_tokenizers.version != target_tokenizers):
+        pip(f'install tokenizers=={target_tokenizers}', ignore=False, quiet=True)
     ts('transformers', t_start)
 
 
@@ -684,7 +699,7 @@ def install_rocm_zluda():
 
     if sys.platform == "win32" and (not args.use_zluda) and (device is not None) and (device.therock is not None) and not installed("rocm"):
         check_python(supported_minors=[11, 12, 13], reason='ROCm-Windows: python==3.11/3.12/3.13 required')
-        install(f"rocm[devel,libraries] --index-url https://rocm.nightlies.amd.com/{device.therock}")
+        install("rocm-sdk-devel --index-url https://rocm.nightlies.amd.com/whl-multi-arch")
         rocm.refresh()
 
     msg = f'ROCm: version={rocm.version}'
@@ -718,9 +733,16 @@ def install_rocm_zluda():
         else: # TODO rocm: switch to pytorch source when it becomes available
             if device is None:
                 log.error('ROCm: no agent found - make sure that graphics driver is installed and up to date')
-            if isinstance(rocm.environment, rocm.PythonPackageEnvironment):
+            if device is not None and device.therock is not None:
                 check_python(supported_minors=[11, 12, 13], reason='ROCm-Windows: python==3.11/3.12/3.13 required')
-                torch_command = os.environ.get('TORCH_COMMAND', f'torch torchvision --index-url https://rocm.nightlies.amd.com/{device.therock}')
+                # Extract device-specific package family from therock path (e.g., 'amd-torch-device-gfx1030' from 'whl-multi-arch/amd-torch-device-gfx1030')
+                torch_family = device.therock.rsplit('/', 1)[-1]
+                torchvision_family = torch_family.replace('amd-torch-device-', 'amd-torchvision-device-')
+                # Use device-specific index for torch/torchvision, with root index as fallback for torchaudio and other packages
+                torch_command = os.environ.get('TORCH_COMMAND', f'{torch_family} {torchvision_family} torchaudio --index-url https://rocm.nightlies.amd.com/{device.therock} --extra-index-url https://rocm.nightlies.amd.com/whl-multi-arch')
+            elif isinstance(rocm.environment, rocm.PythonPackageEnvironment):
+                check_python(supported_minors=[11, 12, 13], reason='ROCm-Windows: python==3.11/3.12/3.13 required')
+                torch_command = os.environ.get('TORCH_COMMAND', 'torch torchvision torchaudio --index-url https://rocm.nightlies.amd.com/whl-multi-arch')
             else:
                 check_python(supported_minors=[12], reason='ROCm-Windows: preview python==3.12 required')
                 # torch 2.8.0a0 is the last version with rocm 6.4 support
@@ -728,33 +750,45 @@ def install_rocm_zluda():
 
     else: # linux
         #check_python(supported_minors=[10, 11, 12, 13, 14], reason='ROCm backend requires a Python version between 3.10 and 3.13')
+        rocm_major, rocm_minor = (int(x) for x in rocm.version.split('.')) if rocm.version is not None else (0, 0)
         if args.use_nightly:
-            if rocm.version is None or float(rocm.version) >= 7.2: # assume the latest if version check fails
+            if rocm.version is None or (rocm_major > 7 or (rocm_major == 7 and rocm_minor >= 2)): # assume the latest if version check fails
                 torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm7.2')
             else: # oldest rocm version on nightly is 7.1
                 torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm7.1')
         else:
-            if rocm.version is None or float(rocm.version) >= 7.2: # assume the latest if version check fails
+            if rocm.version is None or rocm_major > 7: # assume the latest if version check fails
                 torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.13.0+rocm7.2 torchvision==0.28.0+rocm7.2 --index-url https://download.pytorch.org/whl/rocm7.2')
-            elif rocm.version == "7.1":
-                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.13.0+rocm7.1 torchvision==0.28.0+rocm7.1 --index-url https://download.pytorch.org/whl/rocm7.1')
-            elif rocm.version == "7.0":
-                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.10.0+rocm7.0 torchvision==0.25.0+rocm7.0 --index-url https://download.pytorch.org/whl/rocm7.0')
-            elif rocm.version == "6.4":
-                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.9.1+rocm6.4 torchvision==0.24.1+rocm6.4 --index-url https://download.pytorch.org/whl/rocm6.4')
-            elif rocm.version == "6.3":
-                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.9.1+rocm6.3 torchvision==0.24.1+rocm6.3 --index-url https://download.pytorch.org/whl/rocm6.3')
-            elif rocm.version == "6.2":
-                # use rocm 6.2.4 instead of 6.2 as torch==2.7.1+rocm6.2 doesn't exists
-                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.1+rocm6.2.4 torchvision==0.22.1+rocm6.2.4 --index-url https://download.pytorch.org/whl/rocm6.2.4')
-            elif rocm.version == "6.1":
-                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.6.0+rocm6.1 torchvision==0.21.0+rocm6.1 --index-url https://download.pytorch.org/whl/rocm6.1')
             else:
-                # lock to 2.4.1 instead of 2.5.1 for performance reasons there are no support for torch 2.6 for rocm 6.0
-                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.4.1+rocm6.0 torchvision==0.19.1+rocm6.0 --index-url https://download.pytorch.org/whl/rocm6.0')
-                if float(rocm.version) < 6.0:
-                    log.warning(f"ROCm: unsupported version={rocm.version}")
-                    log.warning("ROCm: minimum supported version=6.0")
+                match rocm_major:
+                    case 7:
+                        if rocm_minor >= 2: # latest supported rocm 7.x version is 7.2
+                            torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.13.0+rocm7.2 torchvision==0.28.0+rocm7.2 --index-url https://download.pytorch.org/whl/rocm7.2')
+                        else:
+                            match rocm_minor:
+                                case 1:
+                                    torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.13.0+rocm7.1 torchvision==0.28.0+rocm7.1 --index-url https://download.pytorch.org/whl/rocm7.1')
+                                case _:
+                                    torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.10.0+rocm7.0 torchvision==0.25.0+rocm7.0 --index-url https://download.pytorch.org/whl/rocm7.0')
+                    case 6:
+                        if rocm_minor >= 4: # latest supported rocm 6.x version is 6.4
+                            torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.9.1+rocm6.4 torchvision==0.24.1+rocm6.4 --index-url https://download.pytorch.org/whl/rocm6.4')
+                        else:
+                            match rocm_minor:
+                                case 3:
+                                    torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.9.1+rocm6.3 torchvision==0.24.1+rocm6.3 --index-url https://download.pytorch.org/whl/rocm6.3')
+                                case 2:
+                                    # use rocm 6.2.4 instead of 6.2 as torch==2.7.1+rocm6.2 doesn't exists
+                                    torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.1+rocm6.2.4 torchvision==0.22.1+rocm6.2.4 --index-url https://download.pytorch.org/whl/rocm6.2.4')
+                                case 1:
+                                    torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.6.0+rocm6.1 torchvision==0.21.0+rocm6.1 --index-url https://download.pytorch.org/whl/rocm6.1')
+                                case _:
+                                    torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.4.1+rocm6.0 torchvision==0.19.1+rocm6.0 --index-url https://download.pytorch.org/whl/rocm6.0')
+                    case _:
+                        # lock to 2.4.1 instead of 2.5.1 for performance reasons there are no support for torch 2.6 for rocm 6.0
+                        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.4.1+rocm6.0 torchvision==0.19.1+rocm6.0 --index-url https://download.pytorch.org/whl/rocm6.0')
+                        log.warning(f"ROCm: unsupported version={rocm.version}")
+                        log.warning("ROCm: minimum supported version=6.0")
 
     if device is None or os.environ.get("HSA_OVERRIDE_GFX_VERSION", None) is not None:
         log.info(f'ROCm: HSA_OVERRIDE_GFX_VERSION auto config skipped: device={device} version={os.environ.get("HSA_OVERRIDE_GFX_VERSION", None)}')
@@ -881,20 +915,17 @@ def check_torch():
     if args.profile:
         pr = cProfile.Profile()
         pr.enable()
-    allow_cuda = not (args.use_rocm or args.use_directml or args.use_ipex or args.use_openvino)
-    allow_rocm = not (args.use_cuda or args.use_directml or args.use_ipex or args.use_openvino)
-    allow_ipex = not (args.use_cuda or args.use_rocm or args.use_directml or args.use_openvino)
-    allow_directml = not (args.use_cuda or args.use_rocm or args.use_ipex or args.use_openvino)
-    allow_openvino = not (args.use_cuda or args.use_rocm or args.use_ipex or args.use_directml)
-    log.debug(f'Torch overrides: cuda={args.use_cuda} rocm={args.use_rocm} ipex={args.use_ipex} directml={args.use_directml} openvino={args.use_openvino} zluda={args.use_zluda}')
-    # log.debug(f'Torch allowed: cuda={allow_cuda} rocm={allow_rocm} ipex={allow_ipex} diml={allow_directml} openvino={allow_openvino}')
+    allow_cuda = not (args.use_rocm or args.use_ipex or args.use_openvino)
+    allow_rocm = not (args.use_cuda or args.use_ipex or args.use_openvino)
+    allow_ipex = not (args.use_cuda or args.use_rocm or args.use_openvino)
+    allow_openvino = not (args.use_cuda or args.use_rocm or args.use_ipex)
+    log.debug(f'Torch overrides: cuda={args.use_cuda} rocm={args.use_rocm} ipex={args.use_ipex} openvino={args.use_openvino} zluda={args.use_zluda}')
+    # log.debug(f'Torch allowed: cuda={allow_cuda} rocm={allow_rocm} ipex={allow_ipex} openvino={allow_openvino}')
     torch_command = os.environ.get('TORCH_COMMAND', '')
 
     if sys.platform != 'win32':
         if args.use_zluda:
             log.error('ZLUDA is only supported on Windows')
-        if args.use_directml:
-            log.error('DirectML is only supported on Windows')
 
     if torch_command != '':
         is_cuda_available = False
@@ -924,15 +955,8 @@ def check_torch():
         elif is_ipex_available:
             torch_command = install_ipex()
         else:
-            machine = platform.machine()
             if sys.platform == 'darwin':
                 torch_command = os.environ.get('TORCH_COMMAND', 'torch torchvision')
-            elif allow_directml and args.use_directml and ('arm' not in machine and 'aarch' not in machine):
-                log.info('DirectML: selected')
-                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.4.1 torchvision torch-directml==0.2.4.dev240913')
-                if 'torch' in torch_command and not args.version:
-                    install(torch_command, 'torch torchvision')
-                install('onnxruntime-directml', 'onnxruntime-directml', ignore=True)
             else:
                 log.warning('Torch: CPU-only version installed')
                 torch_command = os.environ.get('TORCH_COMMAND', 'torch torchvision')
@@ -1010,7 +1034,6 @@ def check_torch():
                     torch_info.set(type='rocm', hip=torch.version.hip)
                 else:
                     log.warning('Torch backend: cannot detect type')
-                log.info(f"Torch backend: {torch_info}")
                 for device in [torch.cuda.device(i) for i in range(torch.cuda.device_count())]:
                     props = torch.cuda.get_device_properties(device)
                     gpu = {
@@ -1023,21 +1046,18 @@ def check_torch():
                     log.info(f'Torch detected: {gpu}')
             except Exception as e:
                 log.error(f'Torch: type=cuda/rocm {e}')
-
-        if args.use_directml and allow_directml:
+        if hasattr(torch, "accelerator") and torch.accelerator.is_available():
             try:
-                import torch_directml # pylint: disable=import-error
-                dml_ver = package_version("torch-directml")
-                log.warning(f'Torch backend: DirectML ({dml_ver})')
-                log.warning('DirectML: end-of-life')
-                for i in range(0, torch_directml.device_count()):
-                    gpu = {
-                        'gpu': torch_directml.device_name(i),
-                    }
-                    gpu_info.append(gpu)
-                    log.info(f'Torch detected: {gpu}')
+                _index = torch.accelerator.current_device_index()
+                _count = torch.accelerator.device_count()
+                _current = torch.accelerator.current_accelerator()
+                torch_info.set(accelerator=str(_current))
             except Exception as e:
-                log.warning(f"Torch: type=directml {e}")
+                log.error(f'Torch: type=accelerator {e}')
+                torch_info.set(accelerator=False)
+        else:
+            torch_info.set(accelerator=False)
+        log.info(f"Torch backend: {torch_info}")
 
     except Exception as e:
         log.error(f'Torch cannot load: {e}')
@@ -1366,7 +1386,6 @@ def install_requirements():
 # set environment variables controlling the behavior of various libraries
 def set_environment():
     log.debug('Setting environment tuning')
-    os.environ.setdefault('SDNQ_REGISTER_DIFFUSERS', '1')
     os.environ.setdefault('ACCELERATE', 'True')
     os.environ.setdefault('ATTN_PRECISION', 'fp16')
     os.environ.setdefault('ClDeviceGlobalMemSizeAvailablePercent', '100')
@@ -1404,6 +1423,14 @@ def set_environment():
     os.environ.setdefault('UV_INDEX_STRATEGY', 'unsafe-any-match')
     os.environ.setdefault('UV_NO_BUILD_ISOLATION', '1')
     os.environ.setdefault('UVICORN_TIMEOUT_KEEP_ALIVE', '60')
+    # duplicate here since hf_init cannot be called before loader
+    os.environ.setdefault('HF_HUB_DISABLE_EXPERIMENTAL_WARNING', '1')
+    os.environ.setdefault('HF_HUB_DISABLE_IMPLICIT_TOKEN', '1')
+    os.environ.setdefault('HF_HUB_DISABLE_SYMLINKS_WARNING', '1')
+    os.environ.setdefault('HF_HUB_DISABLE_TELEMETRY', '1')
+    os.environ.setdefault('HF_HUB_VERBOSITY', 'warning')
+    os.environ.setdefault('HF_HUB_DOWNLOAD_TIMEOUT', '60')
+    os.environ.setdefault('HF_HUB_ETAG_TIMEOUT', '10')
     allocator = f'garbage_collection_threshold:{opts.get("torch_gc_threshold", 80)/100:0.2f},max_split_size_mb:512'
     if opts.get("torch_malloc", "native") == 'cudaMallocAsync':
         allocator += ',backend:cudaMallocAsync'

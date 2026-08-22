@@ -45,6 +45,16 @@ def get_js(request: Request):
 def get_version():
     return installer.get_version()
 
+def get_icon():
+    icon_path = os.path.join(shared.script_path, "ui", "assets", "favicon.png")
+    return FileResponse(icon_path, media_type="image/png")
+
+def get_manifest():
+    from modules import paths
+    manifest_path = os.path.join(paths.script_path, "ui", "manifest", "manifest.json")
+    log.debug(f"API manifest={manifest_path}")
+    return FileResponse(manifest_path, media_type="application/json")
+
 def get_motd():
     import requests
     motd = ""
@@ -187,4 +197,5 @@ def get_memory():
             cuda = { 'error': 'unavailable' }
     except Exception as err:
         cuda = { 'error': f'{err}' }
-    return models.ResMemory(ram = ram, cuda = cuda)
+    from modules import memstats
+    return models.ResMemory(ram = ram, cuda = cuda, model = memstats.model_stats())

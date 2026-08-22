@@ -1,6 +1,7 @@
 from threading import Lock
 from pydantic import BaseModel, Field # pylint: disable=no-name-in-module
 from fastapi.responses import JSONResponse
+from fastapi.exceptions import HTTPException
 from modules.api.helpers import decode_base64_to_image, encode_pil_to_base64
 from modules import errors, shared, postprocessing
 from modules.api import models, helpers
@@ -190,6 +191,7 @@ class APIProcess:
                 strength=req.detailer_strength if req.detailer_strength is not None else 0.3,
                 resolution=req.detailer_resolution if req.detailer_resolution is not None else 1024,
                 seed=req.seed if req.seed is not None else -1,
+                classes=req.detailer_classes if req.detailer_classes is not None else None,
                 overrides=overrides,
             )
 
@@ -281,7 +283,12 @@ class APIProcess:
         reqDict['image'] = helpers.decode_base64_to_image(reqDict['image'])
         with self.queue_lock:
             result = postprocessing.run_extras(extras_mode=0, image_folder="", input_dir="", output_dir="", video="", save_output=False, script_args=script_args, **reqDict)
-        return models.ResProcessImage(image=helpers.encode_pil_to_base64(result[0][0]), html_info=result[1])
+        if len(result) != 4:
+            raise HTTPException(status_code=500, detail="Invalid processing response")
+        outputs, _video, info, _params = result
+        if outputs is None or len(outputs) == 0:
+            raise HTTPException(status_code=500, detail="Invalid processing response")
+        return models.ResProcessImage(image=helpers.encode_pil_to_base64(outputs[0]), html_info=info)
 
     def extras_batch_images_api(self, req: models.ReqProcessBatch):
         """Upscale or postprocess a batch of images using the configured upscaler pipeline."""
@@ -290,4 +297,9 @@ class APIProcess:
         image_folder = [helpers.decode_base64_to_image(x.data) for x in image_list]
         with self.queue_lock:
             result = postprocessing.run_extras(extras_mode=1, image_folder=image_folder, image="", input_dir="", output_dir="", video="", save_output=False, script_args=script_args, **reqDict)
-        return models.ResProcessBatch(images=list(map(helpers.encode_pil_to_base64, result[0])), html_info=result[1])
+        if len(result) != 4:
+            raise HTTPException(status_code=500, detail="Invalid processing response")
+        outputs, _video, info, _params = result
+        if outputs is None or len(outputs) == 0:
+            raise HTTPException(status_code=500, detail="Invalid processing response")
+        return models.ResProcessBatch(images=list(map(helpers.encode_pil_to_base64, outputs)), html_info=info)

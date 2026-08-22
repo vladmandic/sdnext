@@ -12,11 +12,13 @@ const loginCSS = `
 
 const loginHTML = `
   <div id="loginDiv" style="margin: 15% auto; max-width: 200px; padding: 2em; background: #444; border-radius: 4px; filter: drop-shadow(2px 4px 6px black);">
-    <h2>Login</h2>
-    <label for="username" style="margin-top: 0.5em">Username</label>
-    <input type="text" id="loginUsername" name="username" style="width: 92%; padding: 0.5em; margin-top: 0.5em; border-radius: 4px;">
-    <label for="password" style="margin-top: 0.5em">Password</label>
-    <input type="password" id="loginPassword" name="password" style="width: 92%; padding: 0.5em; margin-top: 0.5em; border-radius: 4px;">
+    <h2>SD.Next Login</h2>
+    <label for="loginUsername" style="margin-top: 0.5em">Username</label>
+    <input type="text" id="loginUsername" name="username" autocomplete="username" style="width: 92%; padding: 0.5em; margin-top: 0.5em; border-radius: 4px;">
+
+    <label for="loginPassword" style="margin-top: 0.5em">Password</label>
+    <input type="password" id="loginPassword" name="password" autocomplete="current-password" style="width: 92%; padding: 0.5em; margin-top: 0.5em; border-radius: 4px;">
+
     <div id="loginStatus" style="margin-top: 0.5em"></div>
     <button type="submit" style="width: 100%; padding: 0.5em; margin-top: 0.5em; background: #366; color: #ddd; border: none; border-radius: 4px; filter: drop-shadow(2px 4px 6px black);">Login</button>
   </div>
@@ -30,25 +32,27 @@ function forceLogin() {
   form.style.cssText = loginCSS;
   form.innerHTML = loginHTML;
   document.body.appendChild(form);
-  const username = form.querySelector('#loginUsername');
-  const password = form.querySelector('#loginPassword');
+
   const status = form.querySelector('#loginStatus');
 
   form.addEventListener('submit', (event) => {
     event.preventDefault();
+
     const formData = new FormData(form);
-    formData.append('username', username.value);
-    formData.append('password', password.value);
     console.warn('login', location.href, formData);
+
     fetch(`${location.href}login`, {
       method: 'POST',
       body: formData,
     })
       .then(async (res) => {
-        const json = await res.json();
         let txt = '';
-        if (res.status === 200) txt = 'login verified';
-        else txt = `${res.status}: ${res.statusText} - ${json.detail}`;
+        if (res.status === 200) {
+          txt = 'login verified';
+        } else {
+          const json = await res.json().catch(() => ({}));
+          txt = `${res.status}: ${res.statusText}${json.detail ? ' - ' + json.detail : ''}`;
+        }
         status.textContent = txt;
         console.log('login', txt);
         if (res.status === 200) location.reload();

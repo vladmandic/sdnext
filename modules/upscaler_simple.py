@@ -1,6 +1,6 @@
 from PIL import Image
 from modules.upscaler import Upscaler, UpscalerData
-from modules.shared import log
+from modules.logger import log
 
 
 class UpscalerNone(Upscaler):
@@ -12,7 +12,7 @@ class UpscalerNone(Upscaler):
     def load_model(self, path):
         pass
 
-    def do_upscale(self, img, selected_model=None):
+    def do_upscale(self, img, selected_model=None): # pylint: disable=unused-argument,arguments-differ
         return img
 
 
@@ -31,7 +31,7 @@ class UpscalerResize(Upscaler):
             UpscalerData("Resize Sharpfin Lanczos3", None, self),
         ]
 
-    def do_upscale(self, img: Image.Image, selected_model=None):
+    def do_upscale(self, img: Image.Image, selected_model=None): # pylint: disable=arguments-differ
         if selected_model is None:
             return img
         elif selected_model == "Resize Nearest":
@@ -74,7 +74,7 @@ class UpscalerLatent(Upscaler):
             UpscalerData("Latent Bicubic antialias", None, self),
         ]
 
-    def do_upscale(self, img: Image.Image, selected_model=None):
+    def do_upscale(self, img: Image.Image, selected_model=None): # pylint: disable=arguments-differ
         import torch
         import torch.nn.functional as F
         if isinstance(img, torch.Tensor) and (len(img.shape) == 4):

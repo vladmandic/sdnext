@@ -4,22 +4,6 @@ from modules import shared, devices, scripts_manager, processing, sd_models
 from modules.logger import log
 
 
-checked_ok = False
-
-
-def check_dependencies():
-    global checked_ok # pylint: disable=global-statement
-    from installer import install
-    install('ligo-segments')
-    try:
-        from ligo.segments import segment # pylint: disable=unused-import
-        checked_ok = True
-        return True
-    except Exception as e:
-        log.error(f'Mixture tiling: {e}')
-        return False
-
-
 class MixtureTilingScript(scripts_manager.Script):
     def title(self):
         return 'Mixture Tiling: Scene Composition'
@@ -40,10 +24,19 @@ class MixtureTilingScript(scripts_manager.Script):
             y_overlap = gr.Slider(label='Y overlap', minimum=0, maximum=1, step=0.01, value=0.5)
         return x_size, y_size, x_overlap, y_overlap
 
+    def check_dependencies(self):
+        from installer import install
+        install('igwn-segments')
+        try:
+            from igwn_segments import segment # pylint: disable=unused-import
+            return True
+        except Exception as e:
+            log.error(f'Mixture tiling: {e}')
+            return False
+
     def run(self, p: processing.StableDiffusionProcessing, x_size, y_size, x_overlap, y_overlap): # pylint: disable=arguments-differ
-        if not checked_ok:
-            if not check_dependencies():
-                return None
+        if not self.check_dependencies():
+            return None
         prompts = p.prompt.splitlines()
         if len(prompts) != x_size * y_size:
             log.error(f'Mixture tiling prompt count mismatch: prompts={len(prompts)} required={x_size * y_size}')

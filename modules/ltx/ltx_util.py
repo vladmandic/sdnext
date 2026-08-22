@@ -19,25 +19,42 @@ def get_frames(frames: int):
     return int(8 * (int(frames) // 8)) + 1
 
 
-def load_model(engine: str, model: str):
+def load_model(engine: str, model: str) -> str:
     if model is None or model == '' or model == 'None':
         shared.sd_model = None
-        return
-    t0 = time.time()
+        return 'Video model unloaded'
     from modules.video_models import models_def, video_load
-    selected: models_def.Model = [m for m in models_def.models[engine] if m.name == model][0]
+    selected = models_def.find(engine, model)
+    if selected is None: # the dropdown lists the separators it groups models under, and they name no model
+        msg = f'Video model not loaded: engine="{engine}" model="{model}"'
+        log.warning(msg)
+        return msg
+    t0 = time.time()
     # video_load owns the cache; pipe-class mismatch inside it invalidates the name-based hit
     # when Unload Models (or any external swap) silently replaced shared.sd_model.
     log.info(f'Load video: engine="{engine}" selected="{model}" {selected}')
-    video_load.load_model(selected)
+    msg = video_load.load_model(selected)
     t1 = time.time()
     shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
     t2 = time.time()
     timer.process.add('load', t1 - t0)
     timer.process.add('offload', t2 - t1)
+    return msg or f'Video model loaded: {selected.name}'
+
+
+def upsample_pipe_stale(upsample_pipe, upsample_repo_id) -> bool:
+    # bound to one repo and borrowing the model's VAE; both change with the model, and a VAE from
+    # an unloaded model holds meta tensors
+    if upsample_pipe is None:
+        return False
+    if getattr(upsample_pipe, 'sdnext_upsample_repo', None) != upsample_repo_id:
+        return True
+    return upsample_pipe.vae is not getattr(shared.sd_model, 'vae', None)
 
 
 def load_upsample(upsample_pipe, upsample_repo_id):
+    if upsample_pipe_stale(upsample_pipe, upsample_repo_id):
+        upsample_pipe = None
     if upsample_pipe is None:
         t0 = time.time()
         from diffusers.pipelines.ltx.pipeline_ltx_latent_upsample import LTXLatentUpsamplePipeline
@@ -48,14 +65,20 @@ def load_upsample(upsample_pipe, upsample_repo_id):
             cache_dir=shared.opts.hfcache_dir,
             torch_dtype=devices.dtype,
         )
+        # only the upsampler, since the pipe borrows the model's vae and moving the whole pipe
+        # would drag that along into the meta tensors the caller's offload exclude avoids
+        upsample_pipe.latent_upsampler.to(devices.device)
+        upsample_pipe.sdnext_upsample_repo = upsample_repo_id
         t1 = time.time()
         timer.process.add('load', t1 - t0)
     return upsample_pipe
 
 
-def load_upsample_2x(upsample_pipe, upsample_repo_id):
+def load_upsample_2x(upsample_pipe, upsample_repo_id, variant: str = '2.x'):
     # 2.x ships the upsampler as a bare nn.Module in a subfolder; no from_pretrained on the
     # pipeline wrapper, so we load the model + construct the pipeline manually.
+    if upsample_pipe_stale(upsample_pipe, upsample_repo_id):
+        upsample_pipe = None
     if upsample_pipe is None:
         t0 = time.time()
         from diffusers.pipelines.ltx2.pipeline_ltx2_latent_upsample import LTX2LatentUpsamplePipeline
@@ -74,40 +97,61 @@ def load_upsample_2x(upsample_pipe, upsample_repo_id):
         )
         # Synthetic checkpoint_info gives this pipe its own OffloadHook cache slot, so routing
         # it through apply_balanced_offload does not invalidate the main pipe's module map
-        # (sd_offload.py:488 keys on sd_checkpoint_info.name).
-        upsample_pipe.sd_checkpoint_info = sd_checkpoint.CheckpointInfo('ltx-upsampler-2.x')
+        # (sd_offload keys on sd_checkpoint_info.name). Variant is in the name since each loads
+        # different weights and the slot also names the disk offload folder.
+        upsample_pipe.sdnext_upsample_repo = upsample_repo_id
+        upsample_pipe.sd_checkpoint_info = sd_checkpoint.CheckpointInfo(f'ltx-upsampler-{variant}')
         t1 = time.time()
         timer.process.add('load', t1 - t0)
     return upsample_pipe
 
 
+def scheduler_shift_key(scheduler) -> str | None:
+    # UniPC and its relatives call the static shift flow_shift; flow-match schedulers call it shift.
+    config = getattr(scheduler, 'config', None)
+    if config is None:
+        return None
+    for key in ('flow_shift', 'shift'):
+        if hasattr(config, key):
+            return key
+    return None
+
+
 @contextmanager
-def ltx_scheduler_opts(sd_model, *, dynamic_shift=None, sampler_shift=None):
-    # Run-scoped override of shared.opts scheduler settings and scheduler.config. Snapshots
-    # five pieces of state (shared.opts dynamic_shift + shift, scheduler object, default_scheduler
-    # snapshot, and scheduler.config use_dynamic_shifting + flow_shift) and restores every one on
-    # exit. Keeps run-specific sampler settings out of config.json and prevents default_scheduler
-    # from getting clobbered by a deepcopy of the mutated scheduler at video_load.py:171. The
-    # scheduler-object restore matters for Stage 2 refine, which swaps the scheduler entirely.
+def ltx_scheduler_opts(sd_model, *, dynamic_shift=None, sampler_shift=None, shift_terminal=None):
+    # Run-scoped override of shared.opts scheduler settings and scheduler.config, restored on every
+    # exit path. Keeps run settings out of config.json, protects default_scheduler from a deepcopy
+    # of the mutated scheduler, and restores the scheduler object that Stage 2 refine swaps out.
     orig_dynamic_shift = shared.opts.schedulers_dynamic_shift
     orig_sampler_shift = shared.opts.schedulers_shift
     orig_scheduler = sd_model.scheduler
     orig_default_scheduler = getattr(sd_model, 'default_scheduler', None)
-    orig_use_dynamic_shifting = getattr(orig_scheduler.config, 'use_dynamic_shifting', None) if hasattr(orig_scheduler, 'config') else None
-    orig_flow_shift = getattr(orig_scheduler.config, 'flow_shift', None) if hasattr(orig_scheduler, 'config') else None
+    restore = {}
+
+    def write_config(values: dict):
+        scheduler = getattr(sd_model, 'scheduler', None)
+        if not values or scheduler is None or not hasattr(scheduler, 'config') or not hasattr(scheduler, 'register_to_config'):
+            return
+        for key, value in values.items():
+            setattr(scheduler.config, key, value)
+        scheduler.register_to_config(**values)
+
+    def override_config(key, value):
+        # only written keys are restored, so a key stored as None returns to None
+        if key is None or value is None or not hasattr(getattr(orig_scheduler, 'config', None), key):
+            return
+        restore[key] = getattr(orig_scheduler.config, key)
+        write_config({key: value})
 
     try:
         if dynamic_shift is not None:
             shared.opts.data['schedulers_dynamic_shift'] = dynamic_shift
         if sampler_shift is not None:
             shared.opts.data['schedulers_shift'] = sampler_shift
-        if hasattr(sd_model, 'scheduler') and hasattr(sd_model.scheduler, 'config') and hasattr(sd_model.scheduler, 'register_to_config'):
-            if dynamic_shift is not None and hasattr(sd_model.scheduler.config, 'use_dynamic_shifting'):
-                sd_model.scheduler.config.use_dynamic_shifting = dynamic_shift
-                sd_model.scheduler.register_to_config(use_dynamic_shifting=dynamic_shift)
-            if sampler_shift is not None and sampler_shift >= 0 and hasattr(sd_model.scheduler.config, 'flow_shift'):
-                sd_model.scheduler.config.flow_shift = sampler_shift
-                sd_model.scheduler.register_to_config(flow_shift=sampler_shift)
+        override_config('use_dynamic_shifting', dynamic_shift)
+        if sampler_shift is not None and sampler_shift >= 0:
+            override_config(scheduler_shift_key(orig_scheduler), sampler_shift)
+        override_config('shift_terminal', shift_terminal)
         yield
     finally:
         shared.opts.data['schedulers_dynamic_shift'] = orig_dynamic_shift
@@ -116,14 +160,7 @@ def ltx_scheduler_opts(sd_model, *, dynamic_shift=None, sampler_shift=None):
             sd_model.scheduler = orig_scheduler
         if orig_default_scheduler is not None and sd_model.default_scheduler is not orig_default_scheduler:
             sd_model.default_scheduler = orig_default_scheduler
-        if hasattr(sd_model.scheduler, 'config') and hasattr(sd_model.scheduler, 'register_to_config'):
-            if orig_use_dynamic_shifting is not None and hasattr(sd_model.scheduler.config, 'use_dynamic_shifting'):
-                sd_model.scheduler.config.use_dynamic_shifting = orig_use_dynamic_shifting
-                sd_model.scheduler.register_to_config(use_dynamic_shifting=orig_use_dynamic_shifting)
-            if orig_flow_shift is not None and hasattr(sd_model.scheduler.config, 'flow_shift'):
-                sd_model.scheduler.config.flow_shift = orig_flow_shift
-                sd_model.scheduler.register_to_config(flow_shift=orig_flow_shift)
-        # log.debug(f'LTX: scheduler/opts restored dynamic_shift={orig_dynamic_shift} sampler_shift={orig_sampler_shift}')
+        write_config(restore)
 
 
 def _condition_cls(family: str):
@@ -146,6 +183,20 @@ def make_condition(condition_cls, family: str, frames, strength: float, is_video
     return condition_cls(image=frames, frame_index=index, strength=strength)
 
 
+def open_condition(src) -> Image.Image:
+    """A conditioning source as a PIL image, from a gradio upload handle or from an api reference.
+
+    A string goes to the api decoder, which reads base64 and upload refs, rather than being opened
+    as a path: naming a file is the caller's way of reading one it never uploaded.
+    """
+    if hasattr(src, 'name'):
+        return Image.open(src.name)
+    if isinstance(src, str):
+        from modules.api.api import decode_base64_to_image
+        return decode_base64_to_image(src)
+    return src
+
+
 def get_conditions(width, height, condition_strength, condition_images, condition_files, condition_video, condition_video_frames, condition_video_skip, family: str = '0.9', num_frames=None, condition_last=None):
     condition_cls = _condition_cls(family)
     if condition_cls is None:
@@ -154,10 +205,7 @@ def get_conditions(width, height, condition_strength, condition_images, conditio
     if condition_images is not None:
         for condition_image in condition_images:
             try:
-                if isinstance(condition_image, str):
-                    from modules.api.api import decode_base64_to_image
-                    condition_image = decode_base64_to_image(condition_image)
-                condition_image = condition_image.convert('RGB').resize((width, height), resample=Image.Resampling.LANCZOS)
+                condition_image = open_condition(condition_image).convert('RGB').resize((width, height), resample=Image.Resampling.LANCZOS)
                 conditions.append(make_condition(condition_cls, family, condition_image, condition_strength, is_video=False))
                 log.debug(f'Video condition: family={family} image={condition_image.size} strength={condition_strength}')
             except Exception as e:
@@ -166,11 +214,7 @@ def get_conditions(width, height, condition_strength, condition_images, conditio
         batch_images = []
         for fn in condition_files:
             try:
-                if hasattr(fn, 'name'):
-                    condition_image = Image.open(fn.name).convert('RGB').resize((width, height), resample=Image.Resampling.LANCZOS)
-                else:
-                    condition_image = fn.convert('RGB').resize((width, height), resample=Image.Resampling.LANCZOS)
-                batch_images.append(condition_image)
+                batch_images.append(open_condition(fn).convert('RGB').resize((width, height), resample=Image.Resampling.LANCZOS))
             except Exception as e:
                 log.error(f'LTX condition files: {e}')
         if len(batch_images) > 0:
@@ -188,10 +232,7 @@ def get_conditions(width, height, condition_strength, condition_images, conditio
             log.error(f'LTX condition video: {e}')
     if condition_last is not None:
         try:
-            if isinstance(condition_last, str):
-                from modules.api.api import decode_base64_to_image
-                condition_last = decode_base64_to_image(condition_last)
-            condition_last = condition_last.convert('RGB').resize((width, height), resample=Image.Resampling.LANCZOS)
+            condition_last = open_condition(condition_last).convert('RGB').resize((width, height), resample=Image.Resampling.LANCZOS)
             # 2.x reads index as a latent index and accepts -1 for the final frame; 0.9 uses a pixel index.
             last_index = -1 if family == '2.x' else max((num_frames or 1) - 1, 0)
             conditions.append(make_condition(condition_cls, family, condition_last, condition_strength, is_video=False, index=last_index))

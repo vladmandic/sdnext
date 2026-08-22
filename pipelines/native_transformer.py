@@ -727,7 +727,7 @@ def build_component_quantized(
     import rich.progress as rp
     from accelerate import init_empty_weights
     from accelerate.utils import set_module_tensor_to_device
-    from modules.sdnq.quantizer import SDNQQuantizer
+    from sdnq.quantizer import SDNQQuantizer
 
     quantization_config = quant_args.get("quantization_config")
     if quantization_config is None:
@@ -819,19 +819,19 @@ def build_component_prequantized(
     target dtype (the fp32 scales must survive). Layers are assembled in
     canonical dequant layout; ``apply_sdnq_options_to_model`` then applies
     the user's quantized-matmul settings, matching
-    ``modules.sdnq.loader.load_sdnq_model``.
+    ``sdnq.loader.load_sdnq_model``.
     """
     import rich.progress as rp
     from accelerate import init_empty_weights
     from accelerate.utils import set_module_tensor_to_device
     from diffusers.utils import get_module_from_name
-    from modules.sdnq.common import dtype_dict, check_torch_compile
-    from modules.sdnq.kernel_wrappers import is_fp8_compile_supported
-    from modules.sdnq.quantizer import SDNQConfig, SDNQQuantizer
-    from modules.sdnq.dequantizer import SDNQDequantizer
-    from modules.sdnq.layers import get_sdnq_wrapper_class
-    from modules.sdnq.forward import get_forward_func
-    from modules.sdnq.loader import apply_sdnq_options_to_model
+    from sdnq.common import dtype_dict, check_torch_compile
+    from sdnq.kernel_wrappers import is_fp8_compile_supported
+    from sdnq.quantizer import SDNQConfig, SDNQQuantizer
+    from sdnq.dequantizer import SDNQDequantizer
+    from sdnq.layers import get_sdnq_wrapper_class
+    from sdnq.forward import get_forward_func
+    from sdnq.loader import apply_sdnq_options_to_model
 
     weights_dtype = COMFY_QUANT_FORMATS[comfy_format]
     matmul_dtype = "int8" if dtype_dict[weights_dtype]["is_integer"] else "float8_e4m3fn"
@@ -917,10 +917,12 @@ def build_component_prequantized(
             group_size=NVFP4_GROUP_SIZE if is_nvfp4 else -1,
             svd_rank=32,
             svd_steps=8,
+            codebook_steps=24,
             use_quantized_matmul=False,
             re_quantize_for_matmul=is_nvfp4,
             use_stochastic_rounding=False,
             use_hadamard=use_hadamard,
+            use_codebook=False,
             layer_class_name="Linear",
         )
         wrapped = get_sdnq_wrapper_class(linear, dequant_forward)

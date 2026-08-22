@@ -9796,6 +9796,7 @@ jquery_node_module_wrapper_default.isArray = Array.isArray;
 // ui/logger.ts
 window.logRingBuffer = [];
 window.logBufferDirty = false;
+var authEncoded;
 var logBuffer = (ts, type, msg) => {
   const maxLogLength = 8;
   window.logRingBuffer.push({ ts, type, msg });
@@ -9843,6 +9844,7 @@ var xhrInternal = async (xhrObj, data, handler, errorHandler, ignore = false, se
       if (errorHandler) errorHandler(xhrObj);
     }
   };
+  if (authEncoded) xhrObj.setRequestHeader("Authorization", `Basic ${authEncoded}`);
   xhrObj.setRequestHeader("Content-Type", "application/json");
   xhrObj.timeout = serverTimeout;
   xhrObj.ontimeout = () => err("xhr.ontimeout");
@@ -9874,6 +9876,12 @@ function xhrPost(url2, data, handler, errorHandler, ignore = false, serverTimeou
   xhr.open("POST", url2, true);
   xhrInternal(xhr, data, handler, errorHandler, ignore, serverTimeout);
 }
+var initLoggerAuth = (user2, token2) => {
+  if (user2 && token2) {
+    authEncoded = btoa(`${user2}:${token2}`);
+    log("initAuth", { user: user2 });
+  }
+};
 window.log = log;
 window.debug = debug;
 window.error = error;
@@ -9892,11 +9900,12 @@ async function getToken() {
       user = data.user;
       token = data.token;
       log("getToken", { user });
+      initLoggerAuth(user, token);
     }
   }
   return { user, token };
 }
-async function authFetch(url2, options = {}) {
+async function authFetch2(url2, options = {}) {
   await getToken();
   if (user && token) {
     const encoded = btoa(`${user}:${token}`);
@@ -9919,7 +9928,7 @@ async function authFetch(url2, options = {}) {
   }
   return res;
 }
-window.authFetch = authFetch;
+window.authFetch = authFetch2;
 
 // ui/timers.ts
 var allTimers = [];
@@ -10160,7 +10169,7 @@ async function initTableSorter() {
 async function deleteFile(filename) {
   if (!filename) return;
   if (!confirm(`Are you sure you want to delete the object - This action cannot be undone? Object: ${filename}`)) return;
-  const res = await authFetch(`${window.api}/delete-file?file=${encodeURIComponent(filename)}`, { method: "DELETE" });
+  const res = await authFetch2(`${window.api}/delete-file?file=${encodeURIComponent(filename)}`, { method: "DELETE" });
   if (!res || res.status !== 200) {
     error("FileDelete", { file: filename, status: res?.status, statusText: res?.statusText });
     return;
@@ -10987,7 +10996,7 @@ var progressTimeout = 180;
 var startTimeout = 5;
 function setRefreshInterval() {
   refreshInterval = window.opts.live_preview_refresh_period || 500;
-  log("refreshInterval", { visibile: document.visibilityState, interval: refreshInterval });
+  log("refreshInterval", { visible: document.visibilityState, interval: refreshInterval });
   document.addEventListener("visibilitychange", () => {
     if (window.opts.live_preview_require_focus !== false && document.hidden) refreshInterval = Math.max(2500, window.opts.live_preview_refresh_period || 1e3);
     else refreshInterval = window.opts.live_preview_refresh_period || 1e3;
@@ -11013,9 +11022,9 @@ function checkPaused(state) {
   if (v_el) v_el.innerText = lastState.paused ? "Resume" : "Pause";
 }
 function setProgress(res) {
-  const elements = ["txt2img_generate", "img2img_generate", "extras_generate", "control_generate", "video_generate", "framepack_generate"];
+  const elements = ["txt2img_generate", "img2img_generate", "extras_generate", "control_generate", "video_generate", "framepack_generate", "ltx_generate", "minimax_generate"];
   const progress = res?.progress || 0;
-  const job = res?.job || "";
+  const job = res?.textinfo || res?.job || "";
   let perc;
   let eta = "";
   if (job === "VAE") perc = "Decode";
@@ -11024,6 +11033,7 @@ function setProgress(res) {
     let sec = res?.eta || 0;
     if (res?.paused) eta = "Paused";
     else if (res?.completed || progress > 0.99) eta = "Finishing";
+    else if (job.startsWith("VAE") || job.startsWith("Load")) eta = "";
     else if (sec === 0) eta = "Start";
     else {
       const min = Math.floor(sec / 60);
@@ -11034,7 +11044,7 @@ function setProgress(res) {
   const elPerf = document.getElementById("control-performance");
   let hint = "";
   if (elPerf && res) {
-    const jobTxt = res.job && res.job !== "" ? ` | Job ${res.job}` : "";
+    const jobTxt = res.job && res.job !== "" ? ` | Job ${res.job}${res.textinfo ? `: ${res.textinfo}` : ""}` : "";
     const batchTxt = res.batch > 0 ? ` | Batch ${res.batch}/${res.batches}` : "";
     const stateTxt = res.queued ? "Queued" : res.paused ? "Paused" : res.completed ? "Completed" : res.active ? "Active" : "Idle";
     const stepsTxt = res.step > 0 ? ` | Step ${res.step}/${res.steps}` : "";
@@ -11064,7 +11074,7 @@ function setProgress(res) {
   }
   const el2 = document.getElementById("control-performance");
   if (el2 && res) {
-    const jobTxt = res.job && res.job !== "" ? ` | Job ${res.job}` : "";
+    const jobTxt = res.job && res.job !== "" ? ` | Job ${res.job}${res.textinfo ? `: ${res.textinfo}` : ""}` : "";
     const batchTxt = res.batch > 0 ? ` | Batch ${res.batch}/${res.batches}` : "";
     const stateTxt = res.queued ? "Queued" : res.paused ? "Paused" : res.completed ? "Completed" : res.active ? "Active" : "Idle";
     const stepsTxt = res.step > 0 ? ` | Step ${res.step}/${res.steps}` : "";
@@ -11108,12 +11118,13 @@ function requestProgress(id_task = "undefined", progressEl = null, galleryEl = n
     livePreview.appendChild(img);
     img.onload = () => {
       img.style.width = `min(100%, max(${img.naturalWidth}px, 512px))`;
-      parentGallery.style.minHeight = `min(82vh, ${img.naturalHeight}px)`;
-      parentGallery.style.maxHeight = `min(82vh, ${img.naturalHeight}px)`;
-      parentGallery.style.overflow = "hidden";
+      const anchored = livePreview.parentElement === parentGallery;
+      if (anchored) {
+        parentGallery.style.overflow = "hidden";
+      }
     };
   };
-  const removeLivePreview = (ok2 = false) => {
+  const removeLivePreview = (useImage = false) => {
     debug("taskEnd:", id_task);
     localStorage.removeItem("task");
     setProgress();
@@ -11123,14 +11134,14 @@ function requestProgress(id_task = "undefined", progressEl = null, galleryEl = n
     for (const gallery of galleries) gallery.style.display = "flex";
     try {
       if (parentGallery && livePreview) {
-        if (ok2) {
+        if (useImage) {
           const previewImg = gradioApp().querySelector("#livePreviewImage");
-          const galleryImg = gradioApp().querySelector("#control_gallery img");
+          const galleryImg = parentGallery.querySelector("img");
           if (previewImg?.src && galleryImg) galleryImg.src = previewImg.src;
         }
         parentGallery.removeChild(livePreview);
-        parentGallery.style.minHeight = "unset";
-        parentGallery.style.maxHeight = "unset";
+      }
+      if (parentGallery) {
         parentGallery.style.overflow = "unset";
       }
     } catch {
@@ -11210,6 +11221,21 @@ window.checkPaused = checkPaused;
 window.requestInterrupt = requestInterrupt;
 window.randomId = randomId;
 window.requestProgress = requestProgress;
+
+// ui/dynamicUI.ts
+var lastCheckpoint = "";
+async function updateUI(model) {
+  if (model.checkpoint === lastCheckpoint) return;
+  lastCheckpoint = model.checkpoint;
+  log("modelUpdate", model);
+}
+async function updateModel() {
+  const req = await authFetch2(`${window.api}/checkpoint`);
+  if (req.ok) {
+    const model = await req.json();
+    if (model?.type?.length > 0) updateUI(model);
+  }
+}
 
 // ui/ui.ts
 window.opts = {};
@@ -11321,7 +11347,7 @@ async function setTheme(val, old) {
   }
   for (const link of links) {
     const href = link.href.replace(old, val);
-    const res = await fetch(href);
+    const res = await authFetch2(href);
     if (res.ok) {
       log("setTheme", old, val);
       link.href = link.href.replace(old, val);
@@ -11481,9 +11507,9 @@ function submit_control(...args) {
   return res;
 }
 function submit_video(...args) {
-  log("submitVideo");
   clearGallery("video");
   const id = randomId();
+  log("submitVideo", id);
   requestProgress(id, null, gradioApp().getElementById("video_gallery"));
   const res = create_submit_args(args);
   res[0] = id;
@@ -11507,12 +11533,20 @@ function submit_ltx(...args) {
   args[0] = id;
   return args;
 }
+function submit_minimax(...args) {
+  const id = randomId();
+  log("submitMiniMax", id);
+  requestProgress(id, null, null);
+  window.submit_state = "";
+  args[0] = id;
+  return args;
+}
 function submit_video_wrapper(...args) {
   const modernEl = gradioApp().querySelector(".video_output.fade-in");
   let id = modernEl ? modernEl.id : args[0];
   id = id.replace("video-selector-", "");
-  log("submitVideoWrapper", id);
   const btn = gradioApp().getElementById(`${id}_generate_btn`);
+  log("submitVideoWrapper", { type: id, found: !!btn });
   if (btn) btn.click();
 }
 function submit_postprocessing(...args) {
@@ -11675,7 +11709,7 @@ async function restartReload(initial = true) {
   document.body.innerHTML = "<h1>Server shutdown in progress...</h1>";
   if (initial) await delay(1e4);
   try {
-    const res = await authFetch(`${window.api}/progress?skip_current_image=true`);
+    const res = await authFetch2(`${window.api}/progress?skip_current_image=true`);
     console.log("restartReload", res);
     if (res?.ok) {
       document.body.innerHTML = "<h1>Server restart in progress...</h1>";
@@ -11803,11 +11837,12 @@ async function reconnectUI() {
   const sd_model = gradioApp().getElementById("setting_sd_model_checkpoint");
   let loadingStarted = 0;
   let loadingMonitor = null;
-  const sd_model_callback = () => {
+  const sd_model_callback = async () => {
     const loading = sd_model.querySelector(".eta-bar");
     if (!loading) {
       loadingStarted = 0;
       clearInterval(loadingMonitor);
+      updateModel();
     } else if (loadingStarted === 0) {
       loadingStarted = Date.now();
       loadingMonitor = setInterval(() => {
@@ -11837,6 +11872,7 @@ window.submit_control = submit_control;
 window.submit_framepack = submit_framepack;
 window.submit_img2img = submit_img2img;
 window.submit_ltx = submit_ltx;
+window.submit_minimax = submit_minimax;
 window.submit_postprocessing = submit_postprocessing;
 window.submit = submit_txt2img;
 window.submit_txt2img = submit_txt2img;
@@ -12165,7 +12201,7 @@ Warnings ${logWarnings}`;
   if (!logMonitorEl) return;
   const atBottom = logMonitorEl.scrollHeight <= logMonitorEl.scrollTop + logMonitorEl.clientHeight;
   try {
-    const res = await authFetch(`${window.api}/log?clear=True`);
+    const res = await authFetch2(`${window.api}/log?clear=True`);
     if (res?.ok) {
       logMonitorStatus = true;
       const lines = await res.json();
@@ -12229,7 +12265,7 @@ async function initLogMonitor() {
     `;
   }
   el2.style.display = "none";
-  authFetch(`${window.api}/start?agent=${encodeURI(navigator.userAgent)}`);
+  authFetch2(`${window.api}/start?agent=${encodeURI(navigator.userAgent)}`);
   logMonitor();
   initClearErrorsButton();
   const t1 = performance.now();
@@ -12408,7 +12444,7 @@ async function initModels() {
   const el2 = gradioApp().getElementById("main_info");
   const en = gradioApp().getElementById("txt2img_extra_networks");
   if (!el2 || !en) return;
-  const req = await authFetch(`${window.api}/sd-models`);
+  const req = await authFetch2(`${window.api}/sd-models`);
   const res = req.ok ? await req.json() : [];
   log("initModels", res.length);
   const ready = () => `
@@ -12575,7 +12611,7 @@ async function monitorConnection() {
   ConnectionMonitorState.startup = /* @__PURE__ */ new Date();
   let data = {};
   try {
-    const res = await authFetch(`${window.api}/version`);
+    const res = await authFetch2(`${window.api}/version`);
     if (!res) throw new Error("No response");
     data = await res.json();
     log("monitorConnection:", { data });
@@ -13454,7 +13490,7 @@ async function delayFetchThumb(fn, signal) {
   try {
     outstanding++;
     const ts = t0.toString();
-    const res = await authFetch(`${window.api}/browser/thumb?file=${encodeURI(fn)}&ts=${ts}&exif=false`, { priority: "low" });
+    const res = await authFetch2(`${window.api}/browser/thumb?file=${encodeURI(fn)}&ts=${ts}&exif=false`, { priority: "low" });
     if (!res.ok) {
       error(`fetchThumb: ${res.statusText}`);
       return void 0;
@@ -13931,7 +13967,6 @@ async function thumbCacheCleanup(folder, imgCount, controller, force = false) {
       const keptGalleryHashes = force ? /* @__PURE__ */ new Set() : new Set(galleryHashes.values());
       const folderNormalized = folder.replace(/\/+/g, "/").replace(/\/$/, "");
       const recursiveFolder = IDBKeyRange.bound(folderNormalized, `${folderNormalized}\uFFFF`, false, true);
-      if (keptGalleryHashes.size < minCleanupCount && !force) return;
       const cachedHashesCount = await idbCount(recursiveFolder).catch((e) => {
         error("maintenanceQueue", { folder, error: e });
         return Infinity;
@@ -13983,7 +14018,7 @@ async function fetchFilesHT(evt, controller) {
   const fragment = document.createDocumentFragment();
   updateStatusLine(["Folder", evt.target.name], "in-progress");
   let numFiles = 0;
-  const res = await authFetch(`${window.api}/browser/files?folder=${encodeURI(evt.target.name)}`);
+  const res = await authFetch2(`${window.api}/browser/files?folder=${encodeURI(evt.target.name)}`);
   if (!res || res.status !== 200) {
     updateStatusLine(["Folder", evt.target.name], ["Failed", res?.statusText || "No response"]);
     return;
@@ -14071,7 +14106,7 @@ async function fetchFilesWS(evt) {
   ws.send(encodeURI(evt.target.name));
 }
 async function updateFolders() {
-  const res = await authFetch(`${window.api}/browser/folders`);
+  const res = await authFetch2(`${window.api}/browser/folders`);
   if (!res || res.status !== 200) return;
   url = res.url.split("/sdapi")[0].replace("http", "ws");
   const folders = await res.json();
@@ -14145,7 +14180,7 @@ async function initGalleryAutoRefresh() {
   galleryVisObserver.observe(galleryTab, { attributeFilter: ["class", "style"], attributeOldValue: true });
 }
 async function overlayDelete(evt) {
-  const res = await authFetch(`${window.api}/delete-image?file=${encodeURIComponent(currentImage)}`, { method: "DELETE" });
+  const res = await authFetch2(`${window.api}/delete-image?file=${encodeURIComponent(currentImage)}`, { method: "DELETE" });
   evt.stopPropagation();
   if (!res || res.status !== 200) {
     error("galleryDelete", { file: currentImage, status: res?.status, statusText: res?.statusText });
@@ -14169,7 +14204,7 @@ async function overlayInfo(evt) {
   evt.stopPropagation();
   const tgt = document.getElementById("html_info_formatted_gallery");
   if (!tgt) return;
-  const res = await authFetch(`${window.api}/png-info?file=${encodeURI(currentImage)}`);
+  const res = await authFetch2(`${window.api}/png-info?file=${encodeURI(currentImage)}`);
   if (!res || res.status !== 200) return;
   const data = await res.json();
   log("galleryInfo res", data);
@@ -14645,7 +14680,7 @@ var xnEngine = {
   wildcard: new XnIndex([]),
   async fetchJson(path) {
     try {
-      const resp = await fetch(`${window.api}${path}`, { credentials: "include" });
+      const resp = await authFetch(`${window.api}${path}`);
       if (!resp.ok) throw new Error(`${resp.status}`);
       return await resp.json();
     } catch (e) {
@@ -14894,7 +14929,7 @@ var engine = {
     toRemove.forEach((n) => this.indices.delete(n));
     await Promise.all(toLoad.map(async (name) => {
       try {
-        const resp = await fetch(`${window.api}/autocomplete/${name}`, { credentials: "include" });
+        const resp = await authFetch(`${window.api}/autocomplete/${name}`);
         if (!resp.ok) throw new Error(`${resp.status}`);
         const data = await resp.json();
         this.indices.set(name, new TagIndex(data));
@@ -15564,16 +15599,16 @@ async function getLocaleData(desiredLocale = null) {
   log("getLocale", { lang: desiredLocale, locale: localeData.locale });
   let json = {};
   try {
-    let res = await fetch(`${window.subpath}/file=ui/locale/locale_${localeData.locale}.json`);
+    let res = await authFetch(`${window.subpath}/file=ui/locale/locale_${localeData.locale}.json`);
     if (!res || !res.ok) {
       localeData.locale = "en";
-      res = await fetch(`${window.subpath}/file=ui/locale/locale_${localeData.locale}.json`);
+      res = await authFetch(`${window.subpath}/file=ui/locale/locale_${localeData.locale}.json`);
     }
     json = await res.json();
   } catch {
   }
   try {
-    const res = await fetch(`${window.subpath}/file=ui/locale/override_${localeData.locale}.json`);
+    const res = await authFetch(`${window.subpath}/file=ui/locale/override_${localeData.locale}.json`);
     if (res && res.ok) json.override = await res.json();
   } catch {
   }
@@ -15857,7 +15892,7 @@ var getStatus = async () => {
 Progress internal:
 ${JSON.stringify(data, null, 2)}`;
   }
-  res = await authFetch("./sdapi/v1/progress?skip_current_image=true", { method: "GET", headers });
+  res = await authFetch2("./sdapi/v1/progress?skip_current_image=true", { method: "GET", headers });
   if (res?.ok) {
     data = await res.json();
     log("progressAPI:", data);
@@ -16005,7 +16040,7 @@ async function createSplash() {
   if (splashEl) splashEl.insertAdjacentHTML("afterbegin", imgEl);
   monitorLogActive = true;
   monitorLog();
-  await authFetch(`${window.api}/motd`).then((res) => res.text()).then((text) => {
+  await authFetch2(`${window.api}/motd`).then((res) => res.text()).then((text) => {
     const clean = text.replace(/["]+/g, "");
     const boldMatch = clean.match(/<b>(.*?)<\/b>/);
     const boldText = boldMatch ? boldMatch[1] : clean;
@@ -16327,7 +16362,7 @@ async function modelCardClick(id) {
   log("modelCardClick id", id);
   const el2 = gradioApp().getElementById("model-details") || gradioApp().getElementById("civitai_models_output") || gradioApp().getElementById("models_outcome");
   if (!el2) return;
-  const res = await authFetch(`${window.api}/civitai?model_id=${encodeURI(id)}`);
+  const res = await authFetch2(`${window.api}/civitai?model_id=${encodeURI(id)}`);
   if (!res || res.status !== 200) {
     error(`modelCardClick: id=${id} status=${res ? res.status : "unknown"}`);
     return;
@@ -16517,7 +16552,7 @@ var inferenceTypes = ["inference", "vae", "te"];
 var ioTypes = ["load", "save"];
 async function refreshHistory() {
   log("refreshHistory");
-  authFetch(`${window.api}/history`, { priority: "low" }).then((res) => {
+  authFetch2(`${window.api}/history`, { priority: "low" }).then((res) => {
     if (!res) return;
     const timeline = document.getElementById("history_timeline");
     const table = document.getElementById("history_table");
@@ -16608,7 +16643,7 @@ Errors: ${entry.nerrors}
 }
 async function refreshStorage(storageTypes) {
   log("refreshStorage", storageTypes);
-  authFetch(`${window.api}/storage?types=${storageTypes.join(",")}`, { priority: "low" }).then((res) => {
+  authFetch2(`${window.api}/storage?types=${storageTypes.join(",")}`, { priority: "low" }).then((res) => {
     if (!res) return;
     const timeline = document.getElementById("storage_timeline");
     const table = document.getElementById("storage_table");
@@ -16760,15 +16795,43 @@ function pairOf(arEl) {
   }
   return null;
 }
+function getNearestAspectRatio(width, height, maxPixelTolerance = 8) {
+  const STANDARD_RATIOS = [
+    { label: "1:1", ratio: 1 / 1 },
+    { label: "4:3", ratio: 4 / 3 },
+    { label: "3:2", ratio: 3 / 2 },
+    { label: "16:9", ratio: 16 / 9 },
+    { label: "16:10", ratio: 16 / 10 },
+    { label: "21:9", ratio: 64 / 27 },
+    // standard cinematic 21:9 ratio is actually 64/27
+    { label: "2:3", ratio: 2 / 3 },
+    { label: "3:4", ratio: 3 / 4 },
+    { label: "9:16", ratio: 9 / 16 },
+    { label: "10:16", ratio: 10 / 16 },
+    { label: "9:21", ratio: 27 / 64 }
+  ];
+  const targetRatio = width / height;
+  const closest = STANDARD_RATIOS.reduce((prev, curr) => Math.abs(curr.ratio - targetRatio) < Math.abs(prev.ratio - targetRatio) ? curr : prev);
+  const expectedWidth = height * closest.ratio;
+  const expectedHeight = width / closest.ratio;
+  const widthDiff = Math.abs(width - expectedWidth);
+  const heightDiff = Math.abs(height - expectedHeight);
+  if (widthDiff <= maxPixelTolerance || heightDiff <= maxPixelTolerance) return closest.label;
+  const ratio = (width / height).toFixed(2);
+  return `${ratio}:1`;
+}
 function settle(arEl, source) {
   const ar = parseAR(arValue(arEl));
-  if (!ar) return;
   const pair = pairOf(arEl);
   if (!pair) return;
-  const [rw, rh] = ar;
-  busy.add(arEl);
-  if (source === "height") writeValue(pair.width, readValue(pair.height) * rw / rh);
-  else writeValue(pair.height, readValue(pair.width) * rh / rw);
+  if (ar) {
+    const [rw, rh] = ar;
+    busy.add(arEl);
+    if (source === "height") writeValue(pair.width, readValue(pair.height) * rw / rh);
+    else writeValue(pair.height, readValue(pair.width) * rh / rw);
+  }
+  const span = arEl.querySelector("span");
+  if (span) span.innerText = getNearestAspectRatio(readValue(pair.width), readValue(pair.height));
   busy.delete(arEl);
 }
 function schedule(arEl, source, delay2) {
@@ -16795,6 +16858,9 @@ function setupResolutionLock() {
     if (!pair) return;
     bind(arEl, pair.width, "width");
     bind(arEl, pair.height, "height");
+    arEl.querySelectorAll("span").forEach((el2) => {
+      if (el2) el2.innerText = "";
+    });
     arEl.querySelectorAll("input").forEach((el2) => {
       if (!(el2 instanceof HTMLInputElement) || el2.classList.contains("ar-lock-bound")) return;
       el2.classList.add("ar-lock-bound");
@@ -19318,7 +19384,7 @@ async function updateGPU() {
   const gpuTable = document.getElementById("gpu-table");
   if (!gpuEl || !gpuTable) return;
   try {
-    const res = await authFetch(`${window.api}/gpu-smi`);
+    const res = await authFetch2(`${window.api}/gpu-smi`);
     if (!res || !res.ok) {
       clearInterval(gpuInterval);
       gpuEl.style.display = "none";

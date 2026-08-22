@@ -25,14 +25,6 @@ def list_onnx_providers():
         return "CPU", []
 
 
-def list_dml_providers():
-    try:
-        from modules.dml import memory_providers, default_memory_provider
-        return default_memory_provider, memory_providers
-    except Exception:
-        return "Performance Counter", []
-
-
 def list_checkpoint_titles():
     import modules.sd_models # pylint: disable=redefined-outer-name
     return modules.sd_models.checkpoint_titles()
@@ -83,7 +75,6 @@ def create_settings(cmd_opts):
     default_xetcache_dir = os.environ.get("HF_XET_CACHE ", None) or os.path.join(paths.models_path, 'xet')
 
     default_onnx_execution_provider, default_onnx_execution_providers = list_onnx_providers()
-    default_dml_memory_provider, default_dml_memory_providers = list_dml_providers()
 
     hide_dirs = {"visible": not cmd_opts.hide_ui_dir_config}
 
@@ -103,6 +94,7 @@ def create_settings(cmd_opts):
         "sd_checkpoint_autodownload": OptionInfo(True, "Model auto-download on demand"),
         "stream_load": OptionInfo(False, "Model load using streams", gr.Checkbox),
         "diffusers_to_gpu": OptionInfo(False, "Model load model direct to GPU"),
+        "offload_state_dict": OptionInfo(False, "Model load offload state dict", gr.Checkbox),
         "runai_streamer_diffusers": OptionInfo(False, "Diffusers load using Run:ai streamer", gr.Checkbox),
         "runai_streamer_transformers": OptionInfo(False, "Transformers load using Run:ai streamer", gr.Checkbox),
         "diffusers_eval": OptionInfo(False, "Force model eval", gr.Checkbox, {"visible": True }),
@@ -121,6 +113,8 @@ def create_settings(cmd_opts):
         "google_api_key": OptionInfo("", "Google cloud API key", gr.Textbox, secret=True, env_var='GOOGLE_API_KEY'),
         "google_project_id": OptionInfo("", "Google Cloud project ID", gr.Textbox, secret=True, env_var='GOOGLE_PROJECT_ID'),
         "google_location_id": OptionInfo("", "Google Cloud location ID", gr.Textbox),
+        "model_krea2_sep": OptionInfo("<h2>Krea 2</h2>", "", gr.HTML),
+        "model_krea2_dense": OptionInfo(False, "Use dense masking"),
         "model_sd3_sep": OptionInfo("<h2>Stable Diffusion 3.x</h2>", "", gr.HTML),
         "model_sd3_disable_te5": OptionInfo(False, "Disable T5 text encoder"),
         "model_h1_sep": OptionInfo("<h2>HiDream</h2>", "", gr.HTML),
@@ -147,22 +141,25 @@ def create_settings(cmd_opts):
         "offload_sep": OptionInfo("<h2>Model Offloading</h2>", "", gr.HTML),
         "diffusers_offload_mode": OptionInfo(startup_offload_mode, "Model offload mode", gr.Radio, {"choices": ['none', 'balanced', 'group', 'model', 'sequential']}),
         "diffusers_offload_nonblocking": OptionInfo(False, "Non-blocking move operations"),
-        "caption_offload": OptionInfo(True, "Offload caption models"),
-        "caption_to_gpu": OptionInfo(True, "Load caption models direct to GPU"),
+        "offload_overrides_sep": OptionInfo("<h2>Offload Overrides</h2>", "", gr.HTML),
+        "models_not_to_offload": OptionInfo("", "Model types not to offload"),
+        "diffusers_offload_always": OptionInfo(startup_offload_always, "Modules to always offload"),
+        "diffusers_offload_never": OptionInfo(startup_offload_never, "Modules to never offload"),
         "offload_balanced_sep": OptionInfo("<h2>Balanced Offload</h2>", "", gr.HTML),
         "diffusers_offload_pre": OptionInfo(True, "Offload during pre-forward", gr.Checkbox, {"visible": False}),
         "diffusers_offload_streams": OptionInfo(False, "Offload using streams"),
         "diffusers_offload_min_gpu_memory": OptionInfo(startup_offload_min_gpu, "Offload low watermark", gr.Slider, {"minimum": 0, "maximum": 1, "step": 0.01 }),
         "diffusers_offload_max_gpu_memory": OptionInfo(startup_offload_max_gpu, "Offload GPU high watermark", gr.Slider, {"minimum": 0.1, "maximum": 1, "step": 0.01 }),
         "diffusers_offload_max_cpu_memory": OptionInfo(0.90, "Offload CPU high watermark", gr.Slider, {"minimum": 0, "maximum": 1, "step": 0.01, "visible": False }),
-        "models_not_to_offload": OptionInfo("", "Model types not to offload"),
-        "diffusers_offload_always": OptionInfo(startup_offload_always, "Modules to always offload"),
-        "diffusers_offload_never": OptionInfo(startup_offload_never, "Modules to never offload"),
         "offload_group_sep": OptionInfo("<h2>Group Offload</h2>", "", gr.HTML),
         "group_offload_type": OptionInfo("leaf_level", "Group offload type", gr.Radio, {"choices": ['leaf_level', 'block_level']}),
-        "group_offload_stream": OptionInfo(False, "Use torch streams", gr.Checkbox),
-        'group_offload_record': OptionInfo(False, "Record torch streams", gr.Checkbox),
+        "group_offload_stream": OptionInfo(False, "Prefetch with streams", gr.Checkbox),
+        'group_offload_record': OptionInfo(False, "Overlap stream transfers", gr.Checkbox),
+        'group_offload_pin': OptionInfo(True, "Pin offload memory", gr.Checkbox),
         'group_offload_blocks': OptionInfo(1, "Offload blocks", gr.Number),
+        "caption_offload_sep": OptionInfo("<h2>Caption Model Offloading</h2>", "", gr.HTML),
+        "caption_offload": OptionInfo(True, "Offload caption models"),
+        "caption_to_gpu": OptionInfo(True, "Load caption models direct to GPU"),
     }))
 
     # --- Model Quantization ---
@@ -179,17 +176,18 @@ def create_settings(cmd_opts):
         "sdnq_quantize_matmul_mode_te": OptionInfo("disabled", "Quantized MatMul type for Text Encoders", gr.Dropdown, {"choices": ['Same as model'] + sdnq_matmul_modes}),
         "sdnq_modules_to_not_convert": OptionInfo("", "Modules to not convert"),
         "sdnq_modules_dtype_dict": OptionInfo("{}", "Modules dtype dict"),
-        "sdnq_group_size": OptionInfo(0, "Group size", gr.Slider, {"minimum": -1, "maximum": 4096, "step": 1}),
+        "sdnq_group_size": OptionInfo(0, "Group size", gr.Slider, {"minimum": -2, "maximum": 4096, "step": 1}),
         "sdnq_hadamard_group_size": OptionInfo(256, "Hadamard group size", gr.Slider, {"minimum": 4, "maximum": 4096, "step": 1}),
         "sdnq_svd_rank": OptionInfo(32, "SVD rank size", gr.Slider, {"minimum": 1, "maximum": 512, "step": 1}),
         "sdnq_svd_steps": OptionInfo(8, "SVD steps", gr.Slider, {"minimum": 1, "maximum": 128, "step": 1}),
+        "sdnq_codebook_steps": OptionInfo(24, "Lloyd-Max Codebook steps", gr.Slider, {"minimum": 1, "maximum": 128, "step": 1}),
         "sdnq_dynamic_loss_threshold": OptionInfo(-1, "Dynamic loss threshold", gr.Slider, {"minimum": -1, "maximum": 0.1, "step": 1e-4}),
         "sdnq_use_svd": OptionInfo(False, "Use SVD quantization", gr.Checkbox),
         "sdnq_use_hadamard": OptionInfo(False, "Use Hadamard rotations", gr.Checkbox),
+        "sdnq_use_codebook": OptionInfo(False, "Use Lloyd-Max Codebook quantization", gr.Checkbox),
         "sdnq_use_dynamic_quantization": OptionInfo(False, "Use Dynamic quantization", gr.Checkbox),
         "sdnq_quantize_conv_layers": OptionInfo(False, "Quantize convolutional layers", gr.Checkbox),
         "sdnq_quantize_embedding_layers": OptionInfo(False, "Quantize embedding layers", gr.Checkbox),
-        "sdnq_dequantize_compile": OptionInfo(devices.has_triton(early=True), "Dequantize using torch.compile", gr.Checkbox),
         "sdnq_use_quantized_matmul_conv": OptionInfo(False, "Use quantized MatMul with conv", gr.Checkbox),
         "sdnq_quantize_with_gpu": OptionInfo(True, "Quantize using GPU", gr.Checkbox),
         "sdnq_dequantize_fp32": OptionInfo(True, "Dequantize using full precision", gr.Checkbox),
@@ -257,8 +255,9 @@ def create_settings(cmd_opts):
         "dynamic_attention_trigger_rate": OptionInfo(1, "Dynamic Attention trigger rate", gr.Slider, {"minimum": 0.01, "maximum": max(gpu_memory,4)*2, "step": 0.01}),
 
         "sdnq_attention_sep": OptionInfo("<h2>SDNQ Attention</h2>", "", gr.HTML),
-        "sdnq_attention_smooth_k": OptionInfo(False, "SDNQ Attention use Smooth K", gr.Checkbox),
+        "sdnq_attention_smooth_k": OptionInfo(True, "SDNQ Attention use Smooth K", gr.Checkbox),
         "sdnq_attention_use_hadamard": OptionInfo(False, "SDNQ Attention use Hadamard", gr.Checkbox),
+        "sdnq_attention_use_fp16_accum": OptionInfo(False, "SDNQ Attention use FP16 Accumulation", gr.Checkbox),
         "sdnq_attention_matmul_type": OptionInfo("enabled", "SDNQ Attention MatMul type", gr.Radio, {"choices": sdnq_matmul_modes}),
         "sdnq_attention_pv_matmul_type": OptionInfo("disabled", "SDNQ Attention PV MatMul type", gr.Radio, {"choices": sdnq_matmul_modes}),
         "sdnq_attention_hadamard_group_size": OptionInfo(256, "SDNQ Attention Hadamard Group Size", gr.Slider, {"minimum": 4, "maximum": 1024, "step": 1}),
@@ -314,10 +313,6 @@ def create_settings(cmd_opts):
         "openvino_compile_backend": OptionInfo("openvino_fx", "OpenVINO compile backend", gr.Radio, {"choices": ["openvino", "openvino_fx"], "visible": cmd_opts.use_openvino}),
         "openvino_disable_model_caching": OptionInfo(True, "OpenVINO disable model caching", gr.Checkbox, {"visible": cmd_opts.use_openvino}),
         "openvino_disable_memory_cleanup": OptionInfo(True, "OpenVINO disable memory cleanup", gr.Checkbox, {"visible": cmd_opts.use_openvino}),
-
-        "directml_sep": OptionInfo("<h2>DirectML</h2>", "", gr.HTML, {"visible": devices.backend == "directml"}),
-        "directml_memory_provider": OptionInfo(default_dml_memory_provider, "DirectML memory stats provider", gr.Radio, {"choices": default_dml_memory_providers, "visible": devices.backend == "directml"}),
-        "directml_catch_nan": OptionInfo(False, "DirectML retry ops for NaN", gr.Checkbox, {"visible": devices.backend == "directml"}),
     }))
 
     # --- Pipeline Modifiers ---
@@ -454,7 +449,7 @@ def create_settings(cmd_opts):
         "clip_models_path": OptionInfo(os.path.join(paths.models_path, 'CLIP'), "Folder with CLIP models", folder=True),
         "other_paths_sep_options": OptionInfo("<h2>Cache folders</h2>", "", gr.HTML),
         "clean_temp_dir_at_start": OptionInfo(True, "Cleanup temporary folder on startup"),
-        "temp_dir": OptionInfo("", "Directory for temporary images; leave empty for default", folder=True),
+        "temp_dir": OptionInfo("", "Directory for temporary files; leave empty for default", folder=True),
         "accelerate_offload_path": OptionInfo('cache/accelerate', "Folder for disk offload", folder=True),
         "openvino_cache_path": OptionInfo('cache', "Folder for OpenVINO cache", folder=True),
         "onnx_cached_models_path": OptionInfo(os.path.join(paths.models_path, 'ONNX', 'cache'), "Folder for ONNX cached models", folder=True),

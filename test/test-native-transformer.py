@@ -580,7 +580,7 @@ def test_unswizzle_block_scales_roundtrip():
 def test_nvfp4_codec_ocp_table():
     """SDNQ's float4_e2m1fn decodes OCP FP4 E2M1 exactly, including the
     subnormal codes 1/9 as +/-0.5; nvfp4 containers adopt it directly."""
-    from modules.sdnq.packed_float import unpack_float
+    from sdnq.packed_float import unpack_float
     packed = torch.tensor([(2 * j) | (((2 * j) + 1) << 4) for j in range(8)], dtype=torch.uint8)
     dec = unpack_float(packed, 'float4_e2m1fn', torch.Size([16]))
     for code in range(16):
@@ -592,7 +592,7 @@ def test_nvfp4_pack_ocp_grid_roundtrip():
     (subnormals included), and off-grid values land inside the value set.
     Exact nearest-rounding near the grid midpoints is not asserted: the
     packer's staged rounding may resolve boundary values to either side."""
-    from modules.sdnq.packed_float import pack_float, unpack_float
+    from sdnq.packed_float import pack_float, unpack_float
     grid = [0.0, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0, -0.5, -1.0, -1.5, -2.0, -3.0, -4.0, -6.0, 0.0]
     vals = torch.tensor(grid, dtype=torch.float32)
     out = unpack_float(pack_float(vals, 'float4_e2m1fn'), 'float4_e2m1fn', vals.shape)
@@ -1370,8 +1370,8 @@ class ComfyTestEnv:
 
     def __enter__(self):
         from modules import model_quant, shared
-        from modules.sdnq import common as sdnq_common
-        from modules.sdnq import kernel_wrappers
+        from sdnq import common as sdnq_common
+        from sdnq import kernel_wrappers
         self.shared = shared
         self.sdnq_common = sdnq_common
         self.kernel_wrappers = kernel_wrappers

@@ -443,6 +443,49 @@ def test_lora_official_diffusers_renamed():
     return True
 
 
+def test_lora_bias_delta_binds():
+    """A diff_b sized to the module bias rides along with the weight LoRA."""
+    sd = lora_pair('diffusion_model.first', 'first')
+    sd['diffusion_model.first.diff_b'] = torch.randn(ckpt_shape('first')[0])
+    net = _load_via(K.try_load_lora, sd)
+    assert net is not None and 'lora_transformer_first' in net.modules, f'got {set(net.modules) if net else None}'
+    assert net.mismatch == 0, f'mismatch={net.mismatch}'
+    return True
+
+
+def test_lora_bias_delta_wrong_shape_rejected():
+    """A diff_b that does not fit the module bias is a mismatch, not an apply-time surprise."""
+    sd = lora_pair('diffusion_model.first', 'first')
+    sd['diffusion_model.first.diff_b'] = torch.randn(ckpt_shape('first')[0] + 3)
+    net = _load_via(K.try_load_lora, sd)
+    assert net is None, f'expected rejection, got {net.modules}'
+    return True
+
+
+def test_lora_bias_delta_on_biasless_module_binds():
+    """A bias delta aimed at a module built without one is not a mismatch.
+
+    The krea2 blocks are ``bias=False`` and whole arches (flux2) carry no bias
+    at all, so a stray delta there is one unappliable key rather than the wrong
+    file. It binds, and the apply pass counts it refused.
+    """
+    sd = lora_pair('diffusion_model.blocks.0.attn.wq', 'blocks.0.attn.wq')
+    sd['diffusion_model.blocks.0.attn.wq.diff_b'] = torch.randn(ckpt_shape('blocks.0.attn.wq')[0])
+    net = _load_via(K.try_load_lora, sd)
+    assert net is not None and net.mismatch == 0, f'got {net.mismatch if net else None}'
+    return True
+
+
+def test_chain_refuses_whole_network_on_mismatch():
+    """One bad delta refuses the file rather than applying the layers that fit."""
+    sd = lora_pair('diffusion_model.blocks.0.attn.wq', 'blocks.0.attn.wq')
+    sd.update(lora_pair('diffusion_model.blocks.0.mlp.up', 'blocks.0.mlp.up'))
+    sd['diffusion_model.blocks.0.mlp.up.lora_A.weight'] = torch.randn(RANK, ckpt_shape('blocks.0.mlp.up')[1] + 8)
+    net = _load_via(K.try_load, sd)
+    assert net is None, f'expected refusal, got {set(net.modules)}'
+    return True
+
+
 def test_lora_bare_diffusers_renamed():
     """Bare diffusers key (save_lora_adapter output) renames and binds."""
     sd = lora_pair('transformer_blocks.1.ff.up', 'blocks.1.mlp.up')
@@ -551,14 +594,18 @@ def test_oft_diffusers_renamed():
 
 
 def test_full_diff_chain():
-    """Full-diff extraction loads through the try_load chain and yields finite updown."""
-    out, inp = ckpt_shape('blocks.0.attn.wq')
+    """Full-diff extraction loads through the try_load chain and yields finite updown.
+
+    Targets ``img_in``/``first`` rather than a block attention leaf: the blocks are
+    built ``bias=False``, so a diff_b aimed at one is a delta with nothing to land on.
+    """
+    out, inp = ckpt_shape('first')
     sd = {
-        'transformer.transformer_blocks.0.attn.to_q.diff': torch.randn(out, inp),
-        'transformer.transformer_blocks.0.attn.to_q.diff_b': torch.randn(out),
+        'transformer.img_in.diff': torch.randn(out, inp),
+        'transformer.img_in.diff_b': torch.randn(out),
     }
     net = _load_via(K.try_load, sd)
-    assert net is not None and 'lora_transformer_blocks_0_attn_wq' in net.modules, f'got {set(net.modules) if net else None}'
+    assert net is not None and 'lora_transformer_first' in net.modules, f'got {set(net.modules) if net else None}'
     mod = next(iter(net.modules.values()))
     updown, ex_bias = mod.calc_updown(mod.sd_module.weight)
     assert tuple(updown.shape) == (out, inp) and torch.isfinite(updown).all()
@@ -645,6 +692,10 @@ def run_tests():
     log.warning('=== Loaders ===')
     for fn in [
         test_lora_official_diffusers_renamed,
+        test_lora_bias_delta_binds,
+        test_lora_bias_delta_wrong_shape_rejected,
+        test_lora_bias_delta_on_biasless_module_binds,
+        test_chain_refuses_whole_network_on_mismatch,
         test_lora_bare_diffusers_renamed,
         test_lora_comfy_checkpoint_verbatim,
         test_lora_kohya_checkpoint,

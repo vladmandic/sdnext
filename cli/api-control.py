@@ -2,6 +2,7 @@
 # example: api-control.py --prompt "anime girl" --control "Canny:Canny:1.0:0.1:0.9:/home/vlado/generative/Samples/anime1.jpg,None:Depth:0.9:0.0:1.0:/home/vlado/generative/Samples/anime1.jpg" --hires --detailer --output /tmp/anime.jpg
 import os
 import io
+import sys
 import time
 import base64
 import logging
@@ -9,6 +10,7 @@ import argparse
 import requests
 import urllib3
 from PIL import Image
+
 
 sd_url = os.environ.get('SDAPI_URL', "http://127.0.0.1:7860")
 sd_username = os.environ.get('SDAPI_USR', None)
@@ -36,6 +38,25 @@ def post(endpoint: str, dct: dict | None = None):
         return { 'error': req.status_code, 'reason': req.reason, 'url': req.url }
     else:
         return req.json()
+
+
+def display(image: Image.Image):
+    """
+    # pip install sixel
+    from sixel import converter
+    buf = io.BytesIO()
+    image.save(buf, format="PNG")
+    buf.seek(0)
+    conv = converter.SixelConverter(buf, f8bit=False, ncolor=256, fast=False)
+    conv.write(sys.stdout)
+    """
+    try:
+        import subprocess
+        buf = io.BytesIO()
+        image.save(buf, format="PNG")
+        subprocess.run(["timg", "--pixelation", "sixel", "-"], input=buf.getvalue())
+    except Exception:
+        pass
 
 
 def encode(f):
@@ -144,6 +165,7 @@ def generate(args): # pylint: disable=redefined-outer-name
             if output:
                 image.save(output)
                 log.info(f'image saved: size={image.size} filename={output}')
+            display(image)
 
     if 'images' in data:
         get_image(data['images'], args.output)

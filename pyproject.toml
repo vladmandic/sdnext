@@ -109,7 +109,6 @@ main.ignore-paths=[
     "modules/schedulers/scheduler_*.py",
     "modules/apg",
     "modules/cfgzero",
-    "modules/dml",
     "modules/face",
     "modules/flash_attn_triton_amd",
     "modules/ggml",
@@ -162,6 +161,7 @@ main.ignore-paths=[
     "scripts/pulid",
     "scripts/xadapter",
     "extensions-builtin/sd-extension-chainner/nodes",
+    "extensions-builtin/sdnq",
 ]
 main.ignore-patterns=[
     ".*test*.py$",
@@ -390,62 +390,54 @@ include = [
 exclude = [
     "venv/",
     "*.git/",
-    "scripts/pulid/*",
-    "scripts/pixelsmith/*",
-    "scripts/mod/*",
-    "scripts/layerdiffuse/*",
-    "scripts/lbm/*",
-    "scripts/daam/*",
-    "scripts/infiniteyou/*",
-    "scripts/ctrlx/*",
-    "scripts/consistory/*",
-    "scripts/freescale/*",
-    "scripts/instantir/*",
-    "scripts/softfill.py",
-    "scripts/custom_code.py",
-    "pipelines/anima",
-    "pipelines/boogu",
-    "pipelines/bria",
-    "pipelines/ernie",
-    "pipelines/f_lite",
-    "pipelines/flex2",
-    "pipelines/hidream",
-    "pipelines/lumina_dimmo",
-    "pipelines/mageflow",
-    "pipelines/meissonic",
-    "pipelines/model_stablecascade.py",
-    "pipelines/omnigen2",
-    "pipelines/sefi",
-    "pipelines/step1x",
-    "pipelines/ultraflux",
-    "pipelines/vibe",
-    "pipelines/xomni",
-    "pipelines/zetachroma",
     "extensions-builtin/sd-extension-chainner/nodes",
+    "extensions-builtin/sdnq",
+    "modules/apg",
+    "modules/cfgzero",
+    "modules/control/proc",
+    "modules/framepack",
+    "modules/ggml",
+    "modules/hidiffusion",
+    "modules/intel",
+    "modules/onnx_impl",
+    "modules/pag",
+    "modules/postprocess",
+    "modules/control/units/*.py",
+    "modules/res4lyf",
+    "modules/schedulers/scheduler_*.py",
+    "modules/seedvr",
+    "modules/sharpfin",
+    "modules/teacache",
+    "modules/face/*.py",
+    "modules/sub_quadratic_attention.py",
+    "pipelines/**/*.py",
+    "scripts/**/*.py",
 ]
 
 [tool.ty.rules]
-invalid-method-override = "ignore"
-invalid-argument-type = "ignore"
-unresolved-import = "ignore"
-unresolved-attribute = "ignore"
-invalid-assignment = "ignore"
-unsupported-operator = "ignore"
-no-matching-overload = "ignore"
-unsupported-base = "ignore"
-possibly-missing-attribute = "ignore"
-invalid-parameter-default = "ignore"
 call-non-callable = "ignore"
-not-subscriptable = "ignore"
-possibly-missing-submodule = "ignore"
-missing-argument = "ignore"
-unknown-argument = "ignore"
-invalid-attribute-access = "ignore"
 call-top-callable = "ignore"
+deprecated = "ignore"
+invalid-argument-type = "ignore"
+invalid-assignment = "ignore"
+invalid-attribute-access = "ignore"
+invalid-method-override = "ignore"
+invalid-parameter-default = "ignore"
+missing-argument = "ignore"
+no-matching-overload = "ignore"
+not-subscriptable = "ignore"
+possibly-missing-attribute = "ignore"
+possibly-missing-submodule = "ignore"
+unknown-argument = "ignore"
+unresolved-attribute = "ignore"
+unresolved-import = "ignore"
+unsupported-base = "ignore"
+unsupported-operator = "ignore"
+unused-type-ignore-comment = "ignore"
 
 [tool.codespell]
 skip = "./venv, ./.git, __pycache__, ./tmp, ./extensions-builtin, ./configs, ./models, ./outputs, *.txt, *.json, *.yaml, *.map, *.mjs, *.log"
 ignore-words-list = [
-  "te", "nd", "TE", "padd", "inpt", "thw", "thre", "tipe", "ACI", "Foto", "CNA", "LAMA", "lama", "LaMa", "SOM", "trU", "PatchIn", "AllTime",
+  "te", "nd", "TE", "padd", "inpt", "thw", "thre", "tipe", "ACI", "Foto", "CNA", "LAMA", "lama", "LaMa", "SOM", "COO", "trU", "PatchIn", "AllTime",
   "youre", "thats", "dont", "whats", "havent", "isnt", "doesnt", "cant", "theres", "receipe", "splitted", "spacial", "patchs",
 ]

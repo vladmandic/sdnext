@@ -139,11 +139,18 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
             else:
                 width = getattr(p, 'width', 1024)
                 height = getattr(p, 'height', 1024)
-            shared.state.current_latent = pipe._unpack_latents(latents, height, width, pipe.vae_scale_factor) # pylint: disable=protected-access
-            if current_noise_pred is not None:
-                shared.state.current_noise_pred = pipe._unpack_latents(current_noise_pred, height, width, pipe.vae_scale_factor) # pylint: disable=protected-access
-            else:
-                shared.state.current_noise_pred = current_noise_pred
+            try:
+                shared.state.current_latent = pipe._unpack_latents(latents, height, width, pipe.vae_scale_factor) # pylint: disable=protected-access
+                if current_noise_pred is not None:
+                    shared.state.current_noise_pred = pipe._unpack_latents(current_noise_pred, height, width, pipe.vae_scale_factor) # pylint: disable=protected-access
+                else:
+                    shared.state.current_noise_pred = current_noise_pred
+            except Exception:
+                shared.state.current_latent = pipe._unpack_latents(latents, height, width) # pylint: disable=protected-access # pythoning ask-for-forgiveness if method does not support vae_scale_factor
+                if current_noise_pred is not None:
+                    shared.state.current_noise_pred = pipe._unpack_latents(current_noise_pred, height, width) # pylint: disable=protected-access # pythoning ask-for-forgiveness if method does not support vae_scale_factor
+                else:
+                    shared.state.current_noise_pred = current_noise_pred
         elif hasattr(pipe, "_unpatchify_latents"): # FLUX.2 - unpack [B, seq, patch_ch] to [B, ch, H, W]
             vae_scale = getattr(pipe, 'vae_scale_factor', 8)
             if p.hr_resize_mode > 0 and (p.hr_upscaler != 'None' or p.hr_resize_mode == 5) and p.is_hr_pass:

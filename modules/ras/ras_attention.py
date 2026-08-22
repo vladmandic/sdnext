@@ -167,7 +167,7 @@ class RASJointAttnProcessor2_0:
         attention_mask: torch.FloatTensor | None = None,
         *args,
         **kwargs,
-    ) -> torch.FloatTensor:
+    ) -> torch.FloatTensor | tuple[torch.FloatTensor, torch.FloatTensor]:
         residual = hidden_states
 
         batch_size = hidden_states.shape[0]

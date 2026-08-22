@@ -63,15 +63,43 @@ function pairOf(arEl: Element): { width: Element; height: Element } | null {
   return null;
 }
 
+function getNearestAspectRatio(width: number, height: number, maxPixelTolerance = 8): string | null {
+  const STANDARD_RATIOS = [
+    { label: '1:1', ratio: 1 / 1 },
+    { label: '4:3', ratio: 4 / 3 },
+    { label: '3:2', ratio: 3 / 2 },
+    { label: '16:9', ratio: 16 / 9 },
+    { label: '16:10', ratio: 16 / 10 },
+    { label: '21:9', ratio: 64 / 27 }, // standard cinematic 21:9 ratio is actually 64/27
+    { label: '2:3', ratio: 2 / 3 },
+    { label: '3:4', ratio: 3 / 4 },
+    { label: '9:16', ratio: 9 / 16 },
+    { label: '10:16', ratio: 10 / 16 },
+    { label: '9:21', ratio: 27 / 64 },
+  ];
+  const targetRatio = width / height;
+  const closest = STANDARD_RATIOS.reduce((prev, curr) => (Math.abs(curr.ratio - targetRatio) < Math.abs(prev.ratio - targetRatio) ? curr : prev));
+  const expectedWidth = height * closest.ratio;
+  const expectedHeight = width / closest.ratio;
+  const widthDiff = Math.abs(width - expectedWidth);
+  const heightDiff = Math.abs(height - expectedHeight);
+  if (widthDiff <= maxPixelTolerance || heightDiff <= maxPixelTolerance) return closest.label;
+  const ratio = (width / height).toFixed(2);
+  return `${ratio}:1`;
+}
+
 function settle(arEl: Element, source: 'width' | 'height'): void {
   const ar = parseAR(arValue(arEl));
-  if (!ar) return;
   const pair = pairOf(arEl);
   if (!pair) return;
-  const [rw, rh] = ar;
-  busy.add(arEl);
-  if (source === 'height') writeValue(pair.width, (readValue(pair.height) * rw) / rh);
-  else writeValue(pair.height, (readValue(pair.width) * rh) / rw);
+  if (ar) { // ar is set
+    const [rw, rh] = ar;
+    busy.add(arEl);
+    if (source === 'height') writeValue(pair.width, (readValue(pair.height) * rw) / rh);
+    else writeValue(pair.height, (readValue(pair.width) * rh) / rw);
+  }
+  const span = arEl.querySelector('span');
+  if (span) span.innerText = getNearestAspectRatio(readValue(pair.width), readValue(pair.height));
   busy.delete(arEl);
 }
 
@@ -102,6 +130,9 @@ export function setupResolutionLock(): void {
     if (!pair) return;
     bind(arEl, pair.width, 'width');
     bind(arEl, pair.height, 'height');
+    arEl.querySelectorAll('span').forEach((el) => {
+      if (el) el.innerText = '';
+    });
     arEl.querySelectorAll('input').forEach((el) => {
       if (!(el instanceof HTMLInputElement) || el.classList.contains('ar-lock-bound')) return;
       el.classList.add('ar-lock-bound');

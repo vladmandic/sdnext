@@ -12,7 +12,7 @@ class ScriptPostprocessingDetailer(scripts_postprocessing.ScriptPostprocessing):
         # The detailer accordion (built by yolo.ui) now contains the Sampler sub-accordion too, so for 'extras'
         # it returns a 7th element: a dict of the sampler-block controls. Spread it into the control map; their
         # values are stamped onto the synthetic p in process()/make_processing(), applying to this pass only.
-        enabled, prompt, negative, steps, strength, resolution, sampler_block = shared.detailer.ui('extras')
+        enabled, prompt, negative, steps, strength, resolution, classes, sampler_block = shared.detailer.ui('extras')
         return {
             "enabled": enabled,
             "prompt": prompt,
@@ -20,11 +20,12 @@ class ScriptPostprocessingDetailer(scripts_postprocessing.ScriptPostprocessing):
             "steps": steps,
             "strength": strength,
             "resolution": resolution,
+            "classes": classes,
             **sampler_block,
         }
 
-    def process(self, pp: scripts_postprocessing.PostprocessedImage,  # pylint: disable=arguments-differ
-                enabled=False, prompt='', negative='', steps=10, strength=0.3, resolution=1024,
+    def process(self, pp: scripts_postprocessing.PostprocessedImage, # pylint: disable=arguments-differ
+                enabled=False, prompt='', negative='', steps=10, strength=0.3, resolution=1024, classes='',
                 sampler='Default', prediction='default', shift=3.0, cfg_scale=6.0, options=None, seed=-1):
         if not enabled:
             return pp
@@ -52,7 +53,16 @@ class ScriptPostprocessingDetailer(scripts_postprocessing.ScriptPostprocessing):
             'schedulers_rescale_betas': 'rescale' in options,
         }
         log.info(f'Detailer postprocess: strength={strength} steps={steps} resolution={resolution} sampler={sampler} cfg={cfg_scale}')
-        p = shared.detailer.make_processing(pp.image, prompt=prompt, negative=negative, steps=steps, strength=strength, resolution=resolution, seed=int(seed) if seed is not None else -1, overrides=overrides)
+        p = shared.detailer.make_processing(pp.image,
+                                            prompt=prompt,
+                                            negative=negative,
+                                            steps=steps,
+                                            strength=strength,
+                                            resolution=resolution,
+                                            classes=classes,
+                                            seed=int(seed) if seed is not None else -1,
+                                            overrides=overrides,
+                                           )
 
         try:
             result = shared.detailer.restore(np.array(pp.image), p)

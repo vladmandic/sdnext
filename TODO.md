@@ -1,49 +1,58 @@
 # TODO
 
-## Issues
+## Short-term
 
-- Inpaint: https://discord.com/channels/1101998836328697867/1130536562422186044/1506850651035144322
+- Update LTX wiki, @CalamitousFelicitousness
+- Productize benchmark tool, @CalamitousFelicitousness
+- Inpaint: https://discord.com/channels/1101998836328697867/1130536562422186044/1506850651035144322, @vladmandic
+- Lora: new handler, @CalamitousFelicitousness
+- Control tab verify overrides handling, @vladmandic
+- Create pre-quant for LTX-2.5
+- Create pre-quant for MiniMax-H3-Turbo
 
 ## Features
 
+### Roadmap
+
+- Video upscaling: nvidia-vfx, ltx-upscaler, etc.
+- Video capabilities to processing tab, add RIFE, upscaling (once available)
+- Object clear remover for Kanvas: [Object clear](https://huggingface.co/jixin0101/ObjectClear)
+- OpenAI API interface for image generation
+- Lightweight scheduler/queue manager
+- Distraction-free UI mode with prompt-only, chat-based interface
+- Revisit transformer caching for modular pipelines
+- Revisit guidance for modular pipelines
+- Implement modular for some image models
+- Video models: support finetunes
+
 ### Assigned
 
-- Chat-based interface, @vladmandic
-- Control tab verify overrides handling, @vladmandic
-- Cloud providers, @CalamitousFelicitousness
-- Video processing add/verify full API support, @CalamitousFelicitousness
-- Lora: new handler, @CalamitousFelicitousness
-- Processing -> Video capabilities, @vladmandic
-  - `RIFE` in processing
+- Support cloud providers, @CalamitousFelicitousness
 
 ### Unassigned
 
-- [Object clear](https://huggingface.co/jixin0101/ObjectClear) remover for Kanvas
-- [MiniMax H3](https://github.com/huggingface/diffusers/pull/14355)
+- Incorporate [prompting guides](https://github.com/CalamitousFelicitousness/ai-prompting-guides)
 - Video models: add to Reference
-- Video models: support custom entries, finetunes
 - UI Lite vs Expert mode
 - Auto handle scheduler `prediction_type`
-- Cache models in memory
 - JSON image metadata
 - Expand custom VAE support
 - Refactor: remove obsolete code:
-  - Remove `directml`
   - Remove `olive-ai`
 - Integrate natural language image search
   - [ImageDB](https://github.com/vladmandic/imagedb)
-- Unify *huggingface* and *diffusers* model folders
 
 ### OnHold
 
 - [nVidia-VFX](https://pypi.org/project/nvidia-vfx/): not compatible with latest nVidia drivers
 - [QuantFunc](https://huggingface.co/QuantFunc/Klein-9B-Series): once its released as sdk
-- [nVidia LocateAnything](https://huggingface.co/nvidia/LocateAnything-3B) detection for Detailer, once its compatible with transformers==5
 - LoRA add OMI format support for SD35/FLUX.1
 - Remote Text-Encoder support, sidelined for the moment
 - Multi-user support
 - Settings profile manager
 - TensorRT acceleration
+- Cache models in memory
+- Unify *huggingface* and *diffusers* model folders
 
 ### Modular
 

@@ -266,7 +266,7 @@ def download_pretrained_from_url(
             return download_target
 
     with urllib.request.urlopen(url) as source, open(download_target, "wb") as output:
-        with tqdm(total=int(source.headers.get("Content-Length")), ncols=80, unit='iB', unit_scale=True) as loop:
+        with tqdm(total=int(source.headers.get("Content-Length")), ncols=120, unit='iB', unit_scale=True) as loop:
             while True:
                 buffer = source.read(8192)
                 if not buffer:

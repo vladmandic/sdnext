@@ -264,14 +264,20 @@ def new_network(name, network_on_disk):
 def finalize_network(net, name, family, lora_scale, t0, unmapped=0, mismatch=0, skipped=0):
     """Emit the standard debug log line and return the populated network (or ``None``).
 
-    Returns ``None`` when no modules were bound. Logs at debug only; loader
-    callers can surface higher-level outcomes at info if needed.
+    Returns ``None`` when no modules were bound. Records ``mismatch`` on the
+    network so :func:`try_load_chain` can refuse the file as a whole.
     """
+    net.mismatch = mismatch
     if len(net.modules) == 0:
-        if unmapped or mismatch or skipped:
-            log.debug(
+        if mismatch:
+            log.error(
                 f'Network load: type={family} name="{name}" native no-match'
                 f' unmapped={unmapped} mismatch={mismatch} skipped={skipped}'
+            )
+        elif unmapped or skipped:
+            log.debug(
+                f'Network load: type={family} name="{name}" native no-match'
+                f' unmapped={unmapped} skipped={skipped}'
             )
         return None
     log.debug(
@@ -326,6 +332,19 @@ def lokr_kron_shape(w):
         w2b = w["lokr_w2_b"]
         c2_flat = w2b.numel() // w2b.shape[0]
     return r1 * r2, c1 * c2_flat
+
+
+def bias_delta_fits(sd_module, bias_w: torch.Tensor) -> bool:
+    """Bias-delta sanity check against the live module bias.
+
+    A module with no bias is not a mismatch: whole architectures are built
+    ``bias=False`` (flux2 has not one biased module), so a stray delta there is
+    one unappliable key and the apply pass counts it refused.
+    """
+    bias = getattr(sd_module, "bias", None)
+    if bias is None:
+        return True
+    return tuple(bias_w.shape) == tuple(bias.shape)
 
 
 def lokr_shapes_match(sd_module, kron_shape, chunk: ChunkSpec | None) -> bool:
@@ -618,6 +637,15 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
                     f' lora={target_w["lora_down.weight"].shape[1]}x{target_w["lora_up.weight"].shape[0]}'
                     f' module={getattr(sd_module, "weight", None).shape if hasattr(sd_module, "weight") else "?"}'
                     f' shape mismatch'
+                )
+                mismatch += 1
+                continue
+
+            if "diff_b" in target_w and not bias_delta_fits(sd_module, target_w["diff_b"]):
+                log.warning(
+                    f'Network load: type=LoRA name="{name}" arch={arch_name} key={network_key}'
+                    f' bias={tuple(target_w["diff_b"].shape)} module={tuple(sd_module.bias.shape)}'
+                    f' bias shape mismatch'
                 )
                 mismatch += 1
                 continue
@@ -976,6 +1004,7 @@ def try_load_norm(name, network_on_disk, lora_scale, *,
     )
 
     unmapped = 0
+    mismatch = 0
     for (prefix, base), w in groups.items():
         if "w_norm" not in w:
             continue
@@ -992,12 +1021,20 @@ def try_load_norm(name, network_on_disk, lora_scale, *,
             if sd_module is None:
                 unmapped += 1
                 continue
+            if "b_norm" in w and not bias_delta_fits(sd_module, w["b_norm"]):
+                log.warning(
+                    f'Network load: type=Norm name="{name}" arch={arch_name} key={network_key}'
+                    f' bias={tuple(w["b_norm"].shape)} module={tuple(sd_module.bias.shape)}'
+                    f' bias shape mismatch'
+                )
+                mismatch += 1
+                continue
             if not getattr(sd_module, "network_layer_name", None):
                 sd_module.network_layer_name = network_key
             nw = network.NetworkWeights(network_key=network_key, sd_key=network_key, w=w, sd_module=sd_module)
             net.modules[network_key] = network_norm.NetworkModuleNorm(net, nw)
 
-    return finalize_network(net, name, "Norm", lora_scale, t0, unmapped=unmapped)
+    return finalize_network(net, name, "Norm", lora_scale, t0, unmapped=unmapped, mismatch=mismatch)
 
 
 def try_load_full(name, network_on_disk, lora_scale, *,
@@ -1029,6 +1066,7 @@ def try_load_full(name, network_on_disk, lora_scale, *,
 
     unmapped = 0
     skipped = 0
+    mismatch = 0
     for (prefix, base), w in groups.items():
         if "diff" not in w:
             continue
@@ -1044,6 +1082,14 @@ def try_load_full(name, network_on_disk, lora_scale, *,
             if sd_module is None:
                 unmapped += 1
                 continue
+            if "diff_b" in w and not bias_delta_fits(sd_module, w["diff_b"]):
+                log.warning(
+                    f'Network load: type=Full name="{name}" arch={arch_name} key={network_key}'
+                    f' bias={tuple(w["diff_b"].shape)} module={tuple(sd_module.bias.shape)}'
+                    f' bias shape mismatch'
+                )
+                mismatch += 1
+                continue
             # Loader-local stamping, same as try_load_norm: a full-weight extraction carries the
             # norm weights too, and assign_network_names_to_compvis_modules puts norms in the
             # mapping but never stamps network_layer_name on them, which is what the apply pass
@@ -1053,7 +1099,7 @@ def try_load_full(name, network_on_disk, lora_scale, *,
             nw = network.NetworkWeights(network_key=network_key, sd_key=network_key, w=w, sd_module=sd_module)
             net.modules[network_key] = network_full.NetworkModuleFull(net, nw)
 
-    return finalize_network(net, name, "Full", lora_scale, t0, unmapped=unmapped, skipped=skipped)
+    return finalize_network(net, name, "Full", lora_scale, t0, unmapped=unmapped, mismatch=mismatch, skipped=skipped)
 
 
 # === Per-arch umbrella ===
@@ -1070,13 +1116,18 @@ def try_load_chain(name, network_on_disk, lora_scale, family_loaders):
     """
     sd_models_utils.state_dict_cache.enable()
     net = None
+    mismatch = 0
     for try_fn in family_loaders:
         sub = try_fn(name, network_on_disk, lora_scale)
         if sub is None:
             continue
+        mismatch += getattr(sub, 'mismatch', 0)
         if net is None:
             net = sub
         else:
             net.modules.update(sub.modules)
     sd_models_utils.state_dict_cache.disable()
+    if net is not None and mismatch > 0: # applying only the layers that fit leaves the model in a state nothing was trained for
+        log.error(f'Network load: type=LoRA name="{name}" modules={len(net.modules)} mismatch={mismatch} shapes do not match the loaded model')
+        return None
     return net

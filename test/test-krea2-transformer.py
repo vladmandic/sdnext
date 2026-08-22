@@ -20,6 +20,7 @@ import importlib.util
 import os
 import sys
 from contextlib import nullcontext
+from types import SimpleNamespace
 
 import torch
 
@@ -118,6 +119,90 @@ def load_materialize_zero_init():
     return materialize_zero_init
 
 
+class _FakeTokenizedBatch(SimpleNamespace):
+    def to(self, device):
+        self.input_ids = self.input_ids.to(device) # pylint: disable=attribute-defined-outside-init
+        self.attention_mask = self.attention_mask.to(device) # pylint: disable=attribute-defined-outside-init
+        return self
+
+
+class _FakeTokenizer:
+    def __init__(self, text_len):
+        self.text_len = text_len
+
+    def __call__(self, texts, truncation=False, padding=None, max_length=None, return_tensors=None):
+        batch = len(texts)
+        seq_len = max_length if padding == "max_length" else self.text_len
+        ids = torch.zeros(batch, seq_len, dtype=torch.int64)
+        mask = torch.zeros(batch, seq_len, dtype=torch.bool)
+        for i, text in enumerate(texts):
+            length = min(len(text), seq_len)
+            mask[i, :length] = True
+        return _FakeTokenizedBatch(input_ids=ids, attention_mask=mask)
+
+
+class _FakeTextEncoder:
+    def __init__(self, hidden_dim, layers):
+        self.hidden_dim = hidden_dim
+        self.layers = layers
+
+    def __call__(self, input_ids=None, attention_mask=None, output_hidden_states=False):
+        batch, seq_len = input_ids.shape
+        hidden_states = [torch.randn(batch, seq_len, self.hidden_dim) for _ in range(self.layers)]
+        return SimpleNamespace(hidden_states=hidden_states)
+
+
+def run_dense_prompt_compaction_test():
+    """Validate SD_KREA2_DENSE prompt compaction and mask preservation."""
+    os.environ["SD_KREA2_DENSE"] = "1"
+    from pipelines.krea2.pipeline_krea2 import Krea2Pipeline
+
+    class FakeTransformer:
+        def __init__(self):
+            self.dtype = torch.float32
+            self.config = SimpleNamespace(patch=2, channels=4)
+
+    fake_transformer = FakeTransformer()
+    fake_text_encoder = _FakeTextEncoder(hidden_dim=32, layers=36)
+    fake_tokenizer = _FakeTokenizer(text_len=20)
+    fake_vae = SimpleNamespace(config=SimpleNamespace(latents_mean=0.0, latents_std=1.0), decode=lambda x: SimpleNamespace(sample=x))
+    fake_scheduler = SimpleNamespace()
+
+    pipe = Krea2Pipeline(
+        transformer=fake_transformer,
+        text_encoder=fake_text_encoder,
+        tokenizer=fake_tokenizer,
+        vae=fake_vae,
+        scheduler=fake_scheduler,
+    )
+    prompts = ["short", "longer prompt"]
+    _hidden, mask = pipe.encode_prompt(prompts, device=torch.device("cpu"))
+    assert mask.shape[1] < pipe.MAX_LENGTH
+    assert mask.any(dim=0).all(), "Compacted prompt mask must contain no fully padded columns"
+    del os.environ["SD_KREA2_DENSE"]
+
+
+def run_attention_mask_none_forward_test(port):
+    """Verify the transformer accepts attention_mask=None without dense segment mask creation."""
+    model = port.Krea2Transformer2DModel(**CFG).eval()
+    batch, txtlen, imglen = 1, 5, 9
+    cdim = CFG["channels"] * CFG["patch"] ** 2
+    img = torch.randn(batch, imglen, cdim)
+    context = torch.randn(batch, txtlen, CFG["txtlayers"], CFG["txtdim"])
+    timestep = torch.rand(batch)
+    pos = torch.randint(0, 16, (batch, txtlen + imglen, 3)).float()
+    with torch.no_grad():
+        out = model(
+            hidden_states=img,
+            encoder_hidden_states=context,
+            timestep=timestep,
+            position_ids=pos,
+            attention_mask=None,
+            return_dict=False,
+        )[0]
+    assert out.shape == (batch, imglen, CFG["channels"] * CFG["patch"] ** 2)
+
+
 def run_zero_init_regression(port):
     """A finetune predating the last.up/last.down branch omits both keys. Zero-filling them
     must reproduce the base's dormant behavior: identical output to a model whose up is zeroed
@@ -184,7 +269,7 @@ def run_comfy_quant_real_file():
     from pipelines.krea2 import KREA2_SPEC
 
     transformer, siblings = nt.load(local_file=path, repo_id=repo_id, spec=KREA2_SPEC, diffusers_cfg={})
-    assert siblings == {}
+    assert not siblings
 
     sdnq_layers = [m for m in transformer.modules() if m.__class__.__name__ == "SDNQLinear"]
     storage_dtypes = {m.weight.dtype for m in sdnq_layers}

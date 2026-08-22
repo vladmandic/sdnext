@@ -6,6 +6,7 @@ from PIL import Image, ImageOps
 from modules import shared, devices, errors, images, scripts_manager, memstats, script_callbacks, extra_networks, sd_models, sd_checkpoint, sd_vae, processing_helpers, processing_grading, timer, masking
 from modules.logger import log
 from modules.sd_hijack_hypertile import context_hypertile_vae, context_hypertile_unet
+from modules.processing_info import create_infotext
 from modules.processing_class import ( # pylint: disable=unused-import
     StableDiffusionProcessing,
     StableDiffusionProcessingTxt2Img,
@@ -13,7 +14,6 @@ from modules.processing_class import ( # pylint: disable=unused-import
     StableDiffusionProcessingControl,
     StableDiffusionProcessingVideo,
 )
-from modules.processing_info import create_infotext
 
 
 opt_C = 4
@@ -42,8 +42,8 @@ class Processed:
 
         self.prompt = p.prompt or ''
         self.negative_prompt = p.negative_prompt or ''
-        self.prompt = self.prompt if type(self.prompt) != list else self.prompt[0]
-        self.negative_prompt = self.negative_prompt if type(self.negative_prompt) != list else self.negative_prompt[0]
+        self.prompt = self.prompt[0] if isinstance(self.prompt, list) and self.prompt else self.prompt
+        self.negative_prompt = self.negative_prompt[0] if isinstance(self.negative_prompt, list) and self.negative_prompt else self.negative_prompt
         self.styles = p.styles
 
         self.bytes = binary
@@ -417,23 +417,25 @@ def process_samples(p: StableDiffusionProcessing, samples):
 
 
 def print_stats():
-    log.debug(f'Processed: timers={timer.process.dct()}')
+    log.debug(f'Processed: timers={timer.process.dct(no_total=True)}')
     log.debug(f'Processed: memory={memstats.memory_stats()}')
 
-    if shared.opts.sdnq_dequantize_compile:
+    if devices.triton_ok:
         from modules.timer_sdnq import update_sdnq_attention_timers
         update_sdnq_attention_timers()
         if timer.autotune.get_total() > 0.1:
             log.debug(f'Processed: autotune={timer.autotune.dct(min_time=0)}')
 
-    if devices.triton_ok:
         from modules.sd_models_compile import update_compile_times
         update_compile_times()
-        if timer.dynamo.get_total() > 0.1:
-            log.debug(f'Processed: dynamo={timer.dynamo.dct(min_time=2.0, no_total=True)}')
+        dynamo_dct = timer.dynamo.dct(min_time=1.0, no_total=True)
+        timer.dynamo.reset()
+        if dynamo_dct:
+            log.debug(f'Processed: dynamo={dynamo_dct}')
 
 
 def process_images_inner(p: StableDiffusionProcessing) -> Processed:
+    t0 = time.time()
     if type(p.prompt) == list:
         assert len(p.prompt) > 0
     else:
@@ -452,7 +454,7 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
     jobid = shared.state.begin('Process')
     shared.state.batch_count = p.n_iter
     with devices.inference_context():
-        t0 = time.time()
+        t1 = time.time()
         if not hasattr(p, 'skip_init'):
             p.init(p.all_prompts, p.all_seeds, p.all_subseeds)
         debug(f'Processing inner: args={vars(p)}')
@@ -482,6 +484,8 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
             if not p.prompts:
                 break
             p.prompts, p.network_data = extra_networks.parse_prompts(p.prompts)
+
+
             if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
                 p.scripts.process_batch(p, batch_number=n, prompts=p.prompts, seeds=p.seeds, subseeds=p.subseeds)
 
@@ -513,6 +517,8 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
                 if not _keep:
                     break
 
+            audio = getattr(samples, 'audio', None) # captured before the batch script hooks, which rewrap samples into a plain list without the attribute
+
             if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
                 p.scripts.postprocess_batch(p, samples, batch_number=n)
             if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
@@ -530,8 +536,6 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
                     if batch_image is not None and batch_image not in output_images:
                         output_images.append(batch_image)
                         infotexts.append(batch_infotext)
-
-            audio = getattr(samples, 'audio', None)
 
             if shared.cmd_opts.lowvram:
                 devices.torch_gc(force=True, reason='lowvram')
@@ -552,7 +556,8 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
                 shared.sd_model.restore_pipeline()
             shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.TEXT_2_IMAGE)
 
-        t1 = time.time()
+        t2 = time.time()
+        timer.process.add('process', t2 - t1)
 
         p.color_corrections = None
         index_of_first_image = 0
@@ -587,9 +592,12 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
         p.scripts.postprocess(p, results)
     timer.process.record('post')
     p.ops = list(set(p.ops))
+    t3 = time.time()
+    timer.process.add('wall', t3 - t0)
 
     if not p.disable_extra_networks:
-        log.info(f'Processed: images={len(output_images)} its={(p.steps * len(output_images)) / (t1 - t0):.2f} ops={p.ops}')
+        its = (p.steps * len(output_images)) / (t2 - t1)
+        log.info(f'Processed: images={len(output_images)} its={its:.3f} ops={p.ops}')
         print_stats()
 
     if shared.cmd_opts.lowvram or shared.cmd_opts.medvram:

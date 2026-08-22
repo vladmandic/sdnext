@@ -135,9 +135,6 @@ def run_settings(*args):
         from modules.onnx_impl import install_olive, initialize_onnx_pipelines
         install_olive()
         initialize_onnx_pipelines()
-    if shared.cmd_opts.use_directml:
-        from modules.dml import directml_override_opts
-        directml_override_opts()
     if shared.cmd_opts.use_openvino:
         if "Model" not in shared.opts.cuda_compile:
             log.warning("OpenVINO: Overriding Torch Compile Model")
@@ -196,9 +193,6 @@ def run_settings_single(value, key, progress=False, force=False):
     if key == "cuda_compile_backend" and value == "olive-ai":
         from modules.onnx_impl import install_olive
         install_olive()
-    if shared.cmd_opts.use_directml:
-        from modules.dml import directml_override_opts
-        directml_override_opts()
     shared.opts.save(silent=True)
     if key == 'sd_text_encoder':
         sd_models.reload_text_encoder() # apply the change now; reloads the model for encoders with no in-place swap
@@ -254,21 +248,26 @@ def create_ui(disabled_tabs=None):
             sections = []
             options_count = len(shared.opts.data_labels)
             for item in shared.opts.data_labels.values(): # get unique sections from all items
-                if len(item.section) == 2:
-                    section_id, section_text = item.section
-                elif len(item.section) == 3: # compatibility item with a1111 extensions
-                    _category, section_id, section_text = item.section
+                section = item.section or (None, 'Hidden')
+                if len(section) == 2:
+                    section_id, section_text = section
+                elif len(section) == 3: # compatibility item with a1111 extensions
+                    _category, section_id, section_text = section
                     item.section = section_id, section_text
                 else:
                     section_id = None
                     item.section = None, 'Hidden'
+                    section_text = 'Hidden'
                 if (section_id, section_text) not in sections:
                     sections.append((section_id, section_text))
 
             with gr.Tabs(elem_id="settings"):
                 quicksettings_list.clear()
                 for (section_id, section_text) in sections:
-                    items = [item for item in shared.opts.data_labels.items() if item[1].section[0] == section_id] # find all items in this section
+                    items = [
+                        item for item in shared.opts.data_labels.items()
+                        if item[1].section is not None and item[1].section[0] == section_id
+                    ] # find all items in this section
                     hidden = section_id is None or 'hidden' in section_id.lower() or 'hidden' in section_text.lower()
                     # log.trace(f'Settings: section="{section_id}" title="{section_text}" items={len(items)} hidden={hidden}')
                     if hidden:

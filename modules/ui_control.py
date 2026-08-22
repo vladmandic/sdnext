@@ -1,5 +1,6 @@
 import os
 import time
+import asyncio
 import gradio as gr
 from modules.control import unit
 from modules import errors, shared, progress, generation_parameters_copypaste, call_queue, scripts_manager, masking, images, processing_vae, timer # pylint: disable=ungrouped-imports
@@ -17,6 +18,7 @@ controls: list[gr.components.Component] = [] # list of gr controls
 debug = log.trace if os.environ.get('SD_CONTROL_DEBUG', None) is not None else lambda *args, **kwargs: None
 debug('Trace: CONTROL')
 use_generator = os.environ.get('SD_USE_GENERATOR', None) is not None
+use_async = os.environ.get('SD_USE_ASYNC', None) is not None
 
 
 def return_stats(t: float | None = None):
@@ -35,11 +37,12 @@ def return_stats(t: float | None = None):
         ooms = mem_mon_read.pop("oom")
         retries = mem_mon_read.pop("retries")
         vram = {k: v // 1048576 for k, v in mem_mon_read.items()}
-        peak = max(vram.get('active_peak', 0), vram.get('reserved_peak', 0), vram.get('used', 0))
-        used = round(100.0 * peak / vram.get('total', 0)) if vram.get('total', 0) > 0 else 0
-        if peak > 0:
-            gpu += f"| 🕮 GPU {peak} MB"
-            gpu += f" {used}%" if used > 0 else ''
+        peak_mb = max(vram.get('active_peak', 0), vram.get('reserved_peak', 0), vram.get('used', 0))
+        peak_gb = round(100.0 * peak_mb / 1024) / 100.0
+        used_perc = round(100.0 * peak_mb / vram.get('total', 0)) if vram.get('total', 0) > 0 else 0
+        if peak_mb > 0:
+            gpu += f"| 🕮 GPU {peak_gb} GB"
+            gpu += f" {used_perc}%" if used_perc > 0 else ''
             gpu += f" | Retries {retries} OOM {ooms}" if retries > 0 or ooms > 0 else ''
     ram = ram_stats()
     if ram['used'] > 0:
@@ -95,7 +98,7 @@ def generate_click_generator(job_id: str, state: str, active_tab: str, *args): #
     while helpers.busy:
         debug(f'Control: tab="{active_tab}" job={job_id} busy')
         time.sleep(0.1)
-    from modules.control.run import control_run
+    from modules.control.run import generate
     debug(f'Control: tab="{active_tab}" job={job_id} args={args}')
     progress.add_task_to_queue(job_id)
     with call_queue.get_lock():
@@ -106,7 +109,7 @@ def generate_click_generator(job_id: str, state: str, active_tab: str, *args): #
         t = time.perf_counter()
         results = {}
         try:
-            for results in control_run(state, units, helpers.input_source, helpers.input_init, helpers.input_mask, active_tab, True, *args):
+            for results in generate(state, units, helpers.input_source, helpers.input_init, helpers.input_mask, active_tab, True, *args):
                 progress.record_results(job_id, results)
                 yield return_controls(results, t)
         except GeneratorExit:
@@ -125,7 +128,7 @@ def generate_click(job_id: str, state: str, active_tab: str, *args):
     while helpers.busy:
         debug(f'Control: tab="{active_tab}" job={job_id} busy')
         time.sleep(0.1)
-    from modules.control.run import control_run
+    from modules.control.run import generate
     debug(f'Control: tab="{active_tab}" job={job_id} args={args}')
     progress.add_task_to_queue(job_id)
     with call_queue.get_lock():
@@ -135,7 +138,7 @@ def generate_click(job_id: str, state: str, active_tab: str, *args):
         progress.start_task(job_id)
         try:
             t = time.perf_counter()
-            for results in control_run(state, units, helpers.input_source, helpers.input_init, helpers.input_mask, active_tab, True, *args):
+            for results in generate(state, units, helpers.input_source, helpers.input_init, helpers.input_mask, active_tab, True, *args):
                 progress.record_results(job_id, results)
         except GeneratorExit:
             log.error("Control: generator exit")
@@ -147,6 +150,10 @@ def generate_click(job_id: str, state: str, active_tab: str, *args):
             progress.finish_task(job_id)
             shared.state.end(jobid)
         return return_controls(results, t)
+
+
+async def generate_click_async(job_id: str, state: str, active_tab: str, *args):
+    return await asyncio.to_thread(generate_click, job_id, state, active_tab, *args)
 
 
 def create_ui(_blocks: gr.Blocks=None):
@@ -207,7 +214,7 @@ def create_ui(_blocks: gr.Blocks=None):
                         video_type, video_duration, video_loop, video_pad, video_interpolate = create_video_inputs(tab='control')
 
                 enable_hr, hr_sampler_index, hr_denoising_strength, hr_resize_mode, hr_resize_context, hr_upscaler, hr_force, hr_second_pass_steps, hr_scale, hr_resize_x, hr_resize_y, refiner_steps, refiner_start, refiner_prompt, refiner_negative = ui_sections.create_hires_inputs('control')
-                detailer_enabled, detailer_prompt, detailer_negative, detailer_steps, detailer_strength, detailer_resolution = shared.detailer.ui('control')
+                detailer_enabled, detailer_prompt, detailer_negative, detailer_steps, detailer_strength, detailer_resolution, detailer_classes = shared.detailer.ui('control')
 
             with gr.Row():
                 override_script_name = gr.State(value='', visible=False, elem_id='control_override_script_name')
@@ -311,7 +318,7 @@ def create_ui(_blocks: gr.Blocks=None):
                 seed, subseed, subseed_strength, seed_resize_from_h, seed_resize_from_w,
                 guidance_name, guidance_scale, guidance_rescale, guidance_start, guidance_stop,
                 cfg_scale, clip_skip, cfg_image, cfg_rescale, cfg_true, cfg_adaptive, cfg_end, vae_type, tiling, hidiffusion,
-                detailer_enabled, detailer_prompt, detailer_negative, detailer_steps, detailer_strength, detailer_resolution,
+                detailer_enabled, detailer_prompt, detailer_negative, detailer_steps, detailer_strength, detailer_resolution, detailer_classes,
                 hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundary, hdr_color_picker, hdr_tint_ratio, hdr_apply_hires,
                 grading_brightness, grading_contrast, grading_saturation, grading_hue, grading_gamma, grading_sharpness, grading_color_temp,
                 grading_shadows, grading_midtones, grading_highlights, grading_clahe_clip, grading_clahe_grid,
@@ -334,14 +341,19 @@ def create_ui(_blocks: gr.Blocks=None):
                 output_html_log,
             ]
 
-            generate_fn = generate_click_generator if use_generator else generate_click
+            if use_generator:
+                generate_fn = generate_click_generator
+            elif use_async:
+                generate_fn = generate_click_async
+            else:
+                generate_fn = generate_click
+
             control_dict = dict(
                 fn=generate_fn,
                 _js="submit_control",
                 inputs=[tabs_state, state, tabs_state] + input_fields + input_script_args,
                 outputs=output_fields,
                 show_progress='hidden',
-                # queue=not shared.cmd_opts.listen,
             )
             prompt.submit(**control_dict)
             negative.submit(**control_dict)

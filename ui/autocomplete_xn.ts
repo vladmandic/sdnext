@@ -86,7 +86,8 @@ export const xnEngine: XnEngine = {
 
   async fetchJson(path) {
     try {
-      const resp = await fetch(`${window.api}${path}`, { credentials: 'include' });
+      // const resp = await fetch(`${window.api}${path}`, { credentials: 'include' });
+      const resp = await authFetch(`${window.api}${path}`);
       if (!resp.ok) throw new Error(`${resp.status}`);
       return await resp.json();
     } catch (e) {

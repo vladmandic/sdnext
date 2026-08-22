@@ -263,7 +263,7 @@ def validate_image(image_b64: str):
     return image.convert('RGB')
 
 
-def build_clip_overrides(req) -> dict:
+def build_clip_overrides(req) -> dict | None:
     """Build clip_interrogator overrides dict from request fields."""
     overrides = {}
     for key in ('max_length', 'chunk_size', 'min_flavors', 'max_flavors', 'flavor_count', 'num_beams'):
@@ -304,7 +304,7 @@ def do_openclip(image, req):
     return caption, get_top_item(results[0]), get_top_item(results[1]), get_top_item(results[2]), get_top_item(results[3]), get_top_item(results[4])
 
 
-def build_vqa_kwargs(req) -> dict:
+def build_vqa_kwargs(req) -> dict | None:
     """Build generation kwargs dict from VQA request fields."""
     kwargs = {}
     for key in ('max_tokens', 'temperature', 'top_k', 'top_p', 'num_beams', 'do_sample', 'keep_thinking', 'keep_prefill'):
@@ -377,7 +377,7 @@ def do_analyze(image, req):
     return answer, annotated_b64
 
 
-def parse_tagger_scores(tags: str) -> dict:
+def parse_tagger_scores(tags: str) -> dict | None:
     """Parse confidence scores from tagger output string."""
     scores = {}
     for item in tags.split(', '):

@@ -35,7 +35,7 @@ def google_requirements():
     # reload('pydantic', '2.11.7')
 
 
-def get_size_buckets(width: int, height: int) -> str:
+def get_size_buckets(width: int, height: int) -> tuple[str, str]:
     aspect_ratio = width / height
     closest_aspect_ratio = min(aspect_ratios_buckets.items(), key=lambda x: abs(x[1] - aspect_ratio))[0]
     pixel_count = width * height

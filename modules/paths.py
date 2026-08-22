@@ -25,7 +25,11 @@ except Exception:
 
 temp_dir = config.get('temp_dir', '')
 if len(temp_dir) == 0:
-    temp_dir = tempfile.gettempdir()
+    os_env = os.environ.get('GRADIO_TEMP_DIR', '')
+    if len(os_env) > 0:
+        temp_dir = os_env
+    else:
+        temp_dir = tempfile.gettempdir()
 reference_path = os.path.join('models', 'Reference')
 modules_path = os.path.dirname(os.path.realpath(__file__))
 script_path = os.path.dirname(modules_path)

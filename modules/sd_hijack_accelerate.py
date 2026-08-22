@@ -36,8 +36,9 @@ def hijack_set_module_tensor(
         if tensor_name in module._buffers: # pylint: disable=protected-access
             module._buffers[tensor_name] = value.to(device, old_value.dtype)  # pylint: disable=protected-access
         elif value is not None or not devices.same_device(device, module._parameters[tensor_name].device):  # pylint: disable=protected-access
-            param_cls = type(module._parameters[tensor_name]) # pylint: disable=protected-access
-            module._parameters[tensor_name] = param_cls(value, requires_grad=old_value.requires_grad).to(device, old_value.dtype) # pylint: disable=protected-access
+            param = module._parameters[tensor_name] # pylint: disable=protected-access
+            param_cls = type(param) if param is not None else torch.nn.Parameter
+            module._parameters[tensor_name] = param_cls(value, requires_grad=old_value.requires_grad).to(device, old_value.dtype)  # pylint: disable=protected-access
     t1 = time.time()
     tensor_to_timer += (t1 - t0)
 

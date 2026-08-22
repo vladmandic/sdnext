@@ -152,7 +152,10 @@ def _get_libs_pkg() -> str:
             agent = _rocm.Agent(i)
             therock = agent.therock
             if therock:
-                suffix = therock.split("/")[-1].replace("-", "_")
+                suffix = therock.rsplit("/", 1)[-1]
+                if suffix.startswith("amd-torch-device-"):
+                    suffix = suffix[len("amd-torch-device-"):]
+                suffix = suffix.replace("-", "_")
                 folder = "_rocm_sdk_libraries_" + suffix
                 if folder in candidates:
                     _libs_pkg_cache = folder
@@ -216,10 +219,10 @@ def load_config() -> Dict[str, str]:
             if dirty:
                 _cache = {k: v for k, v in _cache.items() if k not in dirty}
                 writefile(_cache, str(CONFIG))
-                log.debug(f'ROCm load_config: purged {len(dirty)} stale/unsafe var(s) from saved config')
+                log.debug(f'ROCm: config={str(CONFIG)} purged={len(dirty)} stale/unsafe')
         else:
             _cache = {k: v["default"] for k, v in ROCM_ENV_VARS.items()}
-        log.debug(f'ROCm load_config: path={CONFIG} existed={file_existed} items={len(_cache)}')
+        log.debug(f'ROCm: load config={str(CONFIG)} items={len(_cache)}')
     return _cache
 
 
@@ -233,7 +236,7 @@ def save_config(config: Dict[str, str]) -> None:
     for var in unavailable:
         if var in sanitized and sanitized[var] != "0":
             sanitized[var] = "0"
-            log.debug(f'ROCm save_config: clamped arch-incompatible var={var} arch={arch}')
+            log.debug(f'ROCm: var={var} arch={arch} clamped arch-incompatible')
     writefile(sanitized, str(CONFIG))
     _cache = sanitized
 

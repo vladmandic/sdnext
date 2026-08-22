@@ -64,6 +64,7 @@ def temp_disable_extensions():
         'multidiffusion-upscaler-for-automatic1111',
         'a1111-sd-webui-lycoris',
         'sd-webui-animatediff',
+        'sdnq',
     ]
     disable_obsolete = [
         'Lora',

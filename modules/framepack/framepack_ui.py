@@ -12,13 +12,13 @@ def change_sections(duration, mp4_fps, mp4_interpolate, latent_ws, variant):
     return gr.update(value=f'Target video: {num_frames} frames in {num_sections} sections'), gr.update(lines=max(2, 2*num_sections//3))
 
 
-def create_ui(prompt, negative, styles, _overrides, script_inputs, mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, mp4_thumb):
+def create_ui(prompt, negative, styles, _overrides, script_inputs, mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, mp4_thumb, mp4_scale, mp4_upscaler):
     with gr.Row():
         with gr.Column(variant='compact', elem_id="framepack_settings", elem_classes=['settings-column'], scale=1):
             with gr.Row():
                 generate = gr.Button('Generate', elem_id="framepack_generate_btn", variant='primary', visible=False)
             with gr.Row():
-                variant = gr.Dropdown(label="FP model variant", choices=list(framepack_load.models), value='bi-directional', type='value')
+                variant = gr.Dropdown(label="FP model variant", choices=list(framepack_load.models), value='None', type='value')
             with gr.Row():
                 resolution = gr.Slider(label="FP resolution", minimum=240, maximum=1088, value=640, step=16)
                 duration = gr.Slider(label="FP duration", minimum=1, maximum=120, value=4, step=0.1)
@@ -64,7 +64,7 @@ def create_ui(prompt, negative, styles, _overrides, script_inputs, mp4_fps, mp4_
                 use_cfgzero = gr.Checkbox(label='FP enable CFGZero', value=False)
                 use_preview = gr.Checkbox(label='FP enable Preview', value=True)
                 attention = gr.Dropdown(label="FP attention", choices=['Default', 'Xformers', 'FlashAttention', 'SageAttention'], value='Default', type='value')
-                vae_type = gr.Dropdown(label="FP VAE", choices=['Full', 'Tiny', 'Remote'], value='Local', type='value')
+                vae_type = gr.Dropdown(label="FP VAE", choices=['Full', 'Tiny', 'Remote'], value='Full', type='value')
 
         with gr.Column(elem_id='framepack-output-column', scale=2) as _column_output:
             with gr.Tabs():
@@ -107,6 +107,7 @@ def create_ui(prompt, negative, styles, _overrides, script_inputs, mp4_fps, mp4_
         shift,
         use_teacache, use_cfgzero, use_preview,
         mp4_fps, mp4_codec, mp4_sf, mp4_video, mp4_frames, mp4_thumb, mp4_opt, mp4_ext, mp4_interpolate,
+        mp4_scale, mp4_upscaler,
         attention, vae_type, variant,
         vlm_enhance, vlm_model, vlm_system_prompt,
     ]

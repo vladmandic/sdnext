@@ -1,5 +1,6 @@
 import os
 import time
+import tqdm
 from modules.logger import log
 
 
@@ -54,6 +55,10 @@ def xet_get_hijack(*args, **kwargs):
     if fn and not fn.endswith(".json"):
         log.debug(f'Download: type=xet mode="{opts.hf_transfer_mode}" fn="{fn}" size={size}')
     debug(f'Download start: type=xet args={args} kwargs={kwargs}')
+
+    bar_format = 'Download {percentage:3.0f}% {bar:15} {n:.1f}/{total:.1f}{postfix} {elapsed} {remaining} ' + '\x1b[38;5;71m' + '{desc}' + '\x1b[0m'
+    kwargs['_tqdm_bar'] = tqdm.tqdm(*args, bar_format=bar_format, colour='#327fba', unit='MiB', unit_scale=1/(1024*1024), desc=fn, total=size, ncols=120)
+
     res = orig_xet_get(*args, **kwargs)
     debug(f'Download end: type=xet res={res}')
     state.end(jobid)
@@ -61,6 +66,11 @@ def xet_get_hijack(*args, **kwargs):
 
 
 def build_hf_headers_hijack(*args, **kwargs):
+    from huggingface_hub import get_token
+    token = kwargs.get('token', None)
+    if token is None or token is True:
+        token = os.environ.get("HF_TOKEN") or get_token()
+        kwargs['token'] = token
     headers = orig_build_hf_headers(*args, **kwargs)
     headers = clean_user_agent(headers)
     return headers

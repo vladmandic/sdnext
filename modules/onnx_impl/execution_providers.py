@@ -47,8 +47,6 @@ else:
 def get_default_execution_provider() -> ExecutionProvider:
     if devices.backend == "cpu":
         return ExecutionProvider.CPU
-    elif devices.backend == "directml":
-        return ExecutionProvider.DirectML
     elif devices.backend == "cuda":
         return ExecutionProvider.CUDA
     elif devices.backend == "rocm":

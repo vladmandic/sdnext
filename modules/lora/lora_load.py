@@ -21,7 +21,7 @@ exclude_errors = [
 # exposing ``try_load(name, network_on_disk, lora_scale)``. New archs add an
 # entry here and ship a per-arch ``try_load`` (either binding native_adapter's
 # generic helpers via try_load_chain, or rolling their own).
-_NATIVE_DISPATCH = {
+NATIVE_DISPATCH = {
     'zimage':     'pipelines.z_image.zimage_lora',
     'chroma':     'pipelines.chroma.chroma_lora',
     'ernieimage': 'pipelines.ernie.ernie_lora',
@@ -60,7 +60,7 @@ def load_safetensors(name, network_on_disk: network.NetworkOnDisk) -> network.Ne
     cached = lora_cache.get(name, None)
     if cached is not None:
         return cached
-    native_module = _NATIVE_DISPATCH.get(shared.sd_model_type)
+    native_module = NATIVE_DISPATCH.get(shared.sd_model_type)
     if native_module is not None:
         import importlib
         mod = importlib.import_module(native_module)
@@ -305,9 +305,11 @@ def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=Non
             continue
         if hasattr(sd_model, 'embedding_db'):
             sd_model.embedding_db.load_diffusers_embedding(None, net.bundle_embeddings)
-        net.te_multiplier = te_multipliers[i] if te_multipliers else shared.opts.extra_networks_default_multiplier
-        net.unet_multiplier = unet_multipliers[i] if unet_multipliers else shared.opts.extra_networks_default_multiplier
-        net.dyn_dim = dyn_dims[i] if dyn_dims else shared.opts.extra_networks_default_multiplier
+        net.pending_config = { # staged, not assigned: cached nets are shared objects and network_deactivate must still see the multipliers that were applied
+            'te': te_multipliers[i] if te_multipliers else shared.opts.extra_networks_default_multiplier,
+            'unet': unet_multipliers[i] if unet_multipliers else shared.opts.extra_networks_default_multiplier,
+            'dyn': dyn_dims[i] if dyn_dims else None, # a multiplier is not a rank; float dyn_dim crashes every consumer that slices with it
+        }
         l.loaded_networks.append(net)
 
     while len(lora_cache) > shared.opts.lora_in_memory_limit:

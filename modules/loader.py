@@ -134,6 +134,13 @@ if ".dev" in torch.__version__ or "+git" in torch.__version__:
 timer.startup.record("torch")
 
 try:
+    from modules.sd_hijack_triton import install as install_autotune_report # pylint: disable=ungrouped-imports
+    install_autotune_report()
+except Exception as e:
+    log.warning(f'Triton logging: {e}')
+timer.startup.record("triton")
+
+try:
     import bitsandbytes # pylint: disable=unused-import
     _bnb = True
 except Exception:
@@ -207,6 +214,7 @@ from tqdm.rich import tqdm # pylint: disable=W0611,C0411
 try:
     logging.getLogger("diffusers.guiders").setLevel(logging.ERROR)
     logging.getLogger("diffusers.loaders.single_file").setLevel(logging.ERROR)
+    logging.getLogger("huggingface_hub._login").setLevel(logging.ERROR)
     import diffusers.utils.import_utils # pylint: disable=W0611,C0411
     diffusers.utils.import_utils._k_diffusion_available = True # pylint: disable=protected-access # monkey-patch since we use k-diffusion from git
     diffusers.utils.import_utils._k_diffusion_version = '0.0.12' # pylint: disable=protected-access
@@ -215,12 +223,19 @@ try:
     import diffusers # pylint: disable=W0611,C0411
     import diffusers.loaders.single_file # pylint: disable=W0611,C0411
     diffusers.loaders.single_file.logging.tqdm = partial(tqdm, unit='C')
-    timer.startup.record("diffusers")
 except Exception as e:
     log.error(f'Loader: diffusers=={diffusers.__version__ if "diffusers" in sys.modules else None} {e}')
     log.error('Please restart re-run the installer')
     errors.display(e, 'diffusers')
     sys.exit(1)
+timer.startup.record("diffusers")
+
+from installer import register_sdnq
+register_sdnq()
+import sdnq # pylint: disable=W0611,C0411
+diffusers.utils.import_utils._sdnq_available = True # pylint: disable=protected-access
+diffusers.utils.import_utils._sdnq_version = sdnq.__version__ # pylint: disable=protected-access
+timer.startup.record("sdnq")
 
 try:
     import pillow_jxl # pylint: disable=W0611,C0411
@@ -229,20 +244,19 @@ except Exception:
 from PIL import Image # pylint: disable=W0611,C0411
 timer.startup.record("pillow")
 
-
 import cv2 # pylint: disable=W0611,C0411
 timer.startup.record("cv2")
 
 class _tqdm_cls:
     def __call__(self, *args, **kwargs):
-        bar_format = 'Progress {rate_fmt}{postfix} {bar} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining} ' + '\x1b[38;5;71m' + '{desc}' + '\x1b[0m'
-        return tqdm_lib.tqdm(*args, bar_format=bar_format, ncols=80, colour='#327fba', **kwargs)
+        bar_format = 'Progress {rate_fmt}{postfix} {bar:15} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining} ' + '\x1b[38;5;71m' + '{desc}' + '\x1b[0m'
+        return tqdm_lib.tqdm(*args, bar_format=bar_format, ncols=120, colour='#327fba', **kwargs)
 
 class _tqdm_old(tqdm_lib.tqdm):
     def __init__(self, *args, **kwargs):
         kwargs.pop("name", None)
-        kwargs['bar_format'] = 'Progress {rate_fmt}{postfix} {bar} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining} ' + '\x1b[38;5;71m' + '{desc}' + '\x1b[0m'
-        kwargs['ncols'] = 80
+        kwargs['bar_format'] = 'Progress {rate_fmt}{postfix} {bar:15} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining} ' + '\x1b[38;5;71m' + '{desc}' + '\x1b[0m'
+        kwargs['ncols'] = 120
         super().__init__(*args, **kwargs)
 
 try:
@@ -258,6 +272,7 @@ def get_packages():
         "torchvision": torchvision.__version__,
         "diffusers": diffusers.__version__,
         "transformers": transformers.__version__,
+        "sdnq": sdnq.__version__,
         "tokenizers": tokenizers.__version__,
         "accelerate": accelerate.__version__,
         "hub": huggingface_hub.__version__,

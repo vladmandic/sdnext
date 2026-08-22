@@ -68,7 +68,7 @@ class UpscalerSCUNet(Upscaler):
         output = E.div_(W)
         return output
 
-    def do_upscale(self, img: Image.Image, selected_file):
+    def do_upscale(self, img: Image.Image, selected_file): # pylint: disable=arguments-differ
         devices.torch_gc()
         model = self.load_model(selected_file)
         if model is None:

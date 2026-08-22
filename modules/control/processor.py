@@ -242,7 +242,8 @@ def preprocess_image(
             p.init_images = [init_image] * len(active_model)
         if hasattr(shared.sd_model, 'controlnet') and 'control_image' in p.task_args and len(p.task_args['control_image']) > 1 and (shared.sd_model.__class__.__name__ == 'StableDiffusionXLControlNetUnionPipeline'): # special case for controlnet-union
             p.task_args['control_image'] = [[x] for x in p.task_args['control_image']]
-            p.task_args['control_mode'] = [[x] for x in p.task_args['control_mode']]
+            control_mode = p.task_args.get('control_mode') or []
+            p.task_args['control_mode'] = [[x] for x in control_mode]
 
     # determine txt2img, img2img, inpaint pipeline
     if unit_type == 'reference' and has_models: # special case

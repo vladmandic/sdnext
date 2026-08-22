@@ -21,12 +21,12 @@ def get_default_modes(cmd_opts, mem_stat):
                 cmd_opts.medvram = True # VAE Tiling and other stuff
                 default_offload_mode = "balanced"
                 default_diffusers_offload_min_gpu_memory = 0
-                default_diffusers_offload_always = ', '.join(['T5EncoderModel', 'UMT5EncoderModel'])
+                default_diffusers_offload_always = ''
                 log.info(f"Device detect: memory={gpu_memory:.1f} default=balanced optimization=medvram")
-            elif gpu_memory >= 24:
+            elif gpu_memory >= 22:
                 default_offload_mode = "balanced"
                 default_diffusers_offload_max_gpu_memory = 0.8
-                default_diffusers_offload_always = ', '.join(['T5EncoderModel', 'UMT5EncoderModel'])
+                default_diffusers_offload_always = ''
                 default_diffusers_offload_never = ', '.join(['CLIPTextModel', 'CLIPTextModelWithProjection', 'AutoencoderKL'])
                 log.info(f"Device detect: memory={gpu_memory:.1f} default=balanced optimization=highvram")
             else:
@@ -56,11 +56,11 @@ def get_default_modes(cmd_opts, mem_stat):
         agent = devices.get_hip_agent()
         if agent.gfx_version < 0x1100:
             default_sdp_override_options = ['Dynamic attention'] # only RDNA2 and older GPUs needs this
-    elif devices.backend in {"directml", "cpu", "mps"}:
+    elif devices.backend in {"cpu", "mps"}:
         default_sdp_override_options = ['Dynamic attention']
 
     if devices.get_optimal_device_name() != "cpu":
-        os.environ.setdefault('SDNQ_USE_OPENVINO_MM', '0')
+        os.environ.setdefault('SDNQ_USE_OPENVINO_MM', '0') # TODO sdnq openvino: this is too late as sdnq already initialized it
 
     return (
         default_offload_mode,

@@ -115,6 +115,35 @@ def gpu_stats():
     return gpu
 
 
+def model_stats(as_gb: bool = False):
+    """Loaded-model bytes per component and device, so resident weights can be told from offloaded ones."""
+    try:
+        from modules.modeldata import model_data
+        pipe = model_data.sd_model # raw slot: the shared.sd_model property can trigger a model load
+        if pipe is None:
+            return {}
+        components = getattr(pipe, 'components', None) or ({ 'model': pipe } if isinstance(pipe, torch.nn.Module) else {})
+        placement = {}
+        seen = set()
+        for name, component in components.items():
+            if not isinstance(component, torch.nn.Module):
+                continue
+            devmap = {}
+            for tensors in (component.parameters(), component.buffers()):
+                for t in tensors:
+                    ptr = 0 if t.is_meta else t.untyped_storage().data_ptr()
+                    if ptr:
+                        if ptr in seen: # tied weights and offload rewraps share one storage across tensors
+                            continue
+                        seen.add(ptr)
+                    devmap[t.device.type] = devmap.get(t.device.type, 0) + t.numel() * t.element_size()
+            if devmap:
+                placement[name] = { d: gb(v) for d, v in devmap.items() } if as_gb else devmap
+        return placement
+    except Exception as err: # walk can race a reload or an offload rewrap; every caller is a diagnostic that must not take its caller down
+        return { 'error': f'{err}' }
+
+
 def memory_stats():
     mem['ram'] = ram_stats()
     mem['gpu'] = gpu_stats()

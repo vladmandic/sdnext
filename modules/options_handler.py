@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
     from modules.options import OptionInfo
     from typing import Any
+    import builtins
 
 cmd_opts = cmd_args.parse_args()
 compatibility_opts = ['clip_skip', 'uni_pc_lower_order_final', 'uni_pc_order']
@@ -28,7 +29,7 @@ class Options:
     debug = os.environ.get('SD_CONFIG_DEBUG', None) is not None
     secrets_debug = os.environ.get("SD_SECRETS_DEBUG", None) is not None
 
-    def __init__(self, options_templates: dict[str, OptionInfo | LegacyOption] | None = None, restricted: set[str] | None = None, *, filename = '', secrets = ''):
+    def __init__(self, options_templates: dict[str, OptionInfo | LegacyOption] | None = None, restricted: builtins.set[str] | None = None, *, filename = '', secrets = ''):
         if options_templates is None:
             options_templates = {}
         if restricted is None:

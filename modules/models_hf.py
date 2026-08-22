@@ -1,13 +1,13 @@
 import os
 import time
 import gradio as gr
+from modules import sd_hijack_hfhub
 from modules.logger import log
 from modules.shared import opts
 
 
 # initialize huggingface environment
 def hf_init():
-    os.environ.setdefault('HF_HUB_DISABLE_EXPERIMENTAL_WARNING', '1')
     os.environ.setdefault('HF_HUB_DISABLE_EXPERIMENTAL_WARNING', '1')
     os.environ.setdefault('HF_HUB_DISABLE_IMPLICIT_TOKEN', '1')
     os.environ.setdefault('HF_HUB_DISABLE_SYMLINKS_WARNING', '1')
@@ -37,6 +37,10 @@ def hf_init():
     if len(opts.huggingface_token) > 0 and opts.huggingface_token.startswith('hf_'):
         obfuscated_token = 'hf_...' + opts.huggingface_token[-4:]
     log.info(f'Huggingface: transfer={opts.hf_transfer_mode} parallel={opts.sd_parallel_load} direct={opts.diffusers_to_gpu} token="{obfuscated_token}" cache="{opts.hfcache_dir}"')
+
+    # the disable flag above drops the token from token=None requests, which is what diffusers and
+    # transformers send; the hijack re-adds it explicitly and has to precede the first download
+    sd_hijack_hfhub.init_hijack()
 
 
 def hf_check_cache():

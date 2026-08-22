@@ -1,8 +1,6 @@
+from typing import Any, Dict, Optional, Union
 import torch
-import torch.nn as nn
 import numpy as np
-from typing import Any, Dict, Optional, Union, List
-
 from diffusers.models.modeling_outputs import Transformer2DModelOutput
 from diffusers.utils import USE_PEFT_BACKEND, logging, scale_lora_layers, unscale_lora_layers
 
@@ -102,13 +100,13 @@ def teacache_lumina2_forward(
 
     if self.enable_teacache and not should_calc:
         if max_seq_len in self.cache and "previous_residual" in self.cache[max_seq_len] and self.cache[max_seq_len]["previous_residual"] is not None:
-             processed_hidden_states = input_to_main_loop + self.cache[max_seq_len]["previous_residual"]
+            processed_hidden_states = input_to_main_loop + self.cache[max_seq_len]["previous_residual"]
         else:
-             should_calc = True
-             current_processing_states = input_to_main_loop
-             for layer in self.layers:
-                current_processing_states = layer(current_processing_states, attention_mask_for_main_loop_arg, joint_rotary_emb, temb)
-             processed_hidden_states = current_processing_states
+            should_calc = True
+            current_processing_states = input_to_main_loop
+            for layer in self.layers:
+               current_processing_states = layer(current_processing_states, attention_mask_for_main_loop_arg, joint_rotary_emb, temb)
+            processed_hidden_states = current_processing_states
 
 
     if not (self.enable_teacache and not should_calc) :
@@ -118,9 +116,9 @@ def teacache_lumina2_forward(
 
         if self.enable_teacache:
             if max_seq_len in self.cache:
-                 self.cache[max_seq_len]["previous_residual"] = current_processing_states - input_to_main_loop
+                self.cache[max_seq_len]["previous_residual"] = current_processing_states - input_to_main_loop
             else:
-                 logger.warning(f"TeaCache: Cache key {max_seq_len} not found when trying to save residual.")
+                logger.warning(f"TeaCache: Cache key {max_seq_len} not found when trying to save residual.")
 
         processed_hidden_states = current_processing_states
 

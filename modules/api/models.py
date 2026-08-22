@@ -62,8 +62,8 @@ class PydanticModelGenerator:
         additional_fields: list[dict[str, Any]] | None = None,
         exclude_fields: list | None = None,
     ):
-        if exclude_fields is None:
-            exclude_fields = []
+        additional_fields = additional_fields or []
+        exclude_fields = exclude_fields or []
         def field_type_generator(_k, v):
             field_type = v.annotation
             return Optional[field_type]
@@ -552,6 +552,7 @@ class ResEmbeddings(BaseModel):
 class ResMemory(BaseModel):
     ram: dict = Field(title="RAM", description="System memory stats")
     cuda: dict = Field(title="CUDA", description="nVidia CUDA memory stats")
+    model: dict = Field(default={}, title="Model", description="Loaded model bytes per component and device")
 
 class ResScripts(BaseModel):
     txt2img: list[str] = Field(title="Txt2img", description="Titles of scripts (txt2img)")

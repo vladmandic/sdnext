@@ -123,6 +123,7 @@ def apply_file_wildcards(prompt, replaced = None, not_found = None, recursion=0,
         not_found = []
     if replaced is None:
         replaced = []
+
     def check_wildcard_files(prompt, wildcard, files, file_only=True):
         trimmed = wildcard.replace('\\', os.path.sep).replace('/', os.path.sep).strip().lower()
         for file in files:
@@ -142,10 +143,9 @@ def apply_file_wildcards(prompt, replaced = None, not_found = None, recursion=0,
                             if '|' in choice:
                                 choice = random.choice(choice.split('|')).strip(' []{}\n')
                             prompt = prompt.replace(f"__{wildcard}__", choice, 1)
-                            log.debug(f'Apply wildcard: select="{wildcard}" choice="{choice}" file="{file}" choices={len(lines)}')
+                            if debug_enabled:
+                                log.debug(f'Apply wildcard: select="{wildcard}" choice="{choice}" file="{file}" choices={len(lines)}')
                             replaced.append(wildcard)
-                            if p is not None:
-                                p.extra_generation_params['Wildcards'] = p.extra_generation_params.get('Wildcards', []) + [trimmed]
                             return prompt, True
                 except Exception as e:
                     log.error(f'Wildcards: wildcard={wildcard} file={file} {e}')
@@ -206,6 +206,8 @@ def apply_wildcards_to_prompt(prompt, all_wildcards, seed=-1, silent=False, p: S
         log.debug(f'Apply wildcards: {replaced} path="{shared.opts.wildcards_dir}" type=style time={t1-t0:.2f}')
     if (len(replaced_file) > 0 or len(not_found) > 0) and not silent:
         log.debug(f'Apply wildcards: found={replaced_file} missing={not_found} path="{shared.opts.wildcards_dir}" type=file seed={seed} time={t2-t2:.2f}')
+        if p is not None:
+            p.extra_generation_params['Wildcards'] = p.extra_generation_params.get('Wildcards', []) + [replaced_file]
     if old_state is not None:
         random.setstate(old_state)
     return prompt

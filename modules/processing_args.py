@@ -19,8 +19,8 @@ debug_log = log.trace if debug_enabled else lambda *args, **kwargs: None
 disable_pbar = os.environ.get('SD_DISABLE_PBAR', None) is not None
 
 
-def task_modular_kwargs(p, model): # pylint: disable=unused-argument
-    # model_cls = model.__class__.__name__
+def task_modular_kwargs(p, model):
+    model_cls = model.__class__.__name__
     task_args = {}
     p.ops.append('modular')
 
@@ -33,6 +33,15 @@ def task_modular_kwargs(p, model): # pylint: disable=unused-argument
     mask_image = p.task_args.get('image_mask', None) or getattr(p, 'image_mask', None) or getattr(p, 'mask', None)
     if mask_image is not None:
         task_args['mask_image'] = mask_image
+
+    if model_cls in ['MiniMaxH3ModularPipeline'] and task_args.get('image', None) is not None:
+        if len(task_args.get('image', [])) > 2:
+            task_args['normalized_references'] = task_args['image']
+            task_args.pop('image', None) # remove image, only use normalized_references
+        elif len(task_args.get('image', [])) > 1:
+            task_args['last_image'] = task_args['image'][1]
+        if len(task_args.get('image', [])) > 0:
+            task_args['image'] = task_args['image'][0]
 
     if debug_enabled:
         debug_log(f'Process task specific args: {task_args}')
@@ -139,7 +148,9 @@ def task_specific_kwargs(p, model):
         task_args['image'] = p.init_images
 
     if ('QwenImageLayeredPipeline' in model_cls) and (task_args.get('image', None) is not None):
-        task_args['image'] = [i.convert('RGBA') for i in task_args['image']]
+        image_items = task_args['image']
+        if isinstance(image_items, list):
+            task_args['image'] = [i.convert('RGBA') for i in image_items]
     if ('LatentConsistencyModelPipeline' in model_cls) and (len(p.init_images) > 0):
         p.ops.append('lcm')
         init_latents = [processing_vae.vae_encode(image, model=shared.sd_model, vae_type=p.vae_type).squeeze(dim=0) for image in p.init_images]
@@ -170,21 +181,36 @@ def task_specific_kwargs(p, model):
 
 
 def get_params(model):
+    possible = []
     if hasattr(model, 'blocks') and hasattr(model.blocks, 'inputs'): # modular pipeline
         possible = [input_param.name for input_param in model.blocks.inputs]
-        return possible
+        possible += ['output'] # __call__ param selecting which state values to return, not a block input
     else:
         signature = inspect.signature(type(model).__call__, follow_wrapped=True)
         possible = list(signature.parameters)
-        return possible
+    possible = [p for p in possible if p not in ['self', 'kwargs', None]]
+    return possible
 
 
 def get_defaults(model, kwargs):
     remove = ['return_dict', 'output_type', 'num_images_per_prompt', 'callback', 'callback_on_step_end_tensor_inputs']
     default_cfg = 0
     try:
-        signature = inspect.signature(type(model).__call__, follow_wrapped=True)
-        defaults = {k: v.default for k, v in signature.parameters.items() if v.default is not inspect.Parameter.empty and v.default is not None} # get all defaults
+        defaults = {}
+        if hasattr(model, 'blocks') and hasattr(model.blocks, 'inputs'):
+            for input_param in model.blocks.inputs:
+                if input_param.name is None:
+                    continue
+                if input_param.default is None:
+                    continue
+                if input_param.name in kwargs or input_param.name in remove:
+                    continue
+                defaults[input_param.name] = input_param.default
+
+        if not defaults:
+            signature = inspect.signature(type(model).__call__, follow_wrapped=True)
+            defaults = {k: v.default for k, v in signature.parameters.items() if v.default is not inspect.Parameter.empty and v.default is not None} # get all defaults
+
         defaults = {k: v for k, v in defaults.items() if k not in kwargs} # only log defaults that are not already set by kwargs
         defaults = {k: v for k, v in defaults.items() if k not in remove} # remove common args that are not useful to log
         log.debug(f'Pipeline: cls={model.__class__.__name__} defaults={defaults}')
@@ -222,14 +248,13 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:l
             model.register_to_config(boundary_ratio=boundary_target)
     if hasattr(model, "set_progress_bar_config"):
         if disable_pbar:
-            model.set_progress_bar_config(bar_format='Progress {rate_fmt}{postfix} {bar} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining} ' + '\x1b[38;5;71m' + desc, ncols=80, colour='#327fba', disable=disable_pbar)
+            model.set_progress_bar_config(bar_format='Progress {rate_fmt}{postfix} {bar:15} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining} ' + '\x1b[38;5;71m' + desc, ncols=120, colour='#327fba', disable=disable_pbar)
         else:
-            model.set_progress_bar_config(bar_format='Progress {rate_fmt}{postfix} {bar} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining} ' + '\x1b[38;5;71m' + desc, ncols=80, colour='#327fba')
+            model.set_progress_bar_config(bar_format='Progress {rate_fmt}{postfix} {bar:15} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining} ' + '\x1b[38;5;71m' + desc, ncols=120, colour='#327fba')
 
     possible = get_params(model)
 
-    if debug_enabled:
-        debug_log(f'Process pipeline possible: {possible}')
+    log.debug(f'Pipeline: cls={cls} possible={possible}')
     steps = kwargs.get("num_inference_steps", None) or len(getattr(p, 'timesteps', ['1']))
     clip_skip = kwargs.pop("clip_skip", 1)
 
@@ -325,6 +350,14 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:l
             args['negative_prompt'] = args['negative_prompt'][0] if len(args['negative_prompt']) > 0 else ''
         if isinstance(args['generator'], list) and len(args['generator']) > 0:
             args['generator'] = args['generator'][0]
+    if 'MiniMaxH3' in model.__class__.__name__:
+        if isinstance(args.get('prompt', None), list): # packs one request into one sequence, str only
+            args['prompt'] = args['prompt'][0] if len(args['prompt']) > 0 else ''
+        if not str(args.get('prompt', '') or '').strip():
+            args['prompt'] = ' ' # an empty prompt tokenizes to zero tokens, which the conditioner cannot reshape
+        args.pop('negative_prompt', None) # guidance-distilled, no negative prompt
+        if isinstance(args.get('generator', None), list) and len(args['generator']) > 0:
+            args['generator'] = args['generator'][0] # >1-element list breaks the audio noise draw
 
     # set callbacks
     if 'prior_callback_steps' in possible:  # Wuerstchen / Cascade
@@ -455,6 +488,8 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:l
             clean[k] = v.shape
         elif isinstance(v, list) and len(v) > 0 and (isinstance(v[0], torch.Tensor) or isinstance(v[0], np.ndarray)):
             clean[k] = [x.shape for x in v]
+        elif isinstance(v, list) and len(v) > 0 and hasattr(v[0], 'kind'): # media references carry decoded frames and waveforms
+            clean[k] = [getattr(x, 'kind', type(x).__name__) for x in v]
         elif not debug_enabled and k.endswith('_embeds'):
             del clean[k]
             clean['prompt'] = 'embeds'

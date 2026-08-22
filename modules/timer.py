@@ -64,6 +64,11 @@ class Timer:
         res += " ".join([f"{category}={time_taken:.2f}" for category, time_taken in additions])
         return res
 
+    def max(self):
+        if not self.records:
+            return 0
+        return max(self.records.values())
+
     def get_total(self):
         return sum(self.records.values())
 

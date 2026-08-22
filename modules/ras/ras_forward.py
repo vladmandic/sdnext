@@ -29,7 +29,7 @@ def ras_forward(
         joint_attention_kwargs: dict[str, Any] | None = None,
         return_dict: bool = True,
         skip_layers: list[int] | None = None,
-    ) -> torch.FloatTensor | Transformer2DModelOutput:
+    ) -> tuple[torch.Tensor] | torch.Tensor | Transformer2DModelOutput:
     """
     The [`SD3Transformer2DModel`] forward method.
 

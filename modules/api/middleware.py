@@ -144,7 +144,7 @@ def setup_middleware(app: FastAPI, cmd_opts):
 
         if not isinstance(e, HTTPException) and err['error'] != 'TypeError': # do not print backtrace on known httpexceptions
             errors.display(e, 'HTTP API', [anyio, fastapi, uvicorn, starlette])
-        elif err['code'] in [404, 401, 400]:
+        elif err['code'] in [404, 401, 400, 403]:
             pass
         else:
             log.debug(e, exc_info=True) # print stack trace

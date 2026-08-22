@@ -56,6 +56,7 @@ declare global {
     submit_framepack?: (...args: unknown[]) => unknown[]; // ui/ui.ts
     submit_img2img?: (...args: unknown[]) => unknown[]; // ui/ui.ts
     submit_ltx?: (...args: unknown[]) => unknown[]; // ui/ui.ts
+    submit_minimax?: (...args: unknown[]) => unknown[]; // ui/ui.ts
     submit_postprocessing?: (...args: unknown[]) => unknown[]; // ui/ui.ts
     submit_txt2img?: (...args: unknown[]) => unknown[]; // ui/ui.ts
     submit_video?: (...args: unknown[]) => unknown[]; // ui/ui.ts
@@ -173,6 +174,7 @@ declare global {
   }
 
   const opts: Window['opts'];
+  function authFetch(url: RequestInfo | URL, options?: RequestInit): Promise<Response | undefined>;
   function updateInput(target: EventTarget): void;
   function panzoom(element: HTMLElement, options?: Record<string, unknown>): { dispose: () => void };
   function hash(data: string | Uint8Array): any;

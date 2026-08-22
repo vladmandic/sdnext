@@ -98,7 +98,7 @@ class Upscaler:
         return scalers
 
     @abstractmethod
-    def do_upscale(self, img: Image.Image | Tensor, selected_model: str):
+    def do_upscale(self, img: Image.Image | Tensor, selected_model: str, output_type='pil'):
         return img
 
     def upscale(self, img: Image.Image | Tensor, scale, selected_model: str | None = None):
@@ -145,10 +145,10 @@ class Upscaler:
         if info is None:
             log.error(f'Upscaler cannot match model: type={self.name} model="{path}"')
             return None
-        if info.local_data_path.startswith("http"):
+        if info.local_data_path is not None and info.local_data_path.startswith("http"):
             from modules.modelloader import load_file_from_url
             info.local_data_path = load_file_from_url(url=info.data_path, model_dir=self.model_download_path, progress=True)
-        if not os.path.isfile(info.local_data_path):
+        if info.local_data_path is not None and not os.path.isfile(info.local_data_path):
             log.error(f'Upscaler cannot find model: type={self.name} model="{info.local_data_path}"')
             return None
         return info
@@ -158,20 +158,37 @@ class UpscalerData:
     custom: bool = False
     name = None
     data_path = None
-    scale: int = 4
+    scale: int = 1
     scaler: Upscaler | None = None
     model: None
 
-    def __init__(self, name: str, path: str | None = None, upscaler: Upscaler | None = None, scale: int = 4, model=None):
+    def __init__(self, name: str, path: str | None = None, upscaler: Upscaler | None = None, scale: int = 1, model=None):
         self.name = name
         self.data_path = path
         self.local_data_path = path
         self.scaler = upscaler
+        if scale > 0:
+            self.scale = scale
+        elif '2x' in name.lower():
+            self.scale = 2
+        elif '3x' in name.lower():
+            self.scale = 3
+        elif '4x' in name.lower():
+            self.scale = 4
+        elif '4x' in name.lower():
+            self.scale = 4
+        elif '8x' in name.lower():
+            self.scale = 8
+        else:
+            self.scale = 1
         self.scale = scale
         self.model = model
 
     def __str__(self):
-        return f"UpscalerData(name={self.name}, path={self.data_path}, scale={self.scale})"
+        return f'UpscalerData(name="{self.name}" path="{self.data_path}" scale={self.scale})'
+
+    def __repr__(self):
+        return f'UpscalerData(name="{self.name}" path="{self.data_path}" scale={self.scale})'
 
 
 def compile_upscaler(model):

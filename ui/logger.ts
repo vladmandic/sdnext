@@ -6,6 +6,7 @@ interface LoggerEntry {
 
 window.logRingBuffer = [];
 window.logBufferDirty = false;
+let authEncoded: string | undefined;
 
 const logBuffer = (ts: string, type: 'log' | 'debug' | 'error', msg: unknown[]): void => {
   const maxLogLength = 8;
@@ -69,8 +70,7 @@ const xhrInternal = async (
     }
   };
 
-  // Authorization is not required for logger xhr calls and would create a dependency cycle.
-
+  if (authEncoded) xhrObj.setRequestHeader('Authorization', `Basic ${authEncoded}`);
   xhrObj.setRequestHeader('Content-Type', 'application/json');
   xhrObj.timeout = serverTimeout;
   xhrObj.ontimeout = () => err('xhr.ontimeout');
@@ -120,6 +120,13 @@ export function xhrPost(
   xhr.open('POST', url, true);
   xhrInternal(xhr, data, handler, errorHandler, ignore, serverTimeout);
 }
+
+export const initLoggerAuth = (user: string | undefined, token: string | undefined): void => {
+  if (user && token) {
+    authEncoded = btoa(`${user}:${token}`);
+    log('initAuth', { user });
+  }
+};
 
 window.log = log;
 window.debug = debug;

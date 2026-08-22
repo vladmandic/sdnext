@@ -98,13 +98,7 @@ def get_fft_device():
 
 def no_gpu_complex_support():
     mps_available = hasattr(torch.backends, "mps") and torch.backends.mps.is_available()
-    try:
-        import torch_directml
-    except ImportError:
-        dml_available = False
-    else:
-        dml_available = torch_directml.is_available()
-    return mps_available or dml_available
+    return mps_available
 
 
 def filter_skip(x, threshold, scale, scale_high):

@@ -50,14 +50,6 @@ def check_tmp_file(gradio, filename):
 
 
 def pil_to_temp_file(self, img: Image.Image, dir: str, format="png") -> str: # pylint: disable=redefined-builtin,unused-argument
-    """
-    # original gradio implementation
-    bytes_data = gr.processing_utils.encode_pil_to_bytes(img, format)
-    temp_dir = Path(dir) / self.hash_bytes(bytes_data)
-    temp_dir.mkdir(exist_ok=True, parents=True)
-    filename = str(temp_dir / f"image.{format}")
-    img.save(filename, pnginfo=gr.processing_utils.get_pil_metadata(img))
-    """
     folder = dir
     already_saved_as = getattr(img, 'already_saved_as', None)
     exists = os.path.isfile(already_saved_as) if already_saved_as is not None else False
@@ -118,8 +110,11 @@ def cleanup_tmpdr():
         return
     for root, _dirs, files in os.walk(temp_dir, topdown=False):
         for name in files:
-            _, extension = os.path.splitext(name)
-            if extension not in {".png", ".jpg", ".webp", ".jxl"}:
-                continue
-            filename = os.path.join(root, name)
-            os.remove(filename)
+            try:
+                _, extension = os.path.splitext(name)
+                if extension not in {".png", ".jpg", ".webp", ".jxl"}:
+                    continue
+                filename = os.path.join(root, name)
+                os.remove(filename)
+            except Exception:
+                pass

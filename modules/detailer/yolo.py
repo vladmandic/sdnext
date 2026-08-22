@@ -2,8 +2,8 @@ from typing import TYPE_CHECKING
 import os
 import threading
 import numpy as np
-from PIL import Image, ImageDraw
-from modules.detailer import DetailerResult, detailer_opt
+from PIL import Image
+from modules.detailer import DetailerResult, detailer_opt, get_mask
 from modules.logger import log
 from modules import shared, devices
 
@@ -138,33 +138,19 @@ def predict(
             if len(desired) > 0 and label.lower() not in desired:
                 continue
             box = box.tolist()
-            w, h = box[2] - box[0], box[3] - box[1]
-            x_size, y_size = w/image.width, h/image.height
-            opt_min = detailer_opt(p, 'detailer_min_size') or 0
-            opt_max = detailer_opt(p, 'detailer_max_size') or 1
-            min_size = opt_min if 0 <= opt_min <= 1 else 0
-            max_size = opt_max if 0 < opt_max <= 1 else 1
-            if x_size >= min_size and y_size >=min_size and x_size <= max_size and y_size <= max_size:
-                if mask:
-                    if detailer_opt(p, 'detailer_segmentation') and seg is not None:
-                        masked = seg
-                    else:
-                        masked = Image.new('L', image.size, 0)
-                        draw = ImageDraw.Draw(masked)
-                        draw.rectangle(box, fill="white", outline=None, width=0)
-                    cropped = image.crop(box)
-                    res = DetailerResult(
-                        cls=cls,
-                        label=label,
-                        score=round(score, 2),
-                        box=box,
-                        mask=masked,
-                        item=cropped,
-                        width=w,
-                        height=h,
-                        args=args,
-                    )
-                    result.append(res)
+            masked, cropped = get_mask(box, image, include_mask=mask)
+            if detailer_opt(p, 'detailer_segmentation') and seg is not None:
+                masked = seg
+            res = DetailerResult(
+                cls=cls,
+                label=label,
+                score=round(score, 2),
+                box=box,
+                mask=masked,
+                item=cropped,
+                args=args,
+            )
+            result.append(res)
             if len(result) >= (detailer_opt(p, 'detailer_max') or 2):
                 break
     return result

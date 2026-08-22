@@ -15,9 +15,9 @@ def _format_tags(raw_tags):
 
 def get_samplers():
     from modules import sd_samplers_diffusers
-    all_samplers = []
+    all_samplers = [{'name': 'Default', 'options': {}}] # restores the model's own scheduler; first to match the ui dropdown order
     for k, v in sd_samplers_diffusers.config.items():
-        if k in ['All', 'Default', 'Res4Lyf']:
+        if k in ['All', 'Default', 'Res4Lyf']: # remaining keys are shared config templates, not samplers
             continue
         all_samplers.append({'name': k, 'options': v})
     return all_samplers

@@ -32,15 +32,24 @@ class ResUpload(BaseModel):
 
 
 def check_file(filename, path, overwrite):
-    namegen = FilenameGenerator()
+    from modules import shared
     if len(path) > 0 and (os.path.isabs(path) or not os.path.isdir(path)):
         raise HTTPException(status_code=400, detail="Invalid path")
-    fn = os.path.join(path, filename)
+    fn = os.path.basename(filename)
+    if not fn or fn in {'.', '..'}:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    namegen = FilenameGenerator()
+    fn = os.path.join(path, fn)
     fn = namegen.sanitize(fn)
+    if os.path.isabs(fn):
+        raise HTTPException(status_code=400, detail="Absolute paths are not allowed")
     if Path(fn).parent == Path('.'): # just filename, no path
         fn = os.path.join(tempfile.gettempdir(), fn)
     else:
         fn = os.path.join(paths.data_path, fn)
+    allowed_dirs = shared.demo.allowed_paths
+    if not any(Path(folder).absolute() in Path(fn).absolute().parents for folder in allowed_dirs):
+        raise HTTPException(status_code=403, detail=f"file {fn}: must be in one of allowed directories")
     if os.path.exists(fn) and len(overwrite) == 0:
         raise HTTPException(status_code=400, detail="File exists")
     return fn

@@ -22,6 +22,7 @@ def load_transformer(
         use_safetensors=True,
         native_spec=None,
         override_slot='primary',
+        trust_remote_code=False,
         **kwargs):
 
     """Load a DiT transformer from the base repo, or from a user-selected
@@ -53,6 +54,10 @@ def load_transformer(
         quant_type = model_quant.get_quant_type(quant_args)
         dtype = dtype or devices.dtype
 
+        if 'nunchaku-lite' in repo_id.lower():
+            from modules.attention import hijack_kernels
+            hijack_kernels()
+
         def load_from_repo():
             nonlocal quant_args
             log.debug(f'Load model: transformer="{repo_id}" cls={cls_name.__name__} subfolder={subfolder} loader={get_loader("diffusers")} args={load_args}')
@@ -66,6 +71,8 @@ def load_transformer(
                 load_args['variant'] = variant
             if use_safetensors:
                 load_args['use_safetensors'] = True
+            if trust_remote_code:
+                load_args['trust_remote_code'] = True
             return cls_name.from_pretrained(
                 repo_id,
                 cache_dir=shared.opts.hfcache_dir,
@@ -108,7 +115,7 @@ def load_transformer(
         if local_file is not None and local_file.lower().endswith('.gguf'):
             log.debug(f'Load model: transformer="{local_file}" cls={cls_name.__name__} quant="{quant_type}" loader={get_loader("diffusers")} args={load_args}')
             from modules import ggml
-            ggml.load_gguf_diffusers(local_file, cls=cls_name, compute_dtype=dtype, config=repo_id, subfolder=subfolder, variant=variant)
+            transformer = ggml.load_gguf_diffusers(local_file, cls=cls_name, compute_dtype=dtype, config=repo_id, subfolder=subfolder, variant=variant)
             # transformer = model_quant.do_post_load_quant(transformer, allow=quant_type is not None)
 
         # 2. load safetensors with native loader if spec is available

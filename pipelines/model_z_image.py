@@ -43,9 +43,7 @@ def load_z_image(checkpoint_info, diffusers_load_config=None):
     transformer = None
     if model_quant.check_nunchaku('Model'): # only available model
         transformer = init_nunchaku()
-    if 'nunchaku-lite' in repo_id.lower():
-        from modules.attention import hijack_kernels
-        hijack_kernels()
+
     if transformer is None:
         transformer = generic.load_transformer(repo_id, cls_name=diffusers.ZImageTransformer2DModel, load_config=diffusers_load_config)
 

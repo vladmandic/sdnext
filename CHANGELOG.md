@@ -1,5 +1,118 @@
 # Change Log for SD.Next
 
+## Highlights for 2026-08-21
+
+Time for a new release, this is a larger one!
+Main focus is improving video workflows which also brings full support for new [MiniMax H3](https://vladmandic.github.io/sdnext-docs/MiniMax) and [LTXVideo-2.5](https://vladmandic.github.io/sdnext-docs/LTX)  
+and improves general video processing with flexible video upscaling, updated interpolation, etc.
+
+*What else?*
+- [Detailer.next](https://vladmandic.github.io/sdnext-docs/Detailer) with new support for *vision-language models* and *per-class prompts*
+- New [group offload](https://vladmandic.github.io/sdnext-docs/Offload/#group) option which is more aggressive than the default balanced offload
+- Extended model support for [Nunchaku-Lite](https://github.com/rootonchair/nunchaku-lite) engine
+- A lot of [SDNQ](https://github.com/Disty0/sdnq) *quantization and attention* optimizations and features
+
+Plus quite a lot more, see full [changelog](https://github.com/vladmandic/automatic/blob/dev/CHANGELOG.md) for details!
+
+[Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
+
+## Details for 2026-08-21
+
+- **Models**
+  - [MiniMax H3](https://huggingface.co/MiniMaxAI/MiniMax-H3) available in *base* and *ref* variants  
+    MiniMax-H3 is an amazing video model, but absolutely massive at 33B transformer with 32B qwen3-vl text-encoder  
+    with support for *t2v, i2v, fl2v, ref2v, t2i, i2i* workflows  
+    see [MiniMax docs page](https://vladmandic.github.io/sdnext-docs/MiniMax) for details and usage instructions  
+  - [Lightricks LTX-2.5](https://huggingface.co/Lightricks/LTX-2.5) available in *distilled* and *dev* variants  
+    LTX-2.5 is a 22B transformer with 12B gemma-4 text-encoder  
+    with support for *t2v, i2v, cond2v* workflows  
+    see [LTX docs page](https://vladmandic.github.io/sdnext-docs/LTX) for details and usage instructions  
+    *note*: LTX-2.5 is a [gated model](https://vladmandic.github.io/sdnext-docs/Gated/)  
+  - [Nunchaku Lite](https://github.com/rootonchair/nunchaku-lite) now includes [Krea 2 Turbo](https://huggingface.co/lite-infer/krea-2-turbo-nunchaku-lite-int4_r32-bnb4-text-encoder) and [Flux.2-Klein](https://huggingface.co/lite-infer/flux.2-klein-4b-nunchaku-lite-int4_r32-bnb4-text-encoder) 4B and 9B  
+    Nunchaku-lite engine offers significant speed up through heavily optimized quants and kernels for nvidia gpus  
+- **Detailer**: Pretty much *detailer.next* :)  
+  Detailer detection models were traditionally *YOLO* models, but now we can also use:  
+  - [Facebook-SAM3](https://huggingface.co/facebook/sam3) hybrid promptable concept segmentation and detection network
+  - [Qwen3-VL](https://huggingface.co/Qwen/Qwen3-VL-4B-Instruct) vision-language autoregressive foundation models, in *2B, 4B, and 8B* variants
+  - [Florence-2](https://huggingface.co/microsoft/Florence-2-large) lightweight multi-task vision sequence-to-sequence models, in *base and large* variants
+  - [Grounding-DINO](https://huggingface.co/IDEA-Research/grounding-dino-base) open-vocabulary object detection models, in *tiny and base* variants  
+
+  additionally, detailer can now use per-class prompts, thanks @kirtasshh  
+  see [Detailer wiki page](https://vladmandic.github.io/sdnext-docs/Detailer) for details and usage instructions
+- [SDNQ](https://github.com/Disty0/sdnq) is now a separate package and no longer part of sdnext repo  
+  installed and used internally by sd.next, but also supported by diffusers natively  
+  and sdnq development brings a lot of new optimizations, in both quantization and attention mechanisms  
+- **Compute**
+  - torch-rocm for windows switch to *whl-multi-arch* distribution  
+  - nunchaku-lite support for `torch==2.13`
+- **Server**
+  - update handlers for all authenticated workflows
+  - update handlers for all hf-based progress bars
+  - offload options take effect immediately without restart/reload
+  - log long torch autotune operations
+  - utilize `torch.accelerator` where available
+  - add `SD_DIFFUSERS_DEBUG` and `SD_TRANSFORMERS_DEBUG` env variables to trace diffusers and transformers internal operations  
+  - add settings -> model load -> *offload state dict* option  
+    reduces memory spikes during model load at the cost of disk i/o and slower load times  
+  - use `GRADIO_TEMP_DIR` env variable for temp folder if set
+  - update ui login form
+- **Video**
+  - reorganized *video* tab
+  - better support for video codeces and formats
+  - add flexible video upscaling as video generation step  
+    see [Video wiki page](https://vladmandic.github.io/sdnext-docs/Video) for details and recommended upscaling models  
+  - improved interpolation
+  - add *generate forever* button
+- **Upscalers**
+  - update *spandrel* integration  
+    moving forward, spandrel engine will be main upscaling engine for sdnext  
+    when downloading any upscaling models manually, place them in `models/Spandrel` folder  
+  - update *chainner* integration
+  - add several low-latency upscalers that are better suited for video upscaling  
+- **API**
+  - full support for video generation using api  
+    new endpoints: `/sdapi/v1/video`, `/sdapi/v1/video/models`, `/sdapi/v1/video/file`  
+    *note*: video api uses async workflow where you submit request and then later download the result  
+  - authentication for websocket connection
+  - allowed path validation for endpoints that get/put files
+  - log auth methods
+- **Other**
+  - Krea2: add *settings -> model options -> krea2 dense masking*
+    may provide significant speed-up on some gpus, disabled by default  
+  - AR display ratio on manual resolution change
+- **Wiki**
+  - major updates: *Offload, Detailer, Video, MiniMax, LTX*
+  - minor updates: *Intel-ARC, FramePack, Parameters, API, Installation, SDNQ-Quantization, CLI-Arguments*
+- **Removed**
+  - remove DirectML support  
+    latest release was over 2 years ago and is not compatible with modern frameworks  
+- **Fixes**
+  - hf: init hf env variables before gradio load
+  - lora: skip init and rebuild offload state
+  - lora: keep network multiplier on change
+  - auth: improve handling of hf auth
+  - load: improve pipeline detection for non-cached models
+  - offload: cleanup alt offload codepaths
+  - offload: text encoders no longer take the denoiser profile on modular pipelines
+  - offload: components entered through encode or decode are detected by structure rather than by name
+  - offload: group offload honors the never-offload and model-type exclusion settings
+  - settings: offload settings grouped into shared overrides and per-mode sections
+  - log: hf progress bars
+  - ltx: send the guidance stack and cross-timestep on every 2.x call path
+  - ltx: distilled variants no longer force dynamic shifting on, which remapped their sigma schedule
+  - ltx: sampler shift now reaches flow-match schedulers
+  - ltx: reload the latent upsampler when the model or its repo changes
+  - video: take the audio sample rate from the loaded vocoder
+  - video: keep the shared text encoder out of the registry rows
+  - video: use generic loader methods
+  - log: processing stats reporting
+  - metadata: image metadata handle correct image index
+  - gguf: transformer loader
+  - scripts: mixture-of-diffusers and mixture-tiling update to use igwn-segments
+  - api: process
+  - api: auth via remote-ip
+  - krea2: fallback to base pipeline/transformer for nunchaku-lite
+
 ## Update for 2026-08-07
 
 ### Highlights for 2026-08-07
@@ -192,7 +305,7 @@ Originating as a service-pack update with a handful of fixes and quality-of-life
   - **First-Last-Frame** (FLF2V) support for Wan-2.2-I2V and LTX
   - add option: *compute settings -> force dtype on load*  
     use to force model components to override loading with desired dtype regardless of component config  
-  - add option: *backend settings -> force sychronize*  
+  - add option: *backend settings -> force synchronize*  
     enabled by default, disable to speed up processing but may cause image corruptions, especially during preview
   - add option: *model loading -> attempt to load incomplete model*  
     disabled by default, attempts to load model by mapping it to known model even if some components are missing  
@@ -329,7 +442,7 @@ And we have a new modular LoRA loader, new native Transformers loader and improv
   - **Samplers** reorganized into clear sampler categories
   - **Gallery** add clear cache button to folder menu
   - **Finetunes** improved support for loading model finetunes  
-    this also includes detecting compatibility and falbacks  
+    this also includes detecting compatibility and fallbacks  
   - **UV** much updated `--uv` support for fast installs  
     now also supports global `uv` if present in the system  
   - **Attention Dispatcher** new attention backends dispatcher  

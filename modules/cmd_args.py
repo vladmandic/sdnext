@@ -37,7 +37,6 @@ def add_compute_args(p):
     p.add_argument("--use-rocm", default=env_flag("SD_USEROCM", False), action='store_true', help="Force use AMD ROCm backend, default: %(default)s")
     p.add_argument('--use-zluda', default=env_flag("SD_USEZLUDA", False), action='store_true', help="Force use ZLUDA, AMD GPUs only, default: %(default)s")
     p.add_argument("--use-openvino", default=env_flag("SD_USEOPENVINO", False), action='store_true', help="Use Intel OpenVINO backend, default: %(default)s")
-    p.add_argument('--use-directml', default=env_flag("SD_USEDIRECTML", False), action='store_true', help="Use DirectML if no compatible GPU is detected, default: %(default)s")
     p.add_argument("--use-xformers", default=env_flag("SD_USEXFORMERS", False), action='store_true', help="Force use xFormers cross-optimization, default: %(default)s")
     p.add_argument("--use-nightly", default=env_flag("SD_USENIGHTLY", False), action='store_true', help="Force use nightly torch builds, default: %(default)s")
     p.add_argument("--no-half", default=env_flag("SD_NOHALF", False), action='store_true', help="Do not switch the model to 16-bit float, default: %(default)s")

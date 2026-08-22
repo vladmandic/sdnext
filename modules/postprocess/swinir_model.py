@@ -66,7 +66,7 @@ class UpscalerSwinIR(Upscaler):
                     log.error(f'Upscaler invalid parameters: type={self.name} model={info.local_data_path} {e}')
         return model
 
-    def do_upscale(self, img, selected_model):
+    def do_upscale(self, img, selected_model): # pylint: disable=arguments-differ
         model = self.load_model(selected_model)
         if model is None:
             return img

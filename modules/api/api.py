@@ -1,15 +1,17 @@
 import os
 from threading import Lock
 from secrets import compare_digest
-from fastapi import FastAPI, APIRouter, Depends, Request
+from typing import Optional
+from fastapi import FastAPI, APIRouter, Depends, Request, Cookie
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.exceptions import HTTPException
 from modules import errors, shared, paths
 from modules.logger import log
-from modules.api import models, endpoints, script, helpers, server, generate, process, control, docs, gpu
+from modules.api import models, endpoints, script, helpers, server, generate, process, control, video, docs, gpu
 
 
 errors.install()
+auth_map = []
 
 
 class Api:
@@ -33,13 +35,16 @@ class Api:
         self.generate = generate.APIGenerate(queue_lock)
         self.process = process.APIProcess(queue_lock)
         self.control = control.APIControl(queue_lock)
+        self.video = video.APIVideo(queue_lock)
         # compatibility api
         self.text2imgapi = self.generate.post_text2img
         self.img2imgapi = self.generate.post_img2img
 
     def register(self):
         # fetch js/css
-        self.add_api_route("/js", server.get_js, methods=["GET"], auth=False)
+        self.add_api_route("/js", server.get_js, methods=["GET"], auth=False, tags=["Base"])
+        self.add_api_route("/manifest", server.get_manifest, methods=["GET"], auth=False, tags=["Base"])
+        self.add_api_route("/icon", server.get_icon, methods=["GET"], auth=False, tags=["Base"])
 
         # server api
         self.add_api_route("/sdapi/v1/motd", server.get_motd, methods=["GET"], response_model=str, tags=["Server"])
@@ -66,6 +71,7 @@ class Api:
         self.add_api_route("/sdapi/v1/txt2img", self.generate.post_text2img, methods=["POST"], response_model=models.ResTxt2Img, tags=["Generation"])
         self.add_api_route("/sdapi/v1/img2img", self.generate.post_img2img, methods=["POST"], response_model=models.ResImg2Img, tags=["Generation"])
         self.add_api_route("/sdapi/v1/control", self.control.post_control, methods=["POST"], response_model=control.ResControl, tags=["Generation"])
+        self.add_api_route("/sdapi/v1/video", self.video.post_video, methods=["POST"], response_model=video.ResVideo, tags=["Generation"])
         self.add_api_route("/sdapi/v1/process", self.process.extras_single_image_api, methods=["POST"], response_model=models.ResProcessImage, tags=["Processing"])
         self.add_api_route("/sdapi/v1/extra-single-image", self.process.extras_single_image_api, methods=["POST"], response_model=models.ResProcessImage, tags=["Processing"])
         self.add_api_route("/sdapi/v1/process-batch", self.process.extras_batch_images_api, methods=["POST"], response_model=models.ResProcessBatch, tags=["Processing"])
@@ -102,9 +108,11 @@ class Api:
         self.add_api_route("/sdapi/v1/extra-network-detail", endpoints.get_extra_network_detail, methods=["GET"], response_model=models.ItemExtraNetworkFull, tags=["Enumerators"])
         self.add_api_route("/sdapi/v1/extra-network-details", endpoints.get_extra_network_details, methods=["GET"], response_model=models.ResExtraNetworkDetails, tags=["Enumerators"])
         self.add_api_route("/sdapi/v1/unets", endpoints.get_unets, methods=["GET"], response_model=list[models.ItemUNet], tags=["Enumerators"])
+        self.add_api_route("/sdapi/v1/video/models", self.video.get_video_models, methods=["GET"], response_model=list[video.ItemVideoModel], tags=["Enumerators"])
 
         # functional api
         self.add_api_route("/sdapi/v1/file", endpoints.get_file, methods=["GET"], tags=["Functional"])
+        self.add_api_route("/sdapi/v1/video/file", self.video.get_video_file, methods=["GET"], tags=["Functional"])
         self.add_api_route("/sdapi/v1/delete-image", endpoints.get_deleteimage, methods=["DELETE"], tags=["Functional"])
         self.add_api_route("/sdapi/v1/delete-file", endpoints.get_deletefile, methods=["DELETE"], tags=["Functional"])
         self.add_api_route("/sdapi/v1/png-info", endpoints.get_pnginfo, methods=["GET"], response_model=models.ResImageInfo, tags=["Functional"])
@@ -173,29 +181,50 @@ class Api:
     def add_api_route(self, path: str, fn, auth: bool = True, **kwargs):
         if auth and self.credentials:
             deps = list(kwargs.get('dependencies', []))
-            deps.append(Depends(self.auth))
+            deps.append(Depends(self.auth, use_cache=True))
             kwargs['dependencies'] = deps
         if shared.opts.subpath is not None and len(shared.opts.subpath) > 0:
             self.app.add_api_route(f'{shared.opts.subpath}{path}', endpoint=fn, **kwargs)
         self.app.add_api_route(path, endpoint=fn, **kwargs)
 
-    def auth(self, credentials: HTTPBasicCredentials = Depends(HTTPBasic())):
+    def add_auth(self, host: str, user: str, method: str):
+        msg = f"ip={host} user={user} method={method}"
+        if msg in auth_map:
+            return
+        auth_map.append(msg)
+        log.debug(f'Client auth: {msg}')
+
+    def auth(
+            self,
+            request: Request, # pylint: disable=unused-argument
+            credentials: Optional[HTTPBasicCredentials] = Depends(HTTPBasic(auto_error=False)),
+            access_token: Optional[str] = Cookie(default=None, alias="access_token"),  # Change alias to your cookie name
+            access_token_unsecure: Optional[str] = Cookie(default=None, alias="access-token-unsecure"),
+        ):
         if not self.credentials:
+            self.add_auth(host=request.client.host, user=credentials.username if credentials else None, method="none")
             return True
-        if credentials.username in self.credentials:
-            if compare_digest(credentials.password, self.credentials[credentials.username]):
+        if (credentials is not None) and (credentials.username in self.credentials):
+            if compare_digest(credentials.password, self.credentials[credentials.username]): # client user + encoded password
+                self.add_auth(host=request.client.host, user=credentials.username if credentials else None, method="digest")
                 return True
-            if hasattr(self.app, 'tokens') and (self.app.tokens is not None):
+            if hasattr(self.app, 'tokens') and (self.app.tokens is not None): # client sends token as password
                 if credentials.password in self.app.tokens.keys():
+                    self.add_auth(host=request.client.host, user=credentials.username if credentials else None, method="token")
                     return True
-        log.error(f'API authentication: user="{credentials.username}"')
+        cookie_token = access_token or access_token_unsecure
+        if cookie_token and hasattr(self.app, 'tokens') and (self.app.tokens is not None): # client sets cookie with token
+            if cookie_token in self.app.tokens.keys():
+                self.add_auth(host=request.client.host, user=None, method="cookie")
+                return True
+        log.error(f'API authentication: user="{credentials.username if credentials else None}"')
         raise HTTPException(status_code=401, detail="Unauthorized", headers={"WWW-Authenticate": "Basic"})
 
     def get_session_start(self, req: Request, agent: str | None = None):
         """Log a new browser session with client IP, authenticated user, and user-agent string."""
         token = req.cookies.get("access-token") or req.cookies.get("access-token-unsecure")
         user = self.app.tokens.get(token) if hasattr(self.app, 'tokens') else None
-        log.info(f'Browser session: user={user} client={req.client.host} agent={agent}')
+        log.info(f'Client session: user={user} client={req.client.host} agent={agent}')
         return {}
 
     def launch(self):

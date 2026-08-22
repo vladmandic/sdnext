@@ -29,6 +29,7 @@ def _model_change(model_name: str):
             gr.update(interactive=False),  # decode_timestep
             gr.update(interactive=False),  # image_cond_noise_scale
             gr.update(visible=False),   # audio_accordion
+            gr.update(visible=False, value=False),  # auto_duration
         )
     # 2.x refine runs fixed canonical schedules; refine_strength only feeds 0.9.x LTXConditionPipeline.
     refine_strength_interactive = caps.family == '0.9'
@@ -36,6 +37,7 @@ def _model_change(model_name: str):
     # Distilled T2V/I2V). auto_refine_upsample at ltx_process.py:179 couples the stages once Refine
     # is on. Condition variants are excluded by supports_two_stage_refine.
     refine_default = caps.supports_two_stage_refine
+    auto_duration_update =gr.update(visible=True) if caps.supports_auto_duration else gr.update(visible=False, value=False)
     return (
         gr.update(visible=caps.supports_input_media),
         gr.update(visible=caps.supports_multi_condition),
@@ -52,10 +54,11 @@ def _model_change(model_name: str):
         gr.update(interactive=caps.supports_decode_timestep),
         gr.update(interactive=caps.supports_image_cond_noise_scale),
         gr.update(visible=caps.supports_audio),
+        auto_duration_update,
     )
 
 
-def create_ui(prompt, negative, styles, overrides, script_inputs, mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, mp4_thumb):
+def create_ui(prompt, negative, styles, overrides, script_inputs, mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, mp4_thumb, mp4_scale, mp4_upscaler):
     with gr.Row():
         with gr.Column(variant='compact', elem_id="ltx_settings", elem_classes=['settings-column'], scale=1):
             with gr.Row():
@@ -64,13 +67,16 @@ def create_ui(prompt, negative, styles, overrides, script_inputs, mp4_fps, mp4_i
                 ltx_models = [m.name for m in models['LTX Video']] if 'LTX Video' in models else ['None']
                 model = gr.Dropdown(label='LTX model', choices=ltx_models, value=ltx_models[0], elem_id="ltx_model")
                 btn_load = ToolButton(ui_symbols.loading, elem_id="video_model_load_ltx")
-            with gr.Accordion(open=False, label='Size', elem_id='ltx_size_accordion'):
-                width, height = ui_sections.create_resolution_inputs('ltx', default_width=832, default_height=480)
+            with gr.Accordion(open=True, label='Parameters', elem_id='ltx_size_accordion'):
+                with gr.Row():
+                    width, height = ui_sections.create_resolution_inputs('ltx', default_width=1024, default_height=576, step=64)
                 with gr.Row():
                     frames = gr.Slider(label='LTX frames', minimum=1, maximum=1024, step=1, value=121, elem_id='ltx_frames')
                     seed = gr.Number(label='LTX seed', value=-1, elem_id='ltx_seed', container=True)
                     random_seed = ToolButton(ui_symbols.random, elem_id='ltx_seed_random')
                     random_seed.click(fn=lambda: -1, show_progress='hidden', inputs=[], outputs=[seed])
+                with gr.Row():
+                    auto_duration = gr.Checkbox(label='LTX auto duration', value=False, elem_id='ltx_auto_duration', visible=False)
             input_media_accordion = gr.Accordion(open=False, label="Input media", elem_id='ltx_input_media_accordion', visible=False)
             with input_media_accordion:
                 ltx_init_image = gr.Image(label='Image', elem_id='ltx_init_image', type='pil', image_mode='RGB', width=256, height=256)
@@ -112,7 +118,7 @@ def create_ui(prompt, negative, styles, overrides, script_inputs, mp4_fps, mp4_i
             audio_accordion = gr.Accordion(open=False, label="Audio", elem_id='ltx_audio_accordion', visible=False)
             with audio_accordion:
                 with gr.Row():
-                    audio_enable = gr.Checkbox(label='LTX save audio', value=True, elem_id="ltx_audio_enable")
+                    audio_enable = gr.Checkbox(label='Save audio', value=True, elem_id="ltx_audio_enable")
 
         with gr.Column(elem_id='ltx-output-column', scale=2) as _column_output:
             with gr.Row():
@@ -122,9 +128,9 @@ def create_ui(prompt, negative, styles, overrides, script_inputs, mp4_fps, mp4_i
 
 
     def load_model(model_name: str):
-        ltx_util.load_model('LTX Video', model_name)
+        return ltx_util.load_model('LTX Video', model_name)
 
-    btn_load.click(fn=load_model, inputs=[model], outputs=[])
+    btn_load.click(fn=load_model, inputs=[model], outputs=[text])
 
     model.change(
         fn=_model_change,
@@ -145,6 +151,7 @@ def create_ui(prompt, negative, styles, overrides, script_inputs, mp4_fps, mp4_i
             decode_timestep,
             image_cond_noise_scale,
             audio_accordion,
+            auto_duration,
         ],
     )
 
@@ -155,7 +162,7 @@ def create_ui(prompt, negative, styles, overrides, script_inputs, mp4_fps, mp4_i
     video_inputs = [
         model,
         prompt, negative, styles,
-        width, height, frames,
+        width, height, frames, auto_duration,
         steps, sampler_index,
         guidance_scale, sampler_shift, dynamic_shift,
         seed,
@@ -163,7 +170,9 @@ def create_ui(prompt, negative, styles, overrides, script_inputs, mp4_fps, mp4_i
         refine_enable, refine_strength,
         ltx_condition_strength, ltx_init_image, last_image, condition_files, condition_video, condition_video_frames, condition_video_skip,
         decode_timestep, image_cond_noise_scale,
-        mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, mp4_thumb,
+        mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt,
+        mp4_video, mp4_frames, mp4_sf, mp4_thumb,
+        mp4_scale, mp4_upscaler,
         audio_enable,
         overrides,
     ]

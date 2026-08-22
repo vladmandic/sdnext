@@ -14,7 +14,7 @@ stream = None # AsyncStream
 def get_latent_paddings(mp4_fps, mp4_interpolate, latent_window_size, total_second_length, variant):
     try:
         real_fps = mp4_fps / (mp4_interpolate + 1)
-        is_f1 = variant == 'forward-only'
+        is_f1 = variant == 'Forward-Only'
         if is_f1:
             total_latent_sections = (total_second_length * real_fps) / (latent_window_size * 4)
             total_latent_sections = int(max(round(total_latent_sections), 1))
@@ -42,6 +42,7 @@ def worker(
         shift,
         use_teacache, use_cfgzero, use_preview,
         mp4_fps, mp4_codec, mp4_sf, mp4_video, mp4_frames, mp4_thumb, mp4_opt, mp4_ext, mp4_interpolate,
+        mp4_scale, mp4_upscaler,
         vae_type,
         variant,
         metadata: dict | None = None,
@@ -59,7 +60,7 @@ def worker(
     from modules.framepack.pipeline import utils
     from modules.framepack.pipeline import k_diffusion_hunyuan
 
-    is_f1 = variant == 'forward-only'
+    is_f1 = variant == 'Forward-Only'
     total_generated_frames = 0
     total_generated_latent_frames = 0
     latent_paddings = get_latent_paddings(mp4_fps, mp4_interpolate, latent_window_size, total_second_length, variant)
@@ -130,6 +131,7 @@ def worker(
         else:
             end_latent = None
         sd_models.apply_balanced_offload(shared.sd_model)
+        sd_models.offload_ondemand(shared.sd_model, reason='vae encode') # group offload returns the vae through its on-demand placement rather than the balanced seam
         timer.process.add('encode', time.time()-t0)
         shared.state.end(jobid)
         return start_latent, end_latent
@@ -317,6 +319,7 @@ def worker(
                         current_pixels = framepack_vae.vae_decode(real_history_latents[:, :, :section_latent_frames], vae_type=vae_type).cpu()
                         history_pixels = utils.soft_append_bcthw(current_pixels, history_pixels, overlapped_frames)
                 sd_models.apply_balanced_offload(shared.sd_model)
+                sd_models.offload_ondemand(shared.sd_model, reason='vae decode')
                 timer.process.add('vae', time.time()-t_vae)
 
                 if is_last_section:
@@ -345,6 +348,8 @@ def worker(
                 mp4_frames=mp4_frames,
                 mp4_thumb=mp4_thumb,
                 mp4_interpolate=0,
+                upscale_scale=mp4_scale,
+                upscale_upscaler=mp4_upscaler,
                 pbar=pbar,
                 stream=stream,
                 metadata=metadata,
@@ -376,7 +381,8 @@ def worker(
         errors.display(e, 'FramePack')
 
     sd_models.apply_balanced_offload(shared.sd_model)
+    sd_models.offload_ondemand(shared.sd_model, reason='finish')
     stream.output_queue.push(('end', None))
     t1 = time.time()
-    log.info(f'Processed: frames={total_generated_frames} fps={total_generated_frames/(t1-t0):.2f} its={(shared.state.sampling_step)/(t1-t0):.2f} time={t1-t0:.2f} timers={timer.process.dct()} memory={memstats.memory_stats()}')
+    log.info(f'Processed: frames={total_generated_frames} fps={total_generated_frames/(t1-t0):.2f} its={(shared.state.sampling_step)/(t1-t0):.3f} time={t1-t0:.2f} timers={timer.process.dct()} memory={memstats.memory_stats()}')
     shared.state.end(videojob)

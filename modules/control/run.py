@@ -1,5 +1,6 @@
 import os
 import sys
+from functools import partial
 import cv2
 from PIL import Image
 from modules.logger import log
@@ -336,6 +337,12 @@ def control_process(p: StableDiffusionProcessingControl,
     return output, info, script_run
 
 
+def generate(*args, **kwargs):
+    generate_call = partial(control_run, *args, **kwargs)
+    # return [], '', '', 'Queued'
+    return generate_call()
+
+
 def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                 units: list[unit.Unit] | None = None, inputs: list[Image.Image] | None = None, inits: list[Image.Image] | None = None, mask: Image.Image = None, unit_type: str | None = None, is_generator: bool = True,
                 input_type: int = 0,
@@ -346,7 +353,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                 guidance_name: str = 'Default', guidance_scale: float = 6.0, guidance_rescale: float = 0.0, guidance_start: float = 0.0, guidance_stop: float = 1.0,
                 cfg_scale: float = 6.0, clip_skip: float = 1.0, cfg_image: float = 6.0, cfg_rescale: float = 0.7, cfg_true: float = 0.0, cfg_adaptive: float = 0.5, cfg_end: float = 1.0,
                 vae_type: str = 'Full', tiling: bool = False, hidiffusion: bool = False,
-                detailer_enabled: bool = False, detailer_prompt: str = '', detailer_negative: str = '', detailer_steps: int = 10, detailer_strength: float = 0.3, detailer_resolution: int = 1024,
+                detailer_enabled: bool = False, detailer_prompt: str = '', detailer_negative: str = '', detailer_steps: int = 10, detailer_strength: float = 0.3, detailer_resolution: int = 1024,  detailer_classes: str = '',
                 hdr_mode: int = 0, hdr_brightness: float = 0, hdr_color: float = 0, hdr_sharpen: float = 0, hdr_clamp: bool = False, hdr_boundary: float = 4.0, hdr_threshold: float = 0.95,
                 hdr_maximize: bool = False, hdr_max_center: float = 0.6, hdr_max_boundary: float = 1.0, hdr_color_picker: str | None = None, hdr_tint_ratio: float = 0, hdr_apply_hires: bool = True,
                 grading_brightness: float = 0.0, grading_contrast: float = 0.0, grading_saturation: float = 0.0, grading_hue: float = 0.0,
@@ -368,7 +375,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                 override_script_name: str | None = None, override_script_args = None, extra: dict | None = None,
                 *input_script_args,
                 # API-only params (keyword-only, not wired to Gradio)
-                detailer_segmentation: bool | None = None, detailer_include_detections: bool | None = None, detailer_merge: bool | None = None, detailer_sort: bool | None = None, detailer_classes: str | None = None,
+                detailer_segmentation: bool | None = None, detailer_include_detections: bool | None = None, detailer_merge: bool | None = None, detailer_sort: bool | None = None,
                 detailer_conf: float | None = None, detailer_iou: float | None = None, detailer_max: int | None = None,
                 detailer_min_size: float | None = None, detailer_max_size: float | None = None,
                 detailer_blur: int | None = None, detailer_padding: int | None = None,
@@ -823,8 +830,8 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
 
             debug_log(f'Control: pipeline units={len(active_model)} process={len(active_process)} outputs={len(output_images)}')
     except Exception as e:
-        log.error(f'Control: type={unit_type} units={len(active_model)} {e}')
-        errors.display(e, 'Control')
+        log.error(f'Generate: {e}')
+        errors.display(e, 'Generate')
 
     if len(output_images) == 0:
         output_images = None

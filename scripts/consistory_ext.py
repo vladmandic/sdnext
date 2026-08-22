@@ -75,7 +75,7 @@ class ConsiStoryScript(scripts_manager.Script):
             shared.sd_model = sd_models.switch_pipe(cs.ConsistoryExtendAttnSDXLPipeline, shared.sd_model)
             shared.sd_model.unet = cs.ConsistorySDXLUNet2DConditionModel.from_config(shared.sd_model.unet.config)
             shared.sd_model.unet.load_state_dict(state_dict) # now load it into new class
-            shared.sd_model.unet.to(dtype=devices.dtype) # ty: ignore
+            shared.sd_model.unet.to(dtype=devices.dtype)
             state_dict = None
             # sd_models.set_diffuser_options(shared.sd_model)
             sd_models.move_model(shared.sd_model, devices.device)

@@ -52,9 +52,9 @@ from diffusers.utils.torch_utils import randn_tensor
 
 
 try:
-    from ligo.segments import segment
+    from igwn_segments import segment
 except ImportError as e:
-    raise ImportError("Please install transformers and ligo-segments to use the mixture pipeline") from e
+    raise ImportError("Please install transformers and igwn-segments to use the mixture pipeline") from e
 
 if is_torch_xla_available():
     import torch_xla.core.xla_model as xm
@@ -1138,7 +1138,9 @@ class StableDiffusionXLTilingPipeline(
                                 else guidance_scale_tiles[row][col]
                             )
                             noise_pred_tile = noise_pred_uncond + guidance * (noise_pred_text - noise_pred_uncond)
-                            noise_preds_row.append(noise_pred_tile)
+                        else:
+                            noise_pred_tile = noise_pred
+                        noise_preds_row.append(noise_pred_tile)
                     noise_preds.append(noise_preds_row)
 
                 # Stitch noise predictions for all tiles

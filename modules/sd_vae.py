@@ -24,6 +24,7 @@ vae_scale_override = {
     'WanPipeline': 16,
     'ChronoEditPipeline': 16,
     'AutoencoderKLWan': 16,
+    'AutoencoderKLMiniMaxH3': 16,
 }
 
 
@@ -53,6 +54,8 @@ def get_vae_scale_factor(model: DiffusionPipeline | None = None):
         vae_scale_factor = 8
     if model is not None and hasattr(model, 'patch_size'):
         patch_size = model.patch_size
+        if isinstance(patch_size, (tuple, list)): # 3d patch sizes are (t, h, w); spatial term is last
+            patch_size = patch_size[-1]
     if debug:
         log.trace(f'VAE: cls={model.__class__.__name__ if model else "None"} scale={vae_scale_factor} patch={patch_size}')
     return vae_scale_factor * patch_size

@@ -248,7 +248,7 @@ class UpscalerSeedVR(Upscaler):
             log.error(f'Upscaler: name="SeedVR2" video="{video_path}" {e}')
             return None, None, None
 
-    def create_video(self, tensor: torch.Tensor, audio, codec: str = 'libx264', codec_opt: str = 'crf:16', interpolate: int = 0):
+    def create_video(self, tensor: torch.Tensor, audio, codec: str = 'libx264', codec_opt: str = 'crf=16', interpolate: int = 0):
         t0 = time.time()
         from modules.video_models.video_save import save_video
         pixels = tensor.permute(3, 0, 1, 2).unsqueeze(0) # from (t, h, w, c) to (n, c, t, h, w)
@@ -281,7 +281,7 @@ class UpscalerSeedVR(Upscaler):
                    offload: bool = True,
                    interpolate: int = 1,
                    codec: str = 'libx264',
-                   codec_opt: str = 'crf:16',
+                   codec_opt: str = 'crf=16',
                    vae_memory: float = 0.5,
                    vae_tile_encode: bool = True,
                    vae_tile_decode: bool = True,

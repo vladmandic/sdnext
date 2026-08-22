@@ -71,14 +71,14 @@ class Script:
         """this function should return the title of the script. This is what will be displayed in the dropdown menu."""
         raise NotImplementedError
 
-    def ui(self, is_img2img) -> list[IOComponent]:
+    def ui(self, is_img2img) -> list[IOComponent]: # ty: ignore
         """this function should create gradio UI elements. See https://gradio.app/docs/#components
         The return value should be an array of all components that are used in processing.
         Values of those returned components will be passed to run() and process() functions.
         """
         pass # pylint: disable=unnecessary-pass
 
-    def show(self, is_img2img) -> bool | AlwaysVisible: # pylint: disable=unused-argument
+    def show(self, is_img2img) -> bool | AlwaysVisible: # pylint: disable=unused-argument # ty: ignore
         """
         is_img2img is True if this function is called for the img2img interface, and False otherwise
         This function should return:
@@ -338,6 +338,27 @@ def wrap_call(func: Callable, filename: str, funcname: str, *args, default=None,
     except Exception as e:
         errors.display(e, f'Calling script: {filename}/{funcname}')
     return default
+
+
+def resolve_script_args(script, args, per_script_args=None):
+    """Positional args for one script hook, None when the vector cannot fill the script's slot.
+
+    A caller-supplied override wins outright. Otherwise the declared range has to fit the vector,
+    since a truncated slice would splat fewer positionals than the hook signature takes. A script
+    that declares no args still runs: its empty slice is complete rather than truncated.
+    """
+    if not hasattr(script, 'args_from') or not hasattr(script, 'args_to'):
+        return None
+    if per_script_args:
+        override = per_script_args.get(script.title(), None)
+        if override is not None:
+            return override
+    if (script.args_to <= 0) or (script.args_to < script.args_from):
+        return None
+    if (script.args_to > len(args)) and (script.args_to > script.args_from):
+        debug(f'Script: title="{script.title()}" op=skip args={len(args)} required={script.args_to}')
+        return None
+    return args[script.args_from:script.args_to]
 
 
 class ScriptSummary:
@@ -606,6 +627,9 @@ class ScriptRunner:
         return inputs
 
     def run(self, p: StableDiffusionProcessing, *args) -> Processed | None:
+        from modules import shared
+        if not shared.sd_loaded:
+            return None
         s = ScriptSummary('run')
         script_index = args[0] if len(args) > 0 else 0
         if (script_index is None) or (script_index == 0):
@@ -618,9 +642,10 @@ class ScriptRunner:
         if 'upscale' in script.title():
             if not hasattr(p, 'init_images') and p.task_args.get('image', None) is not None:
                 p.init_images = p.task_args['image']
-        parsed = []
-        if hasattr(script, 'args_to') and hasattr(script, 'args_from'):
-            parsed = p.per_script_args.get(script.title(), args[script.args_from:script.args_to])
+        parsed = resolve_script_args(script, args, p.per_script_args)
+        if parsed is None: # the script was selected by hand, so a vector that cannot drive it is worth saying out loud
+            log.error(f'Script: title="{script.title()}" args={len(args)} required={getattr(script, "args_to", None)} not run')
+            return None
         if hasattr(script, 'run'):
             processed = script.run(p, *parsed)
         else:
@@ -635,12 +660,16 @@ class ScriptRunner:
         script_index = args[0] if len(args) > 0 else 0
         if (script_index is None) or (script_index == 0):
             return processed
-        script = self.selectable_scripts[script_index - 1]
+        try:
+            script = self.selectable_scripts[script_index - 1]
+        except Exception:
+            script = None
         if script is None or not hasattr(script, 'after'):
             return processed
-        parsed = []
-        if hasattr(script, 'args_to') and hasattr(script, 'args_from'):
-            parsed = p.per_script_args.get(script.title(), args[script.args_from:script.args_to])
+        parsed = resolve_script_args(script, args, p.per_script_args)
+        if parsed is None:
+            log.error(f'Script: title="{script.title()}" args={len(args)} required={getattr(script, "args_to", None)} not run')
+            return processed
         after_processed = script.after(p, processed, *parsed)
         if after_processed is not None:
             processed = after_processed
@@ -652,8 +681,8 @@ class ScriptRunner:
         s = ScriptSummary('before-process')
         for script in self.alwayson_scripts:
             try:
-                if hasattr(script, 'args_to') and hasattr(script, 'args_from') and (script.args_to > 0) and (script.args_to >= script.args_from):
-                    args = p.per_script_args.get(script.title(), p.script_args[script.args_from:script.args_to])
+                args = resolve_script_args(script, p.script_args, p.per_script_args)
+                if args is not None:
                     script.before_process(p, *args, **kwargs)
             except Exception as e:
                 errors.display(e, f"Error running before process: {script.filename}")
@@ -664,8 +693,8 @@ class ScriptRunner:
         s = ScriptSummary('process')
         for script in self.alwayson_scripts:
             try:
-                if hasattr(script, 'args_to') and hasattr(script, 'args_from') and (script.args_to > 0) and (script.args_to >= script.args_from):
-                    args = p.per_script_args.get(script.title(), p.script_args[script.args_from:script.args_to])
+                args = resolve_script_args(script, p.script_args, p.per_script_args)
+                if args is not None:
                     script.process(p, *args, **kwargs)
             except Exception as e:
                 errors.display(e, f'Running script process: {script.filename}')
@@ -677,8 +706,8 @@ class ScriptRunner:
         processed = None
         for script in self.alwayson_scripts:
             try:
-                if hasattr(script, 'args_to') and hasattr(script, 'args_from') and (script.args_to > 0) and (script.args_to >= script.args_from):
-                    args = p.per_script_args.get(script.title(), p.script_args[script.args_from:script.args_to])
+                args = resolve_script_args(script, p.script_args, p.per_script_args)
+                if args is not None:
                     _processed = script.process_images(p, *args, **kwargs)
                     if _processed is not None:
                         processed = _processed
@@ -692,8 +721,8 @@ class ScriptRunner:
         s = ScriptSummary('before-process-batch')
         for script in self.alwayson_scripts:
             try:
-                if hasattr(script, 'args_to') and hasattr(script, 'args_from') and (script.args_to > 0) and (script.args_to >= script.args_from):
-                    args = p.per_script_args.get(script.title(), p.script_args[script.args_from:script.args_to])
+                args = resolve_script_args(script, p.script_args, p.per_script_args)
+                if args is not None:
                     script.before_process_batch(p, *args, **kwargs)
             except Exception as e:
                 errors.display(e, f'Running script before process batch: {script.filename}')
@@ -704,8 +733,8 @@ class ScriptRunner:
         s = ScriptSummary('process-batch')
         for script in self.alwayson_scripts:
             try:
-                if hasattr(script, 'args_to') and hasattr(script, 'args_from') and (script.args_to > 0) and (script.args_to >= script.args_from):
-                    args = p.per_script_args.get(script.title(), p.script_args[script.args_from:script.args_to])
+                args = resolve_script_args(script, p.script_args, p.per_script_args)
+                if args is not None:
                     script.process_batch(p, *args, **kwargs)
             except Exception as e:
                 errors.display(e, f'Running script process batch: {script.filename}')
@@ -716,8 +745,8 @@ class ScriptRunner:
         s = ScriptSummary('postprocess')
         for script in self.alwayson_scripts:
             try:
-                if hasattr(script, 'args_to') and hasattr(script, 'args_from') and (script.args_to > 0) and (script.args_to >= script.args_from):
-                    args = p.per_script_args.get(script.title(), p.script_args[script.args_from:script.args_to])
+                args = resolve_script_args(script, p.script_args, p.per_script_args)
+                if args is not None:
                     script.postprocess(p, processed, *args)
             except Exception as e:
                 errors.display(e, f'Running script postprocess: {script.filename}')
@@ -728,8 +757,8 @@ class ScriptRunner:
         s = ScriptSummary('postprocess-batch')
         for script in self.alwayson_scripts:
             try:
-                if hasattr(script, 'args_to') and hasattr(script, 'args_from') and (script.args_to > 0) and (script.args_to >= script.args_from):
-                    args = p.per_script_args.get(script.title(), p.script_args[script.args_from:script.args_to])
+                args = resolve_script_args(script, p.script_args, p.per_script_args)
+                if args is not None:
                     script.postprocess_batch(p, *args, images=images, **kwargs)
             except Exception as e:
                 errors.display(e, f'Running script before postprocess batch: {script.filename}')
@@ -740,8 +769,8 @@ class ScriptRunner:
         s = ScriptSummary('postprocess-batch-list')
         for script in self.alwayson_scripts:
             try:
-                if hasattr(script, 'args_to') and hasattr(script, 'args_from') and (script.args_to > 0) and (script.args_to >= script.args_from):
-                    args = p.per_script_args.get(script.title(), p.script_args[script.args_from:script.args_to])
+                args = resolve_script_args(script, p.script_args, p.per_script_args)
+                if args is not None:
                     script.postprocess_batch_list(p, pp, *args, **kwargs)
             except Exception as e:
                 errors.display(e, f'Running script before postprocess batch list: {script.filename}')
@@ -752,8 +781,8 @@ class ScriptRunner:
         s = ScriptSummary('postprocess-image')
         for script in self.alwayson_scripts:
             try:
-                if hasattr(script, 'args_to') and hasattr(script, 'args_from') and (script.args_to > 0) and (script.args_to >= script.args_from):
-                    args = p.per_script_args.get(script.title(), p.script_args[script.args_from:script.args_to])
+                args = resolve_script_args(script, p.script_args, p.per_script_args)
+                if args is not None:
                     script.postprocess_image(p, pp, *args)
             except Exception as e:
                 errors.display(e, f'Running script postprocess image: {script.filename}')

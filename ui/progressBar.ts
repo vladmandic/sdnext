@@ -9,7 +9,7 @@ const startTimeout = 5;
 
 export function setRefreshInterval() {
   refreshInterval = window.opts.live_preview_refresh_period || 500;
-  log('refreshInterval', { visibile: document.visibilityState, interval: refreshInterval });
+  log('refreshInterval', { visible: document.visibilityState, interval: refreshInterval });
   document.addEventListener('visibilitychange', () => {
     if (window.opts.live_preview_require_focus !== false && document.hidden) refreshInterval = Math.max(2500, window.opts.live_preview_refresh_period || 1000);
     else refreshInterval = window.opts.live_preview_refresh_period || 1000;
@@ -40,9 +40,9 @@ export function checkPaused(state) {
 }
 
 export function setProgress(res?: any) {
-  const elements = ['txt2img_generate', 'img2img_generate', 'extras_generate', 'control_generate', 'video_generate', 'framepack_generate'];
+  const elements = ['txt2img_generate', 'img2img_generate', 'extras_generate', 'control_generate', 'video_generate', 'framepack_generate', 'ltx_generate', 'minimax_generate'];
   const progress = res?.progress || 0;
-  const job = res?.job || '';
+  const job = res?.textinfo || res?.job || ''; // stage label when the backend reports one, job name otherwise
   let perc: string;
   let eta = '';
   if (job === 'VAE') perc = 'Decode';
@@ -51,6 +51,7 @@ export function setProgress(res?: any) {
     let sec = res?.eta || 0;
     if (res?.paused) eta = 'Paused';
     else if (res?.completed || (progress > 0.99)) eta = 'Finishing';
+    else if (job.startsWith('VAE') || job.startsWith('Load')) eta = '';
     else if (sec === 0) eta = 'Start';
     else {
       const min = Math.floor(sec / 60);
@@ -61,7 +62,7 @@ export function setProgress(res?: any) {
   const elPerf = document.getElementById('control-performance');
   let hint = '';
   if (elPerf && res) {
-    const jobTxt = res.job && res.job !== '' ? ` | Job ${res.job}` : '';
+    const jobTxt = res.job && res.job !== '' ? ` | Job ${res.job}${res.textinfo ? `: ${res.textinfo}` : ''}` : '';
     const batchTxt = res.batch > 0 ? ` | Batch ${res.batch}/${res.batches}` : '';
     const stateTxt = res.queued ? 'Queued' : res.paused ? 'Paused' : res.completed ? 'Completed' : res.active ? 'Active' : 'Idle'; // eslint-disable-line no-nested-ternary
     const stepsTxt = res.step > 0 ? ` | Step ${res.step}/${res.steps}` : '';
@@ -91,7 +92,7 @@ export function setProgress(res?: any) {
   }
   const el = document.getElementById('control-performance');
   if (el && res) {
-    const jobTxt = res.job && res.job !== '' ? ` | Job ${res.job}` : '';
+    const jobTxt = res.job && res.job !== '' ? ` | Job ${res.job}${res.textinfo ? `: ${res.textinfo}` : ''}` : '';
     const batchTxt = res.batch > 0 ? ` | Batch ${res.batch}/${res.batches}` : '';
     const stateTxt = res.queued ? 'Queued' : res.paused ? 'Paused' : res.completed ? 'Completed' : res.active ? 'Active' : 'Idle'; // eslint-disable-line no-nested-ternary
     const stepsTxt = res.step > 0 ? ` | Step ${res.step}/${res.steps}` : '';
@@ -142,13 +143,16 @@ export function requestProgress(id_task = 'undefined', progressEl = null, galler
     livePreview.appendChild(img);
     img.onload = () => {
       img.style.width = `min(100%, max(${img.naturalWidth}px, 512px))`;
-      parentGallery.style.minHeight = `min(82vh, ${img.naturalHeight}px)`;
-      parentGallery.style.maxHeight = `min(82vh, ${img.naturalHeight}px)`;
-      parentGallery.style.overflow = 'hidden';
+      const anchored = livePreview.parentElement === parentGallery;
+      if (anchored) {
+        // parentGallery.style.minHeight = `min(82vh, ${img.naturalHeight}px)`;
+        // parentGallery.style.maxHeight = `min(82vh, ${img.naturalHeight}px)`;
+        parentGallery.style.overflow = 'hidden';
+      }
     };
   };
 
-  const removeLivePreview = (ok = false) => {
+  const removeLivePreview = (useImage = false) => {
     debug('taskEnd:', id_task);
     localStorage.removeItem('task');
     setProgress();
@@ -158,14 +162,16 @@ export function requestProgress(id_task = 'undefined', progressEl = null, galler
     for (const gallery of galleries) gallery.style.display = 'flex'; // remove all galleries
     try {
       if (parentGallery && livePreview) {
-        if (ok) {
+        if (useImage) {
           const previewImg = gradioApp().querySelector('#livePreviewImage');
-          const galleryImg = gradioApp().querySelector('#control_gallery img');
+          const galleryImg = parentGallery.querySelector('img');
           if (previewImg?.src && galleryImg) galleryImg.src = previewImg.src; // copy preview to gallery if everything is ok
         }
         parentGallery.removeChild(livePreview);
-        parentGallery.style.minHeight = 'unset';
-        parentGallery.style.maxHeight = 'unset';
+      }
+      if (parentGallery) {
+        // parentGallery.style.minHeight = 'unset';
+        // parentGallery.style.maxHeight = 'unset';
         parentGallery.style.overflow = 'unset';
       }
     } catch { /* ignore */ }

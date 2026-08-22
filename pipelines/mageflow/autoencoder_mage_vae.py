@@ -31,6 +31,7 @@ import torch.nn.functional as F
 from diffusers.configuration_utils import ConfigMixin, register_to_config
 from diffusers.loaders import FromOriginalModelMixin
 from diffusers.utils import logging
+from diffusers.utils.accelerate_utils import apply_forward_hook
 from diffusers.utils.torch_utils import randn_tensor
 from diffusers.models.modeling_utils import ModelMixin
 from diffusers.models.autoencoders.vae import DecoderOutput
@@ -669,6 +670,7 @@ class AutoencoderMageVAE(ModelMixin, ConfigMixin, FromOriginalModelMixin):
             bottleneck_dim=decoder_bottleneck_dim,
         )
 
+    @apply_forward_hook
     def encode(self, x: torch.Tensor, generator: torch.Generator | None = None) -> torch.Tensor:
         """
         Encode images to latents.
@@ -708,6 +710,7 @@ class AutoencoderMageVAE(ModelMixin, ConfigMixin, FromOriginalModelMixin):
     def forward(self, z: torch.Tensor, return_dict: bool = True) -> DecoderOutput | tuple[torch.Tensor]:
         return self.decode(z, return_dict=return_dict)
 
+    @apply_forward_hook
     def decode(self, z: torch.Tensor, return_dict: bool = True) -> DecoderOutput | tuple[torch.Tensor]:
         """
         Decode latents to images.

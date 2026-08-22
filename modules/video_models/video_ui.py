@@ -1,4 +1,5 @@
 import os
+import inspect
 import gradio as gr
 from modules import sd_models, ui_common, ui_sections, ui_symbols, call_queue
 from modules.logger import log
@@ -11,7 +12,7 @@ debug = log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None else lam
 
 # Engines surfaced on their own dedicated tab; hide from the general Video tab dropdown
 # so users aren't offered two paths to the same models.
-HIDDEN_ENGINES = {'LTX Video'}
+HIDDEN_ENGINES = {'LTX Video', 'MiniMax'}
 
 
 def visible_engines():
@@ -25,17 +26,12 @@ def engine_change(engine):
 
 
 def get_selected(engine, model):
-    found = [model.name for model in models_def.models.get(engine, [])]
-    if len(models_def.models[engine]) > 0 and len(found) > 0:
-        selected = [m for m in models_def.models[engine] if m.name == model][0]
-        return selected
-    return None
+    return models_def.find(engine, model)
 
 
 def model_change(engine, model):
     debug(f'Video change: engine="{engine}" model="{model}"')
-    found = [model.name for model in models_def.models.get(engine, [])]
-    selected = [m for m in models_def.models[engine] if m.name == model][0] if len(found) > 0 else None
+    selected = get_selected(engine, model)
     url = video_utils.get_url(selected.url if selected else None)
     return url
 
@@ -43,69 +39,69 @@ def model_change(engine, model):
 def model_load(engine, model):
     debug(f'Load video: engine="{engine}" model="{model}"')
     selected = get_selected(engine, model)
-    yield f'Video model loading: {selected.name}'
-    if selected:
-        if 'None' in selected.name:
+    if selected is None: # the dropdown lists the separators it groups models under, and they name no model
+        if model and model.startswith('─'):
+            msg = 'Video model not loaded: dropdown separator selected'
+        elif model in (None, '', 'None'):
             sd_models.unload_model_weights()
             msg = 'Video model unloaded'
         else:
-            from modules.video_models import video_load
-            msg = video_load.load_model(selected)
-    else:
-        sd_models.unload_model_weights()
-        msg = 'Video model unloaded'
+            msg = f'Video model not found: engine="{engine}" model="{model}"'
+        log.warning(msg)
+        yield msg
+        return
+    yield f'Video model loading: {selected.name}'
+    from modules.video_models import video_load
+    msg = video_load.load_model(selected)
     yield msg
-    return msg
 
 
-def run_video(*args):
-    engine, model = args[2], args[3]
-    debug(f'Video run: engine="{engine}" model="{model}"')
-    selected = get_selected(engine, model)
-    if not selected or engine is None or model is None or engine == 'None' or model == 'None':
-        return video_utils.queue_err('model not selected')
-    debug(f'Video run: {str(selected)}')
-    if selected and 'Hunyuan' in selected.name:
-        return video_run.generate(*args)
-    elif selected and 'LTX' in selected.name:
-        return video_run.generate(*args)
-    elif selected and 'Mochi' in selected.name:
-        return video_run.generate(*args)
-    elif selected and 'Cog' in selected.name:
-        return video_run.generate(*args)
-    elif selected and 'Allegro' in selected.name:
-        return video_run.generate(*args)
-    elif selected and 'WAN' in selected.name:
-        return video_run.generate(*args)
-    elif selected and 'Latte' in selected.name:
-        return video_run.generate(*args)
-    elif selected and 'anisora' in selected.name.lower():
-        return video_run.generate(*args)
-    elif selected and 'Kandinsky' in selected.name:
-        return video_run.generate(*args)
-    return video_utils.queue_err(f'model not found: engine="{engine}" model="{model}"')
+def refresh_upscalers():
+    from modules import shared, modelloader
+    modelloader.load_upscalers() # refresh
+    upscalers = [u for u in shared.sd_upscalers if 'output_type' in inspect.signature(u.scaler.do_upscale).parameters.keys()]
+    upscaler_names = ['None'] + [u.name for u in upscalers]
+    return upscaler_names
 
 
 def create_ui_outputs():
+    from modules.video_models import video_codecs
+    default_codec = 'libx264'
+    def on_codec_change(codec):
+        cfg = video_codecs.get_codec_dict(codec)
+        if not cfg:
+            return gr.update(value='unknown codec'), gr.update(value='mp4'), gr.update(value='')
+        return gr.update(value=cfg['name']), gr.update(value=cfg['ext'], choices=cfg['allowed_exts']), gr.update(value=cfg['options'])
+
     with gr.Row():
         with gr.Column(variant='compact', elem_id="video_outputs", elem_classes=['settings-column'], scale=1):
             with gr.Row():
-                mp4_fps = gr.Slider(label="FPS", minimum=1, maximum=60, value=24, step=1)
-                mp4_interpolate = gr.Slider(label="Video interpolation", minimum=0, maximum=10, value=0, step=1)
+                mp4_fps = gr.Slider(label="Target FPS", minimum=1, maximum=60, value=24, step=1)
+                mp4_interpolate = gr.Slider(label="Interpolated frames", minimum=0, maximum=10, value=0, step=1, elem_id="video_outputs_interpolate")
             with gr.Row():
-                mp4_codec = gr.Dropdown(label="Video codec", choices=['none', 'libx264'], value='libx264', type='value')
+                mp4_codec = gr.Dropdown(label="Video codec", choices=video_codecs.get_codec_list(), value=default_codec, type='value')
                 ui_common.create_refresh_button(mp4_codec, video_utils.get_codecs, elem_id="video_mp4_codec_refresh")
-                mp4_ext = gr.Textbox(label="Video format", value='mp4', elem_id="video_mp4_ext")
-                mp4_opt = gr.Textbox(label="Video options", value='crf:16', elem_id="video_mp4_opt")
+                mp4_info = gr.Label(value=video_codecs.get_codec_name(default_codec), label='Codec info', elem_id='video_mp4_codec_label', show_label=False, elem_classes=['codec-label'])
             with gr.Row():
-                mp4_video = gr.Checkbox(label='Video save video', value=True, elem_id="video_mp4_video")
-                mp4_frames = gr.Checkbox(label='Video save frames', value=False, elem_id="video_mp4_frames")
-                mp4_sf = gr.Checkbox(label='Video save safetensors', value=False, elem_id="video_mp4_sf")
-                mp4_thumb = gr.Checkbox(label='Video save thumbnail', value=True, elem_id="video_mp4_thumb")
-    return mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, mp4_thumb
+                # mp4_ext = gr.Textbox(label="Video format", value='mp4', elem_id="video_mp4_ext")
+                mp4_ext = gr.Dropdown(label="Video format", choices=video_codecs.get_codec_allowed_exts(default_codec), value=video_codecs.get_codec_ext(default_codec), elem_id="video_mp4_ext")
+                mp4_opt = gr.Textbox(label="FFmpeg options", value=video_codecs.get_codec_options(default_codec), elem_id="video_mp4_opt")
+            with gr.Row(elem_id="video_outputs_save"):
+                mp4_video = gr.Checkbox(label='Save: video', value=True, elem_id="video_mp4_video")
+                mp4_thumb = gr.Checkbox(label='Save: thumbnail', value=True, elem_id="video_mp4_thumb")
+                mp4_frames = gr.Checkbox(label='Save: frames', value=False, elem_id="video_mp4_frames")
+                mp4_sf = gr.Checkbox(label='Save: safetensors', value=False, elem_id="video_mp4_sf")
+            mp4_codec.change(fn=on_codec_change, inputs=[mp4_codec], outputs=[mp4_info, mp4_ext, mp4_opt], show_progress='hidden')
+            with gr.Group(elem_id="video_outputs_upscale"):
+                with gr.Row():
+                    upscale_scale = gr.Slider(label="Video scale", minimum=1, maximum=4, value=1, step=0.1, elem_id="video_outputs_upscale_scale")
+                with gr.Row():
+                    upscale_upscaler = gr.Dropdown(label="Video Upscaler", choices=['None'], value='None', type='value', elem_id="video_outputs_upscale_upscaler")
+                    _upscale_upscaler_btn = ui_common.create_refresh_button(upscale_upscaler, refresh_upscalers)
+    return mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, mp4_thumb, upscale_scale, upscale_upscaler
 
 
-def create_ui(prompt, negative, styles, overrides, script_inputs, mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, mp4_thumb):
+def create_ui(prompt, negative, styles, overrides, script_inputs, mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, mp4_thumb, mp4_scale, mp4_upscaler):
     with gr.Row():
         with gr.Column(variant='compact', elem_id="video_settings", elem_classes=['settings-column'], scale=1):
             with gr.Row():
@@ -115,23 +111,25 @@ def create_ui(prompt, negative, styles, overrides, script_inputs, mp4_fps, mp4_i
                 model = gr.Dropdown(label='Video model', choices=[''], value='None', elem_id="video_model")
                 btn_load = ToolButton(ui_symbols.loading, elem_id="video_model_load")
             url = gr.HTML(label='Model URL', elem_id='video_model_url', value='<br><br>')
-            with gr.Accordion(open=False, label="Parameters", elem_id='video_parameters_accordion'):
-                steps, sampler_index = ui_sections.create_sampler_and_steps_selection(None, "video", default_steps=50)
+            with gr.Accordion(open=False, label="Parameters", elem_id='video_params_accordion'):
                 with gr.Row():
-                    sampler_shift = gr.Slider(label='Sampler shift', minimum=-1.0, maximum=20.0, step=0.1, value=-1.0, elem_id="video_scheduler_shift")
-                    dynamic_shift = gr.Checkbox(label='Dynamic shift', value=False, elem_id="video_dynamic_shift")
-                with gr.Row():
-                    guidance_scale = gr.Slider(label='Guidance scale', minimum=-1.0, maximum=14.0, step=0.1, value=-1.0, elem_id="video_guidance_scale")
-                    guidance_true = gr.Slider(label='True guidance', minimum=-1.0, maximum=14.0, step=0.1, value=-1.0, elem_id="video_guidance_true")
-            with gr.Accordion(open=False, label="Size", elem_id='video_size_accordion'):
-                with gr.Row():
-                    width, height = ui_sections.create_resolution_inputs('video', default_width=832, default_height=480)
+                    width, height = ui_sections.create_resolution_inputs('video', default_width=1024, default_height=576, step=16)
                 with gr.Row():
                     frames = gr.Slider(label='Frames', minimum=1, maximum=1024, step=1, value=17, elem_id="video_frames")
                     seed = gr.Number(label='Initial seed', value=-1, elem_id="video_seed", container=True)
                     random_seed = ToolButton(ui_symbols.random, elem_id="video_seed_random")
                     reuse_seed = ToolButton(ui_symbols.reuse, elem_id="video_seed_reuse")
                     random_seed.click(fn=lambda: -1, show_progress='hidden', inputs=[], outputs=[seed])
+                with gr.Row():
+                    audio = gr.Checkbox(label='Audio Enabled', value=True, elem_id="video_audio")
+            with gr.Accordion(open=False, label="Advanced", elem_id='video_advanced_accordion'):
+                steps, sampler_index = ui_sections.create_sampler_and_steps_selection(None, "video", default_steps=30)
+                with gr.Row():
+                    sampler_shift = gr.Slider(label='Sampler shift', minimum=-1.0, maximum=20.0, step=0.1, value=-1.0, elem_id="video_scheduler_shift")
+                    dynamic_shift = gr.Checkbox(label='Dynamic shift', value=False, elem_id="video_dynamic_shift")
+                with gr.Row():
+                    guidance_scale = gr.Slider(label='Guidance scale', minimum=-1.0, maximum=14.0, step=0.1, value=-1.0, elem_id="video_guidance_scale")
+                    guidance_true = gr.Slider(label='True guidance', minimum=-1.0, maximum=14.0, step=0.1, value=-1.0, elem_id="video_guidance_true")
             with gr.Accordion(open=False, label="Inputs", elem_id='video_inputs_accordion'):
                 init_strength = gr.Slider(label='Init strength', minimum=0.0, maximum=1.0, step=0.01, value=0.8, elem_id="video_denoising_strength")
                 gr.HTML("<br>&nbsp Init image")
@@ -170,8 +168,10 @@ def create_ui(prompt, negative, styles, overrides, script_inputs, mp4_fps, mp4_i
         seed,
         guidance_scale, guidance_true,
         init_image, init_strength, last_image,
-        vae_type, vae_tile_frames,
-        mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, mp4_thumb,
+        vae_type, vae_tile_frames, audio,
+        mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt,
+        mp4_video, mp4_frames, mp4_sf, mp4_thumb,
+        mp4_scale, mp4_upscaler,
         overrides,
     ]
     video_outputs = [

@@ -13,21 +13,25 @@ def load_krea2(checkpoint_info, diffusers_load_config=None):
     load_args, _ = model_quant.get_dit_args(diffusers_load_config, allow_quant=False)
     log.debug(f'Load model: type=Krea2 repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
-    from pipelines.krea2.transformer_krea2 import Krea2Transformer2DModel
-    from pipelines.krea2.pipeline_krea2 import Krea2Pipeline, Krea2Img2ImgPipeline
-    from pipelines.krea2.pipeline_krea2_inpaint import Krea2InpaintPipeline
     from pipelines.krea2 import KREA2_SPEC
-    diffusers.Krea2Transformer2DModel = Krea2Transformer2DModel
-    diffusers.Krea2Pipeline = Krea2Pipeline
-    diffusers.Krea2Img2ImgPipeline = Krea2Img2ImgPipeline
-    diffusers.Krea2InpaintPipeline = Krea2InpaintPipeline
-    generic.set_pipeline('Krea2', Krea2Pipeline)
-    # One class per task so get_diffusers_task defaults to text2image and set_diffuser_pipe switches
-    # to the img2img variant cleanly (matches the Chroma/Qwen per-task-class pattern).
-    from diffusers.pipelines import auto_pipeline
-    auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING['krea2'] = Krea2Pipeline
-    auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING['krea2'] = Krea2Img2ImgPipeline
-    auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING['krea2'] = Krea2InpaintPipeline
+
+    if 'nunchaku-lite' in repo_id.lower():
+        pass # nunchaku-lite works only with diffusers pipeline/transformer, but diffusers do not support img2img/inpaint
+    else:
+        from pipelines.krea2.transformer_krea2 import Krea2Transformer2DModel
+        from pipelines.krea2.pipeline_krea2 import Krea2Pipeline, Krea2Img2ImgPipeline
+        from pipelines.krea2.pipeline_krea2_inpaint import Krea2InpaintPipeline
+        diffusers.Krea2Transformer2DModel = Krea2Transformer2DModel
+        diffusers.Krea2Pipeline = Krea2Pipeline
+        diffusers.Krea2Img2ImgPipeline = Krea2Img2ImgPipeline
+        diffusers.Krea2InpaintPipeline = Krea2InpaintPipeline
+        from diffusers.pipelines import auto_pipeline
+        auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING['krea2'] = diffusers.Krea2Pipeline
+        auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING['krea2'] = Krea2Img2ImgPipeline
+        auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING['krea2'] = Krea2InpaintPipeline
+
+    generic.set_pipeline('Krea2', diffusers.Krea2Pipeline)
+
     if repo_id is None or repo_id.lower() == 'none':
         return None
 
@@ -35,16 +39,19 @@ def load_krea2(checkpoint_info, diffusers_load_config=None):
     # (in=12) are below the int8 GEMM's minimum K; `last` is the output projection; `tmlp`/`tproj`
     # produce the global per-block modulation, too int8-sensitive to quantize (its error compounds
     # across blocks and steps). All are tiny next to the 28 blocks, so the memory cost is small.
-    transformer = generic.load_transformer(repo_id, cls_name=Krea2Transformer2DModel, load_config=diffusers_load_config, native_spec=KREA2_SPEC, modules_to_not_convert=['first', 'last', 'projector', 'tmlp', 'tproj'])
+    transformer = generic.load_transformer(repo_id, cls_name=diffusers.Krea2Transformer2DModel, load_config=diffusers_load_config, native_spec=KREA2_SPEC, modules_to_not_convert=['first', 'last', 'projector', 'tmlp', 'tproj'])
     text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.Qwen3VLModel, load_config=diffusers_load_config)
 
-    pipe = Krea2Pipeline.from_pretrained(
+    pipe = diffusers.Krea2Pipeline.from_pretrained(
         repo_id,
         cache_dir=shared.opts.diffusers_dir,
         transformer=transformer,
         text_encoder=text_encoder,
         **load_args,
     )
+    pipe.task_args = {
+        'dense_mask': shared.opts.model_krea2_dense,
+    }
 
     generic.load_vae_override(pipe, diffusers_load_config)
 

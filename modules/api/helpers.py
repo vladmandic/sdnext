@@ -1,4 +1,5 @@
 import io
+import os
 import base64
 from PIL import Image, PngImagePlugin
 import piexif
@@ -88,6 +89,24 @@ def encode_pil_to_base64(image):
     save_image(image, fn=buffered, ext=shared.opts.samples_format)
     b64 = base64.b64encode(buffered.getvalue())
     return b64
+
+
+MAX_B64_BYTES = 256 * 1024 * 1024 # base64 expands ~4/3 and the response is built in memory; larger artifacts are fetched by path instead
+
+
+def encode_file_to_base64(fn: str, max_bytes: int = MAX_B64_BYTES) -> str | None:
+    try:
+        if fn is None or not os.path.isfile(fn):
+            return None
+        size = os.path.getsize(fn)
+        if size > max_bytes:
+            log.warning(f'API cannot encode file: fn="{fn}" size={size} max={max_bytes}')
+            return None
+        with open(fn, 'rb') as f:
+            return base64.b64encode(f.read()).decode('ascii')
+    except Exception as e:
+        log.warning(f'API cannot encode file: fn="{fn}" {e}')
+        return None
 
 
 def upscaler_to_index(name: str):

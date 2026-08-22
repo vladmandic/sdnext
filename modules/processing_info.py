@@ -23,6 +23,7 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
     if not hasattr(shared.sd_model, 'sd_checkpoint_info'):
         return ''
 
+    job_size = p.n_iter * p.batch_size
     if index is None:
         index = position_in_batch + iteration * p.batch_size
     if all_prompts is None:
@@ -54,7 +55,7 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         # basic
         "Steps": p.steps,
         "Size": f"{p.width}x{p.height}" if hasattr(p, 'width') and hasattr(p, 'height') else None,
-        "Sampler": p.sampler_name if p.sampler_name != 'Default' else None,
+        "Sampler": p.sampler_name if p.sampler_name != 'None' else 'Default',
         "Scheduler": shared.sd_model.scheduler.__class__.__name__ if getattr(shared.sd_model, 'scheduler', None) is not None else None,
         "Seed": all_seeds[index],
         "Seed resize from": None if p.seed_resize_from_w <= 0 or p.seed_resize_from_h <= 0 else f"{p.seed_resize_from_w}x{p.seed_resize_from_h}",
@@ -209,7 +210,13 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
     if shared.sd_model_type == 'h1':
         args['LLM'] =  None if shared.opts.model_h1_llama_repo == 'Default' else shared.opts.model_h1_llama_repo
 
-    args.update(p.extra_generation_params)
+    # args.update(p.extra_generation_params)
+    for k, v in p.extra_generation_params.items():
+        if isinstance(v, (list, tuple)) and (job_size > index) and (len(v) > 1) and (len(v) == job_size): # likely a per-job param
+            args[k] = v[index]
+        else:
+            args[k] = v
+
     for k, v in args.copy().items():
         if v is None:
             del args[k]

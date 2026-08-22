@@ -114,8 +114,12 @@ def unload_model():
     yield gr.update(), gr.update(), 'Model unloaded'
 
 
-def run_framepack(task_id, _ui_state, init_image, end_image, start_weight, end_weight, vision_weight, prompt, system_prompt, optimized_prompt, section_prompt, negative_prompt, styles, seed, resolution, duration, latent_ws, steps, cfg_scale, cfg_distilled, cfg_rescale, shift, use_teacache, use_cfgzero, use_preview, mp4_fps, mp4_codec, mp4_sf, mp4_video, mp4_frames, mp4_thumb, mp4_opt, mp4_ext, mp4_interpolate, attention, vae_type, variant, vlm_enhance, vlm_model, vlm_system_prompt, *_args, **_kwargs):
-    variant = variant or 'bi-directional'
+def run_framepack(task_id, _ui_state, init_image, end_image, start_weight, end_weight, vision_weight, prompt, system_prompt, optimized_prompt, section_prompt, negative_prompt, styles, seed, resolution, duration, latent_ws, steps, cfg_scale, cfg_distilled, cfg_rescale, shift, use_teacache, use_cfgzero, use_preview, mp4_fps, mp4_codec, mp4_sf, mp4_video, mp4_frames, mp4_thumb, mp4_opt, mp4_ext, mp4_interpolate, mp4_scale, mp4_upscaler, attention, vae_type, variant, vlm_enhance, vlm_model, vlm_system_prompt, *_args, **_kwargs):
+    variant = variant or 'Bi-Directional'
+    if variant == 'None':
+        log.error('FramePack: no model selected')
+        yield gr.update(), gr.update(), 'No FramePack model selected'
+        return
     if init_image is None:
         init_image = np.zeros((resolution, resolution, 3), dtype=np.uint8)
         mode = 't2v'
@@ -182,6 +186,7 @@ def run_framepack(task_id, _ui_state, init_image, end_image, start_weight, end_w
             shift,
             use_teacache, use_cfgzero, use_preview,
             mp4_fps, mp4_codec, mp4_sf, mp4_video, mp4_frames, mp4_thumb, mp4_opt, mp4_ext, mp4_interpolate,
+            mp4_scale, mp4_upscaler,
             vae_type, variant,
         )
 

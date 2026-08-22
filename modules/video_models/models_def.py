@@ -16,6 +16,7 @@ class Model:
     dit: str = None
     dit_cls: classmethod = None
     dit_folder: str = 'transformer'
+    dit_kwarg: str = None # pipeline argument the folder loads into, when the two differ
     dit_revision: str = None
     te: str = None
     te_cls: classmethod = None
@@ -25,9 +26,11 @@ class Model:
     image_hijack: bool = True
     vae_hijack: bool = True
     vae_remote: bool = False
+    workflow: str = None
+    base: bool = False # also registered as a base model: caches into the diffusers folder so the model scan lists it in the dropdown
 
     def __str__(self):
-        return f'name="{self.name}" url="{self.url}" repo="{self.repo}" repo_cls="{self.repo_cls}" dit="{self.dit}" dit_cls="{self.dit_cls}" dit_folder="{self.dit_folder}" te="{self.te}" te_cls="{self.te_cls}" te_folder="{self.te_folder}" te_hijack={self.te_hijack} vae_hijack={self.vae_hijack} vae_remote={self.vae_remote}'
+        return f'name="{self.name}" url="{self.url}" repo="{self.repo}" repo_cls="{self.repo_cls}" dit="{self.dit}" dit_cls="{self.dit_cls}" dit_folder="{self.dit_folder}" te="{self.te}" te_cls="{self.te_cls}" te_folder="{self.te_folder}" te_hijack={self.te_hijack} vae_hijack={self.vae_hijack} vae_remote={self.vae_remote} workflow="{self.workflow}" base={self.base}'
 
 
 def getpipe(package, name, _default=None):
@@ -145,6 +148,52 @@ try:
         ],
         'LTX Video': [
             Model(name='None'),
+
+            Model(name='─────── LTX-2.5 ───────'),
+            Model(name='─── Distilled ───'),
+            Model(name='LTXVideo 2.5 22B T2V Distilled',
+                url='https://huggingface.co/Lightricks/LTX-2.5',
+                repo='Lightricks/LTX-2.5-Diffusers',
+                repo_cls='LTX2Pipeline',
+                te_cls='Gemma4UnifiedForConditionalGeneration',
+                dit_cls='LTX2VideoTransformer3DModel'),
+            Model(name='LTXVideo 2.5 22B I2V Distilled',
+                url='https://huggingface.co/Lightricks/LTX-2.5',
+                repo='Lightricks/LTX-2.5-Diffusers',
+                repo_cls='LTX2ImageToVideoPipeline',
+                te_cls='Gemma4UnifiedForConditionalGeneration',
+                dit_cls='LTX2VideoTransformer3DModel'),
+            Model(name='LTXVideo 2.5 22B Condition Distilled',
+                url='https://huggingface.co/Lightricks/LTX-2.5',
+                repo='Lightricks/LTX-2.5-Diffusers',
+                repo_cls='LTX2ConditionPipeline',
+                te_cls='Gemma4UnifiedForConditionalGeneration',
+                dit_cls='LTX2VideoTransformer3DModel'),
+            Model(name='─── Dev ───'), # transformer_full is the guided model, transformer the distilled one
+            Model(name='LTXVideo 2.5 22B T2V Dev',
+                url='https://huggingface.co/Lightricks/LTX-2.5',
+                repo='Lightricks/LTX-2.5-Diffusers',
+                repo_cls='LTX2Pipeline',
+                te_cls='Gemma4UnifiedForConditionalGeneration',
+                dit_cls='LTX2VideoTransformer3DModel',
+                dit_folder='transformer_full',
+                dit_kwarg='transformer'),
+            Model(name='LTXVideo 2.5 22B I2V Dev',
+                url='https://huggingface.co/Lightricks/LTX-2.5',
+                repo='Lightricks/LTX-2.5-Diffusers',
+                repo_cls='LTX2ImageToVideoPipeline',
+                te_cls='Gemma4UnifiedForConditionalGeneration',
+                dit_cls='LTX2VideoTransformer3DModel',
+                dit_folder='transformer_full',
+                dit_kwarg='transformer'),
+            Model(name='LTXVideo 2.5 22B Condition Dev',
+                url='https://huggingface.co/Lightricks/LTX-2.5',
+                repo='Lightricks/LTX-2.5-Diffusers',
+                repo_cls='LTX2ConditionPipeline',
+                te_cls='Gemma4UnifiedForConditionalGeneration',
+                dit_cls='LTX2VideoTransformer3DModel',
+                dit_folder='transformer_full',
+                dit_kwarg='transformer'),
 
             Model(name='─────── LTX-2.3 v1.1 ───────'),
             Model(name='LTXVideo 2.3-1.1 22B T2V Distilled',
@@ -488,7 +537,7 @@ try:
         ],
         'Mochi Video': [
             Model(name='None'),
-            Model(name='Mochi 1 T2V',
+            Model(name='Mochi 1 20B T2V',
                 url='https://huggingface.co/genmo/mochi-1-preview',
                 repo='genmo/mochi-1-preview',
                 repo_cls='MochiPipeline',
@@ -497,7 +546,7 @@ try:
         ],
         'Latte Video': [
             Model(name='None'),
-            Model(name='Latte 1 T2V',
+            Model(name='Latte 1 1B T2V',
                 url='https://huggingface.co/maxin-cn/Latte-1',
                 repo='maxin-cn/Latte-1',
                 repo_cls='LattePipeline',
@@ -506,7 +555,7 @@ try:
         ],
         'Allegro Video': [
             Model(name='None'),
-            Model(name='Allegro T2V',
+            Model(name='Allegro 2.8B T2V',
                 url='https://huggingface.co/rhymes-ai/Allegro',
                 repo='rhymes-ai/Allegro',
                 repo_cls='AllegroPipeline',
@@ -560,13 +609,7 @@ try:
         ],
         'nVidia Cosmos': [
             Model(name='nvidia Cosmos Predict2 2B I2V',
-                url='https://huggingface.co/nvidia/Cosmos-Predict2-2B-Text2Image',
-                repo='nvidia/Cosmos-Predict2-2B-Video2World',
-                repo_cls='Cosmos2VideoToWorldPipeline',
-                te_cls='T5EncoderModel',
-                dit_cls='CosmosTransformer3DModel'),
-            Model(name='nvidia Cosmos Predict2 2B I2V',
-                url='https://huggingface.co/nvidia/Cosmos-Predict2-2B-Text2Image',
+                url='https://huggingface.co/nvidia/Cosmos-Predict2-2B-Video2World',
                 repo='nvidia/Cosmos-Predict2-2B-Video2World',
                 repo_cls='Cosmos2VideoToWorldPipeline',
                 te_cls='T5EncoderModel',
@@ -630,6 +673,81 @@ try:
                 te_cls='Qwen2_5_VLForConditionalGeneration',
                 dit_cls='Kandinsky5Transformer3DModel'),
         ],
+        'MiniMax': [
+            Model(name='None'),
+            Model(name='MiniMax H3 SDNQ uint4',
+                url='https://huggingface.co/MiniMaxAI/MiniMax-H3',
+                repo='OzzyGT/MiniMax_H3_sdnq_dynamic_4bit',
+                repo_cls='MiniMaxH3ModularPipeline',
+                workflow='fl2va',
+                base=True,
+                te_cls=None,
+                dit_cls=None,
+                te_hijack=False,
+                image_hijack=False,
+                vae_hijack=False,
+                vae_remote=False),
+            Model(name='MiniMax H3 SDNQ uint4 Ref2VA',
+                url='https://huggingface.co/MiniMaxAI/MiniMax-H3',
+                repo='OzzyGT/MiniMax_H3_sdnq_dynamic_4bit',
+                repo_cls='MiniMaxH3ModularPipeline',
+                workflow='ref2va',
+                base=True,
+                te_cls=None,
+                dit_cls=None,
+                te_hijack=False,
+                image_hijack=False,
+                vae_hijack=False,
+                vae_remote=False),
+            Model(name='MiniMax H3 Pruned SDNQ uint4',
+                url='https://huggingface.co/MiniMaxAI/MiniMax-H3',
+                repo='OzzyGT/MiniMax_H3_sdnq_4bit_pruned',
+                repo_cls='MiniMaxH3ModularPipeline',
+                workflow='fl2va',
+                base=True,
+                te_cls=None,
+                dit_cls=None,
+                te_hijack=False,
+                image_hijack=False,
+                vae_hijack=False,
+                vae_remote=False),
+            Model(name='MiniMax H3 Pruned SDNQ uint4 Ref2VA',
+                url='https://huggingface.co/MiniMaxAI/MiniMax-H3',
+                repo='OzzyGT/MiniMax_H3_sdnq_4bit_pruned',
+                repo_cls='MiniMaxH3ModularPipeline',
+                workflow='ref2va',
+                base=True,
+                te_cls=None,
+                dit_cls=None,
+                te_hijack=False,
+                image_hijack=False,
+                vae_hijack=False,
+                vae_remote=False),
+            Model(name='MiniMax H3',
+                url='https://huggingface.co/MiniMaxAI/MiniMax-H3',
+                repo='MiniMaxAI/MiniMax-H3',
+                repo_cls='MiniMaxH3ModularPipeline',
+                workflow='fl2va',
+                base=True,
+                te_cls=None,
+                dit_cls=None,
+                te_hijack=False,
+                image_hijack=False,
+                vae_hijack=False,
+                vae_remote=False),
+            Model(name='MiniMax H3 Ref2VA',
+                url='https://huggingface.co/MiniMaxAI/MiniMax-H3',
+                repo='MiniMaxAI/MiniMax-H3',
+                repo_cls='MiniMaxH3ModularPipeline',
+                workflow='ref2va',
+                base=True,
+                te_cls=None,
+                dit_cls=None,
+                te_hijack=False,
+                image_hijack=False,
+                vae_hijack=False,
+                vae_remote=False),
+        ],
         'Google Veo': [
             Model(name='Google Veo 3.1 T2V',
                 url='https://gemini.google/overview/video-generation/',
@@ -659,3 +777,110 @@ try:
 except Exception as e:
     models = {}
     log.error(f'Networks: type="video" {e}')
+
+
+def is_model(row: Model) -> bool:
+    """Rows that name a loadable model; the 'None' placeholder and the dropdown separators do not."""
+    return row.name != 'None' and not row.name.startswith('─')
+
+
+def engines() -> list[str]:
+    """Engine families with at least one real model, sentinel rows excluded."""
+    return [engine for engine, rows in models.items() if any(is_model(row) for row in rows)]
+
+
+def model_names(engine: str) -> list[str]:
+    """Real model names for an engine, sentinel rows excluded."""
+    return [row.name for row in models.get(engine, []) if is_model(row)]
+
+
+def find(engine: str, name: str) -> Model | None:
+    """Case-insensitive exact-name lookup; sentinel rows are not models."""
+    for family, rows in models.items():
+        if family.lower() != (engine or '').lower():
+            continue
+        for row in rows:
+            if is_model(row) and row.name.lower() == (name or '').lower():
+                return row
+    return None
+
+
+def workflow_for_class(cls_name: str) -> str | None:
+    """Workflow of the first registry row whose pipeline class matches, if any."""
+    for rows in models.values():
+        for row in rows:
+            if row.workflow is not None and row.repo_cls is not None:
+                row_cls = row.repo_cls if isinstance(row.repo_cls, str) else row.repo_cls.__name__
+                if row_cls == cls_name:
+                    return row.workflow
+    return None
+
+
+def pipeline_classes() -> set[str]:
+    """Class names of every registry pipeline; repo_cls is a string before load and a class after video_load resolves it in place."""
+    classes = set()
+    for rows in models.values():
+        for row in rows:
+            if row.repo_cls is not None:
+                classes.add(row.repo_cls if isinstance(row.repo_cls, str) else row.repo_cls.__name__)
+            if row.custom is not None:
+                classes.add(row.custom)
+    return classes
+
+
+NAME_MODES = ( # markers a row name carries to declare its inputs, in the order run() tests them
+    ('T2V', 't2v'),
+    ('I2V', 'i2v'),
+    ('FLF2V', 'flf2v'),
+    ('VACE', 'vace'),
+    ('Animate', 'animate'),
+)
+CLASS_MODES = { # the mode a pipeline class implies, for rows whose name declares nothing
+    'HunyuanVideoPipeline': 't2v',
+    'HunyuanVideo15Pipeline': 't2v',
+    'HunyuanVideoImageToVideoPipeline': 'i2v',
+    'HunyuanVideo15ImageToVideoPipeline': 'i2v',
+    'HunyuanSkyreelsImageToVideoPipeline': 'i2v',
+    'LTXPipeline': 't2v',
+    'LTX2Pipeline': 't2v',
+    'LTXImageToVideoPipeline': 'i2v',
+    'LTX2ImageToVideoPipeline': 'i2v',
+    'LTXConditionPipeline': 'condition',
+    'LTX2ConditionPipeline': 'condition',
+    'WanPipeline': 't2v',
+    'WanImageToVideoPipeline': 'i2v',
+    'WanVACEPipeline': 'vace',
+    'WanAnimatePipeline': 'animate',
+    'SkyReelsV2Pipeline': 't2v',
+    'SkyReelsV2DiffusionForcingPipeline': 't2v',
+    'SkyReelsV2ImageToVideoPipeline': 'i2v',
+    'SkyReelsV2DiffusionForcingImageToVideoPipeline': 'i2v',
+    'MochiPipeline': 't2v',
+    'LattePipeline': 't2v',
+    'AllegroPipeline': 't2v',
+    'CogVideoXPipeline': 't2v',
+    'CogVideoXImageToVideoPipeline': 'i2v',
+    'Cosmos2VideoToWorldPipeline': 'i2v',
+    'SanaVideoPipeline': 't2v',
+    'Kandinsky5T2VPipeline': 't2v',
+    'Kandinsky5I2VPipeline': 'i2v',
+    'MiniMaxH3ModularPipeline': 'workflow',
+    'GoogleVeoVideoPipeline': 't2v',
+}
+
+
+def dispatch_mode(row: Model) -> str:
+    """How a row's inputs are wired: workflow, t2v, i2v, flf2v, vace, animate, condition, or unknown.
+
+    Name markers are read before the pipeline class, since one class serves several modes: six
+    LTXConditionPipeline rows are named T2V or I2V and generate as such.
+    """
+    if row is None:
+        return 'unknown'
+    if row.workflow is not None:
+        return 'workflow'
+    for marker, mode in NAME_MODES:
+        if marker in (row.name or ''):
+            return mode
+    cls = row.repo_cls if isinstance(row.repo_cls, str) else getattr(row.repo_cls, '__name__', None)
+    return CLASS_MODES.get(cls or row.custom, 'unknown')

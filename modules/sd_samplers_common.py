@@ -38,7 +38,7 @@ def setup_img2img_steps(p, steps=None):
 
 
 def single_sample_to_image(sample, approximation=None, fast=False):
-    with queue_lock:
+    with queue_lock: # only one preview can run at a time
         t0 = time.time()
         approximation = approximation or shared.opts.show_progress_type
         if debug:

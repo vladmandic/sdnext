@@ -72,7 +72,10 @@ class ScriptPostprocessingUpscale(scripts_postprocessing.ScriptPostprocessing):
             upscaler_1_name = None
         upscaler1 = next(iter([x for x in shared.sd_upscalers if x.name == upscaler_1_name]), None)
         if not upscaler1:
-            if upscaler_1_name is not None:
+            from modules.modelloader import load_upscalers # refresh loadable upscalers if not found
+            load_upscalers()
+            upscaler1 = next(iter([x for x in shared.sd_upscalers if x.name == upscaler_1_name]), None)
+            if not upscaler1 and upscaler_1_name is not None:
                 log.warning(f"Could not find upscaler: {upscaler_1_name or '<empty string>'}")
             return
         upscaled_image = self.upscale(pp.image, pp.info, upscaler1, upscale_mode, upscale_by, upscale_to_width, upscale_to_height, upscale_crop)

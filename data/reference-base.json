@@ -374,6 +374,23 @@
     "size": 75.64,
     "date": "2025 September"
   },
+  "MiniMaxAI MiniMax-H3": {
+    "path": "MiniMaxAI/MiniMax-H3",
+    "preview": "MiniMaxAI--MiniMax-H3.jpg",
+    "desc": "MiniMax-H3 generates video with synchronized stereo audio in a single denoising pass through a 33B single-stream transformer with a Qwen3-VL conditioner. In image tabs the model runs in experimental still mode, keeping the first frame of a minimal generation.",
+    "extras": "sampler: Default",
+    "size": 134.12,
+    "date": "2026 August"
+  },
+  "MiniMaxAI MiniMax-H3 Ref2VA": {
+    "path": "MiniMaxAI/MiniMax-H3",
+    "subfolder": "ref2va",
+    "preview": "MiniMaxAI--MiniMax-H3.jpg",
+    "desc": "The omni-reference variant of MiniMax-H3, sharing one repository with the base model as a separate checkpoint partition. Video with synchronized stereo audio is conditioned on reference images for identity and appearance, with reference rows held clean while video rows denoise.",
+    "extras": "sampler: Default",
+    "size": 134.12,
+    "date": "2026 August"
+  },
   "Freepik F-Lite": {
     "path": "Freepik/F-Lite",
     "preview": "Freepik--F-Lite.jpg",

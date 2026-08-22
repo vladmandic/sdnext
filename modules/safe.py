@@ -105,7 +105,7 @@ def load(filename, *args, **kwargs):
     return load_with_extra(filename, *args, extra_handler=global_extra_handler, **kwargs)
 
 
-def load_with_extra(filename, extra_handler=None, *args, **kwargs): # pylint: disable=keyword-arg-before-vararg
+def load_with_extra(filename, *args, extra_handler=None, **kwargs):
     """
     this function is intended to be used by extensions that want to load models with
     some extra classes in them that the usual unpickler would find suspicious.

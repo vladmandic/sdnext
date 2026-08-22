@@ -1,6 +1,6 @@
 import os
 import re
-from PIL import Image
+from PIL import Image, ImageDraw
 from modules.logger import log
 
 
@@ -85,6 +85,16 @@ def assign_prompts(text: str, items: list) -> list[str]:
     return resolved
 
 
+def get_mask(box: list[int], image: Image.Image, include_mask: bool = True) -> tuple[Image.Image | None, Image.Image]:
+    cropped = image.crop(box)
+    if not include_mask:
+        return None, cropped
+    mask = Image.new('L', image.size, 0)
+    draw_mask = ImageDraw.Draw(mask)
+    draw_mask.rectangle(box, fill="white", outline=None, width=0)
+    return mask, cropped
+
+
 class DetailerResult:
     def __init__(self, cls: int, label: str, score: float, box: list[int], mask: Image.Image = None, item: Image.Image = None, width = 0, height = 0, args = None):
         if args is None:
@@ -95,9 +105,9 @@ class DetailerResult:
         self.box = box
         self.mask = mask
         self.item = item
-        self.width = width
-        self.height = height
+        self.width = width if width > 0 else box[2] - box[0]
+        self.height = height if height > 0 else box[3] - box[1]
         self.args = args
 
     def __str__(self):
-        return f'DetailerResult(cls={self.cls} label={self.label} score={self.score:.2f} box={self.box} size={self.width}x{self.height} args={self.args})'
+        return f'DetailerResult(cls={self.cls} label="{self.label}" score={self.score:.2f} box={self.box} size={self.width}x{self.height} args={self.args})'

@@ -1,29 +1,47 @@
-"""Workaround for huggingface/diffusers#13564 connectors padding regression.
+"""Local fixes for LTX-2.x gaps in the pinned diffusers.
 
-PR #13564 (merged 2026-05-08) refactored LTX2ConnectorTransformer1d's padding
-logic from a loop-based gather-and-pad into a vectorized mask-then-flip. The
-new code applies torch.flip(hidden_states, dims=[1]) after replacing padding
-positions with learned registers, which reverses the order of valid prompt
-tokens. Audio cross-attention is position-sensitive, so reversed token order
-produces jumbled dialogue (right vocabulary, wrong word order). Visual quality
-is mostly unaffected because spatial cross-attention is less position-sensitive.
+Both patches are installed at import time by ltx_process and are safe to leave in
+place once upstream fixes them: the first skips when the source no longer matches,
+the second is a no-op as soon as no misrouted keys appear.
 
-This module restores the pre-#13564 forward at import time when the broken
-pattern is detected. Safe to leave in place after upstream fixes the bug:
-detection will skip the monkey-patch when the source no longer matches.
+Connector padding (huggingface/diffusers#13564): PR #13564 (merged 2026-05-08)
+refactored LTX2ConnectorTransformer1d's padding logic from a loop-based
+gather-and-pad into a vectorized mask-then-flip. The new code applies
+torch.flip(hidden_states, dims=[1]) after replacing padding positions with learned
+registers, which reverses the order of valid prompt tokens. Audio cross-attention is
+position-sensitive, so reversed token order produces jumbled dialogue (right
+vocabulary, wrong word order). Visual quality is mostly unaffected because spatial
+cross-attention is less position-sensitive.
+
+Stage-2 LoRA connectors: LTX2LoraLoaderMixin.lora_state_dict recognizes connector
+weights only under the 2.3-era text_embedding_projection prefix, so a
+diffusion_model.* checkpoint is routed wholesale into the transformer namespace. The
+2.5 stage-2 distilled LoRA carries its connector deltas as
+diffusion_model.{video,audio}_embeddings_connector.*, so 224 of its 3544 keys reach a
+module that cannot host them and peft drops them. Re-routing uses the rename table
+from the convert_ltx2_to_diffusers script.
 """
 
+import functools
 import inspect
 
 import torch
 import torch.nn.functional as F
 
-
-_PATCH_APPLIED = False
-_BROKEN_MARKER = 'torch.flip(hidden_states, dims=[1])'
+from modules.logger import log
 
 
-def _patched_forward(
+PATCH_APPLIED = False
+BROKEN_MARKER = 'torch.flip(hidden_states, dims=[1])'
+CONNECTOR_LORA_PREFIXES = ('video_embeddings_connector.', 'audio_embeddings_connector.')
+CONNECTOR_LORA_RENAME = {
+    'video_embeddings_connector': 'video_connector',
+    'audio_embeddings_connector': 'audio_connector',
+    'transformer_1d_blocks': 'transformer_blocks',
+}
+
+
+def patched_connector_forward(
     self,
     hidden_states: torch.Tensor,
     attention_mask: torch.Tensor | None = None,
@@ -72,19 +90,58 @@ def _patched_forward(
     return hidden_states, attention_mask
 
 
-def apply_patch():
-    global _PATCH_APPLIED # pylint: disable=global-statement
-    if _PATCH_APPLIED:
-        return
+def reroute_connector_keys(state_dict):
+    converted = {}
+    moved = 0
+    for key, value in state_dict.items():
+        name = key.removeprefix('transformer.')
+        if name.startswith(CONNECTOR_LORA_PREFIXES):
+            for src, dst in CONNECTOR_LORA_RENAME.items():
+                name = name.replace(src, dst)
+            converted[f'connectors.{name}'] = value
+            moved += 1
+        else:
+            converted[key] = value
+    if moved == 0:
+        return state_dict
+    log.debug(f'LTX: lora=connectors rerouted={moved} total={len(state_dict)}')
+    return converted
+
+
+def apply_connectors_forward_patch():
     try:
         from diffusers.pipelines.ltx2.connectors import LTX2ConnectorTransformer1d
     except ImportError:
-        _PATCH_APPLIED = True
         return
     try:
         source = inspect.getsource(LTX2ConnectorTransformer1d.forward)
     except (OSError, TypeError):
         source = ''
-    if _BROKEN_MARKER in source:
-        LTX2ConnectorTransformer1d.forward = _patched_forward # TODO ltx: patched diffusers connectors padding to fix audio token order (upstream #13564 regression)
-    _PATCH_APPLIED = True
+    if BROKEN_MARKER in source:
+        LTX2ConnectorTransformer1d.forward = patched_connector_forward # TODO ltx: patched diffusers connectors padding to fix audio token order (upstream #13564 regression)
+
+
+def apply_lora_patch():
+    try:
+        from diffusers.loaders.lora_pipeline import LTX2LoraLoaderMixin
+    except ImportError:
+        return
+    original = LTX2LoraLoaderMixin.lora_state_dict.__func__
+
+    @functools.wraps(original)
+    def lora_state_dict(cls, *args, **kwargs): # TODO ltx: diffusers routes 2.5 stage-2 lora connector keys into the transformer namespace
+        loaded = original(cls, *args, **kwargs)
+        if isinstance(loaded, tuple):
+            return (reroute_connector_keys(loaded[0]), *loaded[1:])
+        return reroute_connector_keys(loaded)
+
+    LTX2LoraLoaderMixin.lora_state_dict = classmethod(lora_state_dict)
+
+
+def apply_patch():
+    global PATCH_APPLIED # pylint: disable=global-statement
+    if PATCH_APPLIED:
+        return
+    apply_connectors_forward_patch()
+    apply_lora_patch()
+    PATCH_APPLIED = True

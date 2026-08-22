@@ -1,5 +1,5 @@
 def check_qwen_pruning(repo_id, subfolder):
-    from modules.shared import log
+    from modules.logger import log
     if 'pruning' not in repo_id.lower():
         return repo_id, subfolder
     if '2509' in (repo_id or '') or '2509' in (subfolder or ''):

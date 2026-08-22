@@ -12,11 +12,11 @@ import torch
 import huggingface_hub as hf
 from modules.logger import log
 from modules import timer, paths, shared, modelloader, devices, script_callbacks, sd_vae, sd_unet, errors, sd_models_compile, sd_detect, model_quant, sd_hijack_te, sd_hijack_vae, sd_hijack_accelerate, sd_hijack_safetensors, sd_hijack_transformers, sd_hijack_hfhub, attention
-from modules.memstats import memory_stats
+from modules.memstats import memory_stats, gpu_stats
 from modules.shared_helpers import walk_files
 from modules.modeldata import model_data
 from modules.sd_checkpoint import CheckpointInfo, select_checkpoint, list_models, checkpoint_titles, get_closest_checkpoint_match, update_model_hashes, write_metadata, checkpoints_list # pylint: disable=unused-import
-from modules.sd_offload import get_module_names, disable_offload, set_diffuser_offload, apply_balanced_offload, set_accelerate # pylint: disable=unused-import
+from modules.sd_offload import get_module_names, disable_offload, set_diffuser_offload, apply_balanced_offload, set_accelerate, offload_ondemand, reapply_offload # pylint: disable=unused-import
 from modules.sd_models_utils import NoWatermark, get_signature, get_call, path_to_repo, apply_function_to_model, read_state_dict, get_state_dict_from_checkpoint # pylint: disable=unused-import
 
 
@@ -149,7 +149,8 @@ def set_vae_options(sd_model, vae=None, op:str='model', quiet:bool=False):
         ops['upcast'] = True
         sd_model.vqvae.to(torch.float32) # vqvae is producing nans in fp16
     if not quiet and len(ops) > 0:
-        log.quiet(quiet, f'Setting {op}: component=vae {ops}')
+        fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
+        log.quiet(quiet, f'Setting {op}: component=vae {ops} fn={fn}')
 
 
 def set_diffuser_options(sd_model, vae=None, op:str='model', offload:bool=True, quiet:bool=False):
@@ -202,7 +203,7 @@ def set_diffuser_options(sd_model, vae=None, op:str='model', offload:bool=True, 
             else:
                 sdnq_use_quantized_matmul = shared.opts.sdnq_quantize_matmul_mode != "disabled"
             if module.quantization_config.use_quantized_matmul != sdnq_use_quantized_matmul:
-                from modules.sdnq.loader import apply_sdnq_options_to_model
+                from sdnq.loader import apply_sdnq_options_to_model
                 # log.debug(f'Setting {op} {module_name}: sdnq_use_quantized_matmul={sdnq_use_quantized_matmul}')
                 module = apply_sdnq_options_to_model(module, use_quantized_matmul=sdnq_use_quantized_matmul)
                 setattr(sd_model, module_name, module)
@@ -231,13 +232,15 @@ def move_model(model, device=None, force=False):
 
     if model is None or device is None:
         return
+    if getattr(model, 'sdnext_ondemand', False) and device == devices.device: # on-demand components onload at their entry points instead of pre-moves
+        return
 
     if hasattr(model, 'pipe'):
         move_model(model.pipe, device, force)
 
     fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
     if getattr(model, 'vae', None) is not None and get_diffusers_task(model) != DiffusersTaskType.TEXT_2_IMAGE:
-        if device == devices.device and model.vae.device.type != "meta": # force vae back to gpu if not in txt2img mode
+        if (device == devices.device) and (model.vae.device.type != "meta") and not getattr(model.vae, 'sdnext_ondemand', False): # force vae back to gpu if not in txt2img mode; on-demand vaes onload at their entry point instead
             model.vae.to(device)
             if hasattr(model.vae, '_hf_hook'):
                 debug_move(f'Model move: to={device} class={model.vae.__class__} fn={fn}') # pylint: disable=protected-access
@@ -246,7 +249,7 @@ def move_model(model, device=None, force=False):
         for name, m in model.components.items():
             if not hasattr(m, "_hf_hook"): # not accelerate hook
                 break
-            if not isinstance(m, torch.nn.Module) or name in model._exclude_from_cpu_offload: # pylint: disable=protected-access
+            if not isinstance(m, torch.nn.Module) or name in getattr(model, '_exclude_from_cpu_offload', []): # modular pipelines lack the attr
                 continue
             for module in m.modules():
                 set_execution_device(module, device)
@@ -263,9 +266,14 @@ def move_model(model, device=None, force=False):
             if hasattr(model, 'device') and model.device == torch.device('meta'):
                 set_execution_device(model, device)
             elif hasattr(model, 'to'):
-                model.to(device)
+                if device == devices.device and getattr(model, 'sdnext_ondemand_modules', None):
+                    pass # the group engine already placed every component; a pipe-level move would only drag on-demand components to the accelerator for the trailing eviction to undo
+                else:
+                    model.to(device)
             if hasattr(model, "prior_pipe"):
                 model.prior_pipe.to(device)
+            if device == devices.device:
+                offload_ondemand(model) # a bulk move must not strand on-demand components on the accelerator; their entry points onload them when needed
         except Exception as e0:
             if 'Cannot copy out of meta tensor' in str(e0) or 'must be Tensor, not NoneType' in str(e0):
                 if hasattr(model, "components"):
@@ -359,7 +367,7 @@ def hf_prefetch_configs(checkpoint_info: CheckpointInfo | str, diffusers_load_co
 
 
 def load_diffuser_force(detected_model_type: str, checkpoint_info: CheckpointInfo, diffusers_load_config: dict, op='model'):
-    from modules import sdnq # pylint: disable=unused-import
+    import sdnq # pylint: disable=unused-import
     sd_model = None
     global allow_post_quant # pylint: disable=global-statement
     unload_model_weights(op=op)
@@ -485,6 +493,10 @@ def load_diffuser_force(detected_model_type: str, checkpoint_info: CheckpointInf
         elif model_type in ['WanAI']:
             from pipelines.model_wanai import load_wan
             sd_model = load_wan(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
+        elif model_type in ['MiniMaxH3']:
+            from pipelines.model_minimax import load_minimax
+            sd_model = load_minimax(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
         elif model_type in ['ChronoEdit']:
             from pipelines.model_chrono import load_chrono
@@ -719,6 +731,8 @@ def load_diffuser_file(model_type: str, pipeline, checkpoint_info: CheckpointInf
             sd_model = load_sd3(checkpoint_info, diffusers_load_config)
         elif hasattr(pipeline, 'from_single_file'):
             diffusers.loaders.single_file_utils.CHECKPOINT_KEY_NAMES["clip"] = "cond_stage_model.transformer.text_model.embeddings.position_embedding.weight" # patch for diffusers==0.28.0
+            diffusers_load_config['safety_checker'] = None # sd15 specific but we cant know ahead of time
+            diffusers_load_config['requires_safety_checker'] = False # sd15 specific but we cant know ahead of time
             diffusers_load_config['use_safetensors'] = True
             diffusers_load_config.pop('cache_dir', None)
             if shared.opts.stream_load:
@@ -773,7 +787,7 @@ def load_sdnq_module(fn: str, module_name: str, load_method: str):
         return None, module_name, 0
     model_name = os.path.join(fn, module_name)
     try:
-        from modules import sdnq
+        import sdnq
         module = sdnq.load_sdnq_model(
             model_path=model_name,
             quantization_config=quantization_config,
@@ -882,7 +896,7 @@ def set_defaults(sd_model, checkpoint_info: CheckpointInfo):
     sd_model.logvar = sd_model.logvar.to(devices.device) if hasattr(sd_model, 'logvar') else None # fix for training
     shared.opts.data["sd_checkpoint_hash"] = checkpoint_info.sha256
     if hasattr(sd_model, "set_progress_bar_config"):
-        sd_model.set_progress_bar_config(bar_format='Progress {rate_fmt}{postfix} {bar} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining}', ncols=80, colour='#327fba')
+        sd_model.set_progress_bar_config(bar_format='Progress {rate_fmt}{postfix} {bar:15} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining}', ncols=120, colour='#327fba')
 
 
 def load_diffuser(checkpoint_info: CheckpointInfo | None = None, op='model', revision=None): # pylint: disable=unused-argument
@@ -894,9 +908,12 @@ def load_diffuser(checkpoint_info: CheckpointInfo | None = None, op='model', rev
         "low_cpu_mem_usage": True,
         "torch_dtype": devices.dtype,
         "load_connected_pipeline": True,
-        "safety_checker": None, # sd15 specific but we cant know ahead of time
-        "requires_safety_checker": False, # sd15 specific but we cant know ahead of time
     }
+    if shared.opts.stream_load:
+        diffusers_load_config['disable_mmap'] = True
+    if shared.opts.offload_state_dict:
+        diffusers_load_config['offload_state_dict'] = True
+        diffusers_load_config['offload_folder'] = paths.temp_dir
     if revision is not None:
         diffusers_load_config['revision'] = revision
     if shared.opts.diffusers_model_load_variant != 'default':
@@ -938,7 +955,7 @@ def load_diffuser(checkpoint_info: CheckpointInfo | None = None, op='model', rev
             os.unsetenv('HF_HUB_OFFLINE')
 
         # detect pipeline
-        pipeline, model_type = sd_detect.detect_pipeline(checkpoint_info.path, op)
+        pipeline, model_type = sd_detect.detect_pipeline(checkpoint_info, op)
         set_huggingface_options()
 
         # preload vae so it can be used as param
@@ -985,6 +1002,17 @@ def load_diffuser(checkpoint_info: CheckpointInfo | None = None, op='model', rev
             log.error(f'Load {op}: name="{checkpoint_info.name if checkpoint_info is not None else None}" not loaded')
             return
 
+        # a family loader that returns None falls through to the generic folder loader, and for a modular pipeline that
+        # yields an object holding nothing but its from_config helpers, since a modular load registers the fetched
+        # components empty until load_components runs. it reports as a loaded model and then fails on the first
+        # component something reaches, far from the cause
+        specs = getattr(sd_model, '_component_specs', None) # pylint: disable=protected-access
+        if isinstance(specs, dict):
+            fetched = [name for name, spec in specs.items() if getattr(spec, 'default_creation_method', None) == 'from_pretrained']
+            if len(fetched) > 0 and all(getattr(sd_model, name, None) is None for name in fetched):
+                log.error(f'Load {op}: name="{checkpoint_info.name if checkpoint_info is not None else None}" cls={sd_model.__class__.__name__} no components loaded')
+                return
+
         set_overrides(sd_model, checkpoint_info, model_type)
         set_defaults(sd_model, checkpoint_info)
 
@@ -1026,11 +1054,7 @@ def load_diffuser(checkpoint_info: CheckpointInfo | None = None, op='model', rev
         if op == 'model' and not (os.path.isdir(checkpoint_info.path) or checkpoint_info.type == 'huggingface'):
             if getattr(shared.sd_model, 'sd_checkpoint_info', None) is not None and vae_file is not None:
                 sd_vae.apply_vae_config(shared.sd_model.sd_checkpoint_info.filename, vae_file, sd_model)
-        if op == 'refiner' and shared.opts.diffusers_move_refiner:
-            log.debug('Moving refiner model to CPU')
-            move_model(sd_model, devices.cpu)
-        else:
-            move_model(sd_model, devices.device)
+        # move_model(sd_model, devices.device)
         timer.load.record("move")
 
     except Exception as e:
@@ -1076,7 +1100,7 @@ def load_diffuser(checkpoint_info: CheckpointInfo | None = None, op='model', rev
         from modules import modelstats
         modelstats.analyze()
 
-    log.info(f"Load {op}: family={shared.sd_model_type} time={timer.load.dct()} native={get_native(sd_model)} memory={memory_stats()}")
+    log.info(f"Load {op}: type={shared.sd_model_type} time={timer.load.dct()} native={get_native(sd_model)} memory={memory_stats()}")
 
     from modules.platform import cleanup
     cleanup()
@@ -1489,7 +1513,7 @@ def reload_model_weights(sd_model=None, info: CheckpointInfo | None = None, op='
     jobid = shared.state.begin('Load model')
     if sd_model is None:
         sd_model = model_data.sd_model if op == 'model' or op == 'dict' else model_data.sd_refiner
-    loaded_ckpt = getattr(sd_model, 'sd_checkpoint_info', None) if sd_model is not None else None
+    loaded_ckpt: CheckpointInfo | None = getattr(sd_model, 'sd_checkpoint_info', None) if sd_model is not None else None
     changed_checkpoint = loaded_ckpt is None or checkpoint_info is None or loaded_ckpt.filename != checkpoint_info.filename
     reset_unet = shared.opts.sd_unet not in (None, 'Default', 'None')
     reset_unet_secondary = shared.opts.sd_unet_secondary not in (None, 'Default', 'None')
@@ -1499,8 +1523,8 @@ def reload_model_weights(sd_model=None, info: CheckpointInfo | None = None, op='
         # concrete class but detect as generic DiffusionPipeline, so a class compare would falsely reset
         # across same-arch checkpoints (Base vs Turbo). detect both sides so the comparison is symmetric.
         try:
-            _, new_type = sd_detect.detect_pipeline(checkpoint_info.path, op)
-            _, old_type = sd_detect.detect_pipeline(loaded_ckpt.path, op) if loaded_ckpt is not None else (None, None)
+            _, new_type = sd_detect.detect_pipeline(checkpoint_info, op)
+            _, old_type = sd_detect.detect_pipeline(loaded_ckpt, op) if loaded_ckpt is not None else (None, None)
         except Exception:
             new_type = old_type = None
         if new_type is not None and old_type is not None and new_type != old_type: # architecture changed: custom components no longer fit
@@ -1573,6 +1597,8 @@ def unload_model_weights(op='model'):
             disable_offload(model_data.sd_model)
             move_model(model_data.sd_model, 'meta')
         model_data.sd_model = None
+        from sdnq.common import reset_compile_caches
+        reset_compile_caches() # dead compiled-dequant graphs and their lifetime recompile counters otherwise accumulate across switches
         devices.torch_gc(force=True, reason='unload')
         log.debug(f'Unload {op}: {memory_stats()} fn={fn}')
     elif (op == 'refiner') and model_data.sd_refiner:
@@ -1584,29 +1610,33 @@ def unload_model_weights(op='model'):
         log.debug(f'Unload {op}: {memory_stats()}  fn={fn}')
 
 
-def hf_auth_check(checkpoint_info: CheckpointInfo, force:bool=False):
+def hf_auth_check(checkpoint_info: CheckpointInfo | str, force:bool=False):
     if shared.opts.offline_mode:
         log.info('Offline mode: skipping auth check')
         return False
     login = None
     if not force:
         try:
-            if (checkpoint_info.path.endswith('.safetensors') and os.path.isfile(checkpoint_info.path)): # skip check for single-file safetensors models
+            fn = checkpoint_info.path if isinstance(checkpoint_info, CheckpointInfo) else checkpoint_info
+            if (fn.endswith('.safetensors') and os.path.isfile(fn)): # skip check for single-file safetensors models
                 return True
-            if (os.path.exists(checkpoint_info.path) and os.path.isdir(checkpoint_info.path) and os.path.isfile(os.path.join(checkpoint_info.path, 'model_index.json'))): # skip check for local diffusers folders
+            if os.path.exists(fn) and os.path.isdir(fn) and any(os.path.isfile(os.path.join(fn, f)) for f in ('model_index.json', 'modular_model_index.json')): # skip check for local diffusers folders
                 return True
         except Exception:
             pass
-    repo_id = path_to_repo(checkpoint_info)
+    repo_id = path_to_repo(checkpoint_info) # already handles str or CheckpointInfo
     if repo_id is None or '/' not in repo_id:
         # log.warning(f'Auth: repo="{repo_id}" invalid repo id')
         return False
+    auth_ok = False
     try:
         login = modelloader.hf_login()
-        return hf.auth_check(repo_id)
+        token = os.environ.get('HF_TOKEN', None)
+        hf.auth_check(repo_id, write=False, token=token)
+        auth_ok = True
     except Exception as e:
-        log.error(f'Auth: repo="{repo_id}" login={login} {e}')
-        return False
+        log.error(f'Auth: repo="{repo_id}" login={login} auth={auth_ok} {e}')
+    return auth_ok
 
 
 def save_model(name: str, path: str | None = None, shard: str = "5GB", overwrite = False):
@@ -1616,7 +1646,7 @@ def save_model(name: str, path: str | None = None, shard: str = "5GB", overwrite
     if not shared.sd_loaded:
         log.error('Save model: model not loaded')
         return 'Model not loaded'
-    from modules.sdnq import save_sdnq_model
+    from sdnq import save_sdnq_model
     if path is None:
         path = shared.opts.diffusers_dir
     model_name = os.path.join(path.strip(), name.strip())
@@ -1629,9 +1659,13 @@ def save_model(name: str, path: str | None = None, shard: str = "5GB", overwrite
         torch.cuda.synchronize()
     except Exception:
         pass
+    jobid = shared.state.begin('Save model')
     try:
         t0 = time.time()
         log.info(f'Save model: path="{model_name}" cls={shared.sd_model.__class__.__name__} start')
+        if hasattr(shared.sd_model, '_component_specs'): # modular pipeline: the saved index must reference the destination folder, not the source repos; save_sdnq_model lives in the sdnq submodule and does not pass this flag
+            import functools
+            shared.sd_model.save_pretrained = functools.partial(shared.sd_model.save_pretrained, overwrite_modular_index=True)
         save_sdnq_model(
             model=shared.sd_model,
             model_path=model_name,
@@ -1645,6 +1679,10 @@ def save_model(name: str, path: str | None = None, shard: str = "5GB", overwrite
         log.error(f'Save model: path="{model_name}" {e}')
         errors.display(e, 'Save model')
         return f'Error: {e}'
+    finally:
+        if 'save_pretrained' in vars(shared.sd_model):
+            del shared.sd_model.save_pretrained # drop the instance shadow, restoring the class method
+        shared.state.end(jobid)
 
 
 def list_hfcache():
@@ -1655,3 +1693,10 @@ def list_hfcache():
         checkpoint = CheckpointInfo(filename=f.path, name=path_to_repo(f.name), model_type='hfcache')
         checkpoints.append(checkpoint)
     return checkpoints
+
+
+def warn_group_offload(min_vram: int = 0):
+    vram = gpu_stats()
+    vram = round(vram['total'] if "total" in vram else 0)
+    if (0 < vram < min_vram) and (shared.opts.diffusers_offload_mode in ['none', 'balanced', 'model']):
+        log.warning(f'Load model: vram={vram} min={min_vram} offload={shared.opts.diffusers_offload_mode} recommended=group reason="insufficient vram"')

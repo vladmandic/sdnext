@@ -18,8 +18,10 @@ debug_log = log.trace if debug else lambda *args, **kwargs: None
 
 def start_task(id_task):
     global current_task # pylint: disable=global-statement
-    current_task = id_task
-    pending_tasks.pop(id_task, None)
+    if current_task != id_task:
+        log.debug(f'State: start id={id_task} pending={len(pending_tasks)} finished={len(finished_tasks)}')
+        current_task = id_task
+        pending_tasks.pop(id_task, None)
 
 
 def record_results(id_task, res):
@@ -31,14 +33,26 @@ def record_results(id_task, res):
 def finish_task(id_task):
     global current_task # pylint: disable=global-statement
     if current_task == id_task:
+        log.debug(f'State: end id={id_task}')
         current_task = None
-    finished_tasks.append(id_task)
-    if len(finished_tasks) > 16:
+    if id_task not in finished_tasks:
+        finished_tasks.append(id_task)
+    if len(finished_tasks) > 1024*1024:
         finished_tasks.pop(0)
 
 
 def add_task_to_queue(id_job):
     pending_tasks[id_job] = time.time()
+
+
+def get_tasks():
+    return {
+        "current": current_task,
+        "pending": list(pending_tasks.keys()),
+        "finished": finished_tasks,
+        "results": recorded_results,
+    }
+
 
 
 class ProgressRequest(BaseModel):

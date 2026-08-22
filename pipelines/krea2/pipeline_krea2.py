@@ -59,6 +59,7 @@ class Krea2Pipeline(DiffusionPipeline, FromSingleFileMixin):
         self._interrupt = False
         self._guidance_scale = None
         self._num_timesteps = 0
+        self._krea2_dense = False
 
     # --- text conditioning: port of encoder.py Qwen3VLConditioner.forward ---
     def encode_prompt(self, prompts: list[str], device: torch.device) -> tuple[torch.Tensor, torch.Tensor]:
@@ -82,6 +83,10 @@ class Krea2Pipeline(DiffusionPipeline, FromSingleFileMixin):
 
         out = self.text_encoder(input_ids=input_ids, attention_mask=mask, output_hidden_states=True)
         hidden = torch.stack([out.hidden_states[i] for i in self.SELECT_LAYERS], dim=2)
+        if self._krea2_dense:
+            keep = mask.any(dim=0)
+            hidden = hidden[:, keep]
+            mask = mask[:, keep]
         return hidden[:, self.PREFIX_TOKENS:], mask[:, self.PREFIX_TOKENS:]
 
     # --- packing: port of sampling.prepare ---
@@ -162,6 +167,7 @@ class Krea2Pipeline(DiffusionPipeline, FromSingleFileMixin):
         strength: float = 0.6,
         output_type: str = "pil",
         return_dict: bool = True,
+        dense_mask: bool = False,
         attention_kwargs: dict | None = None,
         callback_on_step_end=None,
         callback_on_step_end_tensor_inputs: list[str] | None = None,
@@ -174,6 +180,7 @@ class Krea2Pipeline(DiffusionPipeline, FromSingleFileMixin):
         device = self._execution_device
         dtype = self.transformer.dtype
         self._interrupt = False
+        self._krea2_dense = dense_mask
 
         is_distilled = bool(getattr(self.transformer.config, "is_distilled", False))
         # guidance_scale=None is the "use default" path (cfg=-1): Base needs real guidance
@@ -222,8 +229,12 @@ class Krea2Pipeline(DiffusionPipeline, FromSingleFileMixin):
             latents = self.prepare_latents(batch, height, width, dtype, device, generator, latents)
 
         img, pos, mask = self.pack_sequence(latents, text_mask)
+        if self._krea2_dense and text_mask.all():
+            mask = None
         if do_cfg:
             _, uncond_pos, uncond_full_mask = self.pack_sequence(latents, uncond_mask)
+            if self._krea2_dense and uncond_mask.all():
+                uncond_full_mask = None
         self._num_timesteps = len(timesteps)
         num_train = cfg.get("num_train_timesteps", 1000)
 

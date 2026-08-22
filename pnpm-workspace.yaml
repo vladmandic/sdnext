@@ -3,6 +3,21 @@ allowBuilds:
   esbuild: true
   protobufjs: false
   unrs-resolver: false
+minimumReleaseAgeExclude:
+  - esbuild@0.28.1
+  - markdown-it@14.1.2
+  - linkify-it@5.0.1
+  - js-yaml@4.1.2
+  - ws@8.21.0
+  - protobufjs@7.6.1
+  - protobufjs@7.6.3
+  - brace-expansion@5.0.7
+  - js-yaml@4.3.0
+  - protobufjs@7.6.5
+  - linkify-it@5.0.2
+  - brace-expansion@5.0.8
+  - brace-expansion@5.0.9
+  - js-yaml@4.3.1
 packages:
   - "extensions-builtin/sdnext-modernui"
   - "extensions-builtin/sdnext-kanvas"

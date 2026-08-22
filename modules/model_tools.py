@@ -1,4 +1,5 @@
 import inspect
+from collections.abc import Callable
 import diffusers
 import transformers
 import safetensors.torch
@@ -48,7 +49,7 @@ def get_safetensor_keys(filename):
     return keys
 
 
-def get_modules(model: callable):
+def get_modules(model: Callable):
     signature = inspect.signature(model.__init__, follow_wrapped=True)
     params = {param.name: param.annotation for param in signature.parameters.values() if param.annotation != inspect._empty and hasattr(param.annotation, 'from_pretrained')} # pylint: disable=protected-access
     for name, cls in params.items():

@@ -46,10 +46,6 @@ def load_flux(checkpoint_info, diffusers_load_config=None):
         from pipelines.flux.flux_nunchaku import load_flux_nunchaku
         transformer = load_flux_nunchaku(repo_id)
 
-    if 'nunchaku-lite' in repo_id.lower():
-        from modules.attention import hijack_kernels
-        hijack_kernels()
-
     # finally load transformer and text encoder if not already loaded
     if transformer is None:
         transformer = generic.load_transformer(repo_id, cls_name=diffusers.FluxTransformer2DModel, load_config=diffusers_load_config)

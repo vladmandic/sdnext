@@ -211,16 +211,16 @@ async function getLocaleData(desiredLocale = null) {
   // primary
   let json: any = {};
   try {
-    let res = await fetch(`${window.subpath}/file=ui/locale/locale_${localeData.locale}.json`);
+    let res = await authFetch(`${window.subpath}/file=ui/locale/locale_${localeData.locale}.json`);
     if (!res || !res.ok) {
       localeData.locale = 'en';
-      res = await fetch(`${window.subpath}/file=ui/locale/locale_${localeData.locale}.json`);
+      res = await authFetch(`${window.subpath}/file=ui/locale/locale_${localeData.locale}.json`);
     }
     json = await res.json();
   } catch { /**/ }
 
   try {
-    const res = await fetch(`${window.subpath}/file=ui/locale/override_${localeData.locale}.json`);
+    const res = await authFetch(`${window.subpath}/file=ui/locale/override_${localeData.locale}.json`);
     if (res && res.ok) json.override = await res.json();
   } catch { /**/ }
 

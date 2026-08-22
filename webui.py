@@ -19,7 +19,7 @@ import modules.paths
 import modules.devices
 import modules.migrate
 from modules import shared
-from modules.call_queue import queue_lock, wrap_queued_call, wrap_gradio_gpu_call # pylint: disable=unused-import
+from modules import call_queue
 import modules.gr_tempdir
 import modules.modeldata
 import modules.extensions
@@ -76,6 +76,14 @@ fastapi_args = {
 def initialize():
     log.debug('Initializing: modules')
     from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    from installer import register_sdnq
+    register_sdnq(skip=True, devices=modules.devices, shared=shared) # monkey-patch sdnq to use sdnext devices and shared modules
+
+    from modules.models_hf import hf_init
+    hf_init()
+
+    log.info(f'Paths: data="{modules.paths.data_path}" models="{modules.paths.models_path}" temp="{modules.paths.temp_dir}"')
 
     modules.sd_checkpoint.init_metadata()
     modules.hashes.load_cache()
@@ -135,8 +143,6 @@ def initialize():
     modules.extra_networks.register_default_extra_networks()
     timer.startup.record("networks")
 
-    from modules.models_hf import hf_init
-    hf_init()
     if shared.cmd_opts.test:
         from modules.models_hf import hf_check_cache
         hf_check_cache()
@@ -190,20 +196,22 @@ def load_model():
         thread_refiner.join()
         shared.state.end(jobid)
     timer.startup.record("checkpoint")
-    shared.opts.onchange("sd_model_checkpoint", wrap_queued_call(lambda: modules.sd_models.reload_model_weights(op='model')), call=False)
-    shared.opts.onchange("sd_model_refiner", wrap_queued_call(lambda: modules.sd_models.reload_model_weights(op='refiner')), call=False)
-    shared.opts.onchange("sd_vae", wrap_queued_call(lambda: modules.sd_vae.reload_vae_weights()), call=False)
-    shared.opts.onchange("sd_unet", wrap_queued_call(lambda: modules.sd_unet.load_unet(shared.sd_model)), call=False)
-    shared.opts.onchange("sd_unet_secondary", wrap_queued_call(lambda: modules.sd_unet.load_unet_secondary(shared.sd_model)), call=False)
-    shared.opts.onchange("sd_text_encoder", wrap_queued_call(lambda: modules.sd_models.reload_text_encoder()), call=False)
+    shared.opts.onchange("sd_model_checkpoint", call_queue.wrap_queued_call(lambda: modules.sd_models.reload_model_weights(op='model')), call=False)
+    shared.opts.onchange("sd_model_refiner", call_queue.wrap_queued_call(lambda: modules.sd_models.reload_model_weights(op='refiner')), call=False)
+    shared.opts.onchange("sd_vae", call_queue.wrap_queued_call(lambda: modules.sd_vae.reload_vae_weights()), call=False)
+    shared.opts.onchange("sd_unet", call_queue.wrap_queued_call(lambda: modules.sd_unet.load_unet(shared.sd_model)), call=False)
+    shared.opts.onchange("sd_unet_secondary", call_queue.wrap_queued_call(lambda: modules.sd_unet.load_unet_secondary(shared.sd_model)), call=False)
+    shared.opts.onchange("sd_text_encoder", call_queue.wrap_queued_call(lambda: modules.sd_models.reload_text_encoder()), call=False)
     shared.opts.onchange("temp_dir", modules.gr_tempdir.on_tmpdir_changed)
+    for opt in modules.sd_offload_state.offload_reapply_options:
+        shared.opts.onchange(opt, call_queue.wrap_queued_call(modules.sd_models.reapply_offload), call=False)
     timer.startup.record("onchange")
 
 
 def create_api(app):
     log.debug('API initialize')
     from modules.api.api import Api
-    api = Api(app, queue_lock)
+    api = Api(app, call_queue.queue_lock)
     return api
 
 

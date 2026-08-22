@@ -305,7 +305,7 @@ class Krea2Transformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOri
         encoder_hidden_states: torch.Tensor,
         timestep: torch.Tensor,
         position_ids: torch.Tensor,
-        attention_mask: torch.Tensor,
+        attention_mask: torch.Tensor | None,
         return_dict: bool = True,
     ):
         r"""
@@ -314,27 +314,34 @@ class Krea2Transformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOri
             encoder_hidden_states: `(B, L_txt, txtlayers, txtdim)` stacked text-encoder hidden states.
             timestep: `(B,)` flow-matching time in `[0, 1]`.
             position_ids: `(B, L_txt + L_img, 3)` `(t, h, w)` coordinates for the 3-axis RoPE.
-            attention_mask: `(B, L_txt + L_img)` boolean key-padding mask (True = valid token).
+            attention_mask: `(B, L_txt + L_img)` boolean key-padding mask (True = valid token), or None.
         """
         img = self.first(hidden_states)
         t = self.tmlp(time_embed(timestep, self.tdim, device=img.device, dtype=img.dtype))
         tvec = self.tproj(t)
 
-        txtmask = segment_mask(attention_mask[:, : encoder_hidden_states.shape[1]])
+        if attention_mask is not None:
+            txtmask = segment_mask(attention_mask[:, : encoder_hidden_states.shape[1]])
+        else:
+            txtmask = None
         context = self.txtfusion(encoder_hidden_states, mask=txtmask)
         context = self.txtmlp(context)
 
         txtlen, imglen = context.shape[1], img.shape[1]
         combined = torch.cat((context, img), dim=1)
 
-        # Pad the joint sequence to a multiple of 256 to keep compiled attention kernel shapes stable.
-        padlen = (-combined.shape[1]) % 256
-        if padlen > 0:
-            combined = F.pad(combined, (0, 0, 0, padlen))
-            attention_mask = F.pad(attention_mask, (0, padlen), value=False)
-            position_ids = F.pad(position_ids, (0, 0, 0, padlen))
+        if attention_mask is not None:
+            # Pad the joint sequence to a multiple of 256 to keep compiled attention kernel shapes stable.
+            padlen = (-combined.shape[1]) % 256
+            if padlen > 0:
+                combined = F.pad(combined, (0, 0, 0, padlen))
+                attention_mask = F.pad(attention_mask, (0, padlen), value=False)
+                position_ids = F.pad(position_ids, (0, 0, 0, padlen))
 
-        mask = segment_mask(attention_mask)
+            mask = segment_mask(attention_mask)
+        else:
+            mask = None
+
         freqs = self.posemb(position_ids)
 
         for block in self.blocks:

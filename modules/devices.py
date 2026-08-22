@@ -1,4 +1,5 @@
 import os
+import gc
 import sys
 import time
 import contextlib
@@ -79,8 +80,6 @@ def get_backend(shared_cmd_opts):
     args = shared_cmd_opts
     if args.use_openvino:
         name = 'openvino'
-    elif args.use_directml:
-        name = 'directml'
     elif has_xpu():
         name = 'ipex'
     elif has_zluda():
@@ -131,11 +130,6 @@ def get_gpu_info():
                     'devices': devices,
                     'openvino': get_package_version("openvino"),
                 }
-            elif backend == 'directml':
-                return {
-                    'device': f'{torch.cuda.get_device_name(torch.cuda.current_device())} n={torch.cuda.device_count()}',
-                    'directml': get_package_version("torch-directml"),
-                }
             else:
                 return {}
         except Exception:
@@ -150,7 +144,10 @@ def get_gpu_info():
                 }
             elif backend == 'cuda' or backend == 'zluda':
                 return {
-                    'device': f'{torch.cuda.get_device_name(torch.cuda.current_device())} n={torch.cuda.device_count()} arch={torch.cuda.get_arch_list()[-1]} capability={torch.cuda.get_device_capability(device)}',
+                    'device': f'"{torch.cuda.get_device_name(torch.cuda.current_device())}"',
+                    'count': torch.cuda.device_count(),
+                    'arch': torch.cuda.get_arch_list()[-1],
+                    'capability': torch.cuda.get_device_capability(torch.cuda.current_device()),
                     'cuda': torch.version.cuda,
                     'cudnn': torch.backends.cudnn.version(),
                     'driver': get_driver(),
@@ -176,10 +173,6 @@ def get_cuda_device_string():
         if cmd_opts.device_id is not None:
             return f"xpu:{cmd_opts.device_id}"
         return "xpu"
-    elif backend == 'directml' and torch.dml.is_available():
-        if cmd_opts.device_id is not None:
-            return f"privateuseone:{cmd_opts.device_id}"
-        return torch.dml.get_device_string(torch.dml.default_device().index)
     else:
         if cmd_opts.device_id is not None:
             return f"cuda:{cmd_opts.device_id}"
@@ -189,7 +182,7 @@ def get_cuda_device_string():
 def get_optimal_device_name():
     if backend == 'openvino':
         return "cpu"
-    if cuda_ok or backend == 'directml':
+    if cuda_ok:
         return get_cuda_device_string()
     if has_mps() and backend != 'openvino':
         return "mps"
@@ -205,18 +198,14 @@ def torch_gc(force: bool = False, fast: bool = False, reason: str | None = None)
         mem_dict = memstats.memory_stats()
         gpu_dict = mem_dict.get('gpu', {})
         ram_dict = mem_dict.get('ram', {})
-        oom = gpu_dict.get('oom', 0)
         ram = ram_dict.get('used', 0)
-        if backend == "directml":
-            gpu = torch.cuda.memory_allocated() / (1 << 30)
-        else:
-            gpu = gpu_dict.get('used', 0)
+        oom = gpu_dict.get('oom', 0)
+        gpu = gpu_dict.get('used', 0)
         used_gpu = round(100 * gpu / gpu_dict.get('total', 1)) if gpu_dict.get('total', 1) > 1 else 0
         used_ram = round(100 * ram / ram_dict.get('total', 1)) if ram_dict.get('total', 1) > 1 else 0
         return gpu, used_gpu, ram, used_ram, oom
 
     global previous_oom # pylint: disable=global-statement
-    import gc
     from modules import timer, memstats
     from modules.shared import cmd_opts
 
@@ -242,10 +231,16 @@ def torch_gc(force: bool = False, fast: bool = False, reason: str | None = None)
     if force:
         # actual gc
         collected = gc.collect() if not fast else 0 # python gc
+        if collected > 0:
+            gc.collect() # deal with weakref cycles
         try:
             if hasattr(torch, "accelerator") and torch.accelerator.is_available(): # torch >= 2.6
-                torch.accelerator.synchronize()
-                torch.accelerator.empty_cache()
+                if hasattr(torch.accelerator, "synchronize"):
+                    torch.accelerator.synchronize()
+                if hasattr(torch.accelerator, "empty_cache"):
+                    torch.accelerator.empty_cache()
+                if hasattr(torch.accelerator, "empty_host_cache"):
+                    torch.accelerator.empty_host_cache()
                 if torch.cuda.is_available() and hasattr(torch.cuda, "ipc_collect"):
                     torch.cuda.ipc_collect()
                 elif hasattr(torch, "xpu") and hasattr(torch.xpu, "ipc_collect"):
@@ -253,7 +248,8 @@ def torch_gc(force: bool = False, fast: bool = False, reason: str | None = None)
             elif torch.cuda.is_available(): # Fallback for older PyTorch versions
                 torch.cuda.synchronize()
                 torch.cuda.empty_cache()
-                torch.cuda.ipc_collect()
+                if hasattr(torch.cuda, "ipc_collect"):
+                    torch.cuda.ipc_collect()
             elif hasattr(torch, "xpu") and torch.xpu.is_available():
                 torch.xpu.synchronize()
                 torch.xpu.empty_cache()
@@ -374,7 +370,7 @@ def test_bf16():
     if bf16_ok is not None:
         return bf16_ok
     if opts.cuda_dtype != 'BF16': # don't override if the user sets it
-        if sys.platform == "darwin" or backend in {'directml', 'cpu'}: # override
+        if sys.platform == "darwin" or backend == 'cpu': # override
             bf16_ok = False
             return bf16_ok
         elif backend == 'openvino':
@@ -456,8 +452,6 @@ def test_triton(early: bool = False):
     t1 = time.time()
     fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
     log.debug(f'Triton: pass={triton_ok} version={triton_version} fn={fn} time={t1-t0:.2f}')
-    if not triton_ok and opts is not None:
-        opts.sdnq_dequantize_compile = False
     return triton_ok
 
 
@@ -556,7 +550,7 @@ def set_sdpa_params():
             log.debug(f'Torch attention installed: flashattn={flash} sageattention={sage}')
 
         from diffusers.models import attention_dispatch as a
-        log.debug(f'Torch attention available: flash={a._CAN_USE_FLASH_ATTN} flash3={a._CAN_USE_FLASH_ATTN_3} aiter={a._CAN_USE_AITER_ATTN} sage={a._CAN_USE_SAGE_ATTN} flex={a._CAN_USE_FLEX_ATTN} npu={a._CAN_USE_NPU_ATTN} xla={a._CAN_USE_XLA_ATTN} xformers={a._CAN_USE_XFORMERS_ATTN} kernels={a.is_kernels_available()} sdnq=True') # pylint: disable=protected-access
+        log.debug(f'Torch attention available: flash={a._CAN_USE_FLASH_ATTN} flash3={a._CAN_USE_FLASH_ATTN_3} sage={a._CAN_USE_SAGE_ATTN} flex={a._CAN_USE_FLEX_ATTN} npu={a._CAN_USE_NPU_ATTN} xla={a._CAN_USE_XLA_ATTN} xformers={a._CAN_USE_XFORMERS_ATTN} kernels={a.is_kernels_available()} sdnq=True') # pylint: disable=protected-access
 
     except Exception as e:
         log.warning(f'Torch SDPA: {e}')
@@ -678,8 +672,6 @@ def randn_without_seed(shape):
 def autocast(disable=False):
     if disable or dtype == torch.float32:
         return contextlib.nullcontext()
-    if backend == 'directml':
-        return torch.dml.amp.autocast(dtype)
     if cuda_ok:
         return torch.autocast("cuda")
     else:
@@ -689,8 +681,6 @@ def autocast(disable=False):
 def without_autocast(disable=False):
     if disable:
         return contextlib.nullcontext()
-    if backend == 'directml':
-        return torch.dml.amp.autocast(enabled=False) if torch.is_autocast_enabled() else contextlib.nullcontext() # pylint: disable=unexpected-keyword-arg
     if cuda_ok:
         return torch.autocast("cuda", enabled=False) if torch.is_autocast_enabled() else contextlib.nullcontext()
     else:
@@ -774,7 +764,7 @@ def llm_context():
         yield
 
 
-def torch_reset() -> bool:
+def torch_reset() -> None:
     """
     Resets PyTorch execution graph, flushes VRAM caches, and syncs streams.
     """

@@ -102,7 +102,8 @@ def html_css(css: list[str]):
 
 def reload_javascript():
     title = '<title>SD.Next</title>'
-    manifest = f'<link rel="manifest" href="{webpath(os.path.join(script_path, "ui", "manifest", "manifest.json"))}">'
+    # manifest = f'<link rel="manifest" href="{webpath(os.path.join(script_path, "ui", "manifest", "manifest.json"))}">'
+    manifest = '<link rel="manifest" href="manifest">'
     login = html_login()
     js = html_head()
 

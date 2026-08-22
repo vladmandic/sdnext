@@ -3,6 +3,7 @@ import { gradioApp, onAfterUiUpdate } from './script';
 import { log, debug, error } from './logger';
 import { timer } from './timers';
 import { authFetch } from './authWrap';
+import { updateModel } from './dynamicUI';
 import { getENActiveTab, markSelectedCards } from './extraNetworks';
 
 window.opts = {};
@@ -128,7 +129,7 @@ export async function setTheme(val, old) {
   }
   for (const link of links) {
     const href = link.href.replace(old, val);
-    const res = await fetch(href);
+    const res = await authFetch(href);
     if (res.ok) {
       log('setTheme', old, val);
       link.href = link.href.replace(old, val);
@@ -317,9 +318,9 @@ function submit_control(...args) {
 }
 
 function submit_video(...args) {
-  log('submitVideo');
   clearGallery('video');
   const id = randomId();
+  log('submitVideo', id);
   requestProgress(id, null, gradioApp().getElementById('video_gallery'));
   const res = create_submit_args(args);
   res[0] = id;
@@ -346,12 +347,21 @@ function submit_ltx(...args) {
   return args;
 }
 
+function submit_minimax(...args) {
+  const id = randomId();
+  log('submitMiniMax', id);
+  requestProgress(id, null, null);
+  window.submit_state = '';
+  args[0] = id;
+  return args;
+}
+
 function submit_video_wrapper(...args) {
   const modernEl = gradioApp().querySelector('.video_output.fade-in');
   let id = modernEl ? modernEl.id : args[0];
   id = id.replace('video-selector-', '');
-  log('submitVideoWrapper', id);
   const btn = gradioApp().getElementById(`${id}_generate_btn`);
+  log('submitVideoWrapper', { type: id, found: !!btn });
   if (btn) btn.click();
 }
 
@@ -749,7 +759,7 @@ export async function toggleCompact(val, old) {
 
 function previewTheme() {
   let name = gradioApp().getElementById('setting_gradio_theme').querySelectorAll('input')?.[0].value || '';
-  fetch(`${window.subpath}/file=data/themes.json`)
+  authFetch(`${window.subpath}/file=data/themes.json`)
     .then((res) => {
       res.json()
         .then((themes) => {
@@ -805,11 +815,12 @@ export async function reconnectUI() {
   let loadingStarted = 0;
   let loadingMonitor: ReturnType<typeof setInterval> | null = null;
 
-  const sd_model_callback = () => {
+  const sd_model_callback = async () => {
     const loading = sd_model.querySelector('.eta-bar');
     if (!loading) {
       loadingStarted = 0;
       clearInterval(loadingMonitor);
+      updateModel();
     } else if (loadingStarted === 0) {
       loadingStarted = Date.now();
       loadingMonitor = setInterval(() => {
@@ -840,6 +851,7 @@ window.submit_control = submit_control;
 window.submit_framepack = submit_framepack;
 window.submit_img2img = submit_img2img;
 window.submit_ltx = submit_ltx;
+window.submit_minimax = submit_minimax;
 window.submit_postprocessing = submit_postprocessing;
 window.submit = submit_txt2img; // compatibility alias
 window.submit_txt2img = submit_txt2img;

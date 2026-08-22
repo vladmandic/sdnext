@@ -109,7 +109,7 @@ class Pages:
                     self.pages.append(page)
         self.size = sum(page.size for page in self.pages)
 
-    def search(self, text: str, topk: int = 10, full: bool = True) -> list[Page]:
+    def search(self, text: str, topk: int = 10, full: bool = True) -> list[tuple[float, Page]]:
         if not text or len(text) < 2:
             return []
         if len(self.pages) == 0:
@@ -146,7 +146,7 @@ def get_docs_page(page_title: str) -> str:
     return content
 
 
-def search_html(pages: list[Page]) -> str:
+def search_html(pages: list[tuple[float, Page]]) -> str:
     html = ''
     for score, page in pages:
         if score > 0.0:

@@ -274,5 +274,26 @@
     "desc": "Nunchaku-Lite quantization using precompiled Kernels",
     "size": 16.81,
     "date": "2026 July"
+  },
+  "Krea 2 Turbo Nunchaku-Lite": {
+    "path": "lite-infer/krea-2-turbo-nunchaku-lite-int4_r32-bnb4-text-encoder",
+    "preview": "CalamitousFelicitousness--Krea-2-Turbo-Diffusers.jpg",
+    "desc": "Nunchaku-Lite quantization using precompiled Kernels",
+    "size": 10.32,
+    "date": "2026 August"
+  },
+  "BFL FLUX.2 Klein Base 4B Nunchaku-Lite": {
+    "path": "lite-infer/flux.2-klein-4b-nunchaku-lite-int4_r32-bnb4-text-encoder",
+    "preview": "black-forest-labs--FLUX.2-klein-base-4B.jpg",
+    "desc": "Nunchaku-Lite quantization using precompiled Kernels",
+    "size": 4.87,
+    "date": "2026 August"
+  },
+  "BFL FLUX.2 Klein Base 9B Nunchaku-Lite": {
+    "path": "lite-infer/flux.2-klein-9b-nunchaku-lite-int4_r32-bnb4-text-encoder",
+    "preview": "black-forest-labs--FLUX.2-klein-base-9B.jpg",
+    "desc": "Nunchaku-Lite quantization using precompiled Kernels",
+    "size": 10.92,
+    "date": "2026 August"
   }
 }

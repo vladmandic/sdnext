@@ -14,7 +14,7 @@ def dependencies():
     install('decord')
 
 
-def load(model_name: str | None = None):
+def load(self, model_name: str | None = None):
     import transformers
     global tokenizer, processor # pylint: disable=global-statement
     load_kwargs = {
@@ -30,6 +30,7 @@ def load(model_name: str | None = None):
     if shared.opts.detailer_unload:
         model.to(devices.cpu)
     log.info(f'Detailer model="{model_name}" cls={model.__class__.__name__} loaded')
+    self.models[model_name] = model
     return model_name, model
 
 
@@ -44,16 +45,16 @@ def predict(
     ) -> list[DetailerResult]:
     if offload is None:
         offload = shared.opts.detailer_unload
-    log.info(f'Detailer cls="{model.__class__.__name__}" image={image} device={device} mask={mask} offload={offload}')
     result = []
     if isinstance(model, str):
         cached = self.models.get(model, None)
         if cached is None:
-            _, model = self.load(model)
+            _, model = load(self, model)
         else:
             model = cached
     if model is None:
         return result
+    log.info(f'Detailer cls="{model.__class__.__name__}" image={image} device={device} mask={mask} offload={offload}')
     model = model.to(device)
     prompt = detailer_opt(p, 'detailer_classes') or ''
     log.debug(f'Detailer prompt="{prompt}"')

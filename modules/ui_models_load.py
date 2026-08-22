@@ -122,7 +122,8 @@ class Component:
                 self.type = 'variable'
             elif 'enum' in self.str:
                 self.type = 'enum'
-                self.enum = [v.name for v in self.cls]
+                enum_values = self.cls if self.cls is not None else ()
+                self.enum = [v.name for v in enum_values]
             elif inspect.isclass(signature.annotation):
                 self.type = 'class'
             elif inspect.ismodule(signature.annotation):

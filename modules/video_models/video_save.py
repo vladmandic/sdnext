@@ -9,6 +9,17 @@ from PIL import Image
 from modules import shared, errors ,timer, rife, processing
 from modules.logger import log
 from modules.video_models.video_utils import check_av
+from modules.video_models.video_upscale import upscale_video
+
+
+def get_audio_rate(p=None, default: int = 24000) -> int:
+    # pipeline output wins when it reports a rate, else the loaded vocoder: LTX-2.0 runs at 24k,
+    # 2.3 and 2.5 at 48k, and muxing at the wrong rate shifts the pitch
+    rate = getattr(p, 'audio_sampling_rate', None) if p is not None else None
+    if not rate:
+        vocoder = getattr(shared.sd_model, 'vocoder', None)
+        rate = getattr(getattr(vocoder, 'config', None), 'output_sampling_rate', None)
+    return int(rate) if rate else default
 
 
 def get_video_filename(p:processing.StableDiffusionProcessingVideo):
@@ -161,6 +172,25 @@ def add_audio_tensor(container, audio_stream, audio: torch.Tensor, sample_rate: 
     add_audio_packets(container, audio_stream, {"sr": sample_rate, "layout": layout, "frames": [audio_frame]})
 
 
+def parse_options(options):
+    if isinstance(options, dict):
+        return options
+    if not isinstance(options, str) or not options.strip():
+        return {}
+    parsed_options = {}
+    normalized = options.replace(',', ':') # Standardize delimiters by replacing commas with colons
+    for item in normalized.split(':'):
+        item = item.strip()
+        if not item:
+            continue
+        if '=' in item:
+            key, value = item.split('=', 1)
+            parsed_options[key.strip()] = value.strip()
+        else:
+            parsed_options[item] = '1' # Handle flag options without explicit '=' (e.g., 'fastseek')
+    return parsed_options
+
+
 def atomic_save_video(
     filename: str,
     tensor: torch.Tensor,
@@ -176,24 +206,13 @@ def atomic_save_video(
     if metadata is None:
         metadata = {}
     av = check_av()
-    if av is None or av is False:
+    if av is None:
         log.error('Video: ffmpeg/av not available')
         return
     savejob = shared.state.begin('Save video')
     frames, height, width, _channels = tensor.shape
     rate = round(fps)
-    parsed_options = {}
-    if isinstance(options, str):
-        for option in [opt.strip() for opt in options.split(',')]:
-            if '=' in option:
-                key, value = option.split('=', 1)
-            elif ':' in option:
-                key, value = option.split(':', 1)
-            else:
-                continue
-            parsed_options[key.strip()] = value.strip()
-    elif isinstance(options, dict):
-        parsed_options = options
+    parsed_options = parse_options(options)
     log.info(f'Video: file="{filename}" codec={codec} frames={frames} width={width} height={height} fps={rate} audio={audio is not None} sample_rate={sample_rate} options={parsed_options}')
     video_array = torch.as_tensor(tensor, dtype=torch.uint8).numpy(force=True)
     task = pbar.add_task('encoding', total=frames) if pbar is not None else None
@@ -267,6 +286,8 @@ def save_video(
     mp4_thumb: bool = True,  # save thumbnail
     mp4_interpolate: int = 0,  # rife interpolation
     aac_sample_rate: int = 24000,  # audio sample rate
+    upscale_scale: float = 1.0,  # upscale scale
+    upscale_upscaler: str = "",  # upscale upscaler
     stream=None,  # async progress reporting stream
     metadata: dict | None = None,  # metadata for video
     pbar=None,  # progress bar for video
@@ -302,11 +323,18 @@ def save_video(
     if not torch.is_tensor(pixels):
         log.error(f'Video: type={type(pixels)} not a tensor')
         return 0, output_video, None
+
+    if upscale_upscaler is not None and len(upscale_upscaler) > 0:
+        t_upscale = time.time()
+        pixels = upscale_video(pixels, scale=upscale_scale, upscaler_name=upscale_upscaler)
+        timer.process.add('upscale', time.time()-t_upscale)
+
     t_save = time.time()
     if pixels.ndim == 4:
         pixels = pixels.unsqueeze(0)
     n, _c, t, h, w = pixels.shape
     size = pixels.element_size() * pixels.numel()
+    t_min, t_max = pixels.min().item(), pixels.max().item()
     log.debug(f'Video: video={mp4_video} export={mp4_frames} safetensors={mp4_sf} interpolate={mp4_interpolate}')
     if hasattr(audio, 'shape'):
         audio_txt = f'audio={audio.shape} aac={aac_sample_rate}' if audio is not None else 'no audio'
@@ -314,7 +342,7 @@ def save_video(
         audio_txt = f'audio={audio.get("format", None)} packets={len(audio.get("frames", []))} '
     else:
         audio_txt = None
-    log.debug(f'Video: encode={t} raw={size} latent={pixels.shape} {audio_txt} fps={mp4_fps} codec={mp4_codec} ext={mp4_ext} options="{mp4_opt}"')
+    log.debug(f'Video: encode={t} tensor={pixels.shape} min={t_min} max={t_max} bytes={size} {audio_txt} fps={mp4_fps} codec={mp4_codec} ext={mp4_ext} options="{mp4_opt}"')
     try:
         preparejob = shared.state.begin('Prepare video')
         if stream is not None:
