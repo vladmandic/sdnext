@@ -15,13 +15,13 @@ jobs:
 
     steps:
       - name: checkout-code
-        uses: actions/checkout@main
+        uses: actions/checkout@v4
 
       - name: install-uv
         run: curl -LsSf https://astral.sh/uv/install.sh | sh
 
       - name: setup-python
-        uses: actions/setup-python@main
+        uses: actions/setup-python@v5
         with:
           python-version: 3.12.3
 
@@ -29,7 +29,7 @@ jobs:
         run: uv pip install ruff pylint pre-commit --system
 
       - name: setup-node
-        uses: actions/setup-node@main
+        uses: actions/setup-node@v4
         with:
           node-version: 24
 
@@ -44,7 +44,7 @@ jobs:
         run: echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
 
       - name: cache-pnpm-store
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ steps.pnpm-store.outputs.STORE_PATH }}
           key: pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
@@ -55,7 +55,7 @@ jobs:
         run: pnpm install --frozen-lockfile --unsafe-perm
 
       - name: pre-commit
-        uses: pre-commit-ci/lite-action@v1.1.0
+        uses: pre-commit-ci/lite-action@v1.2.0
         if: always()
         with:
           msg: apply code formatting and linting auto-fixes
