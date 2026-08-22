@@ -26,9 +26,12 @@ class Constraints:
     min_tokens: int = 0 # query and key sequences both at least this long
     min_long_side: int = 0 # query or key sequence longer than this
     min_heads: int = 0
+    min_ndim: int = 0
 
     def accepts(self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor, attn_mask: torch.Tensor | None) -> bool:
         if not self.allow_cpu and query.device.type == 'cpu':
+            return False
+        if self.min_ndim and query.ndim < self.min_ndim:
             return False
         if not self.allow_mask and attn_mask is not None:
             return False

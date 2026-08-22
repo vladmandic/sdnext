@@ -1,6 +1,6 @@
 import torch
 from modules.logger import log
-from modules.attention.registry import AttentionBackend, Platform
+from modules.attention.registry import AttentionBackend, Constraints, Platform
 
 
 def prepare(platform: Platform, original): # pylint: disable=unused-argument
@@ -9,16 +9,14 @@ def prepare(platform: Platform, original): # pylint: disable=unused-argument
     def causal_mask(b, h, q_idx, kv_idx): # pylint: disable=unused-argument
         return q_idx >= kv_idx
 
-    def call(query, key, value, attn_mask=None, dropout_p=0.0, is_causal=False, scale=None, enable_gqa=False, **kwargs): # pylint: disable=unused-argument
+    def call(query, key, value, attn_mask, dropout_p, is_causal, scale, enable_gqa): # pylint: disable=unused-argument
         score_mod = None
         block_mask = None
         if attn_mask is not None:
             batch_size, num_heads = query.shape[:2]
             seq_len_q = query.shape[-2]
             seq_len_kv = key.shape[-2]
-            if attn_mask.ndim == 2:
-                attn_mask = attn_mask.view(attn_mask.shape[0], 1, attn_mask.size[1], 1)
-            attn_mask = attn_mask.expand(batch_size, num_heads, seq_len_q, seq_len_kv)
+            attn_mask = attn_mask.expand(batch_size, num_heads, seq_len_q, seq_len_kv) # sdpa masks broadcast over the trailing dims
             if attn_mask.dtype == torch.bool:
                 def mask_mod(batch_idx, head_idx, q_idx, kv_idx):
                     return attn_mask[batch_idx, head_idx, q_idx, kv_idx]
@@ -35,4 +33,7 @@ def prepare(platform: Platform, original): # pylint: disable=unused-argument
     return call
 
 
-backend = AttentionBackend(name='flex', label='Flex attention', priority=20, prepare=prepare, terminal=True)
+backend = AttentionBackend(
+    name='flex', label='Flex attention', priority=20, prepare=prepare,
+    constraints=Constraints(min_ndim=4, same_device=True), # flex_attention takes 4d tensors on one device and compiles on cpu
+)

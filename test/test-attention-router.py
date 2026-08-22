@@ -102,9 +102,10 @@ def run_test(cat: str, fn):
 # ============================================================
 
 # devices.set_sdpa_params applied the hijacks in this order; each wrapped the previous, so the
-# last applied was tried first. Dynamic and flex replaced the chain end instead of wrapping it.
+# last applied was tried first. Dynamic replaced the chain end instead of wrapping it; flex did
+# too, which left everything stacked before it unreachable, so it is an ordinary entry now.
 OLD_ORDER = ['Dynamic attention', 'Flex attention', 'Triton Flash attention', 'Flash attention', 'Sage attention', 'SDNQ attention']
-OLD_TERMINALS = {'Dynamic attention', 'Flex attention'}
+OLD_TERMINALS = {'Dynamic attention'}
 OLD_NAMES = {
     'Dynamic attention': 'dynamic',
     'Flex attention': 'flex',
@@ -117,11 +118,13 @@ OLD_NAMES = {
 CHOICES = OLD_ORDER
 TRITON_PLATFORMS = {'rocm', 'zluda'}
 
-OLD_GATES = {
+# the four closure predicates transcribed literally, plus the contract flex_attention itself enforces
+GATES = {
     'sdnq': lambda q, k, v, m: q.device.type != "cpu" and (q.shape[-2] >= 32 and k.shape[-2] >= 32) and (q.shape[-2] > 512 or k.shape[-2] > 512) and q.shape[-3] > 1,
     'triton': lambda q, k, v, m: q.shape[-1] <= 128 and m is None and q.device.type != "cpu" and k.device == q.device and v.device == q.device,
     'flash': lambda q, k, v, m: q.shape[-1] <= 128 and m is None and q.dtype != torch.float32 and q.device.type != "cpu" and k.device == q.device and v.device == q.device,
     'sage': lambda q, k, v, m: q.shape[-1] in {128, 96, 64} and m is None and q.device.type != "cpu" and k.device == q.device and v.device == q.device,
+    'flex': lambda q, k, v, m: q.ndim == 4 and q.device.type != "cpu" and k.device == q.device and v.device == q.device,
 }
 
 
@@ -194,12 +197,13 @@ def test_plan_matches_stacking_oracle():
 def test_gates_match_transcribed_predicates():
     cases = 0
     lengths = (16, 32, 512, 513, 4096)
-    for q_device, kv_device, dtype, heads, q_len, k_len, head_dim, masked in itertools.product(('cpu', 'meta'), ('cpu', 'meta'), (torch.float16, torch.float32), (1, 8), lengths, lengths, (40, 64, 96, 128, 256), (False, True)):
-        q = shaped((1, heads, q_len, head_dim), dtype, q_device)
-        k = shaped((1, heads, k_len, head_dim), dtype, kv_device)
-        v = shaped((1, heads, k_len, head_dim), dtype, kv_device)
-        m = shaped((1, 1, q_len, k_len), torch.bool, q_device) if masked else None
-        for name, gate in OLD_GATES.items():
+    for q_device, kv_device, dtype, heads, q_len, k_len, head_dim, masked, batched in itertools.product(('cpu', 'meta'), ('cpu', 'meta'), (torch.float16, torch.float32), (1, 8), lengths, lengths, (40, 64, 96, 128, 256), (False, True), (False, True)):
+        lead = (1,) if batched else ()
+        q = shaped((*lead, heads, q_len, head_dim), dtype, q_device)
+        k = shaped((*lead, heads, k_len, head_dim), dtype, kv_device)
+        v = shaped((*lead, heads, k_len, head_dim), dtype, kv_device)
+        m = shaped((*lead, 1, q_len, k_len), torch.bool, q_device) if masked else None
+        for name, gate in GATES.items():
             expected = bool(gate(q, k, v, m))
             got = attention.registry.backends[name].constraints.accepts(q, k, v, m)
             assert got == expected, f'{name}: q={tuple(q.shape)} k={tuple(k.shape)} dtype={dtype} devices={q_device}/{kv_device} mask={masked} got={got} expected={expected}'
@@ -208,11 +212,10 @@ def test_gates_match_transcribed_predicates():
     return True
 
 
-def test_terminals_carry_no_gate():
-    for name in ('dynamic', 'flex'):
-        backend = attention.registry.backends[name]
-        assert backend.terminal, name
-        assert backend.constraints == attention.Constraints(), name
+def test_only_dynamic_is_terminal():
+    for name, backend in attention.registry.backends.items():
+        assert backend.terminal == (name == 'dynamic'), name
+    assert attention.registry.backends['dynamic'].constraints == attention.Constraints()
     return True
 
 
@@ -312,7 +315,7 @@ def run_all():
     for fn in [
         test_plan_matches_stacking_oracle,
         test_gates_match_transcribed_predicates,
-        test_terminals_carry_no_gate,
+        test_only_dynamic_is_terminal,
         test_choices_match_backends,
         test_router_dispatch_prefers_priority_then_terminal_then_original,
         test_prepare_failure_skips_backend,
