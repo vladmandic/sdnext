@@ -60,7 +60,7 @@ class GoogleVeoVideoPipeline:
         )
 
     def img2vid(self, prompt, image):
-        from google import genai
+        from google import genai # pylint: disable=no-name-in-module
         image_bytes = io.BytesIO()
         image.save(image_bytes, format='JPEG')
         return self.client.models.generate_videos(
@@ -111,7 +111,7 @@ class GoogleVeoVideoPipeline:
         return args
 
     def __call__(self, prompt: list[str], width: int, height: int, image: Image.Image = None, num_frames: int = 4*24):
-        from google import genai
+        from google import genai # pylint: disable=no-name-in-module
 
         if isinstance(prompt, list) and len(prompt) > 0:
             prompt = prompt[0]
