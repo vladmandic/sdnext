@@ -17,6 +17,8 @@ Covers:
 - the dynamic backend pins the pre-dynamic sdpa the sliced path reads
 - the generation context: step normalized to the forward about to run on both the classic
   callback and the modular pre-hook, per-pass resets, the in-place step buffer, role scopes
+- telemetry: the route observer, the chain string recorded in torch_info, report(), and the
+  SD_ATTN_DEBUG route log deduplication
 
 No running server required. Nothing is moved to the accelerator.
 
@@ -362,6 +364,53 @@ def test_context_roles_nest_and_stick():
     return True
 
 
+def test_router_observer_sees_each_route():
+    routes = []
+    reg = attention.Registry()
+
+    def prepare(platform, original): # pylint: disable=unused-argument
+        return lambda *args, **kwargs: 'narrow'
+
+    reg.register(attention.AttentionBackend(name='narrow', label='narrow attention', priority=20, prepare=prepare, constraints=attention.Constraints(head_dims=frozenset({64}))))
+    plan = attention.build_plan(['narrow attention'], attention.Platform(backend='cuda'), sdpa_stub, reg)
+    router = attention_router.make_router(plan, observer=lambda name, q, k, m: routes.append(name))
+    q64 = shaped((1, 8, 128, 64))
+    q128 = shaped((1, 8, 128, 128))
+    router(q64, q64, q64)
+    router(q128, q128, q128)
+    assert routes == ['narrow', 'sdpa'], routes
+    return True
+
+
+def test_install_router_records_the_chain():
+    saved = torch.nn.functional.scaled_dot_product_attention
+    saved_plan = attention_router.current_plan
+    saved_info = installer.torch_info.get('attention')
+    try:
+        attention.install_router(['SDNQ attention', 'Dynamic attention'], attention.Platform(backend='cuda'), sdpa_stub, stub_registry())
+        assert installer.torch_info.get('attention') == 'sdnq>dynamic', installer.torch_info.get('attention')
+        info = attention.report()
+        assert info['chain'] == ['sdnq', 'dynamic'] and info['overrides'] == ['SDNQ attention', 'Dynamic attention'] and info['backend'] == 'cuda', info
+        assert info['context']['active'] is False and info['context']['role'] is None, info
+    finally:
+        torch.nn.functional.scaled_dot_product_attention = saved
+        attention_router.current_plan = saved_plan
+        installer.torch_info.set(attention=saved_info)
+    return True
+
+
+def test_debug_observe_logs_each_route_once():
+    attention.debug.reset()
+    q = shaped((1, 8, 128, 64))
+    attention.debug.observe('sdnq', q, q, None)
+    attention.debug.observe('sdnq', q, q, None)
+    attention.debug.observe('sdnq', q, q, shaped((1, 1, 128, 128), torch.bool))
+    assert len(attention.debug.seen) == 2, attention.debug.seen
+    attention.debug.reset()
+    assert not attention.debug.seen
+    return True
+
+
 def run_all():
     log.warning('=== attention router ===')
     cat = category('router')
@@ -383,6 +432,15 @@ def run_all():
         test_context_classic_ticks_follow_the_callback,
         test_context_modular_ticks_count_forwards,
         test_context_roles_nest_and_stick,
+    ]:
+        run_test(cat, fn)
+
+    log.warning('=== telemetry ===')
+    cat = category('telemetry')
+    for fn in [
+        test_router_observer_sees_each_route,
+        test_install_router_records_the_chain,
+        test_debug_observe_logs_each_route_once,
     ]:
         run_test(cat, fn)
 
