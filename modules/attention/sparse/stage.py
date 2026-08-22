@@ -58,6 +58,7 @@ def make_stage(options: StageOptions):
     if not options.enabled or options.budget >= 1.0:
         return None
     reported: set = set()
+    inactive: set = set()
     cache: dict = {}
 
     def budget_for_step() -> float:
@@ -72,27 +73,38 @@ def make_stage(options: StageOptions):
             cache[key] = table
         return table[min(state.step, len(table) - 1)] if table else options.budget
 
+    def decline(reason: str):
+        stage.last_skip = reason
+        return None
+
     def stage(query, key, value, attn_mask, is_causal): # pylint: disable=unused-argument
         state = context.current
         if state.role != 'transformer' or not state.active:
-            return None
+            return decline('not the denoiser')
         if attn_mask is not None or is_causal: # flex would need a mask_mod to combine these; the quantized kernel composes them in R2
-            return None
+            return decline('masked or causal')
         if query.device.type == 'cpu' or query.dim() != 4:
-            return None
+            return decline('unsupported tensor')
         seq_q, seq_kv = query.shape[-2], key.shape[-2]
-        if seq_q != seq_kv or seq_q < options.gate: # cross attention is short and already cheap
-            return None
+        if seq_q != seq_kv: # cross attention is short and already cheap
+            return decline('cross attention')
+        if seq_q < options.gate:
+            if seq_q not in inactive: # an enabled setting that cannot act says so rather than doing nothing quietly
+                inactive.add(seq_q)
+                log.info(f'Sparse attention: inactive at tokens={seq_q}, below the minimum sequence of {options.gate}; attention stays dense')
+            return decline('below the minimum sequence')
         budget = budget_for_step()
         if budget >= 1.0:
-            return None
+            return decline('budget covers everything')
         spec = SparseSpec(budget=budget, head_shared=options.head_shared)
         token_layout = resolve_layout(seq_q, reported)
         nq, nk = block_count(seq_q, spec.block_q), block_count(seq_kv, spec.block_kv)
         pins, drops = layout_mod.block_pins(token_layout, seq_q, seq_kv, spec.block_q, spec.block_kv, query.device)
         if pins.shape[-2:] != (nq, nk):
-            return None
+            return decline('layout geometry mismatch')
+        stage.last_skip = None
         return select_blocks(query, key, spec, pins=pins, drops=drops)
 
-    stage.options = options # pylint: disable=attribute-defined-outside-init
+    stage.options = options
+    stage.last_skip = None
     return stage

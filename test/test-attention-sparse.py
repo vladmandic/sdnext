@@ -373,6 +373,7 @@ def test_stage_gates():
         assert stage(q, k, v, None, True) is None, 'a causal call is not eligible yet'
         assert stage(q, cross_k, cross_v, None, False) is None, 'cross attention is not eligible'
         assert stage(short_q, short_k, short_v, None, False) is None, 'below the gate attention stays dense'
+        assert stage.last_skip == 'below the minimum sequence', stage.last_skip
         ctx.set_role('vae')
         assert stage(q, k, v, None, False) is None, 'only the denoiser is sparsified'
         ctx.set_role('transformer')
