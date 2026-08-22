@@ -19,6 +19,8 @@ Covers:
   callback and the modular pre-hook, per-pass resets, the in-place step buffer, role scopes
 - telemetry: the route observer, the chain string recorded in torch_info, report(), and the
   SD_ATTN_DEBUG route log deduplication
+- the escape hatches captioners and detailers depend on: bypass_sdpa_hijacks and llm_context
+  restore the original sdpa over the router, and put the router back even when the body raises
 
 No running server required. Nothing is moved to the accelerator.
 
@@ -411,6 +413,35 @@ def test_debug_observe_logs_each_route_once():
     return True
 
 
+def test_escape_hatch_bypasses_the_router():
+    from modules import devices
+    saved_sdpa = torch.nn.functional.scaled_dot_product_attention
+    saved_plan = attention_router.current_plan
+    saved_original = devices.sdpa_original
+    try:
+        devices.sdpa_original = sdpa_stub # what set_sdpa_params pinned before building the chain
+        attention.install_router(['SDNQ attention'], attention.Platform(backend='cuda'), sdpa_stub, stub_registry())
+        router = torch.nn.functional.scaled_dot_product_attention
+        assert router is not sdpa_stub
+        with devices.bypass_sdpa_hijacks():
+            assert torch.nn.functional.scaled_dot_product_attention is sdpa_stub # captioners and detailers run here
+        assert torch.nn.functional.scaled_dot_product_attention is router
+        with devices.llm_context():
+            assert torch.nn.functional.scaled_dot_product_attention is sdpa_stub
+        assert torch.nn.functional.scaled_dot_product_attention is router
+        try:
+            with devices.bypass_sdpa_hijacks():
+                raise RuntimeError('captioner failed')
+        except RuntimeError:
+            pass
+        assert torch.nn.functional.scaled_dot_product_attention is router, 'the chain must survive a failure inside the bypass'
+    finally:
+        devices.sdpa_original = saved_original
+        torch.nn.functional.scaled_dot_product_attention = saved_sdpa
+        attention_router.current_plan = saved_plan
+    return True
+
+
 def test_reapply_options_cover_declared_backend_options():
     from modules import shared
     names = attention.reapply_options()
@@ -454,6 +485,7 @@ def run_all():
         test_install_router_records_the_chain,
         test_debug_observe_logs_each_route_once,
         test_reapply_options_cover_declared_backend_options,
+        test_escape_hatch_bypasses_the_router,
     ]:
         run_test(cat, fn)
 
