@@ -1,4 +1,4 @@
-name: readme-sponsors
+name: Edit Readme Sponsors
 
 on:
   workflow_dispatch:
