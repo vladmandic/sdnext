@@ -14,7 +14,9 @@ def to_block_mask(selection: BlockSelection, device=None) -> BlockMask:
         keep = keep.to(device)
     if keep.dim() != 4:
         raise ValueError(f'block selection must be 4d, got {tuple(keep.shape)}')
-    empty_num, empty_indices = _dense_to_ordered(torch.zeros_like(keep))
+    # the partial slots stay empty by construction, so build them directly rather than sorting a mask of zeros
+    empty_num = torch.zeros(keep.shape[:-1], dtype=torch.int32, device=keep.device)
+    empty_indices = torch.zeros(keep.shape, dtype=torch.int32, device=keep.device)
     full_num, full_indices = _dense_to_ordered(keep)
     return BlockMask.from_kv_blocks(
         empty_num, empty_indices,

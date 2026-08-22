@@ -103,7 +103,7 @@ def make_stage(options: StageOptions):
         if pins.shape[-2:] != (nq, nk):
             return decline('layout geometry mismatch')
         stage.last_skip = None
-        return select_blocks(query, key, spec, pins=pins, drops=drops)
+        return select_blocks(query, key, spec, pins=pins, drops=drops, cache_key=token_layout.key())
 
     stage.options = options
     stage.last_skip = None

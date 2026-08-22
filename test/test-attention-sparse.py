@@ -258,7 +258,7 @@ def test_radial_control_matches_the_requested_density():
     spec = sparse.SparseSpec()
     for density in (0.15, 0.30):
         control = sparse.radial_blocks(4096, 4096, density, spec, device)
-        assert abs(control.density - density) < 0.05, f'requested {density}, got {control.density}'
+        assert abs(control.density() - density) < 0.05, f'requested {density}, got {control.density()}'
     return True
 
 
@@ -410,7 +410,7 @@ def test_stage_uses_a_published_layout_and_falls_back_without_one():
         loose = stage(q, k, v, None, False)
         ctx.set_layout(sparse.layout_from_segments([('text', 256), ('video', 1792)]))
         pinned = stage(q, k, v, None, False)
-        assert pinned.density > loose.density, f'pinning conditioning must keep more tiles: {pinned.density} vs {loose.density}'
+        assert pinned.density() > loose.density(), f'pinning conditioning must keep more tiles: {pinned.density()} vs {loose.density()}'
         assert bool(pinned.keep[..., 0:4].all()), 'the pinned text columns must survive'
         return True
     return with_context(checks)
