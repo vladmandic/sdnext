@@ -3,6 +3,7 @@ import re
 import copy
 import inspect
 import diffusers
+from installer import install
 from modules import shared, errors
 from modules.logger import log
 from modules.sd_hijack_schedulers import init_hijack, hijack_unipc, attach_scale_noise_if_missing # pylint: disable=unused-import
@@ -20,13 +21,11 @@ hijack_unipc()
 try:
     from diffusers import (
         CMStochasticIterativeScheduler,
-        CosineDPMSolverMultistepScheduler,
         DDIMScheduler,
         DDPMScheduler,
         DEISMultistepScheduler,
         DPMSolverMultistepInverseScheduler,
         DPMSolverMultistepScheduler,
-        DPMSolverSDEScheduler,
         DPMSolverSinglestepScheduler,
         EDMDPMSolverMultistepScheduler,
         EDMEulerScheduler,
@@ -50,6 +49,20 @@ try:
         TCDScheduler,
     )
 except Exception as e:
+    log.error(f'Sampler import: version={diffusers.__version__} error: {e}')
+    if os.environ.get('SD_SAMPLER_DEBUG', None) is not None:
+        errors.display(e, 'Samplers')
+
+try:
+    install('trampoline==0.1.2', 'trampoline', quiet=True, no_deps=True)
+    install('torchsde==0.2.6', 'torchsde', quiet=True, no_deps=True)
+    from diffusers import (
+        DPMSolverSDEScheduler,
+        CosineDPMSolverMultistepScheduler,
+    )
+except Exception as e:
+    DPMSolverSDEScheduler = None
+    CosineDPMSolverMultistepScheduler = None
     log.error(f'Sampler import: version={diffusers.__version__} error: {e}')
     if os.environ.get('SD_SAMPLER_DEBUG', None) is not None:
         errors.display(e, 'Samplers')

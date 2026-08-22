@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Highlights for 2026-08-21
+## Highlights for 2026-08-22
 
 Time for a new release, this is a larger one!
 Main focus is improving video workflows which also brings full support for new [MiniMax H3](https://vladmandic.github.io/sdnext-docs/MiniMax) and [LTXVideo-2.5](https://vladmandic.github.io/sdnext-docs/LTX)  
@@ -11,12 +11,13 @@ and improves general video processing with flexible video upscaling, updated int
 - New [group offload](https://vladmandic.github.io/sdnext-docs/Offload/#group) option which is more aggressive than the default balanced offload
 - Extended model support for [Nunchaku-Lite](https://github.com/rootonchair/nunchaku-lite) engine
 - A lot of [SDNQ](https://github.com/Disty0/sdnq) *quantization and attention* optimizations and features
+- Updated [SD.Next Launcher](https://github.com/vladmandic/sdnext-launcher)
 
 Plus quite a lot more, see full [changelog](https://github.com/vladmandic/automatic/blob/dev/CHANGELOG.md) for details!
 
 [Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-## Details for 2026-08-21
+## Details for 2026-08-22
 
 - **Models**
   - [MiniMax H3](https://huggingface.co/MiniMaxAI/MiniMax-H3) available in *base* and *ref* variants  
@@ -90,6 +91,7 @@ Plus quite a lot more, see full [changelog](https://github.com/vladmandic/automa
   - hf: init hf env variables before gradio load
   - lora: skip init and rebuild offload state
   - lora: keep network multiplier on change
+  - lora: handle networks when delta does not fit
   - auth: improve handling of hf auth
   - load: improve pipeline detection for non-cached models
   - offload: cleanup alt offload codepaths
@@ -112,6 +114,7 @@ Plus quite a lot more, see full [changelog](https://github.com/vladmandic/automa
   - api: process
   - api: auth via remote-ip
   - krea2: fallback to base pipeline/transformer for nunchaku-lite
+  - torchsde: handle obsolete dependency
 
 ## Update for 2026-08-07
 
