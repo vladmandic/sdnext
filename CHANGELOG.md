@@ -11,6 +11,7 @@ and improves general video processing with flexible video upscaling, updated int
 - New [group offload](https://vladmandic.github.io/sdnext-docs/Offload/#group) option which is more aggressive than the default balanced offload
 - Extended model support for [Nunchaku-Lite](https://github.com/rootonchair/nunchaku-lite) engine
 - A lot of [SDNQ](https://github.com/Disty0/sdnq) *quantization and attention* optimizations and features
+- Updated [SD.Next Launcher](https://github.com/vladmandic/sdnext-launcher)
 
 Plus quite a lot more, see full [changelog](https://github.com/vladmandic/automatic/blob/dev/CHANGELOG.md) for details!
 
@@ -113,6 +114,7 @@ Plus quite a lot more, see full [changelog](https://github.com/vladmandic/automa
   - api: process
   - api: auth via remote-ip
   - krea2: fallback to base pipeline/transformer for nunchaku-lite
+  - torchsde: handle obsolete dependency
 
 ## Update for 2026-08-07
 
