@@ -241,6 +241,12 @@ bench_configs = [
     ("sage", "sageattention", None), # label resolved to the dispatched kernel by sage_kernel_label
     ("sagefp16", "sage int8 qk + fp16 pv, fp16 accum", None), # sm86 only
     ("amdflash", "triton flash (amd)", None),
+    ("flex", "flex attention, dense", None), # compiled: flex reads its block lists only under compile
+    ("flex-sparse100", "flex + selector, budget 100%", None), # the selector runs but keeps everything, so this row is its overhead alone
+    ("flex-sparse50", "flex + selector, budget 50%", None),
+    ("flex-sparse30", "flex + selector, budget 30%", None),
+    ("flex-sparse15", "flex + selector, budget 15%", None),
+    ("flex-radial30", "flex + static radial band, 30%", None), # density matched control with no per-call producer
     ("noquant", "sdnq, quantized matmul off", dict(do_quantize=False)),
     ("int8", "sdnq int8 qk", dict(matmul_dtype="auto", pv_matmul_dtype="auto")),
     ("smooth", "sdnq int8 qk + smooth k", dict(matmul_dtype="auto", pv_matmul_dtype="auto", smooth_k=True)),
@@ -261,7 +267,9 @@ bench_configs = [
 # external baselines are compared against but never starred or recommended as sdnq configs;
 # the unsafe accum mode is measured and displayed under the same rule, since its overflow
 # tail lives outside what mean error can see
-external_config_ids = ("base", "sage", "sagefp16", "amdflash")
+# baselines and non-sdnq rows: reported, never recommended as an sdnq setting, and the sparse
+# rows are lossy by design so a recommendation must not pick one for being fast
+external_config_ids = ("base", "sage", "sagefp16", "amdflash", "flex", "flex-sparse100", "flex-sparse50", "flex-sparse30", "flex-sparse15", "flex-radial30")
 unsafe_config_ids = ("pvaccum",)
 # every preset runs the full config list (availability gates still apply per config); only
 # hard technical exclusions live here, never runtime trims. sd15: compiling hadamard with
@@ -519,6 +527,37 @@ def triton_mm_fp16_accum():
         yield
     finally:
         triton_mm.USE_FP16_ACCUM, triton_scaled_mm.USE_FP16_ACCUM = saved
+
+
+flex_budgets = {"flex-sparse100": 1.0, "flex-sparse50": 0.50, "flex-sparse30": 0.30, "flex-sparse15": 0.15}
+
+
+def flex_available():
+    try:
+        import modules.attention.sparse.flex # pylint: disable=unused-import
+        return torch.cuda.is_available()
+    except Exception:
+        return False
+
+
+def make_flex_fn(config_id, q, k, v, scale, gqa):
+    """Time the selector inside the attention it accelerates; a producer measured on its own looks free and is not."""
+    from modules.attention.sparse import flex as sparse_flex, selector as sparse_selector
+    call = sparse_flex.flex_call()
+    if config_id == "flex":
+        return lambda: call(q, k, v, scale=scale, enable_gqa=gqa)
+    if config_id == "flex-radial30":
+        # a static pattern is built once by construction, which is exactly the advantage it has to defend
+        static = sparse_flex.to_block_mask(sparse_selector.radial_blocks(q.shape[-2], k.shape[-2], 0.30, sparse_selector.SparseSpec(), q.device))
+        return lambda: call(q, k, v, block_mask=static, scale=scale, enable_gqa=gqa)
+    spec = sparse_selector.SparseSpec(budget=flex_budgets[config_id], force=True)
+
+    cache_key = ("bench", config_id, tuple(q.shape), tuple(k.shape)) # the webui caches the geometry per layout, so measure that path
+
+    def run():
+        selection = sparse_selector.select_blocks(q, k, spec, cache_key=cache_key)
+        return call(q, k, v, block_mask=sparse_flex.to_block_mask(selection), scale=scale, enable_gqa=gqa)
+    return run
 
 
 def sage_attention():
@@ -1476,6 +1515,8 @@ def bench_shape(preset, iters, warmup, position=None, config_timeout=None, fp8_r
             continue
         if config_id == "amdflash" and (amd_flash is None or attn_mask is not None or head_dim > 128 or gqa):
             continue
+        if config_id.startswith("flex") and (not flex_available() or attn_mask is not None or causal or kv_tokens != tokens):
+            continue # a block only mask cannot carry a token mask or a causal rule, and cross attention is not sparsified
         if config_id == "fp8qk" and not (fp8_result and fp8_result["qk"][0]):
             continue
         if config_id == "fp8pv" and not (fp8_result and fp8_result["pv"][0]):
@@ -1536,6 +1577,8 @@ def bench_shape(preset, iters, warmup, position=None, config_timeout=None, fp8_r
             elif config_id == "amdflash":
                 def fn(sm=scale):
                     return amd_flash(q, k, v, sm, is_causal=causal)
+            elif config_id.startswith("flex"):
+                fn = make_flex_fn(config_id, q, k, v, scale, gqa)
             else:
                 def fn(kw=kwargs, mask=attn_mask):
                     return sdnq_triton_atten(q, k, v, attn_mask=mask, is_causal=causal, enable_gqa=gqa, **kw)
