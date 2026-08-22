@@ -145,7 +145,7 @@ class UpscalerESRGAN(Upscaler):
             log.debug(f"Upscaler cached: type={self.name} model={info.local_data_path}")
             return self.models[info.local_data_path]
         state_dict = torch.load(info.local_data_path, map_location='cpu' if devices.device.type in {'mps', 'cpu'} else None)
-        log.info(f"Upscaler loaded: type={self.name} model={info.local_data_path}")
+        log.info(f'Upscaler loaded: type="{self.name}" model="{info.local_data_path}"')
 
         if "params_ema" in state_dict:
             state_dict = state_dict["params_ema"]

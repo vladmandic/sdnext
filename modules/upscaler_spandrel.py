@@ -13,7 +13,7 @@ MODELS = {
     "Spandrel 2x RealPLKSR AnimeSharpV2": "https://huggingface.co/vladmandic/sdnext-upscalers/resolve/main/2x-AnimeSharpV2_RPLKSR_Sharp.pth",
     "Spandrel 2x RealESRGAN Compact": "https://huggingface.co/vladmandic/sdnext-upscalers/resolve/main/RealESRGAN-2x-Compact.pth",
     "Spandrel 2x RealESRGAN UltraCompact": "https://huggingface.co/vladmandic/sdnext-upscalers/resolve/main/RealESRGAN-2x-UltraCompact.pth",
-    "Spandrel 2x RealSAFMN++": "https://huggingface.co/vladmandic/sdnext-upscalers/resolve/main/Real-SAFMN++.pth",
+    "Spandrel 4x RealSAFMN++": "https://huggingface.co/vladmandic/sdnext-upscalers/resolve/main/Real-SAFMN++.pth",
     "Spandrel 2x RealSAFMN": "https://huggingface.co/vladmandic/sdnext-upscalers/resolve/main/Real-SAFMN-x2.pth",
     "Spandrel 4x RealSAFMN": "https://huggingface.co/vladmandic/sdnext-upscalers/resolve/main/Real-SAFMN-x4-v2.pth",
     "Spandrel 2x SAFMN PureScale": "https://huggingface.co/vladmandic/sdnext-upscalers/resolve/main/2x_SAFMN_PureScale.pth",
@@ -37,9 +37,9 @@ class UpscalerSpandrel(Upscaler):
                 scaler = UpscalerData(name=k, path=v, upscaler=self)
                 self.scalers.append(scaler)
             else:
-                for s in self.scalers: # update name of existing scaler if it was found
-                    if os.path.basename(s.data_path) == fn:
-                        s.name = k
+                for i, _s in enumerate(self.scalers): # update name of existing scaler if it was found
+                    if os.path.basename(self.scalers[i].data_path) == fn:
+                        self.scalers[i].name = k
                         break
 
     def process(self, img: Image.Image, output_type='pil', quiet=False):

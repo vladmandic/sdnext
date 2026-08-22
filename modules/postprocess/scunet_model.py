@@ -27,7 +27,7 @@ class UpscalerSCUNet(Upscaler):
             model = net(in_nc=3, config=[4, 4, 4, 4, 4, 4, 4], dim=64)
             model.load_state_dict(torch.load(info.local_data_path), strict=True)
             model.eval()
-            log.info(f"Upscaler loaded: type={self.name} model={info.local_data_path}")
+            log.info(f'Upscaler loaded: type="{self.name}" model="{info.local_data_path}"')
             for _, v in model.named_parameters():
                 v.requires_grad = False
             model = model.to(devices.device)
@@ -41,9 +41,11 @@ class UpscalerSCUNet(Upscaler):
         # test the image tile by tile
         h, w = img.shape[2:]
         tile = opts.upscaler_tile_size
+        tile = 0
         tile_overlap = opts.upscaler_tile_overlap
         if tile == 0:
-            return model(img)
+            output = model(img)
+            return output
         assert tile % 8 == 0, "tile size should be a multiple of window_size"
         sf = 1
         stride = tile - tile_overlap
@@ -73,6 +75,7 @@ class UpscalerSCUNet(Upscaler):
         model = self.load_model(selected_file)
         if model is None:
             return img
+        sf = 1
         tile = opts.upscaler_tile_size
         h, w = img.height, img.width
         np_img = np.array(img)
@@ -84,7 +87,7 @@ class UpscalerSCUNet(Upscaler):
             _img[:, :, :h, :w] = torch_img # pad image
             torch_img = _img
         torch_output = self.tiled_inference(torch_img, model).squeeze(0)
-        torch_output = torch_output[:, :h * 1, :w * 1] # remove padding, if any
+        torch_output = torch_output[:, :h * sf, :w * sf] # remove padding, if any
         np_output: np.ndarray = torch_output.float().cpu().clamp_(0, 1).numpy()
         del torch_img, torch_output
         devices.torch_gc()
