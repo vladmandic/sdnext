@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     import builtins
 
 cmd_opts = cmd_args.parse_args()
-compatibility_opts = ['clip_skip', 'uni_pc_lower_order_final', 'uni_pc_order']
+compatibility_opts = ['clip_skip', 'uni_pc_lower_order_final', 'uni_pc_order', 'xformers_options']
 secrets_pattern = ['_version', '_token', '_key', '_secret', '_password']
 
 
