@@ -1,8 +1,12 @@
-"""Attention backends: the SDPA hijacks stacked by devices.set_sdpa_params, plus the diffusers-side processor and dispatcher setup."""
-from modules.attention.hijacks import set_dynamic_attention, set_sdnq_attention, set_triton_flash_attention, set_flex_attention, set_ck_flash_attention, set_sage_attention
+"""Attention backends: one scaled_dot_product_attention router over the registered backends, plus the diffusers-side processor and dispatcher setup."""
+from modules.attention.registry import AttentionBackend, AttentionCall, Constraints, Platform, Registry, registry
+from modules.attention.router import Plan, PlanEntry, build_plan, get_plan, install_router
 from modules.attention.dispatcher import set_diffusers_attention, set_attention_dispatcher, hijack_kernels, get_kernel_hijack, get_hf_api_hijack
+from modules.attention import backends
 
 __all__ = [
-    'set_dynamic_attention', 'set_sdnq_attention', 'set_triton_flash_attention', 'set_flex_attention', 'set_ck_flash_attention', 'set_sage_attention',
+    'AttentionBackend', 'AttentionCall', 'Constraints', 'Platform', 'Registry', 'registry',
+    'Plan', 'PlanEntry', 'build_plan', 'get_plan', 'install_router',
     'set_diffusers_attention', 'set_attention_dispatcher', 'hijack_kernels', 'get_kernel_hijack', 'get_hf_api_hijack',
+    'backends',
 ]
