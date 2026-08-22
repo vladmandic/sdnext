@@ -45,6 +45,16 @@ def add_task_to_queue(id_job):
     pending_tasks[id_job] = time.time()
 
 
+def get_tasks():
+    return {
+        "current": current_task,
+        "pending": list(pending_tasks.keys()),
+        "finished": finished_tasks,
+        "results": recorded_results,
+    }
+
+
+
 class ProgressRequest(BaseModel):
     id_task: str = Field(default=None, title="Task ID", description="id of the task to get progress for")
     id_live_preview: int = Field(default=-1, title="Live preview image ID", description="id of last received last preview image")

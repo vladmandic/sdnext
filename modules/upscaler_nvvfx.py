@@ -32,7 +32,8 @@ class UpscalerNVVFX(Upscaler):
             UpscalerData("nVidia VFX highbitrate ultra", None, self, scale=19),
         ]
 
-    def upscale(self, img: Image.Image | torch.Tensor, scale, selected_model: str | None = None): # nvvfx overrides upscale instead of do_upscale because it handles scale directly
+    # nvvfx overrides upscale instead of do_upscale because it handles scale directly
+    def upscale(self, img: Image.Image | torch.Tensor, scale, selected_model: str | None = None):
         if selected_model is None:
             return img
         from installer import install

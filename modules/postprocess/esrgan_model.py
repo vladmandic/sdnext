@@ -125,7 +125,7 @@ class UpscalerESRGAN(Upscaler):
         self.scalers = self.find_scalers()
         self.models = {}
 
-    def do_upscale(self, img, selected_model):
+    def do_upscale(self, img, selected_model): # pylint: disable=arguments-differ
         model = self.load_model(selected_model)
         if model is None:
             return img

@@ -1,5 +1,6 @@
 import os
 import sys
+from functools import partial
 import cv2
 from PIL import Image
 from modules.logger import log
@@ -334,6 +335,12 @@ def control_process(p: StableDiffusionProcessingControl,
 
     # output = pipe(**vars(p)).images # debug: direct pipe exec call
     return output, info, script_run
+
+
+def generate(*args, **kwargs):
+    generate_call = partial(control_run, *args, **kwargs)
+    # return [], '', '', 'Queued'
+    return generate_call()
 
 
 def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg

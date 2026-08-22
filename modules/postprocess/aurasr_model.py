@@ -17,7 +17,7 @@ class UpscalerAuraSR(Upscaler):
     def callback(self, _step: int, _timestep: int, _latents: torch.FloatTensor):
         pass
 
-    def do_upscale(self, img: Image.Image, selected_model):
+    def do_upscale(self, img: Image.Image, selected_model): # pylint: disable=arguments-differ
         from modules.postprocess.aurasr_arch import AuraSR
         if self.model is None:
             self.model = AuraSR.from_pretrained("vladmandic/aurasr", use_safetensors=False)

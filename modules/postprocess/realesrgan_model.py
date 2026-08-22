@@ -39,7 +39,7 @@ class UpscalerRealESRGAN(Upscaler):
     def load_model(self, path): # pylint: disable=unused-argument
         pass
 
-    def do_upscale(self, img, selected_model):
+    def do_upscale(self, img, selected_model): # pylint: disable=arguments-differ
         if not self.enable:
             return img
         try:

@@ -6,6 +6,7 @@ from PIL import Image, ImageOps
 from modules import shared, devices, errors, images, scripts_manager, memstats, script_callbacks, extra_networks, sd_models, sd_checkpoint, sd_vae, processing_helpers, processing_grading, timer, masking
 from modules.logger import log
 from modules.sd_hijack_hypertile import context_hypertile_vae, context_hypertile_unet
+from modules.processing_info import create_infotext
 from modules.processing_class import ( # pylint: disable=unused-import
     StableDiffusionProcessing,
     StableDiffusionProcessingTxt2Img,
@@ -13,7 +14,6 @@ from modules.processing_class import ( # pylint: disable=unused-import
     StableDiffusionProcessingControl,
     StableDiffusionProcessingVideo,
 )
-from modules.processing_info import create_infotext
 
 
 opt_C = 4
@@ -484,6 +484,8 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
             if not p.prompts:
                 break
             p.prompts, p.network_data = extra_networks.parse_prompts(p.prompts)
+
+
             if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
                 p.scripts.process_batch(p, batch_number=n, prompts=p.prompts, seeds=p.seeds, subseeds=p.subseeds)
 

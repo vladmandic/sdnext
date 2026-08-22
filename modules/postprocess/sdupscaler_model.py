@@ -41,7 +41,7 @@ class UpscalerDiffusion(Upscaler):
     def callback(self, _step: int, _timestep: int, _latents: torch.FloatTensor):
         pass
 
-    def do_upscale(self, img: Image.Image, selected_model):
+    def do_upscale(self, img: Image.Image, selected_model): # pylint: disable=arguments-differ
         devices.torch_gc()
         model = self.load_model(selected_model)
         if model is None:

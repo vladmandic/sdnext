@@ -1,5 +1,6 @@
 import os
 import time
+import asyncio
 import gradio as gr
 from modules.control import unit
 from modules import errors, shared, progress, generation_parameters_copypaste, call_queue, scripts_manager, masking, images, processing_vae, timer # pylint: disable=ungrouped-imports
@@ -17,6 +18,7 @@ controls: list[gr.components.Component] = [] # list of gr controls
 debug = log.trace if os.environ.get('SD_CONTROL_DEBUG', None) is not None else lambda *args, **kwargs: None
 debug('Trace: CONTROL')
 use_generator = os.environ.get('SD_USE_GENERATOR', None) is not None
+use_async = os.environ.get('SD_USE_ASYNC', None) is not None
 
 
 def return_stats(t: float | None = None):
@@ -96,7 +98,7 @@ def generate_click_generator(job_id: str, state: str, active_tab: str, *args): #
     while helpers.busy:
         debug(f'Control: tab="{active_tab}" job={job_id} busy')
         time.sleep(0.1)
-    from modules.control.run import control_run
+    from modules.control.run import generate
     debug(f'Control: tab="{active_tab}" job={job_id} args={args}')
     progress.add_task_to_queue(job_id)
     with call_queue.get_lock():
@@ -107,7 +109,7 @@ def generate_click_generator(job_id: str, state: str, active_tab: str, *args): #
         t = time.perf_counter()
         results = {}
         try:
-            for results in control_run(state, units, helpers.input_source, helpers.input_init, helpers.input_mask, active_tab, True, *args):
+            for results in generate(state, units, helpers.input_source, helpers.input_init, helpers.input_mask, active_tab, True, *args):
                 progress.record_results(job_id, results)
                 yield return_controls(results, t)
         except GeneratorExit:
@@ -126,7 +128,7 @@ def generate_click(job_id: str, state: str, active_tab: str, *args):
     while helpers.busy:
         debug(f'Control: tab="{active_tab}" job={job_id} busy')
         time.sleep(0.1)
-    from modules.control.run import control_run
+    from modules.control.run import generate
     debug(f'Control: tab="{active_tab}" job={job_id} args={args}')
     progress.add_task_to_queue(job_id)
     with call_queue.get_lock():
@@ -136,7 +138,7 @@ def generate_click(job_id: str, state: str, active_tab: str, *args):
         progress.start_task(job_id)
         try:
             t = time.perf_counter()
-            for results in control_run(state, units, helpers.input_source, helpers.input_init, helpers.input_mask, active_tab, True, *args):
+            for results in generate(state, units, helpers.input_source, helpers.input_init, helpers.input_mask, active_tab, True, *args):
                 progress.record_results(job_id, results)
         except GeneratorExit:
             log.error("Control: generator exit")
@@ -148,6 +150,10 @@ def generate_click(job_id: str, state: str, active_tab: str, *args):
             progress.finish_task(job_id)
             shared.state.end(jobid)
         return return_controls(results, t)
+
+
+async def generate_click_async(job_id: str, state: str, active_tab: str, *args):
+    return await asyncio.to_thread(generate_click, job_id, state, active_tab, *args)
 
 
 def create_ui(_blocks: gr.Blocks=None):
@@ -335,14 +341,19 @@ def create_ui(_blocks: gr.Blocks=None):
                 output_html_log,
             ]
 
-            generate_fn = generate_click_generator if use_generator else generate_click
+            if use_generator:
+                generate_fn = generate_click_generator
+            elif use_async:
+                generate_fn = generate_click_async
+            else:
+                generate_fn = generate_click
+
             control_dict = dict(
                 fn=generate_fn,
                 _js="submit_control",
                 inputs=[tabs_state, state, tabs_state] + input_fields + input_script_args,
                 outputs=output_fields,
                 show_progress='hidden',
-                # queue=not shared.cmd_opts.listen,
             )
             prompt.submit(**control_dict)
             negative.submit(**control_dict)

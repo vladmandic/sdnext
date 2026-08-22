@@ -7,20 +7,41 @@ from modules import shared, progress, errors, timer
 from modules.logger import log
 
 
-queue_lock = threading.Lock()
-debug = os.environ.get('SD_QUEUE_DEBUG', None) is not None
+_queue_lock = threading.Lock() # internal
+_queue_debug = os.environ.get('SD_QUEUE_DEBUG', None) is not None
+
+
+class Queue:
+    def __enter__(self):
+        _queue_lock.acquire()
+        if _queue_debug:
+            fn = f'{sys._getframe(3).f_code.co_name}:{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
+            log.debug(f'Queue: lock state={_queue_lock.locked()} fn={fn}')
+        return _queue_lock
+
+    def __exit__(self, exc_type, exc_val, exc_tb): # pylint: disable=unused-argument
+        if _queue_lock.locked():
+            _queue_lock.release()
+        if _queue_debug:
+            fn = f'{sys._getframe(3).f_code.co_name}:{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
+            log.debug(f'Queue: unlock state={_queue_lock.locked()} fn={fn}')
+        return _queue_lock
+
+
+queue_lock = Queue() # public lock for external use
 
 
 def get_lock():
-    if debug:
-        fn = f'{sys._getframe(3).f_code.co_name}:{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
-        log.debug(f'Queue: lock={queue_lock.locked()} fn={fn}')
     return queue_lock
+
+
+def is_locked():
+    return _queue_lock.locked()
 
 
 def wrap_queued_call(func):
     def f(*args, **kwargs):
-        with get_lock():
+        with Queue():
             res = func(*args, **kwargs)
         return res
     return f
@@ -35,7 +56,7 @@ def wrap_gradio_gpu_call(func, extra_outputs=None, name=None):
             progress.add_task_to_queue(id_task)
         else:
             id_task = None
-        with get_lock():
+        with Queue():
             progress.start_task(id_task)
             try:
                 res = func(*args, **kwargs)
