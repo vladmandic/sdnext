@@ -145,7 +145,7 @@ shape_presets = {
     "h3": dict(batch=1, heads=56, tokens=38222, head_dim=128, iters=8, warmup=3, ref_head_chunk=14,
         sparse=dict(layout=[("text", 0, 512), ("audio", 512, 926), ("video", 926, 38222)]),
         desc="MiniMax H3 packed self-attention, 1344x768 124 frames (5.2s): 512 text + 414 audio + 37296 video rows, guidance-free"),
-    "h3-long": dict(batch=1, heads=56, tokens=109574, head_dim=128, iters=6, warmup=2, ref_head_chunk=8,
+    "h3-long": dict(batch=1, heads=56, tokens=109574, head_dim=128, iters=6, warmup=2, ref_head_chunk=8, config_timeout=1200,
         sparse=dict(layout=[("text", 0, 512), ("audio", 512, 1718), ("video", 1718, 109574)]),
         desc="MiniMax H3 packed self-attention, 1344x768 362 frames (15.1s): 512 text + 1206 audio + 107856 video rows"),
     "masked": dict(batch=1, heads=32, tokens=4608, head_dim=128, mask_fn=key_padding_mask, desc="FLUX.2 Klein shape with boolean key-padding mask, 25% of keys masked"),
@@ -179,7 +179,7 @@ block_geometries = {
     "krea2": dict(hidden=6144, heads=48, mlp_dim=16384, tokens=4608),
     # minimax h3: attention wider than the residual stream (56*128 > 5376), swiglu mlp; the
     # full 124-frame token count makes the block section long, so it runs only when selected
-    "h3": dict(hidden=5376, heads=56, head_dim=128, mlp_dim=14336, mlp="swiglu", tokens=38222, iters=6, warmup=2),
+    "h3": dict(hidden=5376, heads=56, head_dim=128, mlp_dim=14336, mlp="swiglu", tokens=38222, iters=6, warmup=2, config_timeout=900),
 }
 default_block_geometries = "flux1,krea2"
 block_geometry = block_geometries["flux1"] # active geometry; bench_block_section iterates
@@ -357,11 +357,13 @@ def parse_cli():
     parser.add_argument("--skip-checks", action="store_true", help="skip kernel correctness checks")
     parser.add_argument("--skip-bench", action="store_true", help="skip benchmarks, run checks and the fp8 and compile probes only")
     parser.add_argument("--dtype", type=str, default="auto", choices=["auto", "bf16", "fp16"], help="tensor dtype for benchmarks; auto uses the dtype the webui selected for this gpu (default: %(default)s)")
-    parser.add_argument("--config-timeout", type=int, default=300, help="best effort: abort a config whose compile plus first call exceeds this many seconds, 0 disables; cannot interrupt native-level hangs (default: %(default)s)")
+    parser.add_argument("--config-timeout", type=int, default=None, help="best effort: abort a config whose compile plus first call exceeds this many seconds, 0 disables; cannot interrupt native-level hangs (default: 300, or the limit a preset or block geometry declares for itself)")
     parser.add_argument("--save", type=str, default="auto", help="plain-text copy of all tables and notes; 'auto' (default) names it <gpu>-t<torch>-<date>.txt in the output directory, 'none' disables, anything else is used as the path")
     parser.add_argument("--json", type=str, default="auto", help="structured results (environment, probes, per-shape and dequant timings, recommendations); 'auto' (default) names it <gpu>-t<torch>-<date>.json in the output directory, 'none' disables, anything else is used as the path")
     parser.add_argument("--outdir", type=str, default=None, help="directory for auto-named outputs (default: $SDNQ_BENCH_DIR, or benchmarks/ under the sdnext root)")
     args = parser.parse_args()
+    args.timeout_flag = args.config_timeout # None lets a preset or block geometry declare its own limit
+    args.config_timeout = resolve_timeout(args.timeout_flag)
     sys.argv = sys.argv[:1] # sdnext parses argv again on import and rejects unknown arguments
     return args
 
@@ -720,6 +722,13 @@ def live_progress():
     return progress, task
 
 
+def resolve_timeout(flag, declared=None):
+    # the cli flag wins when given; otherwise a preset or block geometry may declare its own limit
+    if flag is not None:
+        return flag
+    return 300 if declared is None else declared
+
+
 @contextmanager
 def time_limit(seconds, label):
     # torch.compile can spin indefinitely in sympy/inductor on pathological graphs
@@ -800,6 +809,9 @@ def run_drift_sigma():
 
 drift_override = None
 verdict_z = 1.28 # one-sided 90%: an on/off verdict is only stated when its margin test clears this
+# split instruments A and B differ systematically (strided views out of the fused projection vs
+# contiguous standalone tensors): 0.1-2.5% over 19 same-kernel rows at h3, far below the 17-25% hadamard gap
+split_instrument_offset = 0.05
 
 
 def sidak_z_for(count):
@@ -1434,8 +1446,9 @@ def make_prep_fn(q, k, v, attn_mask, kwargs, is_causal=False, enable_gqa=False):
     return prep
 
 
-def bench_shape(preset, iters, warmup, position=None, config_timeout=300, fp8_result=None):
+def bench_shape(preset, iters, warmup, position=None, config_timeout=None, fp8_result=None):
     preset_cfg = shape_presets[preset]
+    config_timeout = resolve_timeout(config_timeout, preset_cfg.get("config_timeout"))
     batch, heads, tokens, head_dim = preset_cfg["batch"], preset_cfg["heads"], preset_cfg["tokens"], preset_cfg["head_dim"]
     kv_tokens = preset_cfg.get("kv_tokens", tokens)
     kv_heads = preset_cfg.get("kv_heads", heads)
@@ -2605,7 +2618,7 @@ def block_label(weights_cfg, use_mm, attention_spec):
     return f"{weights_part} + {attention_spec}"
 
 
-def bench_block_section(iters, warmup, config_timeout=300, selected=None, geometries=None):
+def bench_block_section(iters, warmup, config_timeout=None, selected=None, geometries=None):
     global block_geometry # pylint: disable=global-statement
     all_results = {}
     for family, geometry in block_geometries.items():
@@ -2614,10 +2627,10 @@ def bench_block_section(iters, warmup, config_timeout=300, selected=None, geomet
         block_geometry = geometry
         geometry_iters = geometry.get("iters", iters)
         geometry_warmup = geometry.get("warmup", warmup)
-        results = bench_block_geometry(geometry_iters, geometry_warmup, config_timeout=config_timeout, selected=selected)
+        geometry_timeout = resolve_timeout(config_timeout, geometry.get("config_timeout"))
+        results = bench_block_geometry(geometry_iters, geometry_warmup, config_timeout=geometry_timeout, selected=selected)
         all_results[family] = results
-        split = block_split_table(family, geometry, results)
-        report.setdefault("blocks", {})[family] = dict(geometry=dict(geometry), results=results, split=split)
+        report.setdefault("blocks", {})[family] = dict(geometry=dict(geometry), results=results, split=None)
     if not all_results:
         return {}
     # the first family run also lands at the flat block key, which replays and the buyback
@@ -2760,6 +2773,12 @@ def bench_block_geometry(iters, warmup, config_timeout=300, selected=None):
     return results
 
 
+def emit_block_splits():
+    # instrument B reads the attention tables, so the split renders once both sections are in
+    for family, data in (report.get("blocks") or {}).items():
+        data["split"] = block_split_table(family, data["geometry"], data["results"])
+
+
 def block_split_table(family, geometry, results):
     # compute split per config from two independent instruments: A subtracts the identity-
     # attention variant timed inside the block, B reads the standalone attention table at the
@@ -2801,7 +2820,7 @@ def block_split_table(family, geometry, results):
             # subtraction amplifies the relative sigma of instrument A by ms/attn_a
             sigma_a = (row_sigma(entry) or 0.0) * (ms / attn_a)
             sigma_b = row_sigma(attention_entry, "ms") or 0.0
-            threshold = max(verdict_z * math.sqrt(sigma_a * sigma_a + sigma_b * sigma_b), run_drift_sigma())
+            threshold = max(verdict_z * math.sqrt(sigma_a * sigma_a + sigma_b * sigma_b), run_drift_sigma(), split_instrument_offset)
             agree = abs(math.log(attn_a / attn_b)) <= threshold
         ceilings = {budget: ms / (budget * attn_a + identity_ms) for budget in budgets} if agree else None
         split[config_id] = dict(ms=ms, rest_ms=identity_ms, attn_a_ms=attn_a, attn_b_ms=attn_b, agree=agree, ceilings=ceilings)
@@ -3790,7 +3809,9 @@ def main():
         if free_vram_gb() < 3.0:
             emit(f"[yellow]skipping block benchmarks: needs about 3 gb free vram, {free_vram_gb():.1f} gb available[/yellow]")
         else:
-            bench_block_section(args.iters, args.warmup, config_timeout=args.config_timeout, selected=selected_blocks, geometries=selected_geometries)
+            bench_block_section(args.iters, args.warmup, config_timeout=args.timeout_flag, selected=selected_blocks, geometries=selected_geometries)
+            if "attention" not in sections:
+                emit_block_splits()
 
     if "attention" in sections:
         # bench the prep mode the advice points to: compiled, static workaround, or eager
@@ -3812,7 +3833,8 @@ def main():
             if free_vram_gb() < needed:
                 emit(f"[yellow]skipping {preset}: needs about {needed:.0f} gb free vram, {free_vram_gb():.1f} gb available[/yellow]")
                 continue
-            all_results[preset] = bench_shape(preset, args.iters, args.warmup, position=(index, len(selected)), config_timeout=args.config_timeout, fp8_result=fp8_result)
+            all_results[preset] = bench_shape(preset, args.iters, args.warmup, position=(index, len(selected)), config_timeout=args.timeout_flag, fp8_result=fp8_result)
+        emit_block_splits()
         build_recommendations(all_results, fp8_result, prep_status, block_results=(report.get("block") or {}).get("results"), block_variants=report.get("blocks"))
 
     if drift_samples:
