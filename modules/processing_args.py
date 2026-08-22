@@ -8,6 +8,7 @@ import numpy as np
 from PIL import Image
 from modules import shared, sd_models, processing, processing_vae, processing_helpers, sd_hijack_hypertile, sd_vae
 from modules.logger import log
+from modules.attention import context as attention_context
 from modules.processing_callbacks import diffusers_callback_legacy, diffusers_callback, set_callbacks_p
 from modules.processing_helpers import get_generator, apply_circular # pylint: disable=unused-import
 from modules.processing_prompt import set_prompt
@@ -366,6 +367,7 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:l
         args['callback_steps'] = 1
 
     set_callbacks_p(p)
+    attention_context.new_pass(steps)
     if 'prior_callback_on_step_end' in possible: # Wuerstchen / Cascade
         args['prior_callback_on_step_end'] = diffusers_callback
         if 'prior_callback_on_step_end_tensor_inputs' in possible:

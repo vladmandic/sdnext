@@ -3,6 +3,7 @@ import logging
 import torch
 from modules import shared, errors, devices, sd_offload
 from modules.logger import log
+from modules.attention import context as attention_context
 
 
 class InterruptLogFilter(logging.Filter):
@@ -41,6 +42,7 @@ def install_state_hook(pipe):
 
     def _pre_transformer_hook(module, args): # pylint: disable=unused-argument
         new_phase = set_phase('Generate', module)
+        attention_context.set_role('transformer')
         if new_phase:
             sd_offload.offload_ondemand(pipe, exclude=['transformer', 'transformer_ref'], reason='generate', force=hasattr(pipe, 'sdnext_force_offload'))
         if shared.state.sampling_steps == 0 and getattr(pipe, 'num_timesteps', 0) > 0:
@@ -52,11 +54,13 @@ def install_state_hook(pipe):
                     raise AssertionError('Interrupted...')
                 time.sleep(0.1)
         shared.state.step()
+        attention_context.tick()
         if shared.state.interrupted or shared.state.skipped:
             raise AssertionError('Interrupted...')
 
     def _pre_text_encode_hook(module, args): # pylint: disable=unused-argument
         new_phase = set_phase('Text Encode', module)
+        attention_context.set_role('te')
         if new_phase:
             sd_offload.offload_ondemand(pipe, exclude=['text_encoder'], reason='text encode', force=hasattr(pipe, 'sdnext_force_offload'))
         if shared.state.interrupted or shared.state.skipped:
@@ -64,6 +68,7 @@ def install_state_hook(pipe):
 
     def _pre_vae_decode_hook(module, args): # pylint: disable=unused-argument
         new_phase = set_phase('Decode', module)
+        attention_context.set_role('vae')
         if new_phase:
             sd_offload.offload_ondemand(pipe, exclude=['vae', 'audio_vae'], reason='vae decode', force=hasattr(pipe, 'sdnext_force_offload'))
         if shared.state.interrupted or shared.state.skipped: # fires per tile, so tiled decodes abort promptly
@@ -71,6 +76,7 @@ def install_state_hook(pipe):
 
     def _pre_vae_encode_hook(module, args): # pylint: disable=unused-argument
         new_phase = set_phase('Encode', module)
+        attention_context.set_role('vae')
         if new_phase:
             sd_offload.offload_ondemand(pipe, exclude=['vae', 'audio_vae'], reason='vae encode', force=hasattr(pipe, 'sdnext_force_offload'))
         if shared.state.interrupted or shared.state.skipped: # fires per tile, so tiled encodes abort promptly

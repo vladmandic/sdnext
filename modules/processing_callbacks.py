@@ -4,6 +4,7 @@ import torch
 import numpy as np
 from modules import shared, devices, processing_correction, timer, prompt_parser_diffusers
 from modules.logger import log
+from modules.attention import context as attention_context
 
 
 p = None
@@ -87,6 +88,7 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
     if shared.state.sampling_steps == 0 and getattr(pipe, 'num_timesteps', 0) > 0:
         shared.state.sampling_steps = pipe.num_timesteps
     shared.state.step()
+    attention_context.tick(step + 1)
     if shared.state.interrupted or shared.state.skipped:
         raise AssertionError('Interrupted...')
     if latents is None or p is None:

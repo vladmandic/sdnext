@@ -15,6 +15,8 @@ Covers:
 - a backend whose prepare raises is skipped without disturbing the rest
 - install_router leaves the original sdpa in place for an empty plan
 - the dynamic backend pins the pre-dynamic sdpa the sliced path reads
+- the generation context: step normalized to the forward about to run on both the classic
+  callback and the modular pre-hook, per-pass resets, the in-place step buffer, role scopes
 
 No running server required. Nothing is moved to the accelerator.
 
@@ -309,6 +311,57 @@ def test_dynamic_backend_pins_pre_dynamic_sdpa():
     return True
 
 
+def test_context_classic_ticks_follow_the_callback():
+    ctx = attention.context
+
+    class Pipe:
+        transformer = object()
+
+    ctx.begin(Pipe(), steps=4)
+    assert ctx.current.active and ctx.current.role == 'transformer' and ctx.current.step == 0 and ctx.current.steps == 4
+    assert ctx.current.model_key == ('Pipe', 'object'), ctx.current.model_key
+    buffer = ctx.current.step_buffer
+    for completed in range(4):
+        ctx.tick(completed + 1) # the diffusers callback reports the step just completed
+        assert ctx.current.step == completed + 1
+        assert ctx.current.step_buffer is buffer and int(buffer.item()) == completed + 1
+    ctx.new_pass(2) # hires or refiner pass
+    assert ctx.current.step == 0 and ctx.current.steps == 2 and int(buffer.item()) == 0
+    ctx.end()
+    assert not ctx.current.active and ctx.current.role is None and ctx.current.model_key is None and ctx.current.step == 0
+    return True
+
+
+def test_context_modular_ticks_count_forwards():
+    ctx = attention.context
+    ctx.begin(None, steps=3)
+    assert ctx.current.model_key is None
+    for expected in range(3):
+        ctx.tick() # the modular pre-hook fires before each forward
+        assert ctx.current.step == expected, ctx.current.step
+    ctx.end()
+    return True
+
+
+def test_context_roles_nest_and_stick():
+    ctx = attention.context
+    ctx.begin(None)
+    with ctx.role('te'):
+        assert ctx.current.role == 'te'
+        with ctx.role('vae'):
+            assert ctx.current.role == 'vae'
+        assert ctx.current.role == 'te'
+    assert ctx.current.role == 'transformer'
+    ctx.set_role('vae')
+    assert ctx.current.role == 'vae'
+    ctx.end()
+    assert ctx.current.role is None
+    with ctx.role('te'): # outside a generation the scope still restores what it found
+        assert ctx.current.role == 'te'
+    assert ctx.current.role is None
+    return True
+
+
 def run_all():
     log.warning('=== attention router ===')
     cat = category('router')
@@ -321,6 +374,15 @@ def run_all():
         test_prepare_failure_skips_backend,
         test_install_router_keeps_original_for_empty_plan,
         test_dynamic_backend_pins_pre_dynamic_sdpa,
+    ]:
+        run_test(cat, fn)
+
+    log.warning('=== generation context ===')
+    cat = category('context')
+    for fn in [
+        test_context_classic_ticks_follow_the_callback,
+        test_context_modular_ticks_count_forwards,
+        test_context_roles_nest_and_stick,
     ]:
         run_test(cat, fn)
 
