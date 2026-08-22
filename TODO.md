@@ -12,35 +12,30 @@
 
 ## Features
 
+### Assigned
+
+- Object clear remover for Kanvas: [Object clear](https://huggingface.co/jixin0101/ObjectClear), @vladmandic
+- OpenAI API interface for image generation, @vladmandic
+- Lightweight scheduler/queue manager, @vladmandic
+- Integrate natural language image search: [ImageDB](https://github.com/vladmandic/imagedb), @vladmandic
+- Support cloud providers, @CalamitousFelicitousness
+
 ### Roadmap
 
-- Video upscaling: nvidia-vfx, ltx-upscaler, etc.
+- Video upscaling: LTX-Upscaler
 - Video capabilities to processing tab, add RIFE, upscaling (once available)
-- Object clear remover for Kanvas: [Object clear](https://huggingface.co/jixin0101/ObjectClear)
-- OpenAI API interface for image generation
-- Lightweight scheduler/queue manager
 - Distraction-free UI mode with prompt-only, chat-based interface
 - Revisit transformer caching for modular pipelines
 - Revisit guidance for modular pipelines
 - Implement modular for some image models
 - Video models: support finetunes
-
-### Assigned
-
-- Support cloud providers, @CalamitousFelicitousness
-
-### Unassigned
-
 - Incorporate [prompting guides](https://github.com/CalamitousFelicitousness/ai-prompting-guides)
-- Video models: add to Reference
+- Video models: use Networks/Reference instead of custom
 - UI Lite vs Expert mode
-- Auto handle scheduler `prediction_type`
-- JSON image metadata
 - Expand custom VAE support
 - Refactor: remove obsolete code:
   - Remove `olive-ai`
-- Integrate natural language image search
-  - [ImageDB](https://github.com/vladmandic/imagedb)
+
 
 ### OnHold
 
@@ -48,11 +43,13 @@
 - [QuantFunc](https://huggingface.co/QuantFunc/Klein-9B-Series): once its released as sdk
 - LoRA add OMI format support for SD35/FLUX.1
 - Remote Text-Encoder support, sidelined for the moment
+- Auto handle scheduler `prediction_type`
 - Multi-user support
 - Settings profile manager
 - TensorRT acceleration
 - Cache models in memory
 - Unify *huggingface* and *diffusers* model folders
+- JSON image metadata
 
 ### Modular
 

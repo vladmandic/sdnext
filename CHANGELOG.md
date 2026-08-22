@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Highlights for 2026-08-21
+## Highlights for 2026-08-22
 
 Time for a new release, this is a larger one!
 Main focus is improving video workflows which also brings full support for new [MiniMax H3](https://vladmandic.github.io/sdnext-docs/MiniMax) and [LTXVideo-2.5](https://vladmandic.github.io/sdnext-docs/LTX)  
@@ -16,7 +16,7 @@ Plus quite a lot more, see full [changelog](https://github.com/vladmandic/automa
 
 [Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-## Details for 2026-08-21
+## Details for 2026-08-22
 
 - **Models**
   - [MiniMax H3](https://huggingface.co/MiniMaxAI/MiniMax-H3) available in *base* and *ref* variants  
@@ -90,6 +90,7 @@ Plus quite a lot more, see full [changelog](https://github.com/vladmandic/automa
   - hf: init hf env variables before gradio load
   - lora: skip init and rebuild offload state
   - lora: keep network multiplier on change
+  - lora: handle networks when delta does not fit
   - auth: improve handling of hf auth
   - load: improve pipeline detection for non-cached models
   - offload: cleanup alt offload codepaths
