@@ -216,6 +216,9 @@ def start_server(immediate=True, server=None):
     if args.test:
         from pipelines.generic_test import test_pipelines
         test_pipelines()
+        # log.info("Console test: \033[31m ANSI color red \033[0m")
+        # log.info("Console test: \033[34m ANSI color blue \033[0m")
+        # log.info("Console test: \033[33m ANSI color yellow \033[0m")
         log.info("Test only: exiting...")
         server.wants_restart = False
         uvicorn = server.webui(restart=not immediate, _exit=True)

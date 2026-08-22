@@ -104,6 +104,8 @@ def setup_logging(debug=None, trace=None, filename=None):
             self.formatter = logging.Formatter('{ "asctime":"%(asctime)s", "created":%(created)f, "facility":"%(name)s", "pid":%(process)d, "tid":%(thread)d, "level":"%(levelname)s", "module":"%(module)s", "func":"%(funcName)s", "msg":"%(message)s" }')
 
         def strip(self, line):
+            if line is None:
+                return ""
             ansi_escape = re.compile(r'(\x9B|\x1B\[)[0-?]*[ -/]*[@-~]')
             return ansi_escape.sub('', str(line))
 
@@ -142,6 +144,24 @@ def setup_logging(debug=None, trace=None, filename=None):
 
         def get(self):
             return self.buffer
+
+    class FileBuffer(RotatingFileHandler):
+        def __init__(self, filename, maxBytes=32*1024*1024, backupCount=9, encoding='utf-8', delay=True):
+            super().__init__(filename, maxBytes=maxBytes, backupCount=backupCount, encoding=encoding, delay=delay)
+            if trace:
+                self.formatter = logging.Formatter('%(asctime)s %(levelname)-8s %(message)s | %(module)s:%(pathname)s:%(lineno)d:%(message)s')
+            else:
+                self.formatter = logging.Formatter('%(asctime)s %(levelname)-8s %(message)s')
+
+        def strip(self, line):
+            if line is None:
+                return ""
+            ansi_escape = re.compile(r'(\x9B|\x1B\[)[0-?]*[ -/]*[@-~]')
+            return ansi_escape.sub('', str(line))
+
+        def emit(self, record):
+            record.msg = self.strip(record.msg)
+            super().emit(record)
 
     class LogFilter(logging.Filter):
         def __init__(self):
@@ -250,11 +270,7 @@ def setup_logging(debug=None, trace=None, filename=None):
     rh.setLevel(level)
     log.addHandler(rh)
 
-    fh = RotatingFileHandler(log_file, maxBytes=32*1024*1024, backupCount=9, encoding='utf-8', delay=True) # 10MB default for log rotation
-    if trace:
-        fh.formatter = logging.Formatter(f'%(asctime)s | {hostname} | %(name)s | %(levelname)s | %(module)s | | %(pathname)s:%(lineno)d | %(message)s')
-    else:
-        fh.formatter = logging.Formatter(f'%(asctime)s | {hostname} | %(name)s | %(levelname)s | %(module)s | %(message)s')
+    fh = FileBuffer(log_file)
     fh.addFilter(log_filter)
     fh.setLevel(logging.DEBUG)
     log.addHandler(fh)

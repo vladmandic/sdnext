@@ -57,6 +57,7 @@ Plus quite a lot more, see full [changelog](https://github.com/vladmandic/automa
     reduces memory spikes during model load at the cost of disk i/o and slower load times  
   - use `GRADIO_TEMP_DIR` env variable for temp folder if set
   - update ui login form
+  - update file logging
 - **Video**
   - reorganized *video* tab
   - better support for video codeces and formats
