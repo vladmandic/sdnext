@@ -1,5 +1,5 @@
 from .models import detailer_models
-from .helper import DetailerResult, detailer_opt, list_models, get_mask
+from .helper import detailer_opt, DetailerResult, list_models, assign_prompts, parse_prompt_lines
 from .detailer import Detailer
 
 

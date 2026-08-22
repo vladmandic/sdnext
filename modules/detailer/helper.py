@@ -1,6 +1,10 @@
 import os
+import re
 from PIL import Image, ImageDraw
 from modules.logger import log
+
+
+class_tag_re = re.compile(r'^\[class\s*=\s*([^\]]+)\]\s*(.*)$', re.IGNORECASE)
 
 
 def list_models(self):
@@ -32,6 +36,53 @@ def detailer_opt(p, attr, opts_attr=None):
         if val is not None:
             return val
     return getattr(shared.opts, opts_attr or attr, None)
+
+
+def parse_prompt_lines(text: str):
+    """Split a detailer prompt into class-tagged templates and positional fallback lines.
+
+    A line starting with '[CLASS=name]' or '[CLASS=name1,name2]' assigns its text to every
+    detection whose label matches one of the given class names (case-insensitive). All
+    other non-empty lines are kept, in order, as the legacy positional fallback used for
+    detections that don't match any class tag.
+    """
+    class_map: dict[str, str] = {}
+    fallback: list[str] = []
+    for line in (text or '').split('\n'):
+        line = line.strip()
+        if len(line) == 0:
+            continue # blank spacer lines don't count as a fallback entry
+        m = class_tag_re.match(line)
+        if m:
+            names = [n.strip().lower() for n in m.group(1).split(',') if n.strip()]
+            for name in names:
+                class_map[name] = m.group(2).strip()
+        else:
+            fallback.append(line)
+    return class_map, fallback
+
+
+def assign_prompts(text: str, items: list) -> list[str]:
+    """Resolve a detailer prompt/negative-prompt string into one entry per detection.
+
+    Detections whose YOLO label matches a '[CLASS=name]' tag get that tag's text.
+    Remaining detections fall back to the untagged lines, applied positionally in
+    detection order and cycling if there are more detections than fallback lines
+    (matching prior behavior when no class tags are used).
+    """
+    class_map, fallback = parse_prompt_lines(text)
+    if len(fallback) == 0:
+        fallback = ['']
+    resolved = []
+    fallback_idx = 0
+    for item in items:
+        label = (getattr(item, 'label', None) or '').strip().lower()
+        if label in class_map:
+            resolved.append(class_map[label])
+        else:
+            resolved.append(fallback[fallback_idx % len(fallback)])
+            fallback_idx += 1
+    return resolved
 
 
 def get_mask(box: list[int], image: Image.Image, include_mask: bool = True) -> tuple[Image.Image | None, Image.Image]:
