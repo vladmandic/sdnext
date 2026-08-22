@@ -100,6 +100,22 @@ def get_plan() -> Plan | None:
     return current_plan
 
 
+def reapply_options(reg: Registry | None = None) -> list[str]:
+    """Settings whose change rebuilds the chain: the override set, the torch kernel flags, and every option a backend captures."""
+    reg = reg if reg is not None else default_registry
+    return ['sdp_options', 'sdp_overrides', *reg.options()]
+
+
+def reapply() -> None:
+    """Rebuild the chain from the current settings; a resident compiled model is reset so its graphs trace the new router."""
+    from modules import devices, shared
+    devices.set_sdpa_params()
+    compiled = getattr(shared, 'compiled_model_state', None)
+    if compiled is not None and getattr(compiled, 'is_compiled', False):
+        torch._dynamo.reset() # pylint: disable=protected-access
+        log.debug('Torch attention: dynamo reset, compiled model resident')
+
+
 def report() -> dict:
     """The active chain and generation context, for the api and the debug log."""
     plan = current_plan

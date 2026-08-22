@@ -63,6 +63,7 @@ class AttentionBackend:
     constraints: Constraints = field(default_factory=Constraints)
     terminal: bool = False # serves every call the entries decline, in place of the original sdpa
     platforms: frozenset[str] | None = None # devices backends the implementation exists for, None for all
+    options: tuple[str, ...] = () # settings the prepared call captures; a change to one rebuilds the chain
 
     def available_on(self, platform: Platform) -> bool:
         return self.platforms is None or platform.backend in self.platforms
@@ -89,6 +90,9 @@ class Registry:
 
     def labels(self) -> list[str]:
         return [backend.label for backend in self.ordered()]
+
+    def options(self) -> list[str]:
+        return sorted({name for backend in self.backends.values() for name in backend.options})
 
 
 registry = Registry()

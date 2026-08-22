@@ -411,6 +411,18 @@ def test_debug_observe_logs_each_route_once():
     return True
 
 
+def test_reapply_options_cover_declared_backend_options():
+    from modules import shared
+    names = attention.reapply_options()
+    assert names[:2] == ['sdp_options', 'sdp_overrides'], names
+    declared = attention.registry.options()
+    assert set(declared) <= set(names), (declared, names)
+    assert attention.registry.backends['sdnq'].options and set(attention.registry.backends['sdnq'].options) <= set(declared)
+    for name in names:
+        assert name in shared.opts.data_labels, name
+    return True
+
+
 def run_all():
     log.warning('=== attention router ===')
     cat = category('router')
@@ -441,6 +453,7 @@ def run_all():
         test_router_observer_sees_each_route,
         test_install_router_records_the_chain,
         test_debug_observe_logs_each_route_once,
+        test_reapply_options_cover_declared_backend_options,
     ]:
         run_test(cat, fn)
 

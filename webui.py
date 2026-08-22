@@ -17,6 +17,7 @@ import modules.loader
 import modules.hashes
 import modules.paths
 import modules.devices
+import modules.attention
 import modules.migrate
 from modules import shared
 from modules import call_queue
@@ -205,6 +206,8 @@ def load_model():
     shared.opts.onchange("temp_dir", modules.gr_tempdir.on_tmpdir_changed)
     for opt in modules.sd_offload_state.offload_reapply_options:
         shared.opts.onchange(opt, call_queue.wrap_queued_call(modules.sd_models.reapply_offload), call=False)
+    for opt in modules.attention.reapply_options():
+        shared.opts.onchange(opt, call_queue.wrap_queued_call(modules.attention.reapply), call=False)
     timer.startup.record("onchange")
 
 
