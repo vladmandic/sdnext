@@ -546,8 +546,9 @@ def update_pipeline(sd_model, p: processing.StableDiffusionProcessing):
         global orig_pipeline # pylint: disable=global-statement
         orig_pipeline = updated_model # processed ONNX pipeline should not be replaced with original pipeline.
     current_attn = getattr(updated_model, "current_attn_name", None)
-    if (current_attn != shared.opts.cross_attention_optimization) and (current_attn != shared.opts.sdp_overrides):
-        log.info(f"Setting attention optimization: {shared.opts.cross_attention_optimization}")
+    current_overrides = getattr(updated_model, "current_attn_overrides", None)
+    if current_attn != shared.opts.cross_attention_optimization or current_overrides != list(shared.opts.sdp_overrides):
+        log.info(f"Setting attention optimization: {shared.opts.cross_attention_optimization} overrides={shared.opts.sdp_overrides}")
         attention.set_diffusers_attention(updated_model)
     return updated_model
 

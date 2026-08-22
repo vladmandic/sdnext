@@ -48,6 +48,7 @@ def set_diffusers_attention(pipe, quiet = False):
         log.debug(f"Torch attention: slicing={shared.opts.attention_slicing}")
 
     pipe.current_attn_name = shared.opts.cross_attention_optimization
+    pipe.current_attn_overrides = list(shared.opts.sdp_overrides)
 
 
 orig_get_kernel = None
