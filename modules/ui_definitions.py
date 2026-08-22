@@ -262,6 +262,14 @@ def create_settings(cmd_opts):
         "sdnq_attention_pv_matmul_type": OptionInfo("disabled", "SDNQ Attention PV MatMul type", gr.Radio, {"choices": sdnq_matmul_modes}),
         "sdnq_attention_hadamard_group_size": OptionInfo(256, "SDNQ Attention Hadamard Group Size", gr.Slider, {"minimum": 4, "maximum": 1024, "step": 1}),
 
+        "sparse_attention_sep": OptionInfo("<h2>Sparse Attention</h2>", "", gr.HTML),
+        "sparse_attention_enabled": OptionInfo(False, "Sparse Attention", gr.Checkbox),
+        "sparse_attention_budget": OptionInfo(30, "Sparse Attention KV budget", gr.Slider, {"minimum": 5, "maximum": 100, "step": 5}),
+        "sparse_attention_min_tokens": OptionInfo(0, "Sparse Attention minimum sequence", gr.Slider, {"minimum": 0, "maximum": 65536, "step": 1024}),
+        "sparse_attention_schedule_steps": OptionInfo(0, "Sparse Attention dense steps", gr.Slider, {"minimum": 0, "maximum": 10, "step": 1}),
+        "sparse_attention_schedule_bump": OptionInfo(30, "Sparse Attention dense step bonus", gr.Slider, {"minimum": 0, "maximum": 70, "step": 5}),
+        "sparse_attention_head_shared": OptionInfo(False, "Sparse Attention share selection across heads", gr.Checkbox),
+
         "hf_attention_sep": OptionInfo("<h2>Attention Dispatcher</h2>", "", gr.HTML),
         "hf_attention": OptionInfo('', "Attention dispatcher kernel", gr.Textbox),
     }))

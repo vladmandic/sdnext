@@ -15,6 +15,8 @@ Covers:
 - the flex consumer: a full-keep selection through flex_attention reproduces dense sdpa, and a
   selection with dropped tiles reproduces sdpa given the same tiles masked out
 - the density matched radial control and the step schedule
+- the router stage: the gates it applies (component role, mask, causal, cross attention, minimum
+  sequence), the per step budget schedule, and layout resolution with and without a publisher
 
 The flex rows need a cuda device and compile the flex kernel; they skip on cpu.
 
@@ -329,6 +331,90 @@ def test_flex_handles_a_ragged_tail():
     return True
 
 
+# ============================================================
+# Router stage
+# ============================================================
+
+def stage_options(**kwargs):
+    from modules.attention.sparse import stage as stage_mod
+    base = dict(enabled=True, budget=0.30, min_tokens=1024)
+    base.update(kwargs)
+    return stage_mod.StageOptions(**base)
+
+
+def with_context(fn):
+    from modules.attention import context as ctx
+    ctx.begin(None, steps=10)
+    try:
+        return fn()
+    finally:
+        ctx.end()
+
+
+def test_stage_is_none_when_disabled_or_at_full_budget():
+    from modules.attention.sparse import stage as stage_mod
+    assert stage_mod.make_stage(stage_options(enabled=False)) is None
+    assert stage_mod.make_stage(stage_options(budget=1.0)) is None
+    assert stage_mod.make_stage(stage_options()) is not None
+    return True
+
+
+def test_stage_gates():
+    from modules.attention.sparse import stage as stage_mod
+    stage = stage_mod.make_stage(stage_options())
+    q, k, v = qkv(heads=2, seq=2048)
+    short_q, short_k, short_v = qkv(heads=2, seq=512)
+    cross_k, cross_v = randn(1, 2, 77, 64), randn(1, 2, 77, 64)
+
+    def checks():
+        from modules.attention import context as ctx
+        assert stage(q, k, v, None, False) is not None, 'an eligible call must be selected'
+        assert stage(q, k, v, torch.zeros(1, 1, 2048, 2048, dtype=torch.bool, device=device), False) is None, 'a masked call is not eligible yet'
+        assert stage(q, k, v, None, True) is None, 'a causal call is not eligible yet'
+        assert stage(q, cross_k, cross_v, None, False) is None, 'cross attention is not eligible'
+        assert stage(short_q, short_k, short_v, None, False) is None, 'below the gate attention stays dense'
+        ctx.set_role('vae')
+        assert stage(q, k, v, None, False) is None, 'only the denoiser is sparsified'
+        ctx.set_role('transformer')
+        return True
+    return with_context(checks)
+
+
+def test_stage_follows_the_step_schedule():
+    from modules.attention.sparse import stage as stage_mod
+    from modules.attention import context as ctx
+    stage = stage_mod.make_stage(stage_options(budget=0.30, schedule_steps=2, schedule_bump=0.40))
+    q, k, v = qkv(heads=2, seq=2048)
+
+    def checks():
+        densities = []
+        for step in range(10):
+            ctx.set_step(step)
+            selection = stage(q, k, v, None, False)
+            densities.append(selection.budget)
+        assert densities[0] == densities[1] > densities[5], densities
+        assert densities[-1] == densities[-2] > densities[5], densities
+        assert len(set(densities)) == 2, set(densities)
+        return True
+    return with_context(checks)
+
+
+def test_stage_uses_a_published_layout_and_falls_back_without_one():
+    from modules.attention.sparse import stage as stage_mod
+    from modules.attention import context as ctx
+    stage = stage_mod.make_stage(stage_options(budget=0.20))
+    q, k, v = qkv(heads=2, seq=2048)
+
+    def checks():
+        loose = stage(q, k, v, None, False)
+        ctx.set_layout(sparse.layout_from_segments([('text', 256), ('video', 1792)]))
+        pinned = stage(q, k, v, None, False)
+        assert pinned.density > loose.density, f'pinning conditioning must keep more tiles: {pinned.density} vs {loose.density}'
+        assert bool(pinned.keep[..., 0:4].all()), 'the pinned text columns must survive'
+        return True
+    return with_context(checks)
+
+
 def run_all():
     log.warning(f'=== selector (device={device}) ===')
     cat = category('selector')
@@ -365,6 +451,16 @@ def run_all():
         test_flex_sparse_selection_matches_the_same_tiles_under_sdpa,
         test_flex_applies_the_selection_at_all,
         test_flex_handles_a_ragged_tail,
+    ]:
+        run_test(cat, fn)
+
+    log.warning('=== stage ===')
+    cat = category('stage')
+    for fn in [
+        test_stage_is_none_when_disabled_or_at_full_budget,
+        test_stage_gates,
+        test_stage_follows_the_step_schedule,
+        test_stage_uses_a_published_layout_and_falls_back_without_one,
     ]:
         run_test(cat, fn)
 

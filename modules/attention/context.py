@@ -13,6 +13,7 @@ class GenerationContext:
     forwards: int = 0
     model_key: tuple[str, str | None] | None = None # pipeline class and denoiser class, telemetry only
     step_buffer: torch.Tensor | None = None # the step as a device scalar updated in place, so compiled readers keep their graph
+    layout: object | None = None # TokenLayout published by whoever knows the packing, None until something does
 
 
 current = GenerationContext()
@@ -30,6 +31,7 @@ def begin(pipe, steps: int = 0) -> None:
     from modules import devices
     current.active = True
     current.role = 'transformer'
+    current.layout = None
     current.model_key = (pipe.__class__.__name__, denoiser_name(pipe)) if pipe is not None else None
     device = devices.device if devices.device is not None else torch.device('cpu')
     if current.step_buffer is None or current.step_buffer.device != device:
@@ -56,10 +58,16 @@ def tick(step: int | None = None) -> None:
     current.forwards = current.step + 1
 
 
+def set_layout(layout) -> None:
+    """Publish what the packed sequence holds; callers that know the packing set this per forward."""
+    current.layout = layout
+
+
 def end() -> None:
     current.active = False
     current.role = None
     current.model_key = None
+    current.layout = None
     new_pass(0)
 
 

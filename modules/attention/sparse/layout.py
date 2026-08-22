@@ -53,7 +53,7 @@ def runs(indices: torch.Tensor) -> list[tuple[int, int]]:
     return [(int(values[bounds[i]].item()), int(values[bounds[i + 1] - 1].item()) + 1) for i in range(len(bounds) - 1)]
 
 
-def layout_from_index_kwargs(kwargs: dict, length: int) -> TokenLayout | None:
+def layout_from_index_kwargs(kwargs: dict, length: int | None = None) -> TokenLayout | None:
     """Read a layout off the *_indices tensors a pipeline passes its transformer by name."""
     spans: list[Span] = []
     for name, value in kwargs.items():
@@ -68,7 +68,7 @@ def layout_from_index_kwargs(kwargs: dict, length: int) -> TokenLayout | None:
     if not spans:
         return None
     spans.sort(key=lambda s: s.start)
-    return TokenLayout(spans=tuple(spans), length=length, source='indices')
+    return TokenLayout(spans=tuple(spans), length=length if length is not None else spans[-1].end, source='indices')
 
 
 def layout_from_segments(segments, length: int | None = None, source: str = 'segments') -> TokenLayout:
