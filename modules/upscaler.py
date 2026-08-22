@@ -38,7 +38,7 @@ class Upscaler:
         self.device = shared.device
         self.img = None
         self.output = None
-        self.scale = 1
+        self.scale = 4
         self.half = not shared.cmd_opts.no_half
         self.pre_pad = 0
         self.mod_scale = None
@@ -116,11 +116,11 @@ class Upscaler:
             for _ in range(3):
                 shape = (img.width, img.height)
                 img = self.do_upscale(img, selected_model)
-                if shape == (img.width, img.height):
+                if shape == (img.width, img.height): # no change, no point of running another iteration
                     break
-                if img.width >= (dest_w - 8) and img.height >= (dest_h - 8):
+                if (abs(img.width - dest_w) <= 12 or img.width >= dest_w) or (abs(img.height - dest_h) <= 12 or img.height >= dest_h): # close enough, do not run one more iteration
                     break
-            if img.width != dest_w or img.height != dest_h:
+            if abs(img.width - dest_w) > 8 or abs(img.height - dest_h) > 8:
                 from modules.image import sharpfin
                 img = sharpfin.resize(img, (int(dest_w), int(dest_h)))
         shared.state.end(jobid)
@@ -158,30 +158,29 @@ class UpscalerData:
     custom: bool = False
     name = None
     data_path = None
-    scale: int = 1
+    scale: int = 2
     scaler: Upscaler | None = None
     model: None
 
-    def __init__(self, name: str, path: str | None = None, upscaler: Upscaler | None = None, scale: int = 1, model=None):
+    def __init__(self, name: str, path: str | None = None, upscaler: Upscaler | None = None, scale: int = 0, model=None):
         self.name = name
         self.data_path = path
         self.local_data_path = path
         self.scaler = upscaler
         if scale > 0:
             self.scale = scale
-        elif '2x' in name.lower():
+        elif '1x' in name.lower() or 'x1' in name.lower():
+            self.scale = 1
+        elif '2x' in name.lower() or 'x2' in name.lower():
             self.scale = 2
-        elif '3x' in name.lower():
+        elif '3x' in name.lower() or 'x3' in name.lower():
             self.scale = 3
-        elif '4x' in name.lower():
+        elif '4x' in name.lower() or 'x4' in name.lower():
             self.scale = 4
-        elif '4x' in name.lower():
-            self.scale = 4
-        elif '8x' in name.lower():
+        elif '8x' in name.lower() or 'x8' in name.lower():
             self.scale = 8
         else:
-            self.scale = 1
-        self.scale = scale
+            self.scale = 2 # default scale to 2 if not specified
         self.model = model
 
     def __str__(self):

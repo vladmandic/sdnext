@@ -11,8 +11,8 @@ class UpscalerAsymmetricVAE(Upscaler):
         self.vae = None
         self.selected = None
         self.scalers = [
-            UpscalerData("Asymmetric VAE v1", None, self),
-            UpscalerData("Asymmetric VAE v2", None, self),
+            UpscalerData("Asymmetric VAE 2x v1", None, self),
+            UpscalerData("Asymmetric VAE 2x v2", None, self),
         ]
 
     def do_upscale(self, img: Image.Image, selected_model=None): # pylint: disable=arguments-differ
@@ -52,7 +52,7 @@ class UpscalerWanUpscale(Upscaler):
         self.vae_decode = None
         self.selected = None
         self.scalers = [
-            UpscalerData("WAN Asymmetric Upscale", None, self),
+            UpscalerData("WAN Asymmetric Upscale 2x", None, self),
         ]
 
     def do_upscale(self, img: Image.Image, selected_model=None): # pylint: disable=arguments-differ

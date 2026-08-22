@@ -58,12 +58,12 @@ class UpscalerSwinIR(Upscaler):
                         model.load_state_dict(pretrained_model[param], strict=True)
                     else:
                         model.load_state_dict(pretrained_model, strict=True)
-                    log.info(f"Upscaler loaded: type={self.name} model={info.local_data_path} param={param}")
+                    log.info(f'Upscaler loaded: type="{self.name}" model="{info.local_data_path}" param="{param}"')
                     model = compile_upscaler(model)
                     self.models[info.local_data_path] = model
                     return model
                 except Exception as e:
-                    log.error(f'Upscaler invalid parameters: type={self.name} model={info.local_data_path} {e}')
+                    log.error(f'Upscaler invalid parameters: type="{self.name}" model="{info.local_data_path}" error="{e}"')
         return model
 
     def do_upscale(self, img, selected_model): # pylint: disable=arguments-differ

@@ -29,7 +29,7 @@ class UpscalerRealESRGAN(Upscaler):
                 scaler.model = lambda: SRVGGNetCompact(num_in_ch=3, num_out_ch=3, num_feat=64, num_conv=32, upscale=4, act_type='prelu')
             elif scaler.name == 'RealESRGAN 4x General WDN V3':
                 scaler.model = lambda: SRVGGNetCompact(num_in_ch=3, num_out_ch=3, num_feat=64, num_conv=32, upscale=4, act_type='prelu')
-            elif scaler.name == 'RealESRGAN AnimeVideo V3':
+            elif scaler.name == 'RealESRGAN 4x AnimeVideo V3':
                 scaler.model=lambda: SRVGGNetCompact(num_in_ch=3, num_out_ch=3, num_feat=64, num_conv=16, upscale=4, act_type='prelu')
             elif scaler.name == 'RealESRGAN 4x+':
                 scaler.model = lambda: RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64, num_block=23, num_grow_ch=32, scale=4)
@@ -47,27 +47,28 @@ class UpscalerRealESRGAN(Upscaler):
         except Exception:
             log.error("Error importing Real-ESRGAN:")
             return img
-        info = self.find_model(selected_model)
-        if info is None or not os.path.exists(info.local_data_path):
+        model = self.find_model(selected_model)
+        if model is None or not os.path.exists(model.local_data_path):
             return img
-        if self.models.get(info.local_data_path, None) is not None:
-            log.debug(f"Upscaler cached: type={self.name} model={info.local_data_path}")
-            upsampler=self.models[info.local_data_path]
+        if self.models.get(model.local_data_path, None) is not None:
+            log.debug(f"Upscaler cached: type={self.name} model={model.local_data_path}")
+            upsampler=self.models[model.local_data_path]
         else:
-            upsampler = RealESRGANer(
-                name=info.name,
-                scale=info.scale,
-                model_path=info.local_data_path,
-                model=info.model(),
-                half=not opts.no_half and not opts.upcast_sampling,
-                tile=opts.upscaler_tile_size,
-                tile_pad=opts.upscaler_tile_overlap,
-                device=device,
-            )
-            self.models[info.local_data_path] = upsampler
-        upsampled = upsampler.enhance(np.array(img), outscale=info.scale)[0]
-        if opts.upscaler_unload and info.local_data_path in self.models:
-            del self.models[info.local_data_path]
+            kwargs = {
+                'name': model.name,
+                'scale': model.scale,
+                'model_path': model.local_data_path,
+                'model': model.model(),
+                'half': not opts.no_half and not opts.upcast_sampling,
+                'tile': opts.upscaler_tile_size,
+                'tile_pad': opts.upscaler_tile_overlap,
+                'device': device,
+            }
+            upsampler = RealESRGANer(**kwargs)
+            self.models[model.local_data_path] = upsampler
+        upsampled = upsampler.enhance(np.array(img), outscale=model.scale)[0]
+        if opts.upscaler_unload and model.local_data_path in self.models:
+            del self.models[model.local_data_path]
             log.debug(f"Upscaler unloaded: type={self.name} model={selected_model}")
             devices.torch_gc(force=True)
 
