@@ -55,7 +55,7 @@ jobs:
         run: pnpm install --frozen-lockfile --unsafe-perm
 
       - name: pre-commit
-        uses: pre-commit-ci/lite-action@v1.2.0
+        uses: pre-commit-ci/lite-action@v1.1.0
         if: always()
         with:
           msg: apply code formatting and linting auto-fixes
