@@ -242,6 +242,22 @@ def test_block_pins_pin_a_boundary_tile():
     return True
 
 
+def test_segments_from_live_splits_interior_padding():
+    from modules.attention.sparse import layout as layout_mod
+    live = torch.zeros(512, dtype=torch.bool, device=device)
+    live[:40] = True
+    live[-8:] = True
+    segments = layout_mod.segments_from_live(live, 'text')
+    assert segments == [('text', 40), ('pad', 464), ('text', 8)], segments
+    token_layout = layout_mod.layout_from_segments(segments + [('image', 1024)])
+    assert token_layout.length == 1536, token_layout.length
+    _, drops = layout_mod.block_pins(token_layout, 1536, 1536, 128, 64, device)
+    # only a key block that is padding all the way through is dropped, so the two straddling blocks survive
+    assert drops[..., 1:7].all(), 'whole padded key blocks are dropped'
+    assert not drops[..., 0].any() and not drops[..., 7].any(), 'a straddling block keeps its live tokens'
+    return True
+
+
 def test_block_pins_are_cached_per_geometry():
     layout = sparse.layout_from_segments([('text', 128), ('video', 1024)])
     first = sparse.block_pins(layout, 1152, 1152, 128, 64, device)
@@ -369,14 +385,36 @@ def test_stage_gates():
     def checks():
         from modules.attention import context as ctx
         assert stage(q, k, v, None, False) is not None, 'an eligible call must be selected'
-        assert stage(q, k, v, torch.zeros(1, 1, 2048, 2048, dtype=torch.bool, device=device), False) is None, 'a masked call is not eligible yet'
-        assert stage(q, k, v, None, True) is None, 'a causal call is not eligible yet'
+        mask = torch.zeros(1, 1, 2048, 2048, dtype=torch.bool, device=device)
+        assert stage(q, k, v, mask, False) is None, 'a masked call needs a backend that composes the two'
+        assert stage(q, k, v, mask, False, frozenset({'masked_block'})) is not None, 'a composing backend takes the masked call'
+        assert stage(q, k, v, None, True) is None, 'a causal call is not eligible'
         assert stage(q, cross_k, cross_v, None, False) is None, 'cross attention is not eligible'
         assert stage(short_q, short_k, short_v, None, False) is None, 'below the gate attention stays dense'
         assert stage.last_skip == 'below the minimum sequence', stage.last_skip
         ctx.set_role('vae')
         assert stage(q, k, v, None, False) is None, 'only the denoiser is sparsified'
         ctx.set_role('transformer')
+        return True
+    return with_context(checks)
+
+
+def test_published_segments_reach_the_stage():
+    from modules.attention.sparse import layout as layout_mod
+    from modules.attention.sparse import stage as stage_mod
+    from modules.attention import context as ctx
+    stage = stage_mod.make_stage(stage_options(budget=0.30))
+    q, k, v = qkv(heads=2, seq=2048)
+
+    def checks():
+        layout_mod.publish_segments((('text', 256), ('image', 1536), ('pad', 256)), source='test')
+        published = ctx.current.layout
+        assert published.length == 2048 and published.source == 'test', published
+        assert published.kinds() == ('text', 'image', 'pad'), published.kinds()
+        selection = stage(q, k, v, None, False)
+        keep, block_kv = selection.keep, selection.block_kv
+        assert keep[..., :256 // block_kv].all(), 'conditioning key tiles stay dense'
+        assert not keep[..., 1792 // block_kv:].any(), 'padding key tiles are dropped'
         return True
     return with_context(checks)
 
@@ -440,6 +478,7 @@ def run_all():
         test_block_pins_pin_conditioning_and_drop_padding,
         test_block_pins_pin_a_boundary_tile,
         test_block_pins_are_cached_per_geometry,
+        test_segments_from_live_splits_interior_padding,
     ]:
         run_test(cat, fn)
 
@@ -461,6 +500,7 @@ def run_all():
         test_stage_is_none_when_disabled_or_at_full_budget,
         test_stage_gates,
         test_stage_follows_the_step_schedule,
+        test_published_segments_reach_the_stage,
         test_stage_uses_a_published_layout_and_falls_back_without_one,
     ]:
         run_test(cat, fn)

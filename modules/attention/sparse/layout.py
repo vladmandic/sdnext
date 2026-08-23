@@ -83,6 +83,22 @@ def layout_from_segments(segments, length: int | None = None, source: str = 'seg
     return TokenLayout(spans=tuple(spans), length=length if length is not None else cursor, source=source)
 
 
+def segments_from_live(live: torch.Tensor, kind: str, pad_kind: str = 'pad') -> list[tuple[str, int]]:
+    """Run length encode a boolean live mask into ordered (kind, count) pairs, the dead runs labelled as padding."""
+    values = live.detach().to('cpu').bool()
+    if values.numel() == 0:
+        return []
+    changes = (values[1:] != values[:-1]).nonzero().flatten().tolist()
+    bounds = [0, *[c + 1 for c in changes], values.numel()]
+    return [(kind if bool(values[bounds[i]]) else pad_kind, bounds[i + 1] - bounds[i]) for i in range(len(bounds) - 1)]
+
+
+def publish_segments(segments, length: int | None = None, source: str = 'segments') -> None:
+    """Publish a layout from the site that packs the sequence, which is the only place the segment lengths are all known."""
+    from modules.attention import context
+    context.set_layout(layout_from_segments(segments, length=length, source=source))
+
+
 def layout_from_prefix(length: int, prefix: int) -> TokenLayout:
     """Fallback when nothing published a layout: treat a leading run as conditioning and sparsify the rest."""
     return layout_from_segments([('text', prefix), ('image', length - prefix)], length=length, source='prefix')
