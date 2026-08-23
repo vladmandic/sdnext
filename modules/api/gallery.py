@@ -210,7 +210,7 @@ def register_api(api): # register api
                     debug(f'Browser folders allow: {path}')
                     shared.demo.allowed_paths.append(path)
         debug(f'Browser folders: {unique_folders}')
-        return JSONResponse(content=unique_folders)
+        return unique_folders
 
     # @app.get("/sdapi/v1/browser/thumb", response_model=dict)
     async def get_thumb(file: str, exif: bool = False):
