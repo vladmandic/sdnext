@@ -36,6 +36,10 @@ OPTS_FOLDERS = [
 class ReqFiles(BaseModel):
     folder: str = Field(title="Folder")
 
+class ItemFolder(BaseModel):
+    path: str = Field(title="Path", description="Folder path")
+    label: str = Field(title="Label", description="Folder display label")
+
 ### ws connection manager
 
 class ConnectionManager:
@@ -245,7 +249,7 @@ def register_api(api): # register api
             log.error(f'Gallery: {folder} {e}')
             return []
 
-    api.add_api_route("/sdapi/v1/browser/folders", get_folders, methods=["GET"], response_model=list[str])
+    api.add_api_route("/sdapi/v1/browser/folders", get_folders, methods=["GET"], response_model=list[ItemFolder])
     api.add_api_route("/sdapi/v1/browser/thumb", get_thumb, methods=["GET"], response_model=dict)
     api.add_api_route("/sdapi/v1/browser/files", ht_files, methods=["GET"], response_model=list)
 
