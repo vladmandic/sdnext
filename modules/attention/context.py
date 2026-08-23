@@ -64,11 +64,13 @@ def set_layout(layout) -> None:
 
 
 def end() -> None:
+    from modules.attention import debug
     current.active = False
     current.role = None
     current.model_key = None
     current.layout = None
     new_pass(0)
+    debug.end_generation()
 
 
 def set_role(name: str | None) -> None:
