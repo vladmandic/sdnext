@@ -249,6 +249,11 @@ bench_configs = [
     ("flex-radial30", "flex + static radial band, 30%", None), # density matched control with no per-call producer
     ("noquant", "sdnq, quantized matmul off", dict(do_quantize=False)),
     ("int8", "sdnq int8 qk", dict(matmul_dtype="auto", pv_matmul_dtype="auto")),
+    ("int8-sparse100", "sdnq int8 qk + selector, budget 100%", dict(matmul_dtype="auto", pv_matmul_dtype="auto")), # the selector runs but keeps everything, so this row is its overhead on the quantized kernel
+    ("int8-sparse50", "sdnq int8 qk + selector, budget 50%", dict(matmul_dtype="auto", pv_matmul_dtype="auto")),
+    ("int8-sparse30", "sdnq int8 qk + selector, budget 30%", dict(matmul_dtype="auto", pv_matmul_dtype="auto")),
+    ("int8-sparse15", "sdnq int8 qk + selector, budget 15%", dict(matmul_dtype="auto", pv_matmul_dtype="auto")),
+    ("int8-radial30", "sdnq int8 qk + static radial band, 30%", dict(matmul_dtype="auto", pv_matmul_dtype="auto")), # density matched control with no per-call producer
     ("smooth", "sdnq int8 qk + smooth k", dict(matmul_dtype="auto", pv_matmul_dtype="auto", smooth_k=True)),
     ("hadamard", "sdnq int8 qk + hadamard", dict(matmul_dtype="auto", pv_matmul_dtype="auto", use_hadamard=True)),
     ("smooth_hadamard", "sdnq int8 qk + smooth + hadamard", dict(matmul_dtype="auto", pv_matmul_dtype="auto", smooth_k=True, use_hadamard=True)),
@@ -269,7 +274,8 @@ bench_configs = [
 # tail lives outside what mean error can see
 # baselines and non-sdnq rows: reported, never recommended as an sdnq setting, and the sparse
 # rows are lossy by design so a recommendation must not pick one for being fast
-external_config_ids = ("base", "sage", "sagefp16", "amdflash", "flex", "flex-sparse100", "flex-sparse50", "flex-sparse30", "flex-sparse15", "flex-radial30")
+external_config_ids = ("base", "sage", "sagefp16", "amdflash", "flex")
+sparse_config_ids = ("flex-sparse100", "flex-sparse50", "flex-sparse30", "flex-sparse15", "flex-radial30", "int8-sparse100", "int8-sparse50", "int8-sparse30", "int8-sparse15", "int8-radial30")
 unsafe_config_ids = ("pvaccum",)
 # every preset runs the full config list (availability gates still apply per config); only
 # hard technical exclusions live here, never runtime trims. sd15: compiling hadamard with
@@ -357,6 +363,7 @@ def parse_cli():
     parser.add_argument("--dequant-sweeps", type=str, default="all", help=f"comma-separated setting sweeps in the dequant section: {', '.join(all_dequant_sweeps)}; 'all' or 'none' (default: %(default)s)")
     parser.add_argument("--mm-backends", type=str, default="none", help=f"comma-separated quantized-matmul backends to compare in one run: {', '.join(all_mm_backends)}; 'none' benches only the backend this device selects (default: %(default)s)")
     parser.add_argument("--mm-rounds", type=int, default=2, help="alternating rounds per matmul backend, fastest kept, so clock drift cancels instead of favouring one backend (default: %(default)s)")
+    parser.add_argument("--configs", type=str, default="all", help=f"comma-separated attention configs: {', '.join(config_id for config_id, _label, _kwargs in bench_configs)}; 'all' runs every one (default: %(default)s)")
     parser.add_argument("--block-configs", type=str, default="all", help=f"comma-separated combined block configs: {', '.join(config_id for config_id, _w, _mm, _a in block_configs)}; 'all' runs every one (default: %(default)s)")
     parser.add_argument("--block-geometries", type=str, default=default_block_geometries, help=f"comma-separated block geometries: {', '.join(block_geometries)}; 'all' runs every one (default: %(default)s)")
     parser.add_argument("--shapes", type=str, default=default_shapes, help=f"comma-separated attention shape presets: {', '.join(shape_presets)}; 'all' runs {', '.join(full_run)}, 'sparse' and 'gate' run the sparse and crossover lists (default: %(default)s)")
@@ -504,6 +511,16 @@ def atten_supports_fp16_accum():
         return False
 
 
+def atten_supports_block_mask():
+    # the sdnq sparse rows feed the kernel's block_mask kwarg; skip them on builds without it
+    if sdnq_triton_atten is None:
+        return False
+    try:
+        return "block_mask" in inspect.signature(inspect.unwrap(sdnq_triton_atten)).parameters
+    except (TypeError, ValueError):
+        return False
+
+
 def triton_mm_supports_fp16_accum():
     try:
         from sdnq.kernels import triton_mm, triton_scaled_mm
@@ -530,6 +547,25 @@ def triton_mm_fp16_accum():
 
 
 flex_budgets = {"flex-sparse100": 1.0, "flex-sparse50": 0.50, "flex-sparse30": 0.30, "flex-sparse15": 0.15}
+sdnq_sparse_budgets = {"int8-sparse100": 1.0, "int8-sparse50": 0.50, "int8-sparse30": 0.30, "int8-sparse15": 0.15}
+
+
+def is_sdnq_sparse(config_id):
+    return config_id in sdnq_sparse_budgets or config_id == "int8-radial30"
+
+
+def make_sdnq_sparse_fn(config_id, q, k, v, attn_mask, kwargs, causal, gqa):
+    """The producer the flex rows time, feeding the quantized kernel's block mask input instead."""
+    from modules.attention.sparse import selector as sparse_selector
+
+    def attend(selection):
+        return sdnq_triton_atten(q, k, v, attn_mask=attn_mask, is_causal=causal, enable_gqa=gqa, block_mask=selection.keep, block_mask_m=selection.block_q, block_mask_n=selection.block_kv, **kwargs)
+    if config_id == "int8-radial30":
+        static = sparse_selector.radial_blocks(q.shape[-2], k.shape[-2], 0.30, sparse_selector.SparseSpec(), q.device)
+        return lambda: attend(static)
+    spec = sparse_selector.SparseSpec(budget=sdnq_sparse_budgets[config_id], force=True)
+    cache_key = ("bench", config_id, tuple(q.shape), tuple(k.shape))
+    return lambda: attend(sparse_selector.select_blocks(q, k, spec, cache_key=cache_key))
 
 
 def flex_available():
@@ -983,6 +1019,8 @@ def print_environment(fp8_result, prep_status, prep_detail, weight_dequant_resul
         lines.append(f"compiled weight dequant, float8_e5m2 storage: {e5m2_verdict}")
     if not atten_supports_fp16_accum():
         lines.append("fp16 accumulation kwarg: [yellow]absent in this sdnq build, accum rows skipped[/yellow]")
+    if not atten_supports_block_mask():
+        lines.append("block mask kwarg: [yellow]absent in this sdnq build, sdnq sparse rows skipped[/yellow]")
     overrides = [f"{key}={value}" for key, value in os.environ.items() if key.startswith("SDNQ_TRITON_ATTEN") or key.startswith("SDNQ_TRITON_MM") or key.startswith("SDNQ_ALLOW_FP8") or key.startswith("SDNQ_COMPILE")]
     if overrides:
         lines.append(f"env overrides: {' '.join(overrides)}")
@@ -1000,6 +1038,7 @@ def print_environment(fp8_result, prep_status, prep_detail, weight_dequant_resul
         **runtime_versions,
         fp8_attention_matmul=fp8_result["qk"][0] if fp8_result is not None else None,
         atten_fp16_accum=atten_supports_fp16_accum(),
+        atten_block_mask=atten_supports_block_mask(),
         triton_mm_fp16_accum=os.environ.get("SDNQ_TRITON_MM_USE_FP16_ACCUM", None),
         compiled_input_prep=prep_status,
         fp8_compile_gate=fp8_compile_gate_flag(),
@@ -1485,7 +1524,7 @@ def make_prep_fn(q, k, v, attn_mask, kwargs, is_causal=False, enable_gqa=False):
     return prep
 
 
-def bench_shape(preset, iters, warmup, position=None, config_timeout=None, fp8_result=None):
+def bench_shape(preset, iters, warmup, position=None, config_timeout=None, fp8_result=None, selected=None):
     preset_cfg = shape_presets[preset]
     config_timeout = resolve_timeout(config_timeout, preset_cfg.get("config_timeout"))
     batch, heads, tokens, head_dim = preset_cfg["batch"], preset_cfg["heads"], preset_cfg["tokens"], preset_cfg["head_dim"]
@@ -1507,7 +1546,7 @@ def bench_shape(preset, iters, warmup, position=None, config_timeout=None, fp8_r
     amd_flash = amd_triton_flash()
     selected_configs = []
     for config_id, label, kwargs in bench_configs:
-        if config_id in excluded_configs:
+        if config_id in excluded_configs or (selected is not None and config_id not in selected):
             continue
         if config_id == "sage" and (sage is None or attn_mask is not None or head_dim not in {64, 96, 128} or kv_tokens != tokens or gqa or causal):
             continue
@@ -1517,6 +1556,8 @@ def bench_shape(preset, iters, warmup, position=None, config_timeout=None, fp8_r
             continue
         if config_id.startswith("flex") and (not flex_available() or attn_mask is not None or causal or kv_tokens != tokens):
             continue # a block only mask cannot carry a token mask or a causal rule, and cross attention is not sparsified
+        if is_sdnq_sparse(config_id) and (not atten_supports_block_mask() or causal or kv_tokens != tokens):
+            continue # the kernel composes a token mask with the block mask, so only the causal and cross attention rules apply
         if config_id == "fp8qk" and not (fp8_result and fp8_result["qk"][0]):
             continue
         if config_id == "fp8pv" and not (fp8_result and fp8_result["pv"][0]):
@@ -1579,6 +1620,8 @@ def bench_shape(preset, iters, warmup, position=None, config_timeout=None, fp8_r
                     return amd_flash(q, k, v, sm, is_causal=causal)
             elif config_id.startswith("flex"):
                 fn = make_flex_fn(config_id, q, k, v, scale, gqa)
+            elif is_sdnq_sparse(config_id):
+                fn = make_sdnq_sparse_fn(config_id, q, k, v, attn_mask, kwargs, causal, gqa)
             else:
                 def fn(kw=kwargs, mask=attn_mask):
                     return sdnq_triton_atten(q, k, v, attn_mask=mask, is_causal=causal, enable_gqa=gqa, **kw)
@@ -2890,7 +2933,7 @@ def measured(results, config_id):
 
 def best_config(results):
     # lowest error among rows within 5% of the fastest sdnq time
-    candidates = [(config_id, entry["ms"], entry["err"]) for config_id, entry in results.items() if entry.get("ms") is not None and config_id not in external_config_ids and config_id not in unsafe_config_ids]
+    candidates = [(config_id, entry["ms"], entry["err"]) for config_id, entry in results.items() if entry.get("ms") is not None and config_id not in external_config_ids and config_id not in sparse_config_ids and config_id not in unsafe_config_ids]
     if not candidates:
         return None
     fastest = min(ms for _config_id, ms, _err in candidates)
@@ -2924,7 +2967,7 @@ def select_attention_config(results):
     pool, capped = [], []
     for config_id, label, kwargs in bench_configs:
         settings = config_settings(kwargs)
-        if settings is None:
+        if settings is None or config_id in sparse_config_ids: # a sparse row shares a settings tuple with its dense row but is a stage over it, not a setting
             continue
         if settings["accum"] and settings["pv"] == "disabled":
             continue # the unsafe accumulation combo is never a candidate; the accum row cites it directly
@@ -3743,6 +3786,13 @@ def main():
         if unknown_blocks:
             console.print(f"[red]unknown block config(s): {', '.join(unknown_blocks)}; available: {', '.join(known_blocks)}[/red]")
             sys.exit(1)
+    known_attention = [config_id for config_id, _label, _kwargs in bench_configs]
+    selected_attention = None if args.configs.strip().lower() == "all" else [s.strip() for s in args.configs.split(",") if s.strip()]
+    if selected_attention is not None:
+        unknown_attention = [s for s in selected_attention if s not in known_attention]
+        if unknown_attention:
+            console.print(f"[red]unknown attention config(s): {', '.join(unknown_attention)}; available: {', '.join(known_attention)}[/red]")
+            sys.exit(1)
     known_variants = [variant_id for variant_id, _cfg in dequant_variant_configs]
     variants_arg = args.dequant_variants.strip().lower()
     if variants_arg == "all":
@@ -3876,7 +3926,7 @@ def main():
             if free_vram_gb() < needed:
                 emit(f"[yellow]skipping {preset}: needs about {needed:.0f} gb free vram, {free_vram_gb():.1f} gb available[/yellow]")
                 continue
-            all_results[preset] = bench_shape(preset, args.iters, args.warmup, position=(index, len(selected)), config_timeout=args.timeout_flag, fp8_result=fp8_result)
+            all_results[preset] = bench_shape(preset, args.iters, args.warmup, position=(index, len(selected)), config_timeout=args.timeout_flag, fp8_result=fp8_result, selected=selected_attention)
         emit_block_splits()
         build_recommendations(all_results, fp8_result, prep_status, block_results=(report.get("block") or {}).get("results"), block_variants=report.get("blocks"))
 

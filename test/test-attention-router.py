@@ -284,6 +284,40 @@ def test_prepare_failure_skips_backend():
     return True
 
 
+def test_prepared_call_narrows_caps():
+    # a backend declares what it can consume; prepare may narrow that to what the installed
+    # implementation verified, never widen it, and the router hands a selection only to survivors
+    reg = attention.Registry()
+
+    def add(name, declared, verified=None):
+        def prepare(platform, original): # pylint: disable=unused-argument
+            def call(*args, **kwargs): # pylint: disable=unused-argument
+                return name
+            if verified is not None:
+                call.caps = verified
+            return call
+        reg.register(attention.AttentionBackend(name=name, label=f'{name} attention', priority=10, prepare=prepare, caps=declared))
+
+    add('declared', frozenset({'block_mask'}))
+    add('narrowed', frozenset({'block_mask'}), frozenset())
+    add('widened', frozenset(), frozenset({'block_mask'}))
+    platform = attention.Platform(backend='cuda')
+    plan = attention.build_plan(['declared attention', 'narrowed attention', 'widened attention'], platform, sdpa_stub, reg)
+    caps = {entry.backend.name: entry.caps for entry in plan.entries}
+    assert caps == {'declared': frozenset({'block_mask'}), 'narrowed': frozenset(), 'widened': frozenset()}, caps
+    q = shaped((1, 8, 1024, 64))
+    calls = []
+
+    def stage(*args): # pylint: disable=unused-argument
+        calls.append('stage')
+        return 'selection'
+    router = attention_router.make_router(attention.build_plan(['narrowed attention'], platform, sdpa_stub, reg), stage=stage)
+    assert router(q, q, q) == 'narrowed' and not calls, calls
+    router = attention_router.make_router(attention.build_plan(['declared attention'], platform, sdpa_stub, reg), stage=stage)
+    assert router(q, q, q) == 'declared' and calls == ['stage'], calls
+    return True
+
+
 def test_install_router_keeps_original_for_empty_plan():
     saved = torch.nn.functional.scaled_dot_product_attention
     saved_plan = attention_router.current_plan
@@ -515,6 +549,7 @@ def run_all():
         test_choices_match_backends,
         test_router_dispatch_prefers_priority_then_terminal_then_original,
         test_prepare_failure_skips_backend,
+        test_prepared_call_narrows_caps,
         test_install_router_keeps_original_for_empty_plan,
         test_dynamic_backend_pins_pre_dynamic_sdpa,
     ]:

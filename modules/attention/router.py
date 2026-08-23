@@ -13,6 +13,7 @@ from modules.attention.registry import AttentionBackend, AttentionCall, Platform
 class PlanEntry:
     backend: AttentionBackend
     call: AttentionCall
+    caps: frozenset[str] = frozenset() # the backend's declared caps, narrowed to what prepare verified in the installed implementation
 
 
 @dataclass(frozen=True)
@@ -50,7 +51,7 @@ def build_plan(labels, platform: Platform, original: AttentionCall, reg: Registr
             continue
         if call is None:
             continue
-        entry = PlanEntry(backend=backend, call=call)
+        entry = PlanEntry(backend=backend, call=call, caps=backend.caps & frozenset(getattr(call, 'caps', backend.caps)))
         if backend.terminal:
             terminal = entry
         else:
@@ -69,7 +70,7 @@ def make_router(plan: Plan, observer: Callable | None = None, stage: Callable | 
     def sdpa_router(query, key, value, attn_mask=None, dropout_p=0.0, is_causal=False, scale=None, enable_gqa=False, **kwargs):
         for entry in entries:
             if entry.backend.constraints.accepts(query, key, value, attn_mask):
-                if stage is not None and 'block_mask' in entry.backend.caps:
+                if stage is not None and 'block_mask' in entry.caps:
                     selection = stage(query, key, value, attn_mask, is_causal)
                     if selection is not None:
                         if observer is not None:
@@ -112,7 +113,7 @@ def build_sparse_stage(plan: Plan):
         return None
     if not options.enabled:
         return None
-    capable = [entry.backend.name for entry in plan.entries if 'block_mask' in entry.backend.caps]
+    capable = [entry.backend.name for entry in plan.entries if 'block_mask' in entry.caps]
     if not capable:
         names = [backend.label for backend in default_registry.with_cap('block_mask')]
         log.warning(f'Sparse attention: enabled but no active backend consumes a block mask, enable one of {names} in sdp overrides; attention stays dense')
@@ -158,7 +159,7 @@ def report() -> dict:
             'enabled': options.enabled,
             'budget': options.budget,
             'gate': options.gate,
-            'capable': [entry.backend.name for entry in plan.entries if 'block_mask' in entry.backend.caps] if plan is not None else [],
+            'capable': [entry.backend.name for entry in plan.entries if 'block_mask' in entry.caps] if plan is not None else [],
             'layout': {'source': layout.source, 'kinds': list(layout.kinds()), 'length': layout.length} if layout is not None else None,
         },
         'backend': plan.platform.backend if plan is not None else None,
