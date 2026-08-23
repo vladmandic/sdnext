@@ -3,9 +3,9 @@
 ## Short-term
 
 - Update LTX wiki, @CalamitousFelicitousness
+- Lora: new handler, @CalamitousFelicitousness
 - Productize benchmark tool, @CalamitousFelicitousness
 - Inpaint: https://discord.com/channels/1101998836328697867/1130536562422186044/1506850651035144322, @vladmandic
-- Lora: new handler, @CalamitousFelicitousness
 - Control tab verify overrides handling, @vladmandic
 - Create pre-quant for LTX-2.5
 - Create pre-quant for MiniMax-H3-Turbo
