@@ -317,7 +317,7 @@ def convert_scheduler(root: Path, output: Path):
 
     torch.testing.assert_close(scheduler.sigmas, source_scheduler.sigmas, rtol=0.0, atol=0.0)
     torch.testing.assert_close(scheduler.timesteps, source_scheduler.timesteps, rtol=0.0, atol=0.0)
-    num_train_timesteps = int(scheduler.config.num_train_timesteps)
+    num_train_timesteps = int(scheduler.config.num_train_timesteps) # pylint: disable=no-member
     expected_sigmas = torch.linspace(1.0, 1.0 / num_train_timesteps, num_train_timesteps)
     torch.testing.assert_close(scheduler.sigmas, expected_sigmas, rtol=0.0, atol=1e-7)
     torch.testing.assert_close(scheduler.timesteps, expected_sigmas * num_train_timesteps, rtol=0.0, atol=1e-4)
