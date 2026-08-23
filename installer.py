@@ -109,7 +109,9 @@ def custom_excepthook(exc_type, exc_value, exc_traceback):
     if exc_traceback:
         format_exception = traceback.format_tb(exc_traceback)
         for line in format_exception:
-            log.error(repr(line))
+            subline = line.split('\n')
+            for sub in subline:
+                log.error(repr(sub))
 
 
 def print_dict(d):

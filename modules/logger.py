@@ -148,6 +148,7 @@ def setup_logging(debug=None, trace=None, filename=None):
     class FileBuffer(RotatingFileHandler):
         def __init__(self, filename, maxBytes=32*1024*1024, backupCount=9, encoding='utf-8', delay=True):
             super().__init__(filename, maxBytes=maxBytes, backupCount=backupCount, encoding=encoding, delay=delay)
+            self.ansi_escape = re.compile(r'(\x9B|\x1B\[)[0-?]*[ -/]*[@-~]')
             if trace:
                 self.formatter = logging.Formatter('%(asctime)s %(levelname)-8s %(message)s | %(module)s:%(pathname)s:%(lineno)d:%(message)s')
             else:
@@ -156,8 +157,7 @@ def setup_logging(debug=None, trace=None, filename=None):
         def strip(self, line):
             if line is None:
                 return ""
-            ansi_escape = re.compile(r'(\x9B|\x1B\[)[0-?]*[ -/]*[@-~]')
-            return ansi_escape.sub('', str(line))
+            return self.ansi_escape.sub('', str(line))
 
         def emit(self, record):
             record.msg = self.strip(record.msg)
