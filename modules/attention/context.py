@@ -27,12 +27,31 @@ def denoiser_name(pipe) -> str | None:
     return None
 
 
+def install_layout_hook(pipe) -> None:
+    """Let a classic pipeline's denoiser publish its own packing: the modular path has its own hook, this is the rest."""
+    from modules import shared
+    if pipe is None or not getattr(shared.opts, 'sparse_attention_enabled', False):
+        return
+    module = getattr(pipe, 'transformer', None)
+    if module is None:
+        module = getattr(pipe, 'unet', None)
+    if module is None or getattr(module, 'sdnext_layout_hook', None) is not None or getattr(module, 'sdnext_state_hook', None) is not None:
+        return
+    from modules.attention.sparse import layout as sparse_layout
+
+    def publish(denoiser, args, kwargs): # pylint: disable=unused-argument
+        set_layout(sparse_layout.layout_from_kwargs(kwargs, denoiser.__class__.__name__))
+
+    module.sdnext_layout_hook = module.register_forward_pre_hook(publish, with_kwargs=True)
+
+
 def begin(pipe, steps: int = 0) -> None:
     from modules import devices
     current.active = True
     current.role = 'transformer'
     current.layout = None
     current.model_key = (pipe.__class__.__name__, denoiser_name(pipe)) if pipe is not None else None
+    install_layout_hook(pipe)
     device = devices.device if devices.device is not None else torch.device('cpu')
     if current.step_buffer is None or current.step_buffer.device != device:
         current.step_buffer = torch.zeros((), dtype=torch.int64, device=device)

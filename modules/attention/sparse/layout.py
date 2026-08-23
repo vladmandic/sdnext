@@ -71,6 +71,30 @@ def layout_from_index_kwargs(kwargs: dict, length: int | None = None) -> TokenLa
     return TokenLayout(spans=tuple(spans), length=length if length is not None else spans[-1].end, source='indices')
 
 
+# how an architecture orders its joint sequence, which the call itself does not reveal. Verified against the
+# diffusers transformers that take txt_ids and img_ids; HiDream packs image first and is deliberately absent, so
+# it falls back rather than being pinned backwards. An unlisted class publishes nothing.
+JOINT_TEXT_FIRST = frozenset({
+    'FluxTransformer2DModel', 'Flux2Transformer2DModel', 'ChromaTransformer2DModel', 'BriaTransformer2DModel',
+    'BriaFiboTransformer2DModel', 'LongCatImageTransformer2DModel', 'OvisImageTransformer2DModel',
+})
+
+
+def layout_from_stream_ids(kwargs: dict, cls_name: str | None) -> TokenLayout | None:
+    """Read the stream lengths off the rotary id tensors a joint transformer is given by name."""
+    if cls_name not in JOINT_TEXT_FIRST:
+        return None
+    text, image = kwargs.get('txt_ids'), kwargs.get('img_ids')
+    if not torch.is_tensor(text) or not torch.is_tensor(image) or text.dim() < 2 or image.dim() < 2:
+        return None
+    return layout_from_segments((('text', text.shape[-2]), ('image', image.shape[-2])), source='stream-ids')
+
+
+def layout_from_kwargs(kwargs: dict, cls_name: str | None = None) -> TokenLayout | None:
+    """Whatever the denoiser says about its own packing, by whichever convention it uses."""
+    return layout_from_index_kwargs(kwargs or {}) or layout_from_stream_ids(kwargs or {}, cls_name)
+
+
 def layout_from_segments(segments, length: int | None = None, source: str = 'segments') -> TokenLayout:
     """Build a layout from ordered (kind, count) pairs, the form a transformer knows at its packing site."""
     spans: list[Span] = []

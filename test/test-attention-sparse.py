@@ -258,6 +258,55 @@ def test_segments_from_live_splits_interior_padding():
     return True
 
 
+def test_layout_from_stream_ids_reads_the_joint_convention():
+    from modules.attention.sparse import layout as layout_mod
+    flat = (torch.zeros(512, 3, device=device), torch.zeros(4096, 3, device=device)) # flux1 passes 2d ids
+    batched = (torch.zeros(1, 512, 4, device=device), torch.zeros(1, 4096, 4, device=device)) # flux2 passes 3d
+    for text, image in (flat, batched):
+        token_layout = layout_mod.layout_from_stream_ids({'txt_ids': text, 'img_ids': image}, 'FluxTransformer2DModel')
+        assert token_layout is not None and token_layout.length == 4608, token_layout
+        assert [(s.kind, s.start, s.end) for s in token_layout.spans] == [('text', 0, 512), ('image', 512, 4608)], token_layout.spans
+    # an architecture whose packing order is not verified publishes nothing rather than pinning the wrong half dense
+    assert layout_mod.layout_from_stream_ids({'txt_ids': flat[0], 'img_ids': flat[1]}, 'HiDreamImageTransformer2DModel') is None
+    assert layout_mod.layout_from_stream_ids({'txt_ids': flat[0], 'img_ids': flat[1]}, None) is None
+    assert layout_mod.layout_from_stream_ids({}, 'FluxTransformer2DModel') is None
+    indices = {'video_indices': torch.arange(0, 64, device=device), 'txt_ids': flat[0], 'img_ids': flat[1]}
+    assert layout_mod.layout_from_kwargs(indices, 'FluxTransformer2DModel').source == 'indices', 'the index form wins when both are present'
+    return True
+
+
+def test_layout_hook_publishes_from_the_denoiser_kwargs():
+    from modules.attention import context as ctx
+
+    class FluxTransformer2DModel(torch.nn.Module): # the reader keys on the class name, so the fake carries a real one
+        def forward(self, hidden_states=None, txt_ids=None, img_ids=None): # pylint: disable=unused-argument
+            return hidden_states
+
+    class Pipe:
+        def __init__(self, transformer):
+            self.transformer = transformer
+
+    denoiser = FluxTransformer2DModel()
+    pipe = Pipe(denoiser)
+    previous = getattr(shared.opts, 'sparse_attention_enabled', False)
+    try:
+        shared.opts.data['sparse_attention_enabled'] = False
+        ctx.install_layout_hook(pipe)
+        assert getattr(denoiser, 'sdnext_layout_hook', None) is None, 'nothing is hooked while the feature is off'
+        shared.opts.data['sparse_attention_enabled'] = True
+        ctx.install_layout_hook(pipe)
+        ctx.install_layout_hook(pipe)
+        assert getattr(denoiser, 'sdnext_layout_hook', None) is not None, 'the denoiser is hooked once'
+        ctx.set_layout(None)
+        denoiser(hidden_states=torch.zeros(1, 4096, 4, device=device), txt_ids=torch.zeros(512, 3, device=device), img_ids=torch.zeros(4096, 3, device=device))
+        published = ctx.current.layout
+        assert published is not None and published.length == 4608 and published.source == 'stream-ids', published
+    finally:
+        shared.opts.data['sparse_attention_enabled'] = previous
+        ctx.set_layout(None)
+    return True
+
+
 def test_block_pins_are_cached_per_geometry():
     layout = sparse.layout_from_segments([('text', 128), ('video', 1024)])
     first = sparse.block_pins(layout, 1152, 1152, 128, 64, device)
@@ -479,6 +528,8 @@ def run_all():
         test_block_pins_pin_a_boundary_tile,
         test_block_pins_are_cached_per_geometry,
         test_segments_from_live_splits_interior_padding,
+        test_layout_from_stream_ids_reads_the_joint_convention,
+        test_layout_hook_publishes_from_the_denoiser_kwargs,
     ]:
         run_test(cat, fn)
 
