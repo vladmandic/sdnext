@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Highlights for 2026-08-22
+## Highlights for 2026-08-23
 
 Time for a new release, this is a larger one!
 Main focus is improving video workflows which also brings full support for new [MiniMax H3](https://vladmandic.github.io/sdnext-docs/MiniMax) and [LTXVideo-2.5](https://vladmandic.github.io/sdnext-docs/LTX)  
@@ -17,7 +17,7 @@ Plus quite a lot more, see full [changelog](https://github.com/vladmandic/automa
 
 [Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-## Details for 2026-08-22
+## Details for 2026-08-23
 
 - **Models**
   - [MiniMax H3](https://huggingface.co/MiniMaxAI/MiniMax-H3) available in *base* and *ref* variants  
@@ -83,7 +83,7 @@ Plus quite a lot more, see full [changelog](https://github.com/vladmandic/automa
     may provide significant speed-up on some gpus, disabled by default  
   - AR display ratio on manual resolution change
 - **Wiki**
-  - major updates: *Offload, Detailer, Video, MiniMax, LTX*
+  - major updates: *Offload, Detailer, Video, MiniMax, LTX, Debug*
   - minor updates: *Intel-ARC, FramePack, Parameters, API, Installation, SDNQ-Quantization, CLI-Arguments*
 - **Removed**
   - remove DirectML support  
@@ -114,6 +114,7 @@ Plus quite a lot more, see full [changelog](https://github.com/vladmandic/automa
   - scripts: mixture-of-diffusers and mixture-tiling update to use igwn-segments
   - api: process
   - api: auth via remote-ip
+  - api: improve response models
   - krea2: fallback to base pipeline/transformer for nunchaku-lite
   - torchsde: handle obsolete dependency
   - upscaler: avoid unnecessary multi-pass
