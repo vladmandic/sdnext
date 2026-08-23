@@ -1,9 +1,15 @@
 """The router stage that turns settings plus a published layout into a per call block selection."""
+import os
 from dataclasses import dataclass
+import torch
 from modules.logger import log
 from modules.attention import context
 from modules.attention.sparse import layout as layout_mod
-from modules.attention.sparse.selector import SparseSpec, block_count, schedule, select_blocks
+from modules.attention.sparse.selector import BlockSelection, SparseSpec, block_count, radial_blocks, schedule, select_blocks
+
+# SD_SPARSE_PATTERN=radial replaces the content aware selection with a static band around the
+# diagonal at the same density: the control the selector has to beat, and the fallback if it does not
+pattern = os.environ.get('SD_SPARSE_PATTERN', 'adaptive').strip().lower()
 
 
 # measured on a 3090: below roughly this length a 30 percent budget caps under 1.25x per block,
@@ -60,6 +66,29 @@ def make_stage(options: StageOptions):
     reported: set = set()
     inactive: set = set()
     cache: dict = {}
+    static: dict = {}
+
+    def static_selection(query, key, spec, pins, drops, cache_key):
+        """A density matched band, built once per geometry, honoring the same layout pins so the control differs from the selector only in how it chooses video tiles."""
+        static_key = (cache_key, spec.budget, query.shape[-2], key.shape[-2])
+        built = static.get(static_key)
+        if built is None:
+            reference = select_blocks(query, key, spec, pins=pins, drops=drops, cache_key=cache_key)
+            if reference is None:
+                return None
+            target = reference.density()
+            pinned = float(pins.to(torch.float32).mean().item()) if pins is not None else 0.0
+            band = radial_blocks(query.shape[-2], key.shape[-2], max(target - pinned, 0.0), spec, query.device)
+            keep = band.keep.bool()
+            if pins is not None:
+                keep = keep | pins
+            if drops is not None:
+                keep = keep & ~drops
+            built = BlockSelection(keep=keep.to(torch.int8), block_q=spec.block_q, block_kv=spec.block_kv, budget=spec.budget, seq_q=query.shape[-2], seq_kv=key.shape[-2])
+            static.clear()
+            static[static_key] = built
+            log.info(f'Sparse attention: static radial pattern density={built.density():.3f} against selector {target:.3f} at budget={spec.budget:.0%}')
+        return built
 
     def budget_for_step() -> float:
         state = context.current
@@ -103,6 +132,8 @@ def make_stage(options: StageOptions):
         if pins.shape[-2:] != (nq, nk):
             return decline('layout geometry mismatch')
         stage.last_skip = None
+        if pattern == 'radial':
+            return static_selection(query, key, spec, pins, drops, token_layout.key())
         return select_blocks(query, key, spec, pins=pins, drops=drops, cache_key=token_layout.key())
 
     stage.options = options
