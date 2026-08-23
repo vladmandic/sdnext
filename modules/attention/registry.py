@@ -64,7 +64,7 @@ class AttentionBackend:
     terminal: bool = False # serves every call the entries decline, in place of the original sdpa
     platforms: frozenset[str] | None = None # devices backends the implementation exists for, None for all
     options: tuple[str, ...] = () # settings the prepared call captures; a change to one rebuilds the chain
-    caps: frozenset[str] = frozenset() # what the call can consume beyond plain sdpa arguments, currently 'block_mask'
+    caps: frozenset[str] = frozenset() # what the call can consume beyond plain sdpa arguments: 'block_mask', and 'masked_block' when it composes one with a token mask
 
     def available_on(self, platform: Platform) -> bool:
         return self.platforms is None or platform.backend in self.platforms

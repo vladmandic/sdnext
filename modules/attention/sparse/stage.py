@@ -65,6 +65,7 @@ def make_stage(options: StageOptions):
         return None
     reported: set = set()
     inactive: set = set()
+    notified: set = set()
     cache: dict = {}
     static: dict = {}
 
@@ -106,12 +107,17 @@ def make_stage(options: StageOptions):
         stage.last_skip = reason
         return None
 
-    def stage(query, key, value, attn_mask, is_causal): # pylint: disable=unused-argument
+    def stage(query, key, value, attn_mask, is_causal, caps=frozenset()): # pylint: disable=unused-argument
         state = context.current
         if state.role != 'transformer' or not state.active:
             return decline('not the denoiser')
-        if attn_mask is not None or is_causal: # flex would need a mask_mod to combine these; the quantized kernel composes them in R2
-            return decline('masked or causal')
+        if is_causal: # the selection keeps the diagonal but encodes no causality
+            return decline('causal')
+        if attn_mask is not None and 'masked_block' not in caps: # flex would need a mask_mod to combine the two
+            if 'masked' not in notified: # an enabled setting that cannot act says so rather than doing nothing quietly
+                notified.add('masked')
+                log.info('Sparse attention: this model passes an attention mask and the serving backend cannot combine it with a block selection; attention stays dense')
+            return decline('masked')
         if query.device.type == 'cpu' or query.dim() != 4:
             return decline('unsupported tensor')
         seq_q, seq_kv = query.shape[-2], key.shape[-2]

@@ -41,5 +41,5 @@ backend = AttentionBackend(
     name='sdnq', label='SDNQ attention', priority=60, prepare=prepare,
     constraints=Constraints(min_tokens=32, min_long_side=512, min_heads=2), # sequences of 512 or fewer are text encoders, single-head calls the vae
     options=('sdnq_attention_matmul_type', 'sdnq_attention_pv_matmul_type', 'sdnq_attention_smooth_k', 'sdnq_attention_use_hadamard', 'sdnq_attention_hadamard_group_size', 'sdnq_attention_quantize_fp32', 'sdnq_attention_use_fp16_accum'),
-    caps=frozenset({'block_mask'}),
+    caps=frozenset({'block_mask', 'masked_block'}), # the kernel takes attn_mask and block_mask together
 )

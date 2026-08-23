@@ -71,7 +71,7 @@ def make_router(plan: Plan, observer: Callable | None = None, stage: Callable | 
         for entry in entries:
             if entry.backend.constraints.accepts(query, key, value, attn_mask):
                 if stage is not None and 'block_mask' in entry.caps:
-                    selection = stage(query, key, value, attn_mask, is_causal)
+                    selection = stage(query, key, value, attn_mask, is_causal, entry.caps)
                     if selection is not None:
                         if observer is not None:
                             observer(f'{entry.backend.name}+sparse', query, key, attn_mask)
