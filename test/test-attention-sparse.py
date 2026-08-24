@@ -283,11 +283,13 @@ def test_layout_hook_publishes_from_the_denoiser_kwargs():
             return hidden_states
 
     class Pipe:
-        def __init__(self, transformer):
+        def __init__(self, transformer, second):
             self.transformer = transformer
+            self.unconditional_transformer = second # ideogram runs a second denoiser, wan a14b a transformer_2
 
     denoiser = FluxTransformer2DModel()
-    pipe = Pipe(denoiser)
+    second = FluxTransformer2DModel()
+    pipe = Pipe(denoiser, second)
     previous = getattr(shared.opts, 'sparse_attention_enabled', False)
     try:
         shared.opts.data['sparse_attention_enabled'] = False
@@ -297,6 +299,7 @@ def test_layout_hook_publishes_from_the_denoiser_kwargs():
         ctx.install_layout_hook(pipe)
         ctx.install_layout_hook(pipe)
         assert getattr(denoiser, 'sdnext_layout_hook', None) is not None, 'the denoiser is hooked once'
+        assert getattr(second, 'sdnext_layout_hook', None) is not None, 'every denoiser slot is hooked, not just the first'
         ctx.set_layout(None)
         denoiser(hidden_states=torch.zeros(1, 4096, 4, device=device), txt_ids=torch.zeros(512, 3, device=device), img_ids=torch.zeros(4096, 3, device=device))
         published = ctx.current.layout

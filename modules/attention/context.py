@@ -27,22 +27,27 @@ def denoiser_name(pipe) -> str | None:
     return None
 
 
+# every slot a pipeline can enter once per denoising step, from sd_offload_state.group_offload_main. The aux
+# components on that list (decoder, controlnet, prior) are left alone: they pack no attention sequence, and a
+# publication from one would clear the layout the denoiser just set
+DENOISER_SLOTS = ('transformer', 'unet', 'transformer_2', 'transformer_ref', 'unconditional_transformer')
+
+
 def install_layout_hook(pipe) -> None:
     """Let a classic pipeline's denoiser publish its own packing: the modular path has its own hook, this is the rest."""
     from modules import shared
     if pipe is None or not getattr(shared.opts, 'sparse_attention_enabled', False):
-        return
-    module = getattr(pipe, 'transformer', None)
-    if module is None:
-        module = getattr(pipe, 'unet', None)
-    if module is None or getattr(module, 'sdnext_layout_hook', None) is not None or getattr(module, 'sdnext_state_hook', None) is not None:
         return
     from modules.attention.sparse import layout as sparse_layout
 
     def publish(denoiser, args, kwargs): # pylint: disable=unused-argument
         set_layout(sparse_layout.layout_from_kwargs(kwargs, denoiser.__class__.__name__))
 
-    module.sdnext_layout_hook = module.register_forward_pre_hook(publish, with_kwargs=True)
+    for name in DENOISER_SLOTS:
+        module = getattr(pipe, name, None)
+        if module is None or getattr(module, 'sdnext_layout_hook', None) is not None or getattr(module, 'sdnext_state_hook', None) is not None:
+            continue
+        module.sdnext_layout_hook = module.register_forward_pre_hook(publish, with_kwargs=True)
 
 
 def begin(pipe, steps: int = 0) -> None:
