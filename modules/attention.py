@@ -38,6 +38,7 @@ def set_sdnq_attention():
                     smooth_k=shared.opts.sdnq_attention_smooth_k,
                     use_hadamard=shared.opts.sdnq_attention_use_hadamard,
                     hadamard_group_size=shared.opts.sdnq_attention_hadamard_group_size,
+                    quantize_fp32=shared.opts.sdnq_attention_quantize_fp32,
                     use_fp16_accum=shared.opts.sdnq_attention_use_fp16_accum,
                 )
             else:
