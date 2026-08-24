@@ -352,12 +352,15 @@ def test_dynamic_backend_pins_pre_dynamic_sdpa():
 def test_context_classic_ticks_follow_the_callback():
     ctx = attention.context
 
+    class Denoiser(torch.nn.Module): # begin installs the layout pre-hook, so the stand-in has to accept one
+        pass
+
     class Pipe:
-        transformer = object()
+        transformer = Denoiser()
 
     ctx.begin(Pipe(), steps=4)
     assert ctx.current.active and ctx.current.role == 'transformer' and ctx.current.step == 0 and ctx.current.steps == 4
-    assert ctx.current.model_key == ('Pipe', 'object'), ctx.current.model_key
+    assert ctx.current.model_key == ('Pipe', 'Denoiser'), ctx.current.model_key
     buffer = ctx.current.step_buffer
     for completed in range(4):
         ctx.tick(completed + 1) # the diffusers callback reports the step just completed
