@@ -443,6 +443,27 @@ def test_attention_slicing_follows_the_choice():
     return True
 
 
+def test_removed_attention_methods_are_gone():
+    from modules import shared_items
+    from modules import options_handler
+    from modules import sd_hijack_dynamic_atten
+
+    removed = ['Batch matrix-matrix', 'Dynamic Attention BMM']
+    choices = shared_items.list_crossattention()
+    assert not [name for name in removed if name in choices], choices
+    for name in removed:
+        data = {'cross_attention_optimization': name}
+        migrated = options_handler.migrate_removed_values(data)
+        assert data['cross_attention_optimization'] == 'Scaled-Dot-Product', data
+        assert len(migrated) == 1, migrated
+    kept = {'cross_attention_optimization': 'xFormers'}
+    assert options_handler.migrate_removed_values(kept) == [], 'a live choice is left alone'
+    assert kept['cross_attention_optimization'] == 'xFormers', kept
+    assert not hasattr(sd_hijack_dynamic_atten, 'DynamicAttnProcessorBMM'), 'the bmm processor is removed'
+    assert hasattr(sd_hijack_dynamic_atten, 'dynamic_scaled_dot_product_attention'), 'the sliced sdpa path stays'
+    return True
+
+
 def test_escape_hatch_bypasses_the_router():
     from modules import devices
     saved_sdpa = torch.nn.functional.scaled_dot_product_attention
@@ -516,6 +537,7 @@ def run_all():
         test_debug_observe_logs_each_route_once,
         test_reapply_options_cover_declared_backend_options,
         test_attention_slicing_follows_the_choice,
+        test_removed_attention_methods_are_gone,
         test_escape_hatch_bypasses_the_router,
     ]:
         run_test(cat, fn)

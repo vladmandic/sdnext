@@ -142,8 +142,6 @@ def list_crossattention():
         "Disabled",
         "Scaled-Dot-Product",
         "xFormers",
-        "Batch matrix-matrix",
-        "Dynamic Attention BMM"
     ]
 
 

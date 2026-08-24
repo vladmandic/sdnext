@@ -5,40 +5,20 @@ from installer import install, torch_info
 
 def set_diffusers_attention(pipe, quiet = False):
     from modules import shared, devices
-    import diffusers.models.attention_processor as p
-
-    def set_attn(pipe, attention, name: str | None = None):
-        if attention is None:
-            return
-        # other models uses their own attention processor
-        if getattr(pipe, "unet", None) is not None and hasattr(pipe.unet, "set_attn_processor"):
-            try:
-                pipe.unet.set_attn_processor(attention)
-            except Exception as e:
-                if 'Nunchaku' in pipe.unet.__class__.__name__:
-                    pass
-                else:
-                    log.error(f'Torch attention: type="{name}" cls={attention.__class__.__name__} pipe={pipe.__class__.__name__} {e}')
 
     log.quiet(quiet, f'Setting model: attention="{shared.opts.cross_attention_optimization}"')
     if shared.opts.cross_attention_optimization == "Disabled":
         torch_info.set(attention="disabled")
     elif shared.opts.cross_attention_optimization == "Scaled-Dot-Product":  # The default set by Diffusers
         devices.set_sdpa_params()
-        # set_attn(pipe, p.AttnProcessor2_0(), name="Scaled-Dot-Product")
     elif shared.opts.cross_attention_optimization == "xFormers":
         if hasattr(pipe, 'enable_xformers_memory_efficient_attention'):
             torch_info.set(attention="xformers")
             pipe.enable_xformers_memory_efficient_attention()
         else:
             log.warning(f"Attention: xFormers is not compatible with {pipe.__class__.__name__}")
-    elif shared.opts.cross_attention_optimization == "Batch matrix-matrix":
-        torch_info.set(attention="bmm")
-        set_attn(pipe, p.AttnProcessor(), name="Batch matrix-matrix")
-    elif shared.opts.cross_attention_optimization == "Dynamic Attention BMM":
-        from modules.sd_hijack_dynamic_atten import DynamicAttnProcessorBMM
-        torch_info.set(attention="dynamic_bmm")
-        set_attn(pipe, DynamicAttnProcessorBMM(), name="Dynamic Attention BMM")
+    else:
+        log.warning(f'Torch attention: method="{shared.opts.cross_attention_optimization}" unknown, pipe={pipe.__class__.__name__} keeps its own attention processor')
 
     if shared.opts.attention_slicing != "Default" and hasattr(pipe, "enable_attention_slicing") and hasattr(pipe, "disable_attention_slicing"):
         if shared.opts.attention_slicing == "Enabled":
