@@ -94,3 +94,13 @@ def set_attention_dispatcher(pipe):
         log.warning(f'Attention dispatcher: active={prev[0].value} list={backends} target={attn} not found')
     else:
         log.debug(f'Attention dispatcher: active={prev[0].value} list={backends}')
+
+
+def list_dispatcher_backends() -> list:
+    """The kernels diffusers can dispatch attention to, for anything that offers hf_attention as a choice."""
+    try:
+        from diffusers.models import attention_dispatch as a
+        return sorted(b.value for b in a._AttentionBackendRegistry.list_backends()) # pylint: disable=protected-access
+    except Exception as e:
+        log.error(f'Attention dispatcher: {e}')
+        return []
