@@ -244,6 +244,10 @@ def process_images(p: StableDiffusionProcessing) -> Processed | None:
                 if k == 'sd_vae':
                     sd_vae.reload_vae_weights()
         timer.process.record('post')
+
+    if os.environ.get('SD_UNLOAD_MODEL', None) is not None:
+        sd_models.unload_model_weights()
+
     return results
 
 
