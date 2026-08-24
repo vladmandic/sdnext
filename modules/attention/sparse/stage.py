@@ -13,8 +13,9 @@ pattern = os.environ.get('SD_SPARSE_PATTERN', 'adaptive').strip().lower()
 
 
 # measured on a 3090: below roughly this length a 30 percent budget caps under 1.25x per block,
-# so the selector cannot pay for itself; see docs/sparse-attention-tracker.md
-AUTO_MIN_TOKENS = 8192
+# so the selector cannot pay for itself; see docs/sparse-attention-tracker.md. The settings registry
+# carries the same number as the option default, this is the fallback when the option is absent
+DEFAULT_MIN_TOKENS = 8192
 
 # settings the stage reads, so a change to any of them rebuilds the chain
 OPTION_NAMES = ('sparse_attention_enabled', 'sparse_attention_budget', 'sparse_attention_min_tokens', 'sparse_attention_schedule_steps', 'sparse_attention_schedule_bump', 'sparse_attention_head_shared')
@@ -24,14 +25,10 @@ OPTION_NAMES = ('sparse_attention_enabled', 'sparse_attention_budget', 'sparse_a
 class StageOptions:
     enabled: bool = False
     budget: float = 0.30
-    min_tokens: int = 0 # 0 selects AUTO_MIN_TOKENS
+    min_tokens: int = DEFAULT_MIN_TOKENS # 0 sparsifies every sequence that reaches the stage
     schedule_steps: int = 0
     schedule_bump: float = 0.0
     head_shared: bool = False
-
-    @property
-    def gate(self) -> int:
-        return self.min_tokens if self.min_tokens > 0 else AUTO_MIN_TOKENS
 
 
 def read_options() -> StageOptions:
@@ -40,7 +37,7 @@ def read_options() -> StageOptions:
     return StageOptions(
         enabled=bool(getattr(opts, 'sparse_attention_enabled', False)),
         budget=float(getattr(opts, 'sparse_attention_budget', 30)) / 100.0,
-        min_tokens=int(getattr(opts, 'sparse_attention_min_tokens', 0)),
+        min_tokens=int(getattr(opts, 'sparse_attention_min_tokens', DEFAULT_MIN_TOKENS)),
         schedule_steps=int(getattr(opts, 'sparse_attention_schedule_steps', 0)),
         schedule_bump=float(getattr(opts, 'sparse_attention_schedule_bump', 0)) / 100.0,
         head_shared=bool(getattr(opts, 'sparse_attention_head_shared', False)),
@@ -123,10 +120,10 @@ def make_stage(options: StageOptions):
         seq_q, seq_kv = query.shape[-2], key.shape[-2]
         if seq_q != seq_kv: # cross attention is short and already cheap
             return decline('cross attention')
-        if seq_q < options.gate:
+        if seq_q < options.min_tokens:
             if seq_q not in inactive: # an enabled setting that cannot act says so rather than doing nothing quietly
                 inactive.add(seq_q)
-                log.info(f'Sparse attention: inactive at tokens={seq_q}, below the minimum sequence of {options.gate}; attention stays dense')
+                log.info(f'Sparse attention: inactive at tokens={seq_q}, below the minimum sequence of {options.min_tokens}; attention stays dense')
             return decline('below the minimum sequence')
         budget = budget_for_step()
         if budget >= 1.0:

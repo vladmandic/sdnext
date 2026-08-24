@@ -265,7 +265,7 @@ def create_settings(cmd_opts):
         "sparse_attention_sep": OptionInfo("<h2>Sparse Attention</h2>", "", gr.HTML),
         "sparse_attention_enabled": OptionInfo(False, "Sparse Attention", gr.Checkbox),
         "sparse_attention_budget": OptionInfo(30, "Sparse Attention KV budget", gr.Slider, {"minimum": 5, "maximum": 100, "step": 5}),
-        "sparse_attention_min_tokens": OptionInfo(0, "Sparse Attention minimum sequence", gr.Slider, {"minimum": 0, "maximum": 65536, "step": 1024}),
+        "sparse_attention_min_tokens": OptionInfo(8192, "Sparse Attention minimum sequence", gr.Slider, {"minimum": 0, "maximum": 32768, "step": 1024}),
         "sparse_attention_schedule_steps": OptionInfo(0, "Sparse Attention dense steps", gr.Slider, {"minimum": 0, "maximum": 10, "step": 1}),
         "sparse_attention_schedule_bump": OptionInfo(30, "Sparse Attention dense step bonus", gr.Slider, {"minimum": 0, "maximum": 70, "step": 5}),
         "sparse_attention_head_shared": OptionInfo(False, "Sparse Attention share selection across heads", gr.Checkbox),

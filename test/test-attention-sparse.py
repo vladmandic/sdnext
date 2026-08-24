@@ -451,6 +451,19 @@ def test_stage_gates():
     return with_context(checks)
 
 
+def test_minimum_sequence_of_zero_sparsifies_everything():
+    from modules.attention.sparse import stage as stage_mod
+    floored = stage_mod.make_stage(stage_options())
+    unfloored = stage_mod.make_stage(stage_options(min_tokens=0))
+    short_q, short_k, short_v = qkv(heads=2, seq=512)
+
+    def checks():
+        assert floored(short_q, short_k, short_v, None, False) is None, 'the default floor keeps a short sequence dense'
+        assert unfloored(short_q, short_k, short_v, None, False) is not None, 'a floor of zero sparsifies every eligible call'
+        return True
+    return with_context(checks)
+
+
 def test_published_segments_reach_the_stage():
     from modules.attention.sparse import layout as layout_mod
     from modules.attention.sparse import stage as stage_mod
@@ -553,6 +566,7 @@ def run_all():
     for fn in [
         test_stage_is_none_when_disabled_or_at_full_budget,
         test_stage_gates,
+        test_minimum_sequence_of_zero_sparsifies_everything,
         test_stage_follows_the_step_schedule,
         test_published_segments_reach_the_stage,
         test_stage_uses_a_published_layout_and_falls_back_without_one,
