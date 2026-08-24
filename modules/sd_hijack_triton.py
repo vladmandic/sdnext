@@ -1,9 +1,12 @@
+import time
 import math
+from typing import Any
 from modules.logger import log, get_console
+from modules.timer import autotune
 
 
 installed = False
-status = {'session': None, 'pending': None, 'reported': set()}
+status: dict[str, Any] = {'session': None, 'pending': None, 'reported': set(), 'run_id': 0}
 slow_compile_seconds = 1.0
 
 
@@ -47,19 +50,43 @@ def shape_key(key):
     successive sweeps of the same kernel are different shapes, not a repeating loop."""
     if key is None:
         return 'unknown'
-    text = ','.join(str(k) for k in key) if isinstance(key, (tuple, list)) else str(key)
+    if isinstance(key, (tuple, list)):
+        parts = []
+        for k in key:
+            if isinstance(k, str) and k.startswith('torch.'):
+                continue
+            parts.append(str(k))
+        if len(parts) > 6:
+            text = '...' + ','.join(parts[-6:])
+        else:
+            text = ','.join(parts)
+    else:
+        text = str(key)
     return text if len(text) <= 64 else text[:61] + '...'
 
 
-def start_progress(name: str, total: int):
+def start_progress(name: str, total: int, shape: str | None = None):
     """Console bar for the sweep, matching how model and file loading report elsewhere. Returns
     (progress, task) or (None, None) when there is no console to draw on."""
     console = get_console()
     if console is None:
         return None, None
     import rich.progress as rp
-    progress = rp.Progress(rp.TextColumn('[cyan]Autotune'), rp.BarColumn(), rp.TaskProgressColumn(), rp.TimeRemainingColumn(), rp.TimeElapsedColumn(), rp.TextColumn('[yellow]{task.description}'), console=console, transient=True)
-    task = progress.add_task(description=f'kernel={name}', total=total)
+    progress = rp.Progress(
+        rp.TextColumn('[cyan]Autotune'),
+        rp.BarColumn(),
+        rp.TaskProgressColumn(),
+        rp.TextColumn('[green]{task.completed}/{task.total}'),
+        rp.TimeRemainingColumn(),
+        rp.TimeElapsedColumn(),
+        rp.TextColumn('[yellow]{task.description}'),
+        rp.TextColumn('[blue]{task.fields[shape]}'),
+        console=console,
+        transient=True,
+    )
+    task = progress.add_task(description=f'kernel={name}', total=total, shape=(f'shape={shape}' if shape is not None else ''))
+    progress.ts = time.time()
+    progress.kernel = name
     progress.start()
     return progress, task
 
@@ -69,8 +96,14 @@ def stop_progress(session):
     task = session.get('task', None) if session is not None else None
     if progress is not None:
         try:
-            progress.remove_task(task)
             progress.stop()
+        except Exception as e:
+            log.debug(f'Kernel autotune: report error: {e}')
+        try:
+            if task is not None:
+                autotune.add(progress.kernel, time.time() - progress.ts)
+                autotune.add('_shapes', 1)
+                progress.remove_task(task)
         except Exception as e:
             log.debug(f'Kernel autotune: report error: {e}')
         session['progress'] = None
@@ -78,46 +111,27 @@ def stop_progress(session):
 
 def bench_hook(orig):
     def wrapped(self, *args, config, **meta):
-        from modules import shared
-        """
-        if shared.state.textinfo != 'Autotune kernel':
-            _textinfo = shared.state.textinfo
-            shared.state.textinfo = 'Autotune kernel'
-        else:
-            _textinfo = None
-        """
         try:
-            session = status['session']
-            if session is None or session['owner'] is not self:
-                stop_progress(session) # a sweep that never reported completion must not leave its bar drawing
-                prev = session['prev'] if session is not None else shared.state.textinfo # chained sweeps inherit the pre-tuning text, so an abandoned one cannot leave its own label behind
-                progress, task = start_progress(kernel_name(getattr(self, 'base_fn', None)), len(self.configs))
-                session = {'owner': self, 'count': 0, 'total': len(self.configs), 'name': kernel_name(getattr(self, 'base_fn', None)), 'prev': prev, 'compile_us': 0, 'progress': progress, 'task': task}
-                status['session'] = session
-            session['count'] += 1
-            if session['progress'] is not None and session['task'] is not None:
-                session['progress'].update(session['task'], completed=session['count'], description=f'kernel={session["name"]} {session["count"]}/{session["total"]}')
-                if session["count"] >= session["total"]:
-                    stop_progress(session)
+            session: dict[str, Any] | None = status.get('session', None)
+            current_run_id = status.get('run_id')
+            if session is not None and session.get('owner') is self and session.get('run_id') == current_run_id:
+                session['count'] += 1
+                if session['count'] > session['total']:
+                    session['total'] = session['count']
+                if session['progress'] is not None and session['task'] is not None:
+                    session['progress'].update(session['task'], completed=session['count'], description=f'kernel={session["name"]}')
         except Exception as e:
             log.debug(f'Kernel autotune: report error: {e}')
-        res = orig(self, *args, config=config, **meta)
-        """
-        if _textinfo is not None:
-            shared.state.textinfo = _textinfo
-        """
-        return res
+        return orig(self, *args, config=config, **meta)
     return wrapped
 
 
 def make_autotune_listener(prior):
     def listener(*, fn=None, key=None, best_config=None, configs_timings=None, duration=None, cache_hit=False, **kwargs):
         try:
-            from modules import shared
             session = status['session']
             if session is not None:
                 stop_progress(session)
-                shared.state.textinfo = session['prev']
                 status['session'] = None
             name = kernel_name(fn)
             shape = shape_key(key)
@@ -141,24 +155,68 @@ def run_hook(orig):
     """Report the register use of the config a sweep just chose. n_regs and n_spills are filled in
     when the driver loads the binary, so they exist only once the kernel has run, not at compile."""
     def wrapped(self, *args, **kwargs):
-        res = orig(self, *args, **kwargs)
-        pending = status.get('pending', None)
-        if pending is not None:
-            status['pending'] = None
-            name, config = pending
-            try:
-                regs, spills = getattr(res, 'n_regs', None), getattr(res, 'n_spills', None)
-                if spills:
-                    seen = f'{name}:{config}:{spills}'
-                    if seen not in status['reported']: # the same kernel tunes once per shape, so warn on each distinct config only
-                        status['reported'].add(seen)
-                        # the sweep line carries the config too, but it is debug and filtered out at default level
-                        log.warning(f'Kernel autotune: kernel={name} register spill config="{config}" regs={regs} spills={spills}')
-                elif regs is not None:
-                    log.debug(f'Kernel autotune: kernel={name} regs={regs} spills=0')
-            except Exception as e:
-                log.debug(f'Kernel autotune: report error: {e}')
-        return res
+        session = status['session']
+        if session is not None:
+            stop_progress(session)
+            status['session'] = None
+        status['run_id'] = status.get('run_id', 0) + 1
+        run_id = status['run_id']
+
+        try:
+            self.nargs = dict(zip(self.arg_names, args))
+            all_args = {**self.nargs, **kwargs}
+            _args = {k: v for (k, v) in all_args.items() if k in self.arg_names}
+            key = tuple(_args[k] for k in self.keys if k in _args)
+            for arg in _args.values():
+                if hasattr(arg, 'dtype'):
+                    key += (str(arg.dtype),)
+            needs_benchmark = len(self.configs) > 1 and key not in self.cache
+            if needs_benchmark:
+                try:
+                    total = len(self.prune_configs(kwargs))
+                except Exception:
+                    total = len(self.configs)
+                shape = shape_key(key)
+                progress, task = start_progress(kernel_name(getattr(self, 'base_fn', None)), total, shape=shape)
+                session = {
+                    'owner': self,
+                    'run_id': run_id,
+                    'count': 0,
+                    'total': total,
+                    'name': kernel_name(getattr(self, 'base_fn', None)),
+                    'shape': shape,
+                    'compile_us': 0,
+                    'progress': progress,
+                    'task': task,
+                }
+                status['session'] = session
+        except Exception as e:
+            log.debug(f'Kernel autotune: report error: {e}')
+
+        res = None
+        try:
+            res = orig(self, *args, **kwargs)
+            return res
+        finally:
+            pending = status.get('pending', None)
+            if pending is not None and res is not None:
+                status['pending'] = None
+                name, config = pending
+                try:
+                    regs, spills = getattr(res, 'n_regs', None), getattr(res, 'n_spills', None)
+                    if spills:
+                        seen = f'{name}:{config}:{spills}'
+                        if seen not in status['reported']:
+                            status['reported'].add(seen)
+                            log.warning(f'Kernel autotune: kernel={name} register spill config="{config}" regs={regs} spills={spills}')
+                    elif regs is not None:
+                        log.debug(f'Kernel autotune: kernel={name} regs={regs} spills=0')
+                except Exception as e:
+                    log.debug(f'Kernel autotune: report error: {e}')
+            session = status.get('session', None)
+            if session is not None and session.get('owner') is self and session.get('run_id') == run_id:
+                stop_progress(session)
+                status['session'] = None
     return wrapped
 
 
@@ -174,7 +232,7 @@ def make_compile_listener(prior):
                     name = kernel_name(getattr(src, 'fn', None))
                     if name == 'unknown' and isinstance(metadata, dict):
                         name = str(metadata.get('name', 'unknown'))
-                    log.info(f'Kernel compile: kernel={name} time={total_s:.2f}')
+                    log.debug(f'Kernel compile: kernel={name} time={total_s:.2f}')
         except Exception as e:
             log.debug(f'Kernel compile: report error: {e}')
         if prior is not None:
@@ -201,7 +259,7 @@ def install():
         log.debug(f'Kernel autotune: {e}')
         return
     try:
-        knobs.autotuning.listener = make_autotune_listener(getattr(knobs.autotuning, 'listener', None))
+        knobs.autotuning.listener = make_autotune_listener(getattr(knobs.autotuning, 'listener', None)) # this is not actually invoked by triton
         knobs.compilation.listener = make_compile_listener(getattr(knobs.compilation, 'listener', None))
         Autotuner._bench = bench_hook(Autotuner._bench) # pylint: disable=protected-access
         Autotuner.run = run_hook(Autotuner.run)

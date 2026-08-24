@@ -141,7 +141,10 @@ def full_vae_decode(latents, model):
     log_debug(f'VAE config: {model.vae.config}')
     try:
         with devices.inference_context():
-            decoded = model.vae.decode(latents, return_dict=False)[0]
+            decoded = model.vae.decode(latents, return_dict=False)
+            if decoded is None or len(decoded) == 0:
+                raise RuntimeError('returned no data')
+            decoded = decoded[0]
     except Exception as e:
         log.error(f'VAE decode: {e}')
         if 'out of memory' not in str(e) and 'no data' not in str(e):

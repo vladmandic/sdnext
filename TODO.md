@@ -3,7 +3,8 @@
 ## Short-term
 
 - Update LTX wiki, @CalamitousFelicitousness
-- Lora: new handler, @CalamitousFelicitousness
+- LoRA: new handler, @CalamitousFelicitousness
+- LoRA: native loader for MiniMax-H3
 - Productize benchmark tool, @CalamitousFelicitousness
 - Inpaint: https://discord.com/channels/1101998836328697867/1130536562422186044/1506850651035144322, @vladmandic
 - Control tab verify overrides handling, @vladmandic
@@ -33,9 +34,7 @@
 - Video models: use Networks/Reference instead of custom
 - UI Lite vs Expert mode
 - Expand custom VAE support
-- Refactor: remove obsolete code:
-  - Remove `olive-ai`
-
+- Remove obsolete code:  `olive-ai`
 
 ### OnHold
 

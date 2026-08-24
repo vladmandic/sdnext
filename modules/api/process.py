@@ -219,10 +219,13 @@ class APIProcess:
         seed = req.seed or -1
         seed = processing_helpers.get_fixed_seed(seed)
         prompt = ''
-        from modules.scripts_manager import scripts_txt2img
+        from modules.scripts_manager import scripts_control
         default_model = 'google/gemma-3-4b-it' if req.type == 'image' else 'google/gemma-3-1b-it'
         model = default_model if req.model is None or len(req.model) < 4 else req.model
-        instance = [s for s in scripts_txt2img.scripts if 'prompt_enhance.py' in s.filename][0]
+        instance = [s for s in scripts_control.scripts if 'prompt_enhance_ext.py' in s.filename]
+        if len(instance) == 0:
+            raise HTTPException(status_code=500, detail="Prompt enhancement script not found")
+        instance = instance[0]
         prompt = instance.enhance(
             model=model,
             prompt=req.prompt,

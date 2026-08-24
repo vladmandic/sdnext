@@ -247,6 +247,10 @@ def process_images(p: StableDiffusionProcessing) -> Processed | None:
                 if k == 'sd_vae':
                     sd_vae.reload_vae_weights()
         timer.process.record('post')
+
+    if os.environ.get('SD_UNLOAD_MODEL', None) is not None:
+        sd_models.unload_model_weights()
+
     return results
 
 
@@ -424,10 +428,11 @@ def print_stats():
     log.debug(f'Processed: memory={memstats.memory_stats()}')
 
     if devices.triton_ok:
-        from modules.timer_sdnq import update_sdnq_attention_timers
-        update_sdnq_attention_timers()
+        # from modules.timer_sdnq import update_sdnq_attention_timers
+        # update_sdnq_attention_timers()
         if timer.autotune.get_total() > 0.1:
-            log.debug(f'Processed: autotune={timer.autotune.dct(min_time=0)}')
+            log.debug(f'Processed: autotune={timer.autotune.dct(min_time=0, no_total=True)}')
+        timer.autotune.reset()
 
         from modules.sd_models_compile import update_compile_times
         update_compile_times()
