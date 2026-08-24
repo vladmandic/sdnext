@@ -118,6 +118,7 @@ Plus quite a lot more, see full [changelog](https://github.com/vladmandic/automa
   - krea2: fallback to base pipeline/transformer for nunchaku-lite
   - torchsde: handle obsolete dependency
   - upscaler: avoid unnecessary multi-pass
+  - ideogram4: fix callback
 
 ## Update for 2026-08-07
 
