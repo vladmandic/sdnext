@@ -40,12 +40,20 @@ def apply_task_args(p, x, xs):
 
 def apply_processing(p, x, xs):
     for section in x.split(';'):
-        k, v = section.split('=')
+        k, v = section.split('=', 1)
         k, v = k.strip(), v.strip()
         if v.replace('.','',1).isdigit():
             v = float(v) if '.' in v else int(v)
         found = 'existing' if hasattr(p, k) else 'new'
         setattr(p, k, v)
+        if k == 'prompt':
+            p.all_prompts = None
+        elif k == 'negative_prompt':
+            p.all_negative_prompts = None
+        elif k == 'seed':
+            p.all_seeds = None
+        elif k == 'subseed':
+            p.all_subseeds = None
         log.debug(f'XYZ grid apply processing-arg: type={found} {k}={type(v)}:{v} ')
 
 

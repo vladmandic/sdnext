@@ -1,3 +1,4 @@
+import os
 import time
 from PIL import Image
 import numpy as np
@@ -137,7 +138,15 @@ def generate(task_id, _ui_state,
             p.task_args.update(task_args)
 
             _processed: processing.Processed = scripts_manager.scripts_video.run(p, *args)
-            processed = processing.process_images(p)
+
+            if os.environ.get("SD_MINIMAX_CHUNK", None) is not None:
+                from modules.minimax.minimax_chunking import minimax_attention
+                chunk_size = int(os.environ.get("SD_MINIMAX_CHUNK", 0))
+                log.debug(f'Video: engine="{engine}" model="{model}" chunking=True size={chunk_size}')
+                with minimax_attention(chunk_size=chunk_size):
+                    processed = processing.process_images(p)
+            else:
+                processed = processing.process_images(p)
 
             sd_models.offload_ondemand(shared.sd_model, reason='finish', force=True) # force offload all loaded modules to cpu
             devices.torch_gc(force=True) # free gpu memory before saving video

@@ -119,6 +119,7 @@ Plus quite a lot more, see full [changelog](https://github.com/vladmandic/automa
   - torchsde: handle obsolete dependency
   - upscaler: avoid unnecessary multi-pass
   - ideogram4: fix callback
+  - xyzgrid: fix seed/prompt/negative handling, thanks @QuintusAntonius
 
 ## Update for 2026-08-07
 
