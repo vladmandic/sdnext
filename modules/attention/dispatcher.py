@@ -41,7 +41,7 @@ def set_diffusers_attention(pipe, quiet = False):
         set_attn(pipe, DynamicAttnProcessorBMM(), name="Dynamic Attention BMM")
 
     if shared.opts.attention_slicing != "Default" and hasattr(pipe, "enable_attention_slicing") and hasattr(pipe, "disable_attention_slicing"):
-        if shared.opts.attention_slicing:
+        if shared.opts.attention_slicing == "Enabled":
             pipe.enable_attention_slicing()
         else:
             pipe.disable_attention_slicing()

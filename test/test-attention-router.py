@@ -413,6 +413,36 @@ def test_debug_observe_logs_each_route_once():
     return True
 
 
+def test_attention_slicing_follows_the_choice():
+    from modules import shared
+
+    class Pipe:
+        def __init__(self):
+            self.calls = []
+
+        def enable_attention_slicing(self):
+            self.calls.append('enable')
+
+        def disable_attention_slicing(self):
+            self.calls.append('disable')
+
+    saved = {key: shared.opts.data.get(key, None) for key in ['attention_slicing', 'cross_attention_optimization']}
+    try:
+        shared.opts.data['cross_attention_optimization'] = 'Disabled' # the branch under test is the only one that should act
+        for choice, expected in [('Default', []), ('Enabled', ['enable']), ('Disabled', ['disable'])]:
+            shared.opts.data['attention_slicing'] = choice
+            pipe = Pipe()
+            attention.set_diffusers_attention(pipe, quiet=True)
+            assert pipe.calls == expected, f'{choice} produced {pipe.calls}'
+    finally:
+        for key, value in saved.items():
+            if value is None:
+                shared.opts.data.pop(key, None)
+            else:
+                shared.opts.data[key] = value
+    return True
+
+
 def test_escape_hatch_bypasses_the_router():
     from modules import devices
     saved_sdpa = torch.nn.functional.scaled_dot_product_attention
@@ -485,6 +515,7 @@ def run_all():
         test_install_router_records_the_chain,
         test_debug_observe_logs_each_route_once,
         test_reapply_options_cover_declared_backend_options,
+        test_attention_slicing_follows_the_choice,
         test_escape_hatch_bypasses_the_router,
     ]:
         run_test(cat, fn)
