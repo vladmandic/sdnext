@@ -418,7 +418,7 @@ def run(model: str, *,
                 t2 = time.time()
                 # silent=True everywhere: per-module stats were already dumped during the load-time
                 # balanced_offload pass. Upsample/refine boundaries force a rebuild because the global
-                # offload_hook_instance is keyed on checkpoint_name (sd_offload.py:488), but re-logging
+                # offload_hook_instance is keyed on checkpoint_name (sd_offload_balanced), but re-logging
                 # the same inventory adds noise without information.
                 shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model, silent=True)
                 devices.torch_gc(force=True, reason='ltx:base')
