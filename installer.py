@@ -754,10 +754,10 @@ def install_rocm_zluda():
         #check_python(supported_minors=[10, 11, 12, 13, 14], reason='ROCm backend requires a Python version between 3.10 and 3.13')
         rocm_major, rocm_minor = (int(x) for x in rocm.version.split('.')) if rocm.version is not None else (0, 0)
         if args.use_nightly:
-            if rocm.version is None or (rocm_major > 7 or (rocm_major == 7 and rocm_minor >= 2)): # assume the latest if version check fails
+            if rocm.version is None or (rocm_major > 7 or (rocm_major == 7 and rocm_minor >= 14)): # assume the latest if version check fails
+                torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm7.14')
+            else: # oldest rocm version on nightly is 7.2
                 torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm7.2')
-            else: # oldest rocm version on nightly is 7.1
-                torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm7.1')
         else:
             if rocm.version is None or rocm_major > 7: # assume the latest if version check fails
                 torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.13.0+rocm7.2 torchvision==0.28.0+rocm7.2 --index-url https://download.pytorch.org/whl/rocm7.2')
