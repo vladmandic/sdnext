@@ -109,7 +109,7 @@ def print_json(data):
 
 def read_exif(filename: str):
     if filename.lower().endswith('.heic'):
-        from pi_heif import register_heif_opener
+        from pillow_heif import register_heif_opener
         register_heif_opener()
     try:
         image = Image.open(filename)

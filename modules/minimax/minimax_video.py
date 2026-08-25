@@ -28,6 +28,9 @@ def load_model(model: str):
     t0 = time.time()
     ckpt = sd_models.CheckpointInfo(filename=selected.repo)
     shared.sd_model = load_minimax(ckpt, workflow=selected.workflow)
+    if shared.sd_model is None:
+        log.error(f'Load video: engine="{engine}" selected="{model}" failed')
+        return None
     sd_models.set_diffuser_options(shared.sd_model) # apply attention, offload, etc.
     loaded = f'repo={selected.repo} workflow={selected.workflow}'
     t1 = time.time()

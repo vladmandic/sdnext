@@ -3,8 +3,9 @@
 ## Short-term
 
 - Update LTX wiki, @CalamitousFelicitousness
-- LoRA: new handler, @CalamitousFelicitousness
-- LoRA: native loader for MiniMax-H3
+- LoRA: merge new handler, @CalamitousFelicitousness
+- LoRA: native loader for MiniMax-H3: fl2va, ref2va, pruned
+- TAESD: preview for MiniMax-H3 <https://github.com/madebyollin/taehv>
 - Productize benchmark tool, @CalamitousFelicitousness
 - Inpaint: https://discord.com/channels/1101998836328697867/1130536562422186044/1506850651035144322, @vladmandic
 - Control tab verify overrides handling, @vladmandic
