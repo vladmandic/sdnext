@@ -156,7 +156,7 @@ def create_settings(cmd_opts):
         "group_offload_stream": OptionInfo(False, "Prefetch with streams", gr.Checkbox),
         'group_offload_record': OptionInfo(False, "Overlap stream transfers", gr.Checkbox),
         'group_offload_pin': OptionInfo(True, "Pin offload memory", gr.Checkbox),
-        'group_offload_blocks': OptionInfo(1, "Offload blocks", gr.Number),
+        'group_offload_blocks': OptionInfo(1, "Group offload blocks", gr.Number),
         "caption_offload_sep": OptionInfo("<h2>Caption Model Offloading</h2>", "", gr.HTML),
         "caption_offload": OptionInfo(True, "Offload caption models"),
         "caption_to_gpu": OptionInfo(True, "Load caption models direct to GPU"),

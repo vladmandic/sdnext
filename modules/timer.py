@@ -35,9 +35,19 @@ class Timer:
     def get(self, name):
         return self.records.get(name, 0)
 
+    def set(self, name, t):
+        self.records[name] = t
+
     def ts(self, name, t):
         elapsed = time.time() - t
         self.add(name, elapsed)
+
+    def merge(self, other):
+        for k, v in other.records.items():
+            if k not in self.records:
+                self.records[k] = 0
+            self.records[k] += v
+        self.total += other.total
 
     def record(self, category=None, extra_time=0, reset=True):
         e = self.elapsed(reset)
@@ -91,6 +101,7 @@ class Timer:
 
 startup = Timer()
 process = Timer()
+video = Timer()
 launch = Timer()
 init = Timer()
 load = Timer()

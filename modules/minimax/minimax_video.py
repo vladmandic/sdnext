@@ -4,7 +4,7 @@ from PIL import Image
 import numpy as np
 from modules.logger import log
 from modules import shared, devices, errors, processing, timer, progress, paths, sd_models, scripts_manager, call_queue, memstats, processing_video
-from modules.video_models import models_def, video_save, video_utils
+from modules.video_models import models_def, video_save, video_utils, video_upscale
 
 
 engine = 'MiniMax'
@@ -31,7 +31,7 @@ def load_model(model: str):
     sd_models.set_diffuser_options(shared.sd_model) # apply attention, offload, etc.
     loaded = f'repo={selected.repo} workflow={selected.workflow}'
     t1 = time.time()
-    timer.process.add('load', t1 - t0)
+    timer.video.add('load', t1 - t0)
     if shared.sd_model is not None:
         return selected.workflow
     return None
@@ -48,6 +48,7 @@ def unwrap_file(entry):
 
 def prepare_inputs(workflow: str | None, init_image: Image.Image | None, last_image: Image.Image | None, reference_media: list | None) -> dict:
     """The task args a workflow conditions on, resolved before the model load so a rejected request costs nothing."""
+    t_inputs = time.time()
     from modules.minimax import minimax_references
     if minimax_references.get_reference_caps(workflow) is not None:
         entries = [unwrap_file(entry) for entry in (reference_media or [])]
@@ -62,6 +63,7 @@ def prepare_inputs(workflow: str | None, init_image: Image.Image | None, last_im
     if reference_media:
         log.warning(f'Video: op=reference workflow={workflow} references not supported, ignoring: count={len(reference_media)}')
     log.debug(f'Prepare inputs: workflow={workflow} first={init_image} last={last_image}')
+    timer.video.ts('inputs', t_inputs)
     return task_args
 
 
@@ -92,6 +94,7 @@ def generate(task_id, _ui_state,
         progress.start_task(task_id)
         memstats.reset_stats()
         timer.process.reset()
+        timer.video.reset()
 
         # init vars
         p = None
@@ -168,16 +171,26 @@ def generate(task_id, _ui_state,
                 return None, "MiniMax: No frames generated"
 
             if mp4_interpolate > 0:
+                t_interpolate = time.time()
                 p.video_interpolate = mp4_interpolate
                 from modules.processing_video import apply_video_interpolation
                 # pixels is 5-D (N,C,T,H,W) in [-1,1]; RIFE needs 4-D (T,C,H,W) in [0,1]
                 x = pixels.squeeze(0).permute(1, 0, 2, 3)
                 x = (x.clamp(-1., 1.) + 1.0) * 0.5
-                x = apply_video_interpolation(p, x, count=mp4_interpolate) # sets p.video_interpolated otherwise main save_video would do it also
+                x = apply_video_interpolation(p, x, count=mp4_interpolate)
                 x = x * 2.0 - 1.0
                 pixels = x.permute(1, 0, 2, 3).unsqueeze(0)
+                timer.video.ts('interpolate', t_interpolate)
+                p.video_interpolated = True # notice so main save_video does not do it again
+
+            if mp4_upscaler is not None and len(mp4_upscaler) > 0:
+                t_upscale = time.time()
+                pixels = video_upscale.upscale_video(pixels, scale=mp4_scale, upscaler_name=mp4_upscaler)
+                timer.video.ts('upscale', t_upscale)
+                p.video_upscaled = True # notice so main save_video does not do it again
 
             save_fps = mp4_fps * processing_video.interpolation_factor(p)
+            t_save = time.time()
             num_frames, video_file, _thumb = video_save.save_video(
                 p=p,
                 pixels=pixels,
@@ -196,6 +209,7 @@ def generate(task_id, _ui_state,
                 upscale_upscaler=mp4_upscaler,
                 metadata={},
             )
+            timer.video.ts('save', t_save)
             _n, _c, _t, h, w = pixels.shape
             del pixels
             if audio is not None:
@@ -219,9 +233,12 @@ def generate(task_id, _ui_state,
         summary = timer.process.summary(min_time=0.25, total=False).replace('=', ' ')
         memory = shared.mem_mon.summary()
         total_time = max(t1 - t0, 1e-6)
+        timer.video.merge(timer.process)
+        timer.video.set('wall', total_time)
+        log.debug(f'Video: timers={timer.video.dct(no_total=True)}')
         fps = f'{num_frames/total_time:.2f}'
         its = f'{(steps)/total_time:.3f}'
-        log.info(f'Processed: fn="{video_file}" frames={num_frames} fps={fps} its={its} resolution={resolution} time={total_time:.2f} timers={timer.process.dct(no_total=True)} memory={memstats.memory_stats()}')
+        log.info(f'Processed: fn="{video_file}" frames={num_frames} fps={fps} its={its} resolution={resolution} time={total_time:.2f}')
 
         ui_text = f'Video | File {video_file} | Frames {num_frames} | Resolution {resolution} | f/s {fps} | it/s {its} ' + f"<div class='performance'><p>{summary} {memory}</p></div>"
         return video_file, ui_text
