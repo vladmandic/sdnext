@@ -174,15 +174,17 @@ def expand(keep: torch.Tensor, seq_q: int, seq_kv: int):
     return keep.repeat_interleave(BLOCK_M, dim=-2).repeat_interleave(BLOCK_N, dim=-1)[..., :seq_q, :seq_kv].contiguous()
 
 
-def ordered(keep: torch.Tensor, batch: int, heads: int):
-    """The count and ascending index list per query block that the kernel walks, built the way the entry builds them: size-1 batch and head dims kept, padded to the descriptor chunks."""
-    return atten_module.get_block_mask_input(keep, batch, heads)
+def ordered(keep: torch.Tensor):
+    """The count and ascending index list per query block that the kernel walks, built the way the entry builds them: left-padded to 4d, size-1 batch and head dims kept, padded to the descriptor chunks."""
+    while keep.ndim < 4:
+        keep = keep.unsqueeze(0)
+    return atten_module.get_block_mask_input(keep)
 
 
 def raw(q, k, v, attn_mask=None, block_mask=None, block_count=None, block_index=None):
     """The triton op without the input prep: nothing is quantized, so the mask path is the only difference between arms."""
     if block_mask is not None:
-        block_count, block_index = ordered(block_mask, q.shape[0], q.shape[1])
+        block_count, block_index = ordered(block_mask)
     sparse = block_count is not None
     return atten_module.sdnq_triton_atten_fwd(
         q, k, v, None, None, None,
@@ -262,7 +264,7 @@ def test_block_lists_must_be_contiguous_and_padded():
         return None
     q, k, v = qkv(seq=1100) # 9 query blocks and 18 kv blocks, so both lists get padded (to 12 and 32)
     keep = random_keep(2, 4, 1100, 1100)
-    count, index = ordered(keep, 2, 4)
+    count, index = ordered(keep)
     nq, nk = blocks(1100, 1100)
     assert count.is_contiguous() and index.is_contiguous()
     assert count.shape[-1] % atten_module.block_count_chunk == 0 and index.shape[-1] % atten_module.block_index_chunk == 0
@@ -287,7 +289,7 @@ def test_block_lists_must_be_contiguous_and_padded():
         raise AssertionError(f'{label} was accepted')
     assert torch.equal(raw(q, k, v, block_mask=keep), reference)
     shared_keep = keep[:1, :1]
-    shared_count, shared_index = ordered(shared_keep, 2, 4)
+    shared_count, shared_index = ordered(shared_keep)
     assert tuple(shared_count.shape[:2]) == (1, 1) and tuple(shared_index.shape[:2]) == (1, 1), 'size-1 batch and head dims stay as given, the kernel broadcasts by shape'
     assert torch.equal(raw(q, k, v, block_count=shared_count, block_index=shared_index), raw(q, k, v, block_mask=shared_keep.expand(2, 4, -1, -1).contiguous()))
     return True
@@ -365,8 +367,8 @@ def test_launcher_validates_the_block_lists():
         return None
     q, k, v = qkv()
     ones = torch.ones(1, 1, *blocks(1000, 1000), dtype=torch.int8, device=device)
-    count, index = ordered(ones, 2, 4)
-    wide_count, wide_index = ordered(ones.expand(5, 4, -1, -1).contiguous(), 5, 4)
+    count, index = ordered(ones)
+    wide_count, wide_index = ordered(ones.expand(5, 4, -1, -1).contiguous())
     bad = (
         ('a count without an index', {'block_count': count}),
         ('an index without a count', {'block_index': index}),
@@ -392,22 +394,8 @@ def test_launcher_validates_the_block_lists():
 # Autotune nesting
 # ============================================================
 
-def test_nesting_filter_keeps_only_nesting_tiles():
-    configs = configs_for((32, 64, 128, 256), (16, 32, 64, 128))
-    args = {'do_block_mask': 1, 'BLOCK_MASK_M': BLOCK_M, 'BLOCK_MASK_N': BLOCK_N}
-    kept = atten_module.nest_block_mask_configs(configs, args)
-    assert {(c.kwargs['BLOCK_SIZE_M'], c.kwargs['BLOCK_SIZE_N']) for c in kept} == {(m, n) for m in (32, 64, 128) for n in (16, 32, 64)}
-    assert atten_module.nest_block_mask_configs(configs, {'do_block_mask': 0}) is configs
-    assert atten_module.nest_block_mask_configs(configs, {}) is configs
-    try:
-        atten_module.nest_block_mask_configs(configs_for((256,), (128,)), args)
-    except ValueError as e:
-        assert 'SDNQ_TRITON_ATTEN_BLOCK_SIZE_M_LIST' in str(e), e
-        return True
-    raise AssertionError('a tile list with nothing nesting did not raise')
-
-
 def test_prune_configs_applies_the_filter():
+    """The nesting filter keeps exactly the tiles a mask block divides by, leaves a dense launch alone, and raises rather than letting a tile list that cannot nest run."""
     if not kernel_available:
         return None
     q, k, v = qkv()
@@ -420,7 +408,12 @@ def test_prune_configs_applies_the_filter():
     without = atten_module.prune_configs(configs_for((32, 64, 128, 256), (16, 32, 64, 128)), dict(args, do_block_mask=0))
     assert with_mask, 'nothing survived'
     assert [c.kwargs for c in with_mask] == [c.kwargs for c in without if nests(c)], ([c.kwargs for c in with_mask], [c.kwargs for c in without])
-    return True
+    try: # from_small is the terminal arm, so the fallback to the small configs cannot refill the list before the filter reaches it
+        atten_module.prune_configs(configs_for((256,), (128,)), args, from_small=True)
+    except ValueError as e:
+        assert 'SDNQ_TRITON_ATTEN_BLOCK_SIZE_M_LIST' in str(e), e
+        return True
+    raise AssertionError('a tile list with nothing nesting did not raise')
 
 
 # ============================================================
@@ -641,7 +634,6 @@ def run_all():
     log.warning('=== autotune nesting ===')
     cat = category('autotune')
     for fn in [
-        test_nesting_filter_keeps_only_nesting_tiles,
         test_prune_configs_applies_the_filter,
     ]:
         run_test(cat, fn)
