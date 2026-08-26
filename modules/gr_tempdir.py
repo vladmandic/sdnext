@@ -112,7 +112,7 @@ def cleanup_tmpdr():
         for name in files:
             try:
                 _, extension = os.path.splitext(name)
-                if extension not in {".png", ".jpg", ".webp", ".jxl"}:
+                if extension not in {".png", ".jpg", ".webp", ".jxl", ".heic", ".heif", ".mp4", ".webm"}:
                     continue
                 filename = os.path.join(root, name)
                 os.remove(filename)

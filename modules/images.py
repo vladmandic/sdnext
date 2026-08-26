@@ -24,3 +24,14 @@ __all__ = [
     'draw_text',
     'flatten',
 ]
+
+def register_heif():
+    from installer import install
+    install('pillow-heif', quiet=True)
+    try:
+        import pillow_heif
+        pillow_heif.register_heif_opener()
+    except Exception:
+        pass
+
+register_heif()

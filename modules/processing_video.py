@@ -93,7 +93,7 @@ def apply_video_interpolation(
         except Exception:
             pass
 
-    log.info(f'Video interpolation: type={in_type} input={in_len} output={frames_len(out)} count={count} scale={scale}')
+    log.info(f'Video interpolate: type={in_type} input={in_len} output={frames_len(out)} count={count} scale={scale}')
     return out
 
 

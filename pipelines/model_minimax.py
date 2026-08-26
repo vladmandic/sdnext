@@ -34,6 +34,8 @@ def load_minimax(checkpoint_info, diffusers_load_config = None, workflow: str | 
         pipe.sdnext_supported_min_frames = int(pipe.min_duration * pipe.fps) # fresh pipes report the true floor; still mode gates per instance
 
     video_load.loaded_model = None # image-path load invalidates the video tab's name cache
+    # if hasattr(pipe, 'vae'):
+    #    pipe.vae = pipe.vae.to(torch.float16) # minimax loads vae in float32
     if hasattr(pipe, 'vae') and hasattr(pipe.vae, 'enable_tiling'):
         pipe.vae.enable_tiling()
 

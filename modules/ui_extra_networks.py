@@ -865,7 +865,7 @@ def create_ui(container, button_parent: gr.Button, tabname: str, skip_indexing =
         if ui.last_item is None:
             return desc
         basename = os.path.splitext(ui.last_item.filename)[0]
-        extensions = ['.safetensors', '.ckpt', '.txt', '.json', '.thumb.jpg', '.jpg', '.jpeg', '.png', '.webp', '.tiff', '.jp2', '.jxl']
+        extensions = ['.safetensors', '.ckpt', '.txt', '.json', '.thumb.jpg', '.jpg', '.jpeg', '.png', '.webp', '.tiff', '.jp2', '.jxl', '.heif', '.heic', '.gif']
         candidates = []
         for ext in extensions:
             fn = basename + ext

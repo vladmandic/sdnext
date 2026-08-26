@@ -23,6 +23,14 @@ def apply_progress_bar_config(block):
         apply_progress_bar_config(child)
 
 
+def trace_modules(pipe):
+    from modules.sd_offload_utils import get_module_names
+    for module_name in get_module_names(pipe):
+        module = getattr(pipe, module_name, None)
+        if isinstance(module, torch.nn.Module):
+            log.trace(f'Module: name={module_name} cls={module.__class__.__name__} device={next(module.parameters()).device} dtype={next(module.parameters()).dtype}')
+
+
 def install_state_hook(pipe):
     runner_log = logging.getLogger('diffusers.modular_pipelines.modular_pipeline')
     if not any(isinstance(f, InterruptLogFilter) for f in runner_log.filters):
