@@ -390,7 +390,7 @@ def get_deleteimage(file: str):
         raise HTTPException(status_code=404, detail=f"file not found: {file}")
     if os.path.isdir(file):
         raise HTTPException(status_code=403, detail=f"file {file}: is a directory")
-    if os.path.splitext(file)[1].lower() not in (".png", ".jpg", ".jpeg", ".webp"):
+    if os.path.splitext(file)[1].lower() not in (".png", ".jpg", ".jpeg", ".webp", ".heic", ".heif", ".tiff"):
         raise HTTPException(status_code=403, detail=f"file {file}: not an image file")
     try:
         os.remove(file)
@@ -411,7 +411,7 @@ def get_pnginfo(file: str):
         raise HTTPException(status_code=400, detail="file path is required")
     if not any(Path(folder).absolute() in Path(file).absolute().parents for folder in allowed_dirs):
         raise HTTPException(status_code=403, detail=f"file {file}: must be in one of allowed directories")
-    if os.path.splitext(file)[1].lower() not in (".png", ".jpg", ".jpeg", ".webp"):
+    if os.path.splitext(file)[1].lower() not in (".png", ".jpg", ".jpeg", ".webp", ".heic", ".heif", ".tiff"):
         raise HTTPException(status_code=403, detail=f"file {file}: not an image file")
     if not os.path.isfile(file):
         raise HTTPException(status_code=403, detail=f"file {file}: not an image file")

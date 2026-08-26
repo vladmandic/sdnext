@@ -108,6 +108,11 @@ def atomically_save_image():
             if shared.opts.image_metadata:
                 debug_save(f'Save exif: {exifinfo}')
                 save_args['exif'] = piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: exifinfo_dump } })
+        elif image_format == 'HEIF':
+            save_args = { 'quality': shared.opts.jpeg_quality }
+            if shared.opts.image_metadata:
+                debug_save(f'Save exif: {exifinfo}')
+                save_args['exif'] = piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: exifinfo_dump } })
         else:
             save_args = { 'quality': shared.opts.jpeg_quality }
         try:

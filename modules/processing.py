@@ -88,7 +88,6 @@ class Processed:
         self.info = info or create_infotext(p)
         self.infotexts = infotexts or [self.info]
         self.comments = comments or ''
-        memstats.reset_stats()
 
     def js(self):
         obj = {

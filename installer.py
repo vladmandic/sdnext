@@ -701,7 +701,7 @@ def install_rocm_zluda():
 
     if sys.platform == "win32" and (not args.use_zluda) and (device is not None) and (device.therock is not None) and not installed("rocm"):
         check_python(supported_minors=[11, 12, 13], reason='ROCm-Windows: python==3.11/3.12/3.13 required')
-        install("rocm-sdk-devel --index-url https://rocm.nightlies.amd.com/whl-multi-arch")
+        install("rocm[devel]==7.14.0 --index-url https://repo.amd.com/rocm/whl-multi-arch/")
         rocm.refresh()
 
     msg = f'ROCm: version={rocm.version}'
@@ -737,11 +737,8 @@ def install_rocm_zluda():
                 log.error('ROCm: no agent found - make sure that graphics driver is installed and up to date')
             if device is not None and device.therock is not None:
                 check_python(supported_minors=[11, 12, 13], reason='ROCm-Windows: python==3.11/3.12/3.13 required')
-                # Extract device-specific package family from therock path (e.g., 'amd-torch-device-gfx1030' from 'whl-multi-arch/amd-torch-device-gfx1030')
-                torch_family = device.therock.rsplit('/', 1)[-1]
-                torchvision_family = torch_family.replace('amd-torch-device-', 'amd-torchvision-device-')
                 # Use device-specific index for torch/torchvision, with root index as fallback for torchaudio and other packages
-                torch_command = os.environ.get('TORCH_COMMAND', f'{torch_family} {torchvision_family} torchaudio --index-url https://rocm.nightlies.amd.com/{device.therock} --extra-index-url https://rocm.nightlies.amd.com/whl-multi-arch')
+                torch_command = os.environ.get('TORCH_COMMAND', f'"torch[device-{device.therock}]==2.12.0+rocm7.14.0" "torchvision[device-{device.therock}]==0.27.0+rocm7.14.0" "torchaudio==2.11.0+rocm7.14.0"  --index-url https://repo.amd.com/rocm/whl-multi-arch/')
             elif isinstance(rocm.environment, rocm.PythonPackageEnvironment):
                 check_python(supported_minors=[11, 12, 13], reason='ROCm-Windows: python==3.11/3.12/3.13 required')
                 torch_command = os.environ.get('TORCH_COMMAND', 'torch torchvision torchaudio --index-url https://rocm.nightlies.amd.com/whl-multi-arch')
@@ -754,10 +751,10 @@ def install_rocm_zluda():
         #check_python(supported_minors=[10, 11, 12, 13, 14], reason='ROCm backend requires a Python version between 3.10 and 3.13')
         rocm_major, rocm_minor = (int(x) for x in rocm.version.split('.')) if rocm.version is not None else (0, 0)
         if args.use_nightly:
-            if rocm.version is None or (rocm_major > 7 or (rocm_major == 7 and rocm_minor >= 2)): # assume the latest if version check fails
+            if rocm.version is None or (rocm_major > 7 or (rocm_major == 7 and rocm_minor >= 14)): # assume the latest if version check fails
+                torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm7.14')
+            else: # oldest rocm version on nightly is 7.2
                 torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm7.2')
-            else: # oldest rocm version on nightly is 7.1
-                torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm7.1')
         else:
             if rocm.version is None or rocm_major > 7: # assume the latest if version check fails
                 torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.13.0+rocm7.2 torchvision==0.28.0+rocm7.2 --index-url https://download.pytorch.org/whl/rocm7.2')
@@ -1327,7 +1324,7 @@ def install_insightface():
 def install_optional():
     t_start = time.time()
     log.info('Installing optional requirements...')
-    install('pi-heif')
+    install('pillow-heif')
     install('addict')
     install('yapf')
     install('--no-build-isolation git+https://github.com/Disty0/BasicSR@23c1fb6f5c559ef5ce7ad657f2fa56e41b121754', 'basicsr', ignore=True, quiet=True)
