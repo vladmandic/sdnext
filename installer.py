@@ -552,33 +552,16 @@ def check_python(supported_minors=None, experimental_minors=None, reason=None):
 
 
 # register sdnq package from github submodule
-def register_sdnq(skip=False, devices=None, shared=None):
-    if not skip:
-        t_start = time.time()
-        fn = os.path.join('extensions-builtin', 'sdnq', 'src', 'sdnq', '__init__.py')
-        name = "sdnq"
-        spec = importlib.util.spec_from_file_location(name, fn)
-        module = importlib.util.module_from_spec(spec)
-        sys.modules[name] = module
-        spec.loader.exec_module(module) # this is where actual import happens
-        import sdnq # pylint: disable=unused-import # test import
-        ts('sdnq', t_start)
-    if devices is not None:
-        import sdnq
-        sdnq.sdnext.devices = devices
-        sdnq.quantizer.devices = devices
-        sdnq.dequantizer.devices = devices
-        sdnq.quant_utils.devices = devices
-        sdnq.kernel_wrappers.devices = devices
-    if shared is not None:
-        import sdnq
-        sdnq.sdnext.shared = shared
-        sdnq.quantizer.shared = shared
-        sdnq.dequantizer.shared = shared
-        sdnq.quant_utils.shared = shared
-        sdnq.kernel_wrappers.shared = shared
-        sdnq.common.shared = shared
-        sdnq.loader.shared = shared
+def register_sdnq():
+    t_start = time.time()
+    fn = os.path.join('extensions-builtin', 'sdnq', 'src', 'sdnq', '__init__.py')
+    name = "sdnq"
+    spec = importlib.util.spec_from_file_location(name, fn)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module) # this is where actual import happens
+    import sdnq # pylint: disable=unused-import # test import
+    ts('sdnq', t_start)
 
 
 # check diffusers version
