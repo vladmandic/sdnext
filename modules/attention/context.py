@@ -11,7 +11,7 @@ class GenerationContext:
     step: int = 0 # index of the denoiser forward about to run
     steps: int = 0 # forwards in the current pass
     forwards: int = 0
-    model_key: tuple[str, str | None] | None = None # pipeline class and denoiser class, telemetry only
+    model_key: tuple[str, str | None] | None = None # pipeline class and denoiser class, for telemetry and the sparse exclusion list
     step_buffer: torch.Tensor | None = None # the step as a device scalar updated in place, so compiled readers keep their graph
     layout: object | None = None # TokenLayout published by whoever knows the packing, None until something does
 

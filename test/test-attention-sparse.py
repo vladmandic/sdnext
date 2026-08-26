@@ -464,6 +464,44 @@ def test_minimum_sequence_of_zero_sparsifies_everything():
     return with_context(checks)
 
 
+def test_exclusion_list_parsing():
+    from modules.attention.sparse import stage as stage_mod
+    assert stage_mod.parse_exclusions(' Anima , CosmosTransformer3DModel ,, ') == ('anima', 'cosmostransformer3dmodel')
+    assert stage_mod.parse_exclusions('') == ()
+    assert stage_mod.parse_exclusions(None) == ()
+    return True
+
+
+def test_an_exclusion_entry_matches_any_of_the_three_names():
+    """One entry, matched against whichever of the architecture, pipeline class or denoiser class the user knew."""
+    from modules.attention.sparse import stage as stage_mod
+    key = ('AnimaTextToImagePipeline', 'CosmosTransformer3DModel')
+    for entry in ('cosmostransformer3dmodel', 'animatexttoimagepipeline', 'anima'):
+        assert stage_mod.match_exclusion(key, 'anima', (entry,)) == entry, entry
+    assert stage_mod.match_exclusion(key, 'anima', ('krea2',)) == '', 'an unlisted model matches nothing'
+    assert stage_mod.match_exclusion(None, 'anima', ('anima',)) == 'anima', 'the architecture stands in when no model key is published'
+    assert stage_mod.match_exclusion(('Pipe', None), None, ('pipe',)) == 'pipe', 'an absent denoiser class is skipped, not matched'
+    return True
+
+
+def test_an_excluded_model_stays_dense():
+    from modules.attention import context as ctx
+    from modules.attention.sparse import stage as stage_mod
+    listed = stage_mod.make_stage(stage_options(exclude=('cosmostransformer3dmodel',)))
+    unlisted = stage_mod.make_stage(stage_options(exclude=('somethingelse',)))
+    q, k, v = qkv(heads=2, seq=2048)
+
+    def checks():
+        ctx.current.model_key = ('AnimaTextToImagePipeline', 'CosmosTransformer3DModel')
+        assert listed(q, k, v, None, False) is None, 'a listed denoiser class stays dense'
+        assert listed.last_skip == 'excluded', listed.last_skip
+        assert unlisted(q, k, v, None, False) is not None, 'a list that matches nothing changes nothing'
+        ctx.current.model_key = ('Krea2Pipeline', 'Krea2Transformer2DModel')
+        assert listed(q, k, v, None, False) is not None, 'the exclusion applies to the listed model, not to every model'
+        return True
+    return with_context(checks)
+
+
 def test_published_segments_reach_the_stage():
     from modules.attention.sparse import layout as layout_mod
     from modules.attention.sparse import stage as stage_mod
@@ -566,6 +604,9 @@ def run_all():
     for fn in [
         test_stage_is_none_when_disabled_or_at_full_budget,
         test_stage_gates,
+        test_exclusion_list_parsing,
+        test_an_exclusion_entry_matches_any_of_the_three_names,
+        test_an_excluded_model_stays_dense,
         test_minimum_sequence_of_zero_sparsifies_everything,
         test_stage_follows_the_step_schedule,
         test_published_segments_reach_the_stage,

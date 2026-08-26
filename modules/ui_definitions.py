@@ -269,6 +269,7 @@ def create_settings(cmd_opts):
         "sparse_attention_schedule_steps": OptionInfo(0, "Sparse Attention dense steps", gr.Slider, {"minimum": 0, "maximum": 10, "step": 1}),
         "sparse_attention_schedule_bump": OptionInfo(30, "Sparse Attention dense step bonus", gr.Slider, {"minimum": 0, "maximum": 70, "step": 5}),
         "sparse_attention_head_shared": OptionInfo(False, "Sparse Attention share selection across heads", gr.Checkbox),
+        "sparse_attention_exclude": OptionInfo("CosmosTransformer3DModel", "Sparse Attention excluded models", gr.Textbox),
 
         "hf_attention_sep": OptionInfo("<h2>Attention Dispatcher</h2>", "", gr.HTML),
         "hf_attention": OptionInfo('', "Attention dispatcher kernel", gr.Textbox),

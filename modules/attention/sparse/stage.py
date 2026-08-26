@@ -18,7 +18,7 @@ pattern = os.environ.get('SD_SPARSE_PATTERN', 'adaptive').strip().lower()
 DEFAULT_MIN_TOKENS = 8192
 
 # settings the stage reads, so a change to any of them rebuilds the chain
-OPTION_NAMES = ('sparse_attention_enabled', 'sparse_attention_budget', 'sparse_attention_min_tokens', 'sparse_attention_schedule_steps', 'sparse_attention_schedule_bump', 'sparse_attention_head_shared')
+OPTION_NAMES = ('sparse_attention_enabled', 'sparse_attention_budget', 'sparse_attention_min_tokens', 'sparse_attention_schedule_steps', 'sparse_attention_schedule_bump', 'sparse_attention_head_shared', 'sparse_attention_exclude')
 
 
 @dataclass(frozen=True)
@@ -29,6 +29,7 @@ class StageOptions:
     schedule_steps: int = 0
     schedule_bump: float = 0.0
     head_shared: bool = False
+    exclude: tuple = () # architectures, pipeline classes or denoiser classes that stay dense
 
 
 def read_options() -> StageOptions:
@@ -41,7 +42,19 @@ def read_options() -> StageOptions:
         schedule_steps=int(getattr(opts, 'sparse_attention_schedule_steps', 0)),
         schedule_bump=float(getattr(opts, 'sparse_attention_schedule_bump', 0)) / 100.0,
         head_shared=bool(getattr(opts, 'sparse_attention_head_shared', False)),
+        exclude=parse_exclusions(getattr(opts, 'sparse_attention_exclude', '')),
     )
+
+
+def parse_exclusions(raw) -> tuple:
+    """The exclusion list as lowercase entries, each naming an architecture, a pipeline class or a denoiser class."""
+    return tuple(entry.strip().lower() for entry in str(raw or '').split(',') if len(entry.strip()) > 0)
+
+
+def match_exclusion(model_key, arch, exclude: tuple) -> str:
+    """The entry the loaded model matches, empty when none of them do."""
+    names = {str(name).lower() for name in (*(model_key or ()), arch) if name}
+    return next((entry for entry in exclude if entry in names), '')
 
 
 def resolve_layout(seq: int, reported: set) -> layout_mod.TokenLayout:
@@ -65,6 +78,7 @@ def make_stage(options: StageOptions):
     notified: set = set()
     cache: dict = {}
     static: dict = {}
+    excluded: dict = {}
 
     def static_selection(query, key, spec, pins, drops, cache_key):
         """A density matched band, built once per geometry, honoring the same layout pins so the control differs from the selector only in how it chooses video tiles."""
@@ -100,6 +114,19 @@ def make_stage(options: StageOptions):
             cache[key] = table
         return table[min(state.step, len(table) - 1)] if table else options.budget
 
+    def on_exclusion_list(state) -> bool:
+        """Whether the loaded model is excluded, resolved once per model since the answer cannot change within one."""
+        if not options.exclude:
+            return False
+        hit = excluded.get(state.model_key)
+        if hit is None:
+            from modules import shared
+            hit = match_exclusion(state.model_key, getattr(shared, 'sd_model_type', None), options.exclude)
+            excluded[state.model_key] = hit
+            if hit: # an enabled setting that cannot act says so rather than doing nothing quietly
+                log.info(f'Sparse attention: "{hit}" is on the exclusion list; attention stays dense')
+        return len(hit) > 0
+
     def decline(reason: str):
         stage.last_skip = reason
         return None
@@ -108,6 +135,8 @@ def make_stage(options: StageOptions):
         state = context.current
         if state.role != 'transformer' or not state.active:
             return decline('not the denoiser')
+        if on_exclusion_list(state):
+            return decline('excluded')
         if is_causal: # the selection keeps the diagonal but encodes no causality
             return decline('causal')
         if attn_mask is not None and 'masked_block' not in caps: # flex would need a mask_mod to combine the two
