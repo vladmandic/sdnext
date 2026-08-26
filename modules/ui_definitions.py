@@ -156,7 +156,7 @@ def create_settings(cmd_opts):
         "group_offload_stream": OptionInfo(False, "Prefetch with streams", gr.Checkbox),
         'group_offload_record': OptionInfo(False, "Overlap stream transfers", gr.Checkbox),
         'group_offload_pin': OptionInfo(True, "Pin offload memory", gr.Checkbox),
-        'group_offload_blocks': OptionInfo(1, "Offload blocks", gr.Number),
+        'group_offload_blocks': OptionInfo(1, "Group offload blocks", gr.Number),
         "caption_offload_sep": OptionInfo("<h2>Caption Model Offloading</h2>", "", gr.HTML),
         "caption_offload": OptionInfo(True, "Offload caption models"),
         "caption_to_gpu": OptionInfo(True, "Load caption models direct to GPU"),
@@ -461,7 +461,7 @@ def create_settings(cmd_opts):
     options_templates.update(options_section(('saving-images', "Image Options"), {
         "samples_save": OptionInfo(True, "Save all generated images"),
         "keep_incomplete": OptionInfo(True, "Save interrupted images"),
-        "samples_format": OptionInfo('jpg', 'File format', gr.Dropdown, {"choices": ["jpg", "png", "webp", "tiff", "jp2", "jxl"]}),
+        "samples_format": OptionInfo('jpg', 'File format', gr.Dropdown, {"choices": ["jpg", "png", "webp", "tiff", "jp2", "jxl", "heif"]}),
         "jpeg_quality": OptionInfo(90, "Image quality", gr.Slider, {"minimum": 1, "maximum": 100, "step": 1}),
         "img_max_size_mp": OptionInfo(1000, "Maximum image size (MP)", gr.Slider, {"minimum": 10, "maximum": 2000, "step": 1}),
         "webp_lossless": OptionInfo(False, "WebP lossless compression"),

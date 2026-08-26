@@ -33,9 +33,8 @@ def _model_change(model_name: str):
         )
     # 2.x refine runs fixed canonical schedules; refine_strength only feeds 0.9.x LTXConditionPipeline.
     refine_strength_interactive = caps.family == '0.9'
-    # Default Refine on for any 2.x variant whose refine path expects upsampled latents (Dev and
-    # Distilled T2V/I2V). auto_refine_upsample at ltx_process.py:179 couples the stages once Refine
-    # is on. Condition variants are excluded by supports_two_stage_refine.
+    # Default Refine on for every 2.x row: ltx_process couples it to an implicit 2x upsample,
+    # since both refine paths expect upsampled latents and same-resolution refine oversaturates.
     refine_default = caps.supports_two_stage_refine
     auto_duration_update =gr.update(visible=True) if caps.supports_auto_duration else gr.update(visible=False, value=False)
     return (

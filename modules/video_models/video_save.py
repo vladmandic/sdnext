@@ -324,17 +324,36 @@ def save_video(
         log.error(f'Video: type={type(pixels)} not a tensor')
         return 0, output_video, None
 
-    if upscale_upscaler is not None and len(upscale_upscaler) > 0:
-        t_upscale = time.time()
-        pixels = upscale_video(pixels, scale=upscale_scale, upscaler_name=upscale_upscaler)
-        timer.process.add('upscale', time.time()-t_upscale)
+    try:
+        if mp4_interpolate > 0 and not getattr(p, 'video_interpolated', False):
+            t_interpolate = time.time()
+            x = pixels.squeeze(0).permute(1, 0, 2, 3)
+            x = (x.clamp(-1., 1.) + 1.0) * 0.5  # RIFE expects [0, 1]; video pixels are [-1, 1]
+            interpolated = rife.interpolate_nchw(x, count=mp4_interpolate+1)
+            pixels = torch.stack(interpolated, dim=0)
+            pixels = pixels.permute(1, 2, 0, 3, 4)
+            pixels = pixels * 2.0 - 1.0
+            timer.process.ts('interpolate', t_interpolate)
+            p.video_interpolated = True
+    except Exception as e:
+        log.error(f'Video interpolate: {e}')
+        errors.display(e, 'video')
+
+    try:
+        if upscale_upscaler is not None and len(upscale_upscaler) > 0 and not getattr(p, 'video_upscaled', False):
+            t_upscale = time.time()
+            pixels = upscale_video(pixels, scale=upscale_scale, upscaler_name=upscale_upscaler)
+            timer.process.ts('upscale', t_upscale)
+            p.video_upscaled = True
+    except Exception as e:
+        log.error(f'Video upscale: {e}')
+        errors.display(e, 'video')
 
     t_save = time.time()
     if pixels.ndim == 4:
         pixels = pixels.unsqueeze(0)
     n, _c, t, h, w = pixels.shape
     size = pixels.element_size() * pixels.numel()
-    t_min, t_max = pixels.min().item(), pixels.max().item()
     log.debug(f'Video: video={mp4_video} export={mp4_frames} safetensors={mp4_sf} interpolate={mp4_interpolate}')
     if hasattr(audio, 'shape'):
         audio_txt = f'audio={audio.shape} aac={aac_sample_rate}' if audio is not None else 'no audio'
@@ -342,18 +361,11 @@ def save_video(
         audio_txt = f'audio={audio.get("format", None)} packets={len(audio.get("frames", []))} '
     else:
         audio_txt = None
-    log.debug(f'Video: encode={t} tensor={pixels.shape} min={t_min} max={t_max} bytes={size} {audio_txt} fps={mp4_fps} codec={mp4_codec} ext={mp4_ext} options="{mp4_opt}"')
+    log.debug(f'Video: encode={t} tensor={pixels.shape} bytes={size} {audio_txt} fps={mp4_fps} codec={mp4_codec} ext={mp4_ext} options="{mp4_opt}"')
     try:
         preparejob = shared.state.begin('Prepare video')
         if stream is not None:
             stream.output_queue.push(('progress', (None, 'Saving video...')))
-        if mp4_interpolate > 0 and not getattr(p, 'video_interpolated', False):
-            x = pixels.squeeze(0).permute(1, 0, 2, 3)
-            x = (x.clamp(-1., 1.) + 1.0) * 0.5  # RIFE expects [0, 1]; video pixels are [-1, 1]
-            interpolated = rife.interpolate_nchw(x, count=mp4_interpolate+1)
-            pixels = torch.stack(interpolated, dim=0)
-            pixels = pixels.permute(1, 2, 0, 3, 4)
-            pixels = pixels * 2.0 - 1.0
 
         if reclamp:
             x = torch.clamp(pixels.float(), -1., 1.) * 127.5 + 127.5

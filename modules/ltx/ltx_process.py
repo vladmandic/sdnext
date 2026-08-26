@@ -418,7 +418,7 @@ def run(model: str, *,
                 t2 = time.time()
                 # silent=True everywhere: per-module stats were already dumped during the load-time
                 # balanced_offload pass. Upsample/refine boundaries force a rebuild because the global
-                # offload_hook_instance is keyed on checkpoint_name (sd_offload.py:488), but re-logging
+                # offload_hook_instance is keyed on checkpoint_name (sd_offload_balanced), but re-logging
                 # the same inventory adds noise without information.
                 shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model, silent=True)
                 devices.torch_gc(force=True, reason='ltx:base')
@@ -638,7 +638,7 @@ def run(model: str, *,
 
             out_w, out_h = video_utils.pixel_size(pixels, fallback=(p.width, p.height))
             total_time = max(time.time() - t0, 1e-6)
-            log.info(f'Processed: fn="{video_file}" frames={num_frames} fps={num_frames/total_time:.2f} its={p.steps/total_time:.3f} resolution={out_w}x{out_h} time={total_time:.2f} timers={timer.process.dct(no_total=True)} memory={memstats.memory_stats()}')
+            log.info(f'Processed: fn="{video_file}" frames={num_frames} fps={num_frames/total_time:.2f} its={p.steps/total_time:.3f} resolution={out_w}x{out_h} time={total_time:.2f}')
             # the decode paths never materialize PIL, so frames come back through the saved file
             images_out = pixels if isinstance(pixels, list) else []
             processed_out = processing.Processed(p, images_out, seed=p.seed, audio=audio_out)
