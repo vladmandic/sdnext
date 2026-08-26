@@ -1,6 +1,17 @@
 # Change Log for SD.Next
 
-## Highlights for 2026-08-26
+## Update for 2026-08-27
+
+- **LoRA**
+  - new calibration engine that allows lora to be applied with far smaller error when dealing with highly quantized models
+  - new apply engine that allows lora to be applied much faster
+  - *note*: calibration data is stored once calculated so it can be reused for future runs, location is `models/calibration` folder  
+- **Internal**
+  - attention mechanisms decision tree and apply method refactor
+
+## Update for 2026-08-26
+
+### Highlights for 2026-08-26
 
 Time for a new release, *this is a large one*!
 Main focus is improving video workflows which also brings full support for new [MiniMax H3](https://vladmandic.github.io/sdnext-docs/MiniMax) and [LTXVideo-2.5](https://vladmandic.github.io/sdnext-docs/LTX)  

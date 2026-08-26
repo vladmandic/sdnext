@@ -21,6 +21,7 @@ compiled (hooks would break the graph) and everything is gated by the
 """
 
 import os
+from typing import Optional, TypedDict
 
 import torch
 
@@ -28,9 +29,23 @@ from modules import paths, shared, script_callbacks
 from modules.logger import log
 
 
+class CaptureRecord(TypedDict):
+    m: torch.nn.Module
+    ss: Optional[torch.Tensor]
+    n: int
+    done: bool
+
+
+class CaptureState(TypedDict):
+    model: Optional[str]
+    recs: dict[str, CaptureRecord]
+    handles: list[torch.utils.hooks.RemovableHandle]
+    complete: bool
+
+
 TOKENS_DONE = 65536
 calib_root = os.path.join(paths.models_path, 'calibration')
-capture = {'model': None, 'recs': {}, 'handles': [], 'complete': False}
+capture: CaptureState = {'model': None, 'recs': {}, 'handles': [], 'complete': False}
 
 
 def enabled():
