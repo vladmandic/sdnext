@@ -2,7 +2,7 @@
 
 ## Highlights for 2026-08-26
 
-Time for a new release, this is a larger one!
+Time for a new release, *this is a large one*!
 Main focus is improving video workflows which also brings full support for new [MiniMax H3](https://vladmandic.github.io/sdnext-docs/MiniMax) and [LTXVideo-2.5](https://vladmandic.github.io/sdnext-docs/LTX)  
 and improves general video processing with flexible video upscaling, updated interpolation, etc.
 
@@ -51,7 +51,7 @@ Plus quite a lot more, see full [changelog](https://github.com/vladmandic/automa
   - update handlers for all hf-based progress bars
   - offload options take effect immediately without restart/reload
   - improve gpu memory tracking and reporting
-  - log long torch autotune operations
+  - log long `torch` autotune operations
   - utilize `torch.accelerator` where available
   - add `SD_DIFFUSERS_DEBUG` and `SD_TRANSFORMERS_DEBUG` env variables to trace diffusers and transformers internal operations  
   - add settings -> model load -> *offload state dict* option  

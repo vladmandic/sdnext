@@ -2,15 +2,15 @@
 
 ## Short-term
 
-- Update LTX wiki, @CalamitousFelicitousness
 - LoRA: merge new handler, @CalamitousFelicitousness
-- LoRA: native loader for MiniMax-H3: fl2va, ref2va, pruned
-- TAESD: preview for MiniMax-H3 <https://github.com/madebyollin/taehv>
-- Productize benchmark tool, @CalamitousFelicitousness
+- Attn: merge refactor, @CalamitousFelicitousness
+- MiniMax LoRA: native loader for MiniMax-H3: fl2va, ref2va, pruned
+- MiniMax TAESD: <https://github.com/madebyollin/taehv>
+- MiniMax: Create pre-quant for MiniMax-H3-Turbo
+- Benchmark tool productize: @CalamitousFelicitousness
 - Inpaint: https://discord.com/channels/1101998836328697867/1130536562422186044/1506850651035144322, @vladmandic
 - Control tab verify overrides handling, @vladmandic
-- Create pre-quant for LTX-2.5
-- Create pre-quant for MiniMax-H3-Turbo
+- LTX: Create pre-quant for LTX-2.5
 
 ## Features
 
