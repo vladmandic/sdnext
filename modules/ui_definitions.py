@@ -676,18 +676,6 @@ def create_settings(cmd_opts):
         "extra_network_reference_enable": OptionInfo(True, "Enable use of reference models", gr.Checkbox),
         "extra_network_reference_values": OptionInfo(False, "Use reference values when available", gr.Checkbox),
 
-        "extra_networks_lora_sep": OptionInfo("<h2>LoRA</h2>", "", gr.HTML),
-        "extra_networks_default_multiplier": OptionInfo(1.0, "Default strength", gr.Slider, {"minimum": 0.0, "maximum": 2.0, "step": 0.01}),
-        "lora_force_reload": OptionInfo(False, "LoRA force reload always"),
-        "lora_force_diffusers": OptionInfo(False if not cmd_opts.use_openvino else True, "LoRA load using Diffusers method"),
-
-        "lora_apply_te": OptionInfo(False, "LoRA native apply to text encoder"),
-        "lora_fuse_native": OptionInfo(True, "LoRA native fuse with model"),
-        "lora_fuse_diffusers": OptionInfo(False, "LoRA diffusers fuse with model"),
-        "lora_apply_tags": OptionInfo(0, "LoRA auto-apply tags", gr.Slider, {"minimum": -1, "maximum": 32, "step": 1}),
-        "lora_in_memory_limit": OptionInfo(1, "LoRA memory cache", gr.Slider, {"minimum": 0, "maximum": 32, "step": 1}),
-        "lora_add_hashes_to_infotext": OptionInfo(False, "LoRA add hash info to metadata"),
-
         "extra_networks_styles_sep": OptionInfo("<h2>Styles</h2>", "", gr.HTML),
         "extra_networks_styles": OptionInfo(True, "Show reference styles"),
         "extra_networks_apply_unparsed": OptionInfo(True, "Restore unparsed prompt"),
@@ -698,6 +686,31 @@ def create_settings(cmd_opts):
 
         "extra_networks_wildcard_sep": OptionInfo("<h2>Wildcards</h2>", "", gr.HTML),
         "wildcards_enabled": OptionInfo(True, "Enable file wildcards support"),
+    }))
+
+    # --- LoRA ---
+    options_templates.update(options_section(('lora', "LoRA"), {
+        "lora_load_sep": OptionInfo("<h2>Load options</h2>", "", gr.HTML),
+        "lora_force_reload": OptionInfo(False, "LoRA force reload always"),
+        "lora_force_diffusers": OptionInfo(False if not cmd_opts.use_openvino else True, "LoRA load using Diffusers method"),
+        "lora_in_memory_limit": OptionInfo(1, "LoRA memory cache", gr.Slider, {"minimum": 0, "maximum": 32, "step": 1}),
+
+        "lora_prompt_sep": OptionInfo("<h2>Prompt helpers</h2>", "", gr.HTML),
+        "extra_networks_default_multiplier": OptionInfo(1.0, "Default strength", gr.Slider, {"minimum": 0.0, "maximum": 2.0, "step": 0.01}),
+        "lora_apply_tags": OptionInfo(0, "LoRA auto-apply tags", gr.Slider, {"minimum": -1, "maximum": 32, "step": 1}),
+
+        "lora_apply_sep": OptionInfo("<h2>Apply method</h2>", "", gr.HTML),
+        "lora_apply_te": OptionInfo(False, "LoRA native apply to text encoder"),
+        "lora_fuse_native": OptionInfo(True, "LoRA native fuse with model"),
+        "lora_fuse_diffusers": OptionInfo(False, "LoRA diffusers fuse with model"),
+
+        "lora_quant_sep": OptionInfo("<h2>Quantization options</h2>", "", gr.HTML),
+        "lora_sdnq_apply": OptionInfo("exact", "LoRA quantized apply method", gr.Radio, {"choices": ["exact", "requantize"]}),
+        "lora_sdnq_host_rank": OptionInfo(256, "LoRA quantized host rank", gr.Slider, {"minimum": 0, "maximum": 1024, "step": 32}),
+        "lora_sdnq_host_calib": OptionInfo(True, "LoRA quantized host calibration"),
+
+        "lora_meta_sep": OptionInfo("<h2>Metadata</h2>", "", gr.HTML),
+        "lora_add_hashes_to_infotext": OptionInfo(False, "LoRA add hash info to metadata"),
     }))
 
     # --- Extensions ---
