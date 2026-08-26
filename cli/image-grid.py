@@ -103,7 +103,7 @@ if __name__ == '__main__':
         for file in files:
             if not filetype.is_image(file):
                 continue
-            if file.lower().endswith('.heic'):
+            if file.lower().endswith('.heic') or file.lower().endswith('.heif'):
                 from pillow_heif import register_heif_opener
                 register_heif_opener()
             log.debug(file)

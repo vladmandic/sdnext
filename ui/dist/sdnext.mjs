@@ -13090,6 +13090,7 @@ var minCleanupCount = 1e3;
 var minCleanupTime = 1e3 * 60 * 60;
 var folderStylesheet = new CSSStyleSheet();
 var fileStylesheet = new CSSStyleSheet();
+var galleryInitialized = false;
 var separatorStates = /* @__PURE__ */ new Map();
 var el = {
   folders: void 0,
@@ -13110,7 +13111,8 @@ var icons = {
   Sort: String.fromCodePoint(8645),
   Images: String.fromCodePoint(128461)
 };
-var SUPPORTED_EXTENSIONS = ["jpg", "jpeg", "png", "webp", "tiff", "jp2", "jxl", "gif", "mp4", "mkv", "avi", "mjpeg", "mpg", "avr"];
+var loadingSvg = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet"><g><circle cx="50" cy="50" r="12" stroke="%233b82f6" stroke-width="3" stroke-dasharray="55 25" fill="none"><animateTransform attributeName="transform" type="rotate" repeatCount="indefinite" dur="0.8s" values="0 50 50;360 50 50"/></circle></g></svg>`;
+var SUPPORTED_EXTENSIONS = ["jpg", "jpeg", "png", "webp", "tiff", "jp2", "jxl", "gif", "mp4", "mkv", "avi", "mjpeg", "mpg", "avr", "heif", "heic", "mov", "ts"];
 var gallerySorter = {
   nameA: { name: "Name Ascending", func: (a, b) => a.name.localeCompare(b.name) },
   nameD: { name: "Name Descending", func: (b, a) => a.name.localeCompare(b.name) },
@@ -14249,6 +14251,52 @@ async function createOverlay() {
   btnInfo.addEventListener("click", overlayInfo);
   el.overlay.append(btnInfo, btnDelete, btnDownload);
 }
+async function observeImageError(img) {
+  if (!img || !img.src) return;
+  if (!img.src.toLowerCase().includes(".heic") && !img.src.toLowerCase().includes(".heif")) return;
+  const origSrc = img.src;
+  try {
+    const t0 = performance.now();
+    img.src = loadingSvg;
+    const { default: heic2any } = await import("https://esm.sh/heic2any@0.0.4");
+    const res = await authFetch2(origSrc);
+    const imageBlob = await res.blob();
+    if (!imageBlob || imageBlob.size <= 1024) {
+      error("imageHEIC", { src: origSrc, res, blob: imageBlob });
+      return;
+    }
+    const convertedBlob = await heic2any({
+      blob: imageBlob,
+      toType: "image/jpeg",
+      quality: 0.9
+    });
+    img.src = URL.createObjectURL(convertedBlob);
+    const t1 = performance.now();
+    log("imageHEIC", { time: Math.round(t1 - t0), originalSize: imageBlob.size, convertedSize: convertedBlob.size });
+  } catch (err) {
+    error("imageHEIC:", { src: origSrc, err });
+  }
+}
+async function observeGalleryMutations() {
+  const galleryContainers = document.querySelectorAll(".gradio-gallery");
+  for (const galleryContainer of galleryContainers) {
+    if (!galleryContainer) return;
+    const galleryObserver = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        if (mutation.type === "childList" && mutation.addedNodes.length > 0) {
+          const img = galleryContainer.querySelector("img");
+          if (img && !galleryContainer.dataset.errorObserved) {
+            galleryContainer.dataset.errorObserved = "true";
+            log("imageErrorHandler", { gallery: galleryContainer.id });
+            img.addEventListener("error", () => observeImageError(img));
+            galleryObserver.disconnect();
+          }
+        }
+      }
+    });
+    galleryObserver.observe(galleryContainer, { childList: true, subtree: true });
+  }
+}
 async function blockQueueUntilReady() {
   maintenanceQueue.enqueue({
     signal: new AbortController().signal,
@@ -14289,12 +14337,18 @@ async function initGallery() {
   const progress = gradioApp().getElementById("tab-gallery-progress");
   if (progress) pb.attachTo(progress);
   else log("initGallery", "Failed to attach loading progress bar");
+  if (galleryInitialized) {
+    log("initGallery", "already initialized");
+    return;
+  }
+  galleryInitialized = true;
   el.search.addEventListener("input", gallerySearch);
   el.btnSend = gradioApp().getElementById("tab-gallery-send-image");
   document.getElementById("tab-gallery-files").style.height = opts.logmonitor_show ? "75vh" : "85vh";
   monitorGalleries();
   updateFolders();
   initGalleryAutoRefresh();
+  observeGalleryMutations();
   [
     "browser_folders",
     "outdir_samples",
@@ -16126,7 +16180,6 @@ async function initStartup() {
   executeCallbacks(uiReadyCallbacks);
   if (window.waitForUiReady) await window.waitForUiReady();
   startupPromises.push(Promise.resolve(initLogMonitor()));
-  startupPromises.push(Promise.resolve(initGallery()));
   startupPromises.push(Promise.resolve(setRefreshInterval()));
   startupPromises.push(Promise.resolve(setupExtraNetworks()));
   startupPromises.push(Promise.resolve(initAutocomplete()));

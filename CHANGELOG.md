@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Highlights for 2026-08-25
+## Highlights for 2026-08-26
 
 Time for a new release, this is a larger one!
 Main focus is improving video workflows which also brings full support for new [MiniMax H3](https://vladmandic.github.io/sdnext-docs/MiniMax) and [LTXVideo-2.5](https://vladmandic.github.io/sdnext-docs/LTX)  
@@ -17,7 +17,7 @@ Plus quite a lot more, see full [changelog](https://github.com/vladmandic/automa
 
 [Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-## Details for 2026-08-25
+## Details for 2026-08-26
 
 - **Models**
   - [MiniMax H3](https://huggingface.co/MiniMaxAI/MiniMax-H3) available in *base* and *ref* variants  
@@ -44,7 +44,7 @@ Plus quite a lot more, see full [changelog](https://github.com/vladmandic/automa
   installed and used internally by sd.next, but also supported by diffusers natively  
   and sdnq development brings a lot of new optimizations, in both quantization and attention mechanisms  
 - **Compute**
-  - torch-rocm for windows switch to *whl-multi-arch* distribution  
+  - torch-rocm for windows switch to [whl-multi-arch](https://repo.amd.com/rocm/whl-multi-arch/) distribution and pin to `torch==2.12` with `rocm==7.14`
   - nunchaku-lite support for `torch==2.13`
 - **Server**
   - update handlers for all authenticated workflows
@@ -80,6 +80,9 @@ Plus quite a lot more, see full [changelog](https://github.com/vladmandic/automa
   - allowed path validation for endpoints that get/put files
   - log auth methods
 - **Other**
+  - support for `.heic` and `.heif` image formats  
+    standard file save and load, including exif metadata  
+    *note*: heif is not natively supported in *chrome*, so support includes on-the-fly conversion  
   - Krea2: add *settings -> model options -> krea2 dense masking*
     may provide significant speed-up on some gpus, disabled by default  
   - AR display ratio on manual resolution change
@@ -122,6 +125,7 @@ Plus quite a lot more, see full [changelog](https://github.com/vladmandic/automa
   - ideogram4: fix callback
   - xyzgrid: fix seed/prompt/negative handling, thanks @QuintusAntonius
   - vram: skip reset
+  - heic: switch to pillow-heif handler
 
 ## Update for 2026-08-07
 

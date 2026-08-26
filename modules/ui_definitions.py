@@ -461,7 +461,7 @@ def create_settings(cmd_opts):
     options_templates.update(options_section(('saving-images', "Image Options"), {
         "samples_save": OptionInfo(True, "Save all generated images"),
         "keep_incomplete": OptionInfo(True, "Save interrupted images"),
-        "samples_format": OptionInfo('jpg', 'File format', gr.Dropdown, {"choices": ["jpg", "png", "webp", "tiff", "jp2", "jxl"]}),
+        "samples_format": OptionInfo('jpg', 'File format', gr.Dropdown, {"choices": ["jpg", "png", "webp", "tiff", "jp2", "jxl", "heif"]}),
         "jpeg_quality": OptionInfo(90, "Image quality", gr.Slider, {"minimum": 1, "maximum": 100, "step": 1}),
         "img_max_size_mp": OptionInfo(1000, "Maximum image size (MP)", gr.Slider, {"minimum": 10, "maximum": 2000, "step": 1}),
         "webp_lossless": OptionInfo(False, "WebP lossless compression"),

@@ -108,7 +108,7 @@ def print_json(data):
 
 
 def read_exif(filename: str):
-    if filename.lower().endswith('.heic'):
+    if filename.lower().endswith('.heic') or filename.lower().endswith('.heif'):
         from pillow_heif import register_heif_opener
         register_heif_opener()
     try:

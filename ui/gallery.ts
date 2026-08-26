@@ -34,6 +34,7 @@ const minCleanupCount = 1000;
 const minCleanupTime = 1000 * 60 * 60; // 1 hour
 const folderStylesheet = new CSSStyleSheet();
 const fileStylesheet = new CSSStyleSheet();
+let galleryInitialized = false;
 // Store separator states for the session
 const separatorStates = new Map();
 const el = {
@@ -54,8 +55,10 @@ const icons = {
   Sort: String.fromCodePoint(8645),
   Images: String.fromCodePoint(128461),
 };
+// eslint-disable-next-line @stylistic/max-len, @stylistic/quotes
+const loadingSvg = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet"><g><circle cx="50" cy="50" r="12" stroke="%233b82f6" stroke-width="3" stroke-dasharray="55 25" fill="none"><animateTransform attributeName="transform" type="rotate" repeatCount="indefinite" dur="0.8s" values="0 50 50;360 50 50"/></circle></g></svg>`;
 
-const SUPPORTED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'tiff', 'jp2', 'jxl', 'gif', 'mp4', 'mkv', 'avi', 'mjpeg', 'mpg', 'avr'];
+const SUPPORTED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'tiff', 'jp2', 'jxl', 'gif', 'mp4', 'mkv', 'avi', 'mjpeg', 'mpg', 'avr', 'heif', 'heic', 'mov', 'ts'];
 
 const gallerySorter = {
   nameA: { name: 'Name Ascending', func: (a, b) => a.name.localeCompare(b.name) },
@@ -1452,6 +1455,56 @@ async function createOverlay() {
   el.overlay.append(btnInfo, btnDelete, btnDownload);
 }
 
+async function observeImageError(img: HTMLImageElement) {
+  if (!img || !img.src) return;
+  if (!img.src.toLowerCase().includes('.heic') && !img.src.toLowerCase().includes('.heif')) return;
+  const origSrc = img.src;
+  try {
+    const t0 = performance.now();
+    img.src = loadingSvg; // Use a loading spinner or placeholder image
+    // @ts-ignore: external CDN module with no local types
+    // eslint-disable-next-line import-x/no-unresolved
+    const { default: heic2any } = await import('https://esm.sh/heic2any@0.0.4');
+    const res = await authFetch(origSrc);
+    const imageBlob = await res.blob();
+    if (!imageBlob || imageBlob.size <= 1024) {
+      error('imageHEIC', { src: origSrc, res, blob: imageBlob });
+      return;
+    }
+    const convertedBlob = await heic2any({
+      blob: imageBlob,
+      toType: 'image/jpeg',
+      quality: 0.9,
+    });
+    img.src = URL.createObjectURL(convertedBlob);
+    const t1 = performance.now();
+    log('imageHEIC', { time: Math.round(t1 - t0), originalSize: imageBlob.size, convertedSize: convertedBlob.size });
+  } catch (err) {
+    error('imageHEIC:', { src: origSrc, err });
+  }
+}
+
+async function observeGalleryMutations() {
+  const galleryContainers = document.querySelectorAll('.gradio-gallery');
+  for (const galleryContainer of galleryContainers) {
+    if (!galleryContainer) return;
+    const galleryObserver = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+          const img = galleryContainer.querySelector('img');
+          if (img && !galleryContainer.dataset.errorObserved) {
+            galleryContainer.dataset.errorObserved = 'true';
+            log('imageErrorHandler', { gallery: galleryContainer.id });
+            img.addEventListener('error', () => observeImageError(img)); // late attach error handler as el may not be present
+            galleryObserver.disconnect(); // stop observing after attaching the error handler
+          }
+        }
+      }
+    });
+    galleryObserver.observe(galleryContainer, { childList: true, subtree: true });
+  }
+}
+
 async function blockQueueUntilReady() {
   // Add block to maintenanceQueue until cache is ready
   maintenanceQueue.enqueue({
@@ -1494,6 +1547,12 @@ export async function initGallery() { // triggered on gradio change to monitor w
   if (progress) pb.attachTo(progress);
   else log('initGallery', 'Failed to attach loading progress bar');
 
+  if (galleryInitialized) {
+    log('initGallery', 'already initialized');
+    return;
+  }
+  galleryInitialized = true;
+
   el.search.addEventListener('input', gallerySearch);
   el.btnSend = gradioApp().getElementById('tab-gallery-send-image');
   document.getElementById('tab-gallery-files').style.height = opts.logmonitor_show ? '75vh' : '85vh';
@@ -1501,6 +1560,7 @@ export async function initGallery() { // triggered on gradio change to monitor w
   monitorGalleries();
   updateFolders();
   initGalleryAutoRefresh();
+  observeGalleryMutations();
   [
     'browser_folders',
     'outdir_samples',
