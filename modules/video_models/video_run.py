@@ -307,6 +307,10 @@ def run(selected: models_def.Model, *,
     if err:
         raise VideoError(err, 500)
     if processed is None or (len(processed.images) == 0 and processed.bytes is None):
+        # process_images swallows the interrupt assertion, so an empty result is the only place
+        # a cancel and a genuine failure are still distinguishable
+        if shared.state.interrupted or shared.state.skipped:
+            raise VideoError('interrupted', 499)
         raise VideoError('processing failed', 500)
     log.info(f'Video: name="{selected.name}" cls={shared.sd_model.__class__.__name__} frames={len(processed.images)} time={t1-t0:.2f}')
 

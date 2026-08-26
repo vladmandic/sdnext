@@ -9,17 +9,18 @@ import numpy as np
 import torch
 from PIL import Image
 from torch.nn import functional as F
-from tqdm.rich import tqdm
+import rich.progress as rp
 from modules.rife.ssim import ssim_matlab
 from modules.rife.model_rife import RifeModel
 from modules import devices, shared, paths
-from modules.logger import log
+from modules.logger import log, console
 
 
 # Practical-RIFE v4.25 weights (MIT). Default URL points at the upstream HolyWu mirror;
 # can be swapped to a self-hosted mirror without any other code change.
 model_url = 'https://github.com/HolyWu/vs-rife/releases/download/model/flownet_v4.25.pkl'
 model: RifeModel = None
+pbar = rp.Progress(rp.TextColumn('[cyan]Interpolate:'), rp.BarColumn(), rp.MofNCompleteColumn(), rp.TaskProgressColumn(), rp.TimeRemainingColumn(), rp.TimeElapsedColumn(), rp.TextColumn('[cyan]{task.description}'), console=console)
 
 
 def load(model_path: str = 'rife/flownet_v4.25.pkl'):
@@ -90,8 +91,10 @@ def interpolate(images: list, count: int = 2, scale: float = 1.0, pad: int = 1, 
 
     I1 = f_pad(torch.from_numpy(np.transpose(frame, (2,0,1))).to(devices.device).unsqueeze(0).float() / 255.0)
     with torch.no_grad():
-        with tqdm(total=len(images), desc='Interpolate', unit='frame') as pbar:
-            for image in images:
+        with pbar:
+            task = pbar.add_task(total=len(images), description='starting...')
+            for idx, image in enumerate(images):
+                pbar.update(task, advance=1, description=f'frame {idx + 1}/{len(images)}')
                 frame = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
                 I0 = I1
                 I1 = f_pad(torch.from_numpy(np.transpose(frame, (2,0,1))).to(devices.device).unsqueeze(0).float() / 255.0)
@@ -114,6 +117,7 @@ def interpolate(images: list, count: int = 2, scale: float = 1.0, pad: int = 1, 
                     buffer.put(mid[:h, :w])
                 buffer.put(frame)
                 pbar.update(1)
+            pbar.remove_task(task)
 
     for _i in range(pad): # fill ending frames
         buffer.put(frame)
@@ -143,15 +147,17 @@ def interpolate_nchw(images: list, count: int = 2, scale: float = 1.0):
 
     I1 = f_pad(images[0].unsqueeze(0))
     with torch.no_grad():
-        with tqdm(total=len(images), desc='Interpolate', unit='frame') as pbar:
-            for frame in images:
+        with pbar:
+            task = pbar.add_task(total=len(images), description='starting...')
+            for idx, frame in enumerate(images):
+                pbar.update(task, advance=1, description=f'frame {idx + 1}/{len(images)}')
                 I0 = I1
                 I1 = f_pad(frame.unsqueeze(0))
                 for i in range(count-1):
                     output = model.inference(I0, I1, (i+1) * 1. / (count), scale)
                     interpolated.append(output[:, :, :h, :w])
                 interpolated.append(I1[:, :, :h, :w])
-                pbar.update(1)
+            pbar.remove_task(task)
 
     t1 = time.time()
     log.info(f'Video interpolate: input={len(images)} frames={len(interpolated)} width={w} height={h} interpolate={count} scale={scale} time={round(t1 - t0, 2)}')

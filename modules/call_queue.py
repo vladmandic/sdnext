@@ -25,7 +25,7 @@ class Queue:
         if _queue_debug:
             fn = f'{sys._getframe(3).f_code.co_name}:{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
             log.debug(f'Queue: unlock state={_queue_lock.locked()} fn={fn}')
-        return _queue_lock
+        # no return: a truthy __exit__ suppresses the exception in flight
 
 
 queue_lock = Queue() # public lock for external use

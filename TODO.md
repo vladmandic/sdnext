@@ -2,13 +2,15 @@
 
 ## Short-term
 
-- Update LTX wiki, @CalamitousFelicitousness
-- Lora: new handler, @CalamitousFelicitousness
-- Productize benchmark tool, @CalamitousFelicitousness
+- LoRA: merge new handler, @CalamitousFelicitousness
+- Attn: merge refactor, @CalamitousFelicitousness
+- MiniMax LoRA: native loader for MiniMax-H3: fl2va, ref2va, pruned
+- MiniMax TAESD: <https://github.com/madebyollin/taehv>
+- MiniMax: Create pre-quant for MiniMax-H3-Turbo
+- Benchmark tool productize: @CalamitousFelicitousness
 - Inpaint: https://discord.com/channels/1101998836328697867/1130536562422186044/1506850651035144322, @vladmandic
 - Control tab verify overrides handling, @vladmandic
-- Create pre-quant for LTX-2.5
-- Create pre-quant for MiniMax-H3-Turbo
+- LTX: Create pre-quant for LTX-2.5
 
 ## Features
 
@@ -33,9 +35,7 @@
 - Video models: use Networks/Reference instead of custom
 - UI Lite vs Expert mode
 - Expand custom VAE support
-- Refactor: remove obsolete code:
-  - Remove `olive-ai`
-
+- Remove obsolete code:  `olive-ai`
 
 ### OnHold
 

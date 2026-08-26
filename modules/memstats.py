@@ -101,7 +101,7 @@ def gpu_stats():
         if stats.get('num_ooms', 0) > 0:
             shared.state.oom = True
         gpu['active'] = gb(stats.get('active_bytes.all.current', 0))
-        gpu['peak'] = gb(stats.get('active_bytes.all.peak', 0))
+        gpu['peak'] = gb(stats.get('reserved_bytes.all.peak', 0))
         gpu['retries'] = stats.get('num_alloc_retries', 0)
         gpu['oom'] = stats.get('num_ooms', 0)
     except Exception as e:
@@ -156,6 +156,8 @@ def memory_stats():
 
 
 def reset_stats():
+    # fn = f'{sys._getframe(3).f_code.co_name}:{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
+    # log.trace(f'Memory: reset {fn}')
     try:
         torch.cuda.reset_memory_stats()
     except Exception:

@@ -773,7 +773,7 @@ try:
             if m.name == 'None':
                 continue
             total += 1
-    log.info(f'Networks: type="video" engines={len(models)} models={total} errors={errors} time={t1 - t0:.2f}')
+    log.debug(f'Networks: type="video" engines={len(models)} models={total} errors={errors} time={t1 - t0:.2f}')
 except Exception as e:
     models = {}
     log.error(f'Networks: type="video" {e}')
