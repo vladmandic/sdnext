@@ -1261,6 +1261,7 @@ def copy_diffuser_options(new_pipe, orig_pipe):
     new_pipe.sd_model_hash = getattr(orig_pipe, 'sd_model_hash', None)
     new_pipe.has_accelerate = getattr(orig_pipe, 'has_accelerate', False)
     new_pipe.current_attn_name = getattr(orig_pipe, 'current_attn_name', None)
+    new_pipe.current_attn_overrides = getattr(orig_pipe, 'current_attn_overrides', None)
     new_pipe.default_scheduler = getattr(orig_pipe, 'default_scheduler', None)
     new_pipe.image_encoder = getattr(orig_pipe, 'image_encoder', None)
     new_pipe.feature_extractor = getattr(orig_pipe, 'feature_extractor', None)
@@ -1288,6 +1289,7 @@ def backup_pipe_components(pipe):
         'sd_model_hash': getattr(pipe, "sd_model_hash", None),
         'has_accelerate': getattr(pipe, "has_accelerate", None),
         'current_attn_name': getattr(pipe, "current_attn_name", None),
+        'current_attn_overrides': getattr(pipe, "current_attn_overrides", None),
         'default_scheduler': getattr(pipe, "default_scheduler", None),
         'image_encoder': getattr(pipe, "image_encoder", None),
         'feature_extractor': getattr(pipe, "feature_extractor", None),
@@ -1309,6 +1311,7 @@ def restore_pipe_components(pipe, components):
     pipe.sd_model_hash = components['sd_model_hash']
     pipe.has_accelerate = components['has_accelerate']
     pipe.current_attn_name = components['current_attn_name']
+    pipe.current_attn_overrides = components.get('current_attn_overrides')
     pipe.default_scheduler = components['default_scheduler']
 
     if components['image_encoder'] is not None:

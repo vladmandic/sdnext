@@ -5,6 +5,7 @@ import numpy as np
 from PIL import Image, ImageOps
 from modules import shared, devices, errors, images, scripts_manager, memstats, script_callbacks, extra_networks, sd_models, sd_checkpoint, sd_vae, processing_helpers, processing_grading, timer, masking
 from modules.logger import log
+from modules.attention import context as attention_context
 from modules.sd_hijack_hypertile import context_hypertile_vae, context_hypertile_unet
 from modules.processing_info import create_infotext
 from modules.processing_class import ( # pylint: disable=unused-import
@@ -198,6 +199,7 @@ def process_images(p: StableDiffusionProcessing) -> Processed | None:
 
         script_callbacks.before_process_callback(p)
         timer.process.record('pre')
+        attention_context.begin(shared.sd_model, p.steps)
 
         if shared.cmd_opts.profile:
             timer.startup.profile = True
@@ -231,6 +233,7 @@ def process_images(p: StableDiffusionProcessing) -> Processed | None:
                 results = process_images_inner(p)
 
     finally:
+        attention_context.end()
         script_callbacks.after_process_callback(p)
 
         if p.override_settings_restore_afterwards: # restore opts to original state

@@ -515,27 +515,7 @@ def set_sdpa_params():
         except Exception as err:
             log.warning(f'Torch attention: type="sdpa" {err}')
 
-        # Stack hijcaks in reverse order. This gives priority to the last added hijack.
-        # If the last hijack is not compatible, it will use the one before it and so on.
-
-        if 'Dynamic attention' in opts.sdp_overrides:
-            global sdpa_pre_dyanmic_atten # pylint: disable=global-statement
-            sdpa_pre_dyanmic_atten = attention.set_dynamic_attention()
-
-        if 'Flex attention' in opts.sdp_overrides:
-            attention.set_flex_attention()
-
-        if 'Triton Flash attention' in opts.sdp_overrides:
-            attention.set_triton_flash_attention(backend)
-
-        if 'Flash attention' in opts.sdp_overrides:
-            attention.set_ck_flash_attention(backend, device)
-
-        if 'Sage attention' in opts.sdp_overrides:
-            attention.set_sage_attention(backend, device)
-
-        if 'SDNQ attention' in opts.sdp_overrides:
-            attention.set_sdnq_attention()
+        attention.install_router(opts.sdp_overrides, attention.Platform(backend=backend, device=device), sdpa_original)
 
         from importlib.metadata import version
         try:

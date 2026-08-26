@@ -17,8 +17,21 @@ if TYPE_CHECKING:
     import builtins
 
 cmd_opts = cmd_args.parse_args()
-compatibility_opts = ['clip_skip', 'uni_pc_lower_order_final', 'uni_pc_order']
+compatibility_opts = ['clip_skip', 'uni_pc_lower_order_final', 'uni_pc_order', 'xformers_options']
+removed_values = { # a stored choice that no longer exists is kept by validate, so it has to be rewritten or it selects nothing
+    'cross_attention_optimization': (['Batch matrix-matrix', 'Dynamic Attention BMM'], 'Scaled-Dot-Product'),
+}
 secrets_pattern = ['_version', '_token', '_key', '_secret', '_password']
+
+
+def migrate_removed_values(data: dict) -> list:
+    """Rewrite stored settings whose choice was removed, returning what changed."""
+    migrated = []
+    for key, (removed, replacement) in removed_values.items():
+        if data.get(key, None) in removed:
+            migrated.append(f'{key}={data[key]} replaced={replacement}')
+            data[key] = replacement
+    return migrated
 
 
 class Options:
@@ -203,6 +216,9 @@ class Options:
         self.secrets = readfile(secretsfn, lock=True, as_type="dict")
         if self.data.get('quicksettings') is not None and self.data.get('quicksettings_list') is None:
             self.data['quicksettings_list'] = [i.strip() for i in self.data.get('quicksettings', '').split(',')]
+        migrated = migrate_removed_values(self.data)
+        if len(migrated) > 0:
+            log.warning(f"Setting migration: {migrated}")
         unknown_settings = []
         for k, v in self.data.items():
             info = self.data_labels.get(k, None)

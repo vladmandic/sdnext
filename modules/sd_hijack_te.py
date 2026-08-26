@@ -2,6 +2,7 @@ import os
 import time
 from modules import shared, errors, timer, sd_models
 from modules.logger import log
+from modules.attention import context as attention_context
 
 
 class PromptCache:
@@ -65,10 +66,11 @@ def hijack_encode_prompt(*args, **kwargs):
             res = cached
         else:
             log.debug(f'Encode: prompt="{prompt}" hijack=True')
-            if hasattr(shared.sd_model, 'orig_encode_prompt'):
-                res = shared.sd_model.orig_encode_prompt(*args_copy, **kwargs)
-            else:
-                res = shared.sd_model.encode_prompt(*args_copy, **kwargs)
+            with attention_context.role('te'):
+                if hasattr(shared.sd_model, 'orig_encode_prompt'):
+                    res = shared.sd_model.orig_encode_prompt(*args_copy, **kwargs)
+                else:
+                    res = shared.sd_model.encode_prompt(*args_copy, **kwargs)
             prompt_cache.set(prompt, res)
 
         if hasattr(shared.sd_model, 'after_prompt_encode'):
