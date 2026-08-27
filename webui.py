@@ -77,10 +77,6 @@ fastapi_args = {
 def initialize():
     log.debug('Initializing: modules')
     from concurrent.futures import ThreadPoolExecutor, as_completed
-
-    from installer import register_sdnq
-    register_sdnq(skip=True, devices=modules.devices, shared=shared) # monkey-patch sdnq to use sdnext devices and shared modules
-
     from modules.models_hf import hf_init
     hf_init()
 
