@@ -554,6 +554,7 @@ def check_python(supported_minors=None, experimental_minors=None, reason=None):
 # register sdnq package from github submodule
 def register_sdnq():
     t_start = time.time()
+    os.environ.setdefault('SDNQ_LOGGER_NAME', 'sd')
     fn = os.path.join('extensions-builtin', 'sdnq', 'src', 'sdnq', '__init__.py')
     name = "sdnq"
     spec = importlib.util.spec_from_file_location(name, fn)
