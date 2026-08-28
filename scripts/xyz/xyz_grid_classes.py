@@ -3,6 +3,12 @@ from scripts.xyz.xyz_grid_shared import ( # pylint: disable=no-name-in-module, u
     apply_task_arg,
     apply_task_args,
     apply_setting,
+    apply_attention,
+    apply_attention_overrides,
+    apply_attention_dispatcher,
+    list_sdp_overrides,
+    save_attention,
+    restore_attention,
     apply_prompt_primary,
     apply_prompt_refine,
     apply_prompt_detailer,
@@ -40,7 +46,7 @@ from scripts.xyz.xyz_grid_shared import ( # pylint: disable=no-name-in-module, u
     format_nothing,
     str_permutations,
  )
-from modules import shared, shared_items, sd_samplers, ipadapter, sd_models, sd_vae, sd_unet
+from modules import shared, shared_items, sd_samplers, ipadapter, sd_models, sd_vae, sd_unet, attention
 from modules.control.units import controlnet, t2iadapter
 from modules.control import processor
 
@@ -107,6 +113,7 @@ class SharedSettingsStackHelper():
     disable_apply_metadata = None
     disable_apply_params = None
     sdnq_quant_mode = None
+    attention_settings = None
 
     def __enter__(self):
         # Save overridden settings so they can be restored later
@@ -140,6 +147,7 @@ class SharedSettingsStackHelper():
         self.disable_apply_metadata = shared.opts.disable_apply_metadata
         self.disable_apply_params = shared.opts.disable_apply_params
         self.sdnq_quant_mode = shared.opts.sdnq_quantize_weights_mode
+        self.attention_settings = save_attention()
         shared.opts.data["disable_apply_metadata"] = []
         shared.opts.data["disable_apply_params"] = ''
 
@@ -188,6 +196,7 @@ class SharedSettingsStackHelper():
         if self.sdnq_quant_mode != shared.opts.sdnq_quantize_weights_mode:
             shared.opts.data["sdnq_quantize_weights_mode"] = self.sdnq_quant_mode
             sd_models.reload_model_weights(op='model')
+        restore_attention(self.attention_settings)
 
 
 axis_options = [
@@ -250,6 +259,20 @@ axis_options = [
     AxisOption("[Postprocess] Detailer strength", str, apply_field("detailer_strength")),
     AxisOption("[Quant] SDNQ quant mode", str, apply_sdnq_quant, cost=0.9, fmt=format_value_add_label, choices=lambda: ['none'] + sorted(shared_items.sdnq_quant_modes)),
     AxisOption("[Quant] SDNQ quant mode TE", str, apply_sdnq_quant_te, cost=0.9, fmt=format_value_add_label, choices=lambda: ['none'] + sorted(shared_items.sdnq_quant_modes)),
+    AxisOption("[Attention] Method", str, apply_setting('cross_attention_optimization'), cost=0.2, choices=shared_items.list_crossattention),
+    AxisOption("[Attention] SDP override", str, apply_attention_overrides, cost=0.2, choices=list_sdp_overrides),
+    AxisOption("[Attention] Dispatcher", str, apply_attention_dispatcher, cost=0.2, choices=lambda: ['None'] + attention.list_dispatcher_backends()),
+    AxisOption("[Attention] SDNQ matmul", str, apply_attention('sdnq_attention_matmul_type'), cost=0.2, choices=lambda: list(shared_items.sdnq_matmul_modes)),
+    AxisOption("[Attention] SDNQ PV matmul", str, apply_attention('sdnq_attention_pv_matmul_type'), cost=0.2, choices=lambda: list(shared_items.sdnq_matmul_modes)),
+    AxisOption("[Attention] SDNQ smooth K", str, apply_attention('sdnq_attention_smooth_k'), cost=0.2, choices=lambda: ['False', 'True']),
+    AxisOption("[Attention] SDNQ hadamard", str, apply_attention('sdnq_attention_use_hadamard'), cost=0.2, choices=lambda: ['False', 'True']),
+    AxisOption("[Attention] SDNQ fp16 accumulation", str, apply_attention('sdnq_attention_use_fp16_accum'), cost=0.2, choices=lambda: ['False', 'True']),
+    AxisOption("[Sparse] Enabled", str, apply_attention('sparse_attention_enabled'), cost=0.2, choices=lambda: ['False', 'True']),
+    AxisOption("[Sparse] KV budget", int, apply_attention('sparse_attention_budget'), cost=0.2),
+    AxisOption("[Sparse] Minimum sequence", int, apply_attention('sparse_attention_min_tokens'), cost=0.2),
+    AxisOption("[Sparse] Dense steps", int, apply_attention('sparse_attention_schedule_steps'), cost=0.2),
+    AxisOption("[Sparse] Dense step bonus", int, apply_attention('sparse_attention_schedule_bump'), cost=0.2),
+    AxisOption("[Sparse] Shared heads", str, apply_attention('sparse_attention_head_shared'), cost=0.2, choices=lambda: ['False', 'True']),
     AxisOption("[HDR] Mode", int, apply_field("hdr_mode")),
     AxisOption("[HDR] Brightness", float, apply_field("hdr_brightness")),
     AxisOption("[HDR] Color", float, apply_field("hdr_color")),
