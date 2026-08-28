@@ -183,7 +183,7 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         args['ToMe'] = _tome if _tome != 0 else None
     elif _token_method == 'ToDo':
         args['ToDo'] = _todo if _todo != 0 else None
-    if hasattr(shared.sd_model, 'embedding_db') and len(shared.sd_model.embedding_db.embeddings_used) > 0: # register used embeddings
+    if hasattr(shared.sd_model, 'embedding_db') and (shared.sd_model.embedding_db is not None) and len(shared.sd_model.embedding_db.embeddings_used) > 0: # register used embeddings
         args['Embeddings'] = ', '.join(shared.sd_model.embedding_db.embeddings_used)
 
     # samplers

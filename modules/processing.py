@@ -440,6 +440,10 @@ def print_stats():
         if dynamo_dct:
             log.debug(f'Processed: dynamo={dynamo_dct}')
 
+    if timer.blocks.get_total() > 0.1:
+        log.debug(f'Processed: blocks={timer.blocks.dct(min_time=0.1, no_total=True)}')
+        timer.blocks.reset()
+
 
 def process_images_inner(p: StableDiffusionProcessing) -> Processed:
     t0 = time.time()
