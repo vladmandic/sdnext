@@ -1,12 +1,21 @@
 # Change Log for SD.Next
 
-## Update for 2026-08-27
+## Update for 2026-08-28
 
 - **LoRA**
-  - new calibration engine that allows lora to be applied with far smaller error when dealing with highly quantized models
   - new apply engine that allows lora to be applied much faster
-  - *note*: calibration data is stored once calculated so it can be reused for future runs, location is `models/calibration` folder  
+  - new calibration engine that allows lora to be applied with far smaller error when dealing with highly quantized models
+  - *TODO*: see [LoRA docs](https://vladmandic.github.io/sdnext-docs/LoRA) for details and usage instructions
+  - *note*: calibration data is stored once calculated so it can be reused for future runs  
+    location is `models/calibration` folder  
+  - new factor cache that allows lora effects to be pre-calculated and persistently cached for future runs  
+    location is `models/lora-factor-cache` folder  
+- **Attention**
+  - new `sparse-attention` method that can be combined with other attention methods  
+    to reduce memory usage and improve performance on large models  
+    *TODO*: see [Attention docs](https://vladmandic.github.io/sdnext-docs/Attention) for details and usage instructions  
 - **Internal**
+  - modular pipelines intercept and profiling hooks
   - attention mechanisms decision tree and apply method refactor
 
 ## Update for 2026-08-26
@@ -15,7 +24,7 @@
 
 Time for a new release, *this is a large one*!
 Main focus is improving video workflows which also brings full support for new [MiniMax H3](https://vladmandic.github.io/sdnext-docs/MiniMax) and [LTXVideo-2.5](https://vladmandic.github.io/sdnext-docs/LTX)  
-and improves general video processing with flexible video upscaling, updated interpolation, etc.
+and improvements to general video processing with flexible video upscaling, updated interpolation, etc.
 
 *What else?*
 - [Detailer.next](https://vladmandic.github.io/sdnext-docs/Detailer) with new support for *vision-language models* and *per-class prompts*

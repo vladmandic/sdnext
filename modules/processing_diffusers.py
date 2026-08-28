@@ -86,12 +86,12 @@ def process_pre(p: processing.StableDiffusionProcessing):
         cfgzero.apply(p)
         linfusion.apply(shared.sd_model)
         cachedit.apply_cache_dit(shared.sd_model)
-
         # apply-only
         sd_hijack_freeu.apply_freeu(p)
         transformer_cache.set_cache()
         para_attention.apply_first_block_cache()
         teacache.apply_teacache(p)
+
     except Exception as e:
         log.error(f'Processing apply: {e}')
         errors.display(e, 'apply')

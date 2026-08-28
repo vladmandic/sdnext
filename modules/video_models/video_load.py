@@ -5,7 +5,7 @@ import time
 import torch
 import transformers
 import diffusers
-from modules import shared, errors, sd_models, sd_checkpoint, model_quant, devices, sd_hijack_te, sd_hijack_vae, modular_load
+from modules import shared, errors, sd_models, sd_checkpoint, model_quant, devices, modular_load, sd_hijack_te, sd_hijack_vae, sd_hijack_modular
 from modules.logger import log
 from modules.video_models import models_def, video_utils, video_overrides, video_cache
 from pipelines import generic
@@ -196,7 +196,7 @@ def load_model(selected: models_def.Model):
     shared.sd_model = model_quant.do_post_load_quant(shared.sd_model, allow=False)
     sd_models.set_diffuser_offload(shared.sd_model)
     if modular_load.is_modular(shared.sd_model):
-        modular_load.install_state_hook(shared.sd_model)
+        sd_hijack_modular.install_state_hook(shared.sd_model)
 
     loaded_model = selected.name
     msg = f'Load video: cls={shared.sd_model.__class__.__name__} model="{selected.name}" time={t1-t0:.2f}'
