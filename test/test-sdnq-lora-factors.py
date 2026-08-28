@@ -34,6 +34,14 @@ for the per-model analyzer):
   plain truncation bit-exact, and the capture hooks accumulate, persist
   and reload statistics correctly, gated by option, format width and
   model compile.
+- Factor cache: hosted factors replay bit-identically from the disk cache
+  without re-running the svd, a configuration change (multiplier) misses
+  and writes a separate entry, and budget 0 writes nothing.
+- Compile: the factor add runs inside the single compiled dequant graph
+  (fullgraph, no breaks) and matches the eager result; factor ranks pad to
+  a fixed bucket ladder so set switches inside a bucket reuse the compiled
+  graph while a novel bucket compiles exactly once, and padding changes
+  the dequantized weight by nothing beyond reduction-order ulp.
 
 All tensors are synthetic; no model files or running server required.
 
@@ -698,6 +706,34 @@ def test_hosted_dense_delta_beats_requant():
     return True
 
 
+def test_hosted_null_tail_collapses_to_effective_rank():
+    layer = build_layer('uint4')
+    _A, _B, D = make_delta(sigma=3e-3) # exact rank-8 content in a non-factorable container
+    net = make_dense_net('nulltail', layer, D)
+    with host_rank(256), mock_model(lin=layer):
+        Wdq0 = dq(layer)
+        activate(net)
+        assert layer.svd_up.shape[1] == 8, f'rank-8 delta under cap 256 must store 8 ranks, got {layer.svd_up.shape[1]}'
+        assert layer.svd_down.shape[0] == 8, f'down factor must slice with the up factor, got {layer.svd_down.shape[0]}'
+        rho = rho_of(dq(layer) - Wdq0, D)
+        assert rho > 0.95, f'collapsing the null tail must not cost fidelity: rho={rho:.4f}'
+        activate()
+        assert torch.equal(dq(layer), Wdq0), 'unload must restore bit-exact'
+    return True
+
+
+def test_hosted_flat_spectrum_keeps_cap():
+    layer = build_layer('uint4')
+    torch.manual_seed(13)
+    D = torch.randn(OUT_F, IN_F, device=DEVICE) * 3e-4 # full-rank gaussian: no null tail inside the cap
+    net = make_dense_net('flattail', layer, D)
+    with host_rank(64), mock_model(lin=layer):
+        activate(net)
+        assert layer.svd_up.shape[1] == 64, f'a flat spectrum must keep the full cap, got {layer.svd_up.shape[1]}'
+        activate()
+    return True
+
+
 def test_hosted_skips_int8():
     layer = build_layer('int8')
     _A, _B, D = make_delta(sigma=3e-3)
@@ -742,6 +778,116 @@ def test_hosted_transitions_and_rng_isolation():
         assert rho_mix > 0.9, f'mixed hosted rho={rho_mix:.4f}'
         activate()
         assert torch.equal(dq(layer), Wdq0), 'unload must restore bit-exact'
+    return True
+
+
+@contextmanager
+def requant_rule(ratio, energy):
+    old_r, old_e = lora_sdnq.REQUANT_RATIO, lora_sdnq.REQUANT_ENERGY
+    lora_sdnq.REQUANT_RATIO, lora_sdnq.REQUANT_ENERGY = ratio, energy
+    try:
+        yield
+    finally:
+        lora_sdnq.REQUANT_RATIO, lora_sdnq.REQUANT_ENERGY = old_r, old_e
+
+
+def test_route_fat_dense_delta_requantizes():
+    layer = build_layer('uint4')
+    torch.manual_seed(21)
+    D = torch.randn(OUT_F, IN_F, device=DEVICE) * 1e-2 # full-rank and well above the grid step: the grid retains it, truncation would cut it
+    net = make_dense_net('fatnet', layer, D)
+    with host_rank(256), mock_model(lin=layer):
+        Wdq0 = dq(layer)
+        activate(net)
+        assert not hasattr(layer, 'sdnq_lora_svd_stash'), 'a fat full-rank delta must route to requantize'
+        assert isinstance(getattr(layer, 'network_weights_backup', None), torch.Tensor), 'the routed layer takes the requantize backup'
+        rho = rho_of(dq(layer) - Wdq0, D)
+        assert rho > 0.7, f'the grid must retain the routed delta: rho={rho:.3f}'
+        activate()
+        assert torch.equal(dq(layer), Wdq0), 'restore from backup must be bit-exact'
+    return True
+
+
+def test_route_rule_terms_gate_both_ways():
+    layer = build_layer('uint4')
+    torch.manual_seed(23)
+    D = torch.randn(OUT_F, IN_F, device=DEVICE) * 1e-2 # sr about 0.8, capture about 0.8 at cap 256: each term alone can hold it hosted
+    net = make_dense_net('gatenet', layer, D)
+    with host_rank(256), mock_model(lin=layer):
+        with requant_rule(ratio=10.0, energy=0.90):
+            activate(net)
+            assert hasattr(layer, 'sdnq_lora_svd_stash'), 'sr below the ratio must host regardless of capture'
+            activate()
+        with requant_rule(ratio=0.30, energy=0.0):
+            activate(net)
+            assert hasattr(layer, 'sdnq_lora_svd_stash'), 'capture above the energy floor must host regardless of sr'
+            activate()
+        with requant_rule(ratio=0.30, energy=0.90):
+            activate(net)
+            assert not hasattr(layer, 'sdnq_lora_svd_stash'), 'both terms crossed must requantize'
+            activate()
+    return True
+
+
+def test_route_low_rank_fat_delta_stays_hosted():
+    layer = build_layer('uint4')
+    _A, _B, D = make_delta(seed=22, sigma=3e-3) # rank-8: fat against the grid, exact under the cap
+    net = make_dense_net('fatlow', layer, D)
+    with host_rank(64), mock_model(lin=layer):
+        Wdq0 = dq(layer)
+        activate(net)
+        assert hasattr(layer, 'sdnq_lora_svd_stash'), 'a low-rank delta hosts exactly at any magnitude'
+        rho = rho_of(dq(layer) - Wdq0, D)
+        assert rho > 0.95, f'rho={rho:.4f}'
+        activate()
+    return True
+
+
+def test_route_mixed_set_keeps_hosting():
+    layer = build_layer('uint4')
+    A, B, _D1 = make_delta(seed=24)
+    torch.manual_seed(25)
+    D2 = torch.randn(OUT_F, IN_F, device=DEVICE) * 1e-2
+    net1 = make_net('mixp', layer, A, B)
+    net2 = make_dense_net('mixf', layer, D2)
+    with host_rank(256), mock_model(lin=layer):
+        Wdq0 = dq(layer)
+        activate(net1, net2)
+        assert hasattr(layer, 'sdnq_lora_svd_stash'), 'a set with factorable members keeps the side-channel'
+        activate()
+        assert torch.equal(dq(layer), Wdq0)
+    return True
+
+
+def test_route_svd_checkpoint_keeps_hosting():
+    layer = build_layer('uint4', use_svd=True)
+    torch.manual_seed(26)
+    D = torch.randn(OUT_F, IN_F, device=DEVICE) * 1e-2
+    net = make_dense_net('svdfat', layer, D)
+    with host_rank(256), mock_model(lin=layer):
+        activate(net)
+        assert hasattr(layer, 'sdnq_lora_svd_stash'), 'svd checkpoints keep hosting; the rule is not grounded there'
+        activate()
+    return True
+
+
+def test_route_replay_from_cache():
+    import tempfile
+    layer = build_layer('uint4')
+    with tempfile.TemporaryDirectory() as tmp:
+        with host_rank(256), host_cache(10, os.path.join(tmp, 'cache')), mock_model(lin=layer):
+            net, _D = cache_fixture(tmp, layer, name='fatcache', sigma=1e-2, seed=28)
+            activate(net)
+            assert not hasattr(layer, 'sdnq_lora_svd_stash'), 'fat delta must route on the fresh-sketch path'
+            activate()
+            real_svd = torch.svd_lowrank
+            torch.svd_lowrank = raise_no_svd
+            try:
+                activate(net) # the stored entry memoizes the routing: same decision, no sketch
+            finally:
+                torch.svd_lowrank = real_svd
+            assert not hasattr(layer, 'sdnq_lora_svd_stash'), 'cache replay must route the same way'
+            activate()
     return True
 
 
@@ -850,7 +996,7 @@ def test_calib_capture_persist_roundtrip():
             lora_calib.calib_root = tmp
             lora_calib.TOKENS_DONE = 2048
             lora_calib.on_model_loaded(sd)
-            assert len(lora_calib.capture['handles']) == 2, 'both sub-8-bit linears must hook'
+            assert len(lora_calib.capture['handles']) == 3, 'both sub-8-bit linears plus the root forward counter must hook'
             torch.manual_seed(51)
             scale = torch.linspace(0.1, 4.0, IN_F, device=DEVICE)
             xs = []
@@ -894,6 +1040,462 @@ def test_calib_capture_gates():
         finally:
             shared.opts.cuda_compile = old_compile
     lora_calib.detach_capture()
+    return True
+
+
+class MockCalibDenoiser(torch.nn.Module):
+    """Denoiser whose forward feeds one token-rich linear and one token-starved one, like a DiT block beside its modulation projection."""
+    def __init__(self, rich, starved, starved_tokens):
+        super().__init__()
+        self.rich = rich
+        self.starved = starved
+        self.starved_tokens = starved_tokens
+
+    def forward(self, x):
+        self.rich(x)
+        self.starved(x[:self.starved_tokens])
+        return x
+
+
+def test_calib_deadline_persists_starved_layers():
+    import tempfile
+    from safetensors import safe_open
+    from modules.lora import lora_calib
+    rich = build_layer('uint4', seed=45)
+    starved = build_layer('uint4', seed=46)
+    root = MockCalibDenoiser(rich, starved, starved_tokens=8)
+    sd = MockCalibSd('test/calib-deadline')
+    sd.transformer = root
+    old = (lora_calib.calib_root, lora_calib.TOKENS_DONE, lora_calib.FORWARDS_DEADLINE)
+    with tempfile.TemporaryDirectory() as tmp, host_calib(True):
+        try:
+            lora_calib.calib_root = tmp
+            lora_calib.TOKENS_DONE = 2048
+            lora_calib.FORWARDS_DEADLINE = 6
+            lora_calib.on_model_loaded(sd)
+            assert len(lora_calib.capture['handles']) == 3, 'two layer hooks plus the root forward counter must attach'
+            torch.manual_seed(52)
+            xs = []
+            for i in range(6):
+                x = torch.randn(1024, IN_F, device=DEVICE).to(torch.bfloat16)
+                if i < 5: # the deadline fires at the start of the sixth forward, before its layer hooks run
+                    xs.append(x[:8].float())
+                root(x)
+            assert lora_calib.capture['complete'], 'the forward deadline must close capture'
+            assert lora_calib.capture['forwards'] == 6, f'root counter must track denoiser forwards, got {lora_calib.capture["forwards"]}'
+            path = lora_calib.calib_file('test/calib-deadline')
+            assert os.path.isfile(path), 'deadline persist must write the statistics file'
+            assert getattr(starved, 'sdnq_calib_rms', None) is not None, 'the starved layer must carry statistics'
+            expected = torch.cat(xs).square().mean(dim=0).sqrt().cpu()
+            assert torch.allclose(starved.sdnq_calib_rms, expected, rtol=1e-3, atol=1e-5), 'starved rms must match exactly the tokens it saw'
+            with safe_open(path, framework='pt', device='cpu') as f:
+                assert set(f.keys()) == {'rich', 'starved'}, f'both layers must persist, got {sorted(f.keys())}'
+                assert f.metadata()['tokens'] == '40', f'metadata must report the weakest saved layer, got {f.metadata()["tokens"]}'
+        finally:
+            lora_calib.calib_root, lora_calib.TOKENS_DONE, lora_calib.FORWARDS_DEADLINE = old
+            lora_calib.detach_capture()
+    return True
+
+
+def test_calib_deadline_omits_subfloor_layers():
+    import tempfile
+    from safetensors import safe_open
+    from modules.lora import lora_calib
+    rich = build_layer('uint4', seed=48)
+    starved = build_layer('uint4', seed=49)
+    root = MockCalibDenoiser(rich, starved, starved_tokens=2) # 2 tokens x 5 counted forwards = 10, under the floor of 32
+    sd = MockCalibSd('test/calib-subfloor')
+    sd.transformer = root
+    old = (lora_calib.calib_root, lora_calib.TOKENS_DONE, lora_calib.FORWARDS_DEADLINE)
+    with tempfile.TemporaryDirectory() as tmp, host_calib(True):
+        try:
+            lora_calib.calib_root = tmp
+            lora_calib.TOKENS_DONE = 2048
+            lora_calib.FORWARDS_DEADLINE = 6
+            lora_calib.on_model_loaded(sd)
+            torch.manual_seed(53)
+            for _ in range(6):
+                root(torch.randn(1024, IN_F, device=DEVICE).to(torch.bfloat16))
+            assert lora_calib.capture['complete'], 'the forward deadline must close capture'
+            path = lora_calib.calib_file('test/calib-subfloor')
+            with safe_open(path, framework='pt', device='cpu') as f:
+                assert set(f.keys()) == {'rich'}, f'a layer under the token floor must be omitted, got {sorted(f.keys())}'
+            assert getattr(starved, 'sdnq_calib_rms', None) is None, 'an omitted layer must not carry statistics'
+            del rich.sdnq_calib_rms
+            lora_calib.on_model_loaded(sd) # second load takes the cached path with the partial file
+            assert len(lora_calib.capture['handles']) == 0, 'a partial file still counts as cached; capture must not re-attach'
+            assert getattr(rich, 'sdnq_calib_rms', None) is not None, 'the saved layer must reload from the partial file'
+            assert getattr(starved, 'sdnq_calib_rms', None) is None, 'the omitted layer must stay on plain truncation after reload'
+        finally:
+            lora_calib.calib_root, lora_calib.TOKENS_DONE, lora_calib.FORWARDS_DEADLINE = old
+            lora_calib.detach_capture()
+    return True
+
+
+def test_calib_unet_root_walk():
+    import tempfile
+    from modules.lora import lora_calib
+    layer = build_layer('uint4', seed=47)
+    sd = MockCalibSd('test/calib-unet', lin=layer)
+    sd.unet = sd.transformer
+    sd.transformer = None
+    mods = lora_calib.eligible_modules(sd)
+    assert [n for n, _ in mods] == ['lin'], f'the unet root must be walked when no transformer exists, got {[n for n, _ in mods]}'
+    both = MockCalibSd('test/calib-both')
+    both.unet = sd.unet
+    assert lora_calib.eligible_modules(both) == [], 'a transformer root wins even when it holds no eligible linears'
+    old_root = lora_calib.calib_root
+    with tempfile.TemporaryDirectory() as tmp, host_calib(True):
+        try:
+            lora_calib.calib_root = tmp
+            lora_calib.on_model_loaded(sd)
+            assert len(lora_calib.capture['handles']) == 2, 'the layer hook plus the root counter must attach on a unet model'
+        finally:
+            lora_calib.calib_root = old_root
+            lora_calib.detach_capture()
+    return True
+
+
+CAT_FCACHE = category('factor-cache')
+
+
+@contextmanager
+def host_cache(gb, root):
+    from modules.lora import lora_factor_cache
+    old_gb = getattr(shared.opts, 'lora_sdnq_host_cache', 0)
+    old_root = lora_factor_cache.cache_root
+    shared.opts.lora_sdnq_host_cache = gb
+    lora_factor_cache.cache_root = root
+    lora_factor_cache.state.update(wn=None, sig=None, path=None, dirty=False, hits=0, misses=0)
+    lora_factor_cache.state['store'] = {}
+    try:
+        yield lora_factor_cache
+    finally:
+        shared.opts.lora_sdnq_host_cache = old_gb
+        lora_factor_cache.cache_root = old_root
+        lora_factor_cache.state.update(wn=None, sig=None, path=None, dirty=False, hits=0, misses=0)
+        lora_factor_cache.state['store'] = {}
+
+
+def cache_fixture(tmp, layer, name='cachenet', sigma=3e-4, seed=61):
+    """Dense net whose on-disk file exists (signature needs a stat-able path) plus a mock checkpoint identity."""
+    torch.manual_seed(seed)
+    D = torch.randn(OUT_F, IN_F, device=DEVICE) * sigma
+    net = make_dense_net(name, layer, D)
+    lora_file = os.path.join(tmp, f'{name}.safetensors')
+    with open(lora_file, 'wb') as f:
+        f.write(b'0' * 64)
+    net.network_on_disk.filename = lora_file
+    from modules.modeldata import model_data
+    model_data.sd_model.sd_checkpoint_info = MockCheckpointInfo('test/cache-model')
+    return net, D
+
+
+def raise_no_svd(*_args, **_kwargs):
+    raise AssertionError('svd must not run on a cache hit')
+
+
+def test_factor_cache_roundtrip_bitexact():
+    import tempfile
+    layer = build_layer('uint4')
+    with tempfile.TemporaryDirectory() as tmp:
+        with host_rank(64), host_cache(10, os.path.join(tmp, 'cache')), mock_model(lin=layer):
+            net, _D = cache_fixture(tmp, layer)
+            Wdq0 = dq(layer)
+            activate(net)
+            first_up = layer.svd_up.detach().clone()
+            first_down = layer.svd_down.detach().clone()
+            activate() # pass end flushed the entry; unload restores the base
+            files = os.listdir(os.path.join(tmp, 'cache'))
+            assert len(files) == 1, f'one cache entry expected, got {files}'
+            bf16_bytes = (first_up.numel() + first_down.numel()) * 2
+            entry_bytes = os.path.getsize(os.path.join(tmp, 'cache', files[0]))
+            assert entry_bytes < bf16_bytes * 0.62 + 8192, f'int8 entry must be about half the bf16 factor bytes: {entry_bytes} vs {bf16_bytes}'
+            real_svd = torch.svd_lowrank
+            torch.svd_lowrank = raise_no_svd
+            try:
+                activate(net) # same configuration: must replay from disk without touching the svd
+            finally:
+                torch.svd_lowrank = real_svd
+            assert torch.equal(layer.svd_up, first_up), 'cache hit must replay bit-identical up factors'
+            assert torch.equal(layer.svd_down, first_down), 'cache hit must replay bit-identical down factors'
+            activate()
+            assert torch.equal(dq(layer), Wdq0), 'unload must restore bit-exact'
+    return True
+
+
+def test_factor_cache_invalidates_on_multiplier():
+    import tempfile
+    layer = build_layer('uint4')
+    with tempfile.TemporaryDirectory() as tmp:
+        with host_rank(64), host_cache(10, os.path.join(tmp, 'cache')), mock_model(lin=layer):
+            net, _D = cache_fixture(tmp, layer)
+            activate(net)
+            up_full = layer.svd_up.detach().clone()
+            activate()
+            net.te_multiplier = 0.7
+            net.unet_multiplier = [0.7] * 3
+            activate(net) # different multiplier: different signature, fresh svd, second entry
+            assert not torch.equal(layer.svd_up, up_full), 'multiplier change must produce different factors'
+            activate()
+            files = os.listdir(os.path.join(tmp, 'cache'))
+            assert len(files) == 2, f'two cache entries expected, got {files}'
+    return True
+
+
+def test_attach_trims_stored_null_tail():
+    """Entries written before tail slicing pad the channel with null ranks: zero up
+    columns (and junk down rows behind them). Attach must trim to the effective rank
+    and replay the same resident tensors and weights as the unpadded entry."""
+    import tempfile
+    layer = build_layer('uint4')
+    with tempfile.TemporaryDirectory() as tmp:
+        with host_rank(64), host_cache(10, os.path.join(tmp, 'cache')), mock_model(lin=layer):
+            net, _D = cache_fixture(tmp, layer, name='padnet')
+            activate(net)
+            up0 = layer.svd_up.detach().clone()
+            down0 = layer.svd_down.detach().clone()
+            Wl0 = dq(layer)
+            activate()
+            cache_dir = os.path.join(tmp, 'cache')
+            entry = os.path.join(cache_dir, os.listdir(cache_dir)[0])
+            from safetensors import safe_open
+            from safetensors.torch import save_file
+            with safe_open(entry, framework='pt', device='cpu') as f:
+                meta = dict(f.metadata())
+                tensors = {k: f.get_tensor(k) for k in f.keys()}
+            for k in [k for k in tensors if k.endswith('.up_q')]:
+                base = k[: -len('.up_q')]
+                torch.manual_seed(5)
+                tensors[f'{base}.up_q'] = torch.cat([tensors[k], torch.zeros(tensors[k].shape[0], 64, dtype=torch.int8)], dim=1)
+                tensors[f'{base}.down_q'] = torch.cat([tensors[f'{base}.down_q'], torch.randint(-127, 128, (64, IN_F), dtype=torch.int8)], dim=0)
+                tensors[f'{base}.down_s'] = torch.cat([tensors[f'{base}.down_s'], torch.ones(64, 1)], dim=0)
+            save_file(tensors, entry, metadata=meta)
+            real_svd = torch.svd_lowrank
+            torch.svd_lowrank = raise_no_svd
+            try:
+                activate(net)
+            finally:
+                torch.svd_lowrank = real_svd
+            assert layer.svd_up.shape[1] == 64, f'attach must trim the padded tail back to the effective rank, got {layer.svd_up.shape[1]}'
+            assert torch.equal(layer.svd_up, up0) and torch.equal(layer.svd_down, down0), 'trimmed factors must match the unpadded entry'
+            assert torch.equal(dq(layer), Wl0), 'trimmed attach must materialize the same weight'
+            activate()
+    return True
+
+
+def test_factor_cache_int8_quantization():
+    from modules.lora import lora_factor_cache as fc
+    torch.manual_seed(71)
+    t = torch.randn(64, 128, device=DEVICE) * torch.logspace(-3, 0, 64, device=DEVICE)[:, None] # rows spanning magnitudes
+    q, s = fc.quantize_rowwise(t)
+    assert q.dtype == torch.int8
+    dq = fc.dequantize_rowwise(q, s)
+    err = (dq - t).abs().max(dim=1).values
+    assert bool((err <= s.squeeze(1) * 0.51).all()), 'rowwise int8 error must stay within half a step'
+    cos = torch.nn.functional.cosine_similarity(dq.flatten(), t.flatten(), dim=0)
+    assert float(cos) > 0.99995, f'int8 roundtrip cosine {float(cos):.6f}'
+    return True
+
+
+def test_factor_cache_disabled_at_zero():
+    import tempfile
+    layer = build_layer('uint4')
+    with tempfile.TemporaryDirectory() as tmp:
+        with host_rank(64), host_cache(0, os.path.join(tmp, 'cache')), mock_model(lin=layer):
+            net, _D = cache_fixture(tmp, layer)
+            activate(net)
+            activate()
+            assert not os.path.isdir(os.path.join(tmp, 'cache')), 'budget 0 must write nothing'
+    return True
+
+
+def test_factor_cache_invalidates_on_calib_toggle():
+    import tempfile
+    from modules.lora import lora_calib
+    layer = build_layer('uint4')
+    with tempfile.TemporaryDirectory() as tmp:
+        with host_rank(64), host_cache(10, os.path.join(tmp, 'cache')), mock_model(lin=layer):
+            net, _D = cache_fixture(tmp, layer)
+            old_root = lora_calib.calib_root
+            lora_calib.calib_root = os.path.join(tmp, 'calib')
+            os.makedirs(lora_calib.calib_root, exist_ok=True)
+            with open(lora_calib.calib_file('test/cache-model'), 'wb') as f:
+                f.write(b'0' * 64) # the signature stats this file; its content is never read here
+            torch.manual_seed(77)
+            layer.sdnq_calib_rms = torch.rand(IN_F) * 4 + 0.1
+            try:
+                with host_calib(True):
+                    activate(net)
+                    up_cal = layer.svd_up.detach().clone()
+                    activate()
+                with host_calib(False):
+                    activate(net) # same set with calibration off: the entry keyed under the other setting must miss
+                    up_plain = layer.svd_up.detach().clone()
+                    activate()
+                assert not torch.equal(up_cal, up_plain), 'toggling calibration must not replay factors computed under the other setting'
+                assert len(os.listdir(os.path.join(tmp, 'cache'))) == 2, 'the two settings must key separate cache entries'
+            finally:
+                del layer.sdnq_calib_rms
+                lora_calib.calib_root = old_root
+    return True
+
+
+@contextmanager
+def counting_calc():
+    """Count NetworkModuleFull.calc_updown calls: zero on a pass proves the walk skipped delta assembly."""
+    from modules.lora import network_full
+    calls = {'n': 0}
+    real = network_full.NetworkModuleFull.calc_updown
+    def wrapper(self, *args, **kwargs):
+        calls['n'] += 1
+        return real(self, *args, **kwargs)
+    network_full.NetworkModuleFull.calc_updown = wrapper
+    try:
+        yield calls
+    finally:
+        network_full.NetworkModuleFull.calc_updown = real
+
+
+def test_cache_fastpath_skips_calc():
+    import tempfile
+    layer = build_layer('uint4')
+    with tempfile.TemporaryDirectory() as tmp:
+        with host_rank(64), host_cache(10, os.path.join(tmp, 'cache')), mock_model(lin=layer):
+            net, _D = cache_fixture(tmp, layer)
+            Wdq0 = dq(layer)
+            with counting_calc() as calls:
+                activate(net)
+                assert calls['n'] > 0, 'a fresh apply must assemble the delta'
+                first = dq(layer)
+                activate()
+                calls['n'] = 0
+                activate(net)
+                assert calls['n'] == 0, f'a cache replay must not assemble the delta: calc_updown ran {calls["n"]} times'
+                assert hasattr(layer, 'sdnq_lora_svd_stash'), 'the fast path must attach the cached factors'
+                assert torch.equal(dq(layer), first), 'fast-path replay must be bit-identical to the fresh apply'
+                activate()
+                assert torch.equal(dq(layer), Wdq0)
+    return True
+
+
+def test_cache_fastpath_serves_mixed_set():
+    import tempfile
+    layer = build_layer('uint4')
+    A, B, _D1 = make_delta(seed=63)
+    with tempfile.TemporaryDirectory() as tmp:
+        with host_rank(64), host_cache(10, os.path.join(tmp, 'cache')), mock_model(lin=layer):
+            net_full, _D2 = cache_fixture(tmp, layer, name='mixfull', seed=64)
+            net_plain = make_net('mixlora', layer, A, B)
+            lora_file = os.path.join(tmp, 'mixlora.safetensors')
+            with open(lora_file, 'wb') as f:
+                f.write(b'0' * 64)
+            net_plain.network_on_disk.filename = lora_file
+            activate(net_plain, net_full)
+            first = dq(layer)
+            activate()
+            with counting_calc() as calls:
+                activate(net_plain, net_full) # the factorable member re-extracts from its own weights; the hosted remainder replays
+                assert calls['n'] == 0, 'a mixed-set replay must not assemble the delta'
+            assert hasattr(layer, 'sdnq_lora_svd_stash')
+            assert torch.equal(dq(layer), first), 'mixed-set replay must be bit-identical to the fresh apply'
+            activate()
+    return True
+
+
+CAT_COMPILE = category('compile')
+
+
+def dq_compiled(layer):
+    # the production entry: skip_compile left at its default so the shared compiled dequant runs
+    return layer.sdnq_dequantizer(layer.weight, layer.scale, zero_point=layer.zero_point,
+                                  svd_up=layer.svd_up, svd_down=layer.svd_down,
+                                  skip_quantized_matmul=layer.sdnq_dequantizer.use_quantized_matmul,
+                                  dtype=torch.float32)
+
+
+def graph_stats():
+    from torch._dynamo.utils import counters
+    return int(counters['stats']['unique_graphs']), sum(counters['graph_break'].values())
+
+
+def test_factor_add_inside_compiled_graph():
+    from sdnq.common import use_torch_compile
+    if not use_torch_compile:
+        return True # compile disabled at sdnq import (no triton); nothing to pin
+    import torch._dynamo
+    from torch._dynamo.utils import counters
+    layer = build_layer('uint4')
+    A, B, _D = make_delta()
+    dtype = layer.sdnq_dequantizer.result_dtype
+    torch._dynamo.reset()
+    counters.clear()
+    lora_sdnq.append_factors(layer, [B.to(dtype)], [A.to(dtype)])
+    W_c = dq_compiled(layer)
+    graphs, breaks = graph_stats()
+    assert breaks == 0, f'graph breaks in the compiled dequant: {breaks}'
+    assert graphs == 1, f'factor-bearing dequant must be one compiled region, got {graphs} graphs'
+    W_e = dq(layer)
+    assert torch.allclose(W_c, W_e, rtol=1e-3, atol=1e-4), f'compiled vs eager dequant diverged, max {float((W_c - W_e).abs().max()):.3e}'
+    lora_sdnq.remove_factors(layer)
+    return True
+
+
+def test_rank_bucket_graph_reuse():
+    from sdnq.common import use_torch_compile
+    if not use_torch_compile:
+        return True
+    import torch._dynamo
+    from torch._dynamo.utils import counters
+    import sdnq.common as sdnq_common
+    layer = build_layer('uint4', use_hadamard=False)
+    dtype = layer.sdnq_dequantizer.result_dtype
+    torch.manual_seed(13)
+    mk = lambda r: (torch.randn(OUT_F, r, device=DEVICE, dtype=dtype) * 0.01, torch.randn(r, IN_F, device=DEVICE, dtype=dtype) * 0.01)
+    B8, A8 = mk(8)
+    B6, A6 = mk(6)
+    B24, A24 = mk(24)
+
+    torch._dynamo.reset()
+    counters.clear()
+    lora_sdnq.append_factors(layer, [B8], [A8])
+    assert layer.svd_up.shape[1] == 8, f'rank 8 must bucket to 8, got {layer.svd_up.shape[1]}'
+    dq_compiled(layer)
+    g_first, _ = graph_stats()
+
+    lora_sdnq.remove_factors(layer)
+    lora_sdnq.append_factors(layer, [B6], [A6])
+    assert layer.svd_up.shape[1] == 8, f'rank 6 must pad to bucket 8, got {layer.svd_up.shape[1]}'
+    assert float(layer.svd_up[:, 6:].abs().sum()) == 0.0, 'pad columns must be exact zeros'
+    dq_compiled(layer)
+    g_same, _ = graph_stats()
+    assert g_same == g_first, f'same bucket must reuse the graph: {g_first} -> {g_same}'
+
+    lora_sdnq.remove_factors(layer)
+    lora_sdnq.append_factors(layer, [B24], [A24])
+    assert layer.svd_up.shape[1] == 32, f'rank 24 must pad to bucket 32, got {layer.svd_up.shape[1]}'
+    dq_compiled(layer)
+    g_novel, _ = graph_stats()
+    assert g_novel == g_first + 1, f'novel bucket must compile exactly one new graph: {g_first} -> {g_novel}'
+
+    lora_sdnq.remove_factors(layer)
+    lora_sdnq.append_factors(layer, [B8], [A8])
+    dq_compiled(layer)
+    g_back, _ = graph_stats()
+    assert g_back == g_novel, f'returning to a seen bucket must be free: {g_novel} -> {g_back}'
+
+    W_padded = dq(layer)
+    lora_sdnq.remove_factors(layer)
+    old_flag = sdnq_common.use_torch_compile
+    sdnq_common.use_torch_compile = False
+    try:
+        lora_sdnq.append_factors(layer, [B8], [A8])
+        assert layer.svd_up.shape[1] == 8
+        W_unpadded = dq(layer)
+    finally:
+        sdnq_common.use_torch_compile = old_flag
+        lora_sdnq.remove_factors(layer)
+    assert torch.allclose(W_padded, W_unpadded, rtol=0.0, atol=1e-6), f'padding must be inert beyond reduction-order ulp, max {float((W_padded - W_unpadded).abs().max()):.3e}'
     return True
 
 
@@ -964,12 +1566,25 @@ def run_tests():
         run_test(CAT_TRANS, fn)
     log.warning('=== Hosting ===')
     for fn in [test_hosted_low_rank_delta_is_kept, test_hosted_dense_delta_beats_requant, test_hosted_skips_int8,
-               test_hosted_disabled_by_option, test_hosted_transitions_and_rng_isolation]:
+               test_hosted_disabled_by_option, test_hosted_transitions_and_rng_isolation,
+               test_route_fat_dense_delta_requantizes, test_route_rule_terms_gate_both_ways, test_route_low_rank_fat_delta_stays_hosted,
+               test_route_mixed_set_keeps_hosting, test_route_svd_checkpoint_keeps_hosting,
+               test_route_replay_from_cache, test_hosted_null_tail_collapses_to_effective_rank, test_hosted_flat_spectrum_keeps_cap]:
         run_test(CAT_HOST, fn)
     log.warning('=== Calibration ===')
     for fn in [test_calibrated_hosting_beats_plain, test_calibrated_low_rank_delta_survives, test_calib_option_off_matches_plain,
-               test_calib_capture_persist_roundtrip, test_calib_capture_gates]:
+               test_calib_capture_persist_roundtrip, test_calib_capture_gates, test_calib_deadline_persists_starved_layers,
+               test_calib_deadline_omits_subfloor_layers, test_calib_unet_root_walk]:
         run_test(CAT_CALIB, fn)
+    log.warning('=== Factor cache ===')
+    for fn in [test_factor_cache_roundtrip_bitexact, test_factor_cache_invalidates_on_multiplier,
+               test_factor_cache_int8_quantization, test_factor_cache_disabled_at_zero, test_factor_cache_invalidates_on_calib_toggle,
+               test_cache_fastpath_skips_calc, test_cache_fastpath_serves_mixed_set,
+               test_attach_trims_stored_null_tail]:
+        run_test(CAT_FCACHE, fn)
+    log.warning('=== Compile ===')
+    for fn in [test_factor_add_inside_compiled_graph, test_rank_bucket_graph_reuse]:
+        run_test(CAT_COMPILE, fn)
     log.warning('=== Robustness ===')
     for fn in [test_remove_factors_after_device_move, test_stacked_shape_mismatch_falls_back]:
         run_test(CAT_ROBUST, fn)
