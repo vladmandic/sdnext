@@ -81,6 +81,75 @@ def apply_setting(field):
     return fun
 
 
+def attention_options() -> list:
+    """Attention settings an axis can change; the stack helper restores exactly this set."""
+    from modules import attention
+    return ['cross_attention_optimization', 'hf_attention', *attention.reapply_options()]
+
+
+def list_sdp_overrides() -> list:
+    item = shared.opts.data_labels.get('sdp_overrides', None)
+    args = item.component_args if item is not None else None
+    args = args() if callable(args) else args
+    return ['None'] + list((args or {}).get('choices', None) or [])
+
+
+def apply_attention(field):
+    def fun(p, x, xs):
+        from modules import attention
+        apply_setting(field)(p, x, xs)
+        attention.reapply() # backends read their settings when the chain is built, so a write on its own changes nothing
+        owner = next((backend for backend in attention.registry.backends.values() if field in backend.options), None)
+        plan = attention.get_plan()
+        if owner is not None and plan is not None and owner.name not in plan.chain():
+            log.warning(f'XYZ grid apply attention: {field} is read by "{owner.label}" which is not in the active chain={plan.chain()}')
+    return fun
+
+
+def apply_attention_overrides(p, x, xs):
+    from modules import attention
+    labels = [label.strip() for label in str(x).split('+') if len(label.strip()) > 0 and label.strip().lower() != 'none']
+    unknown = [label for label in labels if attention.registry.by_label(label) is None]
+    if len(unknown) > 0:
+        log.warning(f'XYZ grid apply attention: unknown overrides={unknown} available={attention.registry.labels()}')
+    shared.opts.data['sdp_overrides'] = labels
+    attention.reapply()
+    log.debug(f'XYZ grid apply attention: overrides={labels}')
+
+
+def apply_attention_dispatcher(p, x, xs):
+    from modules import attention
+    value = '' if str(x).strip().lower() in ['none', 'default'] else str(x).strip()
+    shared.opts.data['hf_attention'] = value
+    if shared.sd_loaded:
+        attention.set_attention_dispatcher(shared.sd_model)
+    log.debug(f'XYZ grid apply attention: dispatcher="{value}"')
+
+
+def save_attention() -> dict:
+    return {field: shared.opts.data[field] for field in attention_options() if field in shared.opts.data}
+
+
+def restore_attention(saved: dict):
+    """Put back whatever an attention axis changed, keys it introduced included, then rebuild what reads them."""
+    from modules import attention
+    changed = []
+    for field in attention_options():
+        if (field in saved) == (field in shared.opts.data) and saved.get(field, None) == shared.opts.data.get(field, None):
+            continue
+        changed.append(field)
+        if field in saved:
+            shared.opts.data[field] = saved[field]
+        else:
+            shared.opts.data.pop(field, None)
+    if len(changed) == 0:
+        return
+    attention.reapply()
+    if 'hf_attention' in changed and shared.sd_loaded:
+        attention.set_attention_dispatcher(shared.sd_model)
+    log.debug(f'XYZ grid restore attention: {changed}')
+
+
 def apply_seed(p, x, xs):
     p.seed = x
     p.all_seeds = None

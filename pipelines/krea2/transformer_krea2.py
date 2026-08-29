@@ -342,6 +342,16 @@ class Krea2Transformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOri
         else:
             mask = None
 
+        from modules.attention.sparse import layout as sparse_layout # delayed, this module is also importable without the webui
+        if attention_mask is not None:
+            # the text stream is padded to a fixed length and the joint sequence to a multiple of 256, so the live
+            # runs are what the layout must report; a wholly padded key block is dropped rather than pinned
+            live = attention_mask.any(dim=0)
+            segments = sparse_layout.segments_from_live(live[:txtlen], "text") + sparse_layout.segments_from_live(live[txtlen:], "image")
+        else:
+            segments = [("text", txtlen), ("image", imglen)]
+        sparse_layout.publish_segments(segments, source="krea2")
+
         freqs = self.posemb(position_ids)
 
         for block in self.blocks:

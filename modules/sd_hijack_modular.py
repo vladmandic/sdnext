@@ -75,6 +75,15 @@ class InterruptLogFilter(logging.Filter):
         return 'Interrupted...' not in record.msg
 
 
+def publish_layout(kwargs):
+    """Hand the attention router whatever the pipeline says about its packed sequence, keyed on the *_indices tensors rather than the model."""
+    try:
+        from modules.attention.sparse import layout as sparse_layout
+        attention_context.set_layout(sparse_layout.layout_from_index_kwargs(kwargs or {}))
+    except Exception as e:
+        log.debug(f'Pipeline: token layout {e}')
+
+
 def install_state_hook(pipe):
     runner_log = logging.getLogger('diffusers.modular_pipelines.modular_pipeline')
     if not any(isinstance(f, InterruptLogFilter) for f in runner_log.filters):
@@ -91,9 +100,10 @@ def install_state_hook(pipe):
             return True
         return False
 
-    def _pre_transformer_hook(module, args): # pylint: disable=unused-argument
+    def _pre_transformer_hook(module, args, kwargs): # pylint: disable=unused-argument
         new_phase = set_phase('Generate', module)
         attention_context.set_role('transformer')
+        publish_layout(kwargs)
         if new_phase:
             sd_offload.offload_ondemand(pipe, exclude=['transformer', 'transformer_ref'], reason='generate', force=hasattr(pipe, 'sdnext_force_offload'))
         if shared.state.sampling_steps == 0 and getattr(pipe, 'num_timesteps', 0) > 0:
@@ -138,7 +148,8 @@ def install_state_hook(pipe):
         if module is not None:
             target = getattr(module, 'model', module) # conditioning calls the inner model directly
             if isinstance(target, torch.nn.Module) and getattr(target, 'sdnext_state_hook', None) is None:
-                target.sdnext_state_hook = target.register_forward_pre_hook(_pre_transformer_hook)
+                # with_kwargs, because the blocks call the transformer entirely by keyword and the token layout rides in those kwargs
+                target.sdnext_state_hook = target.register_forward_pre_hook(_pre_transformer_hook, with_kwargs=True)
 
     for name in ('text_encoder', 'text_encoder_2'):
         module = getattr(pipe, name, None)

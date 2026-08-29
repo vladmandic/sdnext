@@ -11,8 +11,9 @@ class GenerationContext:
     step: int = 0 # index of the denoiser forward about to run
     steps: int = 0 # forwards in the current pass
     forwards: int = 0
-    model_key: tuple[str, str | None] | None = None # pipeline class and denoiser class, telemetry only
+    model_key: tuple[str, str | None] | None = None # pipeline class and denoiser class, for telemetry and the sparse exclusion list
     step_buffer: torch.Tensor | None = None # the step as a device scalar updated in place, so compiled readers keep their graph
+    layout: object | None = None # TokenLayout published by whoever knows the packing, None until something does
 
 
 current = GenerationContext()
@@ -26,11 +27,36 @@ def denoiser_name(pipe) -> str | None:
     return None
 
 
+# every slot a pipeline can enter once per denoising step, from sd_offload_state.group_offload_main. The aux
+# components on that list (decoder, controlnet, prior) are left alone: they pack no attention sequence, and a
+# publication from one would clear the layout the denoiser just set
+DENOISER_SLOTS = ('transformer', 'unet', 'transformer_2', 'transformer_ref', 'unconditional_transformer')
+
+
+def install_layout_hook(pipe) -> None:
+    """Let a classic pipeline's denoiser publish its own packing: the modular path has its own hook, this is the rest."""
+    from modules import shared
+    if pipe is None or not getattr(shared.opts, 'sparse_attention_enabled', False):
+        return
+    from modules.attention.sparse import layout as sparse_layout
+
+    def publish(denoiser, args, kwargs): # pylint: disable=unused-argument
+        set_layout(sparse_layout.layout_from_kwargs(kwargs, denoiser.__class__.__name__))
+
+    for name in DENOISER_SLOTS:
+        module = getattr(pipe, name, None)
+        if module is None or getattr(module, 'sdnext_layout_hook', None) is not None or getattr(module, 'sdnext_state_hook', None) is not None:
+            continue
+        module.sdnext_layout_hook = module.register_forward_pre_hook(publish, with_kwargs=True)
+
+
 def begin(pipe, steps: int = 0) -> None:
     from modules import devices
     current.active = True
     current.role = 'transformer'
+    current.layout = None
     current.model_key = (pipe.__class__.__name__, denoiser_name(pipe)) if pipe is not None else None
+    install_layout_hook(pipe)
     device = devices.device if devices.device is not None else torch.device('cpu')
     if current.step_buffer is None or current.step_buffer.device != device:
         current.step_buffer = torch.zeros((), dtype=torch.int64, device=device)
@@ -56,11 +82,19 @@ def tick(step: int | None = None) -> None:
     current.forwards = current.step + 1
 
 
+def set_layout(layout) -> None:
+    """Publish what the packed sequence holds; callers that know the packing set this per forward."""
+    current.layout = layout
+
+
 def end() -> None:
+    from modules.attention import debug
     current.active = False
     current.role = None
     current.model_key = None
+    current.layout = None
     new_pass(0)
+    debug.end_generation()
 
 
 def set_role(name: str | None) -> None:
