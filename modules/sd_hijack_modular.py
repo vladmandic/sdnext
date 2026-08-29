@@ -19,8 +19,11 @@ def modular_step(state: diffusers.modular_pipelines.modular_pipeline.BlockState)
         shared.state.sampling_steps = state.num_inference_steps
     if 'latents' in keys:
         shared.state.step()
+        # TODO: MiniMax runs AfterDenoise only at the end of the loop and it does latents unpacking
         shared.state.current_latent = state.latents
         lora_stack.on_step(shared.state.sampling_step)
+        if debug:
+            log.trace(f'Modular step: step={shared.state.sampling_step} latent={state.latents.shape}')
     if shared.state.interrupted or shared.state.skipped:
         raise AssertionError('Interrupted...')
     if shared.state.paused:
@@ -60,7 +63,7 @@ def patch_blocks(blocks: diffusers.ModularPipelineBlocks):
                 block_cls._is_patched = True # pylint: disable=protected-access
                 intercepted.add(block_cls)
                 if debug:
-                    log.trace(f'Modular hijack: {block_cls.__name__}')
+                    log.trace(f'Modular hijack: block={block_cls.__name__}')
         for attr in ("sub_blocks", "blocks"): # recurse into child blocks if containers exist
             sub = getattr(current_block, attr, None)
             if isinstance(sub, dict):

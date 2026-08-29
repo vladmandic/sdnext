@@ -27,6 +27,7 @@ TAESD_MODELS = {
     'TAE HunyuanVideo': { 'fn': 'taehv.pth', 'uri': 'https://github.com/madebyollin/taehv/raw/refs/heads/main/taehv.pth', 'model': None },
     'TAE WanVideo': { 'fn': 'taew1.pth', 'uri': 'https://github.com/madebyollin/taehv/raw/refs/heads/main/taew2_1.pth', 'model': None },
     'TAE MochiVideo': { 'fn': 'taem1.pth', 'uri': 'https://github.com/madebyollin/taem1/raw/refs/heads/main/taem1.pth', 'model': None },
+    'TAE MiniMax-H3': { 'fn': 'taeh3.pth', 'uri': 'https://github.com/madebyollin/taehv/raw/refs/heads/main/taeh3.pth', 'model': None },
 }
 CQYAN_MODELS = {
     'Hybrid-Tiny SD': {
@@ -79,6 +80,8 @@ def get_model(model_cls, variant=None):
         variant = 'TAE SD3'
     elif model_cls in {'wanai', 'qwen', 'chrono', 'cosmos', 'anima', 'fibo', 'joy', 'krea2'}:
         variant = 'TAE WanVideo'
+    elif model_cls in {'minimaxh3'}:
+        variant = 'TAE MiniMax-H3'
     else:
         warn_once(f'cls={shared.sd_model.__class__.__name__} type={shared.sd_model_type} unsuppported', variant=variant)
         return model_cls, None
@@ -122,10 +125,7 @@ def load_model(model_type = 'decoder', variant = None, vae_file: str | None = No
             log.print() # new line
             log.debug(f'Decode: type="taesd" variant="{variant}" fn="{fn}" layers={shared.opts.taesd_layers} load')
             vae = None
-            if 'TAE HunyuanVideo' in variant:
-                from modules.taesd.taehv import TAEHV
-                vae = TAEHV(checkpoint_path=fn)
-            elif 'TAE WanVideo' in variant:
+            if ('TAE HunyuanVideo' in variant) or ('TAE WanVideo' in variant) or ('TAE MiniMax-H3' in variant):
                 from modules.taesd.taehv import TAEHV
                 vae = TAEHV(checkpoint_path=fn)
             elif 'TAE MochiVideo' in variant:
@@ -194,7 +194,7 @@ def decode(latents, fast=False):
                 variant = prev_variant
             else:
                 vae, variant = load_model(model_type='decoder')
-                if vae is None or max(latents.shape) > 256: # safety check of large tensors
+                if vae is None or max(latents.shape) > 384: # safety check of large tensors
                     return latents
                 prev_model = vae
                 prev_variant = variant

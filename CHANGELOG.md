@@ -22,6 +22,9 @@
     to reduce memory usage and improve performance on large models  
 - **Internal**
   - modular pipelines intercept and profiling hooks
+  - modular pipelines convert standard model on-demand 
+  - modular pipelines previews
+  - modular pipelines basic guidance
   - attention mechanisms decision tree and apply method refactor
 
 ## Update for 2026-08-26

@@ -3,7 +3,7 @@
 ## Short-term
 
 - MiniMax LoRA: native loader for MiniMax-H3: fl2va, ref2va, pruned, @CalamitousFelicitousness
-- MiniMax TAESD: <https://github.com/madebyollin/taehv>
+- MiniMax TAESD: need to unpack latents, @vladmandic
 - MiniMax: Create pre-quant for MiniMax-H3-Turbo
 - Benchmark tool productize: @CalamitousFelicitousness
 - Inpaint: https://discord.com/channels/1101998836328697867/1130536562422186044/1506850651035144322, @vladmandic

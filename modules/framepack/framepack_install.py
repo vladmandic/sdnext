@@ -16,7 +16,7 @@ def rename(src:str, dst:str):
             raise e
 
 
-def install_requirements(attention:str='SDPA'):
+def install_requirements():
     install('av')
 
 

@@ -63,7 +63,6 @@ def create_ui(prompt, negative, styles, _overrides, script_inputs, mp4_fps, mp4_
                 optimized_prompt = gr.Checkbox(label='FP use optimized system prompt', value=True)
                 use_cfgzero = gr.Checkbox(label='FP enable CFGZero', value=False)
                 use_preview = gr.Checkbox(label='FP enable Preview', value=True)
-                attention = gr.Dropdown(label="FP attention", choices=['Default', 'Xformers', 'FlashAttention', 'SageAttention'], value='Default', type='value')
                 vae_type = gr.Dropdown(label="FP VAE", choices=['Full', 'Tiny', 'Remote'], value='Full', type='value')
 
         with gr.Column(elem_id='framepack-output-column', scale=2) as _column_output:
@@ -88,7 +87,7 @@ def create_ui(prompt, negative, styles, _overrides, script_inputs, mp4_fps, mp4_
     duration.change(fn=change_sections, inputs=[duration, mp4_fps, mp4_interpolate, latent_ws, variant], outputs=[section_html, section_prompt])
     mp4_fps.change(fn=change_sections, inputs=[duration, mp4_fps, mp4_interpolate, latent_ws, variant], outputs=[section_html, section_prompt])
     mp4_interpolate.change(fn=change_sections, inputs=[duration, mp4_fps, mp4_interpolate, latent_ws, variant], outputs=[section_html, section_prompt])
-    btn_load.click(fn=load_model, inputs=[variant, attention], outputs=framepack_outputs)
+    btn_load.click(fn=load_model, inputs=[variant], outputs=framepack_outputs)
     btn_unload.click(fn=unload_model, outputs=framepack_outputs)
     receipe_get.click(fn=framepack_load.get_model, inputs=[], outputs=receipe)
     receipe_set.click(fn=framepack_load.set_model, inputs=[receipe], outputs=[])
@@ -108,7 +107,7 @@ def create_ui(prompt, negative, styles, _overrides, script_inputs, mp4_fps, mp4_
         use_teacache, use_cfgzero, use_preview,
         mp4_fps, mp4_codec, mp4_sf, mp4_video, mp4_frames, mp4_thumb, mp4_opt, mp4_ext, mp4_interpolate,
         mp4_scale, mp4_upscaler,
-        attention, vae_type, variant,
+        vae_type, variant,
         vlm_enhance, vlm_model, vlm_system_prompt,
     ]
 
