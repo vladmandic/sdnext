@@ -248,7 +248,7 @@ def clear():
     state['reported'] = None
 
 
-def register(layer_name, module, kind, scores, segments=None, nets=None, abs_sums=None):
+def register(layer_name, module, kind, scores, segments: tuple[tuple[int, int], tuple[int, int], bool] | None = None, nets=None, abs_sums=None):
     """Record a select-mode layer for schedule finalization.
 
     kind 'factor': segments = ((s0, s1), (t0, t1), transposed) column ranges on the svd
@@ -258,6 +258,8 @@ def register(layer_name, module, kind, scores, segments=None, nets=None, abs_sum
     """
     entry = {'layer': layer_name, 'module': weakref.ref(module), 'kind': kind, 'segments': segments, 'scores': scores, 'nets': nets, 'abs_sums': abs_sums, 'stash': None}
     if kind == 'factor':
+        if segments is None:
+            raise ValueError("segments is required when kind='factor'")
         (s0, s1), (t0, t1), transposed = segments
         up = module.svd_up.data
         entry['stash'] = (segment_view(up, s0, s1, transposed).clone(), segment_view(up, t0, t1, transposed).clone())

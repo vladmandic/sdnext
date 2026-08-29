@@ -33,7 +33,7 @@ def prepare(platform: Platform, original): # pylint: disable=unused-argument
     call.caps = backend.caps if block_mask else frozenset()
     if not block_mask and getattr(shared.opts, 'sparse_attention_enabled', False):
         log.warning('SDNQ attention: the installed sdnq has no block mask input, sparse attention cannot use it; update the sdnq submodule')
-    log.debug(f'Torch attention: type="SDNQ attention" matmul={options["matmul_dtype"]}:{options["pv_matmul_dtype"]} smooth={options["smooth_k"]} hadamard={options["use_hadamard"]} quantize_fp32={options["quantize_fp32"]} fp16_accum={options["use_fp16_accum"]} block_mask={block_mask}')
+    log.debug(f'Attention: type="SDNQ attention" matmul={options["matmul_dtype"]}:{options["pv_matmul_dtype"]} smooth={options["smooth_k"]} hadamard={options["use_hadamard"]} quantize_fp32={options["quantize_fp32"]} fp16_accum={options["use_fp16_accum"]} block_mask={block_mask}')
     return call
 
 

@@ -93,7 +93,7 @@ def sample_value(axis):
     """A value the axis accepts that is not the current one, avoiding backends whose prepare installs a package."""
     if axis.choices is None:
         return int(shared.opts.get(option_of(axis) or 'sparse_attention_budget') or 0) + 5
-    choices = [choice for choice in axis.choices() if choice not in ['Sage attention', 'Flash attention', 'Triton Flash attention']]
+    choices = [choice for choice in axis.choices() if choice not in ['Sage attention', 'Flash attention', 'Triton AMD Flash attention']]
     current = str(shared.opts.get(option_of(axis)) if option_of(axis) else '')
     return next((choice for choice in choices if str(choice) != current), choices[0])
 
@@ -162,32 +162,6 @@ def test_bool_axes_coerce_the_string_the_dropdown_sends():
     return True
 
 
-def test_override_axis_parses_labels():
-    saved = xyz.save_attention()
-    try:
-        xyz.apply_attention_overrides(None, 'None', [])
-        assert shared.opts.data['sdp_overrides'] == [], shared.opts.data['sdp_overrides']
-        xyz.apply_attention_overrides(None, 'Flex attention', [])
-        assert shared.opts.data['sdp_overrides'] == ['Flex attention'], shared.opts.data['sdp_overrides']
-        xyz.apply_attention_overrides(None, 'Flex attention+SDNQ attention', [])
-        assert shared.opts.data['sdp_overrides'] == ['Flex attention', 'SDNQ attention'], shared.opts.data['sdp_overrides']
-    finally:
-        xyz.restore_attention(saved)
-    return True
-
-
-def test_override_axis_rebuilds_the_chain():
-    saved = xyz.save_attention()
-    try:
-        xyz.apply_attention_overrides(None, 'Flex attention', [])
-        assert 'flex' in attention.get_plan().chain(), attention.get_plan().chain()
-        xyz.apply_attention_overrides(None, 'None', [])
-        assert 'flex' not in attention.get_plan().chain(), attention.get_plan().chain()
-    finally:
-        xyz.restore_attention(saved)
-    return True
-
-
 def test_dispatcher_axis_clears_on_none():
     saved = xyz.save_attention()
     try:
@@ -224,8 +198,6 @@ def run_all():
     for fn in [
         test_axes_write_and_restore_exactly,
         test_bool_axes_coerce_the_string_the_dropdown_sends,
-        test_override_axis_parses_labels,
-        test_override_axis_rebuilds_the_chain,
         test_dispatcher_axis_clears_on_none,
         test_restore_set_covers_every_attention_setting,
     ]:

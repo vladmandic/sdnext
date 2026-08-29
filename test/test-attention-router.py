@@ -110,17 +110,17 @@ def run_test(cat: str, fn):
 # devices.set_sdpa_params applied the hijacks in this order; each wrapped the previous, so the
 # last applied was tried first. Dynamic replaced the chain end instead of wrapping it; flex did
 # too, which left everything stacked before it unreachable, so it is an ordinary entry now.
-OLD_ORDER = ['Dynamic attention', 'Flex attention', 'Triton Flash attention', 'Flash attention', 'Sage attention', 'SDNQ attention']
+OLD_ORDER = ['Dynamic attention', 'Flex attention', 'Triton AMD Flash attention', 'Flash attention', 'Sage attention', 'SDNQ attention']
 OLD_TERMINALS = {'Dynamic attention'}
 OLD_NAMES = {
     'Dynamic attention': 'dynamic',
     'Flex attention': 'flex',
-    'Triton Flash attention': 'triton',
+    'Triton AMD Flash attention': 'triton',
     'Flash attention': 'flash',
     'Sage attention': 'sage',
     'SDNQ attention': 'sdnq',
 }
-# mirrors shared_defaults.get_default_modes: five choices everywhere, Triton Flash attention added on rocm and zluda
+# mirrors shared_defaults.get_default_modes: five choices everywhere, Triton AMD Flash attention added on rocm and zluda
 CHOICES = OLD_ORDER
 TRITON_PLATFORMS = {'rocm', 'zluda'}
 
@@ -137,7 +137,7 @@ GATES = {
 def oracle_chain(labels, platform_backend):
     enabled = [label for label in OLD_ORDER if label in labels]
     if platform_backend not in TRITON_PLATFORMS:
-        enabled = [label for label in enabled if label != 'Triton Flash attention']
+        enabled = [label for label in enabled if label != 'Triton AMD Flash attention']
     terminal = None
     entries = []
     for label in enabled:
@@ -465,7 +465,7 @@ def test_attention_slicing_follows_the_choice():
 
     saved = {key: shared.opts.data.get(key, None) for key in ['attention_slicing', 'cross_attention_optimization']}
     try:
-        shared.opts.data['cross_attention_optimization'] = 'Disabled' # the branch under test is the only one that should act
+        shared.opts.data['cross_attention_optimization'] = 'Default' # the branch under test is the only one that should act
         for choice, expected in [('Default', []), ('Enabled', ['enable']), ('Disabled', ['disable'])]:
             shared.opts.data['attention_slicing'] = choice
             pipe = Pipe()
@@ -533,7 +533,7 @@ def test_escape_hatch_bypasses_the_router():
 def test_reapply_options_cover_declared_backend_options():
     from modules import shared
     names = attention.reapply_options()
-    assert names[:2] == ['sdp_options', 'sdp_overrides'], names
+    assert names[:2] == ['sdp_options'], names
     declared = attention.registry.options()
     assert set(declared) <= set(names), (declared, names)
     assert attention.registry.backends['sdnq'].options and set(attention.registry.backends['sdnq'].options) <= set(declared)

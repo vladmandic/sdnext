@@ -21,12 +21,12 @@ def prepare(platform: Platform, original): # pylint: disable=unused-argument
         interface_fa.fwd(query, key, value, out_padded, dropout_p, scale, is_causal)
         return out_padded[..., :head_size_og].transpose(1, 2)
 
-    log.debug('Torch attention: type="Triton Flash attention"')
+    log.debug('Attention: type="Triton AMD Flash attention"')
     return call
 
 
 backend = AttentionBackend(
-    name='triton', label='Triton Flash attention', priority=30, prepare=prepare,
+    name='triton', label='Triton AMD Flash attention', priority=30, prepare=prepare,
     constraints=Constraints(max_head_dim=128, allow_mask=False, same_device=True),
     platforms=frozenset({'rocm', 'zluda'}),
 )

@@ -992,7 +992,7 @@ def print_environment(fp8_result, prep_status, prep_detail, weight_dequant_resul
             lines.append(f"float8_e4m3fn matmul: [red]not supported on this gpu, selecting it fails generation[/red] [dim]({escape(fp8_result['qk'][1])})[/dim]")
         else:
             lines.append(f"float8_e4m3fn matmul: [red]failed to compile in this environment, selecting it fails generation[/red]; the error is not the hardware-capability signature, a torch or triton issue is more likely than the gpu [dim]({escape(fp8_result['qk'][1])})[/dim]")
-    lines.append(f"sdnq attention enabled in current config: {'[green]yes[/green]' if 'SDNQ attention' in shared.opts.sdp_overrides else '[yellow]no, enable via Compute Settings -> SDP overrides (requires restart)[/yellow]'}")
+    lines.append(f"sdnq attention enabled in current config: {'[green]yes[/green]' if 'SDNQ attention' in shared.opts.cross_attention_optimization else '[yellow]no, enable via Compute Settings -> Cross Attention (requires restart)[/yellow]'}")
     if prep_status == "disabled":
         lines.append("compiled input prep: torch.compile disabled in config, input prep runs eager")
     elif prep_status == "working":
@@ -2849,7 +2849,7 @@ def bench_block_geometry(iters, warmup, config_timeout=300, selected=None):
     weights_mode = str(getattr(shared.opts, "sdnq_quantize_weights_mode", ""))
     current_id = None
     if weights_mode == "int8" and getattr(shared.opts, "sdnq_quantize_matmul_mode", "disabled") != "disabled":
-        current_id = "int8-mm-atten" if "SDNQ attention" in shared.opts.sdp_overrides else "int8-mm"
+        current_id = "int8-mm-atten" if "SDNQ attention" in shared.opts.cross_attention_optimization else "int8-mm"
     if current_id and results.get(current_id, {}).get("ms"):
         notes.append(f"current config runs the {results[current_id]['label']} row for int8-quantized models")
     if any(entry.get("ms") for config_id, entry in results.items() if config_id.endswith("sagefp16")):

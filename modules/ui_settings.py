@@ -268,7 +268,7 @@ def create_ui(disabled_tabs=None):
                         item for item in shared.opts.data_labels.items()
                         if item[1].section is not None and item[1].section[0] == section_id
                     ] # find all items in this section
-                    hidden = section_id is None or 'hidden' in section_id.lower() or 'hidden' in section_text.lower()
+                    hidden = (section_id is None) or ('hidden' in section_id.lower()) or ('hidden' in section_text.lower()) or ('legacy' in section_id.lower()) or ('legacy' in section_text.lower())
                     # log.trace(f'Settings: section="{section_id}" title="{section_text}" items={len(items)} hidden={hidden}')
                     if hidden:
                         for (key, _item) in items:
@@ -282,7 +282,7 @@ def create_ui(disabled_tabs=None):
                                     quicksettings_list.append((key, item))
                                     components.append(dummy_component)
                                 else:
-                                    with gr.Row(elem_id=f"settings_section_row_{section_id}", elem_classes=["settings_section"]): # only so we can add dirty indicator at the start of the row
+                                    with gr.Row(elem_id=f"settings_section_row_{section_id}", elem_classes=["settings_section"]):
                                         component = create_setting_component(key)
                                         shared.settings_components[key] = component
                                         current_items.append(key)

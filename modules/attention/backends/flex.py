@@ -35,7 +35,7 @@ def prepare(platform: Platform, original): # pylint: disable=unused-argument
             block_mask = create_block_mask(causal_mask, query.shape[0], query.shape[1], query.shape[-2], key.shape[-2], device=query.device)
         return flex_attention(query, key, value, score_mod=score_mod, block_mask=block_mask, scale=scale, enable_gqa=enable_gqa)
 
-    log.debug('Torch attention: type="Flex attention"')
+    log.debug('Attention: type="Flex attention"')
     return call
 
 

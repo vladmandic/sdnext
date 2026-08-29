@@ -44,20 +44,15 @@ def get_default_modes(cmd_opts, mem_stat):
     default_sdp_choices = ['Flash', 'Memory', 'Math']
     default_sdp_options = ['Flash', 'Memory', 'Math']
 
-    default_sdp_override_choices = ['Dynamic attention', 'Flex attention', 'Flash attention', 'Sage attention', 'SDNQ attention']
-    default_sdp_override_options = []
-
     if devices.backend == "zluda":
         default_sdp_options = ['Math']
-        default_sdp_override_options = ['Dynamic attention']
-        default_sdp_override_choices.append('Triton Flash attention')
+        default_cross_attention = ['Dynamic attention']
     elif devices.backend == "rocm":
-        default_sdp_override_choices.append('Triton Flash attention')
         agent = devices.get_hip_agent()
         if agent.gfx_version < 0x1100:
-            default_sdp_override_options = ['Dynamic attention'] # only RDNA2 and older GPUs needs this
+            default_cross_attention = ['Dynamic attention'] # only RDNA2 and older GPUs needs this
     elif devices.backend in {"cpu", "mps"}:
-        default_sdp_override_options = ['Dynamic attention']
+        default_cross_attention = ['Dynamic attention']
 
     if devices.get_optimal_device_name() != "cpu":
         os.environ.setdefault('SDNQ_USE_OPENVINO_MM', '0') # TODO sdnq openvino: this is too late as sdnq already initialized it
@@ -69,8 +64,6 @@ def get_default_modes(cmd_opts, mem_stat):
         default_cross_attention,
         default_sdp_options,
         default_sdp_choices,
-        default_sdp_override_options,
-        default_sdp_override_choices,
         default_diffusers_offload_always,
         default_diffusers_offload_never,
     )

@@ -63,7 +63,7 @@ def create_settings(cmd_opts):
 
     # Calculate default modes
     mem_stat = memory_stats()
-    startup_offload_mode, startup_offload_min_gpu, startup_offload_max_gpu, startup_cross_attention, startup_sdp_options, startup_sdp_choices, startup_sdp_override_options, startup_sdp_override_choices, startup_offload_always, startup_offload_never = get_default_modes(cmd_opts=cmd_opts, mem_stat=mem_stat)
+    startup_offload_mode, startup_offload_min_gpu, startup_offload_max_gpu, startup_cross_attention, startup_sdp_options, startup_sdp_choices, startup_offload_always, startup_offload_never = get_default_modes(cmd_opts=cmd_opts, mem_stat=mem_stat)
 
     # System variables
     gpu_memory = round(mem_stat['gpu']['total'] if "gpu" in mem_stat else 0)
@@ -155,7 +155,7 @@ def create_settings(cmd_opts):
         "group_offload_type": OptionInfo("leaf_level", "Group offload type", gr.Radio, {"choices": ['leaf_level', 'block_level']}),
         "group_offload_stream": OptionInfo(False, "Prefetch with streams", gr.Checkbox),
         'group_offload_record': OptionInfo(False, "Overlap stream transfers", gr.Checkbox),
-        'group_offload_pin': OptionInfo(True, "Pin offload memory", gr.Checkbox),
+        'group_offload_pin': OptionInfo(False, "Pin offload memory", gr.Checkbox),
         'group_offload_blocks': OptionInfo(1, "Group offload blocks", gr.Number),
         "caption_offload_sep": OptionInfo("<h2>Caption Model Offloading</h2>", "", gr.HTML),
         "caption_offload": OptionInfo(True, "Offload caption models"),
@@ -206,6 +206,7 @@ def create_settings(cmd_opts):
         "trt_quantization": OptionInfo([], "Quantization enabled", gr.CheckboxGroup, {"choices": ["Model"]}),
         "trt_quantization_type": OptionInfo("int8", "Quantization type", gr.Dropdown, {"choices": ["int8", "int4", "fp8", "nf4", "nvfp4"]}),
     }))
+
     # --- VAE & Text Encoder ---
     options_templates.update(options_section(('vae_encoder', "Variational Auto Encoder"), {
         "sd_vae": OptionInfo("Automatic", "VAE model", gr.Dropdown, lambda: {"choices": shared_items.sd_vae_items()}, refresh=shared_items.refresh_vae_list),
@@ -234,24 +235,17 @@ def create_settings(cmd_opts):
     }))
 
     # --- Compute Settings ---
-    options_templates.update(options_section(('cuda', "Compute Settings"), {
-        "math_sep": OptionInfo("<h2>Execution Precision</h2>", "", gr.HTML),
-        "precision": OptionInfo("Autocast", "Precision type", gr.Radio, {"choices": ["Autocast", "Full"], "visible": False}),
-        "cuda_dtype": OptionInfo("Auto", "Device precision type", gr.Radio, {"choices": ["Auto", "FP32", "FP16", "BF16"]}),
-        "force_dtype": OptionInfo(False, "Force dtype on load", None, None, None),
-        "no_half": OptionInfo(False, "Force full precision (--no-half)", None, None, None),
-        "upcast_sampling": OptionInfo(False if sys.platform != "darwin" else True, "Upcast sampling", gr.Checkbox, {"visible": False}),
-
-        "generator_sep": OptionInfo("<h2>Noise Options</h2>", "", gr.HTML),
-        "diffusers_generator_device": OptionInfo("GPU", "Generator device", gr.Radio, {"choices": ["GPU", "CPU", "Unset"]}),
-
-        "cross_attention_sep": OptionInfo("<h2>Cross Attention</h2>", "", gr.HTML),
+    options_templates.update(options_section(('cuda', "Cross Attention"), {
         "cross_attention_optimization": OptionInfo(startup_cross_attention, "Attention method", gr.Radio, lambda: {"choices": shared_items.list_crossattention()}),
-        "sdp_options": OptionInfo(startup_sdp_options, "SDP kernels", gr.CheckboxGroup, {"choices": startup_sdp_choices}),
-        "sdp_overrides": OptionInfo(startup_sdp_override_options, "SDP overrides", gr.CheckboxGroup, {"choices": startup_sdp_override_choices}),
+        # "sdp_overrides": OptionInfo(startup_sdp_override_options, "SDP overrides", gr.CheckboxGroup, {"choices": startup_sdp_override_choices}),
+
+        "attention_slicing_sep": OptionInfo("<h2>Attention Slicing</h2>", "", gr.HTML),
         "attention_slicing": OptionInfo('Default', "Attention slicing", gr.Radio, {"choices": ['Default', 'Enabled', 'Disabled']}),
         "dynamic_attention_slice_rate": OptionInfo(0.5, "Dynamic Attention slicing rate", gr.Slider, {"minimum": 0.01, "maximum": max(gpu_memory,4), "step": 0.01}),
         "dynamic_attention_trigger_rate": OptionInfo(1, "Dynamic Attention trigger rate", gr.Slider, {"minimum": 0.01, "maximum": max(gpu_memory,4)*2, "step": 0.01}),
+
+        "sdp_attention_sep": OptionInfo("<h2>SDP Attention</h2>", "", gr.HTML),
+        "sdp_options": OptionInfo(startup_sdp_options, "SDP kernels", gr.CheckboxGroup, {"choices": startup_sdp_choices}),
 
         "sdnq_attention_sep": OptionInfo("<h2>SDNQ Attention</h2>", "", gr.HTML),
         "sdnq_attention_smooth_k": OptionInfo(True, "SDNQ Attention use Smooth K", gr.Checkbox),
@@ -275,16 +269,18 @@ def create_settings(cmd_opts):
         "hf_attention": OptionInfo('', "Attention dispatcher kernel", gr.Textbox),
     }))
 
-    # --- Server Settings ---
-    options_templates.update(options_section(('server', "Server Settings"), {
-        "server_listen": OptionInfo(False, "Listen on all interfaces", gr.Checkbox),
-        "server_status": OptionInfo(120, "Automatic server status monitor rate", gr.Number, {"minimum": 0, "maximum": 1000, "step": 1}),
-        "server_monitor": OptionInfo(0, "Automatic server memory monitor rate", gr.Number, {"minimum": 0, "maximum": 1000, "step": 1}),
-        "server_rate_limit": OptionInfo(300, "API base rate limit rate", gr.Number, {"minimum": 0, "maximum": 1000, "step": 1}),
-    }))
-
     # --- Backend Settings ---
-    options_templates.update(options_section(('backends', "Backend Settings"), {
+    options_templates.update(options_section(('backends', "Compute Settings"), {
+        "math_sep": OptionInfo("<h2>Execution Precision</h2>", "", gr.HTML),
+        "precision": OptionInfo("Autocast", "Precision type", gr.Radio, {"choices": ["Autocast", "Full"], "visible": False}),
+        "cuda_dtype": OptionInfo("Auto", "Device precision type", gr.Radio, {"choices": ["Auto", "FP32", "FP16", "BF16"]}),
+        "force_dtype": OptionInfo(False, "Force dtype on load", None, None, None),
+        "no_half": OptionInfo(False, "Force full precision (--no-half)", None, None, None),
+        "upcast_sampling": OptionInfo(False if sys.platform != "darwin" else True, "Upcast sampling", gr.Checkbox, {"visible": False}),
+
+        "generator_sep": OptionInfo("<h2>Noise Options</h2>", "", gr.HTML),
+        "diffusers_generator_device": OptionInfo("GPU", "Generator device", gr.Radio, {"choices": ["GPU", "CPU", "Unset"]}),
+
         "other_sep": OptionInfo("<h2>Torch Options</h2>", "", gr.HTML),
         "opt_channelslast": OptionInfo(False, "Channels last "),
         "cudnn_deterministic": OptionInfo(False, "Deterministic mode"),
@@ -305,7 +301,7 @@ def create_settings(cmd_opts):
         "onnx_execution_provider": OptionInfo(default_onnx_execution_provider, 'ONNX Execution Provider', gr.Dropdown, lambda: {"choices": default_onnx_execution_providers}),
         "onnx_cpu_fallback": OptionInfo(True, 'ONNX allow fallback to CPU'),
         "onnx_cache_converted": OptionInfo(True, 'ONNX cache converted models'),
-        "onnx_unload_base": OptionInfo(False, 'ONNX unload base model when processing refiner'),
+        "onnx_unload_base": OptionInfo(False, 'ONNX unload base model when processing refiner', gr.Checkbox, {"visible": False}),
 
         "olive_sep": OptionInfo("<h2>Olive</h2>", "", gr.HTML),
         "olive_float16": OptionInfo(True, 'Olive use FP16 on optimization'),
@@ -324,8 +320,8 @@ def create_settings(cmd_opts):
         "openvino_disable_memory_cleanup": OptionInfo(True, "OpenVINO disable memory cleanup", gr.Checkbox, {"visible": cmd_opts.use_openvino}),
     }))
 
-    # --- Pipeline Modifiers ---
-    options_templates.update(options_section(('advanced', "Pipeline Modifiers"), {
+    # --- Compute Add-ons ---
+    options_templates.update(options_section(('advanced', "Compute Add-ons"), {
         "clip_skip_sep": OptionInfo("<h2>CLiP Skip</h2>", "", gr.HTML),
         "clip_skip_enabled": OptionInfo(False, "CLiP skip enabled"),
 
@@ -428,6 +424,14 @@ def create_settings(cmd_opts):
         "pruna_compilers": OptionInfo([], "Pruna compilers", gr.CheckboxGroup, {"choices": ["stable_fast", "x_fast", "torch_compile"]}),
         "pruna_factorizers": OptionInfo([], "Pruna factorizers", gr.CheckboxGroup, {"choices": ["qkv_diffusers"]}),
         "pruna_pruners": OptionInfo([], "Pruna pruners", gr.CheckboxGroup, {"choices": ["kvpress", "padding_pruning", "token_merging", "torch_structured", "torch_unstructured"]}),
+    }))
+
+    # --- Server Settings ---
+    options_templates.update(options_section(('server', "Server Settings"), {
+        "server_listen": OptionInfo(False, "Listen on all interfaces", gr.Checkbox),
+        "server_status": OptionInfo(120, "Automatic server status monitor rate", gr.Number, {"minimum": 0, "maximum": 1000, "step": 1}),
+        "server_monitor": OptionInfo(0, "Automatic server memory monitor rate", gr.Number, {"minimum": 0, "maximum": 1000, "step": 1}),
+        "server_rate_limit": OptionInfo(300, "API base rate limit rate", gr.Number, {"minimum": 0, "maximum": 1000, "step": 1}),
     }))
 
     # --- System Paths ---

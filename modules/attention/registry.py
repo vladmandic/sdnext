@@ -57,7 +57,7 @@ class Constraints:
 class AttentionBackend:
     """One attention implementation: how to prepare it once and which calls it serves."""
     name: str
-    label: str # the sdp_overrides choice that enables it
+    label: str # the cross_attention_optimization choice that enables it
     priority: int # higher priority entries are tried first
     prepare: Callable[[Platform, AttentionCall], AttentionCall | None] # imports and configures the implementation, returns its call or None
     constraints: Constraints = field(default_factory=Constraints)

@@ -2,8 +2,6 @@
 
 ## Short-term
 
-- LoRA: merge new handler, @CalamitousFelicitousness
-- Attn: merge refactor, @CalamitousFelicitousness
 - MiniMax LoRA: native loader for MiniMax-H3: fl2va, ref2va, pruned
 - MiniMax TAESD: <https://github.com/madebyollin/taehv>
 - MiniMax: Create pre-quant for MiniMax-H3-Turbo

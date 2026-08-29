@@ -87,13 +87,6 @@ def attention_options() -> list:
     return ['cross_attention_optimization', 'hf_attention', *attention.reapply_options()]
 
 
-def list_sdp_overrides() -> list:
-    item = shared.opts.data_labels.get('sdp_overrides', None)
-    args = item.component_args if item is not None else None
-    args = args() if callable(args) else args
-    return ['None'] + list((args or {}).get('choices', None) or [])
-
-
 def apply_attention(field):
     def fun(p, x, xs):
         from modules import attention
@@ -104,17 +97,6 @@ def apply_attention(field):
         if owner is not None and plan is not None and owner.name not in plan.chain():
             log.warning(f'XYZ grid apply attention: {field} is read by "{owner.label}" which is not in the active chain={plan.chain()}')
     return fun
-
-
-def apply_attention_overrides(p, x, xs):
-    from modules import attention
-    labels = [label.strip() for label in str(x).split('+') if len(label.strip()) > 0 and label.strip().lower() != 'none']
-    unknown = [label for label in labels if attention.registry.by_label(label) is None]
-    if len(unknown) > 0:
-        log.warning(f'XYZ grid apply attention: unknown overrides={unknown} available={attention.registry.labels()}')
-    shared.opts.data['sdp_overrides'] = labels
-    attention.reapply()
-    log.debug(f'XYZ grid apply attention: overrides={labels}')
 
 
 def apply_attention_dispatcher(p, x, xs):

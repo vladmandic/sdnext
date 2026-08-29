@@ -139,11 +139,16 @@ def refresh_te_list():
 
 def list_crossattention():
     return [
-        "Disabled",
-        "Scaled-Dot-Product",
-        "xFormers",
+        'Default',
+        'Scaled-Dot-Product',
+        'SDNQ attention',
+        'xFormers',
+        'Flex attention',
+        'Flash attention',
+        'Sage attention',
+        'Dynamic attention',
+        'Triton AMD Flash attention'
     ]
-
 
 def get_pipelines():
     from modules.logger import log

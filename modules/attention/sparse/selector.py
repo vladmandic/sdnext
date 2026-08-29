@@ -27,7 +27,8 @@ class BlockSelection:
 
     @property
     def shape(self) -> tuple[int, int, int, int]:
-        return tuple(self.keep.shape)
+        b, h, nq, nk = self.keep.shape
+        return (b, h, nq, nk)
 
     def density(self) -> float:
         """Fraction of tiles kept. Reads back from the accelerator, so this is for reporting and tests, never the hot path."""

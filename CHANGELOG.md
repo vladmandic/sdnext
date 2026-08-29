@@ -1,19 +1,24 @@
 # Change Log for SD.Next
 
-## Update for 2026-08-28
+## Update for 2026-08-29
 
 - **LoRA**
+  - *TODO*: see [LoRA docs](https://vladmandic.github.io/sdnext-docs/LoRA) for all of the improvements and usage instructions  
+    *note*: lora now has its own settings section in *settings -> lora*
   - new apply engine that allows lora to be applied much faster
   - new calibration engine that allows lora to be applied with far smaller error when dealing with highly quantized models
-  - *TODO*: see [LoRA docs](https://vladmandic.github.io/sdnext-docs/LoRA) for details and usage instructions
   - *note*: calibration data is stored once calculated so it can be reused for future runs  
     location is `models/calibration` folder  
   - new factor cache that allows lora effects to be pre-calculated and persistently cached for future runs  
     location is `models/lora-factor-cache` folder  
+  - multi-network stack modes  
+    can significantly improve lora quality when using multiple loras at once  
+  - per-block strength
 - **Attention**
+  - *TODO*: see [Attention docs](https://vladmandic.github.io/sdnext-docs/Attention) for details and usage instructions  
+    *note*: attention now has its own settings section in *settings -> cross attention*  
   - new `sparse-attention` method that can be combined with other attention methods  
     to reduce memory usage and improve performance on large models  
-    *TODO*: see [Attention docs](https://vladmandic.github.io/sdnext-docs/Attention) for details and usage instructions  
 - **Internal**
   - modular pipelines intercept and profiling hooks
   - attention mechanisms decision tree and apply method refactor
@@ -1918,7 +1923,7 @@ And check out new **history** tab in the right panel, it now shows visualization
     *note*: this does not impact the actual image resolution, only the resolution at which detailer internally operates  
   - refactor reuse-seed and add functionality to all tabs  
   - refactor modernui js codebase  
-  - move zluda flash attenion to *Triton Flash attention* option  
+  - move zluda flash attenion to *Triton AMD Flash attention* option  
   - remove samplers filtering  
   - allow both flow-matching and discrete samplers for sdxl models  
   - cleanup command line parameters  

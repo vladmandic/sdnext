@@ -5,13 +5,17 @@ from modules.attention.registry import AttentionBackend, Constraints, Platform
 
 
 def prepare(platform: Platform, original): # pylint: disable=unused-argument
+    try:
+        import flash_attn # pylint: disable=unused-import
+    except ImportError:
+        log.warning('Attention: type="Flash attention" not installed: starting build, this may take a while...')
     if platform.backend == 'rocm':
         if not installed('flash-attn'):
-            log.info('Torch attention: type="Flash attention" building...')
+            log.info('Attention: type="Flash attention" building...')
             agent = rocm.Agent(platform.device)
             install(rocm.get_flash_attention_command(agent), reinstall=True)
     else:
-        install('flash-attn')
+        install('--no-build-isolation flash-attn')
     from flash_attn import flash_attn_func
 
     def call(query, key, value, attn_mask, dropout_p, is_causal, scale, enable_gqa): # pylint: disable=unused-argument
@@ -34,7 +38,7 @@ def prepare(platform: Platform, original): # pylint: disable=unused-argument
             attn_output = attn_output.squeeze(0)
         return attn_output
 
-    log.debug('Torch attention: type="Flash attention"')
+    log.debug('Attention: type="Flash attention"')
     return call
 
 

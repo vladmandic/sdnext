@@ -57,6 +57,7 @@ args = Dot({
     'use_ipex': False,
     'use_cuda': False,
     'use_rocm': False,
+    'use_openvino': False,
     'experimental': False,
     'test': False,
     'tls_selfsign': False,
@@ -555,6 +556,8 @@ def check_python(supported_minors=None, experimental_minors=None, reason=None):
 def register_sdnq():
     t_start = time.time()
     os.environ.setdefault('SDNQ_LOGGER_NAME', 'sd')
+    if not args.use_openvino:
+        os.environ.setdefault('SDNQ_USE_OPENVINO_MM', '0')
     fn = os.path.join('extensions-builtin', 'sdnq', 'src', 'sdnq', '__init__.py')
     name = "sdnq"
     spec = importlib.util.spec_from_file_location(name, fn)

@@ -3,32 +3,52 @@ from modules.logger import log
 from installer import install, torch_info
 
 
-def set_diffusers_attention(pipe, quiet = False):
-    from modules import shared, devices
-
-    log.quiet(quiet, f'Setting model: attention="{shared.opts.cross_attention_optimization}"')
-    if shared.opts.cross_attention_optimization == "Disabled":
-        torch_info.set(attention="disabled")
-    elif shared.opts.cross_attention_optimization == "Scaled-Dot-Product":  # The default set by Diffusers
-        devices.set_sdpa_params()
-    elif shared.opts.cross_attention_optimization == "xFormers":
-        if hasattr(pipe, 'enable_xformers_memory_efficient_attention'):
-            torch_info.set(attention="xformers")
-            pipe.enable_xformers_memory_efficient_attention()
-        else:
-            log.warning(f"Attention: xFormers is not compatible with {pipe.__class__.__name__}")
+def set_xformers_attention(pipe):
+    try:
+        # install('xformers')
+        import xformers
+        log.debug(f'Attention: xFormers={xformers.__version__}')
+        import diffusers.utils.import_utils
+        diffusers.utils.import_utils._xformers_available = True # pylint: disable=protected-access
+        diffusers.utils.import_utils._xformers_version = xformers.__version__ # pylint: disable=protected-access
+        import diffusers.models.attention_processor
+        import importlib
+        importlib.reload(diffusers.models.attention_processor)
+        # diffusers.models.attention_processor.xformers = xformers
+    except Exception as e:
+        log.error(f'Attention: xFormers {e}')
+        return
+    if hasattr(pipe, 'enable_xformers_memory_efficient_attention'):
+        torch_info.set(attention="xformers")
+        pipe.enable_xformers_memory_efficient_attention()
     else:
-        log.warning(f'Torch attention: method="{shared.opts.cross_attention_optimization}" unknown, pipe={pipe.__class__.__name__} keeps its own attention processor')
+        log.warning(f"Attention: xFormers is not compatible with {pipe.__class__.__name__}")
+
+
+def set_diffusers_attention(pipe, quiet = False):
+    from modules import shared, attention
+    log.quiet(quiet, f'Setting model: attention="{shared.opts.cross_attention_optimization}"')
+
+    attention.reapply()
+    plan = attention.get_plan()
+    if plan is not None and (plan.entries or plan.terminal):
+        pass # already set by router
+    elif shared.opts.cross_attention_optimization == "Scaled-Dot-Product":  # The default set by Diffusers
+        pass # attention.reapply already called devices.set_sdpa_params
+    elif shared.opts.cross_attention_optimization == "xFormers":
+        set_xformers_attention(pipe)
+    elif shared.opts.cross_attention_optimization == "Disabled" or shared.opts.cross_attention_optimization == "Default":
+        torch_info.set(attention="default")
+    else:
+        log.warning(f'Attention: cls={pipe.__class__.__name__} method="{shared.opts.cross_attention_optimization}" not applied')
 
     if shared.opts.attention_slicing != "Default" and hasattr(pipe, "enable_attention_slicing") and hasattr(pipe, "disable_attention_slicing"):
         if shared.opts.attention_slicing == "Enabled":
             pipe.enable_attention_slicing()
         else:
             pipe.disable_attention_slicing()
-        log.debug(f"Torch attention: slicing={shared.opts.attention_slicing}")
-
+        log.debug(f"Attention: slicing={shared.opts.attention_slicing}")
     pipe.current_attn_name = shared.opts.cross_attention_optimization
-    pipe.current_attn_overrides = list(shared.opts.sdp_overrides)
 
 
 orig_get_kernel = None

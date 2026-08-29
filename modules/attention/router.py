@@ -42,12 +42,12 @@ def build_plan(labels, platform: Platform, original: AttentionCall, reg: Registr
         if backend.label not in labels:
             continue
         if not backend.available_on(platform):
-            log.warning(f'Torch attention: type="{backend.label}" not available on backend={platform.backend}')
+            log.warning(f'Attention: type="{backend.label}" not available on backend={platform.backend}')
             continue
         try:
             call = backend.prepare(platform, original)
         except Exception as err:
-            log.error(f'Torch attention: type="{backend.label}" {err}')
+            log.error(f'Attention: type="{backend.label}" {err}')
             continue
         if call is None:
             continue
@@ -100,7 +100,7 @@ def install_router(labels, platform: Platform, original: AttentionCall, reg: Reg
     torch.nn.functional.scaled_dot_product_attention = make_router(plan, observer, stage) if (plan.entries or plan.terminal is not None) else original
     current_plan = plan
     torch_info.set(attention='>'.join(plan.chain()))
-    log.debug(f'Torch attention: chain={">".join(plan.chain())} overrides={list(labels)} backend={platform.backend} sparse={stage is not None}')
+    log.debug(f'Attention: chain={">".join(plan.chain())} backend={platform.backend} sparse={stage is not None}')
     return plan
 
 
@@ -116,7 +116,7 @@ def build_sparse_stage(plan: Plan):
     capable = [entry.backend.name for entry in plan.entries if 'block_mask' in entry.caps]
     if not capable:
         names = [backend.label for backend in default_registry.with_cap('block_mask')]
-        log.warning(f'Sparse attention: enabled but no active backend consumes a block mask, enable one of {names} in sdp overrides; attention stays dense')
+        log.warning(f'Attention: sparse=True compatible={names} not set')
         return None
     built = sparse_stage.make_stage(options)
     if built is not None:
@@ -132,7 +132,7 @@ def reapply_options(reg: Registry | None = None) -> list[str]:
     """Settings whose change rebuilds the chain: the override set, the torch kernel flags, every option a backend captures, and the sparse stage."""
     from modules.attention.sparse import stage as sparse_stage
     reg = reg if reg is not None else default_registry
-    return ['sdp_options', 'sdp_overrides', *reg.options(), *sparse_stage.OPTION_NAMES]
+    return ['sdp_options', 'cross_attention_optimization', *reg.options(), *sparse_stage.OPTION_NAMES]
 
 
 def reapply() -> None:
@@ -142,7 +142,7 @@ def reapply() -> None:
     compiled = getattr(shared, 'compiled_model_state', None)
     if compiled is not None and getattr(compiled, 'is_compiled', False):
         torch._dynamo.reset() # pylint: disable=protected-access
-        log.debug('Torch attention: dynamo reset, compiled model resident')
+        log.debug('Attention: dynamo reset, compiled model resident')
 
 
 def report() -> dict:

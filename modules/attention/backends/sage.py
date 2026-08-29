@@ -1,11 +1,13 @@
 import torch
-from installer import install
+from installer import install, installed
 from modules.logger import log
 from modules.attention.registry import AttentionBackend, Constraints, Platform
 
 
 def prepare(platform: Platform, original): # pylint: disable=unused-argument
-    install('sageattention')
+    if not installed('sageattention'):
+        log.warning('Attention: type="Sage attention" not installed: starting build, this may take a while...')
+        install('--no-build-isolation git+http://github.com/thu-ml/SageAttention.git', 'sageattention')
 
     use_cuda_backend = False
     if platform.backend == 'cuda' and torch.cuda.get_device_capability(platform.device) == (8, 6):
@@ -43,7 +45,7 @@ def prepare(platform: Platform, original): # pylint: disable=unused-argument
             value = value.repeat_interleave(query.size(-3)//value.size(-3), -3)
         return sage_attn_impl(query, key, value, is_causal, scale)
 
-    log.debug(f'Torch attention: type="Sage attention" backend={"cuda" if use_cuda_backend else "auto"}')
+    log.debug(f'Attention: type="Sage attention" backend={"cuda" if use_cuda_backend else "auto"}')
     return call
 
 

@@ -493,17 +493,45 @@ def override_ipex_math():
             log.warning(f'Torch ipex: {e}')
 
 
+def report_attention():
+    from importlib.metadata import version
+    try:
+        flash = version('flash-attn')
+    except Exception:
+        flash = False
+    try:
+        sage = version('sageattention')
+    except Exception:
+        sage = False
+    try:
+        xformers = version('xformers')
+    except Exception:
+        xformers = False
+    try:
+        kernels = version('kernels')
+    except Exception:
+        kernels = False
+    from diffusers.models import attention_dispatch as a
+    try:
+        import sdnq
+        sdnq_ver = sdnq.__version__
+    except Exception:
+        sdnq_ver = False
+    # log.debug(f'Attention available: flash={a._CAN_USE_FLASH_ATTN} flash3={a._CAN_USE_FLASH_ATTN_3} sage={a._CAN_USE_SAGE_ATTN} flex={a._CAN_USE_FLEX_ATTN} npu={a._CAN_USE_NPU_ATTN} xla={a._CAN_USE_XLA_ATTN} xformers={a._CAN_USE_XFORMERS_ATTN} kernels={a.is_kernels_available()} sdnq=True') # pylint: disable=protected-access
+    log.debug(f'Attention available: sdnq={sdnq_ver} flash={flash} sage={sage} flex={a._CAN_USE_FLEX_ATTN} xformers={xformers} npu={a._CAN_USE_NPU_ATTN} xla={a._CAN_USE_XLA_ATTN} kernels={kernels}') # pylint: disable=protected-access
+
+
 def set_sdpa_params():
     try:
+        global sdpa_original # pylint: disable=global-statement
+        report = sdpa_original is None
         try:
-            global sdpa_original # pylint: disable=global-statement
             if sdpa_original is not None:
                 torch.nn.functional.scaled_dot_product_attention = sdpa_original
             else:
                 sdpa_original = torch.nn.functional.scaled_dot_product_attention
         except Exception as err:
-            log.warning(f'Torch attention: type="sdpa" {err}')
-
+            log.warning(f'Attention: type="sdpa" {err}')
         try:
             torch.backends.cuda.enable_flash_sdp('Flash' in opts.sdp_options or 'Flash attention' in opts.sdp_options)
             torch.backends.cuda.enable_mem_efficient_sdp('Memory' in opts.sdp_options or 'Memory attention' in opts.sdp_options)
@@ -511,27 +539,12 @@ def set_sdpa_params():
             if hasattr(torch.backends.cuda, "allow_fp16_bf16_reduction_math_sdp"): # only valid for torch >= 2.5
                 torch.backends.cuda.allow_fp16_bf16_reduction_math_sdp(True)
             torch_info.set(attention="sdpa")
-            log.debug(f'Torch attention: type="sdpa" kernels={opts.sdp_options} overrides={opts.sdp_overrides}')
+            log.debug(f'Attention: type="sdpa" kernels={opts.sdp_options}')
         except Exception as err:
-            log.warning(f'Torch attention: type="sdpa" {err}')
-
-        attention.install_router(opts.sdp_overrides, attention.Platform(backend=backend, device=device), sdpa_original)
-
-        from importlib.metadata import version
-        try:
-            flash = version('flash-attn')
-        except Exception:
-            flash = False
-        try:
-            sage = version('sageattention')
-        except Exception:
-            sage = False
-        if flash or sage:
-            log.debug(f'Torch attention installed: flashattn={flash} sageattention={sage}')
-
-        from diffusers.models import attention_dispatch as a
-        log.debug(f'Torch attention available: flash={a._CAN_USE_FLASH_ATTN} flash3={a._CAN_USE_FLASH_ATTN_3} sage={a._CAN_USE_SAGE_ATTN} flex={a._CAN_USE_FLEX_ATTN} npu={a._CAN_USE_NPU_ATTN} xla={a._CAN_USE_XLA_ATTN} xformers={a._CAN_USE_XFORMERS_ATTN} kernels={a.is_kernels_available()} sdnq=True') # pylint: disable=protected-access
-
+            log.warning(f'Attention: type="sdpa" {err}')
+        attention.install_router([opts.cross_attention_optimization], attention.Platform(backend=backend, device=device), sdpa_original)
+        if report:
+            report_attention()
     except Exception as e:
         log.warning(f'Torch SDPA: {e}')
 
