@@ -469,9 +469,11 @@ def process_decode(p: processing.StableDiffusionProcessing, output):
         if not hasattr(output, 'images') and hasattr(output, 'frames'):
             log.debug(f'Generated: frames={len(output.frames[0])}')
             output.images = output.frames[0]
-        if getattr(p, 'video_still', False) and hasattr(output, 'images') and output.images is not None:
+        if hasattr(output, 'latents') and hasattr(output, 'images') and (output.images is None):
+            output.images = output.latents # modular pipelines may return latents instead of images
+        if getattr(p, 'video_still', False) and hasattr(output, 'images') and (output.images is not None):
             output.images = output.images[:1] # only the first frame derives from real latents; the rest decode from padding
-        if output.images is not None and len(output.images) > 0 and isinstance(output.images[0], Image.Image):
+        if (output.images is not None) and (len(output.images) > 0) and isinstance(output.images[0], Image.Image):
             sd_models.offload_ondemand(shared.sd_model) # in-pipe decode paths return materialized frames; the vae seam in processing_vae never runs
             return attach_audio(output.images, audio)
         model = shared.sd_model if not is_refiner_enabled(p) else shared.sd_refiner
@@ -622,7 +624,7 @@ def process_diffusers(p: processing.StableDiffusionProcessing):
         images = shared.history.last_latent
         output = SimpleNamespace(images=images) if images is not None else None
 
-    if (output is None or (hasattr(output, 'images') and len(output.images) == 0)) and has_images:
+    if (output is None or (hasattr(output, 'images') and (output.images is None or len(output.images) == 0))) and has_images:
         if output is not None:
             log.debug('Processing: using input as base output')
             output.images = p.init_images

@@ -61,7 +61,7 @@ def set_guider(p: processing.StableDiffusionProcessing):
     guider_cls = guider_info['cls']
     guider_args = {}
     for k, v in base_args.items():
-        if v is not None and v >= 0.0:
+        if isinstance(v, float):
             guider_args[k] = v
     log.warning('Guiders: partially implemented') # TODO: guiders
     for k, v in guider_info['args'].items():
@@ -94,3 +94,5 @@ def set_guider(p: processing.StableDiffusionProcessing):
         except Exception as e:
             log.error(f'Guider: name={guidance_name} cls={guider_cls.__name__} args={guider_args} {e}')
             return
+    else:
+        log.warning(f'Guider: name={guidance_name} cls=None args={guider_args}')

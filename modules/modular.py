@@ -1,27 +1,26 @@
-import time
+import os
 import diffusers
 from modules import shared
 from modules.logger import log
 
 
-modular_map= {
-    'StableDiffusionXLPipeline': 'StableDiffusionXLAutoBlocks',
-    'StableDiffusionXLImg2ImgPipeline': 'StableDiffusionXLAutoBlocks',
-    'StableDiffusionXLInpaintPipeline': 'StableDiffusionXLAutoBlocks',
-    'FluxPipeline': 'FluxAutoBlocks',
-    'FluxImg2ImgPipeline': 'FluxAutoBlocks',
-    'FluxInpaintPipeline': 'FluxAutoBlocks',
-    'WanPipeline': 'WanAutoBlocks',
-    'WanImageToVideoPipeline': 'WanAutoBlocks',
-    'QwenImagePipeline': 'QwenImageAutoBlocks',
-    'QwenImageEditPipeline': 'QwenImageEditAutoBlocks',
-}
+debug = os.environ.get('SD_MODULAR_DEBUG', None) is not None
+
+
+def get_modular_class_name(diffusion_pipeline: diffusers.DiffusionPipeline) -> str:
+    name = diffusion_pipeline.__class__.__name__
+    name = name.replace('Pipeline', '').replace('Img2Img', '').replace('Inpaint', '').replace('ImageToVideo', '')
+    name = f'{name}AutoBlocks'
+    modular_cls = getattr(diffusers, name, None)
+    if debug:
+        log.trace(f'Modular lookup: key={name} source={diffusion_pipeline.__class__.__name__} target={modular_cls.__name__ if modular_cls else None}')
+    return modular_cls
 
 
 def is_compatible(diffusion_pipeline: diffusers.DiffusionPipeline) -> bool:
     if not shared.opts.model_modular_enable:
         return False
-    compatible = diffusion_pipeline.__class__.__name__ in modular_map
+    compatible = get_modular_class_name(diffusion_pipeline) is not None
     if not compatible:
         log.debug(f'Modular: source={diffusion_pipeline.__class__.__name__} incompatible pipeline')
     return compatible
@@ -35,28 +34,15 @@ def is_guider(diffusion_pipeline: diffusers.DiffusionPipeline) -> bool:
 def convert_to_modular(diffusion_pipeline: diffusers.DiffusionPipeline) -> diffusers.ModularPipeline:
     modular_pipe = None
     try:
-        t0 = time.time()
-        modular_cls = modular_map.get(diffusion_pipeline.__class__.__name__, None)
+        modular_cls = get_modular_class_name(diffusion_pipeline)
         if modular_cls is None:
             raise ValueError(f'unknown: cls={diffusion_pipeline.__class__.__name__}')
-        modular_cls = getattr(diffusers, modular_cls, None)
-        if modular_cls is None:
-            raise ValueError(f'invalid: cls={diffusion_pipeline.__class__.__name__}')
         modular_blocks = modular_cls()
         modular_pipe = modular_blocks.init_pipeline()
         components_dct = {k: v for k, v in diffusion_pipeline.components.items() if v is not None}
         modular_pipe.update_components(**components_dct, **diffusion_pipeline.parameters)
         modular_pipe.original_pipe = diffusion_pipeline
-        t1 = time.time()
-        log.debug(f'Modular: source={diffusion_pipeline.__class__.__name__} target={modular_pipe.__class__.__name__} time={t1 - t0:.2f}')
-        """
-        for expected_input_param in modular_pipe.blocks.inputs:
-            name = expected_input_param.name
-            default = expected_input_param.default
-            kwargs_type = expected_input_param.kwargs_type
-            log.trace(f'Modular input: name={name} type={kwargs_type} default={default}')
-        """
-
+        log.debug(f'Modular convert: source={diffusion_pipeline.__class__.__name__} target={modular_pipe.__class__.__name__}')
     except Exception as e:
         log.error(f'Modular: {e}')
         raise e

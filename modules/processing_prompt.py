@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from typing import TYPE_CHECKING
 import torch
-from modules import shared, errors, timer, prompt_parser_diffusers
+from modules import shared, errors, timer, prompt_parser_diffusers, processing_helpers
 from modules.logger import log
 
 if TYPE_CHECKING:
@@ -188,6 +188,9 @@ def set_prompt(p: StableDiffusionProcessing,
         debug_log('Prompt fallback: no embedder')
         args = set_fallback_prompt(args, possible, prompts=prompts, negative_prompts=negative_prompts, prompts_2=None, negative_prompts_2=None)
         prompt_attention = 'fixed'
+
+    if processing_helpers.is_modular():
+        return prompt_attention, args
 
     if 'prompt_embeds' not in args and 'negative_prompt_embeds' not in args: # pass secondary prompts as-in
         args = set_fallback_prompt(args, possible, prompts=None, negative_prompts=None, prompts_2=prompts_2, negative_prompts_2=negative_prompts_2)

@@ -17,6 +17,7 @@
 - **Attention**
   - *TODO*: see [Attention docs](https://vladmandic.github.io/sdnext-docs/Attention) for details and usage instructions  
     *note*: attention now has its own settings section in *settings -> cross attention*  
+    *note*: this is a breaking change - if you had custom attention settings in previous releases, you will need to re-apply them in the new settings section  
   - new `sparse-attention` method that can be combined with other attention methods  
     to reduce memory usage and improve performance on large models  
 - **Internal**

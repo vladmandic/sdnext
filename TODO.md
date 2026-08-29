@@ -9,6 +9,7 @@
 - Inpaint: https://discord.com/channels/1101998836328697867/1130536562422186044/1506850651035144322, @vladmandic
 - Control tab verify overrides handling, @vladmandic
 - LTX: Create pre-quant for LTX-2.5
+- Modular guiders
 
 ## Features
 
@@ -51,11 +52,8 @@
 
 ### Modular
 
-*Pending finalization of modular pipelines implementation and development of compatibility layer*
-
 - Switch to modular pipelines
 - Feature: Transformers unified cache handler
-- Refactor: [Modular pipelines and guiders](https://github.com/huggingface/diffusers/issues/11915)
 - [MagCache](https://github.com/huggingface/diffusers/pull/12744)
 - [SmoothCache](https://github.com/huggingface/diffusers/issues/11135)
 - [STG](https://github.com/huggingface/diffusers/blob/main/examples/community/README.md#spatiotemporal-skip-guidance)

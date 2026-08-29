@@ -1,9 +1,7 @@
 import gradio as gr
 from modules import shared
 from modules import ui_symbols, ui_components
-
-
-guiders = ['Default', 'CFG', 'Zero', 'PAG', 'APG', 'SLG', 'SEG', 'TCFG', 'FDG']
+from modules.modular_guiders import guiders
 
 
 def create_guidance_inputs(tab):
@@ -11,7 +9,7 @@ def create_guidance_inputs(tab):
         with gr.Group():
 
             with gr.Row(elem_id=f"{tab}_guider_row", elem_classes=['flexbox'], visible=shared.opts.model_modular_enable):
-                guidance_name = gr.Dropdown(choices=guiders, value='Default', label='Guider', elem_id=f"{tab}_guider")
+                guidance_name = gr.Dropdown(choices=guiders.keys(), value='Default', label='Guider', elem_id=f"{tab}_guider")
                 guidance_btn = ui_components.ToolButton(value=ui_symbols.book, elem_id=f"{tab}_guider_docs")
                 guidance_btn.click(fn=None, _js='getGuidanceDocs', inputs=[guidance_name], outputs=[])
             with gr.Row(visible=shared.opts.model_modular_enable):
@@ -123,6 +121,6 @@ def create_guidance_inputs(tab):
                 cfg_true = gr.Slider(minimum=-1.0, maximum=30.0, step=0.05, label='Attention guidance', value=-1.0, elem_id=f"{tab}_cfg_true")
                 cfg_adaptive = gr.Slider(minimum=0.0, maximum=1.0, step=0.05, label='Adaptive scaling', value=0.5, elem_id=f"{tab}_cfg_adaptive")
 
-    _modular_args = guidance_args + lsc_args + guidance_auto_args + guidance_zero_args + guidance_pag_args + guidance_apg_args + guidance_slg_args + guidance_seg_args + guidance_fdg_args
+    _modular_args = guidance_args + lsc_args + guidance_auto_args + guidance_zero_args + guidance_pag_args + guidance_apg_args + guidance_slg_args + guidance_seg_args + guidance_fdg_args # TODO modular: guidance args are not implemented
     standard_args = [cfg_scale, cfg_image, cfg_rescale, cfg_true, cfg_adaptive, cfg_end]
     return guidance_args + standard_args

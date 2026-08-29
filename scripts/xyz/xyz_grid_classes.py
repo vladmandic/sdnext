@@ -264,7 +264,6 @@ axis_options = [
     AxisOption("[Guidance] End", float, apply_field("cfg_end")),
     AxisOption("[Guidance] Image scale", float, apply_field("cfg_image")),
     AxisOption("[Guidance] Rescale", float, apply_field("cfg_rescale")),
-    AxisOption("[Guidance] Modular name", str, apply_guidance, choices=lambda: ['Default', 'CFG', 'Auto', 'Zero', 'PAG', 'APG', 'SLG', 'SEG', 'TCFG', 'FDG']),
     AxisOption("[Refine] Upscaler", str, apply_field("hr_upscaler"), cost=0.3, choices=lambda: [x.name for x in shared.sd_upscalers]),
     AxisOption("[Refine] Sampler", str, apply_hr_sampler_name, fmt=format_value_add_label, confirm=confirm_samplers, choices=lambda: [x.name for x in sd_samplers.visible_samplers()]),
     AxisOption("[Refine] Denoising strength", float, apply_field("denoising_strength")),
