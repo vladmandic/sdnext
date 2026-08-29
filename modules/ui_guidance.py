@@ -1,7 +1,15 @@
+from functools import partial
 import gradio as gr
 from modules import shared
 from modules import ui_symbols, ui_components
 from modules.modular_guiders import guiders
+
+
+_stored_args = {}
+
+
+def get_modular_args():
+    return _stored_args
 
 
 def create_guidance_inputs(tab):
@@ -10,14 +18,17 @@ def create_guidance_inputs(tab):
 
             with gr.Row(elem_id=f"{tab}_guider_row", elem_classes=['flexbox'], visible=shared.opts.model_modular_enable):
                 guidance_name = gr.Dropdown(choices=guiders.keys(), value='Default', label='Guider', elem_id=f"{tab}_guider")
-                guidance_btn = ui_components.ToolButton(value=ui_symbols.book, elem_id=f"{tab}_guider_docs")
+                guidance_btn = ui_components.ToolButton(value=ui_symbols.info, elem_id=f"{tab}_guider_docs")
                 guidance_btn.click(fn=None, _js='getGuidanceDocs', inputs=[guidance_name], outputs=[])
-            with gr.Row(visible=shared.opts.model_modular_enable):
-                guidance_scale = gr.Slider(minimum=-1.0, maximum=30.0, step=0.1, label='_Guidance scale', value=-1.0, elem_id=f"{tab}_guidance_scale")
-                guidance_rescale = gr.Slider(minimum=-1.0, maximum=1.0, step=0.05, label='_Guidance rescale', value=-1.0, elem_id=f"{tab}_guidance_rescale")
-            with gr.Row(visible=shared.opts.model_modular_enable):
-                guidance_start = gr.Slider(minimum=0.0, maximum=1.0, step=0.05, label='_Guidance start', value=0.0, elem_id=f"{tab}_guidance_start")
-                guidance_stop = gr.Slider(minimum=0.0, maximum=1.0, step=0.1, label='_Guidance stop', value=1.0, elem_id=f"{tab}_guidance_stop")
+
+            base_group = gr.Group(visible=False) # default inherits from model
+            with base_group:
+                with gr.Row(visible=shared.opts.model_modular_enable):
+                    guidance_scale = gr.Slider(minimum=-1.0, maximum=30.0, step=0.1, label='Guidance scale', value=-1.0, elem_id=f"{tab}_guidance_scale")
+                    guidance_rescale = gr.Slider(minimum=-1.0, maximum=1.0, step=0.05, label='Guidance rescale', value=-1.0, elem_id=f"{tab}_guidance_rescale")
+                with gr.Row(visible=shared.opts.model_modular_enable):
+                    guidance_start = gr.Slider(minimum=0.0, maximum=1.0, step=0.05, label='Guidance start', value=0.0, elem_id=f"{tab}_guidance_start")
+                    guidance_stop = gr.Slider(minimum=0.0, maximum=1.0, step=0.1, label='Guidance stop', value=1.0, elem_id=f"{tab}_guidance_stop")
             guidance_args = [guidance_name, guidance_scale, guidance_rescale, guidance_start, guidance_stop]
 
             lsc_group = gr.Accordion(open=False, label='Layer skip guidance', elem_classes=["small-accordion"], visible=shared.opts.model_modular_enable)
@@ -25,7 +36,7 @@ def create_guidance_inputs(tab):
                 with gr.Row():
                     guidance_lsc_enabled = gr.Checkbox(label='Enable LayerSkipConfig', value=False)
                     guidance_lsc_label = gr.Label(value='LSC: LayerSkipConfig', elem_id=f"{tab}_lsc_label", visible=False)
-                    guidance_lsc_btn = ui_components.ToolButton(value=ui_symbols.book, elem_id=f"{tab}_lsc_docs", elem_classes=["guidance-docs"])
+                    guidance_lsc_btn = ui_components.ToolButton(value=ui_symbols.info, elem_id=f"{tab}_lsc_docs", elem_classes=["guidance-docs"])
                     guidance_lsc_btn.click(fn=None, _js='getGuidanceDocs', inputs=[guidance_lsc_label], outputs=[])
                 with gr.Row():
                     guidance_lsc_indices = gr.Textbox(label='LSC layer indices', value='1, 2, 3', placeholder='Comma-separated layer indices to skip')
@@ -99,6 +110,7 @@ def create_guidance_inputs(tab):
 
             def adv_visibility(guidance_name):
                 return [
+                    gr.update(visible=guidance_name != 'Default' and guidance_name != 'None'),
                     gr.update(visible=guidance_name.startswith('Auto')),
                     gr.update(visible=guidance_name.startswith('Zero')),
                     gr.update(visible=guidance_name.startswith('PAG')),
@@ -108,19 +120,26 @@ def create_guidance_inputs(tab):
                     gr.update(visible=guidance_name.startswith('TCFG')),
                     gr.update(visible=guidance_name.startswith('FDG')),
                 ]
-            guidance_name.change(fn=adv_visibility, inputs=[guidance_name], outputs=[auto_group, zero_group, pag_group, apg_group, slg_group, seg_group, tcfg_group, fdg_group])
+            guidance_name.change(fn=adv_visibility, inputs=[guidance_name], outputs=[base_group, auto_group, zero_group, pag_group, apg_group, slg_group, seg_group, tcfg_group, fdg_group])
 
-            gr.HTML(value='<br><h2>Fallback guidance</h2>', visible=shared.opts.model_modular_enable, elem_id=f"{tab}_guidance_note")
-            with gr.Row(elem_id=f"{tab}_cfg_row", elem_classes=['flexbox']):
+            with gr.Row(elem_id=f"{tab}_cfg_row", elem_classes=['flexbox'], visible=not shared.opts.model_modular_enable):
                 cfg_scale = gr.Slider(minimum=-1.0, maximum=30.0, step=0.1, label='Guidance scale', value=-1.0, elem_id=f"{tab}_cfg_scale")
                 cfg_end = gr.Slider(minimum=0.0, maximum=1.0, step=0.1, label='Guidance end', value=1.0, elem_id=f"{tab}_cfg_end")
-            with gr.Row():
+            with gr.Row(visible=not shared.opts.model_modular_enable):
                 cfg_rescale = gr.Slider(minimum=-1.0, maximum=1.0, step=0.05, label='Guidance rescale', value=-1.0, elem_id=f"{tab}_image_cfg_rescale")
                 cfg_image = gr.Slider(minimum=-1.0, maximum=30.0, step=0.1, label='Refine guidance', value=-1.0, elem_id=f"{tab}_cfg_image")
-            with gr.Row():
+            with gr.Row(visible=not shared.opts.model_modular_enable):
                 cfg_true = gr.Slider(minimum=-1.0, maximum=30.0, step=0.05, label='Attention guidance', value=-1.0, elem_id=f"{tab}_cfg_true")
                 cfg_adaptive = gr.Slider(minimum=0.0, maximum=1.0, step=0.05, label='Adaptive scaling', value=0.5, elem_id=f"{tab}_cfg_adaptive")
 
     _modular_args = guidance_args + lsc_args + guidance_auto_args + guidance_zero_args + guidance_pag_args + guidance_apg_args + guidance_slg_args + guidance_seg_args + guidance_fdg_args # TODO modular: guidance args are not implemented
+    def update_stored(component, label):
+        _stored_args[label] = component
+    for component in _modular_args:
+        label = getattr(component, 'label', None)
+        value = getattr(component, 'value', None)
+        _stored_args[label] = value
+        component.change(fn=partial(update_stored, label=label), inputs=[component], outputs=[])
+
     standard_args = [cfg_scale, cfg_image, cfg_rescale, cfg_true, cfg_adaptive, cfg_end]
     return guidance_args + standard_args

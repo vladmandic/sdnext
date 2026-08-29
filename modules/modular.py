@@ -1,6 +1,6 @@
 import os
 import diffusers
-from modules import shared
+from modules import shared, sd_hijack_modular
 from modules.logger import log
 
 
@@ -46,6 +46,8 @@ def convert_to_modular(diffusion_pipeline: diffusers.DiffusionPipeline) -> diffu
     except Exception as e:
         log.error(f'Modular: {e}')
         raise e
+    sd_hijack_modular.install_state_hook(modular_pipe)
+    sd_hijack_modular.register_callbacks(modular_pipe)
     return modular_pipe
 
 
