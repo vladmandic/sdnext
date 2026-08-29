@@ -6,30 +6,46 @@ import diffusers
 from modules.logger import log
 from modules import shared, sd_offload, timer
 from modules.attention import context as attention_context
+from modules.lora import lora_stack
 
 
 debug = os.environ.get('SD_MODULAR_DEBUG', None) is not None
 intercepted = set()
 
 
+def modular_step(state: diffusers.modular_pipelines.modular_pipeline.BlockState):
+    keys = state if isinstance(state, list) else list(state.__dict__.keys())
+    if 'num_inference_steps' in keys:
+        shared.state.sampling_steps = state.num_inference_steps
+    if 'latents' in keys:
+        shared.state.step()
+        shared.state.current_latent = state.latents
+        lora_stack.on_step(shared.state.sampling_step)
+    if shared.state.interrupted or shared.state.skipped:
+        raise AssertionError('Interrupted...')
+    if shared.state.paused:
+        log.debug('Sampling paused')
+        while shared.state.paused:
+            if shared.state.interrupted or shared.state.skipped:
+                raise AssertionError('Interrupted...')
+            time.sleep(0.1)
+
+
 def modular_intercept(self, components, state: diffusers.modular_pipelines.modular_pipeline.BlockState, *args, **kwargs):
     t0 = time.time()
     block = type(self).__name__
-    keys = state if isinstance(state, list) else list(state.__dict__.keys())
     # run code before block call
     result = self.__orig_call__(components, state, *args, **kwargs)
     t1 = time.time()
     timer.blocks.add(block, t1 - t0)
     # run code after block call
-    # TODO modular: intercept latents and set current latents for preview
-    """
-        if 'latents' in keys:
-            ...
-        t2 = time.time()
-        timer.blocks.add('callback', t2 - t1)
-    """
+    if 'LoopDenoiser' in block: # BeforeDenoiser/AfterDenoiser are not used by all pipelines
+        modular_step(state)
+    t2 = time.time()
+    timer.blocks.add('callback', t2 - t1)
     if debug:
-        log.trace(f'Modular intercept: block={block} state={keys} time={t1 - t0:.4f}')
+        keys = state if isinstance(state, list) else list(state.__dict__.keys())
+        log.trace(f'Modular intercept: block={block} keys={keys} time={t1 - t0:.4f}')
     return result
 
 
@@ -105,7 +121,7 @@ def install_state_hook(pipe):
         attention_context.set_role('transformer')
         publish_layout(kwargs)
         if new_phase:
-            sd_offload.offload_ondemand(pipe, exclude=['transformer', 'transformer_ref'], reason='generate', force=hasattr(pipe, 'sdnext_force_offload'))
+            sd_offload.offload_ondemand(pipe, exclude=['transformer', 'transformer_ref', 'unet'], reason='generate', force=hasattr(pipe, 'sdnext_force_offload'))
         if shared.state.sampling_steps == 0 and getattr(pipe, 'num_timesteps', 0) > 0:
             shared.state.sampling_steps = pipe.num_timesteps
         if shared.state.paused:
@@ -114,7 +130,7 @@ def install_state_hook(pipe):
                 if shared.state.interrupted or shared.state.skipped:
                     raise AssertionError('Interrupted...')
                 time.sleep(0.1)
-        shared.state.step()
+        # shared.state.step()
         attention_context.tick()
         if shared.state.interrupted or shared.state.skipped:
             raise AssertionError('Interrupted...')
@@ -143,7 +159,7 @@ def install_state_hook(pipe):
         if shared.state.interrupted or shared.state.skipped: # fires per tile, so tiled encodes abort promptly
             raise AssertionError('Interrupted...')
 
-    for name in ('transformer', 'transformer_ref'):
+    for name in ('unet', 'transformer', 'transformer_ref'):
         module = getattr(pipe, name, None)
         if module is not None:
             target = getattr(module, 'model', module) # conditioning calls the inner model directly

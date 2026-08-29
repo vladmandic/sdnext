@@ -2,14 +2,15 @@
 
 ## Short-term
 
-- MiniMax LoRA: native loader for MiniMax-H3: fl2va, ref2va, pruned
+- MiniMax LoRA: native loader for MiniMax-H3: fl2va, ref2va, pruned, @CalamitousFelicitousness
 - MiniMax TAESD: <https://github.com/madebyollin/taehv>
 - MiniMax: Create pre-quant for MiniMax-H3-Turbo
 - Benchmark tool productize: @CalamitousFelicitousness
 - Inpaint: https://discord.com/channels/1101998836328697867/1130536562422186044/1506850651035144322, @vladmandic
 - Control tab verify overrides handling, @vladmandic
 - LTX: Create pre-quant for LTX-2.5
-- Modular guiders
+- Modular guiders, @vladmandic
+- ROCm: v10
 
 ## Features
 
@@ -27,8 +28,6 @@
 - Video capabilities to processing tab, add RIFE, upscaling (once available)
 - Distraction-free UI mode with prompt-only, chat-based interface
 - Revisit transformer caching for modular pipelines
-- Revisit guidance for modular pipelines
-- Implement modular for some image models
 - Video models: support finetunes
 - Incorporate [prompting guides](https://github.com/CalamitousFelicitousness/ai-prompting-guides)
 - Video models: use Networks/Reference instead of custom
