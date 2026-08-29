@@ -708,7 +708,6 @@ def create_settings(cmd_opts):
         "lora_apply_tags": OptionInfo(0, "LoRA auto-apply tags", gr.Slider, {"minimum": -1, "maximum": 32, "step": 1}),
 
         "lora_apply_sep": OptionInfo("<h2>Apply method</h2>", "", gr.HTML),
-        "lora_apply_te": OptionInfo(False, "LoRA native apply to text encoder"),
         "lora_fuse_native": OptionInfo(True, "LoRA native fuse with model"),
         "lora_fuse_diffusers": OptionInfo(False, "LoRA diffusers fuse with model"),
 
@@ -717,6 +716,12 @@ def create_settings(cmd_opts):
         "lora_sdnq_host_rank": OptionInfo(256, "LoRA quantized host rank", gr.Slider, {"minimum": 0, "maximum": 1024, "step": 32}),
         "lora_sdnq_host_calib": OptionInfo(True, "LoRA quantized host calibration"),
         "lora_sdnq_host_cache": OptionInfo(10, "LoRA quantized host cache", gr.Slider, {"minimum": 0, "maximum": 100, "step": 1}),
+
+        "lora_stack_sep": OptionInfo("<h2>Stacking options</h2>", "", gr.HTML),
+        "lora_stack_mode": OptionInfo("sum", "LoRA stack mode", gr.Dropdown, {"choices": ["sum", "ties", "dare_ties", "dare_linear", "magnitude_prune", "klora", "estlora"]}),
+        "lora_stack_density": OptionInfo(0.5, "LoRA stack density", gr.Slider, {"minimum": 0.05, "maximum": 1.0, "step": 0.05}),
+        "lora_stack_alpha": OptionInfo(0.0, "LoRA stack ramp", gr.Slider, {"minimum": 0.0, "maximum": 3.0, "step": 0.1}),
+        "lora_stack_discrepancy": OptionInfo(0.5, "LoRA stack discrepancy", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.05}),
 
         "lora_meta_sep": OptionInfo("<h2>Metadata</h2>", "", gr.HTML),
         "lora_add_hashes_to_infotext": OptionInfo(False, "LoRA add hash info to metadata"),

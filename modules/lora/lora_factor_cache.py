@@ -51,12 +51,15 @@ def signature(wanted_names):
     if model_name is None:
         return None
     calib_path = lora_calib.calib_file(model_name)
+    from modules.lora import lora_stack
     parts = {
         'model': model_name,
         'rank': int(getattr(shared.opts, 'lora_sdnq_host_rank', 0) or 0),
         'calib': int(os.path.getmtime(calib_path)) if lora_calib.enabled() and os.path.isfile(calib_path) else None, # the toggle is part of the identity: factors computed under the other setting must not replay
+        'stack': lora_stack.signature(),
         'nets': [],
     }
+    from modules.lora import lora_blocks
     for name, te, unet, dyn in wanted_names:
         net = next((n for n in l.loaded_networks if n.name == name), None)
         filename = getattr(getattr(net, 'network_on_disk', None), 'filename', None)
@@ -64,7 +67,11 @@ def signature(wanted_names):
             st = os.stat(filename)
         except Exception:
             return None
-        parts['nets'].append([name, repr(te), repr(unet), repr(dyn), filename, int(st.st_mtime), st.st_size])
+        entry = [name, repr(te), repr(unet), repr(dyn), filename, int(st.st_mtime), st.st_size]
+        spec = lora_blocks.net_signature(net)
+        if spec is not None: # appended only when set so existing cache files stay valid without block weights
+            entry.append(spec)
+        parts['nets'].append(entry)
     return parts
 
 
@@ -153,6 +160,30 @@ def fetch(network_layer_name):
         return None
     state['hits'] += 1
     return entry
+
+
+def lookup_scores(network_layer_name):
+    """Cached select scores for a layer as ((s0, s1), (a0, a1)), or None.
+
+    Score records ride the same signature-keyed entry as factors, and the
+    signature already pins everything the scores depend on (pair, multipliers,
+    stack mode and params). No hit/miss accounting: a record saves scoring and
+    delta assembly, not a sketch.
+    """
+    if state['sig'] is None:
+        return None
+    t = state['store'].get(f'{network_layer_name}.sel')
+    if t is None:
+        return None
+    return (float(t[0]), float(t[1])), (float(t[2]), float(t[3]))
+
+
+def store_scores(network_layer_name, scores, abs_sums):
+    """Persist a select-mode score record; additive to the entry, older files upgrade on their next pass."""
+    if state['sig'] is None:
+        return
+    state['store'][f'{network_layer_name}.sel'] = torch.tensor([scores[0], scores[1], abs_sums[0], abs_sums[1]], dtype=torch.float64)
+    state['dirty'] = True
 
 
 def store(network_layer_name, up, down, energy, calibrated, rms):

@@ -148,6 +148,7 @@ class Network:  # LoraModule
         self.te_multiplier = 1.0
         self.unet_multiplier = [1.0] * 3
         self.dyn_dim = None
+        self.block_spec = None # raw lbw= value; per-layer factors resolve through lora_blocks
         self.pending_config = None # staged multipliers; network_activate promotes them after the removal pass so fuse removal subtracts the delta that was applied
         self.modules = {}
         self.mismatch = 0 # deltas dropped for not fitting their target module; try_load_chain refuses the file when non-zero
@@ -195,15 +196,19 @@ class NetworkModule:
     def multiplier(self):
         unet_multiplier = 3 * [self.network.unet_multiplier] if not isinstance(self.network.unet_multiplier, list) else self.network.unet_multiplier
         if self.sd_key.startswith('lora_te') or 'transformer' in self.sd_key[:20]:
-            return self.network.te_multiplier
-        if "down_blocks" in self.sd_key:
-            return unet_multiplier[0]
-        if "mid_block" in self.sd_key:
-            return unet_multiplier[1]
-        if "up_blocks" in self.sd_key:
-            return unet_multiplier[2]
+            base = self.network.te_multiplier
+        elif "down_blocks" in self.sd_key:
+            base = unet_multiplier[0]
+        elif "mid_block" in self.sd_key:
+            base = unet_multiplier[1]
+        elif "up_blocks" in self.sd_key:
+            base = unet_multiplier[2]
         else:
-            return unet_multiplier[0]
+            base = unet_multiplier[0]
+        if getattr(self.network, 'block_spec', None) is None: # per-block strength is off for this network; no shared access on this path
+            return base
+        from modules.lora import lora_blocks
+        return base * lora_blocks.factor(self.sd_key, self.network)
 
     def calc_scale(self):
         if self.scale is not None:

@@ -76,12 +76,13 @@ modules.cmd_args.parsed, _ = modules.cmd_args.parser.parse_known_args([])
 
 from modules.errors import log   # pylint: disable=wrong-import-position
 from modules import shared, sd_models        # pylint: disable=wrong-import-position
-from modules.lora import network, network_lora, lora_sdnq, networks  # pylint: disable=wrong-import-position
+from modules.lora import network, network_lora, lora_blocks, lora_sdnq, lora_stack, networks  # pylint: disable=wrong-import-position
 from modules.lora import lora_common as l_common   # pylint: disable=wrong-import-position
 from sdnq.quantizer import sdnq_quantize_layer, SDNQConfig  # pylint: disable=wrong-import-position
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 OUT_F, IN_F, RANK = 512, 512, 8
+shared.opts.lora_stack_mode = 'sum' # suite baseline regardless of user config; stack tests set modes via their own context managers
 
 results: dict[str, dict] = {}
 
@@ -557,6 +558,93 @@ def test_partial_coverage_layers_stay_independent():
     return True
 
 
+def test_apply_restore_preserves_weight_storage():
+    """Apply and restore write into the existing parameter storage: kernel selection is
+    placement-sensitive, so a swapped-in Parameter shifts deterministic outputs bitwise."""
+    lin = torch.nn.Linear(IN_F, OUT_F, bias=True, dtype=torch.bfloat16, device=DEVICE)
+    with torch.no_grad():
+        lin.weight.copy_(torch.randn(OUT_F, IN_F, device=DEVICE) * 0.02)
+        lin.bias.copy_(torch.randn(OUT_F, device=DEVICE) * 0.01)
+    lin.network_layer_name = 'lora_transformer_storage'
+    lin.network_current_names = ()
+    W0 = lin.weight.detach().clone()
+    B0 = lin.bias.detach().clone()
+    wptr, bptr = lin.weight.data_ptr(), lin.bias.data_ptr()
+    A, B, _D = make_delta(seed=91, sigma=1e-2)
+    net = make_net('storage', lin, A, B)
+    with mock_model(lin=lin):
+        activate(net)
+        assert not torch.equal(lin.weight.detach(), W0), 'apply must change the weight'
+        assert lin.weight.data_ptr() == wptr, 'apply must write into the existing weight storage'
+        assert lin.bias.data_ptr() == bptr, 'apply must keep the bias storage'
+        activate()
+        assert torch.equal(lin.weight.detach(), W0), 'restore must be bit-exact'
+        assert torch.equal(lin.bias.detach(), B0), 'restore must be bit-exact on bias'
+        assert lin.weight.data_ptr() == wptr, 'restore must write into the existing weight storage'
+        assert lin.bias.data_ptr() == bptr, 'restore must write into the existing bias storage'
+    return True
+
+
+def fuse_fixture(te0):
+    """A plain bf16 Linear (unquantized, so fuse stays allowed) with one attached net at strength te0."""
+    lin = torch.nn.Linear(IN_F, OUT_F, bias=False, dtype=torch.bfloat16, device=DEVICE)
+    with torch.no_grad():
+        lin.weight.copy_(torch.randn(OUT_F, IN_F, device=DEVICE) * 0.02)
+    lin.network_layer_name = 'lora_transformer_fusefix'
+    lin.network_current_names = ()
+    A, B, D = make_delta(seed=17, sigma=1e-2)
+    net = make_net('fusefix', lin, A, B, te_mult=te0)
+    return lin, net, D
+
+
+def edit_strength(net, te):
+    """The production order for a strength edit: network_load stages the new values on the
+    shared net object, deactivate runs against the applied ones, activate promotes."""
+    l_common.previously_loaded_networks[:] = l_common.loaded_networks
+    net.pending_config = {'te': te, 'unet': [te] * 3, 'dyn': None}
+    networks.network_deactivate()
+    networks.network_activate()
+
+
+def test_fuse_promote_applies_new_multiplier():
+    """Fuse removal subtracts a recomputed delta, so the multipliers it reads must be the
+    applied ones: staged values promote only in network_activate, after the removal pass."""
+    lin, net, D = fuse_fixture(te0=0.5)
+    with mock_model(lin=lin):
+        shared.opts.lora_fuse_native = True
+        W0 = lin.weight.detach().float().clone()
+        activate(net)
+        assert isinstance(getattr(lin, 'network_weights_backup', None), bool), 'fuse mode must not take a tensor backup'
+        rho0 = rho_of(lin.weight.detach().float() - W0, D)
+        assert abs(rho0 - 0.5) < 0.05, f'rho={rho0:.3f} expected the initial strength'
+        edit_strength(net, 1.0)
+        assert net.te_multiplier == 1.0, 'activate must promote the staged multiplier'
+        rho1 = rho_of(lin.weight.detach().float() - W0, D)
+        assert abs(rho1 - 1.0) < 0.05, f'rho={rho1:.3f} expected the edited strength to apply, not the first one'
+    return True
+
+
+def test_fuse_change_then_remove_restores_pristine():
+    """Apply, edit, remove: the final subtraction must use the strength that was applied.
+    Pins the promote-after-deactivate ordering; a promote that runs before the removal
+    pass leaves half the delta baked into the weights."""
+    lin, net, D = fuse_fixture(te0=0.5)
+    with mock_model(lin=lin):
+        shared.opts.lora_fuse_native = True
+        W0 = lin.weight.detach().float().clone()
+        activate(net)
+        edit_strength(net, 1.0)
+        l_common.previously_loaded_networks[:] = l_common.loaded_networks
+        l_common.loaded_networks.clear()
+        networks.network_deactivate()
+        networks.network_activate()
+        resid = lin.weight.detach().float() - W0
+        rho2 = rho_of(resid, D)
+        assert abs(rho2) < 0.05, f'rho={rho2:.3f} removal must subtract the strength that was applied'
+        assert float(resid.abs().max()) < 2e-3, f'max={float(resid.abs().max()):.2e} removal must leave only rounding residue'
+    return True
+
+
 @contextmanager
 def apply_method(value):
     old = getattr(shared.opts, 'lora_sdnq_apply', 'exact')
@@ -577,11 +665,12 @@ def test_mechanism_gate_declines_candidates():
     try:
         assert lora_sdnq.factor_candidate(layer, layer.network_layer_name, wanted)
         with host_rank(64):
-            assert lora_sdnq.host_candidate(layer, layer.network_layer_name, wanted)
+            assert lora_sdnq.select_candidate(layer, layer.network_layer_name, wanted)
         assert lora_sdnq.signature() == ''
         with apply_method('requantize'):
             assert not lora_sdnq.factor_candidate(layer, layer.network_layer_name, wanted)
             with host_rank(64):
+                assert not lora_sdnq.select_candidate(layer, layer.network_layer_name, wanted)
                 assert not lora_sdnq.host_candidate(layer, layer.network_layer_name, wanted)
             assert lora_sdnq.signature() == '|quant=requantize'
     finally:
@@ -867,6 +956,19 @@ def test_route_svd_checkpoint_keeps_hosting():
     with host_rank(256), mock_model(lin=layer):
         activate(net)
         assert hasattr(layer, 'sdnq_lora_svd_stash'), 'svd checkpoints keep hosting; the rule is not grounded there'
+        activate()
+    return True
+
+
+def test_route_dense_stack_keeps_hosting():
+    layer = build_layer('uint4')
+    torch.manual_seed(27)
+    D1 = torch.randn(OUT_F, IN_F, device=DEVICE) * 1e-2
+    D2 = torch.randn(OUT_F, IN_F, device=DEVICE) * 1e-2
+    net1, net2 = make_dense_net('df1', layer, D1), make_dense_net('df2', layer, D2)
+    with host_rank(256), stack_mode('ties'), mock_model(lin=layer):
+        activate(net1, net2)
+        assert hasattr(layer, 'sdnq_lora_svd_stash'), 'dense-combined deltas host at any magnitude'
         activate()
     return True
 
@@ -1403,6 +1505,768 @@ def test_cache_fastpath_serves_mixed_set():
     return True
 
 
+def test_cache_fastpath_serves_dense_pair():
+    import tempfile
+    layer = build_layer('uint4')
+    with tempfile.TemporaryDirectory() as tmp:
+        with host_rank(64), host_cache(10, os.path.join(tmp, 'cache')), stack_mode('ties'), mock_model(lin=layer):
+            net1, _D1 = cache_fixture(tmp, layer, name='densea', seed=65)
+            net2, _D2 = cache_fixture(tmp, layer, name='denseb', seed=66)
+            activate(net1, net2)
+            first = dq(layer)
+            activate()
+            with counting_calc() as calls:
+                activate(net1, net2) # the dense combine lives inside delta assembly; the replay skips both
+                assert calls['n'] == 0, 'a dense-pair replay must not assemble or combine deltas'
+            assert hasattr(layer, 'sdnq_lora_svd_stash')
+            assert torch.equal(dq(layer), first), 'dense-pair replay must be bit-identical to the fresh apply'
+            activate()
+    return True
+
+
+CAT_STACK = category('stack-dense')
+
+
+@contextmanager
+def stack_mode(name, dens=None):
+    old_m = getattr(shared.opts, 'lora_stack_mode', 'sum')
+    old_d = getattr(shared.opts, 'lora_stack_density', 0.5)
+    shared.opts.lora_stack_mode = name
+    if dens is not None:
+        shared.opts.lora_stack_density = dens
+    try:
+        yield
+    finally:
+        shared.opts.lora_stack_mode = old_m
+        shared.opts.lora_stack_density = old_d
+
+
+def test_ties_sign_consensus_drops_conflicts():
+    with stack_mode('ties', dens=1.0): # density 1 disables the trim, isolating sign election
+        d1 = torch.tensor([[1.0, 1.0, -1.0]], device=DEVICE)
+        d2 = torch.tensor([[2.0, -0.5, -2.0]], device=DEVICE)
+        out = lora_stack.combine([('a', d1), ('b', d2)], 'lora_transformer_test')
+    expected = torch.tensor([[1.5, 1.0, -1.5]], device=DEVICE) # agree: mean; conflict: majority-mass side only
+    assert torch.allclose(out, expected), f'{out.tolist()}'
+    return True
+
+
+def test_dare_mask_is_deterministic_across_calls():
+    torch.manual_seed(21)
+    d1 = torch.randn(64, 96, device=DEVICE) * 1e-2
+    d2 = torch.randn(64, 96, device=DEVICE) * 1e-2
+    with stack_mode('dare_linear', dens=0.5):
+        out1 = lora_stack.combine([('a', d1), ('b', d2)], 'lora_transformer_test')
+        out2 = lora_stack.combine([('a', d1), ('b', d2)], 'lora_transformer_test')
+        other = lora_stack.combine([('a', d1), ('b', d2)], 'lora_transformer_other')
+    assert torch.equal(out1, out2), 'same layer and nets must draw the same masks'
+    assert not torch.equal(out1, other), 'a different layer must draw different masks'
+    return True
+
+
+def test_dare_rescales_by_inverse_density():
+    torch.manual_seed(22)
+    d1 = torch.randn(64, 96, device=DEVICE)
+    d2 = torch.randn(64, 96, device=DEVICE)
+    with stack_mode('dare_linear', dens=0.5):
+        out = lora_stack.combine([('a', d1), ('b', d2)], 'lora_transformer_test')
+    cands = torch.stack([torch.zeros_like(d1), 2 * d1, 2 * d2, 2 * d1 + 2 * d2])
+    nearest = (cands - out.unsqueeze(0)).abs().min(dim=0).values
+    assert float(nearest.max()) < 1e-5, 'every element must be a 1/density-rescaled subset sum'
+    zero_frac = float((out == 0).float().mean())
+    assert 0.1 < zero_frac < 0.45, f'both-dropped fraction {zero_frac} should sit near 0.25'
+    return True
+
+
+def test_magnitude_prune_keeps_top_density():
+    torch.manual_seed(23)
+    d1 = torch.randn(128, 64, device=DEVICE)
+    d2 = torch.zeros_like(d1) # inert second delta isolates the trim
+    with stack_mode('magnitude_prune', dens=0.25):
+        out = lora_stack.combine([('a', d1), ('b', d2)], 'lora_transformer_test')
+    kept = out != 0
+    frac = float(kept.float().mean())
+    assert 0.2 < frac < 0.3, f'kept fraction {frac}'
+    assert torch.equal(out[kept], d1[kept]), 'kept elements must pass through unchanged'
+    assert float(d1.abs()[~kept].max()) <= float(d1.abs()[kept].min()) + 1e-6, 'kept set must be the top magnitudes'
+    return True
+
+
+def test_dense_two_plain_loras_hosted_not_summed():
+    layer = build_layer('uint4')
+    A1, B1, D1 = make_delta(seed=31, sigma=1e-2)
+    A2, B2, D2 = make_delta(seed=32, sigma=1e-2)
+    n1 = make_net('td1', layer, A1, B1)
+    n2 = make_net('td2', layer, A2, B2)
+    with host_rank(64), mock_model(lin=layer):
+        Wdq0 = dq(layer)
+        with stack_mode('ties', dens=0.5):
+            activate(n1, n2)
+            # hosted at rank 64 leaves a rank-64 factor bucket; the exact concat of two rank-8 nets would leave 16
+            assert layer.svd_up.shape[1] == 64, f'dense mode must route a factorable pair to hosting, rank={layer.svd_up.shape[1]}'
+            eff = dq(layer) - Wdq0
+            activate()
+        assert torch.equal(dq(layer), Wdq0), 'removal must restore bit-exact'
+        with stack_mode('ties', dens=0.5):
+            ref = lora_stack.combine([('td1', D1), ('td2', D2)], 'lora_transformer_test')
+    s = D1 + D2
+    assert float((eff - s).norm() / s.norm()) > 0.05, 'ties result must differ from the plain sum'
+    assert rho_of(eff, ref) > 0.8, f'hosted ties delta must track the ties reference, rho={rho_of(eff, ref):.3f}' # rank-64 truncation of the densified delta keeps ~0.89
+    assert float((eff - ref).norm()) < float((eff - s).norm()), 'hosted result must sit closer to the ties reference than to the plain sum'
+    return True
+
+
+def test_dense_pair_hosts_at_int8():
+    layer = build_layer('int8')
+    A1, B1, D1 = make_delta(seed=41, sigma=1e-2)
+    A2, B2, D2 = make_delta(seed=42, sigma=1e-2)
+    n1 = make_net('ti1', layer, A1, B1)
+    n2 = make_net('ti2', layer, A2, B2)
+    with host_rank(64), mock_model(lin=layer):
+        Wdq0 = dq(layer)
+        with stack_mode('ties', dens=0.5):
+            activate(n1, n2)
+            assert hasattr(layer, 'sdnq_lora_svd_stash'), 'dense pair at int8 must host, not requantize'
+            assert getattr(layer, 'network_weights_backup', None) is None, 'hosted dense pair must not take a weight backup'
+            eff = dq(layer) - Wdq0
+            activate()
+        assert torch.equal(dq(layer), Wdq0), 'removal must restore bit-exact'
+        with stack_mode('ties', dens=0.5):
+            ref = lora_stack.combine([('ti1', D1), ('ti2', D2)], 'lora_transformer_test')
+    assert rho_of(eff, ref) > 0.8, f'hosted int8 ties delta must track the ties reference, rho={rho_of(eff, ref):.3f}'
+    return True
+
+
+def test_dense_single_nonfactorable_int8_keeps_requantize():
+    layer = build_layer('int8')
+    _A, _B, D = make_delta(sigma=3e-3)
+    net = make_dense_net('ti8solo', layer, D)
+    with host_rank(256), mock_model(lin=layer), stack_mode('ties', dens=0.5):
+        activate(net)
+        assert not hasattr(layer, 'sdnq_lora_svd_stash'), 'a single non-factorable set at int8 must keep the requantize path even under a dense mode'
+        assert isinstance(getattr(layer, 'network_weights_backup', None), torch.Tensor), 'the requantize fallback must take the backup'
+        activate()
+    return True
+
+
+def test_single_net_ignores_dense_mode():
+    layer = build_layer('uint4')
+    A, B, D = make_delta(seed=33)
+    net = make_net('solo', layer, A, B)
+    with mock_model(lin=layer), stack_mode('ties', dens=0.5):
+        Wdq0 = dq(layer)
+        activate(net)
+        assert hasattr(layer, 'sdnq_lora_svd_stash'), 'single net must stay on the exact factor path'
+        assert rho_of(dq(layer) - Wdq0, D) > 0.99
+        activate()
+        assert torch.equal(dq(layer), Wdq0)
+    return True
+
+
+def test_te_layer_stays_plain_sum():
+    layer = build_layer('uint4')
+    layer.network_layer_name = 'lora_te_test'
+    A1, B1, D1 = make_delta(seed=34)
+    A2, B2, D2 = make_delta(seed=35)
+    n1 = make_net('te1', layer, A1, B1)
+    n2 = make_net('te2', layer, A2, B2)
+    with mock_model(lin=layer), stack_mode('ties', dens=0.5):
+        Wdq0 = dq(layer)
+        activate(n1, n2)
+        assert hasattr(layer, 'sdnq_lora_svd_stash'), 'te layers must stay on the exact concat path'
+        assert rho_of(dq(layer) - Wdq0, D1 + D2) > 0.99
+        activate()
+        assert torch.equal(dq(layer), Wdq0)
+    return True
+
+
+def test_sum_mode_keeps_exact_stacking():
+    layer = build_layer('uint4')
+    A1, B1, D1 = make_delta(seed=36)
+    A2, B2, D2 = make_delta(seed=37)
+    n1 = make_net('s1', layer, A1, B1)
+    n2 = make_net('s2', layer, A2, B2)
+    with mock_model(lin=layer), stack_mode('sum'):
+        Wdq0 = dq(layer)
+        activate(n1, n2)
+        assert hasattr(layer, 'sdnq_lora_svd_stash'), 'sum mode must keep the exact concat path'
+        assert layer.svd_up.shape[1] == 16, f'sum mode must concat exactly, rank={layer.svd_up.shape[1]}'
+        assert rho_of(dq(layer) - Wdq0, D1 + D2) > 0.99
+        activate()
+        assert torch.equal(dq(layer), Wdq0)
+    return True
+
+
+CAT_SELECT = category('stack-select')
+
+
+@contextmanager
+def select_mode(name, alpha=None, disc=None):
+    old = {k: getattr(shared.opts, k, None) for k in ('lora_stack_mode', 'lora_stack_alpha', 'lora_stack_discrepancy')}
+    shared.opts.lora_stack_mode = name
+    if alpha is not None:
+        shared.opts.lora_stack_alpha = alpha
+    if disc is not None:
+        shared.opts.lora_stack_discrepancy = disc
+    lora_stack.clear()
+    lora_stack.warned.clear()
+    try:
+        yield
+    finally:
+        for k, v in old.items():
+            setattr(shared.opts, k, v)
+        lora_stack.clear()
+
+
+def select_pair(layer, seed0=41, seed1=42, scale1=1.0):
+    A1, B1, D1 = make_delta(seed=seed0, sigma=1e-2)
+    A2, B2, D2 = make_delta(seed=seed1, sigma=1e-2)
+    if scale1 != 1.0:
+        A2, D2 = A2 * scale1, D2 * scale1
+    n1 = make_net('subject', layer, A1, B1)
+    n2 = make_net('style', layer, A2, B2)
+    return n1, n2, D1, D2
+
+
+def test_select_flip_schedule_end_to_end():
+    layer = build_layer('uint4')
+    n1, n2, D1, D2 = select_pair(layer)
+    with mock_model(lin=layer), select_mode('klora', alpha=1.5):
+        Wdq0 = dq(layer)
+        activate(n1, n2)
+        entry = lora_stack.state['entries'].get('lora_transformer_test')
+        assert entry is not None and entry['kind'] == 'factor', 'a factorable pair must register factor segments'
+        assert entry['segments'][0] == (0, 8) and entry['segments'][1] == (8, 16), f'segments {entry["segments"]}'
+        total = 20
+        lora_stack.reset(total)
+        flips = [s for s, layers in lora_stack.state['flips'].items() for _ in layers]
+        assert len(flips) <= 1, 'a monotone ramp allows at most one flip per layer'
+        eff0 = dq(layer) - Wdq0
+        winner0 = 0 if rho_of(eff0, D1) > rho_of(eff0, D2) else 1
+        for s in range(total):
+            lora_stack.on_step(s)
+        eff1 = dq(layer) - Wdq0
+        if flips:
+            assert rho_of(eff1, D2) > 0.99, 'after the flip the style delta must be selected'
+            assert rho_of(eff0, D1) > 0.99, 'before the flip the subject delta must be selected'
+        else:
+            assert rho_of(eff1, [D1, D2][winner0]) > 0.99
+        activate()
+        assert torch.equal(dq(layer), Wdq0), 'removal from an end-of-schedule state must restore bit-exact'
+    return True
+
+
+def test_select_initial_style_when_ramp_starts_won():
+    # scale-invariant selection means no single isolated layer starts style-won on magnitude alone
+    # (that is the balance working), so force flip_step 0 directly and assert the initial selection honors it
+    layer = build_layer('uint4')
+    n1, n2, _D1, D2 = select_pair(seed0=43, seed1=44, layer=layer)
+    with mock_model(lin=layer), select_mode('estlora', alpha=1.0, disc=0.5):
+        Wdq0 = dq(layer)
+        activate(n1, n2)
+        orig = lora_stack.layer_flip_step
+        lora_stack.layer_flip_step = lambda scores, total: 0 # this layer's crossover is step 0
+        try:
+            lora_stack.reset(20)
+        finally:
+            lora_stack.layer_flip_step = orig
+        eff = dq(layer) - Wdq0
+        assert rho_of(eff, D2) > 0.99, 'a layer whose flip step is 0 must start style-selected'
+    return True
+
+
+def test_estlora_energy_balance_defeats_magnitude():
+    layer = build_layer('uint4')
+    n1, n2, _D1, D2 = select_pair(layer, seed0=51, seed1=52, scale1=0.33) # content ~3x louder than style
+    with mock_model(lin=layer), select_mode('estlora', alpha=1.5, disc=0.5):
+        Wdq0 = dq(layer)
+        activate(n1, n2)
+        lora_stack.reset(20)
+        entry = lora_stack.state['entries']['lora_transformer_test']
+        assert lora_stack.state['gamma_e'] > 1.5, f'content-louder pair must give gamma_e>1: {lora_stack.state["gamma_e"]:.2f}'
+        balanced = lora_stack.layer_flip_step(entry['scores'], 20)
+        saved = lora_stack.state['gamma_e']
+        lora_stack.state['gamma_e'] = 1.0 # paper-faithful est: energies compared raw
+        raw = lora_stack.layer_flip_step(entry['scores'], 20)
+        lora_stack.state['gamma_e'] = saved
+        assert raw == 20, f'without balance the squared magnitude gap keeps content the whole schedule, got {raw}'
+        assert 0 < balanced < 20, f'the energy balance must let the quieter style win mid-schedule, got {balanced}'
+        for s in range(20):
+            lora_stack.on_step(s)
+        assert rho_of(dq(layer) - Wdq0, D2) > 0.99, 'after the balanced flip the style delta must be selected'
+        activate()
+        assert torch.equal(dq(layer), Wdq0)
+    return True
+
+
+def test_select_flip_is_inplace_and_shape_stable():
+    layer = build_layer('uint4')
+    n1, n2, _D1, _D2 = select_pair(layer, seed0=45, seed1=46)
+    with mock_model(lin=layer), select_mode('klora'):
+        activate(n1, n2)
+        param_id = id(layer.svd_up)
+        shape = tuple(layer.svd_up.shape)
+        lora_stack.reset(20)
+        entry = lora_stack.state['entries']['lora_transformer_test']
+        (s0, s1), (t0, t1), transposed = entry['segments']
+        zeroed = lora_stack.segment_view(layer.svd_up.data, t0, t1, transposed)
+        kept = lora_stack.segment_view(layer.svd_up.data, s0, s1, transposed)
+        assert float(zeroed.abs().sum()) == 0.0 or float(kept.abs().sum()) == 0.0, 'exactly one segment must be zeroed initially'
+        for s in range(20):
+            lora_stack.on_step(s)
+        assert id(layer.svd_up) == param_id and tuple(layer.svd_up.shape) == shape, 'flips must mutate in place, never reassign'
+    return True
+
+
+def test_select_matmul_transposed_layout():
+    layer = build_layer('uint4', use_quantized_matmul=True)
+    n1, n2, D1, D2 = select_pair(layer, seed0=47, seed1=48)
+    with mock_model(lin=layer), select_mode('klora'):
+        Wdq0 = dq(layer)
+        activate(n1, n2)
+        entry = lora_stack.state['entries']['lora_transformer_test']
+        assert entry['segments'][2] is True, 'quantized-matmul layout must register as transposed'
+        lora_stack.reset(20)
+        eff = dq(layer) - Wdq0
+        assert max(rho_of(eff, D1), rho_of(eff, D2)) > 0.99, 'initial selection must realize one delta exactly'
+        activate()
+        assert torch.equal(dq(layer), Wdq0)
+    return True
+
+
+def test_select_per_net_hosted_pair():
+    layer = build_layer('uint4')
+    torch.manual_seed(49)
+    Dd1 = (torch.randn(OUT_F, 24, device=DEVICE) @ torch.randn(24, IN_F, device=DEVICE)) * 1e-3 # rank inside the host cap so truncation is near-lossless
+    Dd2 = (torch.randn(OUT_F, 24, device=DEVICE) @ torch.randn(24, IN_F, device=DEVICE)) * 1e-3
+    n1 = make_dense_net('lk1', layer, Dd1)
+    n2 = make_dense_net('lk2', layer, Dd2)
+    with host_rank(32), mock_model(lin=layer), select_mode('klora'):
+        Wdq0 = dq(layer)
+        activate(n1, n2)
+        entry = lora_stack.state['entries'].get('lora_transformer_test')
+        assert entry is not None, 'non-factorable pairs must register through per-net hosting'
+        assert entry['segments'][0] == (0, 24) and entry['segments'][1] == (24, 48), f'segments {entry["segments"]}' # hosting stores the effective rank (24), not the cap
+        lora_stack.reset(20)
+        eff = dq(layer) - Wdq0
+        best = max(rho_of(eff, Dd1), rho_of(eff, Dd2))
+        assert best > 0.9, f'initial selection must realize one hosted delta, rho={best:.3f}'
+        activate()
+        assert torch.equal(dq(layer), Wdq0)
+    return True
+
+
+def test_select_reset_restores_initial_state():
+    layer = build_layer('uint4')
+    n1, n2, _D1, _D2 = select_pair(layer, seed0=51, seed1=52)
+    with mock_model(lin=layer), select_mode('klora'):
+        activate(n1, n2)
+        lora_stack.reset(20)
+        initial = dq(layer)
+        for s in range(20):
+            lora_stack.on_step(s)
+        lora_stack.reset(20)
+        assert torch.equal(dq(layer), initial), 'a fresh pass must restore the initial selection without re-activation'
+    return True
+
+
+def test_select_deactivate_from_midflip():
+    layer = build_layer('uint4')
+    n1, n2, _D1, _D2 = select_pair(layer, seed0=53, seed1=54)
+    with mock_model(lin=layer), select_mode('klora'):
+        Wdq0 = dq(layer)
+        activate(n1, n2)
+        lora_stack.reset(20)
+        for s in range(10):
+            lora_stack.on_step(s)
+        activate()
+        assert torch.equal(dq(layer), Wdq0), 'removal mid-schedule must restore bit-exact'
+        assert not lora_stack.state['entries'], 'removal must drop the selection entry'
+    return True
+
+
+def test_select_requires_exactly_two_nets():
+    layer = build_layer('uint4')
+    A3, B3, _D3 = make_delta(seed=55)
+    n1, n2, _D1, _D2 = select_pair(layer, seed0=56, seed1=57)
+    n3 = make_net('third', layer, A3, B3)
+    with mock_model(lin=layer), select_mode('klora'):
+        activate(n1, n2, n3)
+        assert hasattr(layer, 'sdnq_lora_svd_stash'), 'three nets must fall back to the exact concat path'
+        assert not lora_stack.state['entries'], 'no selection entries outside the two-net case'
+        activate()
+    return True
+
+
+def test_select_gated_off_when_compiled():
+    layer = build_layer('uint4')
+    n1, n2, _D1, _D2 = select_pair(layer, seed0=58, seed1=59)
+    old_compile = getattr(shared.opts, 'cuda_compile', None)
+    try:
+        shared.opts.cuda_compile = ['Model']
+        with mock_model(lin=layer), select_mode('klora'):
+            activate(n1, n2)
+            assert not lora_stack.state['entries'], 'select must gate off under model compile'
+            assert hasattr(layer, 'sdnq_lora_svd_stash'), 'gated select behaves as sum'
+            activate()
+    finally:
+        shared.opts.cuda_compile = old_compile
+    return True
+
+
+def test_select_finalize_drops_dead_module():
+    import weakref
+    layer = build_layer('uint4')
+    n1, n2, _D1, _D2 = select_pair(layer, seed0=61, seed1=62)
+    with mock_model(lin=layer), select_mode('klora'):
+        activate(n1, n2)
+        entry = lora_stack.state['entries'].get('lora_transformer_test')
+        assert entry is not None, 'pair must register before the module dies'
+        entry['module'] = weakref.ref(torch.nn.Linear(2, 2)) # referent dies immediately: simulates offload re-wraps replacing a registered module
+        assert entry['module']() is None
+        lora_stack.reset(12)
+        assert 'lora_transformer_test' not in lora_stack.state['entries'], 'a dead module must drop its entry without breaking finalize'
+        activate()
+    return True
+
+
+def test_select_int8_pair_rides_segments():
+    layer = build_layer('int8')
+    n1, n2, D1, D2 = select_pair(layer, seed0=63, seed1=64)
+    with mock_model(lin=layer), select_mode('klora'):
+        Wdq0 = dq(layer)
+        activate(n1, n2)
+        entry = lora_stack.state['entries'].get('lora_transformer_test')
+        assert entry is not None and entry['kind'] == 'factor', 'an int8 pair must ride svd segments, not weight rewrites'
+        lora_stack.reset(16)
+        eff = dq(layer) - Wdq0
+        assert max(rho_of(eff, D1), rho_of(eff, D2)) > 0.99, 'initial selection must deliver one exact per-net delta'
+        activate()
+        assert torch.equal(dq(layer), Wdq0), 'removal must restore bit-exact'
+    return True
+
+
+def test_select_gate_dormant_without_pair():
+    with select_mode('klora'):
+        assert lora_stack.select_possible(1) is False, 'a single network must leave the fuse gate alone'
+        assert lora_stack.select_possible(2) is True
+        assert lora_stack.select_possible(3) is False
+        old_compile = getattr(shared.opts, 'cuda_compile', None)
+        try:
+            shared.opts.cuda_compile = ['Model']
+            assert lora_stack.select_possible(2) is False, 'compile block must keep the gate down'
+        finally:
+            shared.opts.cuda_compile = old_compile
+        assert lora_stack.select_engaged() is False
+    with select_mode('sum'):
+        assert lora_stack.select_possible(2) is False
+    return True
+
+
+def test_stale_schedule_dropped_on_reapply():
+    layer = build_layer('uint4')
+    n1, n2, D1, _D2 = select_pair(layer, seed0=64, seed1=65)
+    with mock_model(lin=layer), select_mode('klora'):
+        Wdq0 = dq(layer)
+        activate(n1, n2)
+        assert lora_stack.select_engaged(), 'the pair must register schedules'
+        lora_stack.reset(20)
+        activate(n1) # same mode still set, but a single net cannot select
+        assert not lora_stack.select_engaged(), 're-application must drop the stale schedule'
+        w_single = dq(layer)
+        assert rho_of(w_single - Wdq0, D1) > 0.99, 'the single net must apply exactly'
+        lora_stack.reset(20) # a later pass reset must find nothing to replay
+        assert torch.equal(dq(layer), w_single), 'a stale schedule must never overwrite a fresh apply'
+        activate()
+        assert torch.equal(dq(layer), Wdq0)
+    return True
+
+
+def test_est_energy_matches_full_frobenius():
+    torch.manual_seed(60)
+    up = torch.randn(64, 8, device=DEVICE)
+    down = torch.randn(8, 96, device=DEVICE)
+    gram = lora_stack.score_energy(up, down)
+    full = float((up @ down).square().sum())
+    assert abs(gram - full) / full < 1e-5, f'{gram} vs {full}'
+    return True
+
+
+def test_select_weight_kind_plain_layer():
+    lin = torch.nn.Linear(IN_F, OUT_F, bias=False, dtype=torch.bfloat16, device=DEVICE)
+    with torch.no_grad():
+        lin.weight.copy_(torch.randn(OUT_F, IN_F, device=DEVICE) * 0.02)
+    lin.network_layer_name = 'lora_transformer_plain'
+    lin.network_current_names = ()
+    A1, B1, D1 = make_delta(seed=61, sigma=1e-2)
+    A2, B2, D2 = make_delta(seed=62, sigma=1e-2)
+    n1 = make_net('w1', lin, A1, B1)
+    n2 = make_net('w2', lin, A2, B2)
+    W0 = lin.weight.detach().float().clone()
+    with mock_model(lin=lin), select_mode('klora'):
+        activate(n1, n2)
+        entry = lora_stack.state['entries'].get('lora_transformer_plain')
+        assert entry is not None and entry['kind'] == 'weight', 'plain layers must register weight-kind selection'
+        assert torch.equal(lin.weight.detach().float(), W0), 'weights stay pristine until the schedule applies a winner'
+        lora_stack.reset(20)
+        eff = lin.weight.detach().float() - W0
+        assert max(rho_of(eff, D1), rho_of(eff, D2)) > 0.95, 'initial selection must apply one delta from backup'
+        for s in range(20):
+            lora_stack.on_step(s)
+        activate()
+        assert torch.equal(lin.weight.detach().float(), W0), 'restore-only pass must return the pristine weight'
+    return True
+
+
+def test_select_gamma_tracks_live_entries():
+    layer = build_layer('uint4')
+    n1, n2, _D1, _D2 = select_pair(layer, seed0=57, seed1=58)
+    with mock_model(lin=layer), select_mode('klora'):
+        activate(n1, n2)
+        lora_stack.reset(20)
+        entry = lora_stack.state['entries']['lora_transformer_test']
+        live = entry['abs_sums'][0] / entry['abs_sums'][1]
+        assert abs(lora_stack.state['gamma'] - live) < 1e-9, f'gamma {lora_stack.state["gamma"]} vs live ratio {live}'
+        n2.te_multiplier = 0.5
+        n2.unet_multiplier = [0.5] * 3
+        activate(n1, n2) # multiplier change re-applies the pair through the drop/re-register walk
+        lora_stack.reset(20)
+        entry = lora_stack.state['entries']['lora_transformer_test']
+        live2 = entry['abs_sums'][0] / entry['abs_sums'][1]
+        assert live2 > live * 1.5, f'halving the style multiplier must move the live ratio: {live} -> {live2}'
+        assert abs(lora_stack.state['gamma'] - live2) < 1e-9, f'gamma must equal the live-entry ratio, not blend with the previous registration: {lora_stack.state["gamma"]} vs {live2}'
+        activate()
+    with mock_model(lin=layer), select_mode('estlora'):
+        activate(n1, n2)
+        lora_stack.reset(20)
+        entry = lora_stack.state['entries']['lora_transformer_test']
+        live_e = entry['scores'][0] / entry['scores'][1]
+        assert abs(lora_stack.state['gamma_e'] - live_e) < 1e-9
+        n2.te_multiplier = 1.0
+        n2.unet_multiplier = [1.0] * 3
+        activate(n1, n2)
+        lora_stack.reset(20)
+        entry = lora_stack.state['entries']['lora_transformer_test']
+        live_e2 = entry['scores'][0] / entry['scores'][1]
+        assert abs(lora_stack.state['gamma_e'] - live_e2) < 1e-9, f'energy balance must track the live registration: {lora_stack.state["gamma_e"]} vs {live_e2}'
+        activate()
+    return True
+
+
+def test_select_host_disabled_falls_back_to_sum():
+    layer = build_layer('uint4')
+    n1, n2, D1, D2 = select_pair(layer, seed0=53, seed1=54)
+    with mock_model(lin=layer), select_mode('klora'), host_rank(0):
+        Wdq0 = dq(layer)
+        activate(n1, n2)
+        assert not lora_stack.select_engaged(), 'hosting disabled: quantized layers cannot carry segments, nothing must schedule'
+        assert 'select-host-disabled' in lora_stack.warned, 'the degradation must be said once'
+        eff = dq(layer) - Wdq0
+        assert rho_of(eff, D1 + D2) > 0.99, 'the pair must land as plain summation, not a pristine no-op'
+        activate()
+        assert torch.equal(dq(layer), Wdq0)
+    return True
+
+
+def test_flip_lands_before_crossover_step():
+    layer = build_layer('uint4')
+    n1, n2, D1, D2 = select_pair(layer, seed0=55, seed1=56)
+    with mock_model(lin=layer), select_mode('klora'):
+        Wdq0 = dq(layer)
+        activate(n1, n2)
+        total = 20
+        orig = lora_stack.layer_flip_step
+        lora_stack.layer_flip_step = lambda scores, t: t - 1 # crossover on the final step
+        try:
+            lora_stack.reset(total)
+        finally:
+            lora_stack.layer_flip_step = orig
+        assert list(lora_stack.state['flips'].keys()) == [total - 2], f'end-of-step callbacks: a crossover at step k must execute at the end of step k-1, got {list(lora_stack.state["flips"].keys())}'
+        assert rho_of(dq(layer) - Wdq0, D1) > 0.99, 'the subject holds the layer before the flip'
+        for s in range(total - 1): # the callback after the second-to-last denoise is the last one that can matter
+            lora_stack.on_step(s)
+        assert rho_of(dq(layer) - Wdq0, D2) > 0.99, 'the style side must be live for the final denoise'
+        activate()
+        assert torch.equal(dq(layer), Wdq0)
+    return True
+
+
+def test_score_pair_chunked_precision():
+    torch.manual_seed(71)
+    shapes = [(700, 460), (OUT_F, IN_F), (64,)] # off-chunk rows, square, and a 1-D norm delta
+    for shape in shapes:
+        d0 = (torch.randn(*shape, device=DEVICE) * 1e-2).to(torch.bfloat16)
+        d1 = (torch.randn(*shape, device=DEVICE) * 1e-2).to(torch.bfloat16)
+        for mode_name in ('klora', 'estlora'):
+            with select_mode(mode_name):
+                (s0, s1), (a0, a1) = lora_stack.score_pair(d0, d1, 8, 8)
+            f0, f1 = d0.to(torch.float64), d1.to(torch.float64)
+            ra0, ra1 = float(f0.abs().sum()), float(f1.abs().sum())
+            if mode_name == 'klora':
+                k = 64
+                rs0 = float(torch.topk(f0.abs().flatten(), min(k, f0.numel()), sorted=False).values.sum())
+                rs1 = float(torch.topk(f1.abs().flatten(), min(k, f1.numel()), sorted=False).values.sum())
+            else:
+                rs0, rs1 = float(f0.square().sum()), float(f1.square().sum())
+            for got, ref, label in ((s0, rs0, 'score0'), (s1, rs1, 'score1'), (a0, ra0, 'abs0'), (a1, ra1, 'abs1')):
+                assert abs(got - ref) <= 1e-9 * max(abs(ref), 1e-12), f'{mode_name} {label} shape={shape}: got {got!r} ref {ref!r}'
+    frozen = torch.randn(300, 200, device=DEVICE, dtype=torch.float32) * 1e-2 # fp32 input aliases through to(); abs must stay out-of-place
+    pristine = frozen.clone()
+    with select_mode('klora'):
+        lora_stack.score_pair(frozen, frozen, 4, 4)
+    assert torch.equal(frozen, pristine), 'score_pair must not mutate a caller-owned fp32 delta'
+    return True
+
+
+def test_select_replay_from_cache_skips_calc():
+    import tempfile
+    layer = build_layer('uint4')
+    torch.manual_seed(73)
+    Dd1 = (torch.randn(OUT_F, 24, device=DEVICE) @ torch.randn(24, IN_F, device=DEVICE)) * 1e-3
+    Dd2 = (torch.randn(OUT_F, 24, device=DEVICE) @ torch.randn(24, IN_F, device=DEVICE)) * 1e-3
+    with tempfile.TemporaryDirectory() as tmp:
+        with host_rank(32), host_cache(10, os.path.join(tmp, 'cache')), mock_model(lin=layer), select_mode('klora'):
+            n1 = make_dense_net('selk1', layer, Dd1)
+            n2 = make_dense_net('selk2', layer, Dd2)
+            for net in (n1, n2):
+                lora_file = os.path.join(tmp, f'{net.name}.safetensors')
+                with open(lora_file, 'wb') as f:
+                    f.write(b'0' * 64)
+                net.network_on_disk.filename = lora_file
+            from modules.modeldata import model_data
+            model_data.sd_model.sd_checkpoint_info = MockCheckpointInfo('test/cache-model')
+            Wdq0 = dq(layer)
+            with counting_calc() as calls:
+                activate(n1, n2)
+                assert calls['n'] > 0, 'a fresh select apply must assemble both deltas'
+                entry = lora_stack.state['entries'].get('lora_transformer_test')
+                assert entry is not None and entry['kind'] == 'factor'
+                fresh_scores, fresh_abs = entry['scores'], entry['abs_sums']
+                first = dq(layer)
+                activate()
+                calls['n'] = 0
+                real_svd = torch.svd_lowrank
+                torch.svd_lowrank = raise_no_svd
+                try:
+                    activate(n1, n2)
+                finally:
+                    torch.svd_lowrank = real_svd
+                assert calls['n'] == 0, f'a select replay must not assemble deltas: calc_updown ran {calls["n"]} times'
+                entry = lora_stack.state['entries'].get('lora_transformer_test')
+                assert entry is not None and entry['kind'] == 'factor', 'the replay must re-register the selection'
+                assert entry['scores'] == fresh_scores and entry['abs_sums'] == fresh_abs, 'cached scores must replay exactly'
+                assert torch.equal(dq(layer), first), 'select replay must be bit-identical to the fresh apply'
+                activate()
+                assert torch.equal(dq(layer), Wdq0)
+    return True
+
+
+def test_select_weight_replay_from_cache_skips_calc():
+    import tempfile
+    lin = torch.nn.Linear(IN_F, OUT_F, bias=False, dtype=torch.bfloat16, device=DEVICE)
+    with torch.no_grad():
+        lin.weight.copy_(torch.randn(OUT_F, IN_F, device=DEVICE) * 0.02)
+    lin.network_layer_name = 'lora_transformer_plainsel'
+    lin.network_current_names = ()
+    torch.manual_seed(75)
+    Dd1 = (torch.randn(OUT_F, 24, device=DEVICE) @ torch.randn(24, IN_F, device=DEVICE)) * 1e-3
+    Dd2 = (torch.randn(OUT_F, 24, device=DEVICE) @ torch.randn(24, IN_F, device=DEVICE)) * 1e-3
+    W0 = lin.weight.detach().float().clone()
+    with tempfile.TemporaryDirectory() as tmp:
+        with host_cache(10, os.path.join(tmp, 'cache')), mock_model(lin=lin), select_mode('klora'):
+            n1 = make_dense_net('selw1', lin, Dd1)
+            n2 = make_dense_net('selw2', lin, Dd2)
+            for net in (n1, n2):
+                lora_file = os.path.join(tmp, f'{net.name}.safetensors')
+                with open(lora_file, 'wb') as f:
+                    f.write(b'0' * 64)
+                net.network_on_disk.filename = lora_file
+            from modules.modeldata import model_data
+            model_data.sd_model.sd_checkpoint_info = MockCheckpointInfo('test/cache-model')
+            with counting_calc() as calls:
+                activate(n1, n2)
+                assert calls['n'] > 0, 'a fresh weight-kind select apply must assemble the pair'
+                entry = lora_stack.state['entries'].get('lora_transformer_plainsel')
+                assert entry is not None and entry['kind'] == 'weight'
+                fresh_scores = entry['scores']
+                assert torch.equal(lin.weight.detach().float(), W0), 'weights stay pristine until the schedule applies a winner'
+                lora_stack.reset(20)
+                fresh_selected = lin.weight.detach().float().clone()
+                activate()
+                assert torch.equal(lin.weight.detach().float(), W0)
+                calls['n'] = 0
+                activate(n1, n2)
+                assert calls['n'] == 0, f'a weight-kind select replay must not assemble the pair: calc_updown ran {calls["n"]} times'
+                entry = lora_stack.state['entries'].get('lora_transformer_plainsel')
+                assert entry is not None and entry['kind'] == 'weight', 'the replay must register from the score record'
+                assert entry['scores'] == fresh_scores, 'cached scores must replay exactly'
+                lora_stack.reset(20) # the winner recompute at schedule time still assembles its own delta, by design
+                assert torch.equal(lin.weight.detach().float(), fresh_selected), 'the replayed schedule must select the same winner'
+                activate()
+                assert torch.equal(lin.weight.detach().float(), W0)
+    return True
+
+
+def test_select_reset_reports_timing():
+    lin = torch.nn.Linear(IN_F, OUT_F, bias=False, dtype=torch.bfloat16, device=DEVICE)
+    with torch.no_grad():
+        lin.weight.copy_(torch.randn(OUT_F, IN_F, device=DEVICE) * 0.02)
+    lin.network_layer_name = 'lora_transformer_timed'
+    lin.network_current_names = ()
+    A1, B1, _D1 = make_delta(seed=77, sigma=1e-2)
+    A2, B2, _D2 = make_delta(seed=78, sigma=1e-2)
+    n1 = make_net('t1', lin, A1, B1)
+    n2 = make_net('t2', lin, A2, B2)
+    with mock_model(lin=lin), select_mode('klora'):
+        activate(n1, n2)
+        lora_stack.reset(20)
+        stats = lora_stack.state.get('stats')
+        assert stats is not None, 'a reset must publish its timing stats'
+        assert stats['weight_n'] == 1 and stats['factor_n'] == 0, f'weight-kind counts wrong: {stats}'
+        assert stats['w_calc'] > 0.0, 'the weight-kind winner apply must account its calc time'
+        assert stats['select'] > 0.0
+        activate()
+    layer = build_layer('uint4')
+    f1, f2, _Df1, _Df2 = select_pair(layer, seed0=79, seed1=80)
+    with mock_model(lin=layer), select_mode('klora'):
+        activate(f1, f2)
+        lora_stack.reset(20)
+        stats = lora_stack.state.get('stats')
+        assert stats is not None and stats['factor_n'] == 1 and stats['weight_n'] == 0, f'factor-kind counts wrong: {stats}'
+        assert stats['w_calc'] == 0.0, 'factor-kind resets flip segments and must not touch the weight path'
+        activate()
+    return True
+
+
+def test_select_weight_flip_calcs_on_accelerator():
+    from modules.lora import network_lora
+    lin = torch.nn.Linear(IN_F, OUT_F, bias=False, dtype=torch.bfloat16, device='cpu') # a swapped-out layer: weight lives on cpu
+    with torch.no_grad():
+        lin.weight.copy_(torch.randn(OUT_F, IN_F) * 0.02)
+    lin.network_layer_name = 'lora_transformer_swapped'
+    lin.network_current_names = ()
+    A1, B1, _D1 = make_delta(seed=81, sigma=1e-2)
+    A2, B2, _D2 = make_delta(seed=82, sigma=1e-2)
+    n1 = make_net('s1', lin, A1, B1)
+    n2 = make_net('s2', lin, A2, B2)
+    seen = []
+    real = network_lora.NetworkModuleLora.calc_updown
+    def spy(self, target, *args, **kwargs):
+        seen.append(target.device.type)
+        return real(self, target, *args, **kwargs)
+    with mock_model(lin=lin), select_mode('klora'):
+        activate(n1, n2)
+        lin.to('cpu') # the offload dispatch swaps blocks back out after the walk; the reset must not follow the weight onto the cpu
+        network_lora.NetworkModuleLora.calc_updown = spy
+        try:
+            lora_stack.reset(20)
+        finally:
+            network_lora.NetworkModuleLora.calc_updown = real
+        assert seen and all(d == DEVICE.type for d in seen), f'winner materialization must calc on the accelerator, saw {seen}'
+        activate()
+    return True
+
+
 CAT_COMPILE = category('compile')
 
 
@@ -1499,6 +2363,33 @@ def test_rank_bucket_graph_reuse():
     return True
 
 
+def test_recompile_wall_resets_on_unload():
+    import sdnq.common as sdnq_common
+    if not sdnq_common.use_torch_compile:
+        return True
+    import torch._dynamo
+    import torch._dynamo.config as dcfg
+    from torch._dynamo.exc import FailOnRecompileLimitHit
+    old_acc = dcfg.accumulated_recompile_limit
+    dcfg.accumulated_recompile_limit = 4
+    try:
+        fn = sdnq_common.compile_func(lambda w, s: w.to(torch.float32) * s)
+        hit = False
+        for i in range(8): # fresh shapes stand in for model switches: the lifetime counter climbs even when old guards are dead
+            try:
+                fn(torch.randint(0, 255, (32 + 16 * i, 8), dtype=torch.uint8, device=DEVICE), torch.rand(32 + 16 * i, 1, device=DEVICE))
+            except FailOnRecompileLimitHit:
+                hit = True
+                break
+        assert hit, 'the lowered lifetime wall must trip on fullgraph recompiles'
+        sdnq_common.reset_compile_caches() # the unload-seam hook: counters and dead graphs cleared
+        fn(torch.randint(0, 255, (1024, 8), dtype=torch.uint8, device=DEVICE), torch.rand(1024, 1, device=DEVICE))
+    finally:
+        dcfg.accumulated_recompile_limit = old_acc
+        torch._dynamo.reset() # leave no wall residue for later tests
+    return True
+
+
 CAT_ROBUST = category('robustness')
 
 
@@ -1545,6 +2436,392 @@ def test_stacked_shape_mismatch_falls_back():
     return True
 
 
+# ============================================================
+# Tests - per-block strength (lbw)
+# ============================================================
+
+CAT_BLOCKS = category('block-weights')
+
+
+def block_fixture_keys(arch):
+    """Sparse network_layer_mapping keys per arch: the layout scan only needs each chain's max index."""
+    if arch == 'sd':
+        return ['lora_unet_down_blocks_3_resnets_1_conv1', 'lora_unet_up_blocks_3_resnets_2_conv1']
+    if arch == 'sdxl':
+        return ['lora_unet_down_blocks_2_resnets_1_conv1', 'lora_unet_up_blocks_2_resnets_2_conv1']
+    if arch in ('f1', 'chroma'):
+        return ['lora_transformer_transformer_blocks_18_attn_to_q', 'lora_transformer_single_transformer_blocks_37_attn_to_q']
+    if arch == 'krea2':
+        return ['lora_transformer_blocks_27_attn_wq', 'lora_transformer_txtfusion_layerwise_blocks_1_attn_wq', 'lora_transformer_txtfusion_refiner_blocks_1_mlp_down']
+    if arch == 'anima':
+        return ['lora_transformer_transformer_blocks_27_attn1_to_q', 'lora_llm_adapter_blocks_5_self_attn_q_proj', 'lora_te_layers_3_mlp_gate_proj']
+    if arch == 'zimage':
+        return ['lora_transformer_layers_29_attention_to_q', 'lora_transformer_noise_refiner_1_attention_to_q']
+    if arch == 'sd3':
+        return ['lora_transformer_transformer_blocks_23_attn_to_q']
+    return []
+
+
+@contextmanager
+def block_model(arch, keys=None, **layers):
+    """mock_model plus a synthetic arch and network_layer_mapping for block classification."""
+    from modules import modeldata
+    real_type = modeldata.get_model_type
+    modeldata.get_model_type = lambda _pipe: arch
+    try:
+        with mock_model(**layers):
+            shared.sd_model.network_layer_mapping = {k: None for k in (keys or block_fixture_keys(arch))}
+            lora_blocks.state.update(stamp=None, layout=None)
+            lora_blocks.state['index'].clear()
+            lora_blocks.state['vectors'].clear()
+            lora_blocks.warned.clear()
+            yield
+    finally:
+        modeldata.get_model_type = real_type
+        lora_blocks.state.update(stamp=None, layout=None)
+        lora_blocks.state['index'].clear()
+        lora_blocks.state['vectors'].clear()
+        lora_blocks.warned.clear()
+
+
+def sd3_spec(n=25, **slots):
+    """A 25-slot sd3 vector as a spec string with named slot overrides."""
+    vals = [1.0] * n
+    for slot, v in slots.items():
+        vals[int(slot[1:])] = v
+    return ','.join(str(v) for v in vals)
+
+
+def test_block_index_sd_unet_layout():
+    with block_model('sd'):
+        lay = lora_blocks.layout()
+        assert lay is not None and lay['n'] == 26 and lay['kind'] == 'unet', f'layout={lay}'
+        cases = {
+            'lora_unet_conv_in': 1,
+            'lora_unet_down_blocks_0_attentions_0_transformer_blocks_0_attn1_to_q': 2,
+            'lora_unet_down_blocks_0_resnets_1_conv1': 3,
+            'lora_unet_down_blocks_0_downsamplers_0_conv': 4,
+            'lora_unet_down_blocks_2_downsamplers_0_conv': 10,
+            'lora_unet_down_blocks_3_resnets_1_conv1': 12,
+            'lora_unet_mid_block_attentions_0_transformer_blocks_0_attn2_to_k': 13,
+            'lora_unet_up_blocks_0_resnets_0_conv1': 14,
+            'lora_unet_up_blocks_1_attentions_2_transformer_blocks_0_ff_net_0_proj': 19,
+            'lora_unet_up_blocks_2_upsamplers_0_conv': 22,
+            'lora_unet_up_blocks_3_resnets_2_conv1': 25,
+            'lora_unet_conv_out': 25,
+            'lora_unet_conv_norm_out': 25,
+            'lora_unet_time_embedding_linear_1': 0,
+            'lora_te_text_model_encoder_layers_0_self_attn_q_proj': 0,
+        }
+        for key, expected in cases.items():
+            got = lora_blocks.block_index(key)
+            assert got == expected, f'{key}: got {got} expected {expected}'
+    return True
+
+
+def test_block_index_sdxl_unet_layout():
+    with block_model('sdxl'):
+        lay = lora_blocks.layout()
+        assert lay is not None and lay['n'] == 20, f'layout={lay}'
+        cases = {
+            'lora_unet_down_blocks_1_attentions_0_transformer_blocks_3_attn1_to_v': 5,
+            'lora_unet_mid_block_attentions_0_transformer_blocks_9_norm3': 10,
+            'lora_unet_up_blocks_0_resnets_0_conv1': 11,
+            'lora_unet_up_blocks_2_resnets_2_conv1': 19,
+            'lora_unet_add_embedding_linear_1': 0,
+            'lora_te1_text_model_encoder_layers_0_self_attn_k_proj': 0,
+            'lora_te2_text_projection': 0,
+        }
+        for key, expected in cases.items():
+            got = lora_blocks.block_index(key)
+            assert got == expected, f'{key}: got {got} expected {expected}'
+    return True
+
+
+def test_block_index_flux_chains_concatenate():
+    with block_model('f1'):
+        lay = lora_blocks.layout()
+        assert lay is not None and lay['n'] == 58, f'layout={lay}' # 19 double + 38 single + BASE
+        cases = {
+            'lora_transformer_transformer_blocks_0_attn_to_q': 1,
+            'lora_transformer_transformer_blocks_18_ff_net_0_proj': 19,
+            'lora_transformer_single_transformer_blocks_0_attn_to_q': 20,
+            'lora_transformer_single_transformer_blocks_37_proj_out': 57,
+            'lora_transformer_x_embedder': 0,
+            'lora_transformer_proj_out': 0,
+        }
+        for key, expected in cases.items():
+            got = lora_blocks.block_index(key)
+            assert got == expected, f'{key}: got {got} expected {expected}'
+    return True
+
+
+def test_block_index_anchoring_krea2_and_chroma():
+    with block_model('krea2'):
+        lay = lora_blocks.layout()
+        assert lay is not None and lay['n'] == 29, f'layout={lay}' # txtfusion chains stay uncounted
+        assert lora_blocks.block_index('lora_transformer_blocks_5_attn_wq') == 6
+        assert lora_blocks.block_index('lora_transformer_txtfusion_layerwise_blocks_0_attn_wq') == 0
+        assert lora_blocks.block_index('lora_transformer_txtfusion_refiner_blocks_1_mlp_down') == 0
+    with block_model('chroma'):
+        assert lora_blocks.block_index('lora_transformer_transformer_blocks_0_attn_to_q') == 1
+        assert lora_blocks.block_index('lora_transformer_single_transformer_blocks_0_attn_to_q') == 20 # anchored: not the double chain's slot
+        assert lora_blocks.block_index('lora_transformer_distilled_guidance_layer_layers_0_linear_1') == 0
+    return True
+
+
+def test_block_index_namespace_collisions():
+    with block_model('anima'):
+        assert lora_blocks.block_index('lora_transformer_transformer_blocks_5_attn1_to_q') == 6
+        assert lora_blocks.block_index('lora_te_layers_0_self_attn_q_proj') is None, 'anima TE strips to the zimage pattern; the namespace must win'
+        assert lora_blocks.block_index('lora_llm_adapter_blocks_0_self_attn_q_proj') is None, 'anima llm_adapter strips to the krea2 pattern; the namespace must win'
+        from types import SimpleNamespace
+        muted = SimpleNamespace(name='m', block_spec='NONE')
+        assert lora_blocks.factor('lora_te_layers_0_self_attn_q_proj', muted) == 1.0, 'namespaces outside the vector stay neutral even under an all-zero spec'
+    return True
+
+
+def test_unet_arithmetic_matches_conversion_map():
+    from modules.lora import lora_convert
+    with block_model('sd'):
+        n_in = lora_blocks.layout()['n_in']
+        checked = 0
+        for sd_key, hf_key in lora_convert.make_unet_conversion_map().items():
+            if sd_key.startswith('input_blocks'):
+                expected = 1 + int(sd_key.split('_')[2])
+            elif sd_key.startswith('output_blocks'):
+                expected = 2 + n_in + int(sd_key.split('_')[2])
+            elif sd_key.startswith('middle_block'):
+                expected = 1 + n_in
+            elif sd_key.startswith('time_embed') or sd_key.startswith('label_emb'):
+                expected = 0
+            elif sd_key.startswith('out_'):
+                expected = 25
+            else:
+                continue
+            got = lora_blocks.block_index('lora_unet_' + hf_key)
+            assert got == expected, f'{sd_key} -> {hf_key}: got {got} expected {expected}'
+            checked += 1
+        assert checked > 60, f'the map cross-check covered only {checked} entries'
+    return True
+
+
+def test_resolve_preset_case_and_arch_guard():
+    from modules.merging.merge_presets import BLOCK_WEIGHTS_PRESETS, SDXL_BLOCK_WEIGHTS_PRESETS
+    with block_model('sd'):
+        v = lora_blocks.resolve('grad_v')
+        assert v is not None and len(v) == 26 and v[0] == 1.0, 'preset BASE must be forced neutral'
+        assert v[1:] == [float(x) for x in BLOCK_WEIGHTS_PRESETS['GRAD_V'][1:]]
+        assert lora_blocks.resolve('SDXL_GRAD_V') is None, 'arch-tagged presets must not resolve elsewhere'
+    with block_model('sdxl'):
+        v = lora_blocks.resolve('GRAD_V')
+        assert v is not None and len(v) == 20 and v[0] == 1.0
+        assert v[1:] == [float(x) for x in SDXL_BLOCK_WEIGHTS_PRESETS['SDXL_GRAD_V'][1:]], 'the SDXL_ table must serve the unprefixed name'
+        v = lora_blocks.resolve('RING08_5')
+        assert v is not None and len(v) == 20 and v[0] == 1.0, 'a 26-slot preset must resample onto the sdxl layout'
+    return True
+
+
+def test_resolve_dit_resample_drops_base():
+    from modules.merging.merge_presets import BLOCK_WEIGHTS_PRESETS
+    src = BLOCK_WEIGHTS_PRESETS['GRAD_A']
+    with block_model('f1'):
+        v = lora_blocks.resolve('GRAD_A')
+        assert v is not None and len(v) == 58
+        assert v[0] == 1.0, 'BASE is a unet concept and must not inherit the merge slot'
+        assert v[1] == float(src[1]) and v[-1] == float(src[-1]), 'resampling must keep the endpoints'
+        assert min(v[1:]) >= min(src[1:]) - 1e-9 and max(v[1:]) <= max(src[1:]) + 1e-9
+    return True
+
+
+def test_resolve_vector_length_policy():
+    with block_model('sd'):
+        full = [round(0.01 * i, 2) for i in range(26)]
+        v = lora_blocks.resolve(','.join(str(x) for x in full))
+        assert v == full, 'a canonical-length vector must pass through verbatim'
+        v = lora_blocks.resolve(','.join(str(x) for x in full[1:]))
+        assert v == [1.0] + full[1:], 'a base-less vector must gain a neutral BASE'
+        v = lora_blocks.resolve(','.join(['0.5'] * 17))
+        assert v is not None and len(v) == 26 and v[0] == 0.5 and v[2] == 0.5 and v[13] == 0.5 and v[25] == 0.5, 'the a1111 17-slot layout must expand'
+        assert v[1] == 1.0 and v[14] == 1.0, 'slots the a1111 layout omits stay neutral'
+        assert lora_blocks.resolve(','.join(['1'] * 24)) is None, 'an unmatched length must be rejected'
+    with block_model('sdxl'):
+        v = lora_blocks.resolve(','.join(['0.25'] * 12))
+        assert v is not None and len(v) == 20 and v[0] == 0.25 and v[5] == 0.25 and v[10] == 0.25 and v[16] == 0.25
+        assert v[1] == 1.0 and v[7] == 1.0 and v[17] == 1.0
+    return True
+
+
+def test_resolve_scalar_and_classic():
+    with block_model('sd'):
+        assert lora_blocks.resolve('0.5') == [0.5] * 26, 'a scalar must broadcast to every slot'
+        v = lora_blocks.resolve('INS')
+        assert v[0] == 1.0 and all(x == 1.0 for x in v[1:7]) and all(x == 0.0 for x in v[7:]), f'INS must cover the shallow input half: {v}'
+        v = lora_blocks.resolve('OUTALL')
+        assert v[0] == 1.0 and all(x == 0.0 for x in v[1:14]) and all(x == 1.0 for x in v[14:]), f'OUTALL must cover the output side: {v}'
+        assert lora_blocks.resolve('NONE') == [0.0] * 26
+        assert lora_blocks.resolve('DOUBLE') is None, 'chain names need a two-chain arch'
+    with block_model('f1'):
+        v = lora_blocks.resolve('DOUBLE')
+        assert v[0] == 1.0 and all(x == 1.0 for x in v[1:20]) and all(x == 0.0 for x in v[20:]), 'DOUBLE must keep the double chain only'
+        v = lora_blocks.resolve('SINGLE')
+        assert all(x == 0.0 for x in v[1:20]) and all(x == 1.0 for x in v[20:]), 'SINGLE must keep the single chain only'
+    return True
+
+
+def test_bad_value_warns_once_and_ignores():
+    from types import SimpleNamespace
+    with block_model('sd'):
+        assert lora_blocks.resolve('bogus') is None
+        assert lora_blocks.resolve('1,2,3') is None
+        warned_n = len(lora_blocks.warned)
+        lora_blocks.resolve('bogus')
+        assert len(lora_blocks.warned) == warned_n, 'a repeated bad value must not warn again'
+        net = SimpleNamespace(name='b', block_spec='bogus')
+        assert lora_blocks.factor('lora_unet_conv_in', net) == 1.0, 'an unresolvable spec must leave the plain strength'
+    return True
+
+
+def test_multiplier_folds_block_weight():
+    layer = build_layer('uint4')
+    layer.network_layer_name = 'lora_transformer_transformer_blocks_3_attn_to_q'
+    A, B, D = make_delta()
+    net = make_net('blocky', layer, A, B, te_mult=0.5)
+    with block_model('sd3', lin=layer):
+        net.block_spec = sd3_spec(s4=0.5) # block 3 sits in slot 4
+        Wdq0 = dq(layer)
+        activate(net)
+        rho = rho_of(dq(layer) - Wdq0, D)
+        assert abs(rho - 0.25) < 0.01, f'expected multiplier 0.5 x block 0.5, rho={rho:.4f}'
+        activate()
+        assert torch.equal(dq(layer), Wdq0), 'unload must restore bit-exact'
+    return True
+
+
+def test_block_weight_zero_kills_layer_delta():
+    layer_a = build_layer('uint4')
+    layer_a.network_layer_name = 'lora_transformer_transformer_blocks_3_attn_to_q'
+    layer_b = build_layer('uint4', seed=7)
+    layer_b.network_layer_name = 'lora_transformer_transformer_blocks_5_attn_to_q'
+    A1, B1, D1 = make_delta(seed=1)
+    A2, B2, D2 = make_delta(seed=2)
+    net = make_net('zeroed', layer_a, A1, B1)
+    nw = network.NetworkWeights(network_key=layer_b.network_layer_name, sd_key=layer_b.network_layer_name,
+                                w={'lora_up.weight': B2.cpu(), 'lora_down.weight': A2.cpu()}, sd_module=layer_b)
+    net.modules[layer_b.network_layer_name] = network_lora.NetworkModuleLora(net, nw)
+    with block_model('sd3', a=layer_a, b=layer_b):
+        net.block_spec = sd3_spec(s4=0.0) # zero the slot of block 3; block 5 stays at 1
+        Wa0, Wb0 = dq(layer_a), dq(layer_b)
+        activate(net)
+        rho_a = rho_of(dq(layer_a) - Wa0, D1)
+        rho_b = rho_of(dq(layer_b) - Wb0, D2)
+        assert abs(rho_a) < 0.01, f'a zero slot must null the layer delta, rho={rho_a:.4f}'
+        assert rho_b > 0.99, f'a neutral slot must apply in full, rho={rho_b:.4f}'
+        activate()
+        assert torch.equal(dq(layer_a), Wa0) and torch.equal(dq(layer_b), Wb0), 'restore must be bit-exact'
+    return True
+
+
+def test_signature_suffix_inactive_and_changes():
+    from modules.lora import extra_networks_lora
+    layer = build_layer('uint4')
+    A, B, _D = make_delta()
+    net = make_net('siggy', layer, A, B)
+    l_common.loaded_networks.clear()
+    l_common.loaded_networks.append(net)
+    try:
+        assert lora_blocks.signature() == '', 'no spec must leave the stamp signature untouched'
+        net.block_spec = 'GRAD_V'
+        s1 = lora_blocks.signature()
+        assert s1 == '|lbw=siggy:grad_v', f's1={s1}'
+        net.block_spec = ' Grad_A '
+        assert lora_blocks.signature() == '|lbw=siggy:grad_a', 'the spec must normalize'
+        en = extra_networks_lora.ExtraNetworkLora()
+        plain = en.signature(['a'], [1.0], [[1.0] * 3])
+        with_spec = en.signature(['a'], [1.0], [[1.0] * 3], ['GRAD_V'])
+        assert plain == [f'a:1.0:{[1.0] * 3}'], 'legacy signature strings must stay byte-identical without specs'
+        assert with_spec[0] == plain[0] + ':lbw=grad_v'
+    finally:
+        l_common.loaded_networks.clear()
+    return True
+
+
+def test_factor_cache_invalidates_on_block_weight():
+    import tempfile
+    layer = build_layer('uint4')
+    layer.network_layer_name = 'lora_transformer_transformer_blocks_3_attn_to_q'
+    with tempfile.TemporaryDirectory() as tmp:
+        with host_rank(64), host_cache(10, os.path.join(tmp, 'cache')), block_model('sd3', lin=layer):
+            net, _D = cache_fixture(tmp, layer)
+            activate(net)
+            up_full = layer.svd_up.detach().clone()
+            activate()
+            net.block_spec = sd3_spec(s4=0.5)
+            activate(net) # different block vector: different signature, fresh svd, second entry
+            assert not torch.equal(layer.svd_up, up_full), 'a block-weight change must produce different factors'
+            activate()
+            files = os.listdir(os.path.join(tmp, 'cache'))
+            assert len(files) == 2, f'two cache entries expected, got {files}'
+    return True
+
+
+def test_stack_ties_respects_per_net_blocks():
+    layer = build_layer('uint4')
+    layer.network_layer_name = 'lora_transformer_transformer_blocks_3_attn_to_q'
+    torch.manual_seed(31)
+    Da = torch.randn(OUT_F, IN_F, device=DEVICE) * 3e-4
+    Db = torch.randn(OUT_F, IN_F, device=DEVICE) * 3e-4
+    net_a = make_dense_net('tiesa', layer, Da)
+    net_b = make_dense_net('tiesb', layer, Db)
+    with host_rank(64), stack_mode('ties', dens=0.5), block_model('sd3', lin=layer):
+        Wdq0 = dq(layer)
+        activate(net_a, net_b)
+        d_both = (dq(layer) - Wdq0).clone()
+        activate()
+        net_b.block_spec = 'NONE'
+        activate(net_a, net_b)
+        d_muted = (dq(layer) - Wdq0).clone()
+        activate()
+        assert not torch.allclose(d_both, d_muted), 'muting one member must change the combined delta'
+        assert rho_of(d_muted, Db) < 0.1, f'the muted member must not contribute: rho={rho_of(d_muted, Db):.3f}'
+        assert rho_of(d_muted, Da) > 0.3, f'the live member must survive the trim: rho={rho_of(d_muted, Da):.3f}'
+    return True
+
+
+def test_pending_promote_updates_block_spec():
+    layer = build_layer('uint4')
+    layer.network_layer_name = 'lora_transformer_transformer_blocks_3_attn_to_q'
+    A, B, D = make_delta()
+    net = make_net('promoted', layer, A, B)
+    with block_model('sd3', lin=layer):
+        Wdq0 = dq(layer)
+        net.pending_config = {'te': 1.0, 'unet': [1.0] * 3, 'dyn': None, 'blocks': 'NONE'}
+        activate(net)
+        assert net.block_spec == 'NONE', 'network_activate must promote the staged spec'
+        rho = rho_of(dq(layer) - Wdq0, D)
+        assert abs(rho) < 0.01, f'the promoted all-zero vector must null the delta, rho={rho:.4f}'
+        activate()
+        net.pending_config = {'te': 1.0, 'unet': [1.0] * 3, 'dyn': None, 'blocks': None}
+        activate(net)
+        assert net.block_spec is None, 'a spec-less reload must clear the previous spec'
+        rho = rho_of(dq(layer) - Wdq0, D)
+        assert rho > 0.99, f'without a spec the delta must apply in full, rho={rho:.4f}'
+        activate()
+        assert torch.equal(dq(layer), Wdq0)
+    return True
+
+
+def test_layout_recomputes_on_mapping_change():
+    with block_model('f1'):
+        assert lora_blocks.layout()['n'] == 58
+        assert lora_blocks.block_index('lora_transformer_transformer_blocks_18_attn_to_q') == 19
+        shared.sd_model.network_layer_mapping = {'lora_transformer_transformer_blocks_9_attn_to_q': None} # new object: the stamp must miss
+        assert lora_blocks.layout()['n'] == 11
+        assert lora_blocks.block_index('lora_transformer_transformer_blocks_9_attn_to_q') == 10
+        assert lora_blocks.block_index('lora_transformer_transformer_blocks_18_attn_to_q') == 0, 'an index past the scanned chain folds to BASE'
+    return True
+
+
 def run_tests():
     t0 = time.time()
     log.warning('=== Erasure law ===')
@@ -1561,6 +2838,7 @@ def run_tests():
         run_test(CAT_E2E, fn)
     log.warning('=== Set transitions ===')
     for fn in [test_mixed_family_transition_restores_base, test_partial_coverage_layers_stay_independent,
+               test_apply_restore_preserves_weight_storage, test_fuse_promote_applies_new_multiplier, test_fuse_change_then_remove_restores_pristine,
                test_mechanism_gate_declines_candidates, test_requantize_option_routes_to_legacy_path,
                test_mechanism_flip_strips_attached_factors, test_mechanism_flip_restore_pass_strips]:
         run_test(CAT_TRANS, fn)
@@ -1568,7 +2846,7 @@ def run_tests():
     for fn in [test_hosted_low_rank_delta_is_kept, test_hosted_dense_delta_beats_requant, test_hosted_skips_int8,
                test_hosted_disabled_by_option, test_hosted_transitions_and_rng_isolation,
                test_route_fat_dense_delta_requantizes, test_route_rule_terms_gate_both_ways, test_route_low_rank_fat_delta_stays_hosted,
-               test_route_mixed_set_keeps_hosting, test_route_svd_checkpoint_keeps_hosting,
+               test_route_mixed_set_keeps_hosting, test_route_svd_checkpoint_keeps_hosting, test_route_dense_stack_keeps_hosting,
                test_route_replay_from_cache, test_hosted_null_tail_collapses_to_effective_rank, test_hosted_flat_spectrum_keeps_cap]:
         run_test(CAT_HOST, fn)
     log.warning('=== Calibration ===')
@@ -1579,15 +2857,39 @@ def run_tests():
     log.warning('=== Factor cache ===')
     for fn in [test_factor_cache_roundtrip_bitexact, test_factor_cache_invalidates_on_multiplier,
                test_factor_cache_int8_quantization, test_factor_cache_disabled_at_zero, test_factor_cache_invalidates_on_calib_toggle,
-               test_cache_fastpath_skips_calc, test_cache_fastpath_serves_mixed_set,
+               test_cache_fastpath_skips_calc, test_cache_fastpath_serves_mixed_set, test_cache_fastpath_serves_dense_pair,
                test_attach_trims_stored_null_tail]:
         run_test(CAT_FCACHE, fn)
+    log.warning('=== Stack modes: dense ===')
+    for fn in [test_ties_sign_consensus_drops_conflicts, test_dare_mask_is_deterministic_across_calls, test_dare_rescales_by_inverse_density,
+               test_magnitude_prune_keeps_top_density, test_dense_two_plain_loras_hosted_not_summed,
+               test_dense_pair_hosts_at_int8, test_dense_single_nonfactorable_int8_keeps_requantize, test_single_net_ignores_dense_mode,
+               test_te_layer_stays_plain_sum, test_sum_mode_keeps_exact_stacking]:
+        run_test(CAT_STACK, fn)
+    log.warning('=== Stack modes: select ===')
+    for fn in [test_select_flip_schedule_end_to_end, test_select_initial_style_when_ramp_starts_won, test_estlora_energy_balance_defeats_magnitude, test_select_flip_is_inplace_and_shape_stable,
+               test_select_matmul_transposed_layout, test_select_per_net_hosted_pair, test_select_reset_restores_initial_state,
+               test_select_deactivate_from_midflip, test_select_requires_exactly_two_nets, test_select_gated_off_when_compiled,
+               test_select_finalize_drops_dead_module, test_select_int8_pair_rides_segments, test_select_gate_dormant_without_pair, test_stale_schedule_dropped_on_reapply,
+               test_est_energy_matches_full_frobenius, test_select_weight_kind_plain_layer,
+               test_select_gamma_tracks_live_entries, test_select_host_disabled_falls_back_to_sum, test_flip_lands_before_crossover_step,
+               test_score_pair_chunked_precision, test_select_replay_from_cache_skips_calc, test_select_weight_replay_from_cache_skips_calc,
+               test_select_reset_reports_timing, test_select_weight_flip_calcs_on_accelerator]:
+        run_test(CAT_SELECT, fn)
     log.warning('=== Compile ===')
-    for fn in [test_factor_add_inside_compiled_graph, test_rank_bucket_graph_reuse]:
+    for fn in [test_factor_add_inside_compiled_graph, test_rank_bucket_graph_reuse, test_recompile_wall_resets_on_unload]:
         run_test(CAT_COMPILE, fn)
     log.warning('=== Robustness ===')
     for fn in [test_remove_factors_after_device_move, test_stacked_shape_mismatch_falls_back]:
         run_test(CAT_ROBUST, fn)
+    log.warning('=== Block weights ===')
+    for fn in [test_block_index_sd_unet_layout, test_block_index_sdxl_unet_layout, test_block_index_flux_chains_concatenate,
+               test_block_index_anchoring_krea2_and_chroma, test_block_index_namespace_collisions, test_unet_arithmetic_matches_conversion_map,
+               test_resolve_preset_case_and_arch_guard, test_resolve_dit_resample_drops_base, test_resolve_vector_length_policy,
+               test_resolve_scalar_and_classic, test_bad_value_warns_once_and_ignores, test_multiplier_folds_block_weight,
+               test_block_weight_zero_kills_layer_delta, test_signature_suffix_inactive_and_changes, test_factor_cache_invalidates_on_block_weight,
+               test_stack_ties_respects_per_net_blocks, test_pending_promote_updates_block_spec, test_layout_recomputes_on_mapping_change]:
+        run_test(CAT_BLOCKS, fn)
 
     elapsed = time.time() - t0
     log.warning('=== Results ===')

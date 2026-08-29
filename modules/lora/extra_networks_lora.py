@@ -98,6 +98,7 @@ def parse(p, params_list, step=0):
     unet_multipliers = []
     dyn_dims = []
     lora_modules = []
+    block_specs = []
     for params in params_list:
         name = params.positional[0]
 
@@ -131,6 +132,7 @@ def parse(p, params_list, step=0):
         te_multipliers.append(te_multiplier)
         unet_multipliers.append(unet_multiplier)
         dyn_dims.append(dyn_dim)
+        block_specs.append(params.named.get('lbw', None)) # per-block strength; resolved per layer by lora_blocks
 
         lora_module = []
         name_lower = params.positional[0].lower()
@@ -150,7 +152,7 @@ def parse(p, params_list, step=0):
 
         lora_modules.append(lora_module)
 
-    return names, te_multipliers, unet_multipliers, dyn_dims, lora_modules
+    return names, te_multipliers, unet_multipliers, dyn_dims, lora_modules, block_specs
 
 
 def unload_diffusers():
@@ -174,12 +176,13 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
         self.model = None
         self.errors = {}
 
-    def signature(self, names: list[str], te_multipliers: list, unet_multipliers: list):
-        return [f'{name}:{te}:{unet}' for name, te, unet in zip(names, te_multipliers, unet_multipliers, strict=False)]
+    def signature(self, names: list[str], te_multipliers: list, unet_multipliers: list, block_specs: list | None = None):
+        specs = block_specs if block_specs else [None] * len(names)
+        return [f'{name}:{te}:{unet}' + (f':lbw={str(spec).strip().lower()}' if spec else '') for name, te, unet, spec in zip(names, te_multipliers, unet_multipliers, specs, strict=False)]
 
     def changed(self, requested: list[str], include: list[str] | None = None, exclude: list[str] | None = None) -> tuple[bool, str]:
-        from modules.lora import lora_sdnq
-        requested = requested + [f'stack={lora_sdnq.signature()}'] # settings-only mechanism changes must re-trigger activation
+        from modules.lora import lora_sdnq, lora_stack
+        requested = requested + [f'stack={lora_stack.signature()}{lora_sdnq.signature()}'] # settings-only stack or mechanism changes must re-trigger activation
         if shared.opts.lora_force_reload:
             debug_log(f'Network check: type=LoRA requested={requested} status="forced"')
             return True, "forced"
@@ -220,11 +223,16 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
         if len(params_list) > 0 and not self.active: # activate patches once
             self.active = True
             self.model = shared.opts.sd_model_checkpoint
-        names, te_multipliers, unet_multipliers, dyn_dims, lora_modules = parse(p, params_list, step)
-        requested = self.signature(names, te_multipliers, unet_multipliers)
+        names, te_multipliers, unet_multipliers, dyn_dims, lora_modules, block_specs = parse(p, params_list, step)
+        requested = self.signature(names, te_multipliers, unet_multipliers, block_specs)
         reason = ''
 
         load_method, load_reason = lora_overrides.get_method()
+        from modules.lora import lora_stack
+        if load_method != 'native' and lora_stack.mode() != 'sum':
+            log.warning(f'Network stack: mode={lora_stack.mode()} method={load_method} fallback=sum')
+        if load_method != 'native' and any(block_specs):
+            log.warning(f'Network blocks: method={load_method} fallback=none')
         if debug:
             import sys
             fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
@@ -251,12 +259,12 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
             has_changed = lora_nunchaku.load_nunchaku(names, unet_multipliers)
 
         else: # native
-            lora_load.network_load(names, te_multipliers, unet_multipliers, dyn_dims, activate=False) # load only, activation below honors include/exclude
+            lora_load.network_load(names, te_multipliers, unet_multipliers, dyn_dims, block_specs=block_specs, activate=False) # load only, activation below honors include/exclude
             has_changed, reason = self.changed(requested, include, exclude)
             if has_changed:
                 jobid = shared.state.begin('LoRA')
                 if len(l.previously_loaded_networks) > 0:
-                    log.info(f'Network unload: type=LoRA networks={[n.name for n in l.previously_loaded_networks]} mode={"fuse" if lora_overrides.fuse_native() else "backup"}')
+                    log.info(f'Network unload: type=LoRA networks={[n.name for n in l.previously_loaded_networks]} mode={networks.effective_mode()}')
                     networks.network_deactivate(include, exclude)
                 networks.network_activate(include, exclude)
                 debug_log(f'Network change: type=LoRA previous={[n.name for n in l.previously_loaded_networks]} current={[n.name for n in l.loaded_networks]}')
@@ -269,7 +277,8 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
             prompt(p)
             if has_changed and len(include) == 0: # print only once
                 actual_method = 'native' if any(len(n.modules) > 0 for n in l.loaded_networks) else load_method
-                log.info(f'Network load: type=LoRA networks={[n.name for n in l.loaded_networks]} load={load_method}({load_reason}) method={actual_method} mode={"fuse" if lora_overrides.fuse_native() else "backup"} te={te_multipliers} unet={unet_multipliers} time={l.timer.summary} reason="{reason}"')
+                stack = lora_stack.signature() if actual_method == 'native' else 'sum' # non-native paths always combine as sum
+                log.info(f'Network load: type=LoRA networks={[n.name for n in l.loaded_networks]} load={load_method}({load_reason}) method={actual_method} mode={networks.effective_mode()} stack={stack} te={te_multipliers} unet={unet_multipliers} time={l.timer.summary} reason="{reason}"')
 
     def deactivate(self, p, force=False):
         if len(lora_diffusers.diffuser_loaded) > 0 and (shared.opts.lora_force_reload or force):

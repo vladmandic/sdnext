@@ -329,6 +329,31 @@ def apply_lora_strength(p, x, xs):
     shared.opts.data['extra_networks_default_multiplier'] = x
 
 
+def list_lora_blocks():
+    from modules.lora import lora_blocks
+    from modules.merging.merge_presets import BLOCK_WEIGHTS_PRESETS, SDXL_BLOCK_WEIGHTS_PRESETS
+    return ['None'] + list(lora_blocks.CLASSIC) + list(lora_blocks.CHAIN_NAMES) + sorted(BLOCK_WEIGHTS_PRESETS) + sorted(SDXL_BLOCK_WEIGHTS_PRESETS)
+
+
+re_lora_tag = re.compile(r'<lora:([^>]+)>')
+
+
+def apply_lora_blocks(p, x, xs):
+    x = str(x or '').strip()
+    if ':' in x or '>' in x:
+        log.error(f'XYZ grid apply LoRA block weight: value="{x}" invalid characters')
+        return
+    def rewrite(m):
+        items = [i for i in m.group(1).split(':') if not i.lower().startswith('lbw=')]
+        if x and x.lower() != 'none':
+            items.append(f'lbw={x}')
+        return '<lora:' + ':'.join(items) + '>'
+    p.prompt = re_lora_tag.sub(rewrite, p.prompt)
+    p.all_prompts = None # a populated list would shadow the edited prompt in processing
+    p.all_negative_prompts = None
+    log.debug(f'XYZ grid apply LoRA block weight: "{x}"')
+
+
 def apply_te(p, x, xs):
     shared.opts.data["sd_text_encoder"] = x
     sd_models.reload_text_encoder()
@@ -450,6 +475,13 @@ def format_value(p, opt, x):
 
 def format_value_join_list(p, opt, x):
     return ", ".join(x)
+
+
+def format_value_trim(p, opt, x):
+    x = str(x)
+    if len(x) > 40:
+        x = x[:37] + '...' # block-weight vectors would flood the grid legend
+    return f"{opt.label}: {x}"
 
 
 def do_nothing(p, x, xs):

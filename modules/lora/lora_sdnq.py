@@ -47,7 +47,7 @@ a low-rank delta hosts exactly however fat it is.
 import torch
 
 from modules import devices, shared
-from modules.lora import lora_calib, lora_factor_cache
+from modules.lora import lora_calib, lora_factor_cache, lora_stack
 from modules.lora import lora_common as l
 from modules.logger import log
 
@@ -55,6 +55,8 @@ from modules.logger import log
 fallback_layers: list[str] = []
 hosted_layers: list[tuple[str, float, bool]] = []
 hosted_ranks: list[int] = []
+factor_layers: list[str] = []
+select_layers: list[str] = []
 routed_layers: list[str] = []
 
 REQUANT_RATIO = 0.30 # delta rms over mean grid step above which requantize can retain the delta
@@ -137,6 +139,9 @@ def factor_candidate(self, network_layer_name, wanted_names):
         return False # declined layers with factors still attached are stripped by the activate fallthrough
     if getattr(self, 'sdnq_dequantizer', None) is None or self.__class__.__name__ != 'SDNQLinear':
         return False
+    if wanted_names != () and lora_stack.mode() in lora_stack.DENSE_MODES and not network_layer_name.startswith('lora_te'):
+        if sum(1 for net in l.loaded_networks if net.modules.get(network_layer_name, None) is not None) >= 2:
+            return False # dense stack modes combine dense deltas; the factor concat would sum
     if hasattr(self, 'sdnq_lora_svd_stash'):
         return True
     if wanted_names == ():  # nothing attached, nothing to remove
@@ -171,6 +176,7 @@ def remove_factors(self):
     self.svd_up = svd_up
     self.svd_down = svd_down
     del self.sdnq_lora_svd_stash
+    lora_stack.drop(getattr(self, 'network_layer_name', None)) # a selection schedule must not outlive the segments it points into
     return True
 
 
@@ -207,15 +213,28 @@ def apply_factors(self, network_layer_name, wanted_names):
     if not ups:
         return changed
     append_factors(self, ups, downs)
+    factor_layers.append(network_layer_name)
     return True
 
 
 def append_factors(self, ups, downs):
-    """Concatenate ``[out, r]`` / ``[r, in]`` factor pairs onto the layer's svd channel and stash the originals."""
+    """Concatenate ``[out, r]`` / ``[r, in]`` factor pairs onto the layer's svd channel and stash the originals.
+
+    Returns the appended parts' rank ranges plus the transposed-layout flag; the
+    checkpoint's own factors occupy the range before the first entry and bucket
+    padding lands after the last, so the ranges stay valid on the live buffers.
+    """
     deq = self.sdnq_dequantizer
     device = self.scale.device
     dtype = deq.result_dtype
     orig_up, orig_down = self.svd_up, self.svd_down
+    orig_rank = 0
+    if orig_up is not None:
+        orig_rank = orig_up.shape[0] if deq.use_quantized_matmul else orig_up.shape[1]
+    segments, offset = [], orig_rank
+    for u in ups:
+        segments.append((offset, offset + u.shape[1]))
+        offset += u.shape[1]
     if deq.use_quantized_matmul:
         # matmul layout stores factors transposed: svd_up [r, out], svd_down [in, r]
         parts_up = ([orig_up.to(device=devices.device, dtype=dtype)] if orig_up is not None else []) + [u.t() for u in ups]
@@ -237,10 +256,11 @@ def append_factors(self, ups, downs):
     self.sdnq_lora_svd_stash = (orig_up, orig_down)
     self.svd_up = torch.nn.Parameter(new_up.to(device=device), requires_grad=False)
     self.svd_down = torch.nn.Parameter(new_down.to(device=device), requires_grad=False)
+    return segments, deq.use_quantized_matmul
 
 
-def host_candidate(self, network_layer_name, wanted_names):
-    """True when a non-factorable set on this layer should be hosted as a truncated svd."""
+def select_candidate(self, network_layer_name, wanted_names):
+    """True when this layer can carry a set on the svd channel; select pairs ride it at any bit width."""
     if not enabled():
         return False
     if int(getattr(shared.opts, 'lora_sdnq_host_rank', 0) or 0) <= 0:
@@ -249,11 +269,20 @@ def host_candidate(self, network_layer_name, wanted_names):
         return False
     if wanted_names == ():
         return False
+    return any(net.modules.get(network_layer_name, None) is not None for net in l.loaded_networks)
+
+
+def host_candidate(self, network_layer_name, wanted_names):
+    """True when this layer's set should ride the svd channel as a truncated svd: non-factorable sets below 8 bits, dense-combined sets at any width."""
+    if not select_candidate(self, network_layer_name, wanted_names):
+        return False
+    if lora_stack.mode() in lora_stack.DENSE_MODES and not network_layer_name.startswith('lora_te'):
+        if sum(1 for net in l.loaded_networks if net.modules.get(network_layer_name, None) is not None) >= 2:
+            return True # combined deltas host at any width: requantizing them is checkpoint-fragile, while single-adapter requantize is well retained
     from sdnq.common import dtype_dict
     if dtype_dict[self.sdnq_dequantizer.weights_dtype]['num_bits'] >= 8:
-        return False # requantize retains most of the delta at 8 bits and above; truncation would lose more than it saves
-
-    return any(net.modules.get(network_layer_name, None) is not None for net in l.loaded_networks)
+        return False # requantize retains most of a single set's delta at 8 bits and above; truncation would lose more than it saves
+    return True
 
 
 def apply_cached(self, network_layer_name, wanted_names):
@@ -277,15 +306,17 @@ def apply_cached(self, network_layer_name, wanted_names):
     deq = self.sdnq_dequantizer
     dtype = deq.result_dtype
     remove_factors(self) # before the rule: the svd-channel check must see the checkpoint's own state, and a declined layer must fall through pristine
+    stack_dense = lora_stack.mode() in lora_stack.DENSE_MODES and not network_layer_name.startswith('lora_te')
     members = []
-    for net in l.loaded_networks:
-        module = net.modules.get(network_layer_name, None)
-        if module is None:
-            continue
-        factors = get_module_factors(module, devices.device, dtype, original_shape=deq.original_shape)
-        if factors is not None:
-            members.append(factors)
-    if len(members) == 0 and self.svd_up is None:
+    if not stack_dense:
+        for net in l.loaded_networks:
+            module = net.modules.get(network_layer_name, None)
+            if module is None:
+                continue
+            factors = get_module_factors(module, devices.device, dtype, original_shape=deq.original_shape)
+            if factors is not None:
+                members.append(factors)
+    if not stack_dense and len(members) == 0 and self.svd_up is None:
         step = float(self.scale.detach().float().mean())
         if step > 0 and rms / step > REQUANT_RATIO and energy < REQUANT_ENERGY:
             return None # routed to the grid: the caller assembles the delta and requantizes
@@ -328,21 +359,23 @@ def apply_hosted(self, network_layer_name, updown, wanted_names):
     dtype = deq.result_dtype
 
     members = []
-    for net in l.loaded_networks:
-        module = net.modules.get(network_layer_name, None)
-        if module is None:
-            continue
-        factors = get_module_factors(module, devices.device, dtype, original_shape=deq.original_shape)
-        if factors is not None:
-            members.append(factors)
+    stack_dense = lora_stack.mode() in lora_stack.DENSE_MODES and not network_layer_name.startswith('lora_te')
+    if not stack_dense: # dense stack modes host the combined delta wholesale; the members' content is already inside it
+        for net in l.loaded_networks:
+            module = net.modules.get(network_layer_name, None)
+            if module is None:
+                continue
+            factors = get_module_factors(module, devices.device, dtype, original_shape=deq.original_shape)
+            if factors is not None:
+                members.append(factors)
 
     # requantize keeps a delta the grid can resolve and that truncation would genuinely
     # cut: both terms must agree, since a thin delta rounds away on the grid however
     # low its capture, and a low-rank delta hosts exactly however fat it is. Scoped to
     # sets the side-channel would otherwise carry whole: factorable members ride
-    # exactly.
+    # exactly and dense-combined deltas stay hosted at any magnitude.
     delta_rms = float(updown.detach().float().square().mean().sqrt())
-    maybe_requant = len(members) == 0 and self.svd_up is None
+    maybe_requant = not stack_dense and len(members) == 0 and self.svd_up is None
     if maybe_requant:
         step = float(self.scale.detach().float().mean())
         maybe_requant = step > 0 and delta_rms / step > REQUANT_RATIO
@@ -427,6 +460,104 @@ def truncate_delta(self, D, dtype):
     return up_h, down_h, energy, rms is not None
 
 
+def apply_select_cached(self, network_layer_name, wanted_names):
+    """Serve a select pair from cache and live factors before the walk assembles deltas.
+
+    A cached score record plus a factor pair per network (exact factors for
+    factorable members, cached truncations otherwise) rebuild the segments and
+    the selection registration without any ``calc_updown``. Returns None when
+    any piece is missing; the caller assembles and ``apply_select`` recomputes
+    and stores.
+    """
+    from sdnq.quant_utils import rotate_hadamard
+    deq = self.sdnq_dequantizer
+    changed = remove_factors(self)
+    if wanted_names == ():
+        return changed
+    if len(l.loaded_networks) != 2:
+        return None
+    dtype = deq.result_dtype
+    lora_factor_cache.begin_pass(wanted_names)
+    rec = lora_factor_cache.lookup_scores(network_layer_name)
+    if rec is None:
+        return None
+    pairs, notes = [], []
+    for i, net in enumerate(l.loaded_networks):
+        module = net.modules.get(network_layer_name, None)
+        if module is None:
+            return None
+        factors = get_module_factors(module, devices.device, dtype, original_shape=deq.original_shape)
+        if factors is not None:
+            up_i, down_i = factors
+            if deq.use_hadamard:
+                down_i = rotate_hadamard(down_i.to(dtype=torch.float32), group_size=deq.hadamard_group_size).to(dtype=dtype)
+        else:
+            cached = lora_factor_cache.lookup(f'{network_layer_name}#{i}')
+            if cached is None:
+                return None
+            up_i, down_i = cached[0].to(device=devices.device, dtype=dtype), cached[1].to(device=devices.device, dtype=dtype)
+            notes.append((f'{network_layer_name}#{i}', cached[2], cached[3]))
+        pairs.append((up_i, down_i))
+    scores, abs_sums = rec
+    segments, transposed = append_factors(self, [pairs[0][0], pairs[1][0]], [pairs[0][1], pairs[1][1]])
+    lora_stack.register(network_layer_name, self, 'factor', scores, segments=(segments[0], segments[1], transposed), abs_sums=abs_sums)
+    for note in notes:
+        lora_factor_cache.note_hit()
+        hosted_layers.append(note)
+    select_layers.append(network_layer_name)
+    return True
+
+
+def apply_select(self, network_layer_name, per_net, wanted_names):
+    """Attach two networks' contributions as separate side-channel segments for per-layer selection.
+
+    Factorable members ride exactly; the rest host as their own truncated svd
+    with per-net cache entries. Segment ranges and selection scores register
+    with ``lora_stack``; the flip schedule executes from the step callback.
+    Returns None when the pair cannot ride the channel; the caller falls back.
+    """
+    from sdnq.quant_utils import rotate_hadamard
+    deq = self.sdnq_dequantizer
+    changed = remove_factors(self)
+    if wanted_names == ():
+        return changed
+    if per_net is None or len(per_net) != 2:
+        return None
+    dtype = deq.result_dtype
+    lora_factor_cache.begin_pass(wanted_names)
+    pairs, ranks = [], []
+    for i, (net_name, D) in enumerate(per_net):
+        if D is None or D.ndim != 2 or tuple(D.shape) != tuple(deq.original_shape):
+            return None
+        net = next((n for n in l.loaded_networks if n.name == net_name), None)
+        module = net.modules.get(network_layer_name, None) if net is not None else None
+        if module is None:
+            return None
+        ranks.append(int(getattr(module, 'dim', 0) or 0) or min(int(shared.opts.lora_sdnq_host_rank), *deq.original_shape))
+        factors = get_module_factors(module, devices.device, dtype, original_shape=deq.original_shape)
+        if factors is not None:
+            up_i, down_i = factors
+            if deq.use_hadamard:
+                down_i = rotate_hadamard(down_i.to(dtype=torch.float32), group_size=deq.hadamard_group_size).to(dtype=dtype)
+        else:
+            key = f'{network_layer_name}#{i}'
+            cached = lora_factor_cache.fetch(key)
+            if cached is not None:
+                up_i, down_i = cached[0].to(device=devices.device, dtype=dtype), cached[1].to(device=devices.device, dtype=dtype)
+                hosted_layers.append((key, cached[2], cached[3]))
+            else:
+                up_i, down_i, energy, calibrated = truncate_delta(self, D.detach().to(devices.device, torch.float32), dtype)
+                up_i, down_i = lora_factor_cache.store(key, up_i, down_i, energy, calibrated, float(D.detach().float().square().mean().sqrt()))
+                hosted_layers.append((key, energy, calibrated))
+        pairs.append((up_i, down_i))
+    scores, abs_sums = lora_stack.score_pair(per_net[0][1].detach(), per_net[1][1].detach(), ranks[0], ranks[1])
+    lora_factor_cache.store_scores(network_layer_name, scores, abs_sums)
+    segments, transposed = append_factors(self, [pairs[0][0], pairs[1][0]], [pairs[0][1], pairs[1][1]])
+    lora_stack.register(network_layer_name, self, 'factor', scores, segments=(segments[0], segments[1], transposed), abs_sums=abs_sums)
+    select_layers.append(network_layer_name) # counted apart from the plain concat: both ride the svd channel but only one is a summed set
+    return True
+
+
 def note_fallback(self, network_layer_name):
     """Record a quantized layer taking the requantize path (summary-logged per pass); layers the routing rule sent there are counted apart."""
     if getattr(self, 'sdnq_dequantizer', None) is not None and network_layer_name not in routed_layers:
@@ -437,6 +568,12 @@ def report_fallbacks():
     hits, misses = lora_factor_cache.flush()
     if hits > 0 or misses > 0:
         log.info(f'Network load: type=LoRA quant=sdnq cache hits={hits} misses={misses}')
+    if len(factor_layers) > 0:
+        log.info(f'Network load: type=LoRA quant=sdnq apply=exact layers={len(factor_layers)}')
+    factor_layers.clear()
+    if len(select_layers) > 0:
+        log.info(f'Network load: type=LoRA quant=sdnq apply=select layers={len(select_layers)} mode={lora_stack.mode()}')
+    select_layers.clear()
     if len(hosted_layers) > 0:
         energies = sorted(e for _name, e, _c in hosted_layers)
         median = energies[len(energies) // 2]
@@ -445,7 +582,7 @@ def report_fallbacks():
         if len(hosted_ranks) > 0 and min(hosted_ranks) < int(shared.opts.lora_sdnq_host_rank):
             rs = sorted(hosted_ranks)
             ranks = f' k={rs[0]}-{rs[len(rs) // 2]}-{rs[-1]}' # realized rank spread; shown only when a spectrum collapsed below the cap
-        log.info(f'Network load: type=LoRA quant=sdnq hosted={len(hosted_layers)} rank={int(shared.opts.lora_sdnq_host_rank)}{ranks}{f" calib={calibrated}" if calibrated else ""} energy={median:.2f} min={energies[0]:.2f} non-factorable networks hosted on the svd side-channel')
+        log.info(f'Network load: type=LoRA quant=sdnq apply=hosted layers={len(hosted_layers)} rank={int(shared.opts.lora_sdnq_host_rank)}{ranks}{f" calib={calibrated}" if calibrated else ""} energy={median:.2f} min={energies[0]:.2f}')
         if l.debug:
             log.debug(f'Network load: type=LoRA quant=sdnq hosted={[(n, round(e, 3)) for n, e, _c in hosted_layers[:8]]}{"..." if len(hosted_layers) > 8 else ""}')
     hosted_layers.clear()
@@ -457,7 +594,7 @@ def report_fallbacks():
     routed_layers.clear()
     if len(fallback_layers) > 0:
         if enabled():
-            log.warning(f'Network load: type=LoRA quant=sdnq layers={len(fallback_layers)} non-factorable networks requantized in place (reduced fidelity on quantized weights)')
+            log.warning(f'Network load: type=LoRA quant=sdnq apply=requantize layers={len(fallback_layers)} fidelity=reduced')
         else:
             log.info(f'Network load: type=LoRA quant=sdnq apply=requantize layers={len(fallback_layers)} reason=setting')
         if l.debug:

@@ -5,6 +5,7 @@ import time
 from typing import TYPE_CHECKING
 import torch
 from modules.lora import lora_common as l
+from modules.lora import lora_stack
 from modules import shared, devices, errors
 from modules.logger import log
 
@@ -67,7 +68,7 @@ def network_backup_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Gr
     return backup_size
 
 
-def network_calc_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.GroupNorm | torch.nn.LayerNorm | diffusers.models.lora.LoRACompatibleLinear | diffusers.models.lora.LoRACompatibleConv, network_layer_name: str, use_previous: bool = False, *, elimit: Callable[[], None] | None = None):
+def network_calc_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.GroupNorm | torch.nn.LayerNorm | diffusers.models.lora.LoRACompatibleLinear | diffusers.models.lora.LoRACompatibleConv, network_layer_name: str, use_previous: bool = False, *, elimit: Callable[[], None] | None = None, per_net: bool = False):
     if shared.opts.diffusers_offload_mode == "none":
         try:
             self.to(devices.device)
@@ -75,6 +76,9 @@ def network_calc_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Grou
             pass
     batch_updown = None
     batch_ex_bias = None
+    stack_deltas = None
+    if per_net or (lora_stack.mode() in lora_stack.DENSE_MODES and network_layer_name is not None and not network_layer_name.startswith('lora_te')):
+        stack_deltas = [] # collect per-net deltas; combined after the loop unless the caller wants them separate (bias deltas stay summed)
     loaded = l.loaded_networks if not use_previous else l.previously_loaded_networks
     for net in loaded:
         module = net.modules.get(network_layer_name, None)
@@ -107,7 +111,9 @@ def network_calc_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Grou
             del weight
 
             if updown is not None:
-                if batch_updown is not None:
+                if stack_deltas is not None:
+                    stack_deltas.append((net.name, updown.to(devices.device)))
+                elif batch_updown is not None:
                     batch_updown += updown.to(batch_updown.device)
                 else:
                     batch_updown = updown.to(devices.device)
@@ -136,6 +142,17 @@ def network_calc_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Grou
             if elimit is not None:
                 elimit()
         continue
+    if per_net:
+        return stack_deltas, batch_ex_bias
+    if stack_deltas is not None and stack_deltas:
+        if len(stack_deltas) >= 2:
+            t0 = time.time()
+            batch_updown = lora_stack.combine(stack_deltas, network_layer_name)
+            l.timer.calc += time.time() - t0
+        else:
+            batch_updown = stack_deltas[0][1]
+        if shared.opts.diffusers_offload_mode == "sequential":
+            batch_updown = batch_updown.to(devices.cpu)
     return batch_updown, batch_ex_bias
 
 

@@ -17,6 +17,8 @@ def set_callbacks_p(processing):
     global p, warned # pylint: disable=global-statement
     p = processing
     warned = False
+    from modules.lora import lora_stack
+    lora_stack.reset(int(getattr(processing, 'steps', 0) or 0)) # per-pass: restore initial selections and reschedule flips before any step runs
 
 
 def prompt_callback(step, kwargs):
@@ -37,6 +39,8 @@ def prompt_callback(step, kwargs):
 def diffusers_callback_legacy(step: int, timestep: int, latents: torch.FloatTensor | np.ndarray):
     if p is None:
         return
+    from modules.lora import lora_stack
+    lora_stack.on_step(step)
     if isinstance(latents, np.ndarray): # latents from Onnx pipelines is ndarray.
         latents = torch.from_numpy(latents)
     shared.state.sampling_step = step
@@ -56,6 +60,8 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
     if kwargs is None:
         kwargs = {}
     t0 = time.time()
+    from modules.lora import lora_stack
+    lora_stack.on_step(step)
 
     if shared.opts.torch_sync:
         if devices.backend == "ipex":

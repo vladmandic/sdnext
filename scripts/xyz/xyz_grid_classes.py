@@ -25,6 +25,9 @@ from scripts.xyz.xyz_grid_shared import ( # pylint: disable=no-name-in-module, u
     list_lora,
     apply_lora,
     apply_lora_strength,
+    list_lora_blocks,
+    apply_lora_blocks,
+    format_value_trim,
     apply_te,
     apply_guidance,
     apply_styles,
@@ -110,6 +113,10 @@ class SharedSettingsStackHelper():
     todo_ratio = None
     teacache_thresh = None
     extra_networks_default_multiplier = None
+    lora_stack_mode = None
+    lora_stack_density = None
+    lora_stack_alpha = None
+    lora_stack_discrepancy = None
     disable_apply_metadata = None
     disable_apply_params = None
     sdnq_quant_mode = None
@@ -143,6 +150,10 @@ class SharedSettingsStackHelper():
         self.sd_unet = shared.opts.sd_unet
         self.sd_text_encoder = shared.opts.sd_text_encoder
         self.extra_networks_default_multiplier = shared.opts.extra_networks_default_multiplier
+        self.lora_stack_mode = shared.opts.lora_stack_mode
+        self.lora_stack_density = shared.opts.lora_stack_density
+        self.lora_stack_alpha = shared.opts.lora_stack_alpha
+        self.lora_stack_discrepancy = shared.opts.lora_stack_discrepancy
         self.teacache_thresh = shared.opts.teacache_thresh
         self.disable_apply_metadata = shared.opts.disable_apply_metadata
         self.disable_apply_params = shared.opts.disable_apply_params
@@ -156,6 +167,10 @@ class SharedSettingsStackHelper():
         shared.opts.data["disable_apply_metadata"] = self.disable_apply_metadata
         shared.opts.data["disable_apply_params"] = self.disable_apply_params
         shared.opts.data["extra_networks_default_multiplier"] = self.extra_networks_default_multiplier
+        shared.opts.data["lora_stack_mode"] = self.lora_stack_mode
+        shared.opts.data["lora_stack_density"] = self.lora_stack_density
+        shared.opts.data["lora_stack_alpha"] = self.lora_stack_alpha
+        shared.opts.data["lora_stack_discrepancy"] = self.lora_stack_discrepancy
         shared.opts.data["prompt_attention"] = self.prompt_attention
         shared.opts.data["schedulers_solver_order"] = self.schedulers_solver_order
         shared.opts.data["schedulers_sigma_adjust"] = self.schedulers_sigma_adjust
@@ -214,6 +229,11 @@ axis_options = [
     AxisOption("[Prompt] Prompt parser", str, apply_setting("prompt_attention"), choices=lambda: ["native", "compel", "xhinker", "a1111", "fixed"]),
     AxisOption("[Network] LoRA", str, apply_lora, cost=0.5, choices=list_lora),
     AxisOption("[Network] LoRA strength", float, apply_lora_strength, cost=0.6),
+    AxisOption("[Network] LoRA block weight", str, apply_lora_blocks, cost=0.6, fmt=format_value_trim, choices=list_lora_blocks),
+    AxisOption("[Network] LoRA stack mode", str, apply_setting("lora_stack_mode"), cost=0.6, choices=lambda: ["sum", "ties", "dare_ties", "dare_linear", "magnitude_prune", "klora", "estlora"]),
+    AxisOption("[Network] LoRA stack density", float, apply_setting("lora_stack_density"), cost=0.6),
+    AxisOption("[Network] LoRA stack ramp", float, apply_setting("lora_stack_alpha"), cost=0.6),
+    AxisOption("[Network] LoRA stack discrepancy", float, apply_setting("lora_stack_discrepancy"), cost=0.6),
     AxisOption("[Network] Styles", str, apply_styles, choices=lambda: [s.name for s in shared.prompt_styles.styles.values()]),
     AxisOption("[Param] Width", int, apply_field("width")),
     AxisOption("[Param] Height", int, apply_field("height")),
