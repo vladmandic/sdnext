@@ -154,6 +154,9 @@ class MockNOD:
         self.shorthash = ''
         self.sd_version = 'unknown'
 
+    def read_hash(self):
+        pass
+
 
 def make_net(name, layer, A, B, te_mult=1.0, alpha=None, dora=False):
     net = network.Network(name, MockNOD(name))
@@ -2411,6 +2414,16 @@ def test_remove_factors_after_device_move():
     return True
 
 
+def test_nunchaku_entries_carry_the_network_interface():
+    from modules.lora import lora_nunchaku
+    nod = MockNOD('composed')
+    net = lora_nunchaku.wrap_network(nod)
+    assert len(net.modules) == 0, 'a composed set owns no modules: the reported method probes this to tell native from nunchaku'
+    assert net.network_on_disk is nod, 'infotext reads the hash through network_on_disk'
+    assert net.name == nod.name
+    return True
+
+
 def test_stacked_shape_mismatch_falls_back():
     from types import SimpleNamespace
     layer = build_layer('uint4')
@@ -2880,7 +2893,7 @@ def run_tests():
     for fn in [test_factor_add_inside_compiled_graph, test_rank_bucket_graph_reuse, test_recompile_wall_resets_on_unload]:
         run_test(CAT_COMPILE, fn)
     log.warning('=== Robustness ===')
-    for fn in [test_remove_factors_after_device_move, test_stacked_shape_mismatch_falls_back]:
+    for fn in [test_remove_factors_after_device_move, test_stacked_shape_mismatch_falls_back, test_nunchaku_entries_carry_the_network_interface]:
         run_test(CAT_ROBUST, fn)
     log.warning('=== Block weights ===')
     for fn in [test_block_index_sd_unet_layout, test_block_index_sdxl_unet_layout, test_block_index_flux_chains_concatenate,
