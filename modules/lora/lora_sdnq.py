@@ -47,7 +47,7 @@ a low-rank delta hosts exactly however fat it is.
 import torch
 
 from modules import devices, shared
-from modules.lora import lora_calib, lora_factor_cache, lora_stack
+from modules.lora import lora_calib, lora_factor_cache, lora_stack # lora_calib registers its model-load hook on import, so this one has to stay eager
 from modules.lora import lora_common as l
 from modules.logger import log
 

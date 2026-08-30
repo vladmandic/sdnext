@@ -1,3 +1,44 @@
+"""Applies the loaded networks to the model and takes them off again.
+
+One walk visits every module of every component and offers each layer to
+the mechanisms in a fixed order: a selection schedule, exact factors on the
+quantized side channel, a truncated host on that channel, and the weight
+path, which takes whatever the others declined. Order is semantics, not
+preference: each mechanism is more faithful than the one after it, and only
+the weight path can take any layer.
+
+Contracts the walk depends on:
+
+- The wanted-name tuple is built once per pass and handed to every layer as
+  the same object. The factor cache memoizes its pass entry on that
+  identity, so an equal tuple rebuilt per component makes every lookup
+  reread the entry from disk.
+- Mechanism apply functions answer with three states: applied, took the
+  layer without changing it, or declined. Only a decline falls through.
+- A layer is offered to a mechanism on its checkpoint weights, so factors
+  attach to a clean base and deltas are measured against one. `apply_cached`
+  can strip factors and still decline, which is why the weight path strips
+  again before it writes.
+- The fuse decision is resolved once per pass and shared by backup, apply
+  and restore. Backup mode keeps a tensor and restores in the walk itself;
+  fuse mode keeps a marker and subtracts the delta in network_deactivate.
+- Selection registration reads the factors it schedules, so it follows the
+  attach that produced them.
+
+State the walk keeps on the model's own modules:
+
+- network_layer_name: written by lora_convert and native_adapter.
+- network_current_names and network_current_stack: written here, always
+  together, and read together as the skip key.
+- network_weights_backup, network_bias_backup and the sdnq_*_backup set:
+  written by lora_apply, a tensor in backup mode and True as the fuse marker.
+- sdnq_lora_svd_stash: written by lora_sdnq, holding the checkpoint's own
+  factors while a set is attached.
+- sdnq_calib_rms: written by lora_calib.
+- svd_up and svd_down: owned by sdnq, attached by lora_sdnq, restored by
+  lora_apply, and written in segments by lora_stack at flip time.
+"""
+
 from contextlib import nullcontext
 import time
 import rich.progress as rp
