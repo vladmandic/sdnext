@@ -7,7 +7,7 @@ import diffusers
 from PIL import Image
 from modules import shared, processing, sd_models, errors, sd_hijack_hypertile, processing_vae, sd_models_compile, timer, modelstats, extra_networks, attention, modular
 from modules.logger import log
-from modules.processing_helpers import resize_hires, calculate_base_steps, calculate_hires_steps, calculate_refiner_steps, save_intermediate, update_sampler, is_txt2img, is_refiner_enabled, get_job_name
+from modules.processing_helpers import resize_hires, calculate_base_steps, calculate_hires_steps, calculate_refiner_steps, save_intermediate, update_sampler, is_txt2img, is_refiner_enabled, get_job_name, is_modular
 from modules.processing_args import set_pipeline_args
 from modules.onnx_impl import preprocess_pipeline as preprocess_onnx_pipeline, check_parameters_changed as olive_check_parameters_changed
 from modules.lora import lora_common
@@ -71,59 +71,61 @@ def restore_state(p: processing.StableDiffusionProcessing):
 
 
 def process_pre(p: processing.StableDiffusionProcessing, phase: str | None = None):
-    from modules import ipadapter, sd_hijack_freeu, para_attention, teacache, hidiffusion, ras, pag, cfgzero, transformer_cache, token_merge, linfusion, cachedit
-    if shared.sd_model is None:
-        log.warning('Processing modifiers: model not loaded')
+    if not shared.sd_loaded:
         return
-    log.info(f'Processing modifiers: phase={phase} apply')
-    try:
-        # apply-with-unapply
-        # sd_hijack_compile.install()
-        sd_models_compile.check_deepcache(enable=True)
-        ipadapter.apply(shared.sd_model, p)
-        token_merge.apply_token_merging(shared.sd_model)
-        hidiffusion.apply(p, shared.sd_model_type)
-        ras.apply(shared.sd_model, p)
-        pag.apply(p)
-        cfgzero.apply(p)
-        linfusion.apply(shared.sd_model)
-        cachedit.apply_cache_dit(shared.sd_model)
-        # apply-only
-        sd_hijack_freeu.apply_freeu(p)
-        transformer_cache.set_cache()
-        para_attention.apply_first_block_cache()
-        teacache.apply_teacache(p)
-
-    except Exception as e:
-        log.error(f'Processing apply: {e}')
-        errors.display(e, 'apply')
-
+    if is_modular(shared.sd_model):
+        if modular.is_guider(shared.sd_model):
+            from modules import modular_guiders, modular_cache
+            modular_guiders.set_guider(p, phase)
+            modular_cache.set_cache(p, phase)
+    else:
+        try:
+            log.info(f'Processing modifiers: phase={phase} apply')
+            from modules import ipadapter, sd_hijack_freeu, para_attention, teacache, hidiffusion, ras, pag, cfgzero, transformer_cache, token_merge, linfusion, cachedit
+            # apply-with-unapply
+            # sd_hijack_compile.install()
+            sd_models_compile.check_deepcache(enable=True)
+            token_merge.apply_token_merging(shared.sd_model)
+            hidiffusion.apply(p, shared.sd_model_type)
+            ras.apply(shared.sd_model, p)
+            pag.apply(p)
+            cfgzero.apply(p)
+            linfusion.apply(shared.sd_model)
+            cachedit.apply_cache_dit(shared.sd_model)
+            ipadapter.apply(shared.sd_model, p)
+            # apply-only
+            sd_hijack_freeu.apply_freeu(p)
+            transformer_cache.set_cache()
+            para_attention.apply_first_block_cache()
+            teacache.apply_teacache(p)
+        except Exception as e:
+            log.error(f'Processing apply: {e}')
+            errors.display(e, 'apply')
     shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
-
-    if modular.is_guider(shared.sd_model):
-        from modules import modular_guiders
-        modular_guiders.set_guider(p, phase)
-
     timer.process.record('pre')
 
 
 def process_post(p: processing.StableDiffusionProcessing):
-    from modules import ipadapter, hidiffusion, ras, pag, cfgzero, token_merge, linfusion, cachedit
-    log.info('Processing modifiers: unapply')
-
-    try:
-        sd_models_compile.check_deepcache(enable=False)
-        ipadapter.unapply(shared.sd_model, unload=getattr(p, 'ip_adapter_unload', False))
-        token_merge.remove_token_merging(shared.sd_model)
-        hidiffusion.unapply()
-        ras.unapply(shared.sd_model)
-        pag.unapply()
-        cfgzero.unapply()
-        linfusion.unapply(shared.sd_model)
-        cachedit.unapply_cache_dir(shared.sd_model)
-    except Exception as e:
-        log.error(f'Processing unapply: {e}')
-        errors.display(e, 'unapply')
+    if not shared.sd_loaded:
+        return
+    if is_modular(shared.sd_model):
+        pass
+    else:
+        try:
+            from modules import ipadapter, hidiffusion, ras, pag, cfgzero, token_merge, linfusion, cachedit
+            log.info('Processing modifiers: unapply')
+            sd_models_compile.check_deepcache(enable=False)
+            ipadapter.unapply(shared.sd_model, unload=getattr(p, 'ip_adapter_unload', False))
+            token_merge.remove_token_merging(shared.sd_model)
+            hidiffusion.unapply()
+            ras.unapply(shared.sd_model)
+            pag.unapply()
+            cfgzero.unapply()
+            linfusion.unapply(shared.sd_model)
+            cachedit.unapply_cache_dir(shared.sd_model)
+        except Exception as e:
+            log.error(f'Processing unapply: {e}')
+            errors.display(e, 'unapply')
     timer.process.record('post')
 
 

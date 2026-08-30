@@ -15,7 +15,6 @@ def get_modular_args():
 def create_guidance_inputs(tab):
     with gr.Accordion(open=False, label='Guidance', elem_id=f"{tab}_guidance", elem_classes=["small-accordion"]):
         with gr.Group():
-
             with gr.Row(elem_id=f"{tab}_guider_row", elem_classes=['flexbox'], visible=shared.opts.model_modular_enable):
                 cfg_name = gr.Dropdown(choices=guiders.keys(), value='Default', label='Guider', elem_id=f"{tab}_guider")
                 cfg_name_btn = ui_components.ToolButton(value=ui_symbols.info, elem_id=f"{tab}_guider_docs")
@@ -89,7 +88,7 @@ def create_guidance_inputs(tab):
 
             def adv_visibility(guidance_name):
                 return [
-                    gr.update(visible=guidance_name != 'Default' and guidance_name != 'None'),
+                    gr.update(visible=True),
                     gr.update(visible=guidance_name.startswith('Auto')),
                     gr.update(visible=guidance_name.startswith('Zero')),
                     gr.update(visible=guidance_name.startswith('PAG')),

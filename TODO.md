@@ -14,7 +14,8 @@
 
 ## Issues
 
-- Inpaint: https://discord.com/channels/1101998836328697867/1130536562422186044/1506850651035144322, @vladmandic
+- [Inpaint](https://discord.com/channels/1101998836328697867/1130536562422186044/1506850651035144322), @vladmandic
+- [OpenVINO](https://github.com/vladmandic/sdnext/issues/4939), @vladmandic
 
 ## Features
 

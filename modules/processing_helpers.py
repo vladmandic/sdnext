@@ -17,12 +17,16 @@ debug_steps = log.trace if os.environ.get('SD_STEPS_DEBUG', None) is not None el
 debug_steps('Trace: STEPS')
 
 
-def is_modular():
-    return sd_models.get_diffusers_task(shared.sd_model) == sd_models.DiffusersTaskType.MODULAR
+def is_modular(pipe = None):
+    if not shared.sd_loaded:
+        return False
+    pipe = pipe or shared.sd_model
+    return sd_models.get_diffusers_task(pipe) == sd_models.DiffusersTaskType.MODULAR
 
 
-def is_txt2img():
-    return sd_models.get_diffusers_task(shared.sd_model) == sd_models.DiffusersTaskType.TEXT_2_IMAGE
+def is_txt2img(pipe = None):
+    pipe = pipe or shared.sd_model
+    return sd_models.get_diffusers_task(pipe) == sd_models.DiffusersTaskType.TEXT_2_IMAGE
 
 
 def is_refiner_enabled(p):

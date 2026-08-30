@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-08-29
+## Update for 2026-08-30
 
 - **LoRA**
   - *TODO*: see [LoRA docs](https://vladmandic.github.io/sdnext-docs/LoRA) for all of the improvements and usage instructions  
@@ -20,16 +20,21 @@
     *note*: this is a breaking change - if you had custom attention settings in previous releases, you will need to re-apply them in the new settings section  
   - new `sparse-attention` method that can be combined with other attention methods  
     to reduce memory usage and improve performance on large models  
+  - new attention mechanisms decision tree and apply method refactor
 - **Modular Pipelines**
-  - *TODO*: see [Modular Pipelines docs](https://vladmandic.github.io/sdnext-docs/Modular-Pipelines) for details and usage instructions
+  - *TODO*: short note...  
+    see [Modular Pipelines docs](https://vladmandic.github.io/sdnext-docs/Modular-Pipelines) for details and usage instructions
+  - new model **Guidance** stack for modular pipelines  
+    includes: *CFG, PAG, Auto, Zero, APG, SLG, SEG, TCFG, FDG*  
+    *TODO*: see [Guidance docs](https://vladmandic.github.io/sdnext-docs/Guidance) for details and usage instructions  
+  - new model **Caching** stack for modular pipelines  
+    includes: *FasterCache, FirstBlockCache, LayerSkip, MagCache, PyramidAttentionBroadcast, TaylorSeerCache, TextKVCache*  
+    *TODO*: see [Caching docs](https://vladmandic.github.io/sdnext-docs/Caching) for details and usage instructions  
   - implement progress and preview
   - intercept and profiling hooks
-  - full modular guidance
   - on-demand convert standard model on-demand 
-- **Internal**
-  - attention mechanisms decision tree and apply method refactor
 - **Fixes**
-  - unnecessary secondary prompt
+  - unnecessary secondary prompt if same
   - js fetch exception handling
 
 ## Update for 2026-08-26
