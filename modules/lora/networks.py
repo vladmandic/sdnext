@@ -16,7 +16,6 @@ applied_layers: list[str] = []
 refused_writes: int = 0 # deltas the modules would not take on the last activate pass; infotext reports the network as partial
 native_active: bool = False
 default_components = ['text_encoder', 'text_encoder_2', 'text_encoder_3', 'text_encoder_4', 'unet', 'transformer', 'transformer_2', 'llm_adapter']
-deactivate_components = ['text_encoder', 'text_encoder_2', 'text_encoder_3', 'unet', 'transformer', 'llm_adapter']
 
 
 class ActivationPass:
@@ -369,7 +368,7 @@ def network_deactivate(include=None, exclude=None):
         sd_model = prepare_model_for_write(getattr(shared.sd_model, "pipe", shared.sd_model))
         group_offload = shared.opts.diffusers_offload_mode == "group"
         group_stripped = {}
-        modules, _components, active_components, total = collect_components(sd_model, include, exclude, deactivate_components, restore_filtered=False)
+        modules, _components, active_components, total = collect_components(sd_model, include, exclude, default_components, restore_filtered=False)
         pbar, task = pass_progress('deactivate', total, len(l.previously_loaded_networks) > 0 and l.debug)
         refused = 0
         with devices.inference_context(), pbar:
