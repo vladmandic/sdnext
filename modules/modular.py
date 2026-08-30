@@ -1,15 +1,20 @@
 import os
 import diffusers
-from modules import shared, sd_hijack_modular
+from modules import shared, sd_hijack_modular, sd_models
 from modules.logger import log
 
 
 debug = os.environ.get('SD_MODULAR_DEBUG', None) is not None
+exclude = ['Krea2']
 
 
 def get_modular_class(diffusion_pipeline: diffusers.DiffusionPipeline):
     name = diffusion_pipeline.__class__.__name__
     name = name.replace('Pipeline', '').replace('Img2Img', '').replace('Inpaint', '').replace('ImageToVideo', '')
+    if name in exclude:
+        if debug:
+            log.trace(f'Modular lookup: key={name} source={diffusion_pipeline.__class__.__name__} excluded')
+        return None
     name = f'{name}AutoBlocks'
     modular_cls = getattr(diffusers, name, None)
     if debug:
@@ -46,6 +51,7 @@ def convert_to_modular(diffusion_pipeline: diffusers.DiffusionPipeline) -> diffu
     except Exception as e:
         log.error(f'Modular: {e}')
         raise e
+    sd_models.copy_diffuser_options(modular_pipe, diffusion_pipeline)
     sd_hijack_modular.install_state_hook(modular_pipe)
     sd_hijack_modular.register_callbacks(modular_pipe)
     return modular_pipe

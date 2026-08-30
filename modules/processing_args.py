@@ -31,6 +31,9 @@ def task_modular_kwargs(p, model):
     if len(getattr(p, 'init_images', [])) > 0:
         task_args['image'] = p.init_images
         task_args['strength'] = p.denoising_strength
+        if (shared.sd_model_type == 'sdxl') and hasattr(model, 'register_to_config') and (model_cls not in sd_models.i2i_pipes):
+            model.register_to_config(requires_aesthetics_score = False)
+
     mask_image = p.task_args.get('image_mask', None) or getattr(p, 'image_mask', None) or getattr(p, 'mask', None)
     if mask_image is not None:
         task_args['mask_image'] = mask_image
@@ -68,8 +71,8 @@ def task_specific_kwargs(p, model):
                 'width': width,
                 'height': height,
             }
-    elif (task_type == sd_models.DiffusersTaskType.IMAGE_2_IMAGE or is_img2img_model) and len(getattr(p, 'init_images', [])) > 0:
-        if shared.sd_model_type == 'sdxl' and hasattr(model, 'register_to_config'):
+    elif (task_type == sd_models.DiffusersTaskType.IMAGE_2_IMAGE or task_type == sd_models.DiffusersTaskType.MODULAR or is_img2img_model) and (len(getattr(p, 'init_images', [])) > 0):
+        if (shared.sd_model_type == 'sdxl') and hasattr(model, 'register_to_config'):
             if model_cls in sd_models.i2i_pipes:
                 pass
             else:
@@ -115,7 +118,7 @@ def task_specific_kwargs(p, model):
             'image': p.init_images,
             'strength': p.denoising_strength,
         }
-    elif (task_type == sd_models.DiffusersTaskType.INPAINTING or is_img2img_model) and len(getattr(p, 'init_images', [])) > 0:
+    elif (task_type == sd_models.DiffusersTaskType.INPAINTING or task_type == sd_models.DiffusersTaskType.MODULAR or is_img2img_model) and len(getattr(p, 'init_images', [])) > 0:
         if shared.sd_model_type == 'sdxl' and hasattr(model, 'register_to_config'):
             if model_cls in [sd_models.i2i_pipes]:
                 pass
@@ -255,7 +258,7 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:l
 
     possible = get_params(model)
 
-    log.debug(f'Pipeline: cls={cls} possible={possible}')
+    debug_log(f'Pipeline: cls={cls} possible={possible}')
     steps = kwargs.get("num_inference_steps", None) or len(getattr(p, 'timesteps', ['1']))
     clip_skip = kwargs.pop("clip_skip", 1)
 

@@ -68,11 +68,13 @@ def set_fallback_prompt(args: dict, possible: list[str], prompts, negative_promp
         debug_log(f'Prompt fallback: negative_prompt={negative_prompts}')
         args['negative_prompt'] = negative_prompts
     if ('prompt_2' in possible) and ('prompt_2' not in args) and (prompts_2 is not None) and len(prompts_2) > 0:
-        debug_log(f'Prompt fallback: prompt_2={prompts_2}')
-        args['prompt_2'] = prompts_2
+        if (prompts_2 != prompts) and (prompts_2 != args.get('prompt', None)):
+            debug_log(f'Prompt fallback: prompt_2={prompts_2}')
+            args['prompt_2'] = prompts_2
     if ('negative_prompt_2' in possible) and ('negative_prompt_2' not in args) and (negative_prompts_2 is not None) and len(negative_prompts_2) > 0:
-        debug_log(f'Prompt fallback: negative_prompt_2={negative_prompts_2}')
-        args['negative_prompt_2'] = negative_prompts_2
+        if (negative_prompts_2 != negative_prompts) and (negative_prompts_2 != args.get('negative_prompt', None)):
+            debug_log(f'Prompt fallback: negative_prompt_2={negative_prompts_2}')
+            args['negative_prompt_2'] = negative_prompts_2
     return args
 
 

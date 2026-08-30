@@ -11231,7 +11231,7 @@ async function updateUI(model) {
 }
 async function updateModel() {
   const req = await authFetch2(`${window.api}/checkpoint`);
-  if (req.ok) {
+  if (req && req.ok) {
     const model = await req.json();
     if (model?.type?.length > 0) updateUI(model);
   }
@@ -11348,7 +11348,7 @@ async function setTheme(val, old) {
   for (const link of links) {
     const href = link.href.replace(old, val);
     const res = await authFetch2(href);
-    if (res.ok) {
+    if (res?.ok) {
       log("setTheme", old, val);
       link.href = link.href.replace(old, val);
     } else {
@@ -12445,7 +12445,7 @@ async function initModels() {
   const en = gradioApp().getElementById("txt2img_extra_networks");
   if (!el2 || !en) return;
   const req = await authFetch2(`${window.api}/sd-models`);
-  const res = req.ok ? await req.json() : [];
+  const res = req && req.ok ? await req.json() : [];
   log("initModels", res.length);
   const ready = () => `
     <p style='color: white'>Ready</p>
@@ -13493,7 +13493,7 @@ async function delayFetchThumb(fn, signal) {
     outstanding++;
     const ts = t0.toString();
     const res = await authFetch2(`${window.api}/browser/thumb?file=${encodeURI(fn)}&ts=${ts}&exif=false`, { priority: "low" });
-    if (!res.ok) {
+    if (!res?.ok) {
       error(`fetchThumb: ${res.statusText}`);
       return void 0;
     }
@@ -14260,6 +14260,7 @@ async function observeImageError(img) {
     img.src = loadingSvg;
     const { default: heic2any } = await import("https://esm.sh/heic2any@0.0.4");
     const res = await authFetch2(origSrc);
+    if (!res || res.status !== 200) return;
     const imageBlob = await res.blob();
     if (!imageBlob || imageBlob.size <= 1024) {
       error("imageHEIC", { src: origSrc, res, blob: imageBlob });
@@ -14735,7 +14736,7 @@ var xnEngine = {
   async fetchJson(path) {
     try {
       const resp = await authFetch(`${window.api}${path}`);
-      if (!resp.ok) throw new Error(`${resp.status}`);
+      if (!resp?.ok) throw new Error(`${resp?.status}`);
       return await resp.json();
     } catch (e) {
       log("autoComplete", { xnFetchFailed: path, error: String(e) });
@@ -14984,7 +14985,7 @@ var engine = {
     await Promise.all(toLoad.map(async (name) => {
       try {
         const resp = await authFetch(`${window.api}/autocomplete/${name}`);
-        if (!resp.ok) throw new Error(`${resp.status}`);
+        if (!resp?.ok) throw new Error(`${resp?.status}`);
         const data = await resp.json();
         this.indices.set(name, new TagIndex(data));
         if (data.categories) {

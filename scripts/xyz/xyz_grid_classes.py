@@ -47,7 +47,7 @@ from scripts.xyz.xyz_grid_shared import ( # pylint: disable=no-name-in-module, u
     format_nothing,
     str_permutations,
  )
-from modules import shared, shared_items, sd_samplers, ipadapter, sd_models, sd_vae, sd_unet, attention
+from modules import shared, shared_items, sd_samplers, ipadapter, sd_models, sd_vae, sd_unet, attention, modular_guiders
 from modules.control.units import controlnet, t2iadapter
 from modules.control import processor
 
@@ -260,10 +260,12 @@ axis_options = [
     AxisOption("[Sampler] Max shift", float, apply_setting("schedulers_max_shift")),
     AxisOption("[Sampler] ETA delta", float, apply_setting("eta_noise_seed_delta")),
     AxisOption("[Sampler] ETA multiplier", float, apply_setting("scheduler_eta")),
+    AxisOption("[Guidance] Name", str, apply_field("cfg_name"), cost=0.2, choices=lambda: list(modular_guiders.guiders.keys())),
     AxisOption("[Guidance] Scale", float, apply_field("cfg_scale")),
-    AxisOption("[Guidance] End", float, apply_field("cfg_end")),
-    AxisOption("[Guidance] Image scale", float, apply_field("cfg_image")),
     AxisOption("[Guidance] Rescale", float, apply_field("cfg_rescale")),
+    AxisOption("[Guidance] Start", float, apply_field("cfg_start")),
+    AxisOption("[Guidance] Stop", float, apply_field("cfg_stop")),
+    AxisOption("[Guidance] Image scale", float, apply_field("cfg_image")),
     AxisOption("[Refine] Upscaler", str, apply_field("hr_upscaler"), cost=0.3, choices=lambda: [x.name for x in shared.sd_upscalers]),
     AxisOption("[Refine] Sampler", str, apply_hr_sampler_name, fmt=format_value_add_label, confirm=confirm_samplers, choices=lambda: [x.name for x in sd_samplers.visible_samplers()]),
     AxisOption("[Refine] Denoising strength", float, apply_field("denoising_strength")),

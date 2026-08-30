@@ -20,12 +20,17 @@
     *note*: this is a breaking change - if you had custom attention settings in previous releases, you will need to re-apply them in the new settings section  
   - new `sparse-attention` method that can be combined with other attention methods  
     to reduce memory usage and improve performance on large models  
+- **Modular Pipelines**
+  - *TODO*: see [Modular Pipelines docs](https://vladmandic.github.io/sdnext-docs/Modular-Pipelines) for details and usage instructions
+  - implement progress and preview
+  - intercept and profiling hooks
+  - full modular guidance
+  - on-demand convert standard model on-demand 
 - **Internal**
-  - modular pipelines intercept and profiling hooks
-  - modular pipelines convert standard model on-demand 
-  - modular pipelines previews
-  - modular pipelines basic guidance
   - attention mechanisms decision tree and apply method refactor
+- **Fixes**
+  - unnecessary secondary prompt
+  - js fetch exception handling
 
 ## Update for 2026-08-26
 

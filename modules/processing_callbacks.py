@@ -120,11 +120,11 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
     if step == 0:
         pipe._cfg_end_applied = False  # pylint: disable=protected-access
 
-    cfg_end = getattr(p, "cfg_end", 1.0) or 1.0
+    cfg_stop = getattr(p, "cfg_stop", None) or getattr(p, "cfg_end", None) or 1.0
     total_steps = getattr(pipe, "num_timesteps", 0)
-    target_step = int(total_steps * cfg_end) if total_steps else 0
+    target_step = int(total_steps * cfg_stop) if total_steps else 0
 
-    if (cfg_end < 1.0) and not getattr(pipe, "_cfg_end_applied", False) and (step >= target_step):
+    if (cfg_stop < 1.0) and not getattr(pipe, "_cfg_end_applied", False) and (step >= target_step):
         pipe._cfg_end_applied = True # pylint: disable=protected-access
         if "PAG" in shared.sd_model.__class__.__name__:
             pipe._guidance_scale = 1.001 if pipe._guidance_scale > 1 else pipe._guidance_scale  # pylint: disable=protected-access

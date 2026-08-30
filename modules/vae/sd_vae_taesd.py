@@ -220,7 +220,8 @@ def decode(latents, fast=False):
                     image = image[0]
                 else:
                     image = vae.decode(tensor, return_dict=False)[0]
-                    image = (image / 2.0 + 0.5).clamp(0, 1).detach()
+                    # image = (image / 2.0 + 0.5).clamp(0, 1).detach()
+                    image = image.clamp(0, 1).detach()
                 image = restore_preview_size(image, vae)
                 t1 = time.time()
                 if (t1 - t0) > 5.0 and not first_run:

@@ -3,8 +3,9 @@ import os
 import time
 import numpy as np
 import torch
+import diffusers
 from PIL import Image
-from modules import shared, processing, sd_models, errors, sd_hijack_hypertile, processing_vae, sd_models_compile, timer, modelstats, extra_networks, attention
+from modules import shared, processing, sd_models, errors, sd_hijack_hypertile, processing_vae, sd_models_compile, timer, modelstats, extra_networks, attention, modular
 from modules.logger import log
 from modules.processing_helpers import resize_hires, calculate_base_steps, calculate_hires_steps, calculate_refiner_steps, save_intermediate, update_sampler, is_txt2img, is_refiner_enabled, get_job_name
 from modules.processing_args import set_pipeline_args
@@ -14,6 +15,7 @@ from modules.image import convert
 
 
 debug = os.environ.get('SD_DIFFUSERS_DEBUG', None) is not None
+modular_debug = os.environ.get('SD_MODULAR_DEBUG', None) is not None
 output_type = 'np' if os.environ.get('SD_VAE_DEFAULT', None) is not None else 'latent'
 last_p = None
 orig_pipeline = shared.sd_model
@@ -68,12 +70,12 @@ def restore_state(p: processing.StableDiffusionProcessing):
     return p
 
 
-def process_pre(p: processing.StableDiffusionProcessing):
+def process_pre(p: processing.StableDiffusionProcessing, phase: str | None = None):
     from modules import ipadapter, sd_hijack_freeu, para_attention, teacache, hidiffusion, ras, pag, cfgzero, transformer_cache, token_merge, linfusion, cachedit
     if shared.sd_model is None:
         log.warning('Processing modifiers: model not loaded')
         return
-    log.info('Processing modifiers: apply')
+    log.info(f'Processing modifiers: phase={phase} apply')
     try:
         # apply-with-unapply
         # sd_hijack_compile.install()
@@ -97,19 +99,10 @@ def process_pre(p: processing.StableDiffusionProcessing):
         errors.display(e, 'apply')
 
     shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
-    # if hasattr(shared.sd_model, 'unet'):
-    #     sd_models.move_model(shared.sd_model.unet, devices.device)
-    # if hasattr(shared.sd_model, 'transformer'):
-    #     sd_models.move_model(shared.sd_model.transformer, devices.device)
 
-    from modules import modular
-    if modular.is_compatible(shared.sd_model):
-        modular_pipe = modular.convert_to_modular(shared.sd_model)
-        if modular_pipe is not None:
-            shared.sd_model = modular_pipe
     if modular.is_guider(shared.sd_model):
         from modules import modular_guiders
-        modular_guiders.set_guider(p)
+        modular_guiders.set_guider(p, phase)
 
     timer.process.record('pre')
 
@@ -143,7 +136,7 @@ def process_base(p: processing.StableDiffusionProcessing):
     shared.sd_model = update_pipeline(shared.sd_model, p)
     update_sampler(p, shared.sd_model)
     timer.process.record('prepare')
-    process_pre(p)
+    process_pre(p, 'base')
     sched_eta = p.scheduler_eta if p.scheduler_eta is not None else shared.opts.scheduler_eta
     desc = 'Base'
     if 'detailer' in p.ops:
@@ -186,6 +179,8 @@ def process_base(p: processing.StableDiffusionProcessing):
             taskid = shared.state.begin('Inference')
             output = shared.sd_model(**base_args)
             shared.state.end(taskid)
+        if isinstance(output, diffusers.modular_pipelines.PipelineState) and modular_debug:
+            log.trace(f'Pipeline: output={output}')
         if isinstance(output, dict):
             output = SimpleNamespace(**output)
         if isinstance(output, list):
@@ -194,7 +189,7 @@ def process_base(p: processing.StableDiffusionProcessing):
             output = SimpleNamespace(images=[output])
         if not hasattr(output, 'frames') and hasattr(output, 'videos'):
             output.frames = output.videos # modular video pipelines emit videos, not frames
-        if hasattr(output, 'image'):
+        if hasattr(output, 'image') and getattr(output, 'images', None) is None: # for modular output.image may be input and output.images may be output so we dont want to overwrite output
             output.images = output.image
         if hasattr(output, 'images'):
             shared.history.add(output.images, info=processing.create_infotext(p), ops=p.ops)
@@ -303,7 +298,7 @@ def process_hires(p: processing.StableDiffusionProcessing, output):
             orig_denoise = p.denoising_strength
             p.denoising_strength = strength
             orig_image = p.task_args.pop('image', None) # remove image override from hires
-            process_pre(p)
+            process_pre(p, 'hires')
 
             prompts = p.prompts
             reset_prompts = False

@@ -53,9 +53,14 @@ class Processed:
         self.height = p.height if hasattr(p, 'height') else (self.images[0].height if len(self.images) > 0 else 0)
 
         self.sampler_name = p.sampler_name or ''
+
+        self.cfg_name = p.cfg_name if (p.cfg_name is not None and p.cfg_name != 'Default') else None
         self.cfg_scale = p.cfg_scale if (p.cfg_scale is not None and p.cfg_scale > -1) else None
-        self.cfg_end = p.cfg_end if p.cfg_end < 1 else None
+        self.cfg_rescale = p.cfg_rescale if (p.cfg_rescale is not None and p.cfg_rescale > -1) else None
         self.cfg_image = p.cfg_image if (p.cfg_image is not None and p.cfg_image > -1) else None
+        self.cfg_start = p.cfg_start if p.cfg_start > 0 else None
+        self.cfg_stop = p.cfg_stop if p.cfg_stop < 1 else None
+
         self.steps = p.steps or 0
         self.batch_size = max(1, p.batch_size)
         self.denoising_strength = p.denoising_strength
@@ -103,8 +108,12 @@ class Processed:
             "width": self.width,
             "height": self.height,
             "sampler_name": self.sampler_name,
+            "cfg_name": self.cfg_name,
             "cfg_scale": self.cfg_scale,
-            "cfg_end": self.cfg_end,
+            "cfg_rescale": self.cfg_rescale,
+            "cfg_image": self.cfg_image,
+            "cfg_start": self.cfg_start,
+            "cfg_stop": self.cfg_stop,
             "steps": self.steps,
             "batch_size": self.batch_size,
             "detailer": self.detailer,
