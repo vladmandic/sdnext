@@ -259,8 +259,8 @@ def append_factors(self, ups, downs):
     return segments, deq.use_quantized_matmul
 
 
-def select_candidate(self, network_layer_name, wanted_names):
-    """True when this layer can carry a set on the svd channel; select pairs ride it at any bit width."""
+def channel_candidate(self, network_layer_name, wanted_names):
+    """True when this layer can carry a set on the svd channel: quantized, covered, and given a rank to spend."""
     if not enabled():
         return False
     if int(getattr(shared.opts, 'lora_sdnq_host_rank', 0) or 0) <= 0:
@@ -272,9 +272,14 @@ def select_candidate(self, network_layer_name, wanted_names):
     return any(net.modules.get(network_layer_name, None) is not None for net in l.loaded_networks)
 
 
+def select_candidate(self, network_layer_name, wanted_names):
+    """True when a select pair can ride this layer's svd channel; pairs ride it at any bit width."""
+    return channel_candidate(self, network_layer_name, wanted_names)
+
+
 def host_candidate(self, network_layer_name, wanted_names):
     """True when this layer's set should ride the svd channel as a truncated svd: non-factorable sets below 8 bits, dense-combined sets at any width."""
-    if not select_candidate(self, network_layer_name, wanted_names):
+    if not channel_candidate(self, network_layer_name, wanted_names):
         return False
     if lora_stack.mode() in lora_stack.DENSE_MODES and not network_layer_name.startswith('lora_te'):
         if sum(1 for net in l.loaded_networks if net.modules.get(network_layer_name, None) is not None) >= 2:
