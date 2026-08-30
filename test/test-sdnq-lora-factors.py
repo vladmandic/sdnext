@@ -2414,6 +2414,28 @@ def test_remove_factors_after_device_move():
     return True
 
 
+def dispatch_module_type(w):
+    """Pick a module type the way the generic loader does."""
+    host = torch.nn.Linear(IN_F, OUT_F)
+    net = network.Network('typed', MockNOD('typed'))
+    nw = network.NetworkWeights(network_key='lora_unet_x', sd_key='lora_unet_x', w=w, sd_module=host)
+    for nettype in l_common.module_types:
+        mod = nettype.create_module(net, nw)
+        if mod is not None:
+            return mod
+    return None
+
+
+def test_four_dim_oft_blocks_load_as_boft():
+    blocks4 = torch.zeros(2, 8, 64, 64) # (boft_m, block_num, block_size, block_size)
+    mod = dispatch_module_type({'oft_blocks': blocks4, 'alpha': torch.tensor(1.0)})
+    assert type(mod).__name__ == 'NetworkModuleBOFT', f'4-d oft_blocks must bind to boft, got {type(mod).__name__}'
+    blocks3 = torch.zeros(8, 64, 64) # (num_blocks, block_size, block_size)
+    mod = dispatch_module_type({'oft_blocks': blocks3, 'alpha': torch.tensor(1.0)})
+    assert type(mod).__name__ == 'NetworkModuleOFT', f'3-d oft_blocks must stay on oft, got {type(mod).__name__}'
+    return True
+
+
 def test_nunchaku_entries_carry_the_network_interface():
     from modules.lora import lora_nunchaku
     nod = MockNOD('composed')
@@ -2893,7 +2915,8 @@ def run_tests():
     for fn in [test_factor_add_inside_compiled_graph, test_rank_bucket_graph_reuse, test_recompile_wall_resets_on_unload]:
         run_test(CAT_COMPILE, fn)
     log.warning('=== Robustness ===')
-    for fn in [test_remove_factors_after_device_move, test_stacked_shape_mismatch_falls_back, test_nunchaku_entries_carry_the_network_interface]:
+    for fn in [test_remove_factors_after_device_move, test_stacked_shape_mismatch_falls_back, test_nunchaku_entries_carry_the_network_interface,
+               test_four_dim_oft_blocks_load_as_boft]:
         run_test(CAT_ROBUST, fn)
     log.warning('=== Block weights ===')
     for fn in [test_block_index_sd_unet_layout, test_block_index_sdxl_unet_layout, test_block_index_flux_chains_concatenate,
