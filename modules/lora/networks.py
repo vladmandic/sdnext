@@ -330,7 +330,7 @@ def network_deactivate(include=None, exclude=None):
                     module.network_current_names = ()
                     if task is not None:
                         pbar.update(task, advance=1, description=f'networks={len(l.previously_loaded_networks)} modules={active_components} layers={total} unapply={len(applied_layers)}')
-    l.timer.deactivate = time.time() - t0
+    l.timer.deactivate += time.time() - t0
     if refused > 0:
         log.error(f'Network unload: type=LoRA networks={[n.name for n in l.previously_loaded_networks]} unapply={len(applied_layers)} refused={refused} network partially removed')
     if l.debug and len(l.previously_loaded_networks) > 0:
