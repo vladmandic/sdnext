@@ -288,6 +288,7 @@ def finish_pass(ctx, t0):
     native_active = len(l.loaded_networks) > 0
     refused_writes = ctx.refused
     l.last_backup_size = ctx.backup_size
+    l.last_mode = 'backup' if ctx.backup_size > 0 else ('fuse' if ctx.fuse else 'factor')
     l.timer.activate += time.time() - t0
     if ctx.refused > 0:
         log.error(f'Network load: type=LoRA networks={[n.name for n in l.loaded_networks]} weights={ctx.applied_weight} bias={ctx.applied_bias} refused={ctx.refused} network partially applied')
@@ -342,12 +343,15 @@ def network_activate(include=None, exclude=None):
 
 
 def effective_mode():
-    """Weight-state label for load logs: backup and fuse say how touched weights restore, factor means the whole load rode the svd channel and unload just drops factors."""
-    if getattr(l, 'last_backup_size', 0) > 0:
-        return 'backup'
-    if lora_overrides.fuse_native():
-        return 'fuse'
-    return 'factor'
+    """Weight-state label for load logs: backup and fuse say how touched weights restore, factor means the whole load rode the svd channel and unload just drops factors.
+
+    Recorded by the pass rather than derived here, so the unload line
+    describes the pass being unloaded even when the settings it ran under
+    have since changed.
+    """
+    if l.last_mode:
+        return l.last_mode
+    return 'fuse' if lora_overrides.fuse_native() else 'factor'
 
 
 def network_deactivate(include=None, exclude=None):
