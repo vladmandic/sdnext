@@ -45,7 +45,7 @@ def density():
 
 
 def ramp_alpha():
-    return float(getattr(shared.opts, 'lora_stack_alpha', 1.5))
+    return float(getattr(shared.opts, 'lora_stack_alpha', 0.0))
 
 
 def manual_discrepancy():
