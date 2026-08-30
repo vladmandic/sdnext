@@ -16,6 +16,7 @@ applied_layers: list[str] = []
 refused_writes: int = 0 # deltas the modules would not take on the last activate pass; infotext reports the network as partial
 native_active: bool = False
 default_components = ['text_encoder', 'text_encoder_2', 'text_encoder_3', 'text_encoder_4', 'unet', 'transformer', 'transformer_2', 'llm_adapter']
+deactivate_components = ['text_encoder', 'text_encoder_2', 'text_encoder_3', 'unet', 'transformer', 'llm_adapter']
 
 
 def group_will_mutate(module, network_layer_name: str, loaded) -> bool:
@@ -45,48 +46,91 @@ def group_offload_strip(sd_model, component_name: str, stripped: dict):
     return stripped[component_name]
 
 
-def network_activate(include=None, exclude=None):
-    if exclude is None:
-        exclude = []
-    if include is None:
-        include = []
-    for net in l.loaded_networks: # promote staged multipliers only now: the deactivate pass ran against the previous values, which fuse-mode removal recomputes with
+def promote_pending():
+    """Promote staged multipliers onto the loaded networks; the deactivate pass ran against the previous values, which fuse-mode removal recomputes with."""
+    for net in l.loaded_networks:
         pending = getattr(net, 'pending_config', None)
         if pending is not None:
             net.te_multiplier = pending['te']
             net.unet_multiplier = pending['unet']
             net.dyn_dim = pending['dyn']
             net.block_spec = pending.get('blocks', None)
+            net.pending_config = None # promotion is one-shot
+
+
+def prepare_model_for_write(sd_model):
+    """Bring the model into a state where weight writes land; balanced offload returns a rebuilt model."""
+    if shared.opts.diffusers_offload_mode == "sequential":
+        sd_models.disable_offload(sd_model)
+        sd_models.move_model(sd_model, device=devices.cpu)
+    elif shared.opts.diffusers_offload_mode == "balanced":
+        sd_model = sd_models.apply_balanced_offload(sd_model, force=True, silent=True) # dispatched modules hold meta tensors backed by the offload map; rebuild them real on cpu with hooks intact before touching weights
+    return sd_model
+
+
+def collect_components(sd_model, include, exclude, defaults, restore_filtered):
+    """Modules to walk, as (modules, wanted components, walked component names, module count).
+
+    With restore_filtered the walk also covers the components a filter left
+    out, so they restore to backup instead of freezing with stale weights;
+    those names stay out of the reported list because nothing applies to them.
+    """
+    components = include if len(include) > 0 else defaults
+    components = [x for x in components if x not in exclude]
+    filtered = [x for x in defaults if x not in components] if restore_filtered else []
+    modules = {}
+    active_components = []
+    for name in components + filtered:
+        component = getattr(sd_model, name, None)
+        if component is not None and hasattr(component, 'named_modules'):
+            if name in components:
+                active_components.append(name)
+            modules[name] = list(component.named_modules())
+    return modules, components, active_components, sum(len(x) for x in modules.values())
+
+
+def pass_progress(action, total, show):
+    """Progress bar for one pass, or a nullcontext with no task when there is nothing to show."""
+    if not show:
+        return nullcontext(), None
+    pbar = rp.Progress(rp.TextColumn(f'[cyan]Network: type=LoRA action={action}'), rp.BarColumn(), rp.TaskProgressColumn(), rp.TimeRemainingColumn(), rp.TimeElapsedColumn(), rp.TextColumn('[cyan]{task.description}'), console=console)
+    return pbar, pbar.add_task(description='', total=total)
+
+
+def tensor_backup(module):
+    """The module's weight backup when it holds real tensors; None in fuse mode, where the backup is a marker."""
+    weights_backup = getattr(module, 'network_weights_backup', None)
+    return None if isinstance(weights_backup, bool) else weights_backup
+
+
+def restore_pristine(module, device):
+    """Put a backed-up layer back on its checkpoint weights, so a mechanism sees the pristine base."""
+    if tensor_backup(module) is not None:
+        network_apply_weights(module, None, None, device=device)
+
+
+def should_skip(module, network_layer_name, wanted, stack_sig):
+    """True when the pass has nothing to do here: no weight, interrupted, unnamed, or already carrying this set under these settings."""
+    if getattr(module, 'weight', None) is None or shared.state.interrupted or network_layer_name is None:
+        return True
+    return getattr(module, 'network_current_names', ()) == wanted and getattr(module, 'network_current_stack', 'sum') == stack_sig
+
+
+def network_activate(include=None, exclude=None):
+    if exclude is None:
+        exclude = []
+    if include is None:
+        include = []
+    promote_pending()
     t0 = time.time()
     fuse = lora_overrides.fuse_native() # resolve once: backup and apply passes must agree
     with limit_errors("network_activate") as elimit:
-        sd_model = getattr(shared.sd_model, "pipe", shared.sd_model)
-        if shared.opts.diffusers_offload_mode == "sequential":
-            sd_models.disable_offload(sd_model)
-            sd_models.move_model(sd_model, device=devices.cpu)
-        elif shared.opts.diffusers_offload_mode == "balanced":
-            sd_model = sd_models.apply_balanced_offload(sd_model, force=True, silent=True) # dispatched modules hold meta tensors backed by the offload map; rebuild them real on cpu with hooks intact before touching weights
+        sd_model = prepare_model_for_write(getattr(shared.sd_model, "pipe", shared.sd_model))
         group_offload = shared.opts.diffusers_offload_mode == "group"
         group_stripped = {}
         device = None
-        modules = {}
-        components = include if len(include) > 0 else default_components
-        components = [x for x in components if x not in exclude]
-        filtered_components = [x for x in default_components if x not in components] # filtered components restore to backup so a filter means detached, not frozen with stale weights
-        active_components = []
-        for name in components + filtered_components:
-            component = getattr(sd_model, name, None)
-            if component is not None and hasattr(component, 'named_modules'):
-                if name in components:
-                    active_components.append(name)
-                modules[name] = list(component.named_modules())
-        total = sum(len(x) for x in modules.values())
-        if len(l.loaded_networks) > 0:
-            pbar = rp.Progress(rp.TextColumn('[cyan]Network: type=LoRA action=activate'), rp.BarColumn(), rp.TaskProgressColumn(), rp.TimeRemainingColumn(), rp.TimeElapsedColumn(), rp.TextColumn('[cyan]{task.description}'), console=console)
-            task = pbar.add_task(description='' , total=total)
-        else:
-            task = None
-            pbar = nullcontext()
+        modules, components, active_components, total = collect_components(sd_model, include, exclude, default_components, restore_filtered=True)
+        pbar, task = pass_progress('activate', total, len(l.loaded_networks) > 0)
         applied_weight = 0
         applied_bias = 0
         refused = 0
@@ -105,8 +149,7 @@ def network_activate(include=None, exclude=None):
                 device = getattr(sd_model, component, None).device
                 for _, module in modules[component]:
                     network_layer_name = getattr(module, 'network_layer_name', None)
-                    current_names = getattr(module, "network_current_names", ())
-                    if getattr(module, 'weight', None) is None or shared.state.interrupted or (network_layer_name is None) or (current_names == component_wanted and getattr(module, 'network_current_stack', 'sum') == stack_sig):
+                    if should_skip(module, network_layer_name, component_wanted, stack_sig):
                         if task is not None:
                             pbar.update(task, advance=1)
                         continue
@@ -116,9 +159,7 @@ def network_activate(include=None, exclude=None):
                     calced = False # tracks whether this iteration assembled the delta, so the fallthrough reuses it instead of recomputing
                     if select_active and component_wanted and not network_layer_name.startswith('lora_te'):
                         if lora_sdnq.select_candidate(module, network_layer_name, component_wanted): # SDNQ pairs ride the channel as separate segments at any bit width; weight rewrites cannot flip a quantized layer
-                            weights_backup = getattr(module, "network_weights_backup", None)
-                            if weights_backup is not None and not isinstance(weights_backup, bool):
-                                network_apply_weights(module, None, None, device=device)
+                            restore_pristine(module, device)
                             applied = lora_sdnq.apply_select_cached(module, network_layer_name, component_wanted) # a stored score record and factor pair serve before the deltas are assembled
                             if applied is None:
                                 per_net, sel_bias = network_calc_weights(module, network_layer_name, elimit=elimit, per_net=True)
@@ -139,8 +180,7 @@ def network_activate(include=None, exclude=None):
                                 lora_stack.warn_once('select-host-disabled', f'Network stack: mode={lora_stack.mode()} quant=sdnq host=disabled fallback=sum')
                         else: # other layers select by recomputing the winner from the pristine backup at schedule time
                             sel_backup = network_backup_weights(module, network_layer_name, component_wanted, fuse)
-                            weights_backup = getattr(module, "network_weights_backup", None)
-                            if weights_backup is not None and not isinstance(weights_backup, bool):
+                            if tensor_backup(module) is not None: # a flip recomputes the winner from the pristine tensor, which fuse mode does not keep
                                 if lora_stack.register_weight_pair_cached(network_layer_name, module, component_wanted): # a stored score record registers without assembling the pair
                                     backup_size += sel_backup
                                     network_apply_weights(module, None, None, device=device) # pristine until the schedule applies the winner
@@ -163,9 +203,7 @@ def network_activate(include=None, exclude=None):
                                         pbar.update(task, advance=1)
                                     continue
                     if lora_sdnq.factor_candidate(module, network_layer_name, component_wanted):
-                        weights_backup = getattr(module, "network_weights_backup", None)
-                        if weights_backup is not None and not isinstance(weights_backup, bool):
-                            network_apply_weights(module, None, None, device=device) # an earlier non-factorable set requantized this layer, restore the pristine base before attaching factors
+                        restore_pristine(module, device) # an earlier non-factorable set may have requantized this layer
                         applied = lora_sdnq.apply_factors(module, network_layer_name, component_wanted)
                         if applied is not None: # exact path took the layer; None falls through to hosting or requantize
                             if applied and component_wanted:
@@ -177,9 +215,7 @@ def network_activate(include=None, exclude=None):
                                 pbar.update(task, advance=1)
                             continue
                     if lora_sdnq.host_candidate(module, network_layer_name, component_wanted):
-                        weights_backup = getattr(module, "network_weights_backup", None)
-                        if weights_backup is not None and not isinstance(weights_backup, bool):
-                            network_apply_weights(module, None, None, device=device) # the hosted delta is measured against the pristine base
+                        restore_pristine(module, device) # the hosted delta is measured against the pristine base
                         hosted = lora_sdnq.apply_cached(module, network_layer_name, component_wanted) # a stored entry serves the layer before the delta is assembled
                         if hosted is None:
                             batch_updown, batch_ex_bias = network_calc_weights(module, network_layer_name, elimit=elimit)
@@ -208,8 +244,7 @@ def network_activate(include=None, exclude=None):
                     backup_size += network_backup_weights(module, network_layer_name, component_wanted, fuse)
                     if not component_wanted:
                         lora_stack.drop(network_layer_name) # a restored layer must leave the selection schedule
-                        weights_backup = getattr(module, "network_weights_backup", None)
-                        if weights_backup is None or isinstance(weights_backup, bool): # fuse mode has no tensor backup, restore stays with network_deactivate
+                        if tensor_backup(module) is None: # fuse mode has no tensor backup, restore stays with network_deactivate
                             if task is not None:
                                 pbar.update(task, advance=1)
                             continue
@@ -274,31 +309,11 @@ def network_deactivate(include=None, exclude=None):
         return
     t0 = time.time()
     with limit_errors("network_deactivate") as elimit:
-        sd_model = getattr(shared.sd_model, "pipe", shared.sd_model)
-        if shared.opts.diffusers_offload_mode == "sequential":
-            sd_models.disable_offload(sd_model)
-            sd_models.move_model(sd_model, device=devices.cpu)
-        elif shared.opts.diffusers_offload_mode == "balanced":
-            sd_model = sd_models.apply_balanced_offload(sd_model, force=True, silent=True) # dispatched modules hold meta tensors backed by the offload map; rebuild them real on cpu with hooks intact before touching weights
+        sd_model = prepare_model_for_write(getattr(shared.sd_model, "pipe", shared.sd_model))
         group_offload = shared.opts.diffusers_offload_mode == "group"
         group_stripped = {}
-        modules = {}
-
-        components = include if len(include) > 0 else ['text_encoder', 'text_encoder_2', 'text_encoder_3', 'unet', 'transformer', 'llm_adapter']
-        components = [x for x in components if x not in exclude]
-        active_components = []
-        for name in components:
-            component = getattr(sd_model, name, None)
-            if component is not None and hasattr(component, 'named_modules'):
-                modules[name] = list(component.named_modules())
-                active_components.append(name)
-        total = sum(len(x) for x in modules.values())
-        if len(l.previously_loaded_networks) > 0 and l.debug:
-            pbar = rp.Progress(rp.TextColumn('[cyan]Network: type=LoRA action=deactivate'), rp.BarColumn(), rp.TaskProgressColumn(), rp.TimeRemainingColumn(), rp.TimeElapsedColumn(), rp.TextColumn('[cyan]{task.description}'), console=console)
-            task = pbar.add_task(description='', total=total)
-        else:
-            task = None
-            pbar = nullcontext()
+        modules, _components, active_components, total = collect_components(sd_model, include, exclude, deactivate_components, restore_filtered=False)
+        pbar, task = pass_progress('deactivate', total, len(l.previously_loaded_networks) > 0 and l.debug)
         refused = 0
         with devices.inference_context(), pbar:
             applied_layers.clear()
