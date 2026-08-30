@@ -900,6 +900,41 @@ def test_route_fat_dense_delta_requantizes():
     return True
 
 
+def test_declined_host_delta_is_not_recomputed():
+    layer = build_layer('uint4')
+    torch.manual_seed(21)
+    D = torch.randn(OUT_F, IN_F, device=DEVICE) * 1e-2 # fat and full-rank: hosting assembles the delta and then routes it to the grid
+    net = make_dense_net('recompute', layer, D)
+    with host_rank(256), mock_model(lin=layer), counting_calc() as calls:
+        activate(net)
+        assert not hasattr(layer, 'sdnq_lora_svd_stash'), 'the fixture must reach the weight path, not the side channel'
+        assert calls['n'] == 1, f'a declined host hands its delta on instead of assembling it twice, got {calls["n"]}'
+    return True
+
+
+def test_pass_presents_one_wanted_names_tuple():
+    from modules.lora import lora_factor_cache as fc
+    layer = build_layer('uint4')
+    _A, _B, D = make_delta(sigma=3e-3)
+    net = make_dense_net('identity', layer, D)
+    seen = [] # holds the objects, so a freed tuple cannot lend its address to the next one
+    real = fc.begin_pass
+
+    def recording(wanted_names):
+        seen.append(wanted_names)
+        return real(wanted_names)
+
+    fc.begin_pass = recording
+    try:
+        with host_rank(64), mock_model(lin=layer):
+            activate(net)
+    finally:
+        fc.begin_pass = real
+    assert len(seen) >= 2, f'the hosted path must consult the cache more than once for this to prove anything, got {len(seen)}'
+    assert all(x is seen[0] for x in seen), 'one walk must present one tuple: the cache memoizes its entry on identity, and an equal rebuild rereads it from disk'
+    return True
+
+
 def test_route_rule_terms_gate_both_ways():
     layer = build_layer('uint4')
     torch.manual_seed(23)
@@ -2480,6 +2515,45 @@ def test_nunchaku_entries_carry_the_network_interface():
     return True
 
 
+def test_native_dispatch_archs_are_native_eligible():
+    from modules.lora import lora_load, lora_overrides
+    missing = sorted(set(lora_load.NATIVE_DISPATCH) - set(lora_overrides.allow_native))
+    assert not missing, f'an arch with a native loader that the method choice sends elsewhere never reaches it: {missing}'
+    return True
+
+
+def test_aborted_pass_still_publishes_its_state():
+    layer = build_layer('uint4')
+    _A, _B, D = make_delta()
+    net = make_dense_net('aborted', layer, D)
+    reported = {'n': 0}
+    real_prepare = networks.prepare_model_for_write
+    real_report = lora_sdnq.report_fallbacks
+
+    def exploding(_sd_model):
+        raise RuntimeError('offload rebuild failed') # a raise before the walk binds anything the epilogue reads
+
+    def counting_report():
+        reported['n'] += 1
+        real_report()
+
+    networks.prepare_model_for_write = exploding
+    lora_sdnq.report_fallbacks = counting_report
+    try:
+        with mock_model(lin=layer):
+            raised = None
+            try:
+                activate(net)
+            except RuntimeError as e:
+                raised = e
+            assert raised is not None and 'offload rebuild failed' in str(raised), f'the original failure must reach the caller, got {raised!r}'
+            assert reported['n'] == 1, 'an aborted pass must still publish its counters and put the model back under its offload mode'
+    finally:
+        networks.prepare_model_for_write = real_prepare
+        lora_sdnq.report_fallbacks = real_report
+    return True
+
+
 def test_stacked_shape_mismatch_falls_back():
     from types import SimpleNamespace
     layer = build_layer('uint4')
@@ -2914,7 +2988,8 @@ def run_tests():
     log.warning('=== Hosting ===')
     for fn in [test_hosted_low_rank_delta_is_kept, test_hosted_dense_delta_beats_requant, test_hosted_skips_int8,
                test_hosted_disabled_by_option, test_hosted_transitions_and_rng_isolation,
-               test_route_fat_dense_delta_requantizes, test_route_rule_terms_gate_both_ways, test_route_low_rank_fat_delta_stays_hosted,
+               test_route_fat_dense_delta_requantizes, test_declined_host_delta_is_not_recomputed, test_pass_presents_one_wanted_names_tuple,
+               test_route_rule_terms_gate_both_ways, test_route_low_rank_fat_delta_stays_hosted,
                test_route_mixed_set_keeps_hosting, test_route_svd_checkpoint_keeps_hosting, test_route_dense_stack_keeps_hosting,
                test_route_replay_from_cache, test_hosted_null_tail_collapses_to_effective_rank, test_hosted_flat_spectrum_keeps_cap]:
         run_test(CAT_HOST, fn)
@@ -2950,7 +3025,8 @@ def run_tests():
         run_test(CAT_COMPILE, fn)
     log.warning('=== Robustness ===')
     for fn in [test_remove_factors_after_device_move, test_stacked_shape_mismatch_falls_back, test_nunchaku_entries_carry_the_network_interface,
-               test_four_dim_oft_blocks_load_as_boft]:
+               test_four_dim_oft_blocks_load_as_boft, test_aborted_pass_still_publishes_its_state,
+               test_native_dispatch_archs_are_native_eligible]:
         run_test(CAT_ROBUST, fn)
     log.warning('=== Block weights ===')
     for fn in [test_block_index_sd_unet_layout, test_block_index_sdxl_unet_layout, test_block_index_flux_chains_concatenate,

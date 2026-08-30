@@ -47,7 +47,7 @@ a low-rank delta hosts exactly however fat it is.
 import torch
 
 from modules import devices, shared
-from modules.lora import lora_calib, lora_factor_cache, lora_stack
+from modules.lora import lora_calib, lora_factor_cache, lora_stack # lora_calib registers its model-load hook on import, so this one has to stay eager
 from modules.lora import lora_common as l
 from modules.logger import log
 
@@ -259,8 +259,8 @@ def append_factors(self, ups, downs):
     return segments, deq.use_quantized_matmul
 
 
-def select_candidate(self, network_layer_name, wanted_names):
-    """True when this layer can carry a set on the svd channel; select pairs ride it at any bit width."""
+def channel_candidate(self, network_layer_name, wanted_names):
+    """True when this layer can carry a set on the svd channel: quantized, covered, and given a rank to spend."""
     if not enabled():
         return False
     if int(getattr(shared.opts, 'lora_sdnq_host_rank', 0) or 0) <= 0:
@@ -272,9 +272,14 @@ def select_candidate(self, network_layer_name, wanted_names):
     return any(net.modules.get(network_layer_name, None) is not None for net in l.loaded_networks)
 
 
+def select_candidate(self, network_layer_name, wanted_names):
+    """True when a select pair can ride this layer's svd channel; pairs ride it at any bit width."""
+    return channel_candidate(self, network_layer_name, wanted_names)
+
+
 def host_candidate(self, network_layer_name, wanted_names):
     """True when this layer's set should ride the svd channel as a truncated svd: non-factorable sets below 8 bits, dense-combined sets at any width."""
-    if not select_candidate(self, network_layer_name, wanted_names):
+    if not channel_candidate(self, network_layer_name, wanted_names):
         return False
     if lora_stack.mode() in lora_stack.DENSE_MODES and not network_layer_name.startswith('lora_te'):
         if sum(1 for net in l.loaded_networks if net.modules.get(network_layer_name, None) is not None) >= 2:
@@ -562,6 +567,16 @@ def note_fallback(self, network_layer_name):
     """Record a quantized layer taking the requantize path (summary-logged per pass); layers the routing rule sent there are counted apart."""
     if getattr(self, 'sdnq_dequantizer', None) is not None and network_layer_name not in routed_layers:
         fallback_layers.append(network_layer_name)
+
+
+def reset_pass():
+    """Clear every per-pass accumulator, so a pass that raised leaves nothing behind for the next one."""
+    fallback_layers.clear()
+    hosted_layers.clear()
+    hosted_ranks.clear()
+    factor_layers.clear()
+    select_layers.clear()
+    routed_layers.clear() # note_fallback reads this to suppress double counting, so a stale entry silences a real fallback
 
 
 def report_fallbacks():
