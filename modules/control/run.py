@@ -350,9 +350,8 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                 styles: list[str] | None = None,
                 steps: int = 20, sampler_index: int | None = None,
                 seed: int = -1, subseed: int = -1, subseed_strength: float = 0, seed_resize_from_h: int = -1, seed_resize_from_w: int = -1,
-                guidance_name: str = 'Default', guidance_scale: float = 6.0, guidance_rescale: float = 0.0, guidance_start: float = 0.0, guidance_stop: float = 1.0,
-                cfg_scale: float = 6.0, clip_skip: float = 1.0, cfg_image: float = 6.0, cfg_rescale: float = 0.7, cfg_true: float = 0.0, cfg_adaptive: float = 0.5, cfg_end: float = 1.0,
-                vae_type: str = 'Full', tiling: bool = False, hidiffusion: bool = False,
+                cfg_name: str = 'Default', cfg_scale: float = 6.0, cfg_image: float = 6.0, cfg_rescale: float = 0.0, cfg_start: float = 0.0, cfg_stop: float = 1.0, cfg_true: float = 0.0, cfg_adaptive: float = 0.5,
+                clip_skip: float = 1.0, vae_type: str = 'Full', tiling: bool = False, hidiffusion: bool = False,
                 detailer_enabled: bool = False, detailer_prompt: str = '', detailer_negative: str = '', detailer_steps: int = 10, detailer_strength: float = 0.3, detailer_resolution: int = 1024,  detailer_classes: str = '',
                 hdr_mode: int = 0, hdr_brightness: float = 0, hdr_color: float = 0, hdr_sharpen: float = 0, hdr_clamp: bool = False, hdr_boundary: float = 4.0, hdr_threshold: float = 0.95,
                 hdr_maximize: bool = False, hdr_max_center: float = 0.6, hdr_max_boundary: float = 1.0, hdr_color_picker: str | None = None, hdr_tint_ratio: float = 0, hdr_apply_hires: bool = True,
@@ -465,21 +464,17 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
         seed_resize_from_w = seed_resize_from_w,
         denoising_strength = denoising_strength,
         skip_processing = skip_processing,
-        # modular guidance
-        guidance_name = guidance_name,
-        guidance_scale = guidance_scale,
-        guidance_rescale = guidance_rescale,
-        guidance_start = guidance_start,
-        guidance_stop = guidance_stop,
-        # legacy guidance
+        # guidance
+        cfg_name = cfg_name,
         cfg_scale = cfg_scale,
-        cfg_end = cfg_end,
-        clip_skip = clip_skip,
         cfg_image = cfg_image,
         cfg_rescale = cfg_rescale,
+        cfg_start = cfg_start,
+        cfg_stop = cfg_stop,
         cfg_true = cfg_true,
         cfg_adaptive = cfg_adaptive,
         # advanced
+        clip_skip = clip_skip,
         vae_type = vae_type,
         tiling = tiling,
         hidiffusion = hidiffusion,
@@ -852,7 +847,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
     debug_log(f'Ready: {image_txt}')
 
     html_txt = f'<p>Ready {image_txt}</p>' if image_txt != '' else ''
-    if len(info_txt) > 0:
+    if (info_txt is not None) and (len(info_txt) > 0):
         html_txt = html_txt + infotext_to_html(info_txt[0])
     result = (output_images, blended_image, html_txt, output_filename)
     if is_generator:

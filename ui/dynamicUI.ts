@@ -18,7 +18,7 @@ async function updateUI(model: Model) {
 
 export async function updateModel() {
   const req = await authFetch(`${window.api}/checkpoint`);
-  if (req.ok) {
+  if (req && req.ok) {
     const model = await req.json() as Model;
     if (model?.type?.length > 0) updateUI(model);
   }

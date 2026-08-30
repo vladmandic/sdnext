@@ -201,7 +201,7 @@ export async function initModels() {
   const en = gradioApp().getElementById('txt2img_extra_networks');
   if (!el || !en) return;
   const req = await authFetch(`${window.api}/sd-models`);
-  const res = req.ok ? await req.json() : [];
+  const res = (req && req.ok) ? await req.json() : [];
   log('initModels', res.length);
   const ready = () => `
     <p style='color: white'>Ready</p>

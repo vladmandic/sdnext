@@ -337,6 +337,8 @@ class TAEHV(nn.Module):
 
     def decode(self, x, parallel=True, show_progress_bar=False, return_dict=False): # pylint: disable=unused-argument
         """Decode a sequence of frames."""
+        if x.ndim == 4:
+            x = x.unsqueeze(0)
         return self.decode_video(x, parallel=False, show_progress_bar=False)
 
     def encode(self, x, parallel=True, show_progress_bar=False, return_dict=False): # pylint: disable=unused-argument

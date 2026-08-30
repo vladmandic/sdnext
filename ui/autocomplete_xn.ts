@@ -88,7 +88,7 @@ export const xnEngine: XnEngine = {
     try {
       // const resp = await fetch(`${window.api}${path}`, { credentials: 'include' });
       const resp = await authFetch(`${window.api}${path}`);
-      if (!resp.ok) throw new Error(`${resp.status}`);
+      if (!resp?.ok) throw new Error(`${resp?.status}`);
       return await resp.json();
     } catch (e) {
       log('autoComplete', { xnFetchFailed: path, error: String(e) });

@@ -5,9 +5,9 @@ import collections
 import zipfile
 import re
 
+import _codecs
 import torch
 import numpy as np
-import _codecs
 
 # PyTorch 1.13 and later have _TypedStorage renamed to TypedStorage
 TypedStorage = torch.storage.TypedStorage if hasattr(torch.storage, 'TypedStorage') else torch.storage._TypedStorage # pylint: disable=protected-access

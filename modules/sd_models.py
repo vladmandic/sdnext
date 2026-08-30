@@ -1034,6 +1034,12 @@ def load_diffuser(checkpoint_info: CheckpointInfo | None = None, op='model', rev
         if debug_load:
             log.trace(f'Model components: {list(get_signature(sd_model).values())}')
 
+        from modules import modular
+        if modular.is_compatible(shared.sd_model):
+            modular_pipe = modular.convert_to_modular(shared.sd_model)
+            if modular_pipe is not None:
+                shared.sd_model = modular_pipe
+
         from modules import textual_inversion
         sd_model.embedding_db = textual_inversion.EmbeddingDatabase()
         sd_model.embedding_db.add_embedding_dir(shared.opts.embeddings_dir)
@@ -1244,7 +1250,7 @@ def switch_pipe(cls: type[diffusers.DiffusionPipeline] | str, pipeline: diffuser
 
 
 def clean_diffuser_pipe(pipe):
-    if pipe is not None and shared.sd_model_type == 'sdxl' and hasattr(pipe, 'config') and 'requires_aesthetics_score' in pipe.config and hasattr(pipe, '_internal_dict'):
+    if (pipe is not None) and (shared.sd_model_type == 'sdxl') and hasattr(pipe, 'config') and ('requires_aesthetics_score' in pipe.config) and hasattr(pipe, '_internal_dict'):
         debug_process(f'Pipeline clean: {pipe.__class__.__name__}')
         # diffusers adds requires_aesthetics_score with img2img and complains if requires_aesthetics_score exist in txt2img
         internal_dict = dict(pipe._internal_dict) # pylint: disable=protected-access
