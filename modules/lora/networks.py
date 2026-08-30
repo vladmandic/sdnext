@@ -276,46 +276,13 @@ def apply_generic(ctx, module, network_layer_name, batch):
     ctx.tick(f'networks={len(l.loaded_networks)} modules={ctx.active_components} layers={ctx.total} weights={ctx.applied_weight} bias={ctx.applied_bias} backup={bs} device={ctx.device}')
 
 
-def network_activate(include=None, exclude=None):
-    if exclude is None:
-        exclude = []
-    if include is None:
-        include = []
-    promote_pending()
-    t0 = time.time()
-    ctx = ActivationPass(lora_overrides.fuse_native()) # fuse resolved once: the backup, apply and restore paths must agree
-    with limit_errors("network_activate") as elimit:
-        ctx.elimit = elimit
-        ctx.sd_model = prepare_model_for_write(ctx.sd_model)
-        modules, components, ctx.active_components, ctx.total = collect_components(ctx.sd_model, include, exclude, default_components, restore_filtered=True)
-        ctx.pbar, ctx.task = pass_progress('activate', ctx.total, len(l.loaded_networks) > 0)
-        with devices.inference_context(), ctx.pbar:
-            applied_layers.clear()
-            lora_sdnq.fallback_layers.clear() # a raise mid-pass leaves stale entries behind
-            lora_sdnq.hosted_layers.clear()
-            lora_sdnq.factor_layers.clear()
-            lora_sdnq.select_layers.clear()
-            for component in modules.keys():
-                ctx.component_wanted = ctx.wanted_names if component in components else () # the pass tuple itself, never a copy
-                ctx.device = getattr(ctx.sd_model, component, None).device
-                for _, module in modules[component]:
-                    network_layer_name = getattr(module, 'network_layer_name', None)
-                    if should_skip(module, network_layer_name, ctx.component_wanted, ctx.stack_sig):
-                        ctx.tick()
-                        continue
-                    lora_stack.drop(network_layer_name) # re-application invalidates any live selection schedule; the select branch re-registers
-                    if ctx.group_offload and component not in ctx.group_stripped and group_will_mutate(module, network_layer_name, l.loaded_networks):
-                        ctx.device = group_offload_strip(ctx.sd_model, component, ctx.group_stripped)
-                    if try_select(ctx, module, network_layer_name):
-                        continue
-                    if try_factors(ctx, module, network_layer_name):
-                        continue
-                    hosted, batch = try_hosted(ctx, module, network_layer_name)
-                    if hosted:
-                        continue
-                    apply_generic(ctx, module, network_layer_name, batch)
-            if ctx.task is not None and len(applied_layers) == 0:
-                ctx.pbar.remove_task(ctx.task) # hide progress bar for no action
+def finish_pass(ctx, t0):
+    """Publish what the pass did and put the model back under its offload mode.
+
+    Runs even when the error limiter aborts the walk: the hooks it stripped
+    and the offload it disabled have to come back, and the counters other
+    modules read have to describe this pass.
+    """
     global native_active, refused_writes # pylint: disable=global-statement
     lora_sdnq.report_fallbacks()
     native_active = len(l.loaded_networks) > 0
@@ -326,9 +293,52 @@ def network_activate(include=None, exclude=None):
         log.error(f'Network load: type=LoRA networks={[n.name for n in l.loaded_networks]} weights={ctx.applied_weight} bias={ctx.applied_bias} refused={ctx.refused} network partially applied')
     if l.debug and len(l.loaded_networks) > 0:
         log.debug(f'Network load: type=LoRA networks={[n.name for n in l.loaded_networks]} modules={ctx.active_components} layers={ctx.total} weights={ctx.applied_weight} bias={ctx.applied_bias} refused={ctx.refused} backup={round(ctx.backup_size/1024/1024/1024, 2)} fuse={ctx.fuse}:{shared.opts.lora_fuse_diffusers} device={ctx.device} time={l.timer.summary}')
-    modules.clear()
     if len(applied_layers) > 0 or shared.opts.diffusers_offload_mode == "sequential" or len(ctx.group_stripped) > 0:
         sd_models.set_diffuser_offload(ctx.sd_model, op="model")
+
+
+def network_activate(include=None, exclude=None):
+    if exclude is None:
+        exclude = []
+    if include is None:
+        include = []
+    promote_pending()
+    t0 = time.time()
+    ctx = ActivationPass(lora_overrides.fuse_native()) # fuse resolved once: the backup, apply and restore paths must agree
+    applied_layers.clear()
+    lora_sdnq.reset_pass()
+    modules = {}
+    try:
+        with limit_errors("network_activate") as elimit:
+            ctx.elimit = elimit
+            ctx.sd_model = prepare_model_for_write(ctx.sd_model)
+            modules, components, ctx.active_components, ctx.total = collect_components(ctx.sd_model, include, exclude, default_components, restore_filtered=True)
+            ctx.pbar, ctx.task = pass_progress('activate', ctx.total, len(l.loaded_networks) > 0)
+            with devices.inference_context(), ctx.pbar:
+                for component in modules.keys():
+                    ctx.component_wanted = ctx.wanted_names if component in components else () # the pass tuple itself, never a copy
+                    ctx.device = getattr(ctx.sd_model, component, None).device
+                    for _, module in modules[component]:
+                        network_layer_name = getattr(module, 'network_layer_name', None)
+                        if should_skip(module, network_layer_name, ctx.component_wanted, ctx.stack_sig):
+                            ctx.tick()
+                            continue
+                        lora_stack.drop(network_layer_name) # re-application invalidates any live selection schedule; the select branch re-registers
+                        if ctx.group_offload and component not in ctx.group_stripped and group_will_mutate(module, network_layer_name, l.loaded_networks):
+                            ctx.device = group_offload_strip(ctx.sd_model, component, ctx.group_stripped)
+                        if try_select(ctx, module, network_layer_name):
+                            continue
+                        if try_factors(ctx, module, network_layer_name):
+                            continue
+                        hosted, batch = try_hosted(ctx, module, network_layer_name)
+                        if hosted:
+                            continue
+                        apply_generic(ctx, module, network_layer_name, batch)
+                if ctx.task is not None and len(applied_layers) == 0:
+                    ctx.pbar.remove_task(ctx.task) # hide progress bar for no action
+    finally:
+        finish_pass(ctx, t0)
+        modules.clear()
 
 
 def effective_mode():

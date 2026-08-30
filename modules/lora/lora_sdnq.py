@@ -564,6 +564,16 @@ def note_fallback(self, network_layer_name):
         fallback_layers.append(network_layer_name)
 
 
+def reset_pass():
+    """Clear every per-pass accumulator, so a pass that raised leaves nothing behind for the next one."""
+    fallback_layers.clear()
+    hosted_layers.clear()
+    hosted_ranks.clear()
+    factor_layers.clear()
+    select_layers.clear()
+    routed_layers.clear() # note_fallback reads this to suppress double counting, so a stale entry silences a real fallback
+
+
 def report_fallbacks():
     hits, misses = lora_factor_cache.flush()
     if hits > 0 or misses > 0:

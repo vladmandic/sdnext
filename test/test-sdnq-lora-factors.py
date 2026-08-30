@@ -2515,6 +2515,38 @@ def test_nunchaku_entries_carry_the_network_interface():
     return True
 
 
+def test_aborted_pass_still_publishes_its_state():
+    layer = build_layer('uint4')
+    _A, _B, D = make_delta()
+    net = make_dense_net('aborted', layer, D)
+    reported = {'n': 0}
+    real_prepare = networks.prepare_model_for_write
+    real_report = lora_sdnq.report_fallbacks
+
+    def exploding(_sd_model):
+        raise RuntimeError('offload rebuild failed') # a raise before the walk binds anything the epilogue reads
+
+    def counting_report():
+        reported['n'] += 1
+        real_report()
+
+    networks.prepare_model_for_write = exploding
+    lora_sdnq.report_fallbacks = counting_report
+    try:
+        with mock_model(lin=layer):
+            raised = None
+            try:
+                activate(net)
+            except RuntimeError as e:
+                raised = e
+            assert raised is not None and 'offload rebuild failed' in str(raised), f'the original failure must reach the caller, got {raised!r}'
+            assert reported['n'] == 1, 'an aborted pass must still publish its counters and put the model back under its offload mode'
+    finally:
+        networks.prepare_model_for_write = real_prepare
+        lora_sdnq.report_fallbacks = real_report
+    return True
+
+
 def test_stacked_shape_mismatch_falls_back():
     from types import SimpleNamespace
     layer = build_layer('uint4')
@@ -2986,7 +3018,7 @@ def run_tests():
         run_test(CAT_COMPILE, fn)
     log.warning('=== Robustness ===')
     for fn in [test_remove_factors_after_device_move, test_stacked_shape_mismatch_falls_back, test_nunchaku_entries_carry_the_network_interface,
-               test_four_dim_oft_blocks_load_as_boft]:
+               test_four_dim_oft_blocks_load_as_boft, test_aborted_pass_still_publishes_its_state]:
         run_test(CAT_ROBUST, fn)
     log.warning('=== Block weights ===')
     for fn in [test_block_index_sd_unet_layout, test_block_index_sdxl_unet_layout, test_block_index_flux_chains_concatenate,
