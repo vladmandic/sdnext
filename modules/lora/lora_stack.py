@@ -33,6 +33,7 @@ SAMPLE_CAP = 1 << 22 # strided subsample bound for magnitude quantiles (full-siz
 
 state: dict = {'entries': {}, 'flips': {}, 'gamma': 1.0, 'gamma_e': 1.0, 'total_steps': 0, 'finalized': False, 'reported': None}
 warned: set = set()
+warned_context = None
 
 
 def mode():
@@ -60,7 +61,17 @@ def signature():
     return 'sum'
 
 
+def warn_context():
+    """Settings the degradation warnings below speak about."""
+    return (signature(), getattr(shared.opts, 'diffusers_offload_mode', ''), int(getattr(shared.opts, 'lora_sdnq_host_rank', 0) or 0), getattr(shared.opts, 'sd_model_checkpoint', ''))
+
+
 def warn_once(key, message):
+    global warned_context # pylint: disable=global-statement
+    context = warn_context()
+    if context != warned_context:
+        warned.clear() # what was reported under the old settings says nothing about the new ones
+        warned_context = context
     if key not in warned:
         warned.add(key)
         log.warning(message)

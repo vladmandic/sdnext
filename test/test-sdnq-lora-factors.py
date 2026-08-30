@@ -2071,6 +2071,40 @@ def test_select_host_disabled_falls_back_to_sum():
     return True
 
 
+def test_degradation_warning_rearms_on_settings_change():
+    class CountingLog:
+        def __init__(self):
+            self.warnings = 0
+
+        def warning(self, _message):
+            self.warnings += 1
+
+    counter = CountingLog()
+    real_log = lora_stack.log
+    saved = {k: getattr(shared.opts, k, None) for k in ('lora_stack_mode', 'lora_sdnq_host_rank')}
+    lora_stack.log = counter
+    lora_stack.warned.clear()
+    lora_stack.warned_context = None
+    try:
+        shared.opts.lora_stack_mode = 'klora'
+        lora_stack.warn_once('probe', 'Network stack: probe')
+        lora_stack.warn_once('probe', 'Network stack: probe')
+        assert counter.warnings == 1, f'one degradation under one settings context says it once, got {counter.warnings}'
+        shared.opts.lora_stack_mode = 'estlora'
+        lora_stack.warn_once('probe', 'Network stack: probe')
+        assert counter.warnings == 2, 'changing the stack mode must let the degradation be said again'
+        shared.opts.lora_sdnq_host_rank = 0
+        lora_stack.warn_once('probe', 'Network stack: probe')
+        assert counter.warnings == 3, 'the host rank belongs to that context too'
+    finally:
+        lora_stack.log = real_log
+        for k, v in saved.items():
+            setattr(shared.opts, k, v)
+        lora_stack.warned.clear()
+        lora_stack.warned_context = None
+    return True
+
+
 def test_flip_lands_before_crossover_step():
     layer = build_layer('uint4')
     n1, n2, D1, D2 = select_pair(layer, seed0=55, seed1=56)
@@ -2907,7 +2941,7 @@ def run_tests():
                test_select_deactivate_from_midflip, test_select_requires_exactly_two_nets, test_select_gated_off_when_compiled,
                test_select_finalize_drops_dead_module, test_select_int8_pair_rides_segments, test_select_gate_dormant_without_pair, test_stale_schedule_dropped_on_reapply,
                test_est_energy_matches_full_frobenius, test_select_weight_kind_plain_layer,
-               test_select_gamma_tracks_live_entries, test_select_host_disabled_falls_back_to_sum, test_flip_lands_before_crossover_step,
+               test_select_gamma_tracks_live_entries, test_select_host_disabled_falls_back_to_sum, test_degradation_warning_rearms_on_settings_change, test_flip_lands_before_crossover_step,
                test_score_pair_chunked_precision, test_select_replay_from_cache_skips_calc, test_select_weight_replay_from_cache_skips_calc,
                test_select_reset_reports_timing, test_select_weight_flip_calcs_on_accelerator]:
         run_test(CAT_SELECT, fn)
