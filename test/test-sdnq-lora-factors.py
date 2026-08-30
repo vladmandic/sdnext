@@ -2515,6 +2515,13 @@ def test_nunchaku_entries_carry_the_network_interface():
     return True
 
 
+def test_native_dispatch_archs_are_native_eligible():
+    from modules.lora import lora_load, lora_overrides
+    missing = sorted(set(lora_load.NATIVE_DISPATCH) - set(lora_overrides.allow_native))
+    assert not missing, f'an arch with a native loader that the method choice sends elsewhere never reaches it: {missing}'
+    return True
+
+
 def test_aborted_pass_still_publishes_its_state():
     layer = build_layer('uint4')
     _A, _B, D = make_delta()
@@ -3018,7 +3025,8 @@ def run_tests():
         run_test(CAT_COMPILE, fn)
     log.warning('=== Robustness ===')
     for fn in [test_remove_factors_after_device_move, test_stacked_shape_mismatch_falls_back, test_nunchaku_entries_carry_the_network_interface,
-               test_four_dim_oft_blocks_load_as_boft, test_aborted_pass_still_publishes_its_state]:
+               test_four_dim_oft_blocks_load_as_boft, test_aborted_pass_still_publishes_its_state,
+               test_native_dispatch_archs_are_native_eligible]:
         run_test(CAT_ROBUST, fn)
     log.warning('=== Block weights ===')
     for fn in [test_block_index_sd_unet_layout, test_block_index_sdxl_unet_layout, test_block_index_flux_chains_concatenate,
