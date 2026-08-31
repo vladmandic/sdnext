@@ -37,6 +37,8 @@
   - unnecessary secondary prompt if same
   - js fetch exception handling
   - detailer handling of stop/skip/pause
+  - cleanup dead rife code, thanks @Anai-Guo
+  - lumina-dimoo attention-kwargs, thanks @Anai-Guo
 
 ## Update for 2026-08-26
 

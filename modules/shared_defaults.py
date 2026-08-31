@@ -55,7 +55,7 @@ def get_default_modes(cmd_opts, mem_stat):
         default_cross_attention = ['Dynamic attention']
 
     if devices.get_optimal_device_name() != "cpu":
-        os.environ.setdefault('SDNQ_USE_OPENVINO_MM', '0') # TODO sdnq openvino: this is too late as sdnq already initialized it
+        os.environ.setdefault('SDNQ_USE_OPENVINO_MM', '0')
 
     return (
         default_offload_mode,

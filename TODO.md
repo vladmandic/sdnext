@@ -8,6 +8,7 @@
 - Benchmark tool productize: @CalamitousFelicitousness
 - Control tab verify overrides handling, @vladmandic
 - LTX: Create pre-quant for LTX-2.5
+- LTX: Implement LTX2DFRPipeline
 - ROCm: v10
 - Modular: cache hooks, @vladmandic
 - Modular: disable legacy PAG, etc., @vladmandic

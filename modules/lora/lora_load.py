@@ -107,7 +107,6 @@ def load_safetensors(name, network_on_disk: network.NetworkOnDisk) -> network.Ne
             if key_network_without_network_parts.startswith("unet") or key_network_without_network_parts.startswith("transformer"):
                 key_network_without_network_parts = "lora_" + key_network_without_network_parts
             key_network_without_network_parts = key_network_without_network_parts.replace("clip_g","lora_te2").replace("clip_l","lora_te")
-            # TODO lora: add t5 key support for sd35/f1
 
         elif len(parts) > 5: # messy handler for diffusers peft lora
             key_network_without_network_parts = '_'.join(parts[:-2])

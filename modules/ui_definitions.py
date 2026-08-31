@@ -90,6 +90,7 @@ def create_settings(cmd_opts):
 
         "advanced_sep": OptionInfo("<h2>Advanced Options</h2>", "", gr.HTML),
         "sd_checkpoint_autoload": OptionInfo(True, "Model auto-load on start"),
+        "model_modular_enable": OptionInfo(False, "Model convert to modular pipelines"),
         "sd_parallel_load": OptionInfo(True, "Model load using multiple threads"),
         "sd_checkpoint_autodownload": OptionInfo(True, "Model auto-download on demand"),
         "stream_load": OptionInfo(False, "Model load using streams", gr.Checkbox),
@@ -107,7 +108,6 @@ def create_settings(cmd_opts):
     # --- Model Options ---
     options_templates.update(options_section(('model_options', "Model Options"), {
         "model_modular_sep": OptionInfo("<h2>Modular Pipelines</h2>", "", gr.HTML),
-        "model_modular_enable": OptionInfo(False, "Enable modular pipelines (experimental)"),
         "model_google_sep": OptionInfo("<h2>Google GenAI</h2>", "", gr.HTML),
         "google_use_vertexai": OptionInfo(False, "Google cloud use VertexAI endpoints"),
         "google_api_key": OptionInfo("", "Google cloud API key", gr.Textbox, secret=True, env_var='GOOGLE_API_KEY'),

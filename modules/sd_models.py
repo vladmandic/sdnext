@@ -1558,7 +1558,6 @@ def reload_model_weights(sd_model=None, info: CheckpointInfo | None = None, op='
         unload_model_weights(op=op)
         sd_model = None
     timer.load = timer.Timer()
-    # TODO model load: implement model in-memory caching
     timer.load.record("config")
     if sd_model is None or force:
         sd_model = None
