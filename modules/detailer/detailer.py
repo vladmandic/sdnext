@@ -1,4 +1,5 @@
 import re
+import time
 from copy import copy
 import numpy as np
 import gradio as gr
@@ -220,6 +221,19 @@ class Detailer():
         matched_negative_classes = set()
 
         for i, model_val in enumerate(models):
+            if shared.state.skipped:
+                shared.state.skipped = False
+                continue
+            if shared.state.interrupted:
+                break
+            while shared.state.paused:
+                log.debug('Detail paused')
+                if shared.state.interrupted:
+                    break
+                if shared.state.skipped:
+                    continue
+                time.sleep(0.1)
+
             if ':' in model_val:
                 model_name, model_args = model_val.split(':', 1)
             else:
@@ -309,10 +323,23 @@ class Detailer():
             resolved_prompts = assign_prompts(prompt, items)
             resolved_negatives = assign_prompts(negative, items)
             for j, item in enumerate(items):
+                if shared.state.skipped:
+                    shared.state.skipped = False
+                    continue
+                if shared.state.interrupted:
+                    break
+                while shared.state.paused:
+                    log.debug('Detail paused')
+                    if shared.state.interrupted:
+                        break
+                    if shared.state.skipped:
+                        continue
+                    time.sleep(0.1)
                 if item.mask is None:
                     continue
-                pc.keep_prompts = True
+
                 shared.sd_model.fail_on_switch_error = True
+                pc.keep_prompts = True
                 pc.prompt = resolved_prompts[j]
                 pc.negative_prompt = resolved_negatives[j]
                 pc.prompts = [pc.prompt]
