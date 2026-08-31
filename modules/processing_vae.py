@@ -82,6 +82,8 @@ def full_vqgan_decode(latents, model):
 
 def full_vae_decode(latents, model):
     t0 = time.time()
+    if latents.ndim == 4 and latents.shape[1] == 3: # already decoded
+        return latents
     if not hasattr(model, 'vae') and hasattr(model, 'pipe'):
         model = model.pipe
     if model is None or not hasattr(model, 'vae'):

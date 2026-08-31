@@ -80,7 +80,6 @@ def set_args(guidance_name: str):
         args['guidance_scales'] = [float(x.strip()) for x in inputs.get('fdg_scales', '5.0').split(',')]
         args['parallel_weights'] = float(inputs.get('fdg_weights', 1.0))
         args['guidance_rescale_space'] = inputs.get('fdg_rescale_space', 'data')
-    log.trace(f'Guiders: args={args}')
     return args
 
 

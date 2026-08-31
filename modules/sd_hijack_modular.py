@@ -162,7 +162,7 @@ def install_state_hook(pipe):
         if shared.state.interrupted or shared.state.skipped: # fires per tile, so tiled encodes abort promptly
             raise AssertionError('Interrupted...')
 
-    for name in ('unet', 'transformer', 'transformer_ref'):
+    for name in ('unet', 'transformer', 'transformer_2', 'transformer_ref'):
         module = getattr(pipe, name, None)
         if module is not None:
             target = getattr(module, 'model', module) # conditioning calls the inner model directly

@@ -4,7 +4,7 @@ import asyncio
 import gradio as gr
 from modules.control import unit
 from modules import errors, shared, progress, generation_parameters_copypaste, call_queue, scripts_manager, masking, images, processing_vae, timer # pylint: disable=ungrouped-imports
-from modules import ui_common, ui_sections, ui_guidance, ui_cache
+from modules import ui_common, ui_sections, ui_guidance
 from modules import ui_control_helpers as helpers
 from modules.logger import log
 from modules.memstats import ram_stats
@@ -202,7 +202,6 @@ def create_ui(_blocks: gr.Blocks=None):
                 mask_controls = masking.create_segment_ui()
 
                 cfg_name, cfg_scale, cfg_image, cfg_rescale, cfg_start, cfg_stop, cfg_true, cfg_adaptive = ui_guidance.create_guidance_inputs('control')
-                _cache_name = ui_cache.create_cache_inputs('control')
                 vae_type, tiling, hidiffusion, clip_skip = ui_sections.create_advanced_inputs('control')
                 grading_brightness, grading_contrast, grading_saturation, grading_hue, grading_gamma, grading_sharpness, grading_color_temp, grading_shadows, grading_midtones, grading_highlights, grading_clahe_clip, grading_clahe_grid, grading_shadows_tint, grading_highlights_tint, grading_split_tone_balance, grading_vignette, grading_grain, grading_lut_file, grading_lut_strength = ui_sections.create_color_inputs('control')
                 hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundary, hdr_color_picker, hdr_tint_ratio, hdr_apply_hires = ui_sections.create_latent_inputs('control')

@@ -75,9 +75,8 @@ def process_pre(p: processing.StableDiffusionProcessing, phase: str | None = Non
         return
     if is_modular(shared.sd_model):
         if modular.is_guider(shared.sd_model):
-            from modules import modular_guiders, modular_cache
+            from modules import modular_guiders
             modular_guiders.set_guider(p, phase)
-            modular_cache.set_cache(p, phase)
     else:
         try:
             log.info(f'Processing modifiers: phase={phase} apply')
@@ -95,7 +94,7 @@ def process_pre(p: processing.StableDiffusionProcessing, phase: str | None = Non
             ipadapter.apply(shared.sd_model, p)
             # apply-only
             sd_hijack_freeu.apply_freeu(p)
-            transformer_cache.set_cache()
+            transformer_cache.set_cache(p)
             para_attention.apply_first_block_cache()
             teacache.apply_teacache(p)
         except Exception as e:
@@ -221,7 +220,8 @@ def process_base(p: processing.StableDiffusionProcessing):
         for k, v in base_args.items():
             if isinstance(v, torch.Tensor):
                 err_args[k] = f'{v.device}:{v.dtype}:{v.shape}'
-        log.error(f'Processing: step=base args={err_args} {e}')
+        log.error(f'Processing: step=base args={err_args}')
+        log.error(f'Processing: {e}')
         errors.display(e, 'Processing')
         modelstats.analyze()
     finally:

@@ -33,6 +33,10 @@
   - implement progress and preview
   - intercept and profiling hooks
   - on-demand convert standard model on-demand 
+- **Other**
+  - new optional transformer hooks: *settings -> compute add-ons*  
+    *PAG: Perturbed attention guidance, PAB: Pyramid attention broadcast, FBC: First Block Cache, FC: Faster Cache, LS: Layer Skip, MC: Mag Cache, TS: TaylorSeer*  
+    *note*: compatibility of different methods varies across different models  
 - **Fixes**
   - unnecessary secondary prompt if same
   - js fetch exception handling

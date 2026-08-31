@@ -31,12 +31,20 @@ def is_compatible(diffusion_pipeline: diffusers.DiffusionPipeline) -> bool:
     return compatible
 
 
+def is_modular(diffusion_pipeline: diffusers.DiffusionPipeline) -> bool:
+    if diffusion_pipeline is None:
+        return False
+    return isinstance(diffusion_pipeline, diffusers.ModularPipeline) or 'Modular' in diffusion_pipeline.__class__.__name__
+
+
 def is_guider(diffusion_pipeline: diffusers.DiffusionPipeline) -> bool:
     guider = getattr(diffusion_pipeline, 'guider', None)
     return guider is not None
 
 
 def convert_to_modular(diffusion_pipeline: diffusers.DiffusionPipeline) -> diffusers.ModularPipeline:
+    if is_modular(diffusion_pipeline):
+        return diffusion_pipeline
     modular_pipe = None
     try:
         modular_cls = get_modular_class(diffusion_pipeline)
@@ -47,7 +55,7 @@ def convert_to_modular(diffusion_pipeline: diffusers.DiffusionPipeline) -> diffu
         components_dct = {k: v for k, v in diffusion_pipeline.components.items() if v is not None}
         modular_pipe.update_components(**components_dct, **diffusion_pipeline.parameters)
         modular_pipe.original_pipe = diffusion_pipeline
-        log.debug(f'Modular convert: source={diffusion_pipeline.__class__.__name__} target={modular_pipe.__class__.__name__}')
+        log.debug(f'Modular: convert={diffusion_pipeline.__class__.__name__} target={modular_pipe.__class__.__name__}')
     except Exception as e:
         log.error(f'Modular: {e}')
         raise e
