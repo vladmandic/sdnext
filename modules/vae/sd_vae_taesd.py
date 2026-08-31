@@ -221,6 +221,10 @@ def decode(latents, fast=False):
                 else:
                     image = vae.decode(tensor, return_dict=False)[0]
                     # image = (image / 2.0 + 0.5).clamp(0, 1).detach()
+                    if image.ndim == 4 and image.shape[0] > 1 and image.shape[1] == 3:
+                        # likely a video latent, just take the first frame
+                        # TODO video preview: tiled frames
+                        image = image[0]
                     image = image.clamp(0, 1).detach()
                 image = restore_preview_size(image, vae)
                 t1 = time.time()

@@ -42,7 +42,7 @@ def is_guider(diffusion_pipeline: diffusers.DiffusionPipeline) -> bool:
     return guider is not None
 
 
-def convert_to_modular(diffusion_pipeline: diffusers.DiffusionPipeline) -> diffusers.ModularPipeline:
+def convert_to_modular(diffusion_pipeline: diffusers.DiffusionPipeline | diffusers.ModularPipeline):
     if is_modular(diffusion_pipeline):
         return diffusion_pipeline
     modular_pipe = None
@@ -51,7 +51,7 @@ def convert_to_modular(diffusion_pipeline: diffusers.DiffusionPipeline) -> diffu
         if modular_cls is None:
             raise ValueError(f'unknown: cls={diffusion_pipeline.__class__.__name__}')
         modular_blocks = modular_cls()
-        modular_pipe = modular_blocks.init_pipeline()
+        modular_pipe: diffusers.ModularPipeline = modular_blocks.init_pipeline()
         components_dct = {k: v for k, v in diffusion_pipeline.components.items() if v is not None}
         modular_pipe.update_components(**components_dct, **diffusion_pipeline.parameters)
         modular_pipe.original_pipe = diffusion_pipeline

@@ -29,6 +29,7 @@ version_map = {
     "Flux2": "Flux 2",
     "Flux2Klein": "Flux 2 Klein",
     "Flux2KleinKV": "Flux 2 Klein",
+    "MiniMaxH3": "MiniMax H3",
 }
 
 class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):

@@ -13,14 +13,16 @@ debug = os.environ.get('SD_MODULAR_DEBUG', None) is not None
 intercepted = set()
 
 
-def modular_step(state: diffusers.modular_pipelines.modular_pipeline.BlockState):
+def modular_step(components: diffusers.modular_pipelines.ModularPipeline, state: diffusers.modular_pipelines.BlockState):
     keys = state if isinstance(state, list) else list(state.__dict__.keys())
     if 'num_inference_steps' in keys:
         shared.state.sampling_steps = state.num_inference_steps
-    if 'latents' in keys:
+    if 'latents' in keys and state.latents.ndim > 1:
         shared.state.step()
-        # TODO: MiniMax runs AfterDenoise only at the end of the loop and it does latents unpacking
-        shared.state.current_latent = state.latents
+        if hasattr(components, 'custom_unpack_latents'):
+            shared.state.current_latent = components.custom_unpack_latents(state.latents, components, state)
+        else:
+            shared.state.current_latent = state.latents
         lora_stack.on_step(shared.state.sampling_step)
         if debug:
             log.trace(f'Modular step: step={shared.state.sampling_step} latent={state.latents.shape}')
@@ -43,7 +45,7 @@ def modular_intercept(self, components, state: diffusers.modular_pipelines.modul
     timer.blocks.add(block, t1 - t0)
     # run code after block call
     if 'LoopDenoiser' in block: # BeforeDenoiser/AfterDenoiser are not used by all pipelines
-        modular_step(state)
+        modular_step(components, state)
     t2 = time.time()
     timer.blocks.add('callback', t2 - t1)
     if debug:
