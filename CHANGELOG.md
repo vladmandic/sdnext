@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-08-30
+## Update for 2026-08-31
 
 - **LoRA**
   - *TODO*: see [LoRA docs](https://vladmandic.github.io/sdnext-docs/LoRA) for all of the improvements and usage instructions  
@@ -36,6 +36,7 @@
 - **Fixes**
   - unnecessary secondary prompt if same
   - js fetch exception handling
+  - detailer handling of stop/skip/pause
 
 ## Update for 2026-08-26
 
