@@ -72,7 +72,7 @@ def create_settings(cmd_opts):
 
     default_hfcache_dir = os.environ.get("SD_HFCACHEDIR", None) or os.path.join(paths.models_path, 'huggingface')
     default_checkpoint = list_checkpoint_titles()[0] if len(list_checkpoint_titles()) > 0 else "model.safetensors"
-    default_xetcache_dir = os.environ.get("HF_XET_CACHE ", None) or os.path.join(paths.models_path, 'xet')
+    default_xetcache_dir = os.environ.get("HF_XET_CACHE", None) or os.path.join(paths.models_path, 'xet')
 
     default_onnx_execution_provider, default_onnx_execution_providers = list_onnx_providers()
 
