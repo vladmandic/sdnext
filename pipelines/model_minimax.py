@@ -6,9 +6,11 @@ from modules.logger import log
 def unpack_latents(latents, components: diffusers.modular_pipelines.ModularPipeline, state: diffusers.modular_pipelines.BlockState):
     from diffusers.modular_pipelines.minimax_h3.modular_pipeline import align_num_frames, video_latent_num_frames
     from modules import processing_callbacks
-    frames = processing_callbacks.p.num_frames
-    width = processing_callbacks.p.width
-    height = processing_callbacks.p.height
+    frames = getattr(processing_callbacks.p, 'frames', 1)
+    width = getattr(processing_callbacks.p, 'width', 1024)
+    height = getattr(processing_callbacks.p, 'height', 1024)
+    if frames <= 0 or width <= 0 or height <= 0:
+        return latents
     num_frames = align_num_frames(frames, components.vae_frames_per_chunk, components.vae_latents_per_chunk)
     num_latent_frames = video_latent_num_frames(num_frames, components.vae_frames_per_chunk, components.vae_latents_per_chunk)
     latent_height = height // components.vae_spatial_compression_ratio

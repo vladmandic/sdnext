@@ -5,6 +5,7 @@ import torch
 import diffusers
 from modules.logger import log
 from modules import shared, sd_offload, timer
+from modules.processing_callbacks import torch_sync
 from modules.attention import context as attention_context
 from modules.lora import lora_stack
 
@@ -18,6 +19,7 @@ def modular_step(components: diffusers.modular_pipelines.ModularPipeline, state:
     if 'num_inference_steps' in keys:
         shared.state.sampling_steps = state.num_inference_steps
     if 'latents' in keys and state.latents.ndim > 1:
+        torch_sync()
         shared.state.step()
         if hasattr(components, 'custom_unpack_latents'):
             shared.state.current_latent = components.custom_unpack_latents(state.latents, components, state)

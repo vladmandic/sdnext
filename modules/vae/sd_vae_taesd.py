@@ -185,6 +185,23 @@ def restore_preview_size(image, vae):
     return image
 
 
+def tile_video_frames(tensor):
+    frame_count = tensor.shape[0]
+    requested = shared.opts.taesd_frames
+    if (frame_count <= 1) or (requested == 1):
+        return tensor[0]
+    if (requested == -1) or (requested >= frame_count):
+        indices = list(range(frame_count))
+    else:
+        indices = [round(i * (frame_count - 1) / (requested - 1)) for i in range(requested)]
+    selected = tensor[indices]
+    try:
+        tiled = torch.cat([selected[i] for i in range(selected.shape[0])], dim=-1)
+        return tiled
+    except Exception:
+        return tensor[0]
+
+
 def decode(latents, fast=False):
     global first_run, prev_model, prev_variant # pylint: disable=global-statement
     with lock:
@@ -221,11 +238,10 @@ def decode(latents, fast=False):
                 else:
                     image = vae.decode(tensor, return_dict=False)[0]
                     # image = (image / 2.0 + 0.5).clamp(0, 1).detach()
-                    if image.ndim == 4 and image.shape[0] > 1 and image.shape[1] == 3:
-                        # likely a video latent, just take the first frame
-                        # TODO video preview: tiled frames
-                        image = image[0]
                     image = image.clamp(0, 1).detach()
+                    if image.ndim == 4 and image.shape[0] > 1 and image.shape[1] == 3: # likely a video latent
+                        # image = tile_video_frames(image)
+                        image = image[0] # just take the first frame for now
                 image = restore_preview_size(image, vae)
                 t1 = time.time()
                 if (t1 - t0) > 5.0 and not first_run:

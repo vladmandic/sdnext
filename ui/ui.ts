@@ -341,7 +341,7 @@ function submit_framepack(...args) {
 function submit_ltx(...args) {
   const id = randomId();
   log('submitFramepack', id);
-  requestProgress(id, null, null);
+  requestProgress(id, null, gradioApp().getElementById('ltx_output_video'));
   window.submit_state = '';
   args[0] = id;
   return args;
@@ -350,7 +350,7 @@ function submit_ltx(...args) {
 function submit_minimax(...args) {
   const id = randomId();
   log('submitMiniMax', id);
-  requestProgress(id, null, null);
+  requestProgress(id, null, gradioApp().getElementById('minimax_output_video'));
   window.submit_state = '';
   args[0] = id;
   return args;

@@ -56,19 +56,22 @@ def diffusers_callback_legacy(step: int, timestep: int, latents: torch.FloatTens
             time.sleep(0.1)
 
 
-def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | None = None):
-    if kwargs is None:
-        kwargs = {}
-    t0 = time.time()
-    from modules.lora import lora_stack
-    lora_stack.on_step(step)
-
+def torch_sync():
     if shared.opts.torch_sync:
         if devices.backend == "ipex":
             torch.xpu.synchronize(devices.device)
         elif devices.backend in {"cuda", "zluda", "rocm"}:
             torch.cuda.synchronize(devices.device)
         time.sleep(0.001) # 1ms yield frees GIL for the preview thread
+
+
+def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | None = None):
+    if kwargs is None:
+        kwargs = {}
+    t0 = time.time()
+    from modules.lora import lora_stack
+    lora_stack.on_step(step)
+    torch_sync()
 
     t1 = time.time()
 

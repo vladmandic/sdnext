@@ -116,6 +116,8 @@ def api_progress(req: ProgressRequest):
             try:
                 buffered = io.BytesIO()
                 shared.state.current_image.save(buffered, format='jpeg', quality=60)
+                fn = f'/tmp/preview-{shared.state.preview_job}-{shared.state.current_image_sampling_step}.jpg'
+                shared.state.current_image.save(fn, quality=90)
                 b64 = base64.b64encode(buffered.getvalue())
                 live_preview = f'data:image/jpeg;base64,{b64.decode("ascii")}'
             except Exception:

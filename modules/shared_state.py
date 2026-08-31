@@ -63,7 +63,7 @@ class State:
         status += 'oom ' if self.oom else ''
         status += 'api ' if self.api else ''
         fn = f'{sys._getframe(3).f_code.co_name}:{sys._getframe(2).f_code.co_name}' # pylint: disable=protected-access
-        return f'State: ts={self.job_timestamp} job={self.job} jobs={self.job_no+1}/{self.job_count}/{self.total_jobs} step={self.sampling_step}/{self.sampling_steps} preview={self.preview_job}/{self.id_live_preview}/{self.current_image_sampling_step} status="{status.strip()}" fn={fn}'
+        return f'State: ts={self.job_timestamp} job={self.job} jobs={self.job_no+1}/{self.job_count}/{self.total_jobs} step={self.sampling_step}/{self.sampling_steps} preview={self.preview_job}/{self.id_live_preview}/{self.current_image_sampling_step} status="{status.strip()}" image={self.current_image} latent={self.current_latent.shape if self.current_latent is not None else None} fn={fn}'
 
     @property
     def sampling_step(self):
@@ -293,7 +293,6 @@ class State:
                         elif self.prediction_type == "v_prediction":
                             sample = self.current_noise_pred * (-self.current_sigma / (self.current_sigma**2 + 1) ** 0.5) + (original_sample / (self.current_sigma**2 + 1)) # pylint: disable=invalid-unary-operand-type
                 except Exception:
-                    # log.error(f'State image sigma: last={self.id_live_preview} step={self.sampling_step} {e}')
                     pass # ignore sigma errors
                 image = sd_samplers_common.samples_to_image_grid(sample, fast=self.sampling_step > 1)
                 self.assign_current_image(image)

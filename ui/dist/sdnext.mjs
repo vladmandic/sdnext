@@ -11102,6 +11102,7 @@ function requestProgress(id_task = "undefined", progressEl = null, galleryEl = n
   let img;
   const initLivePreview = () => {
     if (!parentGallery) return;
+    debug("initLivePreview", { el: galleryEl, parent: parentGallery });
     const footers = Array.from(gradioApp().querySelectorAll(".gallery_footer"));
     for (const footer of footers) {
       if (footer.id !== "gallery_footer") footer.style.display = "none";
@@ -11152,7 +11153,7 @@ function requestProgress(id_task = "undefined", progressEl = null, galleryEl = n
   };
   const previewVisible = () => {
     try {
-      return !galleryEl?.closest(".section")?.classList.contains("minimize");
+      return galleryEl ? !galleryEl.closest(".section")?.classList.contains("minimize") : true;
     } catch {
       return true;
     }
@@ -11528,7 +11529,7 @@ function submit_framepack(...args) {
 function submit_ltx(...args) {
   const id = randomId();
   log("submitFramepack", id);
-  requestProgress(id, null, null);
+  requestProgress(id, null, gradioApp().getElementById("ltx_output_video"));
   window.submit_state = "";
   args[0] = id;
   return args;
@@ -11536,7 +11537,7 @@ function submit_ltx(...args) {
 function submit_minimax(...args) {
   const id = randomId();
   log("submitMiniMax", id);
-  requestProgress(id, null, null);
+  requestProgress(id, null, gradioApp().getElementById("minimax_output_video"));
   window.submit_state = "";
   args[0] = id;
   return args;
