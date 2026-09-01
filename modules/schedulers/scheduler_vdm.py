@@ -191,7 +191,7 @@ class VDMScheduler(SchedulerMixin, ConfigMixin):
         if self.config.timestep_spacing in ["linspace", "leading"]:
             timesteps = np.linspace(0, 1, num_steps, endpoint=self.config.timestep_spacing == "linspace")[::-1]
         elif self.config.timestep_spacing == "trailing":
-            timesteps = np.arange(1, 0, -1 / num_steps) - 1 / num_steps
+            timesteps = np.linspace(1, 0, num_steps, endpoint=False)
         else:
             raise ValueError(
                 f"`{self.config.timestep_spacing}` timestep spacing is not supported."
