@@ -10,11 +10,13 @@ debug = log.trace if os.environ.get('SD_PROCESS_DEBUG', None) is not None else l
 
 def get_transformers():
     if not shared.sd_loaded:
-        return None
+        return []
+    modules = []
     for module_name in get_module_names(shared.sd_model):
         module = getattr(shared.sd_model, module_name, None)
         if (module is not None) and ('transformer' in module_name or 'Transformer' in module.__class__.__name__):
-            yield module
+            modules.append(module)
+    return modules
 
 
 def set_cache(p: processing.StableDiffusionProcessing):

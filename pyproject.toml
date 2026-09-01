@@ -169,6 +169,7 @@ main.ignore-patterns=[
     ".*_arch.py$",
     ".*_model_arch.py*",
     ".*_model_arch_v2.py$",
+    ".*\\.pyi$",
 ]
 main.ignored-modules=""
 main.jobs=4

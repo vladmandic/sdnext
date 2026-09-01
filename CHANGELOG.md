@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-08-31
+## Update for 2026-09-01
 
 - **LoRA**
   - *TODO*: see [LoRA docs](https://vladmandic.github.io/sdnext-docs/LoRA) for all of the improvements and usage instructions  
@@ -44,6 +44,7 @@
   - detailer handling of stop/skip/pause
   - cleanup dead rife code, thanks @Anai-Guo
   - lumina-dimoo attention-kwargs, thanks @Anai-Guo
+  - improve network type/version lookup
 
 ## Update for 2026-08-26
 

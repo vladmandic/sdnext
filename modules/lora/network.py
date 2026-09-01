@@ -76,6 +76,10 @@ class NetworkOnDisk:
             return 'anima'
         if base.startswith('qwen'):
             return 'qwen'
+        if base.startswith('krea2'):
+            return 'krea2'
+        if base.startswith('minimax'):
+            return 'minimax'
 
         if arch.startswith("stable-diffusion-v1"):
             return 'sd1'
@@ -83,7 +87,7 @@ class NetworkOnDisk:
             return 'xl'
         if arch.startswith("stable-cascade"):
             return 'sc'
-        if arch.startswith("flux2") or "klein" in arch:
+        if arch.startswith("flux2") or arch.startswith("flux-2") or ("klein" in arch):
             return 'f2'
         if arch.startswith("flux"):
             return 'f1'
@@ -91,12 +95,18 @@ class NetworkOnDisk:
             return 'hv'
         if arch.startswith("chroma"):
             return 'chroma'
+        if arch.startswith('wan'):
+            return 'wan'
+        if arch.startswith('anima'):
+            return 'anima'
+        if arch.startswith('krea2'):
+            return 'krea2'
 
         if "v1-5" in str(self.metadata.get('ss_sd_model_name', "")):
             return 'sd1'
         if str(self.metadata.get('ss_v2', "")) == "True":
             return 'sd2'
-        if 'klein' in self.name.lower() or 'klein' in self.fullname.lower():
+        if 'klein' in self.name.lower() or ('klein' in self.fullname.lower()):
             return 'f2'
         if 'flux' in self.name.lower():
             return 'f1'

@@ -17,11 +17,14 @@ version_map = {
     "SDXL 1.0": "SD XL",
     "SDXL Hyper": "SD XL",
     "StableDiffusion": "SD 1.5",
+    "StableDiffusion2": "SD 2.1",
+    "SD-v21": "SD 2.1",
     "StableDiffusion3": "SD 3",
     "StableDiffusionXL": "SD XL",
     "WanToVideo": "Wan",
     "WanVACE": "Wan",
-    "Z": "Z-Image",
+    "ZImage": "Z-Image",
+    "Z-Image": "Z-Image",
     "Glm": "GLM-Image",
     "Krea2": "Krea 2",
     "AnimaTextTo": "Anima",
@@ -30,6 +33,7 @@ version_map = {
     "Flux2Klein": "Flux 2 Klein",
     "Flux2KleinKV": "Flux 2 Klein",
     "MiniMaxH3": "MiniMax H3",
+    "MiniMax_H3": "MiniMax H3",
 }
 
 class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
@@ -149,6 +153,25 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
         log.debug(f'Networks: type="reference" {count}')
         return models
 
+    def get_version(self, checkpoint, record):
+        info = self.find_version(checkpoint, record['info'])
+        if 'baseModel' in info:
+            version = info.get("baseModel", "")
+        elif '_class_name' in record['info']:
+            cls = record['info']['_class_name']
+            if isinstance(cls, list):
+                cls = cls[-1]
+            version = cls.replace('Pipeline', '').replace('Image', '').replace('Modular', '')
+        else:
+            version = ''
+        version = version_map.get(version, version)
+        if len(version.strip()) == 0: # no match => check if version is part of the key in version_map
+            for key in version_map.keys():
+                if key.lower() in record['name'].lower():
+                    version = version_map[key]
+                    break
+        return version
+
     def create_item(self, name):
         record = None
         try:
@@ -167,18 +190,7 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
             }
             record['info'] = self.find_info(checkpoint.filename)
             record['description'] = self.find_description(checkpoint.filename, record['info'])
-            version = self.find_version(checkpoint, record['info'])
-            if 'baseModel' in version:
-                record['version'] = version.get("baseModel", "")
-            elif '_class_name' in record['info']:
-                cls = record['info']['_class_name']
-                if isinstance(cls, list):
-                    cls = cls[-1]
-                record['version'] = cls.replace('Pipeline', '').replace('Image', '').replace('Modular', '')
-            else:
-                record['version'] = ''
-            record['version'] = version_map.get(record['version'], record['version'])
-
+            record['version'] = self.get_version(checkpoint, record)
         except Exception as e:
             log.error(f'Networks error: type=model file="{name}" {e}')
             if os.environ.get('SD_EN_DEBUG', None) is not None:
