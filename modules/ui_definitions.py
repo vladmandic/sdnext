@@ -26,23 +26,23 @@ def list_onnx_providers():
 
 
 def list_checkpoint_titles():
-    import modules.sd_models # pylint: disable=redefined-outer-name
-    return modules.sd_models.checkpoint_titles()
+    from modules.sd_models import checkpoint_titles  # pylint: disable=redefined-outer-name
+    return checkpoint_titles()
 
 
 def refresh_checkpoints():
-    import modules.sd_models # pylint: disable=redefined-outer-name
-    return modules.sd_models.list_models()
+    from modules.sd_models import list_models  # pylint: disable=redefined-outer-name
+    return list_models()
 
 
 def refresh_vaes():
-    import modules.sd_vae # pylint: disable=redefined-outer-name
-    modules.sd_vae.refresh_vae_list()
+    from modules.sd_vae import refresh_vae_list  # pylint: disable=redefined-outer-name
+    refresh_vae_list()
 
 
 def refresh_upscalers():
-    import modules.modelloader # pylint: disable=redefined-outer-name
-    modules.modelloader.load_upscalers()
+    from modules.modelloader import load_upscalers  # pylint: disable=redefined-outer-name
+    load_upscalers()
 
 
 def list_samplers():

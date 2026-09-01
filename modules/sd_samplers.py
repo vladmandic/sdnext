@@ -46,6 +46,10 @@ def list_samplers():
     return all_samplers
 
 
+def get_samplers():
+    return all_samplers
+
+
 def find_sampler_config(name):
     if name is not None and name != 'None':
         config = all_samplers_map.get(name, None)

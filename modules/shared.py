@@ -108,8 +108,8 @@ if not files_cache.do_cache_folders:
 
 
 def list_checkpoint_titles():
-    import modules.sd_models # pylint: disable=W0621
-    return modules.sd_models.checkpoint_titles()
+    from modules.sd_models import checkpoint_titles # pylint: disable=W0621
+    return checkpoint_titles()
 
 
 list_checkpoint_tiles = list_checkpoint_titles # alias for legacy typo
@@ -124,24 +124,24 @@ def is_url(string):
 
 
 def refresh_checkpoints():
-    import modules.sd_models # pylint: disable=W0621
-    return modules.sd_models.list_models()
+    from modules.sd_models import list_models # pylint: disable=W0621
+    return list_models()
 
 
 def refresh_vaes():
-    import modules.sd_vae # pylint: disable=W0621
-    modules.sd_vae.refresh_vae_list()
+    from modules.sd_vae import refresh_vae_list # pylint: disable=W0621
+    refresh_vae_list()
 
 
 def refresh_upscalers():
-    import modules.modelloader # pylint: disable=W0621
-    modules.modelloader.load_upscalers()
+    from modules.modelloader import load_upscalers # pylint: disable=W0621
+    load_upscalers()
 
 
 def list_samplers():
-    import modules.sd_samplers # pylint: disable=W0621
-    modules.sd_samplers.set_samplers()
-    return modules.sd_samplers.all_samplers
+    from modules.sd_samplers import set_samplers, get_samplers # pylint: disable=W0621
+    set_samplers()
+    return get_samplers()
 
 
 log.debug('Initializing: settings')
