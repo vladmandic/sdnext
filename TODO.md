@@ -3,7 +3,6 @@
 ## Short-term
 
 - MiniMax: Create pre-quants for MiniMax-H3-Turbo, MiniMax-H3-Pruned-Turbo
-- Benchmark tool productize: @CalamitousFelicitousness
 - Control tab verify overrides handling, @vladmandic
 - LTX: Create pre-quant for LTX-2.5
 - LTX: Implement LTX2DFRPipeline
@@ -24,6 +23,7 @@
 - Lightweight scheduler/queue manager, @vladmandic
 - Integrate natural language image search: [ImageDB](https://github.com/vladmandic/imagedb), @vladmandic
 - Support cloud providers, @CalamitousFelicitousness
+- Benchmark tool productize: @CalamitousFelicitousness
 
 ### Roadmap
 

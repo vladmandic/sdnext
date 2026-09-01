@@ -50,6 +50,7 @@
   - improve network type/version lookup
   - cleanup lora tags
   - xyz grid apply bool values
+  - vdm scheduler fix steps, thanks @zjn20030811
 
 ## Update for 2026-08-26
 
