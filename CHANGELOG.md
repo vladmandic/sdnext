@@ -14,6 +14,7 @@
   - multi-network stack modes  
     can significantly improve lora quality when using multiple loras at once  
   - per-block strength
+  - native support for **MiniMax**
 - **Attention**
   - *TODO*: see [Attention docs](https://vladmandic.github.io/sdnext-docs/Attention) for details and usage instructions  
     *note*: attention now has its own settings section in *settings -> cross attention*  
@@ -34,10 +35,12 @@
   - intercept and profiling hooks
   - on-demand convert standard model on-demand 
 - **Other**
-  - Video Preview: TAESD support for MiniMax
+  - Video Preview: TAESD support for **MiniMax**
   - new optional transformer hooks: *settings -> compute add-ons*  
     *PAG: Perturbed attention guidance, PAB: Pyramid attention broadcast, FBC: First Block Cache, FC: Faster Cache, LS: Layer Skip, MC: Mag Cache, TS: TaylorSeer*  
     *note*: compatibility of different methods varies across different models  
+- **Wiki/Docs**:
+  - [MiniMax](https://vladmandic.github.io/sdnext-docs/MiniMax) updated with LoRA, Turbo and other improvements
 - **Fixes**
   - unnecessary secondary prompt if same
   - js fetch exception handling
@@ -46,6 +49,7 @@
   - lumina-dimoo attention-kwargs, thanks @Anai-Guo
   - improve network type/version lookup
   - cleanup lora tags
+  - xyz grid apply bool values
 
 ## Update for 2026-08-26
 

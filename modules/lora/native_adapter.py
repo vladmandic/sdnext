@@ -33,7 +33,7 @@ from dataclasses import dataclass
 
 import torch
 
-from modules import shared, sd_models, sd_models_utils
+from modules.sd_models import read_state_dict # pylint: disable=unused-import
 from modules.logger import log
 from modules.lora import (
     lora_convert, network, network_boft, network_full, network_glora,
@@ -248,6 +248,7 @@ def has_marker(state_dict, markers):
 
 
 def resolve_mapping():
+    from modules import shared
     """Ensure ``network_layer_mapping`` is populated, return it (or empty dict)."""
     sd_model = getattr(shared.sd_model, "pipe", shared.sd_model)
     lora_convert.assign_network_names_to_compvis_modules(sd_model)
@@ -451,11 +452,6 @@ def group_by_suffixes(state_dict, suffixes, *, prefixes=KNOWN_PREFIXES_DEFAULT, 
     return groups
 
 
-# Surface ``sd_models.read_state_dict`` here so loader modules don't have to
-# import ``sd_models`` directly; keeps the per-arch wrapper imports compact.
-read_state_dict = sd_models.read_state_dict
-
-
 def resolve_group_targets(resolve_targets, prefix_used, base):
     """Map a parsed ``(prefix_used, base)`` group to ``[(diffusers_path, chunk), ...]``.
 
@@ -566,6 +562,7 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
                   resolve_targets, prefixes=KNOWN_PREFIXES_DEFAULT,
                   bare_prefixes=(), bare_diffusers_prefixes=(),
                   network_prefix=NETWORK_PREFIX_DEFAULT,
+                  group_by_suffixes_fn=group_by_suffixes,
                   arch_name="generic"):
     """Generic LoRA loader (handles DoRA via the universal ``finalize_updown`` hook).
 
@@ -579,7 +576,7 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
 
     mapping = resolve_mapping()
     net = new_network(name, network_on_disk)
-    groups = group_by_suffixes(
+    groups = group_by_suffixes_fn(
         state_dict, LORA_SUFFIXES,
         prefixes=prefixes,
         bare_prefixes=bare_prefixes,
@@ -660,6 +657,7 @@ def try_load_lokr(name, network_on_disk, lora_scale, *,
                   resolve_targets, prefixes=KNOWN_PREFIXES_DEFAULT,
                   bare_prefixes=(), bare_diffusers_prefixes=(),
                   network_prefix=NETWORK_PREFIX_DEFAULT,
+                  group_by_suffixes_fn=group_by_suffixes,
                   arch_name="generic"):
     """Generic LoKR loader.
 
@@ -677,7 +675,7 @@ def try_load_lokr(name, network_on_disk, lora_scale, *,
 
     mapping = resolve_mapping()
     net = new_network(name, network_on_disk)
-    groups = group_by_suffixes(
+    groups = group_by_suffixes_fn(
         state_dict, LOKR_SUFFIXES,
         prefixes=prefixes,
         bare_prefixes=bare_prefixes,
@@ -741,6 +739,7 @@ def try_load_loha(name, network_on_disk, lora_scale, *,
                   resolve_targets, prefixes=KNOWN_PREFIXES_DEFAULT,
                   bare_prefixes=(), bare_diffusers_prefixes=(),
                   network_prefix=NETWORK_PREFIX_DEFAULT,
+                  group_by_suffixes_fn=group_by_suffixes,
                   arch_name="generic"):
     """Generic LoHA (Hadamard product) loader.
 
@@ -757,7 +756,7 @@ def try_load_loha(name, network_on_disk, lora_scale, *,
 
     mapping = resolve_mapping()
     net = new_network(name, network_on_disk)
-    groups = group_by_suffixes(
+    groups = group_by_suffixes_fn(
         state_dict, LOHA_SUFFIXES,
         prefixes=prefixes,
         bare_prefixes=bare_prefixes,
@@ -810,6 +809,7 @@ def try_load_oft(name, network_on_disk, lora_scale, *,
                  resolve_targets, prefixes=KNOWN_PREFIXES_DEFAULT,
                  bare_prefixes=(), bare_diffusers_prefixes=(),
                  network_prefix=NETWORK_PREFIX_DEFAULT,
+                 group_by_suffixes_fn=group_by_suffixes,
                  arch_name="generic"):
     """Generic OFT/BOFT loader.
 
@@ -832,7 +832,7 @@ def try_load_oft(name, network_on_disk, lora_scale, *,
 
     mapping = resolve_mapping()
     net = new_network(name, network_on_disk)
-    groups = group_by_suffixes(
+    groups = group_by_suffixes_fn(
         state_dict, OFT_SUFFIXES,
         prefixes=prefixes,
         bare_prefixes=bare_prefixes,
@@ -870,6 +870,7 @@ def try_load_ia3(name, network_on_disk, lora_scale, *,
                  resolve_targets, prefixes=KNOWN_PREFIXES_DEFAULT,
                  bare_prefixes=(), bare_diffusers_prefixes=(),
                  network_prefix=NETWORK_PREFIX_DEFAULT,
+                 group_by_suffixes_fn=group_by_suffixes,
                  arch_name="generic"):
     """Generic IA3 loader.
 
@@ -891,7 +892,7 @@ def try_load_ia3(name, network_on_disk, lora_scale, *,
 
     mapping = resolve_mapping()
     net = new_network(name, network_on_disk)
-    groups = group_by_suffixes(
+    groups = group_by_suffixes_fn(
         state_dict, IA3_SUFFIXES,
         prefixes=prefixes,
         bare_prefixes=bare_prefixes,
@@ -925,6 +926,7 @@ def try_load_glora(name, network_on_disk, lora_scale, *,
                    resolve_targets, prefixes=KNOWN_PREFIXES_DEFAULT,
                    bare_prefixes=(), bare_diffusers_prefixes=(),
                    network_prefix=NETWORK_PREFIX_DEFAULT,
+                   group_by_suffixes_fn=group_by_suffixes,
                    arch_name="generic"):
     """Generic GLoRA loader.
 
@@ -942,7 +944,7 @@ def try_load_glora(name, network_on_disk, lora_scale, *,
 
     mapping = resolve_mapping()
     net = new_network(name, network_on_disk)
-    groups = group_by_suffixes(
+    groups = group_by_suffixes_fn(
         state_dict, GLORA_SUFFIXES,
         prefixes=prefixes,
         bare_prefixes=bare_prefixes,
@@ -976,6 +978,7 @@ def try_load_norm(name, network_on_disk, lora_scale, *,
                   resolve_targets, prefixes=KNOWN_PREFIXES_DEFAULT,
                   bare_prefixes=(), bare_diffusers_prefixes=(),
                   network_prefix=NETWORK_PREFIX_DEFAULT,
+                  group_by_suffixes_fn=group_by_suffixes,
                   arch_name="generic"): # pylint: disable=unused-argument
     """Generic Norm (LayerNorm / RMSNorm weight + bias delta) loader.
 
@@ -996,7 +999,7 @@ def try_load_norm(name, network_on_disk, lora_scale, *,
 
     mapping = resolve_mapping()
     net = new_network(name, network_on_disk)
-    groups = group_by_suffixes(
+    groups = group_by_suffixes_fn(
         state_dict, NORM_SUFFIXES,
         prefixes=prefixes,
         bare_prefixes=bare_prefixes,
@@ -1041,6 +1044,7 @@ def try_load_full(name, network_on_disk, lora_scale, *,
                   resolve_targets, prefixes=KNOWN_PREFIXES_DEFAULT,
                   bare_prefixes=(), bare_diffusers_prefixes=(),
                   network_prefix=NETWORK_PREFIX_DEFAULT,
+                  group_by_suffixes_fn=group_by_suffixes,
                   arch_name="generic"):
     """Generic Full (full-rank weight delta) loader.
 
@@ -1057,7 +1061,7 @@ def try_load_full(name, network_on_disk, lora_scale, *,
 
     mapping = resolve_mapping()
     net = new_network(name, network_on_disk)
-    groups = group_by_suffixes(
+    groups = group_by_suffixes_fn(
         state_dict, FULL_SUFFIXES,
         prefixes=prefixes,
         bare_prefixes=bare_prefixes,
@@ -1114,6 +1118,7 @@ def try_load_chain(name, network_on_disk, lora_scale, family_loaders):
     tuple of partial-applied generic loaders, each already bound to the arch's
     ``resolve_targets`` and prefix tuples.
     """
+    from modules import sd_models_utils
     sd_models_utils.state_dict_cache.enable()
     net = None
     mismatch = 0

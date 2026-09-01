@@ -32,6 +32,7 @@ allow_native = [
     'anima',
     'ernieimage',
     'krea2',
+    'minimaxh3',
 ]
 
 

@@ -111,6 +111,7 @@ class SharedSettingsStackHelper():
     todo_ratio = None
     teacache_thresh = None
     extra_networks_default_multiplier = None
+    lora_force_diffusers = None
     lora_stack_mode = None
     lora_stack_density = None
     lora_stack_alpha = None
@@ -148,6 +149,7 @@ class SharedSettingsStackHelper():
         self.sd_unet = shared.opts.sd_unet
         self.sd_text_encoder = shared.opts.sd_text_encoder
         self.extra_networks_default_multiplier = shared.opts.extra_networks_default_multiplier
+        self.lora_force_diffusers = shared.opts.lora_force_diffusers
         self.lora_stack_mode = shared.opts.lora_stack_mode
         self.lora_stack_density = shared.opts.lora_stack_density
         self.lora_stack_alpha = shared.opts.lora_stack_alpha
@@ -165,6 +167,7 @@ class SharedSettingsStackHelper():
         shared.opts.data["disable_apply_metadata"] = self.disable_apply_metadata
         shared.opts.data["disable_apply_params"] = self.disable_apply_params
         shared.opts.data["extra_networks_default_multiplier"] = self.extra_networks_default_multiplier
+        shared.opts.data["lora_force_diffusers"] = self.lora_force_diffusers
         shared.opts.data["lora_stack_mode"] = self.lora_stack_mode
         shared.opts.data["lora_stack_density"] = self.lora_stack_density
         shared.opts.data["lora_stack_alpha"] = self.lora_stack_alpha
@@ -232,6 +235,7 @@ axis_options = [
     AxisOption("[Network] LoRA stack density", float, apply_setting("lora_stack_density"), cost=0.6),
     AxisOption("[Network] LoRA stack ramp", float, apply_setting("lora_stack_alpha"), cost=0.6),
     AxisOption("[Network] LoRA stack discrepancy", float, apply_setting("lora_stack_discrepancy"), cost=0.6),
+    AxisOption("[Network] LoRA force diffusers", bool, apply_setting("lora_force_diffusers"), cost=0.6, choices=lambda: [False, True]),
     AxisOption("[Network] Styles", str, apply_styles, choices=lambda: [s.name for s in shared.prompt_styles.styles.values()]),
     AxisOption("[Param] Width", int, apply_field("width")),
     AxisOption("[Param] Height", int, apply_field("height")),

@@ -108,8 +108,12 @@ if not files_cache.do_cache_folders:
 
 
 def list_checkpoint_titles():
-    from modules.sd_models import checkpoint_titles # pylint: disable=W0621
-    return checkpoint_titles()
+    try:
+        from modules.sd_models import checkpoint_titles # pylint: disable=W0621
+        return checkpoint_titles()
+    except Exception as err:
+        log.error(f'Checkpoints: {err}')
+        return []
 
 
 list_checkpoint_tiles = list_checkpoint_titles # alias for legacy typo

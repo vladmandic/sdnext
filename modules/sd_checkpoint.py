@@ -122,7 +122,7 @@ def setup_model():
     # sd_hijack_accelerate.hijack_torch_conv()
 
 
-def checkpoint_titles(use_short=False):
+def checkpoint_titles(use_short=False) -> list[str]:
     def convert(name):
         return int(name) if name.isdigit() else name.lower()
 

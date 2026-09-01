@@ -60,8 +60,10 @@ def torch_conv_forward(self, input, weight, bias): # pylint: disable=redefined-b
         bias = bias.to(weight.dtype)
     return F.conv2d(input, weight, bias, self.stride, self.padding, self.dilation, self.groups)
 
+
 def hijack_torch_conv():
     torch.nn.modules.conv.Conv2d._conv_forward = torch_conv_forward # pylint: disable=protected-access
+
 
 def restore_torch_conv():
     torch.nn.modules.conv.Conv2d._conv_forward = orig_torch_conv # pylint: disable=protected-access

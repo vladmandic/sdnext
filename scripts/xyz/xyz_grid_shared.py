@@ -72,10 +72,20 @@ def apply_setting(field):
     def fun(p, x, xs):
         t = type(shared.opts.get(field))
         if t == bool:
-            if isinstance(x, str):
-                x = x.lower() in ['true', 't', 'yes', 'y']
-            if isinstance(x, int) or isinstance(x, float):
+            if isinstance(x, bool):
+                x = bool(x)
+            elif isinstance(x, str):
+                x = x.lower() in ['true', 't', 'yes', 'y', 'on']
+            elif isinstance(x, int) or isinstance(x, float):
                 x = x > 0
+            else:
+                x = False
+        elif t == int:
+            x = int(x)
+        elif t == float:
+            x = float(x)
+        elif t == str:
+            x = str(x)
         log.debug(f'XYZ grid apply setting: {field}={t}:{x}')
         shared.opts.data[field] = x
     return fun
