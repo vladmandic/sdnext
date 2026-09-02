@@ -8,10 +8,11 @@ from installer import setup_logging
 
 debug = os.environ.get('SD_COMPILE_DEBUG', None) is not None
 debug_log = log.trace if debug else lambda *args, **kwargs: None
+deepcache_worker = None
+log_once = False
 
 
-#Used by OpenVINO, can be used with TensorRT or Olive
-class CompiledModelState:
+class CompiledModelState: # Used by OpenVINO, can be used with TensorRT or Olive
     def __init__(self):
         self.is_compiled = False
         self.model_hash_str = ""
@@ -27,9 +28,6 @@ class CompiledModelState:
         self.compiled_cache = {}
         self.req_cache = {}
         self.partitioned_modules = {}
-
-
-deepcache_worker = None
 
 
 def ipex_optimize(sd_model, apply_to_components=True, op="Model"):
@@ -205,19 +203,25 @@ def compile_stablefast(sd_model):
 
 def compile_torch(sd_model, apply_to_components=True, op="Model"):
     try:
-        t0 = time.time()
+        global log_once # pylint: disable=global-statement
+        t0 = time.perf_counter()
         import torch._dynamo # pylint: disable=unused-import,redefined-outer-name
         torch._dynamo.reset() # pylint: disable=protected-access
-        log.debug(f"{op} compile: task=torch available={torch._dynamo.list_backends()}") # pylint: disable=protected-access
         is_repeated = hasattr(sd_model, 'compile_repeated_blocks') and 'repeated' in shared.opts.cuda_compile_options and not sd_model.__class__.__name__.startswith("Autoencoder")
-        log.debug(f"{op} compile: options={shared.opts.cuda_compile_options} mode={shared.opts.cuda_compile_mode} backend={shared.opts.cuda_compile_backend} repeated={is_repeated} components={apply_to_components} targets={shared.opts.cuda_compile}")
+        if not log_once:
+            log_once = True
+            log.debug(f"{op} compile: task=torch available={torch._dynamo.list_backends()}") # pylint: disable=protected-access
+            log.debug(f"{op} compile: options={shared.opts.cuda_compile_options} mode={shared.opts.cuda_compile_mode} backend={shared.opts.cuda_compile_backend} repeated={is_repeated} components={apply_to_components} targets={shared.opts.cuda_compile}")
 
         compiled_components = []
 
         def torch_compile_model(model, op=None, sd_model=None): # pylint: disable=unused-argument
-            setup_logging() # compile messes with logging so reset is needed
-            log.debug(f"Compile: cls={sd_model.__class__.__name__} apply")
             name = model.__class__.__name__ if callable(model) else model.__name__
+            if 'OptimizedModule' in name:
+                log.warning('Model compile: task=torch model is already compiled')
+                return model
+            log.debug(f"Model compile: cls={name} apply")
+            setup_logging() # compile messes with logging so reset is needed
             compiled_components.append(name)
             if is_repeated:
                 model.compile_repeated_blocks(
@@ -228,14 +232,17 @@ def compile_torch(sd_model, apply_to_components=True, op="Model"):
                 )
             elif hasattr(model, 'device') and model.device.type != "meta":
                 return_device = model.device
-                model = torch.compile(model.to(devices.device),
+                model = model.to(devices.device)
+                model = torch.compile(
+                    model,
                     mode=shared.opts.cuda_compile_mode,
                     backend=shared.opts.cuda_compile_backend,
                     fullgraph='fullgraph' in shared.opts.cuda_compile_options,
                     dynamic='dynamic' in shared.opts.cuda_compile_options,
                 ).to(return_device)
             else:
-                model = torch.compile(model,
+                model = torch.compile(
+                    model,
                     mode=shared.opts.cuda_compile_mode,
                     backend=shared.opts.cuda_compile_backend,
                     fullgraph='fullgraph' in shared.opts.cuda_compile_options,
@@ -287,7 +294,8 @@ def compile_torch(sd_model, apply_to_components=True, op="Model"):
                 sd_model("dummy prompt")
             except Exception:
                 pass
-        t1 = time.time()
+
+        t1 = time.perf_counter()
         log.info(f"{op} compile: task=torch components={compiled_components} time={t1-t0:.2f}")
     except Exception as e:
         log.warning(f"{op} compile: task=torch {e}")
@@ -329,21 +337,41 @@ def compile_diffusers(sd_model, apply_to_components=True, op="Model"):
         log.warning(f'{op} compile enabled but no backend specified')
         return sd_model
     t0 = time.time()
-    log.info(f"{op} compile: pipeline={sd_model.__class__.__name__} backend={shared.opts.cuda_compile_backend} options={shared.opts.cuda_compile_options}")
+    log.info(f"{op} compile: component={sd_model.__class__.__name__} backend={shared.opts.cuda_compile_backend} options={shared.opts.cuda_compile_options}")
     if shared.opts.cuda_compile_backend == 'onediff':
         sd_model = compile_onediff(sd_model)
+        log.debug(f"{op} compile: task=onediff time={time.time()-t0:.2f}")
     elif shared.opts.cuda_compile_backend == 'stable-fast':
         sd_model = compile_stablefast(sd_model)
+        log.debug(f"{op} compile: task=stablefast time={time.time()-t0:.2f}")
     elif shared.opts.cuda_compile_backend == 'deep-cache':
         sd_model = compile_deepcache(sd_model)
+        log.debug(f"{op} compile: task=deepcache time={time.time()-t0:.2f}")
     elif shared.opts.cuda_compile_backend == 'pruna':
         sd_model = compile_pruna(sd_model)
+        log.debug(f"{op} compile: task=pruna time={time.time()-t0:.2f}")
     else:
         check_deepcache(False)
         sd_model = compile_torch(sd_model, apply_to_components=apply_to_components, op=op)
-    t1 = time.time()
-    log.debug(f"{op} compile: time={t1-t0:.2f}")
     return sd_model
+
+
+def set_openvino_overrides():
+    if "Model" not in shared.opts.cuda_compile:
+        if 'LoRA' in shared.opts.cuda_compile:
+            shared.opts.cuda_compile = []
+        else:
+            shared.opts.cuda_compile.append("Model")
+            log.warning("OpenVINO: compile=Model setting override")
+    if shared.opts.cuda_compile_backend != shared.opts.openvino_compile_backend:
+        shared.opts.cuda_compile_backend = shared.opts.openvino_compile_backend
+        log.warning(f"OpenVINO: backend={shared.opts.openvino_compile_backend} setting override")
+    if shared.opts.diffusers_offload_mode != "none":
+        shared.opts.diffusers_offload_mode = "none"
+        log.warning("OpenVINO: offload=None setting override")
+    if not shared.opts.lora_force_diffusers:
+        shared.opts.lora_force_diffusers = True
+        log.warning("OpenVINO: lora=diffusers setting override")
 
 
 def openvino_recompile_model(p, hires=False, refiner=False): # recompile if a parameter changes # pylint: disable=unused-argument

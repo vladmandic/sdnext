@@ -54,27 +54,30 @@ def load_per_module(sd_model: diffusers.DiffusionPipeline, filename: str, adapte
 def load_diffusers(name: str, network_on_disk: network.NetworkOnDisk, lora_scale:float=shared.opts.extra_networks_default_multiplier, lora_module=None, reason: str = '') -> network.Network | None:
     t0 = time.time()
     name = name.replace(".", "_")
+    reason = 'unknown' if reason is None or len(reason) == 0 else reason
     sd_model: diffusers.DiffusionPipeline = getattr(shared.sd_model, "pipe", shared.sd_model)
-    log.debug(f'Network load: type=LoRA name="{name}" file="{network_on_disk.filename}" detected={network_on_disk.sd_version} method=diffusers reason={reason or "unknown"} scale={lora_scale} fuse={lora_overrides.fuse_native()}:{shared.opts.lora_fuse_diffusers}')
+    log.debug(f'Network load: type=LoRA name="{name}" file="{network_on_disk.filename}" detected={network_on_disk.sd_version} method=diffusers reason="{reason}" scale={lora_scale} fuse={lora_overrides.fuse_native()}:{shared.opts.lora_fuse_diffusers}')
     if not hasattr(sd_model, 'load_lora_weights'):
-        log.error(f'Network load: type=LoRA class={sd_model.__class__} does not implement load lora')
+        log.error(f'Network load: type=LoRA class={sd_model.__class__} method=diffusersdoes not implement load lora')
         return None
     try:
         if lora_module is not None and isinstance(lora_module, list) and len(lora_module) > 0:
             name = load_per_module(sd_model, network_on_disk.filename, adapter_name=name, lora_modules=lora_module)
             sd_model._lora_partial = True # pylint: disable=protected-access
         else:
+            if shared.sd_model_type in ['sd', 'sdxl']: # skip te to avoid errors when lora does not have te to start with
+                diffusers.loaders.lora_pipeline._load_lora_into_text_encoder = lambda *args, **kwargs: None # pylint: disable=protected-access
             sd_model.load_lora_weights(network_on_disk.filename, adapter_name=name)
     except Exception as e:
         if 'already in use' in str(e):
             pass
         else:
             if 'following keys have not been correctly renamed' in str(e):
-                log.error(f'Network load: type=LoRA name="{name}" diffusers unsupported format')
+                log.error(f'Network load: type=LoRA name="{name}" method=diffusers unsupported format')
             elif 'object has no attribute' in str(e):
-                log.error(f'Network load: type=LoRA name="{name}" diffusers empty module')
+                log.error(f'Network load: type=LoRA name="{name}" method=diffusers empty module')
             else:
-                log.error(f'Network load: type=LoRA name="{name}" {e}')
+                log.error(f'Network load: type=LoRA name="{name}" method=diffusers {e}')
             if l.debug:
                 errors.display(e, "LoRA")
             return None
@@ -84,7 +87,7 @@ def load_diffusers(name: str, network_on_disk: network.NetworkOnDisk, lora_scale
         list_adapters = sd_model.get_list_adapters()
         list_adapters = [adapter for adapters in list_adapters.values() for adapter in adapters]
         if name not in list_adapters:
-            log.error(f'Network load: type=LoRA name="{name}" adapters={list_adapters} not loaded')
+            log.error(f'Network load: type=LoRA name="{name}" method=diffusers adapters={list_adapters} not loaded')
         else:
             diffuser_loaded.append(name)
             diffuser_scales.append(lora_scale)

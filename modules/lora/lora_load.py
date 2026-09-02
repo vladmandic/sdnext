@@ -183,7 +183,7 @@ def maybe_recompile_model(names, te_multipliers):
         backup_cuda_compile = shared.opts.cuda_compile
         backup_scheduler = getattr(sd_model, "scheduler", None)
         sd_models.unload_model_weights(op='model')
-        shared.opts.cuda_compile = []
+        shared.opts.cuda_compile = ['LoRA'] # if its empty, it will be overridden by set_openvino_overrides() to ['Model'] which is not what we want
         sd_models.reload_model_weights(op='model')
         shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, current_task)
         shared.opts.cuda_compile = backup_cuda_compile
@@ -354,7 +354,7 @@ def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=Non
         log.debug(f'Network load: type=LoRA loaded={[n.name for n in l.loaded_networks]} cache={list(lora_cache)} fuse={lora_overrides.fuse_native()}:{shared.opts.lora_fuse_diffusers}')
 
     if recompile_model:
-        log.info("Network load: type=LoRA recompiling model")
+        log.info("Network load: type=LoRA model recompile required")
         if shared.compiled_model_state is not None:
             backup_lora_model = shared.compiled_model_state.lora_model
         else:

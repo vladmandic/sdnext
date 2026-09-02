@@ -106,7 +106,7 @@ def set_diffuser_offload(sd_model, op:str='model', quiet:bool=False, force:bool=
         process_timer.add('offload', time.time() - t0)
         return
 
-    if shared.opts.diffusers_offload_mode == "none":
+    if shared.opts.diffusers_offload_mode == "none" and devices.backend != "openvino":
         log.warning('Offload: type=none "use balanced offload with model type set not to offload"')
         apply_none_offload(sd_model, quiet=quiet)
 

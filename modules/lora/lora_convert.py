@@ -136,8 +136,9 @@ class KeyConvert:
             sd_module = shared.sd_model.network_layer_mapping.get(flat_key, None)
             if sd_module is not None:
                 key = flat_key
-        if debug and sd_module is None:
-            raise RuntimeError(f"LoRA key not found in network_layer_mapping: key={key} mapping={shared.sd_model.network_layer_mapping.keys()}")
+        if sd_module is None:
+            if debug:
+                raise RuntimeError(f"LoRA key not found in network_layer_mapping: key={key} mapping={shared.sd_model.network_layer_mapping.keys()}")
         return key, sd_module
 
 

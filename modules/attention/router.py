@@ -142,7 +142,7 @@ def reapply() -> None:
     compiled = getattr(shared, 'compiled_model_state', None)
     if compiled is not None and getattr(compiled, 'is_compiled', False):
         torch._dynamo.reset() # pylint: disable=protected-access
-        log.debug('Attention: dynamo reset, compiled model resident')
+        log.debug('Attention: dynamo=reset compiled model resident')
 
 
 def report() -> dict:

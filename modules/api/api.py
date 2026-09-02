@@ -29,7 +29,7 @@ class Api:
         self.router = APIRouter()
         if shared.cmd_opts.docs:
             docs.create_docs(app)
-            docs.create_redocs(app)
+            # docs.create_redocs(app)
         self.app = app
         self.queue_lock = queue_lock
         self.generate = generate.APIGenerate(queue_lock)

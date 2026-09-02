@@ -448,7 +448,7 @@ def start_ui():
             log.info(f'Public URL: {proto}://{public_ip}:{shared.cmd_opts.port}')
     if shared.cmd_opts.docs:
         log.info(f'API docs: {local_url[:-1]}/docs') # pylint: disable=unsubscriptable-object
-        log.info(f'API redocs: {local_url[:-1]}/redocs') # pylint: disable=unsubscriptable-object
+        # log.info(f'API redocs: {local_url[:-1]}/redocs') # pylint: disable=unsubscriptable-object
     if share_url is not None:
         log.info(f'Share URL: {share_url}')
     if getattr(shared.cmd_opts, 'enso', False):

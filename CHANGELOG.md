@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-09-01
+## Update for 2026-09-02
 
 - **LoRA**
   - *TODO*: see [LoRA docs](https://vladmandic.github.io/sdnext-docs/LoRA) for all of the improvements and usage instructions  
@@ -34,23 +34,27 @@
   - implement progress and preview
   - intercept and profiling hooks
   - on-demand convert standard model on-demand 
+- **Compute**
+  - openvino: update `openvino==2026.3.1` with `torch==2.13.0`
 - **Other**
   - Video Preview: TAESD support for **MiniMax**
   - new optional transformer hooks: *settings -> compute add-ons*  
     *PAG: Perturbed attention guidance, PAB: Pyramid attention broadcast, FBC: First Block Cache, FC: Faster Cache, LS: Layer Skip, MC: Mag Cache, TS: TaylorSeer*  
     *note*: compatibility of different methods varies across different models  
+  - remove `/redocs` as `/docs` are primary api docs  
 - **Wiki/Docs**:
   - [MiniMax](https://vladmandic.github.io/sdnext-docs/MiniMax) updated with LoRA, Turbo and other improvements
 - **Fixes**
-  - unnecessary secondary prompt if same
-  - js fetch exception handling
-  - detailer handling of stop/skip/pause
-  - cleanup dead rife code, thanks @Anai-Guo
-  - lumina-dimoo attention-kwargs, thanks @Anai-Guo
-  - improve network type/version lookup
-  - cleanup lora tags
-  - xyz grid apply bool values
-  - vdm scheduler fix steps, thanks @zjn20030811
+  - prompt: unnecessary secondary prompt if same
+  - ui: js fetch exception handling
+  - detailer: handling of stop/skip/pause
+  - rife: cleanup dead code, thanks @Anai-Guo
+  - lumina-dimoo: attention-kwargs, thanks @Anai-Guo
+  - network: improve type/version lookup
+  - lora: cleanup tags
+  - xyz grid: apply bool values
+  - vdm scheduler: fix steps, thanks @zjn20030811
+  - openvino: optimize recompile checks and lora loading
 
 ## Update for 2026-08-26
 

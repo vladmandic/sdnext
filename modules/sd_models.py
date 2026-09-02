@@ -1070,6 +1070,8 @@ def load_diffuser(checkpoint_info: CheckpointInfo | None = None, op='model', rev
     try:
         if shared.opts.ipex_optimize:
             sd_model = sd_models_compile.ipex_optimize(sd_model)
+        if shared.cmd_opts.use_openvino or devices.backend == 'openvino':
+            sd_models_compile.set_openvino_overrides()
 
         if (shared.opts.cuda_compile_backend != 'none') and len(shared.opts.cuda_compile) > 0:
             if 'components' in shared.opts.cuda_compile_options:
@@ -1596,6 +1598,7 @@ def unload_model_weights(op='model'):
         shared.compiled_model_state.compiled_cache.clear()
         shared.compiled_model_state.req_cache.clear()
         shared.compiled_model_state.partitioned_modules.clear()
+        # shared.compiled_model_state = None
     if (op == 'model' or op == 'dict') and model_data.sd_model:
         log.debug(f'Current {op}: {memory_stats()}')
         if not ('Model' in shared.opts.cuda_compile and (shared.opts.cuda_compile_backend == "openvino_fx" or shared.opts.cuda_compile_backend == "openvino")):
