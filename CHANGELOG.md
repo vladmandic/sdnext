@@ -73,6 +73,7 @@ All-about-optimizations:
   - openvino: optimize recompile checks and lora loading
   - log: ansi color handling
   - compile: keep model compiled state
+  - prompt: cache checks when cfg changes
 
 ## Update for 2026-08-26
 
