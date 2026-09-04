@@ -34,7 +34,7 @@ try:
     import numpy.random # pylint: disable=W0611,C0411 # this causes failure if numpy version changed
     def obj2sctype(obj):
         return np.dtype(obj).type
-    if np.__version__.startswith('2.'): # monkeypatch for np==1.2 compatibility
+    if str(np.__version__).startswith('2.'): # monkeypatch for np==1.2 compatibility
         np.obj2sctype = obj2sctype # noqa: NPY201
         np.bool8 = np.bool
         np.float_ = np.float64 # noqa: NPY201
