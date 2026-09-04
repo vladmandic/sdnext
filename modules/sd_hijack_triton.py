@@ -171,6 +171,12 @@ def run_hook(orig):
                 if hasattr(arg, 'dtype'):
                     key += (str(arg.dtype),)
             needs_benchmark = len(self.configs) > 1 and key not in self.cache
+            import os
+            skip_autotune = os.environ.get('SD_SKIP_AUTOTUNE', None) is not None
+            if needs_benchmark and skip_autotune:
+                log.trace('Autotune: skip')
+                self.cache[key] = self.configs[0] # pre-seed the cache so orig() takes its cache-hit path and skips the sweep
+                needs_benchmark = False
             if needs_benchmark:
                 try:
                     total = len(self.prune_configs(kwargs))

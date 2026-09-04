@@ -1277,10 +1277,8 @@ def install_pydantic():
 
 
 def install_scipy():
-    if args.new or (sys.version_info >= (3, 14)):
-        install('scipy==1.17.1', ignore=True, quiet=True)
-    else:
-        install('scipy==1.14.1', ignore=True, quiet=True)
+    # install('scipy==1.14.1', ignore=True, quiet=True)
+    install('scipy==1.18.1', ignore=True, quiet=True)
 
 
 def install_opencv():
@@ -1311,7 +1309,6 @@ def install_insightface():
 def install_optional():
     t_start = time.time()
     log.info('Installing optional requirements...')
-    install('pillow-heif')
     install('addict')
     install('yapf')
     install('--no-build-isolation git+https://github.com/Disty0/BasicSR@23c1fb6f5c559ef5ce7ad657f2fa56e41b121754', 'basicsr', ignore=True, quiet=True)
@@ -1322,11 +1319,14 @@ def install_optional():
     install('Cython', ignore=True, quiet=True)
     install('gguf', ignore=True, quiet=True)
     install('hf_transfer', ignore=True, quiet=True)
-    install('hf_xet', ignore=True, quiet=True)
     install('nvidia-ml-py', ignore=True, quiet=True)
+    install('pillow-heif')
     install('pillow-jxl-plugin==1.3.7', ignore=True, quiet=True)
     install('ultralytics==8.4.67', ignore=True, quiet=True)
     install('open-clip-torch', no_deps=True, quiet=True)
+    install('runai_model_streamer', ignore=True, quiet=True)
+    install('facexlib', ignore=True, quiet=True)
+    install('omegaconf', ignore=True, quiet=True)
     install('git+https://github.com/tencent-ailab/IP-Adapter.git', 'ip_adapter', ignore=True, quiet=True)
     # install('git+https://github.com/openai/CLIP.git', 'clip', quiet=True, no_build_isolation=True)
     ts('optional', t_start)

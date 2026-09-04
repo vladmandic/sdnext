@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-09-02
+## Update for 2026-09-04
 
 - **LoRA**
   - *TODO*: see [LoRA docs](https://vladmandic.github.io/sdnext-docs/LoRA) for all of the improvements and usage instructions  
@@ -36,11 +36,15 @@
   - on-demand convert standard model on-demand 
 - **Compute**
   - openvino: update `openvino==2026.3.1` with `torch==2.13.0`
-- **Other**
-  - Video Preview: TAESD support for **MiniMax**
+  - add `SD_SKIP_AUTOTUNE` env variable to skip triton autotune and use default config for all triton kernels  
+    *note*: this may improve initial generate time, but may also reduce performance on some models  
   - new optional transformer hooks: *settings -> compute add-ons*  
     *PAG: Perturbed attention guidance, PAB: Pyramid attention broadcast, FBC: First Block Cache, FC: Faster Cache, LS: Layer Skip, MC: Mag Cache, TS: TaylorSeer*  
     *note*: compatibility of different methods varies across different models  
+  - update `numpy` and `scipy` frozen requirements as required by new compute drivers  
+    *note*: this may break compatibility with some legacy packages, so report any finidings  
+- **Other**
+  - Video Preview: TAESD support for **MiniMax**
   - remove `/redocs` as `/docs` are primary api docs  
 - **Wiki/Docs**:
   - [MiniMax](https://vladmandic.github.io/sdnext-docs/MiniMax) updated with LoRA, Turbo and other improvements
