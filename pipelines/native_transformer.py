@@ -28,9 +28,10 @@ Algorithm:
    in a Cosmos 2.0 loader).
 5. Partition off sibling component keys (e.g. Anima's bundled ``llm_adapter.*``).
 6. Run the spec's converter if present (else pass through unchanged).
-7. Fetch ``<subfolder>/config.json`` from the base repo, instantiate via
-   ``cls.from_config``, ``load_state_dict(strict=False)``, validate, dtype-cast,
-   quantize, and offload-place.
+7. Fetch ``<subfolder>/config.json`` from the base repo, apply the spec's
+   ``infer_config`` overrides, instantiate via ``cls.from_config``,
+   ``load_state_dict(strict=False)``, validate, dtype-cast, quantize, and
+   offload-place.
 8. Repeat the build for each populated sibling (no converter, no quant by
    default; sibling weights are read raw from the bundled file).
 
@@ -134,6 +135,11 @@ class TransformerSpec:
     ``converter_handles_quant`` runs the converter before comfy_quant
     detection; such converters must translate marker/scale sidecar keys along
     with the weights. Float-oriented converters keep the default.
+
+    ``infer_config`` receives the transformer state dict after prefix strip and
+    sibling partition, before the converter, and returns config overrides
+    merged over the base repo config (e.g. ``num_layers`` of a depth-expanded
+    finetune).
     """
 
     cls: type
@@ -146,6 +152,7 @@ class TransformerSpec:
     acceptable_missing: tuple[str, ...] = DEFAULT_ACCEPTABLE_MISSING
     zero_init_missing: tuple[str, ...] = ()
     forbidden_markers: tuple[tuple[str, str], ...] = ()
+    infer_config: Callable[[dict], dict] | None = None
 
 
 def make_default_spec(cls: type) -> TransformerSpec:
@@ -296,6 +303,12 @@ def load(
 
     effective_dtype = dtype if dtype is not None else devices.dtype
     transformer_cfg = fetch_component_config(repo_id, spec.subfolder)
+    if spec.infer_config is not None:
+        inferred = spec.infer_config(transformer_sd)
+        overrides = {k: v for k, v in inferred.items() if transformer_cfg.get(k) != v}
+        if overrides:
+            log.info(f'Load model: type={spec.cls.__name__} native_transformer config={overrides}')
+            transformer_cfg = {**transformer_cfg, **overrides}
     transformer = build_component(
         component_name="transformer",
         state_dict=transformer_sd,

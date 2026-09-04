@@ -12,14 +12,29 @@ knobs that differ from the native-loader defaults:
 - Cosmos 1.0 structural marker: any community file whose state dict contains
   a Cosmos 1.0 nested key (``net.blocks.block1.*``) is rejected with a clear
   error since Anima is Cosmos 2.0 only.
+- ``num_layers`` comes from the block indices in the file, so depth-expanded
+  finetunes (Anima-2.9B: 40 blocks) load against the 28-layer base config.
 - All other knobs (prefixes, ``acceptable_missing`` buffers) use the defaults
   from :mod:`pipelines.native_transformer`.
 """
+
+import re
 
 import diffusers
 from diffusers.loaders.single_file_utils import convert_cosmos_transformer_checkpoint_to_diffusers
 
 from pipelines.native_transformer import TransformerSpec, SiblingSpec
+
+
+BLOCK_INDEX = re.compile(r'^(?:transformer_)?blocks\.(\d+)\.')
+
+
+def infer_config(state_dict: dict) -> dict:
+    """Derive ``num_layers`` from the highest transformer block index in the file."""
+    indices = [int(m.group(1)) for key in state_dict if (m := BLOCK_INDEX.match(key))]
+    if not indices:
+        return {}
+    return {'num_layers': max(indices) + 1}
 
 
 ANIMA_SPEC = TransformerSpec(
@@ -37,4 +52,5 @@ ANIMA_SPEC = TransformerSpec(
             'unsupported Cosmos 1.0 structure',
         ),
     ),
+    infer_config=infer_config,
 )

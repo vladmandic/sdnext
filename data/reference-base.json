@@ -296,6 +296,14 @@
     "date": "2026 July",
     "size": 4.99
   },
+  "Anima 2.9B Preview v1": {
+    "path": "CalamitousFelicitousness/Anima-2.9B-Preview-v1-Diffusers",
+    "preview": "CalamitousFelicitousness--Anima-2.9B-Preview-v1-Diffusers.jpg",
+    "desc": "Anima 2.9B preview v1 by Gazingstars, a depth-expanded fine-tune of Anima 1.0 Base: the transformer is grown from 28 to 40 layers and trained on 1.7M additional anime and illustration samples with mixed tag and natural-language captions. Same Qwen3-0.6B text encoder, LLM adapter and VAE as Anima 1.0.",
+    "extras": "sampler: Default, cfg_scale: 4.0, steps: 30",
+    "date": "2026 August",
+    "size": 7.32
+  },
   "Meituan LongCat Image": {
     "path": "meituan-longcat/LongCat-Image",
     "preview": "meituan-longcat--LongCat-Image.jpg",

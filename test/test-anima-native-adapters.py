@@ -821,6 +821,10 @@ def test_cosmos_rename_full_coverage():
         ('blocks_0_adaln_modulation_cross_attn_2', 'transformer_blocks_0_norm2_linear_2'),
         ('blocks_0_adaln_modulation_mlp_1', 'transformer_blocks_0_norm3_linear_1'),
         ('blocks_0_adaln_modulation_mlp_2', 'transformer_blocks_0_norm3_linear_2'),
+        # Depth-expanded checkpoints (Anima-2.9B carries 40 blocks)
+        ('blocks_39_self_attn_q_proj', 'transformer_blocks_39_attn1_to_q'),
+        ('blocks_39_cross_attn_output_proj', 'transformer_blocks_39_attn2_to_out_0'),
+        ('blocks_39_mlp_layer2', 'transformer_blocks_39_ff_net_2'),
     ]
     for src, expected in cases:
         got = A.cosmos_rename_flat(src)
@@ -836,6 +840,9 @@ def test_resolve_targets_per_prefix():
     ]
     assert A.resolve_targets('diffusion_model.', 'blocks.0.self_attn.q_proj') == [
         ('transformer_blocks_0_attn1_to_q', None),
+    ]
+    assert A.resolve_targets('diffusion_model.', 'blocks.39.cross_attn.k_proj') == [
+        ('transformer_blocks_39_attn2_to_k', None),
     ]
     assert A.resolve_targets('diffusion_model.llm_adapter.', 'input_proj') == [
         ('input_proj', None),
