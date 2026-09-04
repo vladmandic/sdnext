@@ -46,6 +46,7 @@ All-about-optimizations:
   - intercept and profiling hooks
   - on-demand convert standard model on-demand 
 - **Compute**
+  - cuda: update `torch==2.14.0` with `cuda==13.2`
   - openvino: update `openvino==2026.3.1` with `torch==2.13.0`
   - add `SD_SKIP_AUTOTUNE` env variable to skip triton autotune and use default config for all triton kernels  
     *note*: this may improve initial generate time, but may also reduce performance on some models  

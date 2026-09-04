@@ -647,7 +647,7 @@ def install_cuda():
     if args.use_nightly:
         cmd = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu132 --extra-index-url https://download.pytorch.org/whl/nightly/cu130')
     else:
-        cmd = os.environ.get('TORCH_COMMAND', 'torch==2.13.0+cu132 torchvision==0.28.0+cu132 --index-url https://download.pytorch.org/whl/cu132')
+        cmd = os.environ.get('TORCH_COMMAND', 'torch==2.14.0+cu132 torchvision==0.29.0+cu132 --index-url https://download.pytorch.org/whl/cu132')
     return cmd
 
 

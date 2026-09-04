@@ -8,6 +8,7 @@
 - LTX: Implement LTX2DFRPipeline
 - ROCm: v10
 - Video: unify execution path for ui and api
+- Torch: update ipex, rocm to torch==2.14
 
 ## Issues
 
