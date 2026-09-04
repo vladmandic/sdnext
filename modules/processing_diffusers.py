@@ -79,7 +79,7 @@ def process_pre(p: processing.StableDiffusionProcessing, phase: str | None = Non
             modular_guiders.set_guider(p, phase)
     else:
         try:
-            log.info(f'Processing modifiers: phase={phase} apply')
+            log.info(f'Processing: modifiers=apply phase={phase}')
             from modules import ipadapter, sd_hijack_freeu, para_attention, teacache, hidiffusion, ras, pag, cfgzero, transformer_cache, token_merge, linfusion, cachedit
             # apply-with-unapply
             # sd_hijack_compile.install()
@@ -112,7 +112,7 @@ def process_post(p: processing.StableDiffusionProcessing):
     else:
         try:
             from modules import ipadapter, hidiffusion, ras, pag, cfgzero, token_merge, linfusion, cachedit
-            log.info('Processing modifiers: unapply')
+            log.info('Processing: modifiers=unapply')
             sd_models_compile.check_deepcache(enable=False)
             ipadapter.unapply(shared.sd_model, unload=getattr(p, 'ip_adapter_unload', False))
             token_merge.remove_token_merging(shared.sd_model)

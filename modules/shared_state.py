@@ -63,7 +63,7 @@ class State:
         status += 'oom ' if self.oom else ''
         status += 'api ' if self.api else ''
         fn = f'{sys._getframe(3).f_code.co_name}:{sys._getframe(2).f_code.co_name}' # pylint: disable=protected-access
-        return f'State: ts={self.job_timestamp} job={self.job} jobs={self.job_no+1}/{self.job_count}/{self.total_jobs} step={self.sampling_step}/{self.sampling_steps} preview={self.preview_job}/{self.id_live_preview}/{self.current_image_sampling_step} status="{status.strip()}" image={self.current_image} latent={self.current_latent.shape if self.current_latent is not None else None} fn={fn}'
+        return f'State: ts={self.job_timestamp} job={self.job} jobs={self.job_no+1}/{self.job_count}/{self.total_jobs} step={self.sampling_step}/{self.sampling_steps} preview={self.preview_job}/{self.id_live_preview}/{self.current_image_sampling_step} status="{status.strip()}" image={self.current_image} latent={list(self.current_latent.shape) if self.current_latent is not None else None} fn={fn}'
 
     @property
     def sampling_step(self):

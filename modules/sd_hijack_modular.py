@@ -27,7 +27,7 @@ def modular_step(components: diffusers.modular_pipelines.ModularPipeline, state:
             shared.state.current_latent = state.latents
         lora_stack.on_step(shared.state.sampling_step)
         if debug:
-            log.trace(f'Modular step: step={shared.state.sampling_step} latent={state.latents.shape}')
+            log.trace(f'Modular step: step={shared.state.sampling_step} latent={list(state.latents.shape)}')
     if shared.state.interrupted or shared.state.skipped:
         raise AssertionError('Interrupted...')
     if shared.state.paused:

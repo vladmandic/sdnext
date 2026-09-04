@@ -237,8 +237,15 @@ def setup_logging(debug=None, trace=None, filename=None):
         "inspect.value.border": "black",
         "traceback.border.syntax_error": "dark_red",
         "logging.level.info": "blue_violet",
-        "logging.level.debug": "purple4",
+        "logging.level.debug": "orchid",
         "logging.level.trace": "dark_blue",
+        "repr.attrib_name": "bright_cyan",
+        "repr.attrib_value": "orchid",
+        "repr.str": "sandy_brown",
+        "repr.number": "bright_green",
+        "repr.bool_true": "bright_green",
+        "repr.bool_false": "bright_red",
+        "repr.values": "bright_cyan",
     })
 
     Padding.__rich_console__ = override_padding

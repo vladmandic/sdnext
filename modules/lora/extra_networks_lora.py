@@ -54,7 +54,7 @@ def prompt(p):
         all_tags = list(set(all_tags))
         all_tags = [t for t in all_tags if t not in p.prompt]
         if len(all_tags) > 0:
-            log.debug(f"Network load: type=LoRA tags={all_tags} max={shared.opts.lora_apply_tags} apply")
+            log.debug(f"Network tags: type=LoRA tags={all_tags} max={shared.opts.lora_apply_tags} apply")
         all_tags = ', '.join(all_tags)
         p.extra_generation_params["LoRA tags"] = all_tags
         if '_tags_' in p.prompt:
@@ -163,7 +163,7 @@ def unload_diffusers():
             pass
     if hasattr(shared.sd_model, "unload_lora_weights"):
         try:
-            shared.sd_model.unload_lora_weights() # fails for non-CLIP models
+            shared.sd_model.unload_lora_weights()
         except Exception:
             pass
 
@@ -248,7 +248,7 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
                     if hasattr(sd_model, 'disable_lora'):
                         try:
                             sd_model.disable_lora()
-                            log.info('Network unload: type=LoRA mode=diffusers')
+                            log.info('Network unload: type=LoRA method=diffusers disable')
                         except Exception as e:
                             log.error(f'Network unload: type=LoRA {e}')
                 sd_models.set_diffuser_offload(shared.sd_model, op="model")
@@ -275,13 +275,15 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
         if len(l.loaded_networks) > 0 and (len(networks.applied_layers) > 0 or load_method=='diffusers' or load_method=='nunchaku') and step == 0:
             infotext(p)
             prompt(p)
-            if has_changed and len(include) == 0: # print only once
+            sd_model = shared.sd_model.pipe if hasattr(shared.sd_model, 'pipe') else shared.sd_model
+            if len(include) == 0: # print only once
                 actual_method = 'native' if any(len(n.modules) > 0 for n in l.loaded_networks) else load_method
                 stack = lora_stack.signature() if actual_method == 'native' else 'sum' # non-native paths always combine as sum
-                log.info(f'Network load: type=LoRA networks={[n.name for n in l.loaded_networks]} load={load_method}({load_reason}) method={actual_method} mode={networks.effective_mode()} stack={stack} te={te_multipliers} unet={unet_multipliers} time={l.timer.summary} reason="{reason}"')
+                log.info(f'Network status: type=LoRA networks={[n.name for n in l.loaded_networks]} method={actual_method}({load_reason}) mode={networks.effective_mode()} stack={stack} te={te_multipliers} unet={unet_multipliers} time={l.timer.summary} changed={has_changed} reason="{reason}"')
 
-    def deactivate(self, p, force=False):
+    def deactivate(self, p, force=False): # pylint: disable=unused-argument
         if len(lora_diffusers.diffuser_loaded) > 0 and (shared.opts.lora_force_reload or force):
+            log.debug(f'Network unload: type=LoRA method=diffusers loaded={len(lora_diffusers.diffuser_loaded)} opts={shared.opts.lora_force_reload} force={force}')
             unload_diffusers()
         if force:
             networks.network_deactivate()

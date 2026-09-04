@@ -357,21 +357,28 @@ def compile_diffusers(sd_model, apply_to_components=True, op="Model"):
 
 
 def set_openvino_overrides():
+    overrides = []
     if "Model" not in shared.opts.cuda_compile:
         if 'LoRA' in shared.opts.cuda_compile:
             shared.opts.cuda_compile = []
         else:
             shared.opts.cuda_compile.append("Model")
-            log.warning("OpenVINO: compile=Model setting override")
+            overrides.append("compile=model")
     if shared.opts.cuda_compile_backend != shared.opts.openvino_compile_backend:
         shared.opts.cuda_compile_backend = shared.opts.openvino_compile_backend
-        log.warning(f"OpenVINO: backend={shared.opts.openvino_compile_backend} setting override")
+        overrides.append(f"backend={shared.opts.openvino_compile_backend}")
     if shared.opts.diffusers_offload_mode != "none":
         shared.opts.diffusers_offload_mode = "none"
-        log.warning("OpenVINO: offload=None setting override")
+        overrides.append("offload=none")
     if not shared.opts.lora_force_diffusers:
         shared.opts.lora_force_diffusers = True
-        log.warning("OpenVINO: lora=diffusers setting override")
+        overrides.append("lora=diffusers")
+    if not shared.opts.lora_fuse_diffusers:
+        shared.opts.lora_fuse_native = False
+        shared.opts.lora_fuse_diffusers = True
+        overrides.append("lora=fuse")
+    if len(overrides) > 0:
+        log.warning(f"OpenVINO setting override: {overrides}")
 
 
 def openvino_recompile_model(p, hires=False, refiner=False): # recompile if a parameter changes # pylint: disable=unused-argument

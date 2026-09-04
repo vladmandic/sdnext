@@ -177,18 +177,26 @@ def maybe_recompile_model(names, te_multipliers):
         else:
             recompile_model = True
             shared.compiled_model_state.lora_model = []
+    if l.debug:
+        log.debug(f'Model recompile check: task={sd_models.get_diffusers_task(shared.sd_model)} recompile={recompile_model} load={skip_lora_load}')
     if recompile_model:
         current_task = sd_models.get_diffusers_task(shared.sd_model)
         log.debug(f'Compile: task={current_task} force model reload')
         backup_cuda_compile = shared.opts.cuda_compile
         backup_scheduler = getattr(sd_model, "scheduler", None)
+        backup_loaded_loras = getattr(sd_model, "loaded_loras", None) # reload below replaces shared.sd_model with a new pipe object
         sd_models.unload_model_weights(op='model')
         shared.opts.cuda_compile = ['LoRA'] # if its empty, it will be overridden by set_openvino_overrides() to ['Model'] which is not what we want
         sd_models.reload_model_weights(op='model')
         shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, current_task)
         shared.opts.cuda_compile = backup_cuda_compile
+        new_sd_model = getattr(shared.sd_model, "pipe", shared.sd_model) # scheduler/cache must be reapplied to the new object, not the discarded one
         if backup_scheduler is not None:
-            sd_model.scheduler = backup_scheduler
+            new_sd_model.scheduler = backup_scheduler
+        if backup_loaded_loras is not None:
+            new_sd_model.loaded_loras = backup_loaded_loras
+        from modules import processing_diffusers # pylint: disable=import-outside-toplevel
+        processing_diffusers.orig_pipeline = shared.sd_model # otherwise process_diffusers() restores the pre-recompile pipeline once generation ends
     return recompile_model, skip_lora_load
 
 
@@ -334,7 +342,7 @@ def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=Non
         try:
             if shared.opts.lora_fuse_diffusers and not lora_overrides.disable_fuse():
                 sd_model.fuse_lora(adapter_names=lora_diffusers.diffuser_loaded, lora_scale=1.0, fuse_unet=True, fuse_text_encoder=True) # diffusers with fuse uses fixed scale since later apply does the scaling
-                sd_model.unload_lora_weights()
+                # sd_model.unload_lora_weights() # optionally unload fused lora as we dont need it, but it may cause issues with some models
             l.timer.activate += time.time() - t1
         except Exception as e:
             log.error(f'Network load: type=LoRA action=fuse {str(e)}')

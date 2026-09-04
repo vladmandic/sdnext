@@ -251,14 +251,14 @@ def openvino_compile(gm: GraphModule, *example_inputs, model_hash_str: str | Non
 
     hints = {}
     if shared.opts.openvino_accuracy == "performance":
-        hints[ov_hints.execution_mode] = ov_hints.ExecutionMode.PERFORMANCE
+        hints[ov_hints.execution_mode] = ov_hints.ExecutionMode.PERFORMANCE # pylint: disable=c-extension-no-member
     elif shared.opts.openvino_accuracy == "accuracy":
-        hints[ov_hints.execution_mode] = ov_hints.ExecutionMode.ACCURACY
+        hints[ov_hints.execution_mode] = ov_hints.ExecutionMode.ACCURACY # pylint: disable=c-extension-no-member
     if model_hash_str is not None:
         hints['CACHE_DIR'] = shared.opts.openvino_cache_path + '/blob'
     core.set_property(hints)
 
-    log.debug(f'OpenVINO compile: device={device} backend={shared.opts.cuda_compile_backend} hints={hints} file="{file_name}"')
+    log.debug(f'OpenVINO compile cache: device={device} backend={shared.opts.cuda_compile_backend} accuracy={shared.opts.openvino_accuracy} hints={hints} hash={model_hash_str} file="{file_name}"')
     compiled_model = core.compile_model(om, device)
     return compiled_model
 
@@ -274,9 +274,9 @@ def openvino_compile_cached_model(cached_model_path, *example_inputs):
 
     hints = {'CACHE_DIR': shared.opts.openvino_cache_path + '/blob'}
     if shared.opts.openvino_accuracy == "performance":
-        hints[ov_hints.execution_mode] = ov_hints.ExecutionMode.PERFORMANCE
+        hints[ov_hints.execution_mode] = ov_hints.ExecutionMode.PERFORMANCE # pylint: disable=c-extension-no-member
     elif shared.opts.openvino_accuracy == "accuracy":
-        hints[ov_hints.execution_mode] = ov_hints.ExecutionMode.ACCURACY
+        hints[ov_hints.execution_mode] = ov_hints.ExecutionMode.ACCURACY # pylint: disable=c-extension-no-member
     core.set_property(hints)
 
     device = get_device()

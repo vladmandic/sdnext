@@ -396,7 +396,7 @@ def reprocess(gallery):
     latent, index = shared.history.selected
     if latent is None or gallery is None:
         return None
-    log.info(f'Reprocessing: latent={latent.shape}')
+    log.info(f'Reprocessing: latent={list(latent.shape)}')
     reprocessed = vae_decode(latent, shared.sd_model, output_type='pil')
     outputs = []
     for i0, i1 in zip(gallery, reprocessed, strict=False):

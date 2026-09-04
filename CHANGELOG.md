@@ -2,6 +2,17 @@
 
 ## Update for 2026-09-04
 
+### Highlights for 2026-09-04
+
+All-about-optimizations: 
+- improved LoRA performance and quality, especially with quantized models
+- newly structured attention mechanisms
+- modular pipelines with new guidance
+- support for different caching stacks
+- compute updates across the board
+
+### Details for 2026-09-04
+
 - **LoRA**
   - *TODO*: see [LoRA docs](https://vladmandic.github.io/sdnext-docs/LoRA) for all of the improvements and usage instructions  
     *note*: lora now has its own settings section in *settings -> lora*
@@ -59,6 +70,8 @@
   - xyz grid: apply bool values
   - vdm scheduler: fix steps, thanks @zjn20030811
   - openvino: optimize recompile checks and lora loading
+  - log: ansi color handling
+  - compile: keep model compiled state
 
 ## Update for 2026-08-26
 

@@ -36,7 +36,7 @@ class Item:
 
     def __str__(self):
         if self.latent is not None:
-            return f'Item(ts="{self.name}" ops={self.ops} latent={self.latent.shape} size={self.size})'
+            return f'Item(ts="{self.name}" ops={self.ops} latent={list(self.latent.shape)} size={self.size})'
         elif self.images is not None:
             return f'Item(ts="{self.name}" ops={self.ops} images={len(self.images) if isinstance(self.images, list) else self.images})'
         else:
