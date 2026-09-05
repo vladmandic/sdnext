@@ -64,8 +64,6 @@ BARE_FLUX_PREFIXES = (
     "double_stream_modulation_",
 )
 
-BARE_DIFFUSERS_PREFIXES = ("single_transformer_blocks.", "transformer_blocks.")
-
 
 # === BFL to diffusers mapping ===
 
@@ -162,7 +160,6 @@ def parse_key(key, suffixes):
         key, suffixes,
         prefixes=KNOWN_PREFIXES,
         bare_prefixes=BARE_FLUX_PREFIXES,
-        bare_diffusers_prefixes=BARE_DIFFUSERS_PREFIXES,
     )
 
 
@@ -172,7 +169,6 @@ def group_by_suffixes(state_dict, suffixes):
         state_dict, suffixes,
         prefixes=KNOWN_PREFIXES,
         bare_prefixes=BARE_FLUX_PREFIXES,
-        bare_diffusers_prefixes=BARE_DIFFUSERS_PREFIXES,
     )
 
 
@@ -257,7 +253,6 @@ _BIND_KWARGS = dict(
     resolve_targets=resolve_targets,
     prefixes=KNOWN_PREFIXES,
     bare_prefixes=BARE_FLUX_PREFIXES,
-    bare_diffusers_prefixes=BARE_DIFFUSERS_PREFIXES,
     arch_name="f2",
 )
 

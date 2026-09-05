@@ -25,10 +25,6 @@ from modules.lora import native_adapter
 
 KNOWN_PREFIXES = native_adapter.KNOWN_PREFIXES_DEFAULT
 
-BARE_DIFFUSERS_PREFIXES = (
-    "layers.", "adaLN_modulation.", "final_norm.", "final_linear.",
-)
-
 
 # === Re-exports for test/back-compat ===
 
@@ -60,7 +56,6 @@ def parse_key(key, suffixes):
     return native_adapter.parse_key(
         key, suffixes,
         prefixes=KNOWN_PREFIXES,
-        bare_diffusers_prefixes=BARE_DIFFUSERS_PREFIXES,
     )
 
 
@@ -69,7 +64,6 @@ def group_by_suffixes(state_dict, suffixes):
     return native_adapter.group_by_suffixes(
         state_dict, suffixes,
         prefixes=KNOWN_PREFIXES,
-        bare_diffusers_prefixes=BARE_DIFFUSERS_PREFIXES,
     )
 
 
@@ -95,7 +89,6 @@ def resolve_targets(prefix_used, base):
 _BIND_KWARGS = dict(
     resolve_targets=resolve_targets,
     prefixes=KNOWN_PREFIXES,
-    bare_diffusers_prefixes=BARE_DIFFUSERS_PREFIXES,
     arch_name="ernieimage",
 )
 

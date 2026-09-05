@@ -489,6 +489,18 @@ def test_diffusers_peft_keys_bind_verbatim():
     return True
 
 
+def test_unknown_bare_key_reaches_the_resolver():
+    """A bare key that names no module is offered verbatim and left unbound, not dropped at parse time."""
+    sd = lora_pair('transformer_blocks.0.attn.to_q', LINEAR_SHAPES['transformer_blocks.0.attn.to_q'])
+    sd.update(lora_pair('nowhere.proj', (4, 4)))
+    mapping = native_mapping(sd)
+    assert set(mapping) == {'transformer_blocks.0.attn.to_q', 'nowhere.proj'}, sorted(mapping)
+    net = load_native(sd, name='stray')
+    assert set(net.modules) == {'lora_transformer_transformer_blocks_0_attn_to_q'}, sorted(net.modules)
+    assert net.mismatch == 0
+    return True
+
+
 # ============================================================
 # Tests - loader against the reference loaders
 # ============================================================
@@ -637,6 +649,7 @@ def run_tests():
         test_chunk_reorder_composes_with_slice,
         test_qkv_split_order,
         test_diffusers_peft_keys_bind_verbatim,
+        test_unknown_bare_key_reaches_the_resolver,
     ]:
         run_test(CAT_RESOLVE, fn)
 

@@ -23,10 +23,6 @@ KNOWN_PREFIXES = native_adapter.KNOWN_PREFIXES_DEFAULT
 # Top-level module names that a bare LoRA key can start with: the transformer's own
 # checkpoint-style names plus the upstream-diffusers names (as saved by
 # ``Krea2Transformer2DModel.save_lora_adapter()``).
-BARE_DIFFUSERS_PREFIXES = (
-    "blocks.", "txtfusion.", "first.", "last.", "tmlp.", "tproj.", "txtmlp.",
-    "transformer_blocks.", "text_fusion.", "img_in.", "txt_in.", "time_embed.", "time_mod_proj.", "final_layer.",
-)
 
 # Upstream-diffusers attention/ff leaves -> checkpoint leaves (block-level modules).
 DIFFUSERS_LEAF_MAP = {
@@ -83,7 +79,6 @@ def parse_key(key, suffixes):
     return native_adapter.parse_key(
         key, suffixes,
         prefixes=KNOWN_PREFIXES,
-        bare_diffusers_prefixes=BARE_DIFFUSERS_PREFIXES,
     )
 
 
@@ -92,7 +87,6 @@ def group_by_suffixes(state_dict, suffixes):
     return native_adapter.group_by_suffixes(
         state_dict, suffixes,
         prefixes=KNOWN_PREFIXES,
-        bare_diffusers_prefixes=BARE_DIFFUSERS_PREFIXES,
     )
 
 
@@ -145,7 +139,6 @@ def _underscore_to_dotted(base):
 _BIND_KWARGS = dict(
     resolve_targets=resolve_targets,
     prefixes=KNOWN_PREFIXES,
-    bare_diffusers_prefixes=BARE_DIFFUSERS_PREFIXES,
     arch_name="krea2",
 )
 

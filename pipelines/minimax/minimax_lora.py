@@ -37,8 +37,6 @@ KNOWN_PREFIXES = (
 # Reference keys outside the block stacks carry no arch prefix in reference saves; the base is the whole module path.
 BARE_PREFIXES = ("video_patch_proj.", "audio_patch_proj.", "condition_proj.", "time_embedder.", "final_layer.")
 
-# Diffusers module names saved without a component prefix (peft dumps, kohya-suffixed exports) bind verbatim.
-BARE_DIFFUSERS_PREFIXES = ("transformer_blocks.", "token_refiner.refiner_blocks.", "proj_in.", "audio_proj_in.", "context_embedder.", "time_embedder.linear_", "norm_out.", "proj_out.", "audio_proj_out.")
 
 STANDALONE_RENAMES = {
     "video_patch_proj": "proj_in",
@@ -126,14 +124,14 @@ def parse_key(key, suffixes):
     key = native_adapter.unwrap_peft_wrapper(key)
     if key.startswith("dit."):
         key = "diffusion_model." + key[len("dit."):]
-    parsed = native_adapter.parse_key(key, suffixes, prefixes=KNOWN_PREFIXES, bare_prefixes=BARE_PREFIXES, bare_diffusers_prefixes=BARE_DIFFUSERS_PREFIXES)
+    parsed = native_adapter.parse_key(key, suffixes, prefixes=KNOWN_PREFIXES, bare_prefixes=BARE_PREFIXES)
     if parsed is None:
         return None
     prefix_used, base, suffix = parsed
     return prefix_used, base, normalize_mini_max_suffix(suffix)
 
 
-def group_by_suffixes(state_dict, suffixes, *, prefixes=None, bare_prefixes=(), bare_diffusers_prefixes=()): # pylint: disable=unused-argument
+def group_by_suffixes(state_dict, suffixes, *, prefixes=None, bare_prefixes=()): # pylint: disable=unused-argument
     """MiniMax-bound :func:`native_adapter.group_by_suffixes`."""
     groups: dict[tuple, dict[str, object]] = {}
     for key, value in state_dict.items():
@@ -238,7 +236,6 @@ _BIND_KWARGS = dict(
     resolve_targets=resolve_targets,
     prefixes=KNOWN_PREFIXES,
     bare_prefixes=BARE_PREFIXES,
-    bare_diffusers_prefixes=BARE_DIFFUSERS_PREFIXES,
     network_prefix=network_prefix_for,
     group_by_suffixes_fn=group_by_suffixes,
     arch_name="minimaxh3",

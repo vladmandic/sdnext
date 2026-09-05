@@ -53,10 +53,6 @@ BARE_FLUX_PREFIXES = (
     "img_in.", "txt_in.", "final_layer.", "distilled_guidance_layer.",
 )
 
-BARE_DIFFUSERS_PREFIXES = (
-    "transformer_blocks.", "single_transformer_blocks.",
-)
-
 
 # === Fused weight dims ===
 # Defaults match Chroma1-HD (``inner_dim = num_attention_heads *
@@ -98,7 +94,6 @@ def parse_key(key, suffixes):
         key, suffixes,
         prefixes=KNOWN_PREFIXES,
         bare_prefixes=BARE_FLUX_PREFIXES,
-        bare_diffusers_prefixes=BARE_DIFFUSERS_PREFIXES,
     )
 
 
@@ -108,7 +103,6 @@ def group_by_suffixes(state_dict, suffixes):
         state_dict, suffixes,
         prefixes=KNOWN_PREFIXES,
         bare_prefixes=BARE_FLUX_PREFIXES,
-        bare_diffusers_prefixes=BARE_DIFFUSERS_PREFIXES,
     )
 
 
@@ -263,7 +257,6 @@ _BIND_KWARGS = dict(
     resolve_targets=resolve_targets,
     prefixes=KNOWN_PREFIXES,
     bare_prefixes=BARE_FLUX_PREFIXES,
-    bare_diffusers_prefixes=BARE_DIFFUSERS_PREFIXES,
     arch_name="chroma",
 )
 

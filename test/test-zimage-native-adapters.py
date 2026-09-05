@@ -456,8 +456,8 @@ def test_parse_key_all_prefixes():
     """parse_key recognizes BFL, PEFT, kohya, and bare-diffusers keys.
 
     Returns (prefix_used, base, suffix) - prefix_used is the matched
-    KNOWN_PREFIXES element, BARE_DIFFUSERS_PREFIX_USED for bare paths
-    matching BARE_DIFFUSERS_PREFIXES, or None when no prefix is recognized.
+    KNOWN_PREFIXES element, BARE_DIFFUSERS_PREFIX_USED for any other bare
+    path, or None when no suffix is recognized.
     """
     bd = Z.BARE_DIFFUSERS_PREFIX_USED
     cases = [
