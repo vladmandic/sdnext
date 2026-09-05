@@ -69,6 +69,9 @@ class AttentionBackend:
     def available_on(self, platform: Platform) -> bool:
         return self.platforms is None or platform.backend in self.platforms
 
+    def __repr__(self) -> str:
+        return f'AttentionBackend(name="{self.name}" label="{self.label}" priority={self.priority} terminal={self.terminal} platforms={list(self.platforms) if self.platforms is not None else []} options={self.options} caps={list(self.caps)})'
+
 
 class Registry:
     def __init__(self):
@@ -97,6 +100,9 @@ class Registry:
 
     def with_cap(self, cap: str) -> list[AttentionBackend]:
         return [backend for backend in self.ordered() if cap in backend.caps]
+
+    def __repr__(self) -> str:
+        return f'Registry(backends={list(self.backends.keys())})'
 
 
 registry = Registry()

@@ -111,9 +111,9 @@ def set_attention_dispatcher(pipe):
         current = a._AttentionBackendRegistry.get_active_backend() # pylint: disable=protected-access
         log.debug(f'Attention dispatcher: target={attn} previous={prev[0].value} active={current[0]} list={backends}')
     elif len(attn) > 0:
-        log.warning(f'Attention dispatcher: active={prev[0].value} list={backends} target={attn} not found')
+        log.warning(f'Attention dispatcher: active={prev[0].value} kernels={backends} target={attn} not found')
     else:
-        log.debug(f'Attention dispatcher: active={prev[0].value} list={backends}')
+        log.debug(f'Attention dispatcher: active={prev[0].value} kernels={backends}')
 
 
 def list_dispatcher_backends() -> list:

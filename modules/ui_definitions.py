@@ -287,6 +287,7 @@ def create_settings(cmd_opts):
         "diffusers_fuse_projections": OptionInfo(False, "Fused projections"),
         "torch_expandable_segments": OptionInfo(False, "Expandable segments"),
         "torch_sync": OptionInfo(True, "Force synchronize"),
+        "triton_skip_autotune": OptionInfo(False, "Skip Triton autotune", gr.Checkbox),
         "cudnn_enabled": OptionInfo("default", "cuDNN enabled", gr.Radio, {"choices": ["default", "true", "false"]}),
         "cudnn_benchmark": OptionInfo(devices.backend != "rocm", "cuDNN full-depth benchmark"),
         "cudnn_benchmark_limit": OptionInfo(10, "cuDNN benchmark limit", gr.Slider, {"minimum": 0, "maximum": 100, "step": 1}),

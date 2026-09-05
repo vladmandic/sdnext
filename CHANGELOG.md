@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2026-09-04
+## Update for 2026-09-05
 
-### Highlights for 2026-09-04
+### Highlights for 2026-09-05
 
 All-about-optimizations: 
 - improved LoRA performance and quality, especially with quantized models
@@ -11,8 +11,11 @@ All-about-optimizations:
 - support for different caching stacks
 - compute updates across the board
 
-### Details for 2026-09-04
+### Details for 2026-09-05
 
+- **Models**
+  - [Anima 2.9B Preview v1](https://huggingface.co/yeoj34760/Anima-2.9B)  
+    expanded version of Anima 2B  
 - **LoRA**
   - *TODO*: see [LoRA docs](https://vladmandic.github.io/sdnext-docs/LoRA) for all of the improvements and usage instructions  
     *note*: lora now has its own settings section in *settings -> lora*
@@ -48,9 +51,11 @@ All-about-optimizations:
 - **Compute**
   - cuda: update `torch==2.14.0` with `cuda==13.2`
   - openvino: update `openvino==2026.3.1` with `torch==2.13.0`
-  - add `SD_SKIP_AUTOTUNE` env variable to skip triton autotune and use default config for all triton kernels  
+  - option to skip triton autotune and use default config for all triton kernels  
+    in *settings -> compute settings*  
     *note*: this may improve initial generate time, but may also reduce performance on some models  
-  - new optional transformer hooks: *settings -> compute add-ons*  
+  - new optional transformer hooks  
+    in *settings -> compute add-ons*  
     *PAG: Perturbed attention guidance, PAB: Pyramid attention broadcast, FBC: First Block Cache, FC: Faster Cache, LS: Layer Skip, MC: Mag Cache, TS: TaylorSeer*  
     *note*: compatibility of different methods varies across different models  
   - update `numpy` and `scipy` frozen requirements as required by new compute drivers  

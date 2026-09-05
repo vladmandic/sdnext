@@ -10,14 +10,17 @@ from typing import TYPE_CHECKING
 import gradio as gr
 from installer import print_dict # pylint: disable=unused-import
 from modules.logger import log
-log.debug('Initializing: shared module')
 
+log.debug('Initializing: shared module')
 import modules.memmon
 import modules.paths as paths
 from modules.json_helpers import readfile # pylint: disable=W0611
 from modules.shared_helpers import listdir, req # pylint: disable=W0611
 from modules import errors, devices, shared_state, cmd_args, theme, history, files_cache # pylint: disable=unused-import
 from modules.memstats import memory_stats # pylint: disable=unused-import
+
+# main entry point that triggers package imports
+from modules import loader # pylint: disable=unused-import
 
 log.debug('Initializing: pipelines')
 from modules import shared_items # pylint: disable=unused-import

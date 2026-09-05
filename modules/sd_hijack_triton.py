@@ -156,6 +156,7 @@ def run_hook(orig):
     """Report the register use of the config a sweep just chose. n_regs and n_spills are filled in
     when the driver loads the binary, so they exist only once the kernel has run, not at compile."""
     def wrapped(self, *args, **kwargs):
+        from modules import shared
         session = status['session']
         if session is not None:
             stop_progress(session)
@@ -172,7 +173,7 @@ def run_hook(orig):
                 if hasattr(arg, 'dtype'):
                     key += (str(arg.dtype),)
             needs_benchmark = len(self.configs) > 1 and key not in self.cache
-            skip_autotune = os.environ.get('SD_SKIP_AUTOTUNE', None) is not None
+            skip_autotune = (os.environ.get('SD_SKIP_AUTOTUNE', None) is not None) or shared.opts.triton_skip_autotune
             if needs_benchmark and skip_autotune:
                 self.cache[key] = self.configs[0] # pre-seed the cache so orig() takes its cache-hit path and skips the sweep
                 needs_benchmark = False
