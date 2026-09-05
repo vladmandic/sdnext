@@ -531,17 +531,19 @@ def set_sdpa_params():
             else:
                 sdpa_original = torch.nn.functional.scaled_dot_product_attention
         except Exception as err:
-            log.warning(f'Attention: type="sdpa" {err}')
+            log.warning(f'Attention: type="SDPA" {err}')
         try:
+            options = {}
             torch.backends.cuda.enable_flash_sdp('Flash' in opts.sdp_options or 'Flash attention' in opts.sdp_options)
             torch.backends.cuda.enable_mem_efficient_sdp('Memory' in opts.sdp_options or 'Memory attention' in opts.sdp_options)
             torch.backends.cuda.enable_math_sdp('Math' in opts.sdp_options or 'Math attention' in opts.sdp_options)
             if hasattr(torch.backends.cuda, "allow_fp16_bf16_reduction_math_sdp"): # only valid for torch >= 2.5
+                options['math'] = 'fp16/bf16'
                 torch.backends.cuda.allow_fp16_bf16_reduction_math_sdp(True)
             torch_info.set(attention="sdpa")
-            log.debug(f'Attention: type="sdpa" kernels={opts.sdp_options}')
+            log.debug(f'Attention: type="SDPA" kernels={opts.sdp_options} options={options}')
         except Exception as err:
-            log.warning(f'Attention: type="sdpa" {err}')
+            log.warning(f'Attention: type="SDPA" {err}')
         attention.install_router([opts.cross_attention_optimization], attention.Platform(backend=backend, device=device), sdpa_original)
         if report:
             report_attention()

@@ -120,7 +120,7 @@ def build_sparse_stage(plan: Plan):
         return None
     built = sparse_stage.make_stage(options)
     if built is not None:
-        log.info(f'Sparse attention: backend={capable[0]} budget={options.budget:.0%} gate={options.min_tokens} schedule={options.schedule_steps}x+{options.schedule_bump:.0%}')
+        log.info(f'Attention: sparse=True type={capable[0]} budget={options.budget:.0%} gate={options.min_tokens} schedule={options.schedule_steps}x+{options.schedule_bump:.0%}')
     return built
 
 

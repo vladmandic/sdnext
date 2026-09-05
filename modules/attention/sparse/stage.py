@@ -7,6 +7,9 @@ from modules.attention import context
 from modules.attention.sparse import layout as layout_mod
 from modules.attention.sparse.selector import BlockSelection, SparseSpec, block_count, radial_blocks, schedule, select_blocks
 
+
+debug = os.environ.get('SD_ATTN_DEBUG', None) is not None
+
 # SD_SPARSE_PATTERN=radial replaces the content aware selection with a static band around the
 # diagonal at the same density: the control the selector has to beat, and the fallback if it does not
 pattern = os.environ.get('SD_SPARSE_PATTERN', 'adaptive').strip().lower()
@@ -123,8 +126,8 @@ def make_stage(options: StageOptions):
             from modules import shared
             hit = match_exclusion(state.model_key, getattr(shared, 'sd_model_type', None), options.exclude)
             excluded[state.model_key] = hit
-            if hit: # an enabled setting that cannot act says so rather than doing nothing quietly
-                log.info(f'Sparse attention: "{hit}" is on the exclusion list; attention stays dense')
+            if hit and debug: # an enabled setting that cannot act says so rather than doing nothing quietly
+                log.trace(f'Sparse attention: "{hit}" is on the exclusion list; attention stays dense')
         return len(hit) > 0
 
     def decline(reason: str):
@@ -142,7 +145,8 @@ def make_stage(options: StageOptions):
         if attn_mask is not None and 'masked_block' not in caps: # flex would need a mask_mod to combine the two
             if 'masked' not in notified: # an enabled setting that cannot act says so rather than doing nothing quietly
                 notified.add('masked')
-                log.info('Sparse attention: this model passes an attention mask and the serving backend cannot combine it with a block selection; attention stays dense')
+                if debug:
+                    log.trace('Sparse attention: this model passes an attention mask and the serving backend cannot combine it with a block selection; attention stays dense')
             return decline('masked')
         if query.device.type == 'cpu' or query.dim() != 4:
             return decline('unsupported tensor')
@@ -152,7 +156,8 @@ def make_stage(options: StageOptions):
         if seq_q < options.min_tokens:
             if seq_q not in inactive: # an enabled setting that cannot act says so rather than doing nothing quietly
                 inactive.add(seq_q)
-                log.info(f'Sparse attention: inactive at tokens={seq_q}, below the minimum sequence of {options.min_tokens}; attention stays dense')
+                if debug:
+                    log.trace(f'Sparse attention: inactive at tokens={seq_q}, below the minimum sequence of {options.min_tokens}; attention stays dense')
             return decline('below the minimum sequence')
         budget = budget_for_step()
         if budget >= 1.0:
