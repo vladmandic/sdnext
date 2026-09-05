@@ -465,7 +465,7 @@ def load_sdnext():
             raise
         detail = f"exited with code {e.code}" if isinstance(e, SystemExit) else f"{type(e).__name__}: {e}"
         console.print(f"[red]sdnext failed to start: {detail}[/red]")
-        text = startup_log["text"].strip()
+        text = startup_log["text"].strip() # pylint: disable=used-before-assignment
         if text:
             console.print(Panel(escape(text[-4000:]), title="sdnext startup log", box=ROUNDED_BOX))
         console.print("run from the sdnext root with the venv active; triton is required")
@@ -2229,7 +2229,7 @@ def resolved_group_label(layer, in_features):
     return "row"
 
 
-def bench_group_sizes(shape_label, out_features, in_features, plain_results, selected_dtypes, iters, warmup, config_timeout=300):
+def bench_group_sizes(shape_label, out_features, in_features, plain_results, selected_dtypes, iters, warmup, config_timeout=300): # pylint: disable=unused-argument
     # the Group size setting: 0 = auto, -1 = row-wise, explicit values snap to a divisor of
     # in_features; grouping forces a per-forward re-quantize when quantized matmul is on, so
     # the mm cells price that cost alongside the accuracy gain
