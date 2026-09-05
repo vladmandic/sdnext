@@ -451,11 +451,21 @@ def test_fc1_row_extras_follow_the_swap():
     out = ref_shape('blocks.0.mlp.fc1')[0]
     sd['diffusion_model.blocks.0.mlp.fc1.diff_b'] = torch.arange(out, dtype=torch.float32)
     sd['diffusion_model.blocks.0.mlp.fc1.dora_scale'] = torch.arange(out, dtype=torch.float32).reshape(out, 1)
-    groups = M.group_by_suffixes(sd, M.LORA_SUFFIXES)
-    slot = groups[('diffusion_model.blocks.', '0.mlp.fc1')]
+    net = load_native(sd, name='fc1extras')
+    module = net.modules['lora_transformer_transformer_blocks_0_ff_net_0_proj']
     half = out // 2
-    assert torch.equal(slot['diff_b'][:half], torch.arange(half, out, dtype=torch.float32))
-    assert torch.equal(slot['dora_scale'][:half, 0], torch.arange(half, out, dtype=torch.float32))
+    assert torch.equal(module.ex_bias[:half], torch.arange(half, out, dtype=torch.float32))
+    assert torch.equal(module.dora_scale[:half, 0], torch.arange(half, out, dtype=torch.float32))
+    return True
+
+
+def test_chunk_reorder_composes_with_slice():
+    """A ChunkSpec reorder applies to the rows its slice selects."""
+    t = torch.arange(8).reshape(8, 1)
+    got = native_adapter.slice_chunk_rows(t, native_adapter.ChunkSpec(idx=1, total=2, reorder=(1, 0)))
+    assert got.flatten().tolist() == [6, 7, 4, 5], got.flatten().tolist()
+    got = native_adapter.slice_chunk_rows(t, native_adapter.ChunkSpec(reorder=(1, 0)))
+    assert got.flatten().tolist() == [4, 5, 6, 7, 0, 1, 2, 3], got.flatten().tolist()
     return True
 
 
@@ -624,6 +634,7 @@ def run_tests():
         test_every_reference_module_resolves_to_a_real_linear,
         test_fc1_output_halves_swapped,
         test_fc1_row_extras_follow_the_swap,
+        test_chunk_reorder_composes_with_slice,
         test_qkv_split_order,
         test_diffusers_peft_keys_bind_verbatim,
     ]:

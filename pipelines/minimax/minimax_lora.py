@@ -12,8 +12,6 @@ lands on the fused SwiGLU projection with its two output halves swapped.
 
 import re
 
-import torch
-
 from modules.lora import native_adapter
 
 
@@ -135,18 +133,6 @@ def parse_key(key, suffixes):
     return prefix_used, base, normalize_mini_max_suffix(suffix)
 
 
-def swap_swiglu_halves(slot):
-    """Reorder fc1 output rows from the reference ``[gate; value]`` to the diffusers SwiGLU ``[value; gate]``."""
-    up = slot.get("lora_up.weight")
-    if up is None:
-        return
-    for key in ("lora_up.weight", "bias", "diff_b", "dora_scale"):
-        t = slot.get(key)
-        if t is not None and t.ndim >= 1 and t.shape[0] == up.shape[0]:
-            gate, value = t.chunk(2, dim=0)
-            slot[key] = torch.cat([value, gate], dim=0)
-
-
 def group_by_suffixes(state_dict, suffixes, *, prefixes=None, bare_prefixes=(), bare_diffusers_prefixes=()): # pylint: disable=unused-argument
     """MiniMax-bound :func:`native_adapter.group_by_suffixes`."""
     groups: dict[tuple, dict[str, object]] = {}
@@ -160,9 +146,6 @@ def group_by_suffixes(state_dict, suffixes, *, prefixes=None, bare_prefixes=(), 
             slot = {}
             groups[(prefix_used, base)] = slot
         slot[suffix] = value
-    for (_prefix_used, base), slot in groups.items():
-        if base.endswith(".mlp.fc1"):
-            swap_swiglu_halves(slot)
     return groups
 
 
@@ -184,7 +167,7 @@ def _transformer_block_targets(target_prefix, base):
         return [(f"{target_prefix}.{stem}.attn.to_out.0", None)]
     if base.endswith(".mlp.fc1"):
         stem = base[: -len(".mlp.fc1")]
-        return [(f"{target_prefix}.{stem}.ff.net.0.proj", None)]
+        return [(f"{target_prefix}.{stem}.ff.net.0.proj", native_adapter.ChunkSpec(reorder=(1, 0)))] # reference [gate; value] onto the diffusers SwiGLU [value; gate]
     if base.endswith(".mlp.fc2"):
         stem = base[: -len(".mlp.fc2")]
         return [(f"{target_prefix}.{stem}.ff.net.2", None)]

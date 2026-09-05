@@ -174,9 +174,9 @@ FULL_MARKERS = (".diff",)
 
 @dataclass(frozen=True)
 class ChunkSpec:
-    """How to slice a fused weight along dim 0 for one target module.
+    """How to take a fused weight's rows along dim 0 for one target module.
 
-    Two forms supported:
+    Three forms; the reorder composes with either slice:
 
     - Equal chunks (``idx`` + ``total``): fused QKV split into Q/K/V via
       ``torch.chunk(up, total, dim=0)[idx]``. Used by flux2 / z-image where
@@ -185,6 +185,11 @@ class ChunkSpec:
       ``up[start:end]``. Used by chroma's single-block ``linear1`` which
       fuses Q / K / V / proj_mlp at unequal sizes
       (``[3072, 3072, 3072, 12288]``).
+    - Row reorder (``reorder``): the module lays out equal row blocks in a
+      different order from the save; ``(1, 0)`` swaps the halves of a fused
+      SwiGLU projection saved ``[gate; value]`` onto a ``[value; gate]``
+      module. Applied to the rows the slice selects. Only the LoRA family
+      permutes rows; the others skip a reordered target.
 
     Generic loaders check :attr:`is_equal_chunks` to decide between the two
     forms and select the appropriate ``NetworkModule*Chunk`` /
@@ -194,10 +199,15 @@ class ChunkSpec:
     total: int | None = None
     start: int | None = None
     end: int | None = None
+    reorder: tuple[int, ...] | None = None
 
     @property
     def is_equal_chunks(self) -> bool:
         return self.idx is not None and self.total is not None
+
+    @property
+    def is_slice(self) -> bool:
+        return self.is_equal_chunks or self.start is not None
 
 
 # === Key normalizations (applied universally by parse_key) ===
@@ -369,7 +379,7 @@ def lokr_shapes_match(sd_module, kron_shape, chunk: ChunkSpec | None) -> bool:
     kron_out, kron_in_flat = kron_shape
     if kron_in_flat != mod_in_flat:
         return False
-    if chunk is None:
+    if chunk is None or not chunk.is_slice:
         return kron_out == mod_shape[0]
     if chunk.is_equal_chunks:
         return kron_out == mod_shape[0] * chunk.total
@@ -504,20 +514,27 @@ def resolve_group_targets(resolve_targets, prefix_used, base):
 
 
 def slice_chunk_rows(t, chunk: ChunkSpec):
-    """Slice dim 0 of ``t`` per ``chunk``.
+    """Slice dim 0 of ``t`` per ``chunk``, then lay the selected rows out in the chunk's order.
 
     Equal-chunks form uses ``torch.chunk`` (faster for the symmetric case);
     row-range form uses tensor slicing for arbitrary partitions.
     """
     if chunk.is_equal_chunks:
-        return torch.chunk(t, chunk.total, dim=0)[chunk.idx].contiguous()
-    return t[chunk.start:chunk.end].contiguous()
+        t = torch.chunk(t, chunk.total, dim=0)[chunk.idx]
+    elif chunk.start is not None:
+        t = t[chunk.start:chunk.end]
+    if chunk.reorder is not None:
+        blocks = torch.chunk(t, len(chunk.reorder), dim=0)
+        t = torch.cat([blocks[i] for i in chunk.reorder], dim=0)
+    return t.contiguous()
 
 
 def _slice_lora_chunk(w, chunk: ChunkSpec):
-    """Return a shallow copy of ``w`` with ``lora_up.weight`` sliced per ``chunk``."""
+    """Return a shallow copy of ``w`` with ``lora_up.weight`` sliced per ``chunk``; a dense bias follows a pure reorder."""
     out = dict(w)
     out["lora_up.weight"] = slice_chunk_rows(w["lora_up.weight"], chunk)
+    if "bias" in w and not chunk.is_slice:
+        out["bias"] = slice_chunk_rows(w["bias"], chunk)
     return out
 
 
@@ -618,7 +635,7 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
 
             target_w = w
             if chunk is not None:
-                if "bias" in w or "bias_indices" in w:
+                if "bias_indices" in w or ("bias" in w and chunk.is_slice):
                     # Weight-shaped bias residuals (dense or LyCORIS sparse
                     # triplet) are not partitioned onto fused targets.
                     log.warning(f'Network load: type=LoRA name="{name}" arch={arch_name} key={network_key} weight-shaped bias on fused target skipped (unsupported)')
@@ -718,6 +735,10 @@ def try_load_lokr(name, network_on_disk, lora_scale, *,
                 continue
             target_w = w
             if chunk is not None:
+                if chunk.reorder is not None:
+                    log.warning(f'Network load: type=LoKR name="{name}" arch={arch_name} key={network_key} row reorder on fused target skipped (unsupported)')
+                    skipped += 1
+                    continue
                 if "bias" in w:
                     log.warning(f'Network load: type=LoKR name="{name}" arch={arch_name} key={network_key} weight-shaped bias on fused target skipped (unsupported)')
                     skipped += 1
@@ -781,7 +802,7 @@ def try_load_loha(name, network_on_disk, lora_scale, *,
         targets = resolve_group_targets(resolve_targets, prefix, base)
         is_fused = any(t[1] is not None for t in targets)
         if is_fused and is_tucker:
-            log.warning(f'Network load: type=LoHA name="{name}" arch={arch_name} key={base} Tucker fused QKV skipped (unsupported)')
+            log.warning(f'Network load: type=LoHA name="{name}" arch={arch_name} key={base} Tucker fused target skipped (unsupported)')
             skipped += 1
             continue
         arch_prefix = _resolve_prefix(network_prefix, prefix)
@@ -793,6 +814,10 @@ def try_load_loha(name, network_on_disk, lora_scale, *,
                 continue
             target_w = w
             if chunk is not None:
+                if chunk.reorder is not None:
+                    log.warning(f'Network load: type=LoHA name="{name}" arch={arch_name} key={network_key} row reorder on fused target skipped (unsupported)')
+                    skipped += 1
+                    continue
                 if "bias" in w:
                     log.warning(f'Network load: type=LoHA name="{name}" arch={arch_name} key={network_key} weight-shaped bias on fused target skipped (unsupported)')
                     skipped += 1
@@ -856,7 +881,7 @@ def try_load_oft(name, network_on_disk, lora_scale, *,
         is_boft = "oft_blocks" in w and w["oft_blocks"].ndim == 4
         targets = resolve_group_targets(resolve_targets, prefix, base)
         if any(t[1] is not None for t in targets):
-            log.warning(f'Network load: type={"BOFT" if is_boft else "OFT"} name="{name}" arch={arch_name} key={base} fused QKV skipped (unsupported)')
+            log.warning(f'Network load: type={"BOFT" if is_boft else "OFT"} name="{name}" arch={arch_name} key={base} fused target skipped (unsupported)')
             skipped += 1
             continue
         arch_prefix = _resolve_prefix(network_prefix, prefix)
@@ -915,7 +940,7 @@ def try_load_ia3(name, network_on_disk, lora_scale, *,
             continue
         targets = resolve_group_targets(resolve_targets, prefix, base)
         if any(t[1] is not None for t in targets):
-            log.warning(f'Network load: type=IA3 name="{name}" arch={arch_name} key={base} fused QKV skipped (unsupported)')
+            log.warning(f'Network load: type=IA3 name="{name}" arch={arch_name} key={base} fused target skipped (unsupported)')
             skipped += 1
             continue
         arch_prefix = _resolve_prefix(network_prefix, prefix)
@@ -967,7 +992,7 @@ def try_load_glora(name, network_on_disk, lora_scale, *,
             continue
         targets = resolve_group_targets(resolve_targets, prefix, base)
         if any(t[1] is not None for t in targets):
-            log.warning(f'Network load: type=GLoRA name="{name}" arch={arch_name} key={base} fused QKV skipped (unsupported)')
+            log.warning(f'Network load: type=GLoRA name="{name}" arch={arch_name} key={base} fused target skipped (unsupported)')
             skipped += 1
             continue
         arch_prefix = _resolve_prefix(network_prefix, prefix)
@@ -1085,7 +1110,7 @@ def try_load_full(name, network_on_disk, lora_scale, *,
             continue
         targets = resolve_group_targets(resolve_targets, prefix, base)
         if any(t[1] is not None for t in targets):
-            log.warning(f'Network load: type=Full name="{name}" arch={arch_name} key={base} fused QKV skipped (unsupported)')
+            log.warning(f'Network load: type=Full name="{name}" arch={arch_name} key={base} fused target skipped (unsupported)')
             skipped += 1
             continue
         arch_prefix = _resolve_prefix(network_prefix, prefix)
