@@ -99,6 +99,13 @@ def get_api_stats():
     limiter.stats()
 
 
+def init_limiter():
+    global limiter # pylint: disable=global-statement
+    from modules.shared import opts, cmd_opts
+    if opts.server_rate_limit != limiter.request_limit:
+        limiter = Limiter(opts.server_rate_limit, cmd_opts.subpath, cmd_opts.profile)
+
+
 def validate_request(client, endpoint):
     global limiter # pylint: disable=global-statement
     from modules.shared import opts, cmd_opts
@@ -113,6 +120,7 @@ def validate_request(client, endpoint):
         limiter.summary[key] = 0
     limiter.summary[key] += 1
     return limiter.check_request(client, api)
+
 
 def validate_log(client, endpoint):
     api = re.match(r"^[^?#&=]+", endpoint).group(0)

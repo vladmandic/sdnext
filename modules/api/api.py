@@ -178,6 +178,11 @@ class Api:
         from modules.api import upload
         upload.register_api()
 
+        # rate limiter
+        from modules.api.validate import init_limiter
+        init_limiter()
+
+
     def add_api_route(self, path: str, fn, auth: bool = True, **kwargs):
         if auth and self.credentials:
             deps = list(kwargs.get('dependencies', []))

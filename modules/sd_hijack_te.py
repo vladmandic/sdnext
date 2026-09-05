@@ -31,7 +31,10 @@ class PromptCache:
         else:
             cached = None
         if cached:
-            log.debug(f'Encode: prompt="{prompt}" cache={len(self.cache)} hit')
+            if isinstance(prompt, list):
+                log.debug(f'Encode: prompt={prompt} cache={len(self.cache)} hit')
+            else:
+                log.debug(f'Encode: prompt="{prompt}" cache={len(self.cache)} hit')
         return cached
 
     def set(self, prompt, encoded, negative_prompt=None, cfg_enabled=None):
@@ -66,7 +69,7 @@ def hijack_encode_prompt(*args, **kwargs):
         res = prompt
 
         if hasattr(shared.sd_model, 'before_prompt_encode'):
-            log.debug(f'Encode: prompt="{prompt}" op=before')
+            log.debug('Encode: op=before')
             res = shared.sd_model.before_prompt_encode(prompt)
             if patch_prompt:
                 args_copy[0] = res
@@ -78,7 +81,10 @@ def hijack_encode_prompt(*args, **kwargs):
         if cached is not None:
             res = cached
         else:
-            log.debug(f'Encode: prompt="{prompt}" hijack=True')
+            if isinstance(prompt, list):
+                log.debug(f'Encode: prompt={prompt} hijack=True')
+            else:
+                log.debug(f'Encode: prompt="{prompt}" hijack=True')
             with attention_context.role('te'):
                 if hasattr(shared.sd_model, 'orig_encode_prompt'):
                     res = shared.sd_model.orig_encode_prompt(*args_copy, **kwargs)
@@ -87,7 +93,7 @@ def hijack_encode_prompt(*args, **kwargs):
             prompt_cache.set(prompt, res, negative_prompt, cfg_enabled)
 
         if hasattr(shared.sd_model, 'after_prompt_encode'):
-            log.debug(f'Encode: prompt="{prompt}" op=after')
+            log.debug('Encode: op=after')
             res = shared.sd_model.after_prompt_encode(res)
 
     except Exception as e:
