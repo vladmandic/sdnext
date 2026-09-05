@@ -205,10 +205,10 @@ def build_cosmos_block():
     return block
 
 
-def build_mock_transformer():
+def build_mock_transformer(n_blocks=N_BLOCKS):
     """Mirror diffusers' Cosmos2TransformerModel top-level layout."""
     transformer = _Holder()
-    transformer.transformer_blocks = torch.nn.ModuleList([build_cosmos_block() for _ in range(N_BLOCKS)])
+    transformer.transformer_blocks = torch.nn.ModuleList([build_cosmos_block() for _ in range(n_blocks)])
 
     # Time embedding
     transformer.time_embed = _Holder()
@@ -338,13 +338,14 @@ class _MockAnimaSdModel:
         self.__class__.__name__ = 'AnimaTextToImagePipeline'
 
 
-def install_mock_pipe():
+def install_mock_pipe(n_blocks=N_BLOCKS):
     """Set shared.sd_model to a mock exposing an Anima-shaped 3-component pipeline.
 
     Each test re-installs so stamped ``network_layer_name`` attributes from
-    prior tests do not leak across runs.
+    prior tests do not leak across runs. ``n_blocks`` sizes the DiT, which the
+    depth-expansion block remap reads.
     """
-    transformer = build_mock_transformer()
+    transformer = build_mock_transformer(n_blocks)
     llm_adapter = build_mock_llm_adapter()
     text_encoder = build_mock_text_encoder()
     pipe = _MockAnimaPipeline(transformer, llm_adapter, text_encoder)
@@ -1343,6 +1344,107 @@ def test_dora_square_weight_1d_defaults_to_per_input():
 
 
 # ============================================================
+# Tests - depth-expanded checkpoint block remap
+# ============================================================
+
+CAT_REMAP = category('remap')
+
+BASE_DEPTH = 28
+EXPANDED_DEPTH = 40
+
+
+def sd_lora_kohya_block(index):
+    """Kohya transformer LoRA on self_attn.q_proj at an arbitrary block index."""
+    stem = f'lora_unet_blocks_{index}_self_attn_q_proj'
+    return {
+        f'{stem}.lora_down.weight': torch.randn(RANK, HIDDEN),
+        f'{stem}.lora_up.weight': torch.randn(HIDDEN, RANK),
+        f'{stem}.alpha': torch.tensor(float(RANK)),
+    }
+
+
+def _load_at_depth(try_fn, state_dict, n_blocks, name='test'):
+    install_mock_pipe(n_blocks)
+    with TempLora(state_dict, name=name) as nod:
+        return try_fn(name, nod, lora_scale=1.0)
+
+
+def test_expansion_map_matches_manifest():
+    """The 28->40 table skips the author's insertion positions in order."""
+    table = A.expansion_map(BASE_DEPTH, EXPANDED_DEPTH)
+    inserted = set(A.BLOCK_EXPANSIONS[(BASE_DEPTH, EXPANDED_DEPTH)])
+    assert len(table) == BASE_DEPTH
+    assert set(table.values()).isdisjoint(inserted), 'no base block may land on an inserted block'
+    assert (table[0], table[1], table[2], table[27]) == (0, 1, 3, 39)
+    assert list(table.values()) == sorted(table.values()), 'order must be preserved'
+    return True
+
+
+def test_expansion_map_covers_every_base_block_uniquely():
+    """All base indices land on distinct blocks inside the expanded depth."""
+    table = A.expansion_map(BASE_DEPTH, EXPANDED_DEPTH)
+    assert len(set(table.values())) == BASE_DEPTH
+    assert max(table.values()) < EXPANDED_DEPTH
+    return True
+
+
+def test_remap_binds_last_base_block_to_top_of_expanded():
+    """A 1.0 LoRA on block 27 binds to block 39 of a 40-block transformer."""
+    net = _load_at_depth(A.try_load_lora, sd_lora_kohya_block(27), EXPANDED_DEPTH)
+    assert net is not None and len(net.modules) == 1, f'got {net.modules if net else None}'
+    assert 'lora_transformer_transformer_blocks_39_attn1_to_q' in net.modules
+    return True
+
+
+def test_remap_leaves_blocks_before_first_insertion():
+    """Blocks 0 and 1 precede the first insertion, so they do not move."""
+    for i in (0, 1):
+        net = _load_at_depth(A.try_load_lora, sd_lora_kohya_block(i), EXPANDED_DEPTH)
+        assert f'lora_transformer_transformer_blocks_{i}_attn1_to_q' in net.modules
+    return True
+
+
+def test_no_remap_on_base_depth_model():
+    """A 28-block transformer matches no expansion entry, so indices pass through."""
+    net = _load_at_depth(A.try_load_lora, sd_lora_kohya_block(1), BASE_DEPTH)
+    assert 'lora_transformer_transformer_blocks_1_attn1_to_q' in net.modules
+    return True
+
+
+def test_no_remap_when_lora_is_native_to_expanded_depth():
+    """A LoRA reaching past the base depth was trained on the expanded model."""
+    sd = sd_lora_kohya_block(5)
+    sd.update(sd_lora_kohya_block(39))
+    net = _load_at_depth(A.try_load_lora, sd, EXPANDED_DEPTH)
+    assert 'lora_transformer_transformer_blocks_5_attn1_to_q' in net.modules
+    assert 'lora_transformer_transformer_blocks_39_attn1_to_q' in net.modules
+    return True
+
+
+def test_remap_leaves_adapter_and_te_indices_alone():
+    """llm_adapter blocks and text encoder layers carry unrelated numbering."""
+    install_mock_pipe(EXPANDED_DEPTH)
+    out = A.remap_blocks({
+        ('lora_unet_', 'blocks_27_self_attn_q_proj'): {},
+        ('diffusion_model.llm_adapter.', 'blocks.1.self_attn.q_proj'): {},
+        ('lora_te_', 'layers_1_self_attn_q_proj'): {},
+    })
+    assert ('lora_unet_', 'blocks_39_self_attn_q_proj') in out
+    assert ('diffusion_model.llm_adapter.', 'blocks.1.self_attn.q_proj') in out
+    assert ('lora_te_', 'layers_1_self_attn_q_proj') in out
+    return True
+
+
+def test_remap_handles_dotted_bfl_keys():
+    """BFL keys arrive dotted rather than underscore-flattened."""
+    install_mock_pipe(EXPANDED_DEPTH)
+    out = A.remap_blocks({('diffusion_model.', 'blocks.27.self_attn.q_proj'): {}})
+    assert ('diffusion_model.', 'blocks.39.self_attn.q_proj') in out
+    return True
+
+
+
+# ============================================================
 # Test runner
 # ============================================================
 
@@ -1416,6 +1518,19 @@ def run_tests():
         test_dora_square_weight_1d_defaults_to_per_input,
     ]:
         run_test(CAT_MATH, fn)
+
+    log.warning('=== depth-expanded block remap ===')
+    for fn in [
+        test_expansion_map_matches_manifest,
+        test_expansion_map_covers_every_base_block_uniquely,
+        test_remap_binds_last_base_block_to_top_of_expanded,
+        test_remap_leaves_blocks_before_first_insertion,
+        test_no_remap_on_base_depth_model,
+        test_no_remap_when_lora_is_native_to_expanded_depth,
+        test_remap_leaves_adapter_and_te_indices_alone,
+        test_remap_handles_dotted_bfl_keys,
+    ]:
+        run_test(CAT_REMAP, fn)
 
     elapsed = time.time() - t0
     log.warning('=== Results ===')
