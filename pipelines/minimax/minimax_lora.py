@@ -3,9 +3,16 @@
 MiniMax H3 is a modular video pipeline with a transformer and a text encoder.
 This loader routes transformer keys to ``lora_transformer_`` and text-encoder
 keys to ``lora_te_`` when native LoRAs are applied.
+
+Published LoRAs target the reference module names. The mapping onto
+``diffusers.MiniMaxH3Transformer3DModel`` follows the diffusers LoRA converter:
+fused ``attn.qkv_proj`` splits into ``to_q``/``to_k``/``to_v``, and ``mlp.fc1``
+lands on the fused SwiGLU projection with its two output halves swapped.
 """
 
 import re
+
+import torch
 
 from modules.lora import native_adapter
 
@@ -16,14 +23,8 @@ KNOWN_PREFIXES = (
     "diffusion_model.transformer.",
     "diffusion_model.blocks.",
     "diffusion_model.transformer_blocks.",
-    "diffusion_model.token_refiner.",
     "diffusion_model.token_refiner.refiner_blocks.",
-    "diffusion_model.final_layer.",
-    "diffusion_model.video_patch_proj.",
-    "diffusion_model.audio_patch_proj.",
-    "diffusion_model.condition_proj.",
-    "diffusion_model.time_embedder.proj_in.",
-    "diffusion_model.time_embedder.proj_out.",
+    "diffusion_model.token_refiner.",
     "diffusion_model.model.language_model.",
     "text_encoders.",
     "text_encoder.",
@@ -31,15 +32,26 @@ KNOWN_PREFIXES = (
     "transformer.",
     "transformer_blocks.",
     "blocks.",
-    "token_refiner.",
     "token_refiner.refiner_blocks.",
-    "final_layer.",
-    "video_patch_proj.",
-    "audio_patch_proj.",
-    "condition_proj.",
-    "time_embedder.proj_in.",
-    "time_embedder.proj_out.",
+    "token_refiner.",
 ) + native_adapter.KNOWN_PREFIXES_DEFAULT
+
+# Reference keys outside the block stacks carry no arch prefix in reference saves; the base is the whole module path.
+BARE_PREFIXES = ("video_patch_proj.", "audio_patch_proj.", "condition_proj.", "time_embedder.", "final_layer.")
+
+# Diffusers module names saved without a component prefix (peft dumps, kohya-suffixed exports) bind verbatim.
+BARE_DIFFUSERS_PREFIXES = ("transformer_blocks.", "token_refiner.refiner_blocks.", "proj_in.", "audio_proj_in.", "context_embedder.", "time_embedder.linear_", "norm_out.", "proj_out.", "audio_proj_out.")
+
+STANDALONE_RENAMES = {
+    "video_patch_proj": "proj_in",
+    "audio_patch_proj": "audio_proj_in",
+    "condition_proj": "context_embedder",
+    "time_embedder.proj_in": "time_embedder.linear_1",
+    "time_embedder.proj_out": "time_embedder.linear_2",
+    "final_layer.adaln_proj.linear": "norm_out.linear",
+    "final_layer.video_out": "proj_out",
+    "final_layer.audio_out": "audio_proj_out",
+}
 
 
 # Re-export for tests / compatibility
@@ -80,26 +92,31 @@ def normalize_mini_max_suffix(suffix: str) -> str:
     return MINIMAX_SUFFIX_NORMALIZE.get(suffix, suffix)
 
 
+# musubi-tuner flattens every "." to "_" under a lora_unet_ prefix; the reference module names carry
+# underscores of their own, so the dotted path is recovered by matching the whole flattened name.
+_FLATTENED_MODULES = [
+    (r"blocks_(\d+)_attn_(qkv|out)_proj", r"blocks.\1.attn.\2_proj"),
+    (r"blocks_(\d+)_mlp_fc([12])", r"blocks.\1.mlp.fc\2"),
+    (r"blocks_(\d+)_adaln_proj_linear", r"blocks.\1.adaln_proj.linear"),
+    (r"token_refiner_blocks_(\d+)_attn_(qkv|out)_proj", r"token_refiner.blocks.\1.attn.\2_proj"),
+    (r"token_refiner_blocks_(\d+)_mlp_fc([12])", r"token_refiner.blocks.\1.mlp.fc\2"),
+    (r"(video|audio)_patch_proj", r"\1_patch_proj"),
+    (r"condition_proj", "condition_proj"),
+    (r"time_embedder_proj_(in|out)", r"time_embedder.proj_\1"),
+    (r"final_layer_adaln_proj_linear", "final_layer.adaln_proj.linear"),
+    (r"final_layer_(video|audio)_out", r"final_layer.\1_out"),
+]
+
+
 def _unflatten_lora_unet_key(key: str) -> str | None:
     if not key.startswith("lora_unet_"):
         return None
     module_key, _, suffix = key[len("lora_unet_"):].partition(".")
     if not suffix:
         return None
-
-    patterns = [
-        (r"blocks_(\d+)_attn_out_proj", r"blocks.\1.attn.out_proj"),
-        (r"blocks_(\d+)_attn_qkv_proj", r"blocks.\1.attn.qkv_proj"),
-        (r"blocks_(\d+)_mlp_fc1", r"blocks.\1.mlp.fc1"),
-        (r"blocks_(\d+)_mlp_fc2", r"blocks.\1.mlp.fc2"),        (r"token_refiner_blocks_(\d+)_attn_out_proj", r"token_refiner.blocks.\1.attn.out_proj"),
-        (r"token_refiner_blocks_(\d+)_attn_qkv_proj", r"token_refiner.blocks.\1.attn.qkv_proj"),
-        (r"token_refiner_blocks_(\d+)_mlp_fc1", r"token_refiner.blocks.\1.mlp.fc1"),
-        (r"token_refiner_blocks_(\d+)_mlp_fc2", r"token_refiner.blocks.\1.mlp.fc2"),    ]
-
-    for pattern, replacement in patterns:
+    for pattern, replacement in _FLATTENED_MODULES:
         if re.fullmatch(pattern, module_key):
             return f"{re.sub(pattern, replacement, module_key)}.{suffix}"
-
     return None
 
 
@@ -108,11 +125,26 @@ def parse_key(key, suffixes):
     unflattened = _unflatten_lora_unet_key(key)
     if unflattened is not None:
         key = unflattened
-    parsed = native_adapter.parse_key(key, suffixes, prefixes=KNOWN_PREFIXES)
+    key = native_adapter.unwrap_peft_wrapper(key)
+    if key.startswith("dit."):
+        key = "diffusion_model." + key[len("dit."):]
+    parsed = native_adapter.parse_key(key, suffixes, prefixes=KNOWN_PREFIXES, bare_prefixes=BARE_PREFIXES, bare_diffusers_prefixes=BARE_DIFFUSERS_PREFIXES)
     if parsed is None:
         return None
     prefix_used, base, suffix = parsed
     return prefix_used, base, normalize_mini_max_suffix(suffix)
+
+
+def swap_swiglu_halves(slot):
+    """Reorder fc1 output rows from the reference ``[gate; value]`` to the diffusers SwiGLU ``[value; gate]``."""
+    up = slot.get("lora_up.weight")
+    if up is None:
+        return
+    for key in ("lora_up.weight", "bias", "diff_b", "dora_scale"):
+        t = slot.get(key)
+        if t is not None and t.ndim >= 1 and t.shape[0] == up.shape[0]:
+            gate, value = t.chunk(2, dim=0)
+            slot[key] = torch.cat([value, gate], dim=0)
 
 
 def group_by_suffixes(state_dict, suffixes, *, prefixes=None, bare_prefixes=(), bare_diffusers_prefixes=()): # pylint: disable=unused-argument
@@ -128,6 +160,9 @@ def group_by_suffixes(state_dict, suffixes, *, prefixes=None, bare_prefixes=(), 
             slot = {}
             groups[(prefix_used, base)] = slot
         slot[suffix] = value
+    for (_prefix_used, base), slot in groups.items():
+        if base.endswith(".mlp.fc1"):
+            swap_swiglu_halves(slot)
     return groups
 
 
@@ -158,14 +193,14 @@ def _transformer_block_targets(target_prefix, base):
 
 def resolve_targets(prefix_used, base):
     """Return ``[(diffusers_path, ChunkSpec | None), ...]`` for MiniMax keys."""
-    if prefix_used == "diffusion_model.":
+    if prefix_used == "diffusion_model." or prefix_used is None:
         if base.startswith("transformer."):
             return [(base[len("transformer."):], None)]
         if base.startswith("text_encoder."):
             return [(base[len("text_encoder."):], None)]
         if base.startswith("text_encoders."):
             return [(base[len("text_encoders."):], None)]
-        return [(base, None)]
+        return [(STANDALONE_RENAMES.get(base, base), None)]
     if prefix_used in ("diffusion_model.transformer.", "transformer.", "lora_transformer_"):
         return [(base, None)]
     if prefix_used in ("diffusion_model.transformer_blocks.", "transformer_blocks."):
@@ -178,20 +213,6 @@ def resolve_targets(prefix_used, base):
         if base.startswith("blocks."):
             return _transformer_block_targets("token_refiner.refiner_blocks", base[len("blocks."):])
         return [(f"token_refiner.refiner_{base}", None)]
-    if prefix_used in ("diffusion_model.final_layer.", "final_layer."):
-        if base == "adaln_proj.linear":
-            return [("norm_out.linear", None)]
-        return [(base, None)]
-    if prefix_used in ("diffusion_model.video_patch_proj.", "video_patch_proj."):
-        return [("proj_in." + base.split(".", 1)[1], None)] if "." in base else [("proj_in", None)]
-    if prefix_used in ("diffusion_model.audio_patch_proj.", "audio_patch_proj."):
-        return [("audio_proj_in." + base.split(".", 1)[1], None)] if "." in base else [("audio_proj_in", None)]
-    if prefix_used in ("diffusion_model.condition_proj.", "condition_proj."):
-        return [("context_embedder." + base.split(".", 1)[1], None)] if "." in base else [("context_embedder", None)]
-    if prefix_used in ("diffusion_model.time_embedder.proj_in.", "time_embedder.proj_in."):
-        return [("time_embedder.linear_1." + base.split(".", 1)[1], None)] if "." in base else [("time_embedder.linear_1", None)]
-    if prefix_used in ("diffusion_model.time_embedder.proj_out.", "time_embedder.proj_out."):
-        return [("time_embedder.linear_2." + base.split(".", 1)[1], None)] if "." in base else [("time_embedder.linear_2", None)]
     if prefix_used in (
             "diffusion_model.text_encoder.",
             "diffusion_model.text_encoders.",
@@ -219,9 +240,22 @@ def network_prefix_for(prefix_used):
     return "lora_transformer_"
 
 
+def file_alpha(network_on_disk):
+    """The training alpha some trainers record in the safetensors metadata instead of per-key tensors, or None."""
+    alpha = (getattr(network_on_disk, "metadata", None) or {}).get("alpha")
+    if alpha is None:
+        return None
+    try:
+        return float(alpha)
+    except (TypeError, ValueError):
+        return None
+
+
 _BIND_KWARGS = dict(
     resolve_targets=resolve_targets,
     prefixes=KNOWN_PREFIXES,
+    bare_prefixes=BARE_PREFIXES,
+    bare_diffusers_prefixes=BARE_DIFFUSERS_PREFIXES,
     network_prefix=network_prefix_for,
     group_by_suffixes_fn=group_by_suffixes,
     arch_name="minimaxh3",
@@ -229,7 +263,7 @@ _BIND_KWARGS = dict(
 
 
 def try_load_lora(name, network_on_disk, lora_scale):
-    return native_adapter.try_load_lora(name, network_on_disk, lora_scale, **_BIND_KWARGS)
+    return native_adapter.try_load_lora(name, network_on_disk, lora_scale, network_alpha=file_alpha(network_on_disk), **_BIND_KWARGS)
 
 
 def try_load_lokr(name, network_on_disk, lora_scale):

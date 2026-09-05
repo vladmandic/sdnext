@@ -563,11 +563,15 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
                   bare_prefixes=(), bare_diffusers_prefixes=(),
                   network_prefix=NETWORK_PREFIX_DEFAULT,
                   group_by_suffixes_fn=group_by_suffixes,
+                  network_alpha=None,
                   arch_name="generic"):
     """Generic LoRA loader (handles DoRA via the universal ``finalize_updown`` hook).
 
     Fused targets are chunked at load time by slicing ``lora_up`` along dim 0;
     the down-side is shared across the resolved targets.
+
+    ``network_alpha`` is a file-level alpha for files without alpha tensors;
+    a file carrying any alpha of its own keeps those and ignores it.
     """
     t0 = time.time()
     state_dict = read_state_dict(network_on_disk.filename, what="network")
@@ -582,6 +586,8 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
         bare_prefixes=bare_prefixes,
         bare_diffusers_prefixes=bare_diffusers_prefixes,
     )
+    if network_alpha is not None and any("alpha" in w for w in groups.values()):
+        network_alpha = None
 
     unmapped = 0
     mismatch = 0
@@ -589,6 +595,9 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
     for (prefix, base), w in groups.items():
         if "lora_down.weight" not in w or "lora_up.weight" not in w:
             continue
+        if network_alpha is not None:
+            w = dict(w)
+            w["alpha"] = torch.tensor(float(network_alpha))
         # DoRA magnitude vectors: ai-toolkit saves `magnitude`, PEFT/diffusers
         # `lora_magnitude_vector`. Both are 1-D per-output row norms with
         # dora_scale semantics; reshape to (out, 1) so the apply-time
