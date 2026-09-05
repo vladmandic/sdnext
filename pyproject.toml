@@ -136,6 +136,7 @@ main.ignore-paths=[
     "pipelines/flex2",
     "pipelines/hdm",
     "pipelines/hidream",
+    "pipelines/llada",
     "pipelines/lumina_dimmo",
     "pipelines/mageflow",
     "pipelines/meissonic",
