@@ -640,6 +640,22 @@ def check_onnx():
     ts('onnx', t_start)
 
 
+# check numpy version
+def check_numpy():
+    t_start = time.time()
+    if args.skip_all or args.skip_requirements:
+        return
+    torch_ver = package_version('torch')
+    torch_minor = int(torch_ver.split('.')[1]) if torch_ver else 99
+    if torch_minor < 11:
+        if not installed('numpy==2.1.2', quiet=True):
+            install('numpy==2.1.2', 'numpy==2.1.2', ignore=True)
+    else:
+        if not installed('numpy==2.4.6', quiet=True):
+            install('numpy==2.4.6', 'numpy==2.4.6', ignore=True)
+    ts('numpy', t_start)
+
+
 def install_cuda():
     t_start = time.time()
     log.info('CUDA: nVidia toolkit detected')

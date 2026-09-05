@@ -263,7 +263,7 @@ def run_rembg(input_image: Image.Image, input_mask: np.ndarray):
     if "U2NET_HOME" not in os.environ:
         os.environ["U2NET_HOME"] = os.path.join(paths.models_path, "Rembg")
     if opts.model == 'ben2':
-        from modules import ben2
+        from modules.rembg import ben2
         args = {
             'image': input_image,
             'refine': True,

@@ -3,7 +3,7 @@ from fastapi import Body
 
 def dependencies():
     from installer import install
-    for pkg in ["dctorch==0.1.2", "pymatting", "pooch", "rembg", "numba"]:
+    for pkg in ["dctorch==0.1.2", "pymatting", "pooch", "rembg", "numba", "kornia", "kornia-rs"]:
         install(pkg, no_deps=True, ignore=False)
 
 
@@ -25,6 +25,7 @@ async def post_rembg(
     if input_image is None:
         return {}
 
+    dependencies()
     if model == "ben2":
         from modules.rembg import ben2
         image = ben2.remove(input_image, refine=refine)
@@ -32,7 +33,6 @@ async def post_rembg(
         from modules.rembg import lucida
         image = lucida.remove(input_image)
     else:
-        dependencies()
         import rembg
         image = rembg.remove( # pylint: disable=c-extension-no-member
             input_image,

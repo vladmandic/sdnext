@@ -262,6 +262,7 @@ def main():
         installer.install('uv', 'uv')
     installer.install_gradio()
     installer.check_torch()
+    installer.check_numpy()
     installer.check_onnx()
     installer.check_transformers()
     installer.check_diffusers()
