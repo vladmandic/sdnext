@@ -119,13 +119,13 @@ def run_test(cat: str, fn):
         traceback.print_exc()
 
 
-def build_layer(weights_dtype='uint4', use_quantized_matmul=False, seed=0, use_hadamard=True, use_svd=False):
+def build_layer(weights_dtype='uint4', use_quantized_matmul=False, seed=0, use_hadamard=True, use_svd=False, use_codebook=False):
     torch.manual_seed(seed)
     lin = torch.nn.Linear(IN_F, OUT_F, bias=False, dtype=torch.bfloat16, device=DEVICE)
     with torch.no_grad():
         lin.weight.copy_(torch.randn(OUT_F, IN_F, device=DEVICE) * 0.04)
     cfg = SDNQConfig(weights_dtype=weights_dtype, group_size=0, hadamard_group_size=256, use_hadamard=use_hadamard,
-                     use_svd=use_svd, svd_rank=32, use_quantized_matmul=use_quantized_matmul, dequantize_fp32=False,
+                     use_svd=use_svd, svd_rank=32, use_quantized_matmul=use_quantized_matmul, dequantize_fp32=False, use_codebook=use_codebook,
                      quantization_device=str(DEVICE), return_device=str(DEVICE))
     layer, _ = sdnq_quantize_layer(lin, cfg, torch_dtype=torch.bfloat16, param_name='test.weight')
     layer.network_layer_name = 'lora_transformer_test'
@@ -953,6 +953,29 @@ def test_route_rule_terms_gate_both_ways():
             activate(net)
             assert not hasattr(layer, 'sdnq_lora_svd_stash'), 'both terms crossed must requantize'
             activate()
+    return True
+
+
+def test_route_codebook_layer_uses_level_gap():
+    layer = build_layer('uint4', use_codebook=True)
+    scale = layer.scale.detach().float()
+    assert layer.sdnq_dequantizer.use_codebook and scale.shape[-1] == 16, f'the fixture must keep its lloyd levels in the scale slot, got {tuple(scale.shape)}'
+    step = lora_sdnq.grid_step(layer)
+    gap = float(scale.diff(dim=-1).mean())
+    assert step > 0 and abs(step - gap) <= 1e-6 * gap, f'a codebook layer routes on the mean adjacent-level gap: step={step:.3e} gap={gap:.3e}'
+    affine = lora_sdnq.grid_step(build_layer('uint4'))
+    assert 0.5 < step / affine < 2.0, f'codebook and affine steps on the same weights must agree in magnitude: cb={step:.3e} affine={affine:.3e}'
+    torch.manual_seed(31)
+    D = torch.randn(OUT_F, IN_F, device=DEVICE) * 3e-3 # dense and below the true step: hosted on the affine fixture, while the level mean misreads it as fat and requantizes it away
+    net = make_dense_net('cbmid', layer, D)
+    with host_rank(256), mock_model(lin=layer):
+        Wdq0 = dq(layer)
+        activate(net)
+        assert hasattr(layer, 'sdnq_lora_svd_stash'), 'a sub-step dense delta must stay hosted on a codebook layer'
+        rho = rho_of(dq(layer) - Wdq0, D)
+        assert rho > 0.7, f'hosting must retain the sub-step delta the grid would erase: rho={rho:.3f}'
+        activate()
+        assert torch.equal(dq(layer), Wdq0), 'removing the hosted set must restore the codebook layer bit-exactly'
     return True
 
 
@@ -2989,7 +3012,7 @@ def run_tests():
     for fn in [test_hosted_low_rank_delta_is_kept, test_hosted_dense_delta_beats_requant, test_hosted_skips_int8,
                test_hosted_disabled_by_option, test_hosted_transitions_and_rng_isolation,
                test_route_fat_dense_delta_requantizes, test_declined_host_delta_is_not_recomputed, test_pass_presents_one_wanted_names_tuple,
-               test_route_rule_terms_gate_both_ways, test_route_low_rank_fat_delta_stays_hosted,
+               test_route_rule_terms_gate_both_ways, test_route_codebook_layer_uses_level_gap, test_route_low_rank_fat_delta_stays_hosted,
                test_route_mixed_set_keeps_hosting, test_route_svd_checkpoint_keeps_hosting, test_route_dense_stack_keeps_hosting,
                test_route_replay_from_cache, test_hosted_null_tail_collapses_to_effective_rank, test_hosted_flat_spectrum_keeps_cap]:
         run_test(CAT_HOST, fn)

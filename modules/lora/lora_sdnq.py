@@ -290,6 +290,14 @@ def host_candidate(self, network_layer_name, wanted_names):
     return True
 
 
+def grid_step(self):
+    """Mean grid step in weight units; a codebook layer keeps its Lloyd levels in the scale slot, so its step is their mean adjacent gap."""
+    scale = self.scale.detach().float()
+    if self.sdnq_dequantizer.use_codebook:
+        return float(scale.diff(dim=-1).mean())
+    return float(scale.mean())
+
+
 def apply_cached(self, network_layer_name, wanted_names):
     """Attach a hosted set straight from the factor cache, before the delta exists.
 
@@ -322,7 +330,7 @@ def apply_cached(self, network_layer_name, wanted_names):
             if factors is not None:
                 members.append(factors)
     if not stack_dense and len(members) == 0 and self.svd_up is None:
-        step = float(self.scale.detach().float().mean())
+        step = grid_step(self)
         if step > 0 and rms / step > REQUANT_RATIO and energy < REQUANT_ENERGY:
             return None # routed to the grid: the caller assembles the delta and requantizes
     ups, downs = [], []
@@ -382,7 +390,7 @@ def apply_hosted(self, network_layer_name, updown, wanted_names):
     delta_rms = float(updown.detach().float().square().mean().sqrt())
     maybe_requant = not stack_dense and len(members) == 0 and self.svd_up is None
     if maybe_requant:
-        step = float(self.scale.detach().float().mean())
+        step = grid_step(self)
         maybe_requant = step > 0 and delta_rms / step > REQUANT_RATIO
 
     lora_factor_cache.begin_pass(wanted_names)
