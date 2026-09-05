@@ -22,8 +22,8 @@ of a fused weight is described) and the per-arch ``resolve_targets`` callable
 each loader passes in (how a parsed ``(prefix, base)`` maps to one or more
 diffusers paths plus optional chunk descriptors).
 
-Per-arch loader modules import this module and pass their own ``prefixes``,
-``bare_prefixes`` and ``resolve_targets`` to the generic helpers.
+Per-arch loader modules import this module and pass their own ``prefixes``
+and ``resolve_targets`` to the generic helpers.
 """
 
 import os
@@ -54,11 +54,11 @@ from modules.lora import lora_common as l
 KNOWN_PREFIXES_DEFAULT = ("diffusion_model.", "transformer.", "lora_unet_", "lora_transformer_", "lycoris_")
 
 
-# Sentinel ``prefix_used`` value emitted by :func:`parse_key` for a bare path
-# that matched no arch prefix and no ``bare_prefixes`` member. A loader
-# ``resolve_targets`` may dispatch on this string to rewrite the base path;
-# when it declines, :func:`resolve_group_targets` binds the path verbatim, and
-# a path naming no live module counts as unmapped instead of vanishing.
+# Sentinel ``prefix_used`` value emitted by :func:`parse_key` for a bare path,
+# one that matched no arch prefix. A loader ``resolve_targets`` may dispatch on
+# this string to rewrite the base path; when it declines,
+# :func:`resolve_group_targets` binds the path verbatim, and a path naming no
+# live module counts as unmapped instead of vanishing.
 BARE_DIFFUSERS_PREFIX_USED = "bare_diffusers"
 
 
@@ -389,16 +389,15 @@ def lokr_shapes_match(sd_module, kron_shape, chunk: ChunkSpec | None) -> bool:
 # === Parsing primitives ===
 
 
-def parse_key(key, suffixes, *, prefixes=KNOWN_PREFIXES_DEFAULT, bare_prefixes=()):
+def parse_key(key, suffixes, *, prefixes=KNOWN_PREFIXES_DEFAULT):
     """Return ``(prefix_used, base, suffix_normalized)`` or ``None``.
 
-    ``prefix_used`` is the matched element of ``prefixes``, ``None`` for a key
-    that matched a member of ``bare_prefixes``, or ``BARE_DIFFUSERS_PREFIX_USED``
-    for any other bare key, which the loader offers to the resolver and counts
-    as unmapped when nothing binds. ``base`` is the path with prefix and suffix
-    removed. ``suffix_normalized`` is the suffix (without the leading dot) after
-    applying :data:`SUFFIX_NORMALIZE` (e.g. ``lora_A.weight`` becomes
-    ``lora_down.weight``).
+    ``prefix_used`` is the matched element of ``prefixes``, or
+    ``BARE_DIFFUSERS_PREFIX_USED`` for a bare key, which the loader offers to
+    the resolver and counts as unmapped when nothing binds. ``base`` is the
+    path with prefix and suffix removed. ``suffix_normalized`` is the suffix
+    (without the leading dot) after applying :data:`SUFFIX_NORMALIZE` (e.g.
+    ``lora_A.weight`` becomes ``lora_down.weight``).
 
     Always applies :func:`unwrap_peft_wrapper` and :func:`strip_peft_adapter_name`
     to the raw key before format detection so callers do not have to opt in.
@@ -412,7 +411,7 @@ def parse_key(key, suffixes, *, prefixes=KNOWN_PREFIXES_DEFAULT, bare_prefixes=(
             prefix_used = p
             stripped = key[len(p):]
             break
-    if prefix_used is None and not any(key.startswith(p) for p in bare_prefixes):
+    if prefix_used is None:
         prefix_used = BARE_DIFFUSERS_PREFIX_USED
 
     matched_suffix = None
@@ -433,7 +432,7 @@ def parse_key(key, suffixes, *, prefixes=KNOWN_PREFIXES_DEFAULT, bare_prefixes=(
     return prefix_used, base, suffix
 
 
-def group_by_suffixes(state_dict, suffixes, *, prefixes=KNOWN_PREFIXES_DEFAULT, bare_prefixes=()):
+def group_by_suffixes(state_dict, suffixes, *, prefixes=KNOWN_PREFIXES_DEFAULT):
     """Group state-dict entries by ``(prefix_used, base)``.
 
     Returns ``{(prefix_used, base): {suffix: tensor, ...}}`` where each suffix
@@ -443,7 +442,7 @@ def group_by_suffixes(state_dict, suffixes, *, prefixes=KNOWN_PREFIXES_DEFAULT, 
     """
     groups: dict[tuple, dict[str, torch.Tensor]] = {}
     for key, value in state_dict.items():
-        parsed = parse_key(key, suffixes, prefixes=prefixes, bare_prefixes=bare_prefixes)
+        parsed = parse_key(key, suffixes, prefixes=prefixes)
         if parsed is None:
             continue
         prefix_used, base, suffix = parsed
@@ -570,7 +569,6 @@ def slice_bias_delta(w, chunk: ChunkSpec, fused_out):
 
 def try_load_lora(name, network_on_disk, lora_scale, *,
                   resolve_targets, prefixes=KNOWN_PREFIXES_DEFAULT,
-                  bare_prefixes=(),
                   network_prefix=NETWORK_PREFIX_DEFAULT,
                   group_by_suffixes_fn=group_by_suffixes,
                   network_alpha=None,
@@ -593,7 +591,6 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
     groups = group_by_suffixes_fn(
         state_dict, LORA_SUFFIXES,
         prefixes=prefixes,
-        bare_prefixes=bare_prefixes,
     )
     if network_alpha is not None and any("alpha" in w for w in groups.values()):
         network_alpha = None
@@ -673,7 +670,6 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
 
 def try_load_lokr(name, network_on_disk, lora_scale, *,
                   resolve_targets, prefixes=KNOWN_PREFIXES_DEFAULT,
-                  bare_prefixes=(),
                   network_prefix=NETWORK_PREFIX_DEFAULT,
                   group_by_suffixes_fn=group_by_suffixes,
                   arch_name="generic"):
@@ -696,7 +692,6 @@ def try_load_lokr(name, network_on_disk, lora_scale, *,
     groups = group_by_suffixes_fn(
         state_dict, LOKR_SUFFIXES,
         prefixes=prefixes,
-        bare_prefixes=bare_prefixes,
     )
 
     unmapped = 0
@@ -758,7 +753,6 @@ def try_load_lokr(name, network_on_disk, lora_scale, *,
 
 def try_load_loha(name, network_on_disk, lora_scale, *,
                   resolve_targets, prefixes=KNOWN_PREFIXES_DEFAULT,
-                  bare_prefixes=(),
                   network_prefix=NETWORK_PREFIX_DEFAULT,
                   group_by_suffixes_fn=group_by_suffixes,
                   arch_name="generic"):
@@ -780,7 +774,6 @@ def try_load_loha(name, network_on_disk, lora_scale, *,
     groups = group_by_suffixes_fn(
         state_dict, LOHA_SUFFIXES,
         prefixes=prefixes,
-        bare_prefixes=bare_prefixes,
     )
 
     unmapped = 0
@@ -831,7 +824,6 @@ def try_load_loha(name, network_on_disk, lora_scale, *,
 
 def try_load_oft(name, network_on_disk, lora_scale, *,
                  resolve_targets, prefixes=KNOWN_PREFIXES_DEFAULT,
-                 bare_prefixes=(),
                  network_prefix=NETWORK_PREFIX_DEFAULT,
                  group_by_suffixes_fn=group_by_suffixes,
                  arch_name="generic"):
@@ -859,7 +851,6 @@ def try_load_oft(name, network_on_disk, lora_scale, *,
     groups = group_by_suffixes_fn(
         state_dict, OFT_SUFFIXES,
         prefixes=prefixes,
-        bare_prefixes=bare_prefixes,
     )
 
     unmapped = 0
@@ -891,7 +882,6 @@ def try_load_oft(name, network_on_disk, lora_scale, *,
 
 def try_load_ia3(name, network_on_disk, lora_scale, *,
                  resolve_targets, prefixes=KNOWN_PREFIXES_DEFAULT,
-                 bare_prefixes=(),
                  network_prefix=NETWORK_PREFIX_DEFAULT,
                  group_by_suffixes_fn=group_by_suffixes,
                  arch_name="generic"):
@@ -918,7 +908,6 @@ def try_load_ia3(name, network_on_disk, lora_scale, *,
     groups = group_by_suffixes_fn(
         state_dict, IA3_SUFFIXES,
         prefixes=prefixes,
-        bare_prefixes=bare_prefixes,
     )
 
     unmapped = 0
@@ -946,7 +935,6 @@ def try_load_ia3(name, network_on_disk, lora_scale, *,
 
 def try_load_glora(name, network_on_disk, lora_scale, *,
                    resolve_targets, prefixes=KNOWN_PREFIXES_DEFAULT,
-                   bare_prefixes=(),
                    network_prefix=NETWORK_PREFIX_DEFAULT,
                    group_by_suffixes_fn=group_by_suffixes,
                    arch_name="generic"):
@@ -969,7 +957,6 @@ def try_load_glora(name, network_on_disk, lora_scale, *,
     groups = group_by_suffixes_fn(
         state_dict, GLORA_SUFFIXES,
         prefixes=prefixes,
-        bare_prefixes=bare_prefixes,
     )
 
     unmapped = 0
@@ -997,7 +984,6 @@ def try_load_glora(name, network_on_disk, lora_scale, *,
 
 def try_load_norm(name, network_on_disk, lora_scale, *,
                   resolve_targets, prefixes=KNOWN_PREFIXES_DEFAULT,
-                  bare_prefixes=(),
                   network_prefix=NETWORK_PREFIX_DEFAULT,
                   group_by_suffixes_fn=group_by_suffixes,
                   arch_name="generic"): # pylint: disable=unused-argument
@@ -1023,7 +1009,6 @@ def try_load_norm(name, network_on_disk, lora_scale, *,
     groups = group_by_suffixes_fn(
         state_dict, NORM_SUFFIXES,
         prefixes=prefixes,
-        bare_prefixes=bare_prefixes,
     )
 
     unmapped = 0
@@ -1062,7 +1047,6 @@ def try_load_norm(name, network_on_disk, lora_scale, *,
 
 def try_load_full(name, network_on_disk, lora_scale, *,
                   resolve_targets, prefixes=KNOWN_PREFIXES_DEFAULT,
-                  bare_prefixes=(),
                   network_prefix=NETWORK_PREFIX_DEFAULT,
                   group_by_suffixes_fn=group_by_suffixes,
                   arch_name="generic"):
@@ -1084,7 +1068,6 @@ def try_load_full(name, network_on_disk, lora_scale, *,
     groups = group_by_suffixes_fn(
         state_dict, FULL_SUFFIXES,
         prefixes=prefixes,
-        bare_prefixes=bare_prefixes,
     )
 
     unmapped = 0

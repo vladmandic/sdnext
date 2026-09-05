@@ -159,7 +159,6 @@ def parse_key(key, suffixes):
     return native_adapter.parse_key(
         key, suffixes,
         prefixes=KNOWN_PREFIXES,
-        bare_prefixes=BARE_FLUX_PREFIXES,
     )
 
 
@@ -168,7 +167,6 @@ def group_by_suffixes(state_dict, suffixes):
     return native_adapter.group_by_suffixes(
         state_dict, suffixes,
         prefixes=KNOWN_PREFIXES,
-        bare_prefixes=BARE_FLUX_PREFIXES,
     )
 
 
@@ -179,15 +177,16 @@ def resolve_targets(prefix_used, base):
     """Return ``[(diffusers_path, ChunkSpec | None), ...]`` for a parsed group key.
 
     For ``lora_unet_`` prefix, applies ``KOHYA_SUFFIX_MAP`` then ``F2_*_MAP``.
-    For BFL / bare-BFL, applies ``F2_*_MAP`` directly. Unrecognized prefixes
-    return an empty list.
+    For BFL and bare keys, applies ``F2_*_MAP`` directly; a bare path the maps
+    do not know binds verbatim upstream. Unrecognized prefixes return an empty
+    list.
 
     Universal passthrough prefixes (including ``lycoris_``) are handled
     upstream by :func:`native_adapter.resolve_group_targets`.
     """
     if prefix_used == "lora_unet_":
         return _kohya_to_diffusers_targets(base)
-    if prefix_used in (None, "diffusion_model."):
+    if prefix_used in (BARE_DIFFUSERS_PREFIX_USED, "diffusion_model."):
         return _bfl_to_diffusers_targets(base)
     return []
 
@@ -252,7 +251,6 @@ def _bfl_to_diffusers_targets(base):
 _BIND_KWARGS = dict(
     resolve_targets=resolve_targets,
     prefixes=KNOWN_PREFIXES,
-    bare_prefixes=BARE_FLUX_PREFIXES,
     arch_name="f2",
 )
 

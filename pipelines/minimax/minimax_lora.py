@@ -34,9 +34,6 @@ KNOWN_PREFIXES = (
     "token_refiner.",
 ) + native_adapter.KNOWN_PREFIXES_DEFAULT
 
-# Reference keys outside the block stacks carry no arch prefix in reference saves; the base is the whole module path.
-BARE_PREFIXES = ("video_patch_proj.", "audio_patch_proj.", "condition_proj.", "time_embedder.", "final_layer.")
-
 
 STANDALONE_RENAMES = {
     "video_patch_proj": "proj_in",
@@ -135,14 +132,14 @@ def parse_key(key, suffixes):
     key = native_adapter.unwrap_peft_wrapper(key)
     if key.startswith("dit."):
         key = "diffusion_model." + key[len("dit."):]
-    parsed = native_adapter.parse_key(key, suffixes, prefixes=KNOWN_PREFIXES, bare_prefixes=BARE_PREFIXES)
+    parsed = native_adapter.parse_key(key, suffixes, prefixes=KNOWN_PREFIXES)
     if parsed is None:
         return None
     prefix_used, base, suffix = parsed
     return prefix_used, base, normalize_mini_max_suffix(suffix)
 
 
-def group_by_suffixes(state_dict, suffixes, *, prefixes=None, bare_prefixes=()): # pylint: disable=unused-argument
+def group_by_suffixes(state_dict, suffixes, *, prefixes=None): # pylint: disable=unused-argument
     """MiniMax-bound :func:`native_adapter.group_by_suffixes`."""
     groups: dict[tuple, dict[str, object]] = {}
     for key, value in state_dict.items():
@@ -169,7 +166,7 @@ def _block_targets(target_stack, base):
 
 def resolve_targets(prefix_used, base):
     """Return ``[(diffusers_path, ChunkSpec | None), ...]`` for MiniMax keys."""
-    if prefix_used == "diffusion_model." or prefix_used is None:
+    if prefix_used in ("diffusion_model.", BARE_DIFFUSERS_PREFIX_USED):
         if base.startswith("transformer."):
             return [(base[len("transformer."):], None)]
         if base.startswith("text_encoder."):
@@ -230,7 +227,6 @@ def file_alpha(network_on_disk):
 _BIND_KWARGS = dict(
     resolve_targets=resolve_targets,
     prefixes=KNOWN_PREFIXES,
-    bare_prefixes=BARE_PREFIXES,
     network_prefix=network_prefix_for,
     group_by_suffixes_fn=group_by_suffixes,
     arch_name="minimaxh3",

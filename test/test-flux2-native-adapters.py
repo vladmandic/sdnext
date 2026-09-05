@@ -670,7 +670,7 @@ def test_parse_key_all_prefixes():
          ('transformer.', 'transformer_blocks.0.attn.to_q', 'lora_up.weight')),
         ('double_blocks.10.img_mlp.0.lora_A.weight',
          F.LORA_SUFFIXES,
-         (None, 'double_blocks.10.img_mlp.0', 'lora_down.weight')),
+         (F.BARE_DIFFUSERS_PREFIX_USED, 'double_blocks.10.img_mlp.0', 'lora_down.weight')),
         ('random.unrelated.key', F.LORA_SUFFIXES, None),
     ]
     for key, suffixes, expected in cases:
@@ -712,13 +712,13 @@ def test_resolve_targets_extra_modules():
     for bfl_base, diffusers_path in F.F2_EXTRA_MAP.items():
         targets = F.resolve_targets('diffusion_model.', bfl_base)
         assert targets == [(diffusers_path, None)], f'{bfl_base} -> {targets}'
-        targets = F.resolve_targets(None, bfl_base)
+        targets = F.resolve_targets(F.BARE_DIFFUSERS_PREFIX_USED, bfl_base)
         assert targets == [(diffusers_path, None)], f'bare {bfl_base} -> {targets}'
         targets = F.resolve_targets('lora_unet_', bfl_base.replace('.', '_'))
         assert targets == [(diffusers_path, None)], f'kohya {bfl_base} -> {targets}'
-    # guidance_in is a bare BFL prefix in its own right.
+    # guidance_in is a bare BFL path.
     got = F.parse_key('guidance_in.in_layer.lora_A.weight', F.LORA_SUFFIXES)
-    assert got == (None, 'guidance_in.in_layer', 'lora_down.weight'), f'bare guidance_in parse -> {got}'
+    assert got == (F.BARE_DIFFUSERS_PREFIX_USED, 'guidance_in.in_layer', 'lora_down.weight'), f'bare guidance_in parse -> {got}'
     return True
 
 
@@ -734,7 +734,7 @@ def test_parse_key_peft_wrapper_unwrap():
     cases = [
         ('base_model.model.double_blocks.1.img_attn.proj.lora_A.weight',
          F.LORA_SUFFIXES,
-         (None, 'double_blocks.1.img_attn.proj', 'lora_down.weight')),
+         (F.BARE_DIFFUSERS_PREFIX_USED, 'double_blocks.1.img_attn.proj', 'lora_down.weight')),
         ('base_model.model.transformer.transformer_blocks.0.attn.to_q.lora_A.weight',
          F.LORA_SUFFIXES,
          ('transformer.', 'transformer_blocks.0.attn.to_q', 'lora_down.weight')),
