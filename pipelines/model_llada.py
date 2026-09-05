@@ -69,7 +69,6 @@ def load_llada_image(checkpoint_info, diffusers_load_config=None):
     )
     pipe.task_args = {
         'output_type': 'np',
-        'generation_mode': 'text',
     }
     # generation_mode = "text", "vq", "editing"
 

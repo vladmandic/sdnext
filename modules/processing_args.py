@@ -110,6 +110,11 @@ def task_specific_kwargs(p, model):
                 'height': p.height,
                 'input_images': [p.init_images], # omnigen expects list-of-lists
             }
+        elif model_cls == 'LLaDAImagePipeline':
+            task_args = {
+                'generation_mode': 'editing',
+                'image': p.init_images[0],
+            }
     elif task_type == sd_models.DiffusersTaskType.INSTRUCT and len(getattr(p, 'init_images', [])) > 0:
         p.ops.append('instruct')
         task_args = {

@@ -1705,7 +1705,10 @@ class LLaDAImageSigVQEmbeddings(nn.Module):
         hidden_size = position_embedding.shape[1]
         original_size = int(position_embedding.shape[0] ** 0.5)
         position_embedding = position_embedding.reshape(original_size, original_size, hidden_size)
-        position_embedding = position_embedding.permute(2, 0, 1).unsqueeze(0).float()
+        position_embedding = position_embedding.permute(2, 0, 1).unsqueeze(0).to(
+            device=hidden_states.device,
+            dtype=torch.float32,
+        )
 
         height_coordinates = torch.arange(grid_height, device=hidden_states.device, dtype=torch.float32)
         width_coordinates = torch.arange(grid_width, device=hidden_states.device, dtype=torch.float32)
@@ -1738,7 +1741,10 @@ class LLaDAImageSigVQQuantizer(nn.Module):
     def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
         hidden_states = hidden_states.permute(0, 2, 3, 1).contiguous()
         hidden_states = F.normalize(hidden_states.reshape(-1, hidden_states.shape[-1]), p=2, dim=-1)
-        embedding = F.normalize(self.embedding.weight, p=2, dim=-1)
+        embedding = F.normalize(self.embedding.weight, p=2, dim=-1).to(
+            device=hidden_states.device,
+            dtype=hidden_states.dtype,
+        )
         distances = (
             torch.sum(hidden_states**2, dim=1, keepdim=True)
             + torch.sum(embedding**2, dim=1)
