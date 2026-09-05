@@ -49,6 +49,20 @@ STANDALONE_RENAMES = {
     "final_layer.audio_out": "audio_proj_out",
 }
 
+# Reference block leaves and where each lands in a diffusers block; a leaf not listed here binds verbatim.
+BLOCK_LEAF_TARGETS = {
+    "attn.qkv_proj": tuple((f"attn.{k}", native_adapter.ChunkSpec(idx=i, total=3)) for i, k in enumerate(("to_q", "to_k", "to_v"))),
+    "attn.out_proj": (("attn.to_out.0", None),),
+    "mlp.fc1": (("ff.net.0.proj", native_adapter.ChunkSpec(reorder=(1, 0))),), # reference [gate; value] onto the diffusers SwiGLU [value; gate]
+    "mlp.fc2": (("ff.net.2", None),),
+    "adaln_proj.linear": (("adaln_proj.linear", None),),
+}
+
+BLOCK_STACKS = {
+    "blocks": "transformer_blocks",
+    "token_refiner.blocks": "token_refiner.refiner_blocks",
+}
+
 
 # Re-export for tests / compatibility
 LORA_SUFFIXES = native_adapter.LORA_SUFFIXES
@@ -88,19 +102,15 @@ def normalize_mini_max_suffix(suffix: str) -> str:
     return MINIMAX_SUFFIX_NORMALIZE.get(suffix, suffix)
 
 
-# musubi-tuner flattens every "." to "_" under a lora_unet_ prefix; the reference module names carry
-# underscores of their own, so the dotted path is recovered by matching the whole flattened name.
-_FLATTENED_MODULES = [
-    (r"blocks_(\d+)_attn_(qkv|out)_proj", r"blocks.\1.attn.\2_proj"),
-    (r"blocks_(\d+)_mlp_fc([12])", r"blocks.\1.mlp.fc\2"),
-    (r"blocks_(\d+)_adaln_proj_linear", r"blocks.\1.adaln_proj.linear"),
-    (r"token_refiner_blocks_(\d+)_attn_(qkv|out)_proj", r"token_refiner.blocks.\1.attn.\2_proj"),
-    (r"token_refiner_blocks_(\d+)_mlp_fc([12])", r"token_refiner.blocks.\1.mlp.fc\2"),
-    (r"(video|audio)_patch_proj", r"\1_patch_proj"),
-    (r"condition_proj", "condition_proj"),
-    (r"time_embedder_proj_(in|out)", r"time_embedder.proj_\1"),
-    (r"final_layer_adaln_proj_linear", "final_layer.adaln_proj.linear"),
-    (r"final_layer_(video|audio)_out", r"final_layer.\1_out"),
+def _flattened(dotted):
+    return re.escape(dotted.replace(".", "_"))
+
+
+# musubi-tuner flattens every "." to "_" under a lora_unet_ prefix; the reference module names carry underscores
+# of their own, so the dotted path is recovered by matching the whole flattened name against the vocabulary above.
+_FLATTENED_MODULES = [(re.compile(_flattened(name)), name) for name in STANDALONE_RENAMES] + [
+    (re.compile(rf"{_flattened(stack)}_(\d+)_{_flattened(leaf)}"), f"{stack}.{{}}.{leaf}")
+    for stack in BLOCK_STACKS for leaf in BLOCK_LEAF_TARGETS
 ]
 
 
@@ -110,9 +120,10 @@ def _unflatten_lora_unet_key(key: str) -> str | None:
     module_key, _, suffix = key[len("lora_unet_"):].partition(".")
     if not suffix:
         return None
-    for pattern, replacement in _FLATTENED_MODULES:
-        if re.fullmatch(pattern, module_key):
-            return f"{re.sub(pattern, replacement, module_key)}.{suffix}"
+    for pattern, dotted in _FLATTENED_MODULES:
+        match = pattern.fullmatch(module_key)
+        if match:
+            return f"{dotted.format(*match.groups())}.{suffix}"
     return None
 
 
@@ -147,29 +158,13 @@ def group_by_suffixes(state_dict, suffixes, *, prefixes=None, bare_prefixes=()):
     return groups
 
 
-def _split_qkv(base, target_prefix):
-    if not base.endswith(".attn.qkv_proj"):
-        return []
-    stem = base[: -len(".attn.qkv_proj")]
-    return [
-        (f"{target_prefix}.{stem}.attn.{k}", native_adapter.ChunkSpec(idx=i, total=3))
-        for i, k in enumerate(("to_q", "to_k", "to_v"))
-    ]
-
-
-def _transformer_block_targets(target_prefix, base):
-    if base.endswith(".attn.qkv_proj"):
-        return _split_qkv(base, target_prefix)
-    if base.endswith(".attn.out_proj"):
-        stem = base[: -len(".attn.out_proj")]
-        return [(f"{target_prefix}.{stem}.attn.to_out.0", None)]
-    if base.endswith(".mlp.fc1"):
-        stem = base[: -len(".mlp.fc1")]
-        return [(f"{target_prefix}.{stem}.ff.net.0.proj", native_adapter.ChunkSpec(reorder=(1, 0)))] # reference [gate; value] onto the diffusers SwiGLU [value; gate]
-    if base.endswith(".mlp.fc2"):
-        stem = base[: -len(".mlp.fc2")]
-        return [(f"{target_prefix}.{stem}.ff.net.2", None)]
-    return [(f"{target_prefix}.{base}", None)]
+def _block_targets(target_stack, base):
+    """Targets for ``<index>.<leaf>`` inside a reference block stack."""
+    idx, _, leaf = base.partition(".")
+    targets = BLOCK_LEAF_TARGETS.get(leaf)
+    if targets is None:
+        return [(f"{target_stack}.{base}", None)]
+    return [(f"{target_stack}.{idx}.{path}", chunk) for path, chunk in targets]
 
 
 def resolve_targets(prefix_used, base):
@@ -187,12 +182,12 @@ def resolve_targets(prefix_used, base):
     if prefix_used in ("diffusion_model.transformer_blocks.", "transformer_blocks."):
         return [(f"transformer_blocks.{base}", None)]
     if prefix_used in ("diffusion_model.blocks.", "blocks."):
-        return _transformer_block_targets("transformer_blocks", base)
+        return _block_targets(BLOCK_STACKS["blocks"], base)
     if prefix_used in ("diffusion_model.token_refiner.refiner_blocks.", "token_refiner.refiner_blocks."):
         return [(f"token_refiner.refiner_blocks.{base}", None)]
     if prefix_used in ("diffusion_model.token_refiner.", "token_refiner."):
         if base.startswith("blocks."):
-            return _transformer_block_targets("token_refiner.refiner_blocks", base[len("blocks."):])
+            return _block_targets(BLOCK_STACKS["token_refiner.blocks"], base[len("blocks."):])
         return [(f"token_refiner.refiner_{base}", None)]
     if prefix_used in (
             "diffusion_model.text_encoder.",
