@@ -95,7 +95,10 @@ def register_callbacks(pipe: diffusers.ModularPipeline):
 class InterruptLogFilter(logging.Filter):
     """Drops the per-block error dumps the modular runner logs when an interrupt raises through it."""
     def filter(self, record):
-        return 'Interrupted...' not in record.msg
+        filtered = 'Interrupted...' in record.msg
+        if not debug:
+            filtered = filtered or ('Error in block:' in record.msg)
+        return not filtered
 
 
 def publish_layout(kwargs):
