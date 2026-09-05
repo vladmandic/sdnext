@@ -74,13 +74,13 @@ vlm_models = {
     "AIDC Ovis2 2B": "AIDC-AI/Ovis2-2B",
     "AIDC Ovis2 1B": "AIDC-AI/Ovis2-1B",
     # cloud
-    f"Google Gemini 3.5 Flash {ui_symbols.cloud}": "google/gemini-3.5-flash",
-    f"Google Gemini 3.1 Pro {ui_symbols.cloud}": "gemini-3.1-pro-preview",
+    f"Google Gemini 3.8 Flash {ui_symbols.cloud}": "gemini-3.8-flash",
+    f"Google Gemini 3.7 Flash {ui_symbols.cloud}": "gemini-3.7-flash",
+    f"Google Gemini 3.6 Flash {ui_symbols.cloud}": "gemini-3.6-flash",
+    f"Google Gemini 3.5 Flash {ui_symbols.cloud}": "gemini-3.5-flash",
+    f"Google Gemini 3.5 Flash Lite {ui_symbols.cloud}": "gemini-3.5-flash-lite",
     f"Google Gemini 3.1 Flash Lite {ui_symbols.cloud}": "gemini-3.1-flash-lite",
-    f"Google Gemini 3.1 Flash Lite Preview {ui_symbols.cloud}": "gemini-3.1-flash-lite-preview",
-    f"Google Gemini 2.5 Pro {ui_symbols.cloud}": "gemini-2.5-pro",
-    f"Google Gemini 2.5 Flash {ui_symbols.cloud}": "gemini-2.5-flash",
-    f"Google Gemini 2.5 Flash Lite {ui_symbols.cloud}": "gemini-2.5-flash-lite",
+    f"Google Gemini 3.1 Pro {ui_symbols.cloud}": "gemini-3.1-pro-preview",
 }
 
 # Default model

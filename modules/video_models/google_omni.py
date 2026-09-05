@@ -1,5 +1,6 @@
 import io
 import os
+import base64
 import time
 
 import sys
@@ -10,67 +11,38 @@ from modules.logger import log
 
 
 image_size_buckets = {
+    '360p': 640*360,
     '720p': 1280*720,
     '1080p': 1920*1080,
     '4k': 3840*2160,
 }
 aspect_ratios_buckets = {
-    '1:1': 1/1,
-    '2:3': 2/3,
-    '3:2': 3/2,
-    '4:3': 4/3,
-    '3:4': 3/4,
-    '4:5': 4/5,
-    '5:4': 5/4,
     '16:9': 16/9,
     '9:16': 9/16,
-    '21:9': 21/9,
-    '9:21': 9/21,
 }
 
 
 def google_requirements():
     from installer import install
     install('google-genai==2.22.0')
-    # install('google-genai==1.75.0')
     # install('pydantic==2.11.7', ignore=True, quiet=True)
     # reload('pydantic', '2.11.7')
 
 
 def get_size_buckets(width: int, height: int) -> tuple[str, str]:
     aspect_ratio = width / height
-    closest_aspect_ratio = min(aspect_ratios_buckets.items(), key=lambda x: abs(x[1] - aspect_ratio))[0]
     pixel_count = width * height
     closest_size = min(image_size_buckets.items(), key=lambda x: abs(x[1] - pixel_count))[0]
     closest_aspect_ratio = min(aspect_ratios_buckets.items(), key=lambda x: abs(x[1] - aspect_ratio))[0]
     return closest_size, closest_aspect_ratio
 
 
-class GoogleVeoVideoPipeline:
+class GoogleOmniVideoPipeline:
     def __init__(self, model_name: str):
         self.model = model_name
         self.client = None
-        self.config = None
         google_requirements()
-        log.debug(f'Load model: type=GoogleVeo model="{model_name}"')
-
-    def txt2vid(self, prompt):
-        return self.client.models.generate_videos(
-            model=self.model,
-            prompt=prompt,
-            config=self.config,
-        )
-
-    def img2vid(self, prompt, image):
-        from google import genai # pylint: disable=no-name-in-module
-        image_bytes = io.BytesIO()
-        image.save(image_bytes, format='JPEG')
-        return self.client.models.generate_videos(
-            model=self.model,
-            prompt=prompt,
-            config=self.config,
-            image=genai.types.Image(image_bytes=image_bytes.getvalue(), mime_type='image/jpeg'),
-        )
+        log.debug(f'Load model: type=GoogleOmni model="{model_name}"')
 
     def get_args(self):
         from modules.shared import opts
@@ -112,67 +84,54 @@ class GoogleVeoVideoPipeline:
         log.debug(f'Cloud: model="{self.model}" args={args_log}')
         return args
 
-    def __call__(self, prompt: list[str], width: int = 1280, height: int = 720, image: Image.Image = None, num_frames: int = 4*24):
-        from google import genai # pylint: disable=no-name-in-module
-
+    def __call__(self, prompt: list[str], width: int, height: int, image: Image.Image = None):
         if isinstance(prompt, list) and len(prompt) > 0:
             prompt = prompt[0]
         if self.client is None:
             args = self.get_args()
             if args is None:
                 return None
+            from google import genai # pylint: disable=no-name-in-module
             self.client = genai.Client(**args)
 
         resolution, aspect_ratio = get_size_buckets(width, height)
-        duration = num_frames // 24
-        if duration < 4:
-            duration = 4
-        if duration > 8:
-            duration = 8
-        self.config = genai.types.GenerateVideosConfig(
-            duration_seconds=duration,
-            aspect_ratio=aspect_ratio,
-            resolution=resolution,
-            person_generation='ALLOW_ALL',
-            # negative_prompt=negative_prompt,
-            # seed=42,
-            # fps=24,
-            # safety_filter_level='BLOCK_NONE',
-            # enhance_prompt=True,
-            # generate_audio=True,
-        )
-        log.debug(f'Cloud: prompt="{prompt}" size={resolution} ar={aspect_ratio} image={image} model="{self.model}" duration={duration} genai={genai.__version__}')
+        response_format = {
+            'type': 'video',
+            'aspect_ratio': aspect_ratio,
+            'resolution': resolution,
+        }
+        if image is not None:
+            image_bytes = io.BytesIO()
+            image.save(image_bytes, format='JPEG')
+            input_content = [
+                {'type': 'image', 'data': base64.b64encode(image_bytes.getvalue()).decode('utf-8'), 'mime_type': 'image/jpeg'},
+                {'type': 'text', 'text': prompt},
+            ]
+        else:
+            input_content = prompt
+        log.debug(f'Cloud: prompt="{prompt}" size={resolution} ar={aspect_ratio} image={image} model="{self.model}" genai={genai.__version__}')
 
-        operation = None
+        t0 = time.time()
         try:
-            t0 = time.time()
-            if image is not None:
-                operation = self.img2vid(prompt, image)
-            else:
-                operation = self.txt2vid(prompt)
-            while not operation.done:
-                t1 = time.time()
-                log.debug(f"Cloud processing: {operation} elapsed={t1-t0:.2f}")
-                time.sleep(10)
-                operation = self.client.operations.get(operation)
+            interaction = self.client.interactions.create(
+                model=self.model,
+                input=input_content,
+                response_format=response_format,
+            )
         except Exception as e:
-            log.error(f'Cloud video: model="{self.model}" {operation} {e}')
+            log.error(f'Cloud video: model="{self.model}" {e}')
             return None
+        t1 = time.time()
+        log.debug(f'Cloud processing: model="{self.model}" elapsed={t1-t0:.2f}')
 
         try:
-            response: genai.types.GeneratedVideo = operation.response.generated_videos[0]
-        except Exception:
-            log.error(f'Cloud video: model="{self.model}" no response {operation}')
-            return None
-        try:
-            self.client.files.download(file=response.video)
-            video_bytes = response.video.video_bytes
+            video_bytes = base64.b64decode(interaction.output_video.data)
             return { 'bytes': video_bytes, 'images': [] }
         except Exception as e:
             log.error(f'Cloud download: model="{self.model}" {e}')
             return None
 
 
-def load_veo(model_name): # pylint: disable=unused-argument
-    pipe = GoogleVeoVideoPipeline(model_name = model_name)
+def load_omni(model_name): # pylint: disable=unused-argument
+    pipe = GoogleOmniVideoPipeline(model_name = model_name)
     return pipe

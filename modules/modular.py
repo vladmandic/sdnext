@@ -27,7 +27,7 @@ def is_compatible(diffusion_pipeline: diffusers.DiffusionPipeline) -> bool:
         return False
     compatible = get_modular_class(diffusion_pipeline) is not None
     if not compatible:
-        log.debug(f'Modular: source={diffusion_pipeline.__class__.__name__} incompatible pipeline')
+        log.warning(f'Modular: source={diffusion_pipeline.__class__.__name__} incompatible pipeline')
     return compatible
 
 

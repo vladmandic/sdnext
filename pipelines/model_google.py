@@ -27,7 +27,7 @@ aspect_ratios_buckets = {
 
 def google_requirements():
     from installer import install # , reload
-    install('google-genai==1.52.0')
+    install('google-genai==2.22.0')
 
 
 def get_size_buckets(width: int, height: int) -> tuple[str, str]:

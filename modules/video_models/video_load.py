@@ -50,6 +50,10 @@ def load_custom(model_name: str):
         from modules.video_models.google_veo import load_veo
         pipe = load_veo(model_name)
         return pipe
+    if 'gemini-omni' in model_name:
+        from modules.video_models.google_omni import load_omni
+        pipe = load_omni(model_name)
+        return pipe
     return None
 
 

@@ -52,6 +52,17 @@ All-about-optimizations:
   - implement progress and preview
   - intercept and profiling hooks
   - on-demand convert standard model on-demand 
+- **Google**  
+  - updated support for google models in text, image and video workflows  
+    *note*: requires google api key  
+  - [Google Veo](https://ai.google.dev/gemini-api/docs/veo) in *preview*, *fast* and *lite* variants  
+    workflows: *t2v, i2v*  
+  - [Google Omni](https://ai.google.dev/gemini-api/docs/omni) in *flash* variant  
+    workflows: *t2v, i2v*  
+  - [Google Nano Banana](https://ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-image) in *2* and *2 lite* and *pro* variants  
+    workflows: *caption*  
+  - [Google Gemini](https://ai.google.dev/gemini-api/docs/models/gemini-3.8-flash) in *flash* and *pro* variants  
+    workflows: *caption, prompt-enhance*  
 - **Compute**
   - cuda: update `torch==2.14.0` with `cuda==13.2`
   - openvino: update `openvino==2026.3.1` with `torch==2.13.0`

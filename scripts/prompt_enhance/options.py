@@ -36,13 +36,13 @@ class Options:
         'trohrbaugh/Qwen3.5-9B-heretic-v2',
     ]
     cloud = [
+        'google/gemini-3.8-flash',
+        'google/gemini-3.7-flash',
+        'google/gemini-3.6-flash',
         'google/gemini-3.5-flash',
-        'google/gemini-3.1-pro-preview',
+        'google/gemini-3.5-flash-lite',
         'google/gemini-3.1-flash-lite',
-        'google/gemini-3.1-flash-lite-preview',
-        'google/gemini-2.5-flash',
-        'google/gemini-2.5-flash-lite',
-        'google/gemini-2.5-pro',
+        'google/gemini-3.1-pro-preview',
     ]
     models = {
         # Gemma
@@ -83,13 +83,13 @@ class Options:
         'cognitivecomputations/Dolphin3.0-Llama3.2-1B': {},
         'cognitivecomputations/Dolphin3.0-Llama3.2-3B': {},
         # Gemini
+        'google/gemini-3.8-flash': {},
+        'google/gemini-3.7-flash': {},
+        'google/gemini-3.6-flash': {},
         'google/gemini-3.5-flash': {},
-        'google/gemini-3.1-pro-preview': {},
+        'google/gemini-3.5-flash-lite': {},
         'google/gemini-3.1-flash-lite': {},
-        'google/gemini-3.1-flash-lite-preview': {},
-        'google/gemini-2.5-flash': {},
-        'google/gemini-2.5-flash-lite': {},
-        'google/gemini-2.5-pro': {},
+        'google/gemini-3.1-pro-preview': {},
         # SmolLM
         'HuggingFaceTB/SmolLM2-135M-Instruct': {},
         'HuggingFaceTB/SmolLM2-360M-Instruct': {},

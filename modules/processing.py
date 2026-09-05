@@ -541,7 +541,7 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
 
             if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
                 p.scripts.postprocess_batch(p, samples, batch_number=n)
-            if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
+            if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner) and isinstance(samples, list):
                 p.prompts = p.all_prompts[(n * p.batch_size):((n+1) * p.batch_size)]
                 p.negative_prompts = p.all_negative_prompts[(n * p.batch_size):((n+1) * p.batch_size)]
                 batch_params = scripts_manager.PostprocessBatchListArgs(list(samples))
