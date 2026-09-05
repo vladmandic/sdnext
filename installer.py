@@ -1,5 +1,6 @@
 from functools import lru_cache
 import os
+import re
 import sys
 import json
 import time
@@ -645,14 +646,18 @@ def check_numpy():
     t_start = time.time()
     if args.skip_all or args.skip_requirements:
         return
-    torch_ver = package_version('torch')
-    torch_minor = int(torch_ver.split('.')[1]) if torch_ver else 99
-    if torch_minor < 11:
-        if not installed('numpy==2.1.2', quiet=True):
-            install('numpy==2.1.2', 'numpy==2.1.2', ignore=True)
+    torch_ver = package_version('torch') or ''
+    ver_match = re.match(r'^(\d+)\.(\d+)', torch_ver)
+    if ver_match:
+        torch_major, torch_minor = map(int, ver_match.groups())
     else:
-        if not installed('numpy==2.4.6', quiet=True):
-            install('numpy==2.4.6', 'numpy==2.4.6', ignore=True)
+        torch_major, torch_minor = 0, 0
+    if (torch_major, torch_minor) < (2, 11):
+        install('numpy==2.1.2', 'numpy', ignore=True)
+        install('scipy==1.14.1', 'scipy', ignore=True)
+    else:
+        install('numpy==2.4.6', 'numpy', ignore=True)
+        install('scipy==1.18.1', 'scipy', ignore=True)
     ts('numpy', t_start)
 
 
@@ -1292,11 +1297,6 @@ def install_pydantic():
     reload('pydantic', '2.13.4')
 
 
-def install_scipy():
-    # install('scipy==1.14.1', ignore=True, quiet=True)
-    install('scipy==1.18.1', ignore=True, quiet=True)
-
-
 def install_opencv():
     install('opencv-python==4.13.0.92', ignore=True, quiet=True)
     install('opencv-python-headless==4.13.0.92', ignore=True, quiet=True)
@@ -1378,7 +1378,6 @@ def install_requirements():
     install_compel()
     install_pydantic()
     install_opencv()
-    install_scipy()
     if args.profile:
         pr.disable()
         print_profile(pr, 'Requirements')
