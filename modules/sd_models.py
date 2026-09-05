@@ -55,6 +55,7 @@ pipe_switch_task_exclude = [
     'Kandinsky5I2IPipeline',
     'GoogleNanoBananaPipeline',
     'Step1XEditPipeline',
+    'LLaDAImagePipeline',
     'BooguImagePipeline',
     'BooguImageTurboPipeline',
 ]
@@ -609,6 +610,10 @@ def load_diffuser_force(detected_model_type: str, checkpoint_info: CheckpointInf
         elif model_type in ['GLMImage']:
             from pipelines.model_glm import load_glm_image
             sd_model = load_glm_image(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
+        elif model_type in ['LLaDAImage']:
+            from pipelines.model_llada import load_llada_image
+            sd_model = load_llada_image(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
         elif model_type in ['SDXS']:
             from pipelines.model_sdxs import load_sdxs

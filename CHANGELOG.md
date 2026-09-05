@@ -16,6 +16,10 @@ All-about-optimizations:
 - **Models**
   - [Anima 2.9B Preview v1](https://huggingface.co/yeoj34760/Anima-2.9B)  
     expanded version of Anima 2B  
+  - [inclusionAI LLaDA-Image](https://huggingface.co/inclusionAI/LLaDA-Image) in *base* and *turbo* variants  
+    LLaDA-Image is a 6.5B transformer with massive 16.3B fully-custom MoE text-encoder and optional 1.3B SigVQ conditioning model  
+    with support for text-to-image, vq-conditioned text-to-image and image-editing workflows  
+    *note* model is extremely quantization sensitive so minimum allowed quant type is `uint8`  
 - **LoRA**
   - *TODO*: see [LoRA docs](https://vladmandic.github.io/sdnext-docs/LoRA) for all of the improvements and usage instructions  
     *note*: lora now has its own settings section in *settings -> lora*

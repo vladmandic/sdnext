@@ -167,6 +167,8 @@ def guess_by_name(fn, current_guess):
         new_guess = 'OvisImage'
     elif 'glm-image' in fn.lower():
         new_guess = 'GLMImage'
+    elif 'llada' in fn.lower():
+        new_guess = 'LLaDAImage'
     elif 'sdxs-1b' in fn.lower():
         new_guess = 'SDXS'
     elif 'step1x-edit' in fn.lower():
