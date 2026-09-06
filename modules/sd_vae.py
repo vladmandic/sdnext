@@ -49,6 +49,8 @@ def get_vae_scale_factor(model: DiffusionPipeline | None = None):
         vae_scale_factor = model.pipe.vae_scale_factor
     elif hasattr(model, 'config') and hasattr(model.config, 'vae_scale_factor'):
         vae_scale_factor = model.config.vae_scale_factor
+    elif hasattr(model, 'vae') and hasattr(model.vae, 'spatial_compression_ratio'):
+        vae_scale_factor = model.vae.spatial_compression_ratio # video autoencoders carry the ratio on the instance, which also covers subclasses the name table misses
     else:
         # log.warning(f'VAE: cls={model.__class__.__name__ if model else "None"} scale=unknown')
         vae_scale_factor = 8
