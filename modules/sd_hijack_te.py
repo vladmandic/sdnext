@@ -22,7 +22,6 @@ class PromptCache:
             self.cache.clear()
             self.id = id(shared.sd_model)
             log.debug(f'Encode: prompt cache activate id={self.id} depth={len(self.cache)}')
-        prompt = self._hashable(prompt)
         negative_prompt = self._hashable(negative_prompt)
         if (isinstance(prompt, list) and len(prompt) == 1 and isinstance(prompt[0], str)):
             cached = self.cache.get((prompt[0], negative_prompt, cfg_enabled), None)
@@ -41,7 +40,6 @@ class PromptCache:
         if len(self.cache) >= self.max:
             oldest_key = next(iter(self.cache))
             del self.cache[oldest_key]
-        prompt = self._hashable(prompt)
         negative_prompt = self._hashable(negative_prompt)
         if (isinstance(prompt, list) and len(prompt) == 1 and isinstance(prompt[0], str)):
             self.cache[(prompt[0], negative_prompt, cfg_enabled)] = encoded
