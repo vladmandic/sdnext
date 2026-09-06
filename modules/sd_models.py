@@ -1147,6 +1147,17 @@ def get_diffusers_task(pipe: diffusers.DiffusionPipeline) -> DiffusersTaskType:
         return DiffusersTaskType.TEXT_2_IMAGE
 
 
+def pipe_serves_task(pipe: diffusers.DiffusionPipeline, task_type: DiffusersTaskType) -> bool:
+    """True when the pipeline class is registered for the task in the diffusers auto-pipeline tables."""
+    mappings = {
+        DiffusersTaskType.TEXT_2_IMAGE: diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING,
+        DiffusersTaskType.IMAGE_2_IMAGE: diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING,
+        DiffusersTaskType.INPAINTING: diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING,
+    }
+    mapping = mappings.get(task_type)
+    return mapping is not None and pipe.__class__ in mapping.values()
+
+
 def switch_pipe(cls: type[diffusers.DiffusionPipeline] | str, pipeline: diffusers.DiffusionPipeline | None = None, force = False, args: dict | None = None):
     """
     args:
@@ -1353,6 +1364,8 @@ def set_diffuser_pipe(pipe, new_pipe_type):
         del pipe.no_task_switch
         return pipe
     if get_diffusers_task(pipe) == new_pipe_type:
+        return pipe
+    if pipe_serves_task(pipe, new_pipe_type): # a class registered for several tasks classifies as one of them
         return pipe
 
     if get_diffusers_task(pipe) == DiffusersTaskType.MODULAR:
