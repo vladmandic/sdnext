@@ -697,8 +697,9 @@ def partition_siblings(
 def fetch_component_config(repo_id: str, subfolder: str) -> dict:
     """Download and parse ``<subfolder>/config.json`` from the base repo."""
     relative_path = f"{subfolder}/config.json"
+    offline_args = {'local_files_only': True} if shared.opts.offline_mode else {}
     try:
-        local = hf.hf_hub_download(repo_id, filename=relative_path, cache_dir=shared.opts.diffusers_dir)
+        local = hf.hf_hub_download(repo_id, filename=relative_path, cache_dir=shared.opts.diffusers_dir, **offline_args)
     except Exception as e:
         log.error(f' path="{relative_path}" repo="{repo_id}" failed to download: {e}')
         raise RuntimeError('') from e

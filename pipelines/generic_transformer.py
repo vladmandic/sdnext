@@ -48,6 +48,7 @@ def load_transformer(
         modules_to_not_convert = []
     if modules_dtype_dict is None:
         modules_dtype_dict = {}
+    offline_args = {'local_files_only': True} if shared.opts.offline_mode else {}
     jobid = shared.state.begin('Load DiT')
     try:
         load_args, quant_args = model_quant.get_dit_args(load_config, module='Model', device_map=True, allow_quant=allow_quant, modules_to_not_convert=modules_to_not_convert, modules_dtype_dict=modules_dtype_dict)
@@ -73,12 +74,11 @@ def load_transformer(
                 load_args['use_safetensors'] = True
             if trust_remote_code:
                 load_args['trust_remote_code'] = True
+            load_kwargs = {**load_args, **quant_args, **offline_args, **kwargs}
             return cls_name.from_pretrained(
                 repo_id,
                 cache_dir=shared.opts.hfcache_dir,
-                **load_args,
-                **quant_args,
-                **kwargs,
+                **load_kwargs,
             )
 
         local_file = None
@@ -151,12 +151,11 @@ def load_transformer(
             load_args.pop('device_map', None) # single-file uses different syntax
             loader = cls_name.from_single_file if hasattr(cls_name, 'from_single_file') else cls_name.from_pretrained
             log.debug(f'Load model: transformer="{local_file}" cls={cls_name.__name__} quant="{quant_type}" loader={get_loader("diffusers")} method={loader.__name__} args={load_args}')
+            load_kwargs = {**load_args, **quant_args, **offline_args, **kwargs}
             transformer = loader(
                 local_file,
                 cache_dir=shared.opts.hfcache_dir,
-                **load_args,
-                **quant_args,
-                **kwargs,
+                **load_kwargs,
             )
 
         # 4. default loading from diffusers repo (also the fallback when an
