@@ -14,7 +14,7 @@ from modules.caption.logits import LogitsParser
 from modules.caption import helpers
 from scripts.prompt_enhance.options import Options
 from scripts.prompt_enhance.helpers import is_cloud_model, is_vision_model, is_thinking_model, get_model_repo_from_display
-from scripts.prompt_enhance.template import set_template
+from scripts.prompt_enhance.template import set_template, get_system_prompt
 
 
 debug_enabled = os.environ.get('SD_LLM_DEBUG', None) is not None
@@ -389,6 +389,45 @@ class PromptEnhanceScript(scripts_manager.Script):
                     current_image = current_image.convert('RGB')
                     debug_log('Prompt enhance: Converted image to RGB mode')
 
+        # Prepare prefill (VQA approach: string concatenation, not assistant message)
+        prefill_text = (prefill or '').strip()
+
+        t0 = time.time()
+        self.busy = True
+
+        if is_cloud_model(model):
+            has_prompt = prompt_text is not None and len(prompt_text) > 4
+            system = get_system_prompt(system, self.options, nsfw, has_prompt=has_prompt, is_video=self.parent=='video', is_image=current_image is not None)
+            if 'gemini' in model:
+                from modules.caption import gemini
+                kwargs = {
+                    'temperature': temperature,
+                    'min_output_tokens': min_tokens,
+                    'max_output_tokens': max_tokens,
+                }
+                model_name = model.replace('google/', '')
+                response = gemini.predict(prompt_text, current_image, model_name, system, prefill_text, thinking, kwargs)
+                t1 = time.time()
+                log.info(f'Prompt enhance: model="{model}" nsfw={nsfw} time={t1-t0:.2f} prefill="{prefill_text[:20] if prefill_text else None}" response={len(response)}')
+                debug_log(f'Prompt enhance: response="{response}"')
+                self.busy = False
+                return response
+            elif 'grok' in model:
+                from modules.caption import grok
+                kwargs = {
+                    'temperature': temperature,
+                }
+                model_name = model.replace('xai/', '')
+                response = grok.predict(prompt_text, current_image, model_name, system, prefill_text, thinking, kwargs)
+                t1 = time.time()
+                log.info(f'Prompt enhance: model="{model}" nsfw={nsfw} time={t1-t0:.2f} prefill="{prefill_text[:20] if prefill_text else None}" response={len(response)}')
+                debug_log(f'Prompt enhance: response="{response}"')
+                self.busy = False
+                return response
+            else:
+                self.busy = False
+                return 'Model not recognized'
+
         chat_template = set_template(
             system=system,
             prompt=prompt_text,
@@ -400,35 +439,11 @@ class PromptEnhanceScript(scripts_manager.Script):
             module=self.parent,
         )
 
-        # Prepare prefill (VQA approach: string concatenation, not assistant message)
-        prefill_text = (prefill or '').strip()
         use_prefill = len(prefill_text) > 0
         is_thinking = is_thinking_model(model)
-
         debug_log(f'Prompt enhance: system="{system}"')
         debug_log(f'Prompt enhance: prompt="{prompt_text}"')
         debug_log(f'Prompt template: roles={[msg["role"] for msg in chat_template]} thinking={is_thinking}:{thinking} prefill={use_prefill}')
-        t0 = time.time()
-        self.busy = True
-
-        if is_cloud_model(model):
-            if 'gemini' in model:
-                from modules.caption import gemini
-                kwargs = {
-                    'temperature': temperature,
-                    'min_output_tokens': min_tokens,
-                    'max_output_tokens': max_tokens,
-                }
-                model_name = model.replace('google/', '')
-                response = gemini.predict(prompt_text, current_image, model_name, system, model, prefill_text, thinking, kwargs)
-                t1 = time.time()
-                log.info(f'Prompt enhance: model="{model}" nsfw={nsfw} time={t1-t0:.2f} prefill="{prefill_text[:20] if prefill_text else None}" response={len(response)}')
-                debug_log(f'Prompt enhance: response="{response}"')
-                self.busy = False
-                return response
-
-            else:
-                return 'Model not recognized'
 
         try:
             # Qwen3.5 uses native enable_thinking parameter in the chat template

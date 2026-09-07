@@ -7,9 +7,10 @@
 All-about-optimizations: 
 - improved LoRA performance and quality, especially with quantized models
 - newly structured attention mechanisms
-- modular pipelines with new guidance
+- modular pipelines with new guidance methods
 - support for different caching stacks
 - compute updates across the board
+- enhanced cloud model support
 
 ### Details for 2026-09-07
 
@@ -51,7 +52,7 @@ All-about-optimizations:
   - implement progress and preview
   - intercept and profiling hooks
   - on-demand convert standard model on-demand 
-- **Google**  
+- **Cloud**
   - updated support for google models in text, image and video workflows  
     *note*: requires google api key  
   - [Google Veo](https://ai.google.dev/gemini-api/docs/veo) in *preview*, *fast* and *lite* variants  
@@ -62,6 +63,10 @@ All-about-optimizations:
     workflows: *caption*  
   - [Google Gemini](https://ai.google.dev/gemini-api/docs/models/gemini-3.8-flash) in *flash* and *pro* variants  
     workflows: *caption, prompt-enhance*  
+  - added support for xai grok models  
+  - [X.AI Grok](https://x.ai/grok) in *3*, *3 fast*, *3 mini* and *3 mini fast* variants  
+    workflows: *caption, prompt-enhance*  
+    *note*: requires grok api key  
 - **Compute**
   - cuda: update `torch==2.14.0` with `cuda==13.2`
   - openvino: update `openvino==2026.3.1` with `torch==2.13.0`
@@ -75,7 +80,9 @@ All-about-optimizations:
   - update `numpy` and `scipy` frozen requirements as required by new compute drivers  
     *note*: this may break compatibility with some legacy packages, so report any finidings  
 - **Other**
-  - Video Preview: TAESD support for **MiniMax**
+  - video preview: TAESD support for **MiniMax**
+  - support `xai grok` for prompt enhance workflows  
+    *note*: requires grok api key  
   - remove `/redocs` as `/docs` are primary api docs  
   - rebuild docs site index  
 - **Wiki/Docs**:
@@ -99,6 +106,7 @@ All-about-optimizations:
   - vae: fetch scale factor from the model
   - todo: remove dead code, thanks @Anai-Guo
   - offline: honor offline mode for more models, thanks @ryanmeador
+  - prompt enhance: cloud models use correct system prompt  
 
 ## Update for 2026-08-26
 

@@ -43,6 +43,10 @@ class Options:
         'google/gemini-3.5-flash-lite',
         'google/gemini-3.1-flash-lite',
         'google/gemini-3.1-pro-preview',
+        'xai/grok-3-latest',
+        'xai/grok-3-fast-latest',
+        'xai/grok-3-mini-latest',
+        'xai/grok-3-mini-fast-latest',
     ]
     models = {
         # Gemma
@@ -90,6 +94,11 @@ class Options:
         'google/gemini-3.5-flash-lite': {},
         'google/gemini-3.1-flash-lite': {},
         'google/gemini-3.1-pro-preview': {},
+        # Grok
+        'xai/grok-3-latest': {},
+        'xai/grok-3-fast-latest': {},
+        'xai/grok-3-mini-latest': {},
+        'xai/grok-3-mini-fast-latest': {},
         # SmolLM
         'HuggingFaceTB/SmolLM2-135M-Instruct': {},
         'HuggingFaceTB/SmolLM2-360M-Instruct': {},

@@ -1597,7 +1597,12 @@ class VQA:
                 handler = 'gemini'
                 gen_kwargs = get_kwargs(self.model)
                 from modules.caption import gemini
-                answer = gemini.predict(question, image, vqa_model, system_prompt, model_name, prefill, thinking_mode, gen_kwargs)
+                answer = gemini.predict(question, image, vqa_model, system_prompt, prefill, thinking_mode, gen_kwargs)
+            elif 'grok' in vqa_model.lower():
+                handler = 'grok'
+                gen_kwargs = get_kwargs(self.model)
+                from modules.caption import grok
+                answer = grok.predict(question, image, vqa_model, system_prompt, prefill, thinking_mode, gen_kwargs)
             else:
                 answer = 'unknown model'
         except Exception as e:

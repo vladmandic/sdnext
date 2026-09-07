@@ -3,6 +3,7 @@ import os
 from modules import shared
 from modules.logger import log
 
+
 debug_enabled = os.environ.get('SD_CAPTION_DEBUG', None) is not None
 debug_log = log.trace if debug_enabled else lambda *args, **kwargs: None
 
@@ -63,11 +64,13 @@ class GoogleGeminiPipeline():
             config['temperature'] = kwargs['temperature']
         if 'max_output_tokens' in kwargs:
             config['max_output_tokens'] = kwargs['max_output_tokens']
-        debug_log(f'Gemini config: {config}')
+        debug_log(f'LLM config: {config}')
+        debug_log(f'LLM instructions: "{instructions}"')
+        debug_log(f'LLM image: {image}')
         question = question.replace('<', '').replace('>', '').replace('_', ' ')
         if prefill:
             question += prefill
-        debug_log(f'Gemini question: "{question}"')
+        debug_log(f'LLM question: "{question}"')
 
         if image:
             data = io.BytesIO()
@@ -80,9 +83,9 @@ class GoogleGeminiPipeline():
         answer = ''
         try:
             response = self.client.models.generate_content(
-                model=model,
-                contents=contents,
-                config=config,
+                model = model,
+                contents = contents,
+                config = config,
             )
             debug_log(f'Gemini response: {response}')
             answer = response.text
@@ -94,8 +97,8 @@ class GoogleGeminiPipeline():
 
 ai = None
 
-def predict(question, image, vqa_model, system_prompt, model_name, prefill, thinking, gen_kwargs):
+def predict(question, image, model_name, system_prompt, prefill, thinking, gen_kwargs):
     global ai # pylint: disable=global-statement
     if ai is None:
         ai = GoogleGeminiPipeline(model_name)
-    return ai(question, image, vqa_model, system_prompt, prefill, thinking, gen_kwargs)
+    return ai(question, image, model_name, system_prompt, prefill, thinking, gen_kwargs)
