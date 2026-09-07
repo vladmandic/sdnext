@@ -28,6 +28,7 @@
 
 ### Roadmap
 
+- Automated testing and integrate models repo
 - Video upscaling: LTX-Upscaler
 - Video capabilities to processing tab, add RIFE, upscaling (once available)
 - Distraction-free UI mode with prompt-only, chat-based interface

@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2026-09-05
+## Update for 2026-09-07
 
-### Highlights for 2026-09-05
+### Highlights for 2026-09-07
 
 All-about-optimizations: 
 - improved LoRA performance and quality, especially with quantized models
@@ -11,7 +11,7 @@ All-about-optimizations:
 - support for different caching stacks
 - compute updates across the board
 
-### Details for 2026-09-05
+### Details for 2026-09-07
 
 - **Models**
   - [Anima 2.9B Preview v1](https://huggingface.co/yeoj34760/Anima-2.9B)  
@@ -21,7 +21,7 @@ All-about-optimizations:
     with support for text-to-image, vq-conditioned text-to-image and image-editing workflows  
     *note* model is extremely quantization sensitive so minimum allowed quant type is `uint8`  
 - **LoRA**
-  - *TODO*: see [LoRA docs](https://vladmandic.github.io/sdnext-docs/LoRA) for all of the improvements and usage instructions  
+  - see [LoRA docs](https://vladmandic.github.io/sdnext-docs/LoRA) for all of the improvements and usage instructions  
     *note*: lora now has its own settings section in *settings -> lora*
   - new apply engine that allows lora to be applied much faster
   - new calibration engine that allows lora to be applied with far smaller error when dealing with highly quantized models
@@ -34,21 +34,20 @@ All-about-optimizations:
   - per-block strength
   - native support for **MiniMax**
 - **Attention**
-  - *TODO*: see [Attention docs](https://vladmandic.github.io/sdnext-docs/Attention) for details and usage instructions  
+  - see [Attention docs](https://vladmandic.github.io/sdnext-docs/Attention) for details and usage instructions  
     *note*: attention now has its own settings section in *settings -> cross attention*  
     *note*: this is a breaking change - if you had custom attention settings in previous releases, you will need to re-apply them in the new settings section  
   - new `sparse-attention` method that can be combined with other attention methods  
     to reduce memory usage and improve performance on large models  
   - new attention mechanisms decision tree and apply method refactor
 - **Modular Pipelines**
-  - *TODO*: short note...  
-    see [Modular Pipelines docs](https://vladmandic.github.io/sdnext-docs/Modular-Pipelines) for details and usage instructions
+  - see [Modular Pipelines docs](https://vladmandic.github.io/sdnext-docs/Modular-Pipelines) for details and usage instructions
   - new model **Guidance** stack for modular pipelines  
     includes: *CFG, PAG, Auto, Zero, APG, SLG, SEG, TCFG, FDG*  
-    *TODO*: see [Guidance docs](https://vladmandic.github.io/sdnext-docs/Guidance) for details and usage instructions  
+    see [Guidance docs](https://vladmandic.github.io/sdnext-docs/Guidance) for details and usage instructions  
   - new model **Caching** stack for modular pipelines  
     includes: *FasterCache, FirstBlockCache, LayerSkip, MagCache, PyramidAttentionBroadcast, TaylorSeerCache, TextKVCache*  
-    *TODO*: see [Caching docs](https://vladmandic.github.io/sdnext-docs/Caching) for details and usage instructions  
+    see [Caching docs](https://vladmandic.github.io/sdnext-docs/Caching) for details and usage instructions
   - implement progress and preview
   - intercept and profiling hooks
   - on-demand convert standard model on-demand 
@@ -78,8 +77,10 @@ All-about-optimizations:
 - **Other**
   - Video Preview: TAESD support for **MiniMax**
   - remove `/redocs` as `/docs` are primary api docs  
+  - rebuild docs site index  
 - **Wiki/Docs**:
-  - [MiniMax](https://vladmandic.github.io/sdnext-docs/MiniMax) updated with LoRA, Turbo and other improvements
+  - new articles: *Attention, Modular-Pipelines*
+  - updated: *LoRA, MiniMax*
 - **Fixes**
   - prompt: unnecessary secondary prompt if same
   - ui: js fetch exception handling
@@ -95,6 +96,9 @@ All-about-optimizations:
   - compile: keep model compiled state
   - prompt: cache checks when cfg changes
   - lucida: handle requirements
+  - vae: fetch scale factor from the model
+  - todo: remove dead code, thanks @Anai-Guo
+  - offline: honor offline mode for more models, thanks @ryanmeador
 
 ## Update for 2026-08-26
 

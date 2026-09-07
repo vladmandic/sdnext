@@ -353,7 +353,7 @@ variables.init-import=false
 variables.redefining-builtins-modules=["six.moves","past.builtins","future.builtins","builtins","io"]
 
 [tool.pyright]
-pythonVersion = "3.10"
+pythonVersion = "3.11"
 pythonPlatform = "All"
 typeCheckingMode = "off"
 venvPath = "./venv"
