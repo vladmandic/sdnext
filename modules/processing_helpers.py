@@ -159,9 +159,11 @@ def images_tensor_to_samples(image, approximation=None, model=None): # pylint: d
     return x_latent
 
 
-def get_sampler_name(sampler_index: int | None = None, img: bool = False) -> str:
+def get_sampler_name(sampler_index: int | str | None = None, img: bool = False) -> str:
     sampler_index = sampler_index or 0
-    if len(sd_samplers.samplers) > sampler_index:
+    if isinstance(sampler_index, str) and any(sampler.name == sampler_index for sampler in sd_samplers.samplers):
+        sampler_name = sampler_index
+    elif isinstance(sampler_index, int) and 0 <= sampler_index < len(sd_samplers.samplers):
         sampler_name = sd_samplers.samplers[sampler_index].name
     else:
         sampler_name = "Default"

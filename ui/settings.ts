@@ -78,6 +78,17 @@ function showAllSettings() {
   });
 }
 
+function openSettingsSection(sectionId: string) {
+  const settingsTab = gradioApp().getElementById('tab_settings');
+  const settingsButton = settingsTab ? gradioApp().querySelector(`button[aria-controls="${settingsTab.id}"]`) : null;
+  settingsButton?.click();
+  const section = gradioApp().getElementById(`settings_section_tab_${sectionId}`);
+  const sectionButton = section ? gradioApp().querySelector(`button[aria-controls="${section.id}"]`) : null;
+  sectionButton?.click();
+  section?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+window.openSettingsSection = openSettingsSection;
+
 function markIfModified(setting_name, value) {
   if (!opts_metadata[setting_name]) return;
   const elem = gradioApp().getElementById(`modification_indicator_${setting_name}`);

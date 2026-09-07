@@ -296,6 +296,23 @@ def connect_paste(button, local_paste_fields, input_comp, override_settings_comp
                 res.append(v)
                 applied[key] = v
             else:
+                if key in ('Sampler', 'Hires sampler') and isinstance(v, str):
+                    from modules import ui_sections
+                    choices, value, _ = ui_sections.sampler_choices(selected=v, same_as_primary=key == 'Hires sampler')
+                    res.append(gr.update(choices=choices, value=value))
+                    applied[key] = v
+                    continue
+                if getattr(output, 'elem_id', '').endswith('_resize_name') and isinstance(v, str):
+                    from modules import modelloader, shared, ui_sections
+                    modelloader.load_upscalers()
+                    choices = [upscaler.name for upscaler in shared.sd_upscalers]
+                    if output.elem_id.startswith(('control_after', 'control_mask')):
+                        choices = [choice for choice in choices if not choice.lower().startswith('latent')]
+                    if v in choices:
+                        choices, _ = ui_sections.upscaler_choices(choices, selected=v)
+                        res.append(gr.update(choices=choices, value=v))
+                        applied[key] = v
+                        continue
                 if isinstance(v, str) and v.strip() == '' and key in {'Prompt', 'Negative prompt'}:
                     debug(f'Paste skip empty: "{key}"')
                     res.append(gr.update())
