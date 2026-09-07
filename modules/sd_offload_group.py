@@ -206,20 +206,17 @@ def offload_ondemand(sd_model, include=[], exclude=[], reason='', force=False):
 
 
 def report_group_stats(sd_model, module_names):
-    """Per-component stats block once per loaded model; balanced mode prints its own from the hook map."""
-    checkpoint_name = sd_model.sd_checkpoint_info.name if getattr(sd_model, "sd_checkpoint_info", None) is not None else sd_model.__class__.__name__
-    if checkpoint_name in s.group_stats_reported: # keyed by checkpoint since a task switch rebuilds the pipe object
+    """Per-component stats block once per loaded component; balanced mode prints its own from the hook map."""
+    modules = {name: getattr(sd_model, name, None) for name in module_names}
+    modules = {name: module for name, module in modules.items() if isinstance(module, torch.nn.Module)}
+    pending = {name: module for name, module in modules.items() if not getattr(module, 'sdnext_stats_reported', False)} # a task switch reuses the modules, a reload brings new ones
+    if not pending:
         return
-    s.group_stats_reported.add(checkpoint_name)
-    total = 0.0
-    counted = []
-    for module_name in module_names:
-        module = getattr(sd_model, module_name, None)
-        if isinstance(module, torch.nn.Module):
-            total += get_module_size(module)[0]
-            counted.append(module_name)
-            report_model_stats(module_name, module)
-    log.info(f'Model class={sd_model.__class__.__name__} modules={len(counted)} size={total:.3f}')
+    for module_name, module in pending.items():
+        module.sdnext_stats_reported = True
+        report_model_stats(module_name, module)
+    total = sum(get_module_size(module)[0] for module in modules.values())
+    log.info(f'Model class={sd_model.__class__.__name__} modules={len(modules)} size={total:.3f}')
 
 
 def apply_group_offload(sd_model):

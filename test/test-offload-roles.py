@@ -364,6 +364,28 @@ def test_dispatch_skips_non_modules():
     assert list(calls) == ['transformer'], f'dispatched {list(calls)}'
 
 
+def test_stats_report_once_per_component():
+    seen = []
+    orig_stats = sd_offload_group.report_model_stats
+    sd_offload_group.report_model_stats = lambda module_name, module: seen.append(module_name)
+    try:
+        transformer, vae = PlainModule(), BridgeModule()
+        pipe = FakePipe({'transformer': transformer, 'vae': vae})
+        names = sd_offload_utils.get_module_names(pipe)
+        sd_offload_group.report_group_stats(pipe, names)
+        assert sorted(seen) == ['transformer', 'vae'], f'first report covered {seen}'
+        sd_offload_group.report_group_stats(pipe, names)
+        assert len(seen) == 2, f'a reapply reported again: {seen}'
+        switched = FakePipe({'transformer': transformer, 'vae': vae}) # a task switch rebuilds the pipe around the same components
+        sd_offload_group.report_group_stats(switched, names)
+        assert len(seen) == 2, f'a task switch reported again: {seen}'
+        reloaded = FakePipe({'transformer': PlainModule(), 'vae': vae}) # a reload or a component swap brings a new module
+        sd_offload_group.report_group_stats(reloaded, names)
+        assert seen[2:] == ['transformer'], f'a new component was not reported on its own: {seen}'
+    finally:
+        sd_offload_group.report_model_stats = orig_stats
+
+
 def test_force_sweep_moves_only_stamped_components():
     stamped = SweepModule()
     stamped.sdnext_ondemand = True
@@ -671,6 +693,7 @@ def run_all():
     for fn in [
         test_dispatch_is_one_arm_per_component,
         test_dispatch_skips_non_modules,
+        test_stats_report_once_per_component,
         test_ondemand_list_tracks_the_stamps,
         test_force_sweep_moves_only_stamped_components,
         test_reapply_after_clearing_the_never_list_restores_hooks,

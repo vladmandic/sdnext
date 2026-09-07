@@ -30,5 +30,4 @@ no_split_module_classes = [
 ]
 
 accelerate_dtype_byte_size = None # monkey-patch accelerate.utils.modeling.dtype_byte_size
-group_stats_reported = set()
 move_stream = None
