@@ -64,6 +64,8 @@ def load_local_file(local_file, cls_name, quant_type, repo_id=None, dtype=None, 
         cfg_args = {'cache_dir': shared.opts.hfcache_dir}
         if extra.get('subfolder') is not None:
             cfg_args['subfolder'] = extra['subfolder']
+        if shared.opts.offline_mode:
+            cfg_args['local_files_only'] = True
         log.debug(f'Load model: text_encoder="{local_file}" cls={cls_name.__name__} config="{config_repo}" quant="{quant_type}" loader={get_loader("transformers")} file=safetensors')
         config = transformers.AutoConfig.from_pretrained(config_repo, **cfg_args)
         state_dict = load_file(local_file)
@@ -120,6 +122,8 @@ def load_text_encoder(
             load_args['use_safetensors'] = True
         if trust_remote_code:
             load_args['trust_remote_code'] = True
+        if shared.opts.offline_mode:
+            load_args['local_files_only'] = True
 
         # 1. load override from local file
         local_file = None

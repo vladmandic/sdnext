@@ -59,11 +59,13 @@ def load_upsample(upsample_pipe, upsample_repo_id):
         t0 = time.time()
         from diffusers.pipelines.ltx.pipeline_ltx_latent_upsample import LTXLatentUpsamplePipeline
         log.info(f'Load video: cls={LTXLatentUpsamplePipeline.__name__} repo="{upsample_repo_id}"')
+        offline_args = {'local_files_only': True} if shared.opts.offline_mode else {}
         upsample_pipe = LTXLatentUpsamplePipeline.from_pretrained(
             upsample_repo_id,
             vae=shared.sd_model.vae,
             cache_dir=shared.opts.hfcache_dir,
             torch_dtype=devices.dtype,
+            **offline_args,
         )
         # only the upsampler, since the pipe borrows the model's vae and moving the whole pipe
         # would drag that along into the meta tensors the caller's offload exclude avoids
@@ -85,11 +87,13 @@ def load_upsample_2x(upsample_pipe, upsample_repo_id, variant: str = '2.x'):
         from diffusers.pipelines.ltx2.latent_upsampler import LTX2LatentUpsamplerModel
         from modules import sd_checkpoint
         log.info(f'Load video: cls={LTX2LatentUpsamplePipeline.__name__} repo="{upsample_repo_id}"')
+        offline_args = {'local_files_only': True} if shared.opts.offline_mode else {}
         latent_upsampler = LTX2LatentUpsamplerModel.from_pretrained(
             upsample_repo_id,
             subfolder='latent_upsampler',
             cache_dir=shared.opts.hfcache_dir,
             torch_dtype=devices.dtype,
+            **offline_args,
         ).to(devices.device)
         upsample_pipe = LTX2LatentUpsamplePipeline(
             vae=shared.sd_model.vae,

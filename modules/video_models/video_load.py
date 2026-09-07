@@ -221,7 +221,8 @@ def load_upscale_vae():
 
     repo_id = 'spacepxl/Wan2.1-VAE-upscale2x'
     subfolder = "diffusers/Wan2.1_VAE_upscale2x_imageonly_real_v1"
-    vae_decode = diffusers.AutoencoderKLWan.from_pretrained(repo_id, subfolder=subfolder, cache_dir=shared.opts.hfcache_dir)
+    offline_args = {'local_files_only': True} if shared.opts.offline_mode else {}
+    vae_decode = diffusers.AutoencoderKLWan.from_pretrained(repo_id, subfolder=subfolder, cache_dir=shared.opts.hfcache_dir, **offline_args)
     vae_decode.requires_grad_(False)
     vae_decode = vae_decode.to(device=devices.device, dtype=devices.dtype)
     vae_decode.eval()
