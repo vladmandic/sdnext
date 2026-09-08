@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2026-09-07
+## Update for 2026-09-08
 
-### Highlights for 2026-09-07
+### Highlights for 2026-09-08
 
 All-about-optimizations: 
 - improved LoRA performance and quality, especially with quantized models
@@ -12,7 +12,7 @@ All-about-optimizations:
 - compute updates across the board
 - enhanced cloud model support
 
-### Details for 2026-09-07
+### Details for 2026-09-08
 
 - **Models**
   - [Anima 2.9B Preview v1](https://huggingface.co/yeoj34760/Anima-2.9B)  

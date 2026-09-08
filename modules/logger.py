@@ -232,20 +232,26 @@ def setup_logging(debug=None, trace=None, filename=None):
     log.setLevel(logging.DEBUG) # log to file is always at level debug for facility `sd`
     log.print = rprint
 
+    # use only the 16 standard ANSI color names (+ dim/bold modifiers) so the theme renders correctly on basic 16-color terminals too
     theme = Theme({
         "traceback.border": "black",
         "inspect.value.border": "black",
-        "traceback.border.syntax_error": "dark_red",
-        "logging.level.info": "blue_violet",
-        "logging.level.debug": "orchid",
-        "logging.level.trace": "dark_blue",
-        "repr.attrib_name": "bright_cyan",
-        "repr.attrib_value": "orchid",
-        "repr.str": "sandy_brown",
-        "repr.number": "bright_green",
-        "repr.bool_true": "bright_green",
+        "traceback.border.syntax_error": "red",
+
+        "logging.level.trace": "dim cyan",
+        "logging.level.debug": "cyan",
+        "logging.level.info": "bright_cyan",
+        "logging.level.warning": "yellow",
+        "logging.level.error": "red",
+        "logging.level.critical": "bold bright_red",
+
+        "repr.attrib_name": "bright_white",
+        "repr.attrib_value": "cyan",
+        "repr.str": "bright_cyan",
+        "repr.none": "yellow",
+        "repr.number": "bright_yellow",
+        "repr.bool_true": "green",
         "repr.bool_false": "bright_red",
-        "repr.values": "bright_cyan",
     })
 
     Padding.__rich_console__ = override_padding
@@ -270,7 +276,7 @@ def setup_logging(debug=None, trace=None, filename=None):
 
     log_filter = LogFilter()
     # handlers
-    rh = RichHandler(show_time=True, omit_repeated_times=False, show_level=True, show_path=False, markup=False, rich_tracebacks=True, log_time_format='%H:%M:%S-%f', level=level, console=console)
+    rh = RichHandler(show_time=True, omit_repeated_times=False, show_level=True, show_path=False, markup=True, rich_tracebacks=True, log_time_format='%H:%M:%S-%f', level=level, console=console)
     if trace:
         rh.formatter = logging.Formatter('[%(module)s][%(pathname)s:%(lineno)d]  %(message)s')
     rh.addFilter(log_filter)
@@ -319,3 +325,12 @@ def setup_logging(debug=None, trace=None, filename=None):
         logging.getLogger("torch").setLevel(logging.DEBUG)
     else:
         logging.getLogger("torch").setLevel(logging.WARNING)
+
+
+if __name__ == "__main__":
+    setup_logging(debug=True, trace=False, filename=None)
+    for l in [logging.TRACE, logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL]:
+        log.log(l, f"Test log level: {logging.getLevelName(l)}")
+    values = [None, True, False, "yes", "no", "sd.next", 1, 0, 1.0, [1,2,3], {"key": "value"}, (1,2), {1,2}, object()]
+    for v in values:
+        log.info(f"Test values: {type(v).__name__}={v}")

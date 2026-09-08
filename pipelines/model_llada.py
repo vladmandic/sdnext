@@ -19,15 +19,21 @@ def load_llada_image(checkpoint_info, diffusers_load_config=None):
     if repo_id is None or repo_id.lower() == 'none':
         return None
 
+    sdnq_quantize_weights_mode = None
+    sdnq_quantize_weights_mode_te = None
+    sdnq_quantize_matmul_mode_te = None
     if 'Model' in shared.opts.sdnq_quantize_weights:
         if any(x in shared.opts.sdnq_quantize_weights_mode for x in ['2', '3', '4', '5', '6']):
+            sdnq_quantize_weights_mode = shared.opts.sdnq_quantize_weights_mode
             shared.opts.sdnq_quantize_weights_mode = 'uint8'
             log.warning('LLaDAImage: cls=LLaDAImageTransformer2DModel quant=uint8 override')
     if 'TE' in shared.opts.sdnq_quantize_weights:
         if any(x in shared.opts.sdnq_quantize_weights_mode_te for x in ['2', '3', '4', '5', '6']):
+            sdnq_quantize_weights_mode_te = shared.opts.sdnq_quantize_weights_mode_te
             shared.opts.sdnq_quantize_weights_mode_te = 'uint8'
             log.warning('LLaDAImage: cls=LLaDA2MoeModelLM quant=uint8 override')
         if shared.opts.sdnq_quantize_matmul_mode_te != 'disabled':
+            sdnq_quantize_matmul_mode_te = shared.opts.sdnq_quantize_matmul_mode_te
             shared.opts.sdnq_quantize_matmul_mode_te = 'disabled'
             log.warning('LLaDAImage: cls=LLaDA2MoeModelLM matmul=disabled override')
 
@@ -71,6 +77,14 @@ def load_llada_image(checkpoint_info, diffusers_load_config=None):
         'output_type': 'np',
     }
     # generation_mode = "text", "vq", "editing"
+
+    # restore settings post-load
+    if sdnq_quantize_weights_mode is not None:
+        shared.opts.sdnq_quantize_weights_mode = sdnq_quantize_weights_mode
+    if sdnq_quantize_weights_mode_te is not None:
+        shared.opts.sdnq_quantize_weights_mode_te = sdnq_quantize_weights_mode_te
+    if sdnq_quantize_matmul_mode_te is not None:
+        shared.opts.sdnq_quantize_matmul_mode_te = sdnq_quantize_matmul_mode_te
 
     del transformer, text_encoder
     sd_hijack_te.init_hijack(pipe)

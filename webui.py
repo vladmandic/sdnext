@@ -249,7 +249,7 @@ def async_policy():
             if shared.cmd_opts.profile:
                 loop.slow_callback_duration = 0.001
             loop.set_debug(shared.cmd_opts.profile)
-            log.debug(f'AsyncIO: loop={loop}')
+            log.debug(f'AsyncIO: loop={loop.__class__.__name__}')
             loop.set_task_factory(verbose_task_factory)
             loop.set_exception_handler(self.handle_exception)
             return loop

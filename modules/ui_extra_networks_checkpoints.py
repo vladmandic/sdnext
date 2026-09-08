@@ -111,6 +111,7 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
                 primary = tag.split(',')[0].strip() if len(tag) > 0 else ''
             else:
                 primary = ''
+            primary = primary.lower()
 
             if ('nunchaku' in tag) and (devices.backend != 'cuda' and not shared.cmd_opts.experimental):
                 count['hidden'] += 1
