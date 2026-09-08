@@ -384,9 +384,10 @@ python-version = "3.10"
 [tool.ty.src]
 include = [
     "*.py",
+    "modules/*.py",
+    "pipelines/*.py",
+    "scripts/*.py",
     "modules/**/*.py",
-    "pipelines/**/*.py",
-    "scripts/**/*.py",
     "extensions-builtin/**/*.py"
 ]
 exclude = [
@@ -412,8 +413,8 @@ exclude = [
     "modules/teacache",
     "modules/face/*.py",
     "modules/sub_quadratic_attention.py",
-    "pipelines/**/*.py",
-    "scripts/**/*.py",
+    "pipelines/*/**/*.py",
+    "scripts/*/**/*.py",
 ]
 
 [tool.ty.rules]

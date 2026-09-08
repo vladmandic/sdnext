@@ -1140,7 +1140,7 @@ def list_extensions_folder(folder, quiet=False):
     disabled_extensions = opts.get('disabled_extensions', [])
     enabled_extensions = [x for x in os.listdir(folder) if os.path.isdir(os.path.join(folder, x)) and x not in disabled_extensions and not x.startswith('.')]
     if not quiet:
-        log.info(f'Extensions: path="{folder}" enabled={enabled_extensions}')
+        log.info(f'Extensions: path="{folder}" available={enabled_extensions}')
     return enabled_extensions
 
 
@@ -1363,7 +1363,6 @@ def install_requirements():
         log.info('Install requirements: this may take a while...')
         pip('install -r requirements.txt')
     if args.optional:
-        quick_allowed = False
         install_optional()
     log.info('Install: verifying requirements')
     if args.new:

@@ -72,10 +72,10 @@ class ActivationPass:
         self.sd_model = getattr(shared.sd_model, "pipe", shared.sd_model)
         self.fuse = fuse
         self.elimit = None # the error limiter, bound for the duration of the walk
-        self.wanted_names = tuple((x.name, x.te_multiplier, x.unet_multiplier, x.dyn_dim) for x in l.loaded_networks) if len(l.loaded_networks) > 0 else ()
+        self.wanted_names: tuple[tuple[str, float, list, int | None], ...] = tuple((x.name, x.te_multiplier, x.unet_multiplier, x.dyn_dim) for x in l.loaded_networks) if len(l.loaded_networks) > 0 else ()
         self.stack_sig = lora_stack.signature() + lora_blocks.signature() + lora_sdnq.signature() # tracked beside network_current_names so stack-setting, block-weight and mechanism changes re-apply
         self.select_active = len(l.loaded_networks) > 0 and lora_stack.active_select(len(l.loaded_networks)) # restore-only walks have nothing to stack; the count warning would fire on every network-free generation
-        self.component_wanted = ()
+        self.component_wanted: tuple[tuple[str, float, list, int | None], ...] = ()
         self.device = None
         self.group_offload = shared.opts.diffusers_offload_mode == "group"
         self.group_stripped = {}

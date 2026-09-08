@@ -238,7 +238,7 @@ def main():
     init_args() # setup argparser and default folders
     installer.args = args
     installer.setup_logging(debug=args.debug, trace=args.trace, filename=args.log)
-    log.info('[bold cyan]SD.Next[/]: starting')
+    log.info('Starting: [bold cyan]SD.Next[/]')
     installer.get_logfile()
     try:
         sys.excepthook = installer.custom_excepthook

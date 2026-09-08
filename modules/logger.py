@@ -182,21 +182,14 @@ def setup_logging(debug=None, trace=None, filename=None):
             render_options = render_options.update_height(height=render_options.height - self.top - self.bottom)
         lines = console.render_lines(self.renderable, render_options, style=style, pad=False)
         _Segment = Segment
-        left = _Segment(" " * self.left, style) if self.left else None
         right = [_Segment.line()]
         blank_line: list[Segment] | None = None
         if self.top:
             blank_line = [_Segment(f'{" " * width}\\n', style)]
             yield from blank_line * self.top
-        if left:
-            for line in lines:
-                yield left
-                yield from line
-                yield from right
-        else:
-            for line in lines:
-                yield from line
-                yield from right
+        for line in lines: # self.left is forced to 0 above, so no left-padding segment is ever emitted
+            yield from line
+            yield from right
         if self.bottom:
             blank_line = blank_line or [_Segment(f'{" " * width}\\n', style)]
             yield from blank_line * self.bottom

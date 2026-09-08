@@ -271,4 +271,6 @@ def list_extensions():
         enabled = dirname.lower() not in disabled_extensions
         extension = Extension(name=dirname, path=path, enabled=enabled, is_builtin=is_builtin)
         extensions.append(extension)
-    log.debug(f'Extensions: disabled={[e.name for e in extensions if not e.enabled]}')
+    enabled = [e.name for e in extensions if e.enabled]
+    disabled = [e.name for e in extensions if not e.enabled]
+    log.debug(f'Extensions: enabled={enabled} disabled={disabled}')
