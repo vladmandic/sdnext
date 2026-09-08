@@ -90,6 +90,8 @@ class LLaDAImagePipeline(DiffusionPipeline):
 
         self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1) if self.vae is not None else 8
         self.latent_scale_factor = self.vae_scale_factor * 2
+        self.patch_size = 2 # transformer patch size, read by the host to round sizes to the latent multiple
+        self.init_image_multiple = self.latent_scale_factor * 2 # editing feeds a half-resolution copy of the source image to the semantic encoder
         self.image_processor = VaeImageProcessor(vae_scale_factor=self.latent_scale_factor)
 
     @classmethod
@@ -383,7 +385,7 @@ class LLaDAImagePipeline(DiffusionPipeline):
         if generation_mode == "vq" and (height % 16 != 0 or width % 16 != 0):
             raise ValueError("`height` and `width` must be divisible by 16 in VQ mode.")
 
-        required_multiple = self.latent_scale_factor * (2 if generation_mode == "editing" else 1)
+        required_multiple = self.init_image_multiple if generation_mode == "editing" else self.latent_scale_factor
         if height <= 0 or width <= 0 or height % required_multiple != 0 or width % required_multiple != 0:
             raise ValueError(f"`height` and `width` must be divisible by {required_multiple}.")
         if num_inference_steps < 1:

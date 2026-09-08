@@ -444,7 +444,7 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:l
     # handle missing resolution
     if args.get('image', None) is not None and ('width' not in args or 'height' not in args):
         if 'width' in possible and 'height' in possible:
-            vae_scale_factor = sd_vae.get_vae_scale_factor(model)
+            vae_scale_factor = sd_vae.get_vae_scale_factor(model, init_image=True)
             if isinstance(args['image'], torch.Tensor) or isinstance(args['image'], np.ndarray):
                 if args['image'].shape[-1] == 3: # nhwc
                     args['width'] = args['image'].shape[-2]

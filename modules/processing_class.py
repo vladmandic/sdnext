@@ -738,7 +738,7 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
 
     def init(self, all_prompts=None, all_seeds=None, all_subseeds=None):
         if self.init_images is not None and len(self.init_images) > 0:
-            vae_scale_factor = sd_vae.get_vae_scale_factor()
+            vae_scale_factor = sd_vae.get_vae_scale_factor(init_image=True)
             if self.width is None or self.width == 0:
                 self.width = int(vae_scale_factor * (self.init_images[0].width * self.scale_by // vae_scale_factor))
             if self.height is None or self.height == 0:

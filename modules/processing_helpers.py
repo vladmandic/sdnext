@@ -395,7 +395,7 @@ def resize_init_images(p):
             p.init_images = [p.image]
         if getattr(p, 'init_images', None) is not None and len(p.init_images) > 0:
             p.init_images = decode_images(p.init_images)
-            vae_scale_factor = sd_vae.get_vae_scale_factor()
+            vae_scale_factor = sd_vae.get_vae_scale_factor(init_image=True)
             tgt_width = vae_scale_factor * math.ceil(p.init_images[0].width / vae_scale_factor)
             tgt_height = vae_scale_factor * math.ceil(p.init_images[0].height / vae_scale_factor)
             if p.init_images[0].size != (tgt_width, tgt_height):
