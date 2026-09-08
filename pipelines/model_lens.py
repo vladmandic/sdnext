@@ -12,9 +12,9 @@ def load_lens(checkpoint_info, diffusers_load_config=None):
     sd_models.hf_auth_check(checkpoint_info)
     from pipelines import lens
 
-
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, allow_quant=False)
     log.debug(f'Load model: type=Lens repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} reasoner={shared.opts.model_lens_enable_pe} args={load_args}')
+    generic.set_pipeline('Lens', diffusers.Krea2Pipeline)
 
     if repo_id is None or repo_id.lower() == 'none':
         return None
@@ -27,7 +27,6 @@ def load_lens(checkpoint_info, diffusers_load_config=None):
     diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["lens"] = lens.LensPipeline
     diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["lens"] = lens.LensImg2ImgPipeline
     diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING["lens"] = lens.LensInpaintPipeline
-    generic.set_pipeline('Lens', lens.LensPipeline)
     pipe = lens.LensPipeline.from_pretrained(
         repo_id,
         transformer=transformer,
