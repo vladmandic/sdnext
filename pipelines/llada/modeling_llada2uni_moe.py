@@ -91,6 +91,10 @@ class LLaDA2MoePreTrainedModel(PreTrainedModel):
             module.weight.data.normal_(mean=0.0, std=std)
             if module.padding_idx is not None:
                 module.weight.data[module.padding_idx].zero_()
+        elif isinstance(module, LLaDA2MoeRotaryEmbedding): # non-persistent buffers come back uninitialized from the meta-device load
+            inv_freq, module.attention_scaling = module.rope_init_fn(module.config, module.inv_freq.device)
+            module.inv_freq.copy_(inv_freq)
+            module.original_inv_freq = module.inv_freq
 
 
 def rotate_half(hidden_states):
