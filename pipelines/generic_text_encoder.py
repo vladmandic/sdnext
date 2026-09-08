@@ -21,6 +21,8 @@ def get_shared(cls, repo_id, subfolder=None, variant=None, shared_id: str | None
             identifiers = []
         if isinstance(identifiers, str):
             identifiers = [identifiers]
+        if not isinstance(identifiers, list):
+            identifiers = []
         identifiers = [identifier.lower() for identifier in identifiers if identifier is not None]
         shared_id = shared_id or repo_id.lower()
         if item['cls'] == cls and (not identifiers or any(identifier in shared_id for identifier in identifiers)):

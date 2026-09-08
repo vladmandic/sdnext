@@ -869,7 +869,7 @@ class StableDiffusionXLDiffImg2ImgPipeline(DiffusionPipeline, FromSingleFileMixi
         total_time_steps = num_inference_steps
         #end diff diff change
         timesteps, num_inference_steps = self.get_timesteps(
-            num_inference_steps, strength, device, denoising_start=denoising_start if denoising_value_valid else None # pylint: disable=missing-parentheses-for-call-in-test, using-constant-test
+            num_inference_steps, strength, device, denoising_start=denoising_start if denoising_value_valid(denoising_start) else None
         )
         latent_timestep = timesteps[:1].repeat(batch_size * num_images_per_prompt)
 

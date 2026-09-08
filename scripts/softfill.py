@@ -964,7 +964,7 @@ class StableDiffusionXLSoftFillPipeline(
         aesthetic_score: float = 6.0,
         negative_aesthetic_score: float = 2.5,
         clip_skip: Optional[int] = None,
-        callback_on_step_end: Optional[Callable[[int, int, Dict], None]] = None,
+        callback_on_step_end: Optional[Callable[..., Dict]] = None, # invoked as (self, step_index, timestep, callback_kwargs) -> dict
         callback_on_step_end_tensor_inputs: List[str] = ["latents"],
         **kwargs,
     ):

@@ -45,7 +45,7 @@ import os
 import json
 import time
 from dataclasses import dataclass, field
-from typing import Callable
+from typing import Callable, cast
 
 import huggingface_hub as hf
 import torch
@@ -185,7 +185,7 @@ def auto_pickup_converter(cls: type) -> Callable[[dict], dict] | None:
     fn = entry.get("checkpoint_mapping_fn")
     if fn is None or is_noop_converter(fn):
         return None
-    return fn
+    return cast('Callable[[dict], dict]', fn) # diffusers' mapping fns vary in signature (extra kwargs/config), all compatible at call sites
 
 
 def is_noop_converter(fn: Callable) -> bool:
