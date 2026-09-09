@@ -499,6 +499,7 @@ def create_settings(cmd_opts):
         "openvino_cache_path": OptionInfo('cache', "Folder for OpenVINO cache", folder=True),
         "onnx_cached_models_path": OptionInfo(os.path.join(paths.models_path, 'ONNX', 'cache'), "Folder for ONNX cached models", folder=True),
         "onnx_temp_dir": OptionInfo(os.path.join(paths.models_path, 'ONNX', 'temp'), "Folder for ONNX conversion", folder=True),
+        "dlss_pkg_path": OptionInfo('', "Folder with DLSS package", gr.Textbox, { "visible": False}),
     }))
 
     # --- Image Options ---

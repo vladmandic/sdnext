@@ -356,8 +356,14 @@ def process_samples(p: StableDiffusionProcessing, samples):
                 pp = scripts_manager.PostprocessImageArgs(image)
                 p.scripts.postprocess_image(p, pp)
                 if pp.image is not None:
-                    image = pp.image
-
+                    if isinstance(pp.image, list) and len(pp.image) > 0: # post process image can return original+processed
+                        for i, img in enumerate(pp.image):
+                            if i+1 < len(pp.image):
+                                out_images.append(img)
+                                out_infotexts.append(f"Postprocess image {i+1}")
+                        image = pp.image[-1]
+                    else:
+                        image = pp.image
             grading_params = processing_grading.GradingParams(
                 brightness=getattr(p, 'grading_brightness', 0.0),
                 contrast=getattr(p, 'grading_contrast', 0.0),
@@ -609,7 +615,9 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
         audio=audio,
     )
     if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner) and not (shared.state.interrupted or shared.state.skipped):
-        p.scripts.postprocess(p, results)
+        _results = p.scripts.postprocess(p, results)
+        if _results is not None:
+            results = _results
     timer.process.record('post')
     p.ops = list(set(p.ops))
     t3 = time.time()

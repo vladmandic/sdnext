@@ -743,15 +743,19 @@ class ScriptRunner:
 
     def postprocess(self, p: StableDiffusionProcessing, processed):
         s = ScriptSummary('postprocess')
+        _processed = processed
         for script in self.alwayson_scripts:
             try:
                 args = resolve_script_args(script, p.script_args, p.per_script_args)
                 if args is not None:
-                    script.postprocess(p, processed, *args)
+                    result = script.postprocess(p, _processed, *args)
+                    if result is not None: # allow postprocessing script to optionally modify results
+                        _processed = result
             except Exception as e:
                 errors.display(e, f'Running script postprocess: {script.filename}')
             s.record(script.title())
         s.report()
+        return _processed
 
     def postprocess_batch(self, p: StableDiffusionProcessing, images, **kwargs):
         s = ScriptSummary('postprocess-batch')
