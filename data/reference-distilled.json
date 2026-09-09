@@ -253,6 +253,7 @@
   },
   "inclusionAI LLaDA-Image Turbo": {
     "path": "inclusionAI/LLaDA-Image-Turbo",
+    "preview": "inclusionAI--LLaDA-Image-Turbo.jpg",
     "desc": "LLaDA-Image-Turbo is the distilled fast-generation and editing variant of LLaDA-Image.",
     "extras": "steps: 4, cfg_scale: 1.0",
     "size": 37.15,
