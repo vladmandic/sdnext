@@ -986,6 +986,7 @@
   },
   "inclusionAI LLaDA-Image": {
     "path": "inclusionAI/LLaDA-Image",
+    "preview": "inclusionAI--LLaDA-Image.jpg",
     "desc": "LLaDA-Image is a unified 6B image generation and editing model with text, VQ-conditioned, and reference-image workflows.",
     "extras": "steps: 50, cfg_scale: 5.0",
     "size": 37.15,
