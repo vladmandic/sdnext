@@ -112,6 +112,16 @@ async function createSplash() {
     .catch((err) => error(`getMOTD: ${err}`));
 
   log('loadGradioUi');
+
+  const splashMonitor = setInterval(() => {
+    const splashVisible = !!document.getElementById('splash');
+    if (splashVisible) {
+      log('splashVisible', { visible: true, elapsed: Math.round(performance.now() - appStartTime) });
+    } else {
+      log('splashVisible', { visible: false, elapsed: Math.round(performance.now() - appStartTime) });
+      clearInterval(splashMonitor);
+    }
+  }, 2500);
 }
 
 window.onload = createSplash;

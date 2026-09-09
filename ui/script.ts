@@ -139,6 +139,7 @@ const ignoreElementsSet = new Set(ignoreElements);
 const ignoreClasses = ['wrap'];
 
 let mutationTimer: ReturnType<typeof setTimeout> | undefined;
+let mutationTS: number | undefined;
 let validMutations = [];
 
 async function mutationCallback(mutations) {
@@ -152,9 +153,12 @@ async function mutationCallback(mutations) {
   }
   if (validMutations.length < 1) return;
 
-  if (mutationTimer) clearTimeout(mutationTimer);
+  if (mutationTimer) clearTimeout(mutationTimer); // bounce
   mutationTimer = setTimeout(async () => {
+    const ts = Date.now() - mutationTS;
+    if (!executedOnLoaded && (ts > 1000)) log('onUiLoaded delayed', { ts, prompts: anyPromptExists() });
     if (!executedOnLoaded && anyPromptExists()) { // execute once
+      log('onUiLoaded', ts);
       executedOnLoaded = true;
       executeCallbacks(uiLoadedCallbacks);
     }
@@ -174,6 +178,7 @@ async function mutationCallback(mutations) {
 
 document.addEventListener('DOMContentLoaded', () => {
   log('DOMContentLoaded');
+  mutationTS = Date.now();
   gradioObserver = new MutationObserver(mutationCallback);
   gradioObserver.observe(gradioApp(), { childList: true, subtree: true, attributes: false });
 });

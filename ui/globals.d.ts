@@ -23,6 +23,7 @@ declare global {
     // state objects
     api: string; // ui/startup.ts
     subpath: string; // ui/startup.ts
+    initStartup?: () => void; // ui/startup.ts
     opts: Record<string, any>; // ui/ui.ts
     localization?: Record<string, any>; // ui/ui.ts
     titles?: Record<string, any>; // ui/ui.ts
