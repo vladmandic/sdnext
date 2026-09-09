@@ -303,7 +303,7 @@ def connect_paste(button, local_paste_fields, input_comp, override_settings_comp
                     applied[key] = v
                     continue
                 if getattr(output, 'elem_id', '').endswith('_resize_name') and isinstance(v, str):
-                    from modules import modelloader, shared, ui_sections
+                    from modules import modelloader, ui_sections
                     modelloader.load_upscalers()
                     choices = [upscaler.name for upscaler in shared.sd_upscalers]
                     if output.elem_id.startswith(('control_after', 'control_mask')):
