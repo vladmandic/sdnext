@@ -77,9 +77,10 @@ class DLSSNeuralRenderer:
         log.info('DLSSNeuralRenderer: call')
         options = options or RenderOptions()
         options.validate()
-        batch, _, height, width = validate_nchw(images, name="images")
+        batch, _channels, height, width = validate_nchw(images, name="images")
+        log.debug(f'DLSSNeuralRenderer: input={images.shape}')
         if width < 64 or height < 64:
-            raise StandaloneError("invalid_dimensions", "DLSS Neural Rendering requires images at least 64x64 pixels.")
+            raise StandaloneError("invalid_dimensions", "NeuralRender: invalid resolution")
         output_width, output_height = resolve_output_size(width, height, options.upscaling_factor)
         own_controller = controller or JobController()
         log.debug(f'DLSSNeuralRenderer: controller={own_controller}')
@@ -93,37 +94,38 @@ class DLSSNeuralRenderer:
                 factor, mode = resolve_upscaling_mode(options.upscaling_factor)
                 native_settings = resolve_native_settings(options.source_options())
                 session_diagnostics: list[dict[str, Any]] = []
+                session = DLSSFrameSession(
+                    input_width=width,
+                    input_height=height,
+                    output_width=output_width,
+                    output_height=output_height,
+                    frame_count=batch,
+                    warmup_frames=options.warmup_frames,
+                    factor=factor,
+                    mode=mode,
+                    native_settings=native_settings,
+                    gpu=gpu,
+                    runtime_bundle=prepared.runtime_bundle,
+                    controller=active_controller,
+                )
+                log.debug(f'DLSSNeuralRenderer: session={session}')
                 for index in range(batch):
                     if active_controller.cancel.is_set():
-                        raise StandaloneError("cancelled", "Neural rendering was cancelled.")
+                        raise StandaloneError("cancelled", "NeuralRender: cancelled.")
                     try:
-                        session = DLSSFrameSession(
-                            input_width=width,
-                            input_height=height,
-                            output_width=output_width,
-                            output_height=output_height,
-                            frame_count=1,
-                            warmup_frames=options.warmup_frames,
-                            factor=factor,
-                            mode=mode,
-                            native_settings=native_settings,
-                            gpu=gpu,
-                            runtime_bundle=prepared.runtime_bundle,
-                            controller=active_controller,
-                        )
-                        log.debug(f'DLSSNeuralRenderer: session={session}')
                         rgb = nchw_image_to_hwc(images, index, name="images")
                         rgba = rgb_to_rgba(rgb)
                         render_input = resize_fit(rgba, session.render_width, session.render_height)
                         motion = np.zeros((session.render_height, session.render_width, 2), dtype=np.float16)
+                        log.debug(f'DLSSNeuralRenderer: index={index} processes={render_input.shape}')
                         processed, _ = session.process(
-                            index=0,
+                            index=index,
                             rgba=render_input,
                             motion=motion,
                             reset=True,
                             pts=0,
                         )
-                        log.debug(f'DLSSNeuralRenderer: processed={processed.shape}')
+                        log.debug(f'DLSSNeuralRenderer: index={index} processed={processed.shape}')
                         outputs.append(rgba_to_rgb_nchw(processed)[0])
                         session_diagnostics.append({
                             "render_width": session.render_width,
@@ -134,12 +136,12 @@ class DLSSNeuralRenderer:
                         })
                         for l in session.worker_logs or []:
                             log.debug(f'DLSSNeuralRenderer worker: {l}')
-                        session.close()
                     except Exception as e:
                         log.error(f'DLSSNeuralRenderer: exception {e}')
                         if session is not None and not session.closed:
                             session.abort()
                         raise
+                session.close()
                 self.diagnostics = {
                     "gpu": dict(gpu),
                     "runtime_bundle": prepared.runtime_bundle,
@@ -149,7 +151,7 @@ class DLSSNeuralRenderer:
             raise
         except Exception as exc:
             log.error(f'DLSSNeuralRenderer: unexpected exception {exc}')
-            raise StandaloneError("processing_failed", f"DLSS Neural Rendering failed: {exc}") from exc
+            raise StandaloneError("processing_failed", f"NeuralRender failed: {exc}") from exc
         result = np.ascontiguousarray(np.stack(outputs, axis=0))
         self.last_report = {
             "input_shape": tuple(images.shape),

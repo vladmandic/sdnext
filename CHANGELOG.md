@@ -48,8 +48,8 @@ Plus inevitable bug-fixes...
 - **DLSS**
   - add DLSS support for: *NeuralRender, SuperSample and FrameGen*  
     dlls 5 caused quite a stir, but combined with generative ai it becomes a nice tool  
-  - available via *extras -> dlss* as part of generate workflow or as a standalone *processing* workflow  
-    *todo*: video support will be added in the future  
+  - available as part of image/video generate workflows via *extras -> dlss*  
+    or as a standalone *processing* workflow  
   - *note*: requires nvidia rtx gpu, windows platform and compatible gpu drivers  
     but...it can be used from wsl2: unpack required package on windows host and you can access it from the wsl2 environment  
   - *install*: requires [DLSS 5 Visual Enhancer](https://github.com/Merserk/dlss5-visual-enhancer/releases/tag/v7.0)  

@@ -113,7 +113,7 @@ def _dispatch_command(command: str, request_id: str, args: tuple[Any, ...], kwar
     if command == "render":
         images = kwargs.get("images")
         if images is None:
-            raise StandaloneError("invalid_arguments", "Missing required 'images' argument for render command.")
+            raise StandaloneError("invalid_arguments", "NeuralRender: missing required images")
         options = _coerce_options(kwargs.get("options"), default=RenderOptions(), option_type=RenderOptions)
         result = DLSSNeuralRenderer()(np.asarray(images), options)
         return _response(request_id, status="ok", result=result, diagnostics={"shape": list(result.shape)})
@@ -121,7 +121,7 @@ def _dispatch_command(command: str, request_id: str, args: tuple[Any, ...], kwar
     if command == "upscale":
         images = kwargs.get("images")
         if images is None:
-            raise StandaloneError("invalid_arguments", "Missing required 'images' argument for upscale command.")
+            raise StandaloneError("invalid_arguments", "SuperSample: missing required images")
         options = _coerce_options(kwargs.get("options"), default=UpscaleOptions(), option_type=UpscaleOptions)
         result = DLSSSuperSample()(np.asarray(images), options)
         return _response(request_id, status="ok", result=result, diagnostics={"shape": list(result.shape)})
@@ -129,16 +129,16 @@ def _dispatch_command(command: str, request_id: str, args: tuple[Any, ...], kwar
     if command == "framegen":
         frames = kwargs.get("frames")
         if frames is None:
-            raise StandaloneError("invalid_arguments", "Missing required 'frames' argument for framegen command.")
+            raise StandaloneError("invalid_arguments", "FrameGen: missing required frames")
         source_fps = kwargs.get("source_fps")
         target_fps = kwargs.get("target_fps")
         if source_fps is None or target_fps is None:
-            raise StandaloneError("invalid_arguments", "framegen requires both 'source_fps' and 'target_fps'.")
+            raise StandaloneError("invalid_arguments", "FrameGen: missing source/target FPS")
         options = _coerce_options(kwargs.get("options"), default=InterpolationOptions(), option_type=InterpolationOptions)
         result = DLSSFrameGen()(np.asarray(frames), source_fps, target_fps, options)
         return _response(request_id, status="ok", result=result, diagnostics={"shape": list(result.shape)})
 
-    raise StandaloneError("invalid_arguments", f"Unsupported controller command: {command!r}")
+    raise StandaloneError("invalid_arguments", f"Controller: unsupported command: {command!r}")
 
 
 def _controller_worker(request_queue: mp.Queue, response_queue: mp.Queue, busy: Any, current_request_id: Any, current_command: Any) -> None:
@@ -279,7 +279,7 @@ class ControllerClient:
             return {"request_id": "shutdown", "status": "ok", "result": {"shutdown": True}, "error": None, "diagnostics": {}}
         response = self._send_and_wait("shutdown")
         if self.process.is_alive():
-            self.process.join(timeout=5.0)
+            self.process.join(timeout=10.0)
         return response
 
     def close(self) -> None:
@@ -289,7 +289,7 @@ class ControllerClient:
             pass
         if self.process is not None and self.process.is_alive():
             self.process.terminate()
-            self.process.join(timeout=5.0)
+            self.process.join(timeout=10.0)
 
     def __enter__(self) -> "ControllerClient":
         return self.start()

@@ -83,7 +83,7 @@ class DLSSFrameGen:
         options.validate()
         batch, _, height, width = validate_nchw(frames, name="frames")
         if width < 64 or height < 64:
-            raise StandaloneError("invalid_dimensions", "Frame interpolation requires frames at least 64x64 pixels.")
+            raise StandaloneError("invalid_dimensions", "FrameGen: invalid resolution")
         source_rate = resolve_target_rate(source_fps)
         target_rate = resolve_target_rate(target_fps)
         own_controller = controller or JobController()
@@ -93,9 +93,7 @@ class DLSSFrameGen:
                 capabilities = probe_frame_interpolation_capabilities(options.ai_gpu_uuid)
                 log.debug(f'DLSSFrameGen: capabilities={capabilities}')
                 if not capabilities.available:
-                    raise StandaloneError(
-                        "feature_unavailable",
-                        "DLSS Frame Generation is unavailable. " + capabilities.detail,
+                    raise StandaloneError("feature_unavailable", "FrameGen: unavailable. " + capabilities.detail,
                     )
                 plan = choose_interpolation_plan(
                     source_rate,
@@ -115,10 +113,7 @@ class DLSSFrameGen:
                 expected = output_frame_count(Fraction(batch, 1) / source_rate, target_rate)
                 if len(result) != expected:
                     log.error(f'DLSSFrameGen: result length={len(result)} expected={expected}')
-                    raise StandaloneError(
-                        "invalid_native_output",
-                        f"Interpolation produced {len(result)} frames; expected {expected}.",
-                    )
+                    raise StandaloneError("invalid_native_output", f"FrameGen: interpolation produced {len(result)} frames; expected {expected}.")
                 output = np.stack([rgba_to_rgb_nchw(item.rgba)[0] for item in result], axis=0)
                 log.debug(f'DLSSFrameGen: output={output.shape}')
                 self.diagnostics = {
@@ -134,7 +129,7 @@ class DLSSFrameGen:
             raise
         except Exception as exc:
             log.error(f'DLSSFrameGen: unexpected exception {exc}')
-            raise StandaloneError("processing_failed", f"DLSS frame interpolation failed: {exc}") from exc
+            raise StandaloneError("processing_failed", f"FrameGen: failed: {exc}") from exc
         self.last_report = {
             "input_shape": tuple(frames.shape),
             "output_shape": tuple(output.shape),
@@ -182,7 +177,7 @@ class DLSSFrameGen:
             candidates: list[_TimedFrame] = []
             for source in source_frames:
                 if controller.cancel.is_set():
-                    raise StandaloneError("cancelled", "Frame interpolation was cancelled.")
+                    raise StandaloneError("cancelled", "FrameGen: cancelled")
                 items = [source]
                 for stage in stages:
                     next_items: list[_TimedFrame] = []

@@ -8,7 +8,7 @@ from scripts.dlss import controller_cli as c
 
 
 debug = os.environ.get('SD_DLSS_DEBUG', None) is not None
-FPS_CHOICES = ['23.976', '24', '25', '29.97', '30', '50', '59.94', '60', '90', '119.88', '120', '144', '165', '180', '240', '360', '480']
+FPS_CHOICES = ['23.976', '25', '29.97', '30', '50', '59.94', '60', '90', '119.88', '120', '144', '165', '180', '240', '360', '480']
 
 
 def create_ui(parent):
@@ -158,7 +158,15 @@ def supersample(pkg_path, images, ss_vsr_quality, ss_size_mode, ss_scale_factor,
             'height': int(ss_height),
             'aspect_lock': False,
         }
-        response = c.controller.call(pkg_path, 'upscale', { 'images': c.images_to_nchw(images), 'options': options })
+        frames = c.images_to_nchw(images)
+        if debug:
+            log.trace(f'DLSS: method=SuperSample input={frames.shape} options={options}')
+        response = c.controller.call(
+            pkg_path,
+            'upscale',
+            { 'images': frames, 'options': options },
+            timeout=300.0,
+        )
         if response.get('status') != 'ok':
             error = response.get('error') or {}
             log.error(f'DLSS: {error.get("message")}')
@@ -184,7 +192,15 @@ def neuralrender(pkg_path, images, nr_style, nr_intensity, nr_local_tone, nr_loc
             'automatic_mask': bool(nr_automatic_mask),
             'dlss_model_preset': nr_model_preset,
         }
-        response = c.controller.call(pkg_path, 'render', { 'images': c.images_to_nchw(images), 'options': options })
+        frames = c.images_to_nchw(images)
+        if debug:
+            log.trace(f'DLSS: method=NeuralRender input={frames.shape} options={options}')
+        response = c.controller.call(
+            pkg_path,
+            'render',
+            { 'images': frames, 'options': options },
+            timeout=600.0,
+        )
         if response.get('status') != 'ok':
             error = response.get('error') or {}
             log.error(f'DLSS: {error.get("message")}')
@@ -202,10 +218,13 @@ def framegen(pkg_path, images, fg_source_fps, fg_target_fps, fg_engine):
             log.warning('DLSS: FrameGen requires at least two frames, skipping')
             return None
         options = { 'ai_gpu_uuid': 'auto', 'engine': fg_engine }
+        frames = c.images_to_nchw(images)
+        if debug:
+            log.trace(f'DLSS: method=FrameGen input={frames.shape} options={options}')
         response = c.controller.call(
             pkg_path, 'framegen',
-            { 'frames': c.images_to_nchw(images), 'source_fps': fg_source_fps, 'target_fps': fg_target_fps, 'options': options },
-            timeout=120.0,
+            { 'frames': frames, 'source_fps': fg_source_fps, 'target_fps': fg_target_fps, 'options': options },
+            timeout=300.0,
         )
         if response.get('status') != 'ok':
             error = response.get('error') or {}
@@ -249,8 +268,8 @@ def dlss(p: processing.StableDiffusionProcessing | None, pp: processing.Processe
     ss_width = int(ss_width)
     ss_height = int(ss_height)
     ss_scale_factor = float(ss_scale_factor)
-    fg_source_fps = float(fg_source_fps)
-    fg_target_fps = float(fg_target_fps)
+    fg_source_fps = str(fg_source_fps)
+    fg_target_fps = str(fg_target_fps)
 
     images = []
     originals = []
@@ -300,13 +319,15 @@ def dlss(p: processing.StableDiffusionProcessing | None, pp: processing.Processe
             current_images = output
         t.ts('framegen', t0)
 
-    log.debug(f'DLSS: images={len(images)} {t.summary(min_time=0)}')
+    log.debug(f'DLSS: frames={len(images)} {t.summary(min_time=0)}')
     pp.images = images
     pp.originals = originals
     return pp
 
 
 class DLSSScript(scripts_manager.Script):
+    video_capable = scripts_manager.AlwaysVisible
+
     def title(self):
         return 'nVidia DLSS'
 

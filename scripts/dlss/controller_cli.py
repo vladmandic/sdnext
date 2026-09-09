@@ -164,7 +164,7 @@ class DLSSController:
             log.trace(f'DLSS controller start: result={response.get("result")}')
         return True
 
-    def _send(self, request: dict, timeout: float = 60.0):
+    def _send(self, request: dict, timeout: float = 300.0):
         process = self.process
         if process is None or process.stdin is None or process.stdout is None:
             return None
@@ -208,7 +208,7 @@ class DLSSController:
                     log.trace(f'DLSS controller stray output: {raw!r}')
                 continue # skip any non-JSON noise emitted before the JSON response line
 
-    def call(self, pkg_path: str, command: str, kwargs: dict, timeout: float = 60.0) -> dict:
+    def call(self, pkg_path: str, command: str, kwargs: dict, timeout: float = 600.0) -> dict:
         with self.lock:
             if not self.ensure_installed(pkg_path):
                 return { 'status': 'error', 'result': None, 'error': { 'code': 'not_installed', 'message': 'controller is not installed' } }
@@ -217,7 +217,7 @@ class DLSSController:
             encoded_kwargs = { key: _encode_value(value) for key, value in kwargs.items() }
             request = { 'request_id': str(uuid.uuid4()), 'command': command, 'args': [], 'kwargs': encoded_kwargs }
             if debug:
-                log.trace(f'DLSS controller request: command={command}')
+                log.trace(f'DLSS controller request: command={command} timeout={timeout}')
             response = self._send(request, timeout=timeout)
             if response is None:
                 return { 'status': 'error', 'result': None, 'error': { 'code': 'not_ready', 'message': 'controller is not responding' } }

@@ -86,7 +86,7 @@ class DLSSSuperSample:
                     log.debug(f'DLSSSuperSample: session={session}')
                     for index in range(batch):
                         if active_controller.cancel.is_set():
-                            raise StandaloneError("cancelled", "Upscale was cancelled.")
+                            raise StandaloneError("cancelled", "SuperSample: cancelled.")
                         frame = nchw_image_to_hwc(images, index, name="images")
                         worker_input = srgb_to_worker(frame)
                         worker_output = session.process_frame(worker_input)
@@ -104,7 +104,7 @@ class DLSSSuperSample:
             raise
         except Exception as exc:
             log.error(f'DLSSSuperSample: unexpected exception {exc}')
-            raise StandaloneError("processing_failed", f"RTX Video upscaling failed: {exc}") from exc
+            raise StandaloneError("processing_failed", f"SuperSample: failed: {exc}") from exc
         result = np.ascontiguousarray(np.stack(outputs, axis=0))
         self.last_report = {
             "input_shape": tuple(images.shape),
