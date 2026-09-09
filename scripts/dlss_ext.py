@@ -84,7 +84,7 @@ def install():
         2. Enter the path to the unpacked package
         3. Press verify
         ### Notes
-        - Package info is stored for future use on sucessful verification
+        - Package info is stored for future use on successful verification
         - DLSS controller process is started on first use
         - Use status to check the current state of the DLSS controller
         - Use reset to restore the DLSS controller to its default state
