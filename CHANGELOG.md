@@ -1,18 +1,29 @@
 # Change Log for SD.Next
 
-## Update for 2026-09-08
+## Update for 2026-09-09
 
-### Highlights for 2026-09-08
+### Highlights for 2026-09-09
 
-All-about-optimizations: 
-- improved LoRA performance and quality, especially with quantized models
-- newly structured attention mechanisms
-- modular pipelines with new guidance methods
-- support for different caching stacks
+*What's New*? Well, code-wise, this is a big one...  
+First, a-lot-of-optimizations: 
+- improved **LoRA** performance and quality, especially with quantized models
+- newly structured **attention** mechanisms
+- modular pipelines with new **guidance** methods
+- support for different **caching** stacks
 - compute updates across the board
-- enhanced cloud model support
 
-### Details for 2026-09-08
+And some cool new stuff and models:
+- **DLSSv5** integration  
+- New models:  
+  **Anima 2.9B**, **LLaDa-Image**  
+- And few cloud models:  
+  *Google's Gemini, NanoBanana, Veo, Omni* and *X.AI's Grok*  
+
+Plus inevitable bug-fixes...
+
+[Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
+
+### Details for 2026-09-09
 
 - **Models**
   - [Anima 2.9B Preview v1](https://huggingface.co/yeoj34760/Anima-2.9B)  
@@ -34,6 +45,15 @@ All-about-optimizations:
     can significantly improve lora quality when using multiple loras at once  
   - per-block strength
   - native support for **MiniMax**
+- **DLSS**
+  - add DLSS support for: *NeuralRender, SuperSample and FrameGen*  
+    dlls 5 caused quite a stir, but combined with generative ai it becomes a nice tool  
+  - available via *extras -> dlss* as part of generate workflow or as a standalone *processing* workflow  
+    *todo*: video support will be added in the future  
+  - *note*: requires nvidia rtx gpu, windows platform and compatible gpu drivers  
+    but...it can be used from wsl2: unpack required package on windows host and you can access it from the wsl2 environment  
+  - *install*: requires [DLSS 5 Visual Enhancer](https://github.com/Merserk/dlss5-visual-enhancer/releases/tag/v7.0)  
+  - *diag*: enable `SD_DLSS_DEBUG=true` and monitor `dlss.log` in the package directory  
 - **Attention**
   - see [Attention docs](https://vladmandic.github.io/sdnext-docs/Attention) for details and usage instructions  
     *note*: attention now has its own settings section in *settings -> cross attention*  
