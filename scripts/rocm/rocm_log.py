@@ -30,11 +30,18 @@ def _process_line(line, saved_stderr):
         return
     match = _CHOSEN_PATTERN.search(text)
     if match:
-        log.info(f'MIOpen: algorithm={match.group(1)} time="{float(match.group(2)):.3f}ms"')
+        log.info(f'MIOpen algorithm={match.group(1)} time={float(match.group(2)):.3f}ms')
 
 
 class MIOpenLogRedirect:
     """Redirect native MIOpen diagnostics into structured informational logs."""
+
+    def __init__(self):
+        self.read_fd = -1
+        self.saved_stderr = -1
+        self.saved_python_stderr = sys.stderr
+        self.safe_stderr = None
+        self.reader = None
 
     def __enter__(self):
         self.read_fd, write_fd = os.pipe()
@@ -99,6 +106,12 @@ class MIOpenLogCapture:
         self.lines: list[str] = []
         self.elapsed_ms = 0.0
         self.algorithms: list[str] = []
+        self.read_fd = -1
+        self.saved_stderr = -1
+        self.saved_python_stderr = sys.stderr
+        self.safe_stderr = None
+        self.start = 0.0
+        self.reader = None
 
     def __enter__(self):
         self.read_fd, write_fd = os.pipe()
