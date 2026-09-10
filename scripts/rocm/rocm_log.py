@@ -44,30 +44,48 @@ class MIOpenLogRedirect:
         self.reader = None
 
     def __enter__(self):
-        self.read_fd, write_fd = os.pipe()
-        self.saved_stderr = os.dup(2)
-        self.saved_python_stderr = sys.stderr
-        self.safe_stderr = os.fdopen(os.dup(self.saved_stderr), "w", encoding=getattr(sys.stderr, "encoding", None) or "utf-8", buffering=1)
-        os.dup2(write_fd, 2)
-        os.close(write_fd)
-        sys.stderr = self.safe_stderr
+        write_fd = -1
+        try:
+            self.read_fd, write_fd = os.pipe()
+            self.saved_stderr = os.dup(2)
+            self.saved_python_stderr = sys.stderr
+            self.safe_stderr = os.fdopen(os.dup(self.saved_stderr), "w", encoding=getattr(sys.stderr, "encoding", None) or "utf-8", buffering=1)
+            os.dup2(write_fd, 2)
+            os.close(write_fd)
+            write_fd = -1
+            sys.stderr = self.safe_stderr
 
-        def read_output():
-            pending = b""
-            while True:
-                chunk = os.read(self.read_fd, 4096)
-                if not chunk:
-                    break
-                pending += chunk
-                while b"\n" in pending:
-                    line, pending = pending.split(b"\n", 1)
-                    _process_line(line + b"\n", self.saved_stderr)
-            if pending:
-                _process_line(pending, self.saved_stderr)
+            def read_output():
+                pending = b""
+                while True:
+                    chunk = os.read(self.read_fd, 4096)
+                    if not chunk:
+                        break
+                    pending += chunk
+                    while b"\n" in pending:
+                        line, pending = pending.split(b"\n", 1)
+                        _process_line(line + b"\n", self.saved_stderr)
+                if pending:
+                    _process_line(pending, self.saved_stderr)
 
-        self.reader = threading.Thread(target=read_output, daemon=True)
-        self.reader.start()
-        return self
+            self.reader = threading.Thread(target=read_output, daemon=True)
+            self.reader.start()
+            return self
+        except Exception:
+            if write_fd >= 0:
+                os.close(write_fd)
+            if self.saved_stderr >= 0:
+                os.dup2(self.saved_stderr, 2)
+            sys.stderr = self.saved_python_stderr
+            if self.safe_stderr is not None:
+                self.safe_stderr.close()
+            if self.reader is not None:
+                self.reader.join()
+            if self.saved_stderr >= 0:
+                os.close(self.saved_stderr)
+            if self.read_fd >= 0:
+                os.close(self.read_fd)
+            raise
 
     def __exit__(self, _exc_type, _exc_value, _traceback):
         os.dup2(self.saved_stderr, 2)
@@ -83,8 +101,12 @@ def start_miopen_logging():
     """Start filtering native MIOpen diagnostics without changing the environment."""
     global _logging_capture  # pylint: disable=global-statement
     if _logging_capture is None:
-        _logging_capture = MIOpenLogRedirect()
-        _logging_capture.__enter__()
+        try:
+            _logging_capture = MIOpenLogRedirect()
+            _logging_capture.__enter__()
+        except Exception as err:
+            log.warning(f'MIOpen logging: failed to start: {err}')
+            _logging_capture = None
 
 
 def stop_miopen_logging():
@@ -114,40 +136,60 @@ class MIOpenLogCapture:
         self.reader = None
 
     def __enter__(self):
-        self.read_fd, write_fd = os.pipe()
-        self.saved_stderr = os.dup(2)
-        self.saved_python_stderr = sys.stderr
-        self.safe_stderr = os.fdopen(os.dup(self.saved_stderr), "w", encoding=getattr(sys.stderr, "encoding", None) or "utf-8", buffering=1)
-        os.dup2(write_fd, 2)
-        os.close(write_fd)
-        sys.stderr = self.safe_stderr
-        self.lines = []
-        self.start = time.perf_counter()
+        write_fd = -1
+        try:
+            self.read_fd, write_fd = os.pipe()
+            self.saved_stderr = os.dup(2)
+            self.saved_python_stderr = sys.stderr
+            self.safe_stderr = os.fdopen(
+                os.dup(self.saved_stderr),
+                "w",
+                encoding=getattr(sys.stderr, "encoding", None) or "utf-8",
+                buffering=1,
+                )
+            os.dup2(write_fd, 2)
+            os.close(write_fd)
+            write_fd = -1
+            sys.stderr = self.safe_stderr
+            self.lines = []
+            self.start = time.perf_counter()
 
-        def read_output():
-            chunks = []
-            while True:
-                chunk = os.read(self.read_fd, 4096)
-                if not chunk:
-                    break
-                chunks.append(chunk)
-            self.lines.extend(b"".join(chunks).decode(errors="replace").splitlines())
+            def read_output():
+                chunks = []
+                while True:
+                    chunk = os.read(self.read_fd, 4096)
+                    if not chunk:
+                        break
+                    chunks.append(chunk)
+                self.lines.extend(b"".join(chunks).decode(errors="replace").splitlines())
 
-        self.reader = threading.Thread(target=read_output, daemon=True)
-        self.reader.start()
-        return self
+            self.reader = threading.Thread(target=read_output, daemon=True)
+            self.reader.start()
+            return self
+        except Exception:
+            if write_fd >= 0:
+                os.close(write_fd)
+            if self.saved_stderr >= 0:
+                os.dup2(self.saved_stderr, 2)
+            sys.stderr = self.saved_python_stderr
+            if self.safe_stderr is not None:
+                self.safe_stderr.close()
+            if self.reader is not None:
+                self.reader.join()
+            if self.saved_stderr >= 0:
+                os.close(self.saved_stderr)
+            if self.read_fd >= 0:
+                os.close(self.read_fd)
+            raise
 
     def __exit__(self, _exc_type, _exc_value, _traceback):
-        self.elapsed_ms = (time.perf_counter() - self.start) * 1000 / self.repeats
         os.dup2(self.saved_stderr, 2)
         sys.stderr = self.saved_python_stderr
         self.safe_stderr.close()
         os.close(self.saved_stderr)
-        self.reader.join(timeout=2)
+
+        self.reader.join()
         os.close(self.read_fd)
-        self.algorithms = [match.group(1) for line in self.lines if (match := _ALGORITHM_PATTERN.search(line))]
-        algorithm = self.algorithms[-1] if self.algorithms else "not emitted"
-        log.info(f'MIOpen: operation={self.operation} algorithm={algorithm} time={self.elapsed_ms:.3f}')
         return False
 
 
