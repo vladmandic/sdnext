@@ -57,11 +57,11 @@ def create_ui(prompt, _negative, styles, overrides, script_inputs, mp4_fps, mp4_
         model_info = next((m for m in models['MiniMax'] if m.name == model_name), None)
         if model_info is None or model_info.name is None or model_info.name == '' or model_info.name == 'None':
             return gr.update(value='none'), gr.update(visible=False), gr.update(visible=False)
-        log.debug(f'Selected: name="{model_info.name}" repo="{model_info.repo}" cls={model_info.repo_cls}')
         if model_info.workflow == 'fl2va':
             workflow = 'fl2va' if init_image is not None else 't2va'
         else:
             workflow = model_info.workflow
+        log.debug(f'Video: workflow={workflow} name="{model_info.name}" repo="{model_info.repo}" cls={model_info.repo_cls} image={init_image} selected')
         return gr.update(value=f'Workflow: {workflow}'), gr.update(visible=workflow != 'ref2va'), gr.update(visible=workflow == 'ref2va')
 
     def on_load(model_name: str):

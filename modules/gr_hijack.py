@@ -208,13 +208,13 @@ def patch_gradio():
                 return {"is_generating": False, "data": [], "error": "empty response"}
             return response
         except GeneratorExit as e:
-            log.error(f"Gradio queue: events={len(events)} batch={batch} error: {e}")
+            log.error(f"Gradio queue: events={len(events)} batch={batch} reason=GeneratorExit {e}")
             return {"is_generating": False, "data": [None, None, None, None, "cancelled", ""], "error": None}
         except Exception as e:
-            log.error(f"Gradio queue: events={len(events)} batch={batch} error: {e}")
+            log.error(f"Gradio queue: events={len(events)} batch={batch} reason=Exception {e}")
             raise
         except BaseException as e:
-            log.error(f"Gradio queue: events={len(events)} batch={batch} error: {e}")
+            log.error(f"Gradio queue: events={len(events)} batch={batch} reason=BaseException {e}")
             raise
 
     def wrap_blocks_preprocess_data(self, fn_index: int, inputs: list, state: dict):

@@ -281,11 +281,17 @@ def dlss(p: processing.StableDiffusionProcessing | None, pp: processing.Processe
     ss_scale_factor = float(getattr(p, 'ss_scale_factor', ss_scale_factor))
     fg_source_fps = str(getattr(p, 'fg_source_fps', fg_source_fps))
     fg_target_fps = str(getattr(p, 'fg_target_fps', fg_target_fps))
+    if (p is not None) and ('video' in p.ops): # should not add video frames
+        nr_append = False
+        ss_append = False
 
     images = []
     originals = []
     current_images = inputs
     t = timer.Timer()
+
+    jobid = shared.state.begin('DLSS')
+    t_start = time.time()
 
     if ss_enabled:
         t0 = time.time()
@@ -331,6 +337,9 @@ def dlss(p: processing.StableDiffusionProcessing | None, pp: processing.Processe
             images.extend(output)
             current_images = output
         t.ts('framegen', t0)
+
+    shared.state.end(jobid)
+    timer.process.ts('dlss', t_start)
 
     log.debug(f'DLSS: frames={len(images)} {t.summary(min_time=0)}')
     if update == 'images':
