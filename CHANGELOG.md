@@ -130,6 +130,7 @@ Plus inevitable bug-fixes...
   - rife: cleanup dead code, thanks @Anai-Guo
   - todo: remove dead code, thanks @Anai-Guo
   - ui: js fetch exception handling
+  - update: handle git errors gracefully
   - vae: fetch scale factor from the model
   - vdm scheduler: fix steps, thanks @zjn20030811
   - xyz grid: apply bool values
