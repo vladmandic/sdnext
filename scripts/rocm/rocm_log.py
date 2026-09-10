@@ -30,7 +30,7 @@ def _process_line(line, saved_stderr):
         return
     match = _CHOSEN_PATTERN.search(text)
     if match:
-        log.info(f'MIOpen: algorithm={match.group(1)} time={float(match.group(2)):.3f}ms')
+        log.info(f'MIOpen: algorithm={match.group(1)} time={float(match.group(2)):.3f}')
 
 
 class MIOpenLogRedirect:
