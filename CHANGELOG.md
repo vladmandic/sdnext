@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2026-09-09
+## Update for 2026-09-10
 
-### Highlights for 2026-09-09
+### Highlights for 2026-09-10
 
 *What's New*? Well, code-wise, this is a big one...  
 First, a-lot-of-optimizations: 
@@ -23,7 +23,7 @@ Plus inevitable bug-fixes...
 
 [Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-09-09
+### Details for 2026-09-10
 
 - **Models**
   - [Anima 2.9B Preview v1](https://huggingface.co/yeoj34760/Anima-2.9B)  
@@ -109,24 +109,25 @@ Plus inevitable bug-fixes...
   - new articles: *Attention, Modular-Pipelines*
   - updated: *LoRA, MiniMax*
 - **Fixes**
-  - prompt: unnecessary secondary prompt if same
-  - ui: js fetch exception handling
+  - api: prompt enhance with vision
+  - compile: keep model compiled state
   - detailer: handling of stop/skip/pause
-  - rife: cleanup dead code, thanks @Anai-Guo
+  - log: ansi color handling
+  - lora: cleanup tags
+  - lucida: handle requirements
   - lumina-dimoo: attention-kwargs, thanks @Anai-Guo
   - network: improve type/version lookup
-  - lora: cleanup tags
-  - xyz grid: apply bool values
-  - vdm scheduler: fix steps, thanks @zjn20030811
-  - openvino: optimize recompile checks and lora loading
-  - log: ansi color handling
-  - compile: keep model compiled state
-  - prompt: cache checks when cfg changes
-  - lucida: handle requirements
-  - vae: fetch scale factor from the model
-  - todo: remove dead code, thanks @Anai-Guo
   - offline: honor offline mode for more models, thanks @ryanmeador
+  - openvino: optimize recompile checks and lora loading
   - prompt enhance: cloud models use correct system prompt  
+  - prompt: cache checks when cfg changes
+  - prompt: unnecessary secondary prompt if same
+  - rife: cleanup dead code, thanks @Anai-Guo
+  - todo: remove dead code, thanks @Anai-Guo
+  - ui: js fetch exception handling
+  - vae: fetch scale factor from the model
+  - vdm scheduler: fix steps, thanks @zjn20030811
+  - xyz grid: apply bool values
 
 ## Update for 2026-08-26
 

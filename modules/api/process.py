@@ -226,6 +226,7 @@ class APIProcess:
         if len(instance) == 0:
             raise HTTPException(status_code=500, detail="Prompt enhancement script not found")
         instance = instance[0]
+        decoded = decode_base64_to_image(req.image) if req.image else None
         prompt = instance.enhance(
             model=model,
             prompt=req.prompt,
@@ -244,7 +245,7 @@ class APIProcess:
             use_vision=req.use_vision,
             prefill=req.prefill or '',
             keep_prefill=req.keep_prefill,
-            image=decode_base64_to_image(req.image) if req.image else None,
+            image=decoded,
             seed=seed,
             nsfw=req.nsfw,
             custom_args=req.custom_args,

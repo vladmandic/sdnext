@@ -46,6 +46,7 @@ def decode_base64_to_image(encoding, quiet=False):
         decoded = base64.b64decode(encoding)
         data = io.BytesIO(decoded)
         image = Image.open(data)
+        image = image.convert('RGB')
         return image
     except Exception as e:
         log.warning(f'API cannot decode image: {e}')

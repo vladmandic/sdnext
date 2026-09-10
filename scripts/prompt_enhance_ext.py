@@ -325,11 +325,8 @@ class PromptEnhanceScript(scripts_manager.Script):
         # Strip symbols from model name if present
         model = get_model_repo_from_display(model) if model else self.options.default
         prompt = prompt or (self.prompt.value if self.prompt else "") # Check if self.prompt is None
-        image = None
         if use_vision and is_vision_model(model): # handle vision toggle
             image = image or self.image
-        if image is None:
-            use_vision = False
         prefix = prefix or ''
         suffix = suffix or ''
         min_tokens = min_tokens or self.options.min_tokens
@@ -363,7 +360,9 @@ class PromptEnhanceScript(scripts_manager.Script):
         # Only process images if vision is enabled and model supports it
         if use_vision and is_vision_model(model):
             current_image = self.get_image(image)
-        debug_log(f'Prompt enhance: image={current_image}')
+        if current_image is None:
+            use_vision = False
+        debug_log(f'Prompt enhance: image={current_image} use_vision={use_vision}')
 
         # Check if vision was requested but no image is available
         if use_vision and is_vision_model(model) and current_image is None:

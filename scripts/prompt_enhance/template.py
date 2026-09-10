@@ -85,15 +85,16 @@ def set_template(
     has_image = image is not None and isinstance(image, Image.Image)
     is_video = module == 'video'
 
-    debug_log(f'Prompt enhance template: module={module} prompt={has_prompt} image={has_image} video={is_video} model="{model}" nsfw={nsfw} processor={has_processor}')
+    debug_log(f'Prompt enhance template: module={module} prompt={has_prompt} image={has_image} video={is_video} model="{model}" nsfw={nsfw} processor={has_processor} cloud={is_cloud_model(model)}')
 
+    """
     if has_image:
         if is_cloud_model(model):
             pass
-        elif options.processor is None:
+        elif not has_processor:
             log.error('Prompt enhance: image not supported by model')
             return prompt if prompt is not None else '' # Return original text part if image cannot be processed
-
+    """
     if has_image:
         chat_template = get_image_template(system, prompt, options, nsfw, has_prompt, has_processor, is_video, image)
     else:

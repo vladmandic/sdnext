@@ -144,6 +144,12 @@ class Options:
         Keep the result faithful to the original prompt and the intended image.
         Do not add unrelated concepts, non-visual commentary, or fluff.
         ''')
+    t2i_noprompt: str = textwrap.dedent('''\
+        You are an expert AI image prompt engineer.
+        Create an original, imaginative and visually rich prompt for image generation.
+        Be Creative!
+        Use concrete, image-generation language and avoid unrelated fluff or commentary.
+        ''')
     i2i_prompt: str = textwrap.dedent('''\
         You are an expert AI image prompt engineer.
         You will receive an image and a user prompt for editing or refinement.
@@ -159,6 +165,7 @@ class Options:
         Base the prompt on what is present in the image, its style, and its atmosphere.
         Use concrete, image-generation language and avoid unrelated fluff or commentary.
         ''')
+
     t2v_prompt: str = textwrap.dedent('''\
         You are an expert AI video prompt engineer.
         You will receive a user prompt for video generation.
@@ -185,6 +192,7 @@ class Options:
         Specify subject and camera movement, scene transitions, and temporal dynamics.
         Use concrete, video-generation language and avoid unrelated fluff or commentary.
         ''')
+
     nsfw_ok: str = textwrap.dedent('''\
         NSFW, nudity and explicit content and language are allowed.
         ''')
