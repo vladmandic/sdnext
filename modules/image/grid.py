@@ -80,6 +80,7 @@ def image_grid(imgs: list, batch_size=1, rows: int | None = None, cols: int | No
         for i, img in enumerate(params.imgs):
             if img is not None:
                 grid.paste(img, box=(i % params.cols * w, i // params.cols * h))
+        grid.is_grid = True # flag image as grid
         return grid
     except Exception as e:
         log.error(f'Grid: images={imgs} {e}')

@@ -16144,9 +16144,6 @@ async function waitForOpts() {
   const t0 = performance.now();
   let t1 = performance.now();
   while (true) {
-    if (t1 - t0 > 15e3) {
-      log("waitForOpts delayed", t1 - t0);
-    }
     if (t1 - t0 > 6e4) {
       log("waitForOpts timeout");
       break;
@@ -16158,6 +16155,9 @@ async function waitForOpts() {
         timer("waitForOpts", t1 - t0);
         break;
       }
+    }
+    if (t1 - t0 > 15e3) {
+      log("waitForOpts delayed", Math.round(t1 - t0));
     }
     await sleep(100);
     t1 = performance.now();

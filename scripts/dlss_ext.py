@@ -7,8 +7,12 @@ from modules import shared, devices, processing, timer, errors, scripts_manager,
 from scripts.dlss import controller_cli as c
 
 
+registered = False
 debug = os.environ.get('SD_DLSS_DEBUG', None) is not None
 FPS_CHOICES = ['23.976', '25', '29.97', '30', '50', '59.94', '60', '90', '119.88', '120', '144', '165', '180', '240', '360', '480']
+NR_STYLES = ['None', 'Default', 'Natural', 'Cinematic']
+NR_MODELS = ['None','Default', 'J', 'K', 'L', 'M']
+NR_PRESETS = ['Default', 'Preset #1', 'Preset #2', 'Preset #3']
 
 
 def create_ui(parent):
@@ -25,24 +29,25 @@ def create_ui(parent):
         with gr.Accordion('DLSS NeuralRender', open=False, elem_id='dlss_nn'):
             with gr.Row():
                 nr_enabled = gr.Checkbox(label='NR enable', value=False, elem_id='dlss_nr_enabled')
-                nr_append = gr.Checkbox(label='Append result', value=True, elem_id='dlss_nr_append')
+                nr_append = gr.Checkbox(label='NR append result', value=True, elem_id='dlss_nr_append')
             with gr.Row():
-                nr_style = gr.Dropdown(label='NR style', choices=['Default', 'Natural', 'Cinematic'], value='Default', elem_id='dlss_nr_style')
+                nr_style = gr.Dropdown(label='NR style', choices=NR_STYLES, value='Default', elem_id='dlss_nr_style')
+                nr_preset = gr.Dropdown(label='NR preset', choices=NR_PRESETS, value='Default', elem_id='dlss_nr_preset')
+                nr_model_preset = gr.Dropdown(label='NR model', choices=NR_MODELS, value='Default', elem_id='dlss_nr_model_preset')
+            with gr.Row():
                 nr_intensity = gr.Slider(label='NR intensity', minimum=0.0, maximum=2.0, step=0.05, value=1.0, elem_id='dlss_nr_intensity')
-                nr_upscaling_factor = gr.Dropdown(label='NR upscaling factor', choices=["1.0", "1.5", "1.724", "2.0", "3.0"], value="1.0", elem_id='dlss_nr_upscaling_factor')
-            with gr.Row():
-                nr_preset = gr.Dropdown(label='NR preset', choices=['Default', 'Preset #1', 'Preset #2', 'Preset #3'], value='Default', elem_id='dlss_nr_preset')
-                nr_model_preset = gr.Dropdown(label='NR model', choices=['Default', 'J', 'K', 'L', 'M'], value='Default', elem_id='dlss_nr_model_preset')
-            with gr.Row():
                 nr_local_tone = gr.Slider(label='NR tone strength', minimum=0.0, maximum=2.0, step=0.05, value=1.0, elem_id='dlss_nr_local_tone')
+            with gr.Row():
                 nr_local_structure = gr.Slider(label='NR local structure', minimum=0.0, maximum=2.0, step=0.05, value=1.0, elem_id='dlss_nr_local_structure')
                 nr_skin_structure = gr.Slider(label='NR skin structure', minimum=-1.0, maximum=2.0, step=0.05, value=-1.0, elem_id='dlss_nr_skin_structure')
-                nr_automatic_mask = gr.Checkbox(label='Automatic mask', value=False, elem_id='dlss_nr_automatic_mask')
+            with gr.Row():
+                nr_upscaling_factor = gr.Dropdown(label='NR upscaling factor', choices=["1.0", "1.5", "1.724", "2.0", "3.0"], value="1.0", elem_id='dlss_nr_upscaling_factor')
+                nr_automatic_mask = gr.Checkbox(label='NR automatic mask', value=False, elem_id='dlss_nr_automatic_mask')
 
         with gr.Accordion('DLSS SuperSample', open=False, elem_id='dlss_ss'):
             with gr.Row():
-                ss_enabled = gr.Checkbox(label='SR enable', value=False, elem_id='dlss_ss_enabled')
-                ss_append = gr.Checkbox(label='Append result', value=True, elem_id='dlss_ss_append')
+                ss_enabled = gr.Checkbox(label='SS enable', value=False, elem_id='dlss_ss_enabled')
+                ss_append = gr.Checkbox(label='SS append result', value=True, elem_id='dlss_ss_append')
             with gr.Row():
                 ss_vsr_quality = gr.Dropdown(label='SS VSR quality', choices=["1: Low", "2: Medium", "3: High", "4: Ultra"], value="4: Ultra", type='value', elem_id='dlss_ss_vsr_quality')
             with gr.Row():
@@ -252,24 +257,30 @@ def dlss(p: processing.StableDiffusionProcessing | None, pp: processing.Processe
     if debug:
         log.trace(f'DLSS: path="{pkg_path}" args={args} kwargs={kwargs}')
 
+    update = 'none'
     if hasattr(pp, 'images') and pp.images is not None and len(pp.images) > 0:
+        update = 'images'
         inputs = pp.images
     elif hasattr(pp, 'image') and pp.image is not None:
+        update = 'image'
         inputs = [pp.image]
     else:
         return None
 
     # cast to appropriate types
-    nr_intensity = float(nr_intensity)
-    nr_local_tone = float(nr_local_tone)
-    nr_local_structure = float(nr_local_structure)
-    nr_skin_structure = float(nr_skin_structure)
-    nr_upscaling_factor = float(nr_upscaling_factor)
-    ss_width = int(ss_width)
-    ss_height = int(ss_height)
-    ss_scale_factor = float(ss_scale_factor)
-    fg_source_fps = str(fg_source_fps)
-    fg_target_fps = str(fg_target_fps)
+    nr_style = str(getattr(p, 'nr_style', nr_style))
+    nr_preset = str(getattr(p, 'nr_preset', nr_preset))
+    nr_model_preset = str(getattr(p, 'nr_model_preset', nr_model_preset))
+    nr_intensity = float(getattr(p, 'nr_intensity', nr_intensity))
+    nr_local_tone = float(getattr(p, 'nr_local_tone', nr_local_tone))
+    nr_local_structure = float(getattr(p, 'nr_local_structure', nr_local_structure))
+    nr_skin_structure = float(getattr(p, 'nr_skin_structure', nr_skin_structure))
+    nr_upscaling_factor = float(getattr(p, 'nr_upscaling_factor', nr_upscaling_factor))
+    ss_width = int(getattr(p, 'ss_width', ss_width))
+    ss_height = int(getattr(p, 'ss_height', ss_height))
+    ss_scale_factor = float(getattr(p, 'ss_scale_factor', ss_scale_factor))
+    fg_source_fps = str(getattr(p, 'fg_source_fps', fg_source_fps))
+    fg_target_fps = str(getattr(p, 'fg_target_fps', fg_target_fps))
 
     images = []
     originals = []
@@ -291,6 +302,8 @@ def dlss(p: processing.StableDiffusionProcessing | None, pp: processing.Processe
             current_images = output
         t.ts('supersample', t0)
 
+    if nr_style == 'None' or nr_model_preset == 'None':
+        nr_enabled = False
     if nr_enabled:
         t0 = time.time()
         if p:
@@ -320,13 +333,19 @@ def dlss(p: processing.StableDiffusionProcessing | None, pp: processing.Processe
         t.ts('framegen', t0)
 
     log.debug(f'DLSS: frames={len(images)} {t.summary(min_time=0)}')
-    pp.images = images
+    if update == 'images':
+        pp.images = images
+    elif update == 'image' and len(images) > 0:
+        pp.image = images[-1]
     pp.originals = originals
     return pp
 
 
 class DLSSScript(scripts_manager.Script):
-    video_capable = scripts_manager.AlwaysVisible
+    def __init__(self):
+        super().__init__()
+        self.video_capable = scripts_manager.AlwaysVisible
+        self.register()
 
     def title(self):
         return 'nVidia DLSS'
@@ -339,11 +358,41 @@ class DLSSScript(scripts_manager.Script):
     def ui(self, _is_img2img):
         return create_ui(self.parent)
 
+    def register(self): # register xyz grid elements
+        global registered # pylint: disable=global-statement
+        if registered:
+            return
+        registered = True
+        def apply_field(field):
+            def fun(p, x, xs): # pylint: disable=unused-argument
+                setattr(p, field, x)
+                self.run(p)
+            return fun
+
+        import sys
+        xyz_classes = [v for k, v in sys.modules.items() if 'xyz_grid_classes' in k]
+        if xyz_classes and len(xyz_classes) > 0:
+            xyz_classes = xyz_classes[0]
+            options = [
+                xyz_classes.AxisOption("[DLSS] NR style", str, apply_field("nr_style"), choices=lambda: NR_STYLES),
+                xyz_classes.AxisOption("[DLSS] NR preset", str, apply_field("nr_preset"), choices=lambda: NR_PRESETS),
+                xyz_classes.AxisOption("[DLSS] NR model", str, apply_field("nr_model_preset"), choices=lambda: NR_MODELS),
+                xyz_classes.AxisOption("[DLSS] NR intensity", float, apply_field("nr_intensity")),
+                xyz_classes.AxisOption("[DLSS] NR local tone", float, apply_field("nr_local_tone")),
+                xyz_classes.AxisOption("[DLSS] NR local structure", float, apply_field("nr_local_structure")),
+                xyz_classes.AxisOption("[DLSS] NR skin structure", float, apply_field("nr_skin_structure")),
+            ]
+            for option in options:
+                if option not in xyz_classes.axis_options:
+                    xyz_classes.axis_options.append(option)
+
     def postprocess_image(self, p: processing.StableDiffusionProcessing, pp: scripts_manager.PostprocessImageArgs, *args, **kwargs):
-        # postprocess_image is intended to modify single image in-place so not suited for dlss
-        pass
+        if p.xyz:
+            pp = dlss(p, pp, *args, **kwargs)
 
     def postprocess(self, p: processing.StableDiffusionProcessing, pp: processing.Processed, *args, **kwargs): # pylint: disable=arguments-differ,unused-argument
+        if p.xyz: # do not postprocessing when running in xyz mode
+            return
         _pp = dlss(p, pp, *args, **kwargs)
         # postprocess triggers after initial images have already been saved
         if _pp is not None and hasattr(_pp, 'images') and _pp.images is not None:

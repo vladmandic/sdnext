@@ -387,6 +387,7 @@ class XYZGridScript(scripts_manager.Script):
                         pc.extra_generation_params["Fixed Y Values"] = ", ".join([str(y) for y in ys])
                 info = processing.create_infotext(pc, pc.all_prompts, pc.all_seeds, pc.all_subseeds, grid=f'{len(xs)}x{len(ys)}')
                 grid_infotext.append(info)
+
             if ix == 0 and iy == 0 and iz == 0 and len(zs) > 1: # create main grid info text
                 pc.extra_generation_params = copy(pc.extra_generation_params)
                 if z_opt.label != 'Nothing':
@@ -396,6 +397,7 @@ class XYZGridScript(scripts_manager.Script):
                         pc.extra_generation_params["Fixed Z Values"] = ", ".join([str(z) for z in zs])
                 info = processing.create_infotext(pc, pc.all_prompts, pc.all_seeds, pc.all_subseeds, grid=f'{len(zs)}x{len(xs)}x{len(ys)}')
                 grid_infotext.insert(0, info)
+
             t1 = time.time()
             return processed, t1-t0
 

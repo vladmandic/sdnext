@@ -325,6 +325,7 @@ class SimpleProgressBar {
   }
 
   update(loaded, max) {
+    // log('galleryUpdate', { loaded, max });
     this.#progress.style.width = `${Math.floor((loaded / max) * 100)}%`;
     this.#text.textContent = `${loaded}/${max}`;
     if (!this.#visible) {

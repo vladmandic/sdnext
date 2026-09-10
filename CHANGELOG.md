@@ -50,6 +50,7 @@ Plus inevitable bug-fixes...
     dlls 5 caused quite a stir, but combined with generative ai it becomes a nice tool  
   - available as part of image/video generate workflows via *extras -> dlss*  
     or as a standalone *processing* workflow  
+    or via xyz grid  
   - *note*: requires nvidia rtx gpu, windows platform and compatible gpu drivers  
     but...it can be used from wsl2: unpack required package on windows host and you can access it from the wsl2 environment  
   - *install*: requires [DLSS 5 Visual Enhancer](https://github.com/Merserk/dlss5-visual-enhancer/releases/tag/v7.0)  

@@ -352,7 +352,7 @@ def process_samples(p: StableDiffusionProcessing, samples):
                 method = p.color_correction_method if p.color_correction_method is not None else getattr(shared.opts, 'color_correction_method', 'histogram')
                 image = apply_color_correction(p.color_corrections[i], image, method=method)
 
-            if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
+            if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner) and not getattr(p, 'is_grid', False):
                 pp = scripts_manager.PostprocessImageArgs(image)
                 p.scripts.postprocess_image(p, pp)
                 if pp.image is not None:
@@ -364,6 +364,7 @@ def process_samples(p: StableDiffusionProcessing, samples):
                         image = pp.image[-1]
                     else:
                         image = pp.image
+
             grading_params = processing_grading.GradingParams(
                 brightness=getattr(p, 'grading_brightness', 0.0),
                 contrast=getattr(p, 'grading_contrast', 0.0),
