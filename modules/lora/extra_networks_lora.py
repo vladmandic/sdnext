@@ -27,7 +27,7 @@ def get_stepwise(param, step, steps): # from https://github.com/cheald/sd-webui-
             if m[1][-1] <= 1.0:
                 step = step / (max_steps - step_offset) if max_steps > 0 else 1.0
             v = np.interp(step, m[1], m[0])
-            debug_log(f"Network load: type=LoRA step={step} steps={max_steps} v={v}")
+            debug_log(f"LoRA: stepwise step={step} steps={max_steps} v={v}")
             return v
         else:
             return m
@@ -184,7 +184,7 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
         from modules.lora import lora_sdnq, lora_stack
         requested = requested + [f'stack={lora_stack.signature()}{lora_sdnq.signature()}'] # settings-only stack or mechanism changes must re-trigger activation
         if shared.opts.lora_force_reload:
-            debug_log(f'Network check: type=LoRA requested={requested} status="forced"')
+            debug_log(f'LoRA check requested={requested} status="forced"')
             return True, "forced"
         sd_model = shared.sd_model.pipe if hasattr(shared.sd_model, 'pipe') else shared.sd_model
         if sd_model is None:
@@ -200,15 +200,15 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
         if len(requested) != len(loaded):
             sd_model.loaded_loras.clear() # single-entry cache: any activation invalidates state recorded under other filter keys
             sd_model.loaded_loras[key] = requested
-            debug_log(f'Network check: type=LoRA key="{key}" requested={requested} loaded={loaded} status="num changed"')
+            debug_log(f'LoRA check key="{key}" requested={requested} loaded={loaded} status="num changed"')
             return True, "num changed"
         for req, load in zip(requested, loaded, strict=False):
             if req != load:
                 sd_model.loaded_loras.clear()
                 sd_model.loaded_loras[key] = requested
-                debug_log(f'Network check: type=LoRA key="{key}" requested={requested} loaded={loaded} status="content changed"')
+                debug_log(f'LoRA check key="{key}" requested={requested} loaded={loaded} status="content changed"')
                 return True, "content changed"
-        debug_log(f'Network check: type=LoRA key="{key}" requested={requested} loaded={loaded} status="same"')
+        debug_log(f'LoRA check key="{key}" requested={requested} loaded={loaded} status="same"')
         return False, "none"
 
     def activate(self, p, params_list, step=0, include=None, exclude=None): # pylint: disable=arguments-differ
@@ -236,7 +236,7 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
         if debug:
             import sys
             fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
-            debug_log(f'Network load: type=LoRA include={include} exclude={exclude} method={load_method} reason="{load_reason}" requested={requested} fn={fn}')
+            debug_log(f'LoRA load: include={include} exclude={exclude} method={load_method} reason="{load_reason}" requested={requested} fn={fn}')
 
         if load_method == 'diffusers':
             has_changed, reason = self.changed(requested)
@@ -267,7 +267,7 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
                     log.info(f'Network unload: type=LoRA networks={[n.name for n in l.previously_loaded_networks]} mode={networks.effective_mode()}')
                     networks.network_deactivate(include, exclude)
                 networks.network_activate(include, exclude)
-                debug_log(f'Network change: type=LoRA previous={[n.name for n in l.previously_loaded_networks]} current={[n.name for n in l.loaded_networks]}')
+                debug_log(f'LoRA change: previous={[n.name for n in l.previously_loaded_networks]} current={[n.name for n in l.loaded_networks]}')
                 if len(include) == 0:
                     l.previously_loaded_networks = l.loaded_networks.copy()
                 shared.state.end(jobid)

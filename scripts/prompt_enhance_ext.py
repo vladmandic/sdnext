@@ -279,14 +279,16 @@ class PromptEnhanceScript(scripts_manager.Script):
     def get_image(self, image):
         current_image = None
         try:
-            if image is not None and isinstance(image, gr.Image):
+            if (image is not None) and isinstance(image, list) and len(image) > 0:
+                current_image = image[0]
+            if (image is not None) and isinstance(image, gr.Image):
                 current_image = image.value
-            elif image is not None and isinstance(image, Image.Image): # if image is already a PIL image
+            elif (image is not None) and isinstance(image, Image.Image): # if image is already a PIL image
                 current_image = image
-            if current_image is not None and (current_image.width <= 64 or current_image.height <= 64):
+            if (current_image is not None) and (current_image.width <= 64 or current_image.height <= 64):
                 current_image = None
             # Fallback to Kanvas/Control input if no image from Gradio component (e.g., when Kanvas is active)
-            if current_image is None and ui_control_helpers.input_source is not None:
+            if (current_image is None) and (ui_control_helpers.input_source is not None):
                 if isinstance(ui_control_helpers.input_source, list) and len(ui_control_helpers.input_source) > 0:
                     current_image = ui_control_helpers.input_source[0]
                 elif isinstance(ui_control_helpers.input_source, Image.Image):
@@ -327,6 +329,8 @@ class PromptEnhanceScript(scripts_manager.Script):
         prompt = prompt or (self.prompt.value if self.prompt else "") # Check if self.prompt is None
         if use_vision and is_vision_model(model): # handle vision toggle
             image = image or self.image
+        else:
+            image = None
         prefix = prefix or ''
         suffix = suffix or ''
         min_tokens = min_tokens or self.options.min_tokens
@@ -338,7 +342,7 @@ class PromptEnhanceScript(scripts_manager.Script):
         thinking = thinking or self.options.thinking_mode
         sample = sample if sample is not None else self.options.do_sample
         nsfw = nsfw if nsfw is not None else True # Default nsfw to True if not provided
-        debug_log(f'Prompt enhance: model="{model}" model_class="{self.llm.__class__.__name__ if self.llm is not None else "not loaded"}" nsfw={nsfw} thinking={thinking} prefill="{prefill[:30] if prefill else ""}" use_vision={use_vision} image={image is not None}')
+        debug_log(f'Prompt enhance: model="{model}" model_class="{self.llm.__class__.__name__ if self.llm is not None else "not loaded"}" nsfw={nsfw} thinking={thinking} prefill="{prefill[:30] if prefill else ""}" vision={use_vision} image={image}')
 
         while self.busy:
             time.sleep(0.1)
@@ -395,8 +399,10 @@ class PromptEnhanceScript(scripts_manager.Script):
         self.busy = True
 
         if is_cloud_model(model):
-            has_prompt = prompt_text is not None and len(prompt_text) > 4
+            has_prompt = (prompt_text is not None) and (len(prompt_text) > 4)
+            has_prefill = (prefill_text is not None) and (len(prefill_text) > 4)
             system = get_system_prompt(system, self.options, nsfw, has_prompt=has_prompt, is_video=self.parent=='video', is_image=current_image is not None)
+            debug_log(f'Prompt enhance: prompt="{prompt_text}"')
             if 'gemini' in model:
                 from modules.caption import gemini
                 kwargs = {
@@ -407,7 +413,7 @@ class PromptEnhanceScript(scripts_manager.Script):
                 model_name = model.replace('google/', '')
                 response = gemini.predict(prompt_text, current_image, model_name, system, prefill_text, thinking, kwargs)
                 t1 = time.time()
-                log.info(f'Prompt enhance: model="{model}" nsfw={nsfw} time={t1-t0:.2f} prefill="{prefill_text[:20] if prefill_text else None}" response={len(response)}')
+                log.info(f'Prompt enhance: model="{model}" nsfw={nsfw} time={t1-t0:.2f} prompt={has_prompt} prefill={has_prefill} image={current_image} thinking={thinking} response={len(response)}')
                 debug_log(f'Prompt enhance: response="{response}"')
                 self.busy = False
                 return response
@@ -419,7 +425,7 @@ class PromptEnhanceScript(scripts_manager.Script):
                 model_name = model.replace('xai/', '')
                 response = grok.predict(prompt_text, current_image, model_name, system, prefill_text, thinking, kwargs)
                 t1 = time.time()
-                log.info(f'Prompt enhance: model="{model}" nsfw={nsfw} time={t1-t0:.2f} prefill="{prefill_text[:20] if prefill_text else None}" response={len(response)}')
+                log.info(f'Prompt enhance: model="{model}" nsfw={nsfw} time={t1-t0:.2f} prompt={has_prompt} prefill={has_prefill} image={current_image} thinking={thinking} response={len(response)}')
                 debug_log(f'Prompt enhance: response="{response}"')
                 self.busy = False
                 return response
@@ -730,10 +736,11 @@ class PromptEnhanceScript(scripts_manager.Script):
         jobid = shared.state.begin('LLM')
         p.extra_generation_params['LLM'] = get_model_repo_from_display(llm_model)
         p.extra_generation_params['Original'] = p.prompt
+        image = self_image or p.init_images
         p.prompt = self.enhance(
             prompt=p.prompt,
             seed=p.seed,
-            image=self_image,
+            image=image,
             prefix=prompt_prefix,
             suffix=prompt_suffix,
             model=llm_model,

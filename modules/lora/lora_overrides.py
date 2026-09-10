@@ -3,7 +3,7 @@ from modules import shared
 from modules.logger import log
 
 
-debug_log = log.debug if os.environ.get('SD_LORA_DEBUG', None) is not None else lambda *args, **kwargs: None
+debug_log = log.trace if os.environ.get('SD_LORA_DEBUG', None) is not None else lambda *args, **kwargs: None
 
 
 force_hashes_diffusers = [ # forced always

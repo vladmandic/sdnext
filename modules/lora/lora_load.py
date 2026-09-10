@@ -62,13 +62,13 @@ def load_safetensors(name, network_on_disk: network.NetworkOnDisk) -> network.Ne
     cached = lora_cache.get(name, None)
     if cached is not None:
         if l.debug:
-            log.trace(f'LoRA load: name="{name}" fn="{network_on_disk.filename}" cache=True')
+            log.trace(f'LoRA: load name="{name}" fn="{network_on_disk.filename}" cache=True')
         return cached
 
     # native dispatch
     native_module = NATIVE_DISPATCH.get(shared.sd_model_type)
     if l.debug:
-        log.trace(f'LoRA load: name="{name}" fn="{network_on_disk.filename}" native={native_module}')
+        log.trace(f'LoRA: load name="{name}" fn="{network_on_disk.filename}" native={native_module}')
     if native_module is not None:
         import importlib
         mod = importlib.import_module(native_module)
@@ -79,7 +79,7 @@ def load_safetensors(name, network_on_disk: network.NetworkOnDisk) -> network.Ne
 
     # fallback to standard network loading
     if l.debug:
-        log.trace(f'LoRA load: name="{name}" network_on_disk="{network_on_disk.filename}" safetensors')
+        log.trace(f'LoRA: load name="{name}" network_on_disk="{network_on_disk.filename}" safetensors')
     net = network.Network(name, network_on_disk)
     net.mtime = os.path.getmtime(network_on_disk.filename)
     state_dict = sd_models.read_state_dict(network_on_disk.filename, what='network')

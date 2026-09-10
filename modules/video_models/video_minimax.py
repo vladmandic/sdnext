@@ -25,7 +25,7 @@ def apply_overrides(p, pipe, still: bool = False, audio: bool = True):
         while frames > max_frames:
             frames -= pipe.vae_frames_per_chunk
     if frames != getattr(p, 'frames', None):
-        log.debug(f'Pipeline: cls={pipe.__class__.__name__} frames={getattr(p, "frames", None)} aligned={frames}')
+        log.debug(f'Pipeline: cls={pipe.__class__.__name__} frames requested={getattr(p, "frames", None)} aligned={frames}')
     p.frames = frames
     p.task_args['num_frames'] = frames
     p.steps = max(2, p.steps)

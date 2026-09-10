@@ -49,23 +49,28 @@ def unwrap_file(entry):
     return entry
 
 
-def prepare_inputs(workflow: str | None, init_image: Image.Image | None, last_image: Image.Image | None, reference_media: list | None) -> dict:
+def prepare_inputs(workflow: str | None, init_image: Image.Image | None, last_image: Image.Image | None, reference_media: list | None, width: int | None = None, height: int | None = None) -> dict:
     """The task args a workflow conditions on, resolved before the model load so a rejected request costs nothing."""
     t_inputs = time.time()
+    from modules.image.resize import resize_image
     from modules.minimax import minimax_references
     if minimax_references.get_reference_caps(workflow) is not None:
         entries = [unwrap_file(entry) for entry in (reference_media or [])]
         references = minimax_references.resolve(workflow, entries, init_image)
-        log.debug(f'Prepare inputs: workflow={workflow} references={len(references)}')
+        log.debug(f'Video inputs: workflow={workflow} references={len(references)}')
         return {'references': references}
     task_args = {}
     if init_image is not None:
+        if width is not None and height is not None:
+            init_image = resize_image(2, init_image, width, height) # crop to aspect ratio
         task_args['image'] = init_image
     if last_image is not None:
+        if width is not None and height is not None:
+            last_image = resize_image(2, last_image, width, height) # crop to aspect ratio
         task_args['last_image'] = last_image
     if reference_media:
         log.warning(f'Video: op=reference workflow={workflow} references not supported, ignoring: count={len(reference_media)}')
-    log.debug(f'Prepare inputs: workflow={workflow} first={init_image} last={last_image}')
+    log.debug(f'Video inputs: workflow={workflow} first={init_image} last={last_image}')
     timer.video.ts('inputs', t_inputs)
     return task_args
 
@@ -111,18 +116,24 @@ def generate(task_id, _ui_state,
             # resolved off the registry row so a bad reference is rejected before the load, the same as on the api path
             selected = models_def.find(engine, model)
             workflow = getattr(selected, 'workflow', None)
-            task_args = prepare_inputs(workflow, init_image, last_image, reference_media)
+            task_args = prepare_inputs(workflow, init_image, last_image, reference_media, width=width, height=height)
             workflow = load_model(model) # override workflow based on loaded model
             if not workflow:
                 progress.finish_task(task_id)
                 log.error('Video: model not loaded')
                 return None, 'Model not loaded'
+            init_images = [] # only so they are available for inspection by rest of the processing
+            if init_image is not None:
+                init_images.append(init_image)
+            if last_image is not None:
+                init_images.append(last_image)
             p = processing.StableDiffusionProcessingVideo(
                 sd_model=shared.sd_model,
                 video_engine=engine,
                 video_model=model,
                 prompt=prompt,
                 styles=styles,
+                init_images=init_images,
                 seed=int(seed) if seed is not None else -1,
                 steps=int(steps),
                 width=width,

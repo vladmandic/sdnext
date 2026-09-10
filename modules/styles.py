@@ -243,12 +243,15 @@ def apply_styles_to_extra(p, style: Style):
         'size',
     ]
     reference_style = get_reference_style()
-    extra = infotext.parse(reference_style) if shared.opts.extra_network_reference_values else {}
+    reference = infotext.parse(reference_style) if shared.opts.extra_network_reference_values else {}
+    extra = reference.copy()
     style_extra = apply_wildcards_to_prompt(style.extra, [style.wildcards], silent=True, p=p)
     style_extra = ' ' + style_extra.lower()
     extra.update(infotext.parse(style_extra))
     extra.pop('Prompt', None)
     extra.pop('Negative prompt', None)
+    has_prompt = (style.prompt is not None) and len(style.prompt) > 2
+    has_negative = (style.negative_prompt is not None) and len(style.negative_prompt) > 2
     if debug_enabled:
         log.trace(f'Apply style extra: {extra}')
 
@@ -284,7 +287,7 @@ def apply_styles_to_extra(p, style: Style):
             if debug_enabled:
                 log.trace(f'Apply style skip: {k}={v}')
             skipped.append(f'{k}={v}')
-    log.debug(f'Apply style: name="{style.name}" params={params} settings={settings} unknown={skipped} reference={True if reference_style else False}')
+    log.debug(f'Apply style: name="{style.name}" prompt={has_prompt} negative={has_negative} params={params} settings={settings} unknown={skipped} reference={reference}')
 
 
 class StyleDatabase:
