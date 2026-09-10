@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2026-09-10
+## Update for 2026-09-11
 
-### Highlights for 2026-09-10
+### Highlights for 2026-09-11
 
 *What's New*? Well, code-wise, this is a big one...  
 First, a-lot-of-optimizations: 
@@ -23,7 +23,7 @@ Plus inevitable bug-fixes...
 
 [Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-09-10
+### Details for 2026-09-11
 
 - **Models**
   - [Anima 2.9B Preview v1](https://huggingface.co/yeoj34760/Anima-2.9B)  
@@ -115,14 +115,18 @@ Plus inevitable bug-fixes...
   - detailer: handling of stop/skip/pause
   - log: ansi color handling
   - lora: cleanup tags
+  - lora: support transformer ref models
   - lucida: handle requirements
   - lumina-dimoo: attention-kwargs, thanks @Anai-Guo
+  - minimax: crop image to video aspect ratio
   - network: improve type/version lookup
   - offline: honor offline mode for more models, thanks @ryanmeador
   - openvino: optimize recompile checks and lora loading
   - prompt enhance: cloud models use correct system prompt  
+  - prompt enhance: use init image for video
   - prompt: cache checks when cfg changes
   - prompt: unnecessary secondary prompt if same
+  - prompt: clean prompt after network parsing
   - rife: cleanup dead code, thanks @Anai-Guo
   - todo: remove dead code, thanks @Anai-Guo
   - ui: js fetch exception handling
