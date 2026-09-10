@@ -110,7 +110,10 @@ def create_guidance_inputs(tab):
     standard_args = args_base + args_legacy
 
     def update_stored(component, name):
+        if component is None or name is None:
+            return
         _stored_args[name] = component
+
     for component in modular_args:
         label = getattr(component, 'label', None)
         value = getattr(component, 'value', None)

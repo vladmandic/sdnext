@@ -46,13 +46,13 @@ def get_default_modes(cmd_opts, mem_stat):
 
     if devices.backend == "zluda":
         default_sdp_options = ['Math']
-        default_cross_attention = ['Dynamic attention']
+        default_cross_attention = 'Dynamic attention'
     elif devices.backend == "rocm":
         agent = devices.get_hip_agent()
         if agent.gfx_version < 0x1100:
-            default_cross_attention = ['Dynamic attention'] # only RDNA2 and older GPUs needs this
+            default_cross_attention = 'Dynamic attention' # only RDNA2 and older GPUs needs this
     elif devices.backend in {"cpu", "mps"}:
-        default_cross_attention = ['Dynamic attention']
+        default_cross_attention = 'Dynamic attention'
 
     if devices.get_optimal_device_name() != "cpu":
         os.environ.setdefault('SDNQ_USE_OPENVINO_MM', '0')

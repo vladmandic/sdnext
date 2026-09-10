@@ -10408,7 +10408,7 @@ function readCardTags(el2, tags) {
     textarea.value = new_prompt;
     updateInput(textarea);
   };
-  if (tags.length === 0) return;
+  if (!tags || tags.length === 0) return;
   const cardTags = tags.split("|");
   if (!cardTags || cardTags.length === 0) return;
   const tagsEl = el2.getElementsByClassName("tags")[0];
