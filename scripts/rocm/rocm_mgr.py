@@ -11,6 +11,7 @@ from modules.shared import opts
 
 from scripts.rocm.rocm_vars import ROCM_ENV_VARS  # pylint: disable=no-name-in-module
 from scripts.rocm import rocm_profiles  # pylint: disable=no-name-in-module
+from scripts.rocm import rocm_log  # pylint: disable=no-name-in-module
 
 
 CONFIG = Path(os.path.abspath(os.path.join('data', 'rocm.json')))
@@ -275,6 +276,16 @@ def apply_env(config: Optional[Dict[str, str]] = None) -> None:
             os.environ[var] = "0"
 
 
+def start_miopen_logging() -> None:
+    """Start explicit MIOpen diagnostic capture for a scoped operation."""
+    rocm_log.start_miopen_logging()
+
+
+def stop_miopen_logging() -> None:
+    """Stop explicit MIOpen diagnostic capture and restore stderr."""
+    rocm_log.stop_miopen_logging()
+
+
 def apply_all(names: list, values: list) -> None:
     config = load_config().copy()
     arch = config.get(_ARCH_KEY, "")
@@ -520,9 +531,21 @@ def info() -> dict:
     }
 
 
-# Apply saved config to os.environ at import time (only when ROCm is present)
-if installer.torch_info.get('type', None) == 'rocm' and CONFIG.exists():
+def _is_rocm_runtime() -> bool:
+    if installer.torch_info.get('type', None) == 'rocm':
+        return True
     try:
-        apply_env()
+        import torch  # pylint: disable=import-outside-toplevel
+        return bool(getattr(torch.version, 'hip', None))
+    except Exception:
+        return False
+
+
+# Apply saved config to os.environ at import time (only when ROCm is present).
+if _is_rocm_runtime():
+    try:
+        if CONFIG.exists():
+            apply_env()
+        rocm_log.start_miopen_logging()
     except Exception as _e:
         log.debug(f"[rocm_mgr] Warning: failed to apply env at import: {_e}")
