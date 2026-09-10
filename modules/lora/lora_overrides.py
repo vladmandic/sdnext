@@ -1,4 +1,9 @@
+import os
 from modules import shared
+from modules.logger import log
+
+
+debug_log = log.trace if os.environ.get('SD_LORA_DEBUG', None) is not None else lambda *args, **kwargs: None
 
 
 force_hashes_diffusers = [ # forced always
@@ -116,15 +121,22 @@ def disable_fuse():
     from modules.lora import lora_common as l
     from modules.lora import lora_stack
     if lora_stack.select_possible(len(l.loaded_networks)) or lora_stack.select_engaged():
+        debug_log('LoRA: fuse=False reason="active select mode"')
         return True # select flips per-layer winners against the pristine backup; a dormant select mode leaves fuse alone
     sd_model = getattr(shared.sd_model, 'pipe', shared.sd_model)
     if is_quantized(sd_model):
+        debug_log('LoRA: fuse=False reason="model is quantized"')
         return True
     if any(is_quantized(getattr(sd_model, name, None)) for name in fuse_components(sd_model)):
+        debug_log('LoRA: fuse=False reason="component is quantized"')
         return True
     if hasattr(sd_model, '_lora_partial'):
+        debug_log('LoRA: fuse=False reason="partial lora applied"')
         return True
-    return shared.sd_model_type in fuse_ignore
+    if shared.sd_model_type in fuse_ignore:
+        debug_log(f'LoRA: fuse=False reason="model type {shared.sd_model_type} in fuse_ignore"')
+        return True
+    return False
 
 
 def fuse_native():
@@ -134,4 +146,7 @@ def fuse_native():
     the backup, activate and deactivate passes, since backup mode restores from a
     stored tensor while fuse mode restores by subtracting the delta.
     """
-    return shared.opts.lora_fuse_native and not disable_fuse()
+    result = shared.opts.lora_fuse_native and not disable_fuse()
+    force = os.environ.get('SD_LORA_FUSE', None) is not None
+    debug_log(f'LoRA: native fuse={result} force={force}')
+    return (result or force)

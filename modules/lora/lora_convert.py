@@ -487,23 +487,30 @@ def assign_network_names_to_compvis_modules(sd_model):
     sd_model = getattr(shared.sd_model, "pipe", shared.sd_model)  # wrapped model compatibility
     network_layer_mapping = {}
     if hasattr(sd_model, 'text_encoder') and sd_model.text_encoder is not None:
-        for name, module in sd_model.text_encoder.named_modules():
+        for name, module in sd_model.text_encoder.named_modules() :
             prefix = "lora_te1_" if hasattr(sd_model, 'text_encoder_2') else "lora_te_"
             network_name = prefix + name.replace(".", "_")
             network_layer_mapping[network_name] = module
             module.network_layer_name = network_name
-    if hasattr(sd_model, 'text_encoder_2'):
+    if hasattr(sd_model, 'text_encoder_2') and sd_model.text_encoder_2 is not None:
         for name, module in sd_model.text_encoder_2.named_modules():
             network_name = "lora_te2_" + name.replace(".", "_")
             network_layer_mapping[network_name] = module
             module.network_layer_name = network_name
-    if hasattr(sd_model, 'unet'):
+    if hasattr(sd_model, 'unet') and sd_model.unet is not None:
         for name, module in sd_model.unet.named_modules():
             network_name = "lora_unet_" + name.replace(".", "_")
             network_layer_mapping[network_name] = module
             module.network_layer_name = network_name
-    if hasattr(sd_model, 'transformer'):
+    if hasattr(sd_model, 'transformer') and sd_model.transformer is not None:
         for name, module in sd_model.transformer.named_modules():
+            network_name = "lora_transformer_" + name.replace(".", "_")
+            network_layer_mapping[network_name] = module
+            if "norm" in network_name and "linear" not in network_name and shared.sd_model_type != "sd3":
+                continue
+            module.network_layer_name = network_name
+    if hasattr(sd_model, 'transformer_ref') and sd_model.transformer_ref is not None:
+        for name, module in sd_model.transformer_ref.named_modules():
             network_name = "lora_transformer_" + name.replace(".", "_")
             network_layer_mapping[network_name] = module
             if "norm" in network_name and "linear" not in network_name and shared.sd_model_type != "sd3":

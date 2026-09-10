@@ -56,7 +56,7 @@ from modules.logger import log, console
 applied_layers: list[str] = []
 refused_writes: int = 0 # deltas the modules would not take on the last activate pass; infotext reports the network as partial
 native_active: bool = False
-default_components = ['text_encoder', 'text_encoder_2', 'text_encoder_3', 'text_encoder_4', 'unet', 'transformer', 'transformer_2', 'llm_adapter']
+default_components = ['text_encoder', 'text_encoder_2', 'text_encoder_3', 'text_encoder_4', 'unet', 'transformer', 'transformer_2', 'transformer_ref', 'llm_adapter']
 
 
 class ActivationPass:

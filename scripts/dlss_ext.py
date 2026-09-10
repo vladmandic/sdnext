@@ -29,7 +29,7 @@ def create_ui(parent):
         with gr.Accordion('DLSS NeuralRender', open=False, elem_id='dlss_nn'):
             with gr.Row():
                 nr_enabled = gr.Checkbox(label='NR enable', value=False, elem_id='dlss_nr_enabled')
-                nr_append = gr.Checkbox(label='NR append result', value=True, elem_id='dlss_nr_append')
+                nr_append = gr.Checkbox(label='NR append result', value=False, elem_id='dlss_nr_append')
             with gr.Row():
                 nr_style = gr.Dropdown(label='NR style', choices=NR_STYLES, value='Default', elem_id='dlss_nr_style')
                 nr_preset = gr.Dropdown(label='NR preset', choices=NR_PRESETS, value='Default', elem_id='dlss_nr_preset')
@@ -47,7 +47,7 @@ def create_ui(parent):
         with gr.Accordion('DLSS SuperSample', open=False, elem_id='dlss_ss'):
             with gr.Row():
                 ss_enabled = gr.Checkbox(label='SS enable', value=False, elem_id='dlss_ss_enabled')
-                ss_append = gr.Checkbox(label='SS append result', value=True, elem_id='dlss_ss_append')
+                ss_append = gr.Checkbox(label='SS append result', value=False, elem_id='dlss_ss_append')
             with gr.Row():
                 ss_vsr_quality = gr.Dropdown(label='SS VSR quality', choices=["1: Low", "2: Medium", "3: High", "4: Ultra"], value="4: Ultra", type='value', elem_id='dlss_ss_vsr_quality')
             with gr.Row():

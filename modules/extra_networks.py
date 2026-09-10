@@ -164,6 +164,7 @@ def parse_prompt(prompt: str | None) -> tuple[str, defaultdict[str, list[ExtraNe
         return ""
 
     updated_prompt = re.sub(re_extra_net, found, prompt)
+    updated_prompt = updated_prompt.strip(', ')
     return updated_prompt, res
 
 

@@ -219,10 +219,10 @@ class Options:
 
     max_delim_index: int = 60
     min_tokens: int = 0
-    max_tokens: int = 256
+    max_tokens: int = 512
     do_sample: bool = True
-    temperature: float = 0.6
-    repetition_penalty: float = 1.2
+    temperature: float = 0.75
+    repetition_penalty: float = 1.05
     top_k: int = 0
     top_p: float = 0.0
     thinking_mode: bool = False
