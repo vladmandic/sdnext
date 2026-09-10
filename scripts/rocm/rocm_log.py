@@ -147,7 +147,7 @@ class MIOpenLogCapture:
         os.close(self.read_fd)
         self.algorithms = [match.group(1) for line in self.lines if (match := _ALGORITHM_PATTERN.search(line))]
         algorithm = self.algorithms[-1] if self.algorithms else "not emitted"
-        log.info(f'MIOpen: operation={self.operation} algorithm={algorithm} time="{self.elapsed_ms:.3f}ms"')
+        log.info(f'MIOpen: operation={self.operation} algorithm={algorithm} time={self.elapsed_ms:.3f}ms')
         return False
 
 
