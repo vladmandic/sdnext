@@ -59,18 +59,21 @@ def preload_components(pipe, workflow: str | None, load_config: dict | None = No
         if spec is None or getattr(spec, 'default_creation_method', None) != 'from_pretrained':
             continue
         repo = getattr(spec, 'pretrained_model_name_or_path', None)
-        cls = getattr(spec, 'type_hint', None)
+        cls = getattr(spec, 'type_hint', None) or {}
         if not repo or cls is None:
             continue
         origin = getattr(cls, '__module__', '') or ''
-        cls_name = getattr(cls, '__name__', '') or '' # TODO preload: components with remote code resolve to cls none
+        cls_name = getattr(cls, '__name__', '') or ''
         subfolder = getattr(spec, 'subfolder', None) or name
         component = None
         if origin.startswith('diffusers') and ('Transformer' in cls_name or 'UNet' in cls_name):
             component = generic.load_transformer(repo, cls_name=cls, load_config=load_config, subfolder=subfolder, trust_remote_code=True)
-        elif origin.startswith('transformers') and 'text_encoder' in name:
+        elif origin.startswith('transformers') and ('text_encoder' in name):
             # shared substitution is on: the map matches class plus a substring of the repo name, so its entries have to run narrow before broad
             component = generic.load_text_encoder(repo, cls_name=cls, load_config=load_config, subfolder=subfolder)
+        if 'transformer' in name:
+            # fallback for component with remote-code as it does not have resolvable cls
+            component = generic.load_transformer(repo, cls_name=None, load_config=load_config, subfolder=subfolder, trust_remote_code=True)
         if component is not None:
             loaded[name] = component
     return loaded

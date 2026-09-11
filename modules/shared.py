@@ -211,7 +211,7 @@ def restart_server(restart=True):
             demo.server.should_exit = True
             demo.server.force_exit = True
             demo.close(verbose=False)
-            demo.server.close()
+            # demo.server.close()
             demo.fns = []
         time.sleep(1)
         sys.tracebacklimit = 100

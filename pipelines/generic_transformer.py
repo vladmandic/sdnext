@@ -48,6 +48,9 @@ def load_transformer(
         modules_to_not_convert = []
     if modules_dtype_dict is None:
         modules_dtype_dict = {}
+    if cls_name is None:
+        from diffusers import AutoModel
+        cls_name = AutoModel
     offline_args = {'local_files_only': True} if shared.opts.offline_mode else {}
     jobid = shared.state.begin('Load DiT')
     try:
@@ -75,11 +78,14 @@ def load_transformer(
             if trust_remote_code:
                 load_args['trust_remote_code'] = True
             load_kwargs = {**load_args, **quant_args, **offline_args, **kwargs}
-            return cls_name.from_pretrained(
+            module = cls_name.from_pretrained(
                 repo_id,
                 cache_dir=shared.opts.hfcache_dir,
                 **load_kwargs,
             )
+            if cls_name.__name__ == 'AutoModel':
+                log.debug(f'Load model: transformer="{repo_id}" cls={module.__class__.__name__}')
+            return module
 
         local_file = None
         override_name = None
@@ -158,13 +164,11 @@ def load_transformer(
                 **load_kwargs,
             )
 
-        # 4. default loading from diffusers repo (also the fallback when an
-        # incompatible override is dropped above)
+        # 4. default loading from local file (also the fallback when an incompatible override is dropped above)        # 5. default loading from diffusers repo (also the fallback when an incompatible override is dropped above)
         else:
             transformer = load_from_repo()
 
-        # mark the dropdown selection as loaded so the slot's onchange callback
-        # does not force a redundant full reload for an already-consumed override
+        # mark the dropdown selection as loaded so the slot's onchange callback, does not force a redundant full reload for an already-consumed override
         if transformer is not None and override_name is not None and getattr(shared.opts, override_opt, None) == override_name:
             setattr(sd_unet, tracker_attr, override_name)
 
@@ -192,8 +196,7 @@ def load_transformer(
         log.debug(f'Load model: transformer="{repo_id}" quant="{quant_type}" size={module_size:.3f} params={param_num:.3f} memory={module_memory}')
 
     try:
-        # quantized models legitimately report the storage dtype (e.g. fp8 comfy_quant
-        # adopted via SDNQ); the compute dtype lives in the dequantizers, not the params
+        # quantized models legitimately report the storage dtype (e.g. fp8 comfy_quant adopted via SDNQ); the compute dtype lives in the dequantizers, not the params
         if getattr(transformer, 'quantization_config', None) is None:
             actual_dtype = transformer.dtype
             if isinstance(actual_dtype, torch.dtype) and isinstance(dtype, torch.dtype) and actual_dtype != dtype:

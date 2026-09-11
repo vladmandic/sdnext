@@ -5,7 +5,8 @@
 ### Highlights for 2026-09-11
 
 *What's New*? Well, code-wise, this is a big one...  
-First, a-lot-of-optimizations: 
+First, a-lot-of-optimizations:
+- updated core packages
 - improved **LoRA** performance and quality, especially with quantized models
 - newly structured **attention** mechanisms
 - modular pipelines with new **guidance** methods
@@ -32,6 +33,7 @@ Plus inevitable bug-fixes...
     LLaDA-Image is a 6.5B transformer with massive 16.3B fully-custom MoE text-encoder and optional 1.3B SigVQ conditioning model  
     with support for text-to-image, vq-conditioned text-to-image and image-editing workflows  
     *note* model is extremely quantization sensitive so minimum allowed quant type is `uint8`  
+  - [MiniMax-H3](https://huggingface.co/MiniMaxAI/MiniMax-H3) update with pre-quantized `sdnq-uint8` *pruned* variants  
 - **LoRA**
   - see [LoRA docs](https://vladmandic.github.io/sdnext-docs/LoRA) for all of the improvements and usage instructions  
     *note*: lora now has its own settings section in *settings -> lora*
@@ -94,6 +96,7 @@ Plus inevitable bug-fixes...
   - option to skip triton autotune and use default config for all triton kernels  
     in *settings -> compute settings*  
     *note*: this may improve initial generate time, but may also reduce performance on some models  
+  - rocm: update `rocm` script and add detailed `miopen` logging, thanks @resonantsky  
   - new optional transformer hooks  
     in *settings -> compute add-ons*  
     *PAG: Perturbed attention guidance, PAB: Pyramid attention broadcast, FBC: First Block Cache, FC: Faster Cache, LS: Layer Skip, MC: Mag Cache, TS: TaylorSeer*  
@@ -119,6 +122,7 @@ Plus inevitable bug-fixes...
   - lucida: handle requirements
   - lumina-dimoo: attention-kwargs, thanks @Anai-Guo
   - minimax: crop image to video aspect ratio
+  - modular: handle module with remote-code
   - network: improve type/version lookup
   - offline: honor offline mode for more models, thanks @ryanmeador
   - openvino: optimize recompile checks and lora loading
