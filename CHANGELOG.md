@@ -5,7 +5,8 @@
 ### Highlights for 2026-09-11
 
 *What's New*? Well, code-wise, this is a big one...  
-First, a-lot-of-optimizations: 
+First, a-lot-of-optimizations:
+- updated core packages
 - improved **LoRA** performance and quality, especially with quantized models
 - newly structured **attention** mechanisms
 - modular pipelines with new **guidance** methods

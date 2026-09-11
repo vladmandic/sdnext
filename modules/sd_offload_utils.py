@@ -174,7 +174,10 @@ def report_model_stats(module_name, module):
             size, _params = get_module_size(module)
         quant = getattr(module, "quantization_method", None)
         params = sum(p.numel() for p in module.parameters(recurse=True))
-        dtype = next(module.parameters()).dtype if any(module.parameters()) else None
+        try:
+            dtype = next(module.parameters(), torch.tensor([])).dtype
+        except Exception:
+            dtype = None
         logical = get_logical_param_count(module)
         log.debug(f'Module: name={module_name} cls={module.__class__.__name__} size={size:.3f} params={params} logical={logical} quant={quant} dtype={dtype}')
     except Exception as e:

@@ -105,7 +105,6 @@ def verify(pkg_path):
         return { 'error': 'package path not found' }
     if not c.controller.get_python(pkg_path):
         return { 'error': 'python not found in package path' }
-    shared.opts.dlss_pkg_path = pkg_path
     response = c.controller.call(pkg_path, 'verify', { 'gpu_uuid': 'auto', 'options': { 'level': 'deep' } })
     if response.get('status') != 'ok':
         error = response.get('error') or {}
@@ -121,6 +120,8 @@ def verify(pkg_path):
         else:
             checks['failed'] += 1
             log.error(f'DLSS : {check}')
+    shared.opts.dlss_pkg_path = pkg_path
+    shared.opts.save()
     log.debug(f'DLSS: gpu={report.get("gpu", "unknown")} checks={checks}')
     return report
 
