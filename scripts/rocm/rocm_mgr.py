@@ -344,6 +344,17 @@ def clear_env() -> None:
     log.info(f'ROCm clear_env: cleared={cleared}')
 
 
+def _miopen_user_db_path() -> Path:
+    """Resolve the MIOpen user DB path for the current platform."""
+    configured = os.environ.get("MIOPEN_USER_DB_PATH", "")
+    if configured:
+        return Path(os.path.expandvars(os.path.expanduser(configured)))
+    if sys.platform == "win32":
+        return Path.home() / ".miopen" / "db"
+    cache_home = os.environ.get("XDG_CACHE_HOME", str(Path.home() / ".cache"))
+    return Path(cache_home) / "miopen"
+
+
 def delete_config() -> None:
     """Delete the saved config file, clear all vars, and wipe the MIOpen user DB cache."""
     import shutil  # pylint: disable=import-outside-toplevel
@@ -353,8 +364,8 @@ def delete_config() -> None:
         CONFIG.unlink()
         log.info(f'ROCm delete_config: deleted {CONFIG}')
     _cache = None
-    # Delete the MIOpen user DB (~/.miopen/db) - stale entries can cause solver mismatches
-    miopen_db = Path(os.path.expanduser('~')) / '.miopen' / 'db'
+    # Delete the MIOpen user DB - stale entries can cause solver mismatches.
+    miopen_db = _miopen_user_db_path()
     if miopen_db.exists():
         shutil.rmtree(miopen_db, ignore_errors=True)
         log.info(f'ROCm delete_config: wiped MIOpen user DB at {miopen_db}')
@@ -503,8 +514,8 @@ def info() -> dict:
     else:
         sdb["exists"] = False
 
-    # --- User DB (~/.miopen/db) ---
-    user_db_path = Path.home() / ".miopen" / "db"
+    # --- User DB ---
+    user_db_path = _miopen_user_db_path()
     udb = {"path": str(user_db_path), "exists": user_db_path.exists()}
     if user_db_path.exists():
         ufiles = _user_db_summary(user_db_path)

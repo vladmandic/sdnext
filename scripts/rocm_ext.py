@@ -47,8 +47,8 @@ class ROCmScript(scripts_manager.Script):
             section("ROCm / HIP")
             for k, v in d.get("rocm", {}).items():
                 row(k, v)
-            section("User DB (~/.miopen/db)")
             udb = d.get("user_db", {})
+            section("User DB")
             row("path", udb.get("path", ""))
             for fname, finfo in udb.get("files", {}).items():
                 row(fname, finfo)
@@ -72,10 +72,6 @@ class ROCmScript(scripts_manager.Script):
                 btn_reset  = gr.Button("Defaults",       elem_id="rocm_btn_reset",  size="sm")
                 btn_clear  = gr.Button("Clear Run Vars", elem_id="rocm_btn_clear",  size="sm")
                 btn_delete = gr.Button("Delete UserDb",  variant="stop",    elem_id="rocm_btn_delete", size="sm")
-            with gr.Row():
-                btn_rdna2 = gr.Button("RDNA2 (RX 6000)", elem_id="rocm_btn_rdna2")
-                btn_rdna3 = gr.Button("RDNA3 (RX 7000)", elem_id="rocm_btn_rdna3")
-                btn_rdna4 = gr.Button("RDNA4 (RX 9000)", elem_id="rocm_btn_rdna4")
             _init_gemm = config.get("MIOPEN_GEMM_ENFORCE_BACKEND", "1")
             _init_arch = config.get(rocm_mgr._ARCH_KEY, "")
             _init_unavailable = rocm_profiles.UNAVAILABLE.get(_init_arch, set()) if _init_arch else set()
@@ -209,30 +205,10 @@ class ROCmScript(scripts_manager.Script):
                     result.append(gr.update(value=""))
             return result
 
-        def profile_fn(arch):
-            rocm_mgr.apply_profile(arch)
-            updated = rocm_mgr.load_config()
-            unavailable = rocm_profiles.UNAVAILABLE.get(arch, set())
-            gemm_val = updated.get("MIOPEN_GEMM_ENFORCE_BACKEND", "1")
-            result = [gr.update(value=_build_style(unavailable, gemm_val == "1"))]
-            for pname in var_names:
-                meta = rocm_vars.ROCM_ENV_VARS[pname]
-                val = updated.get(pname, meta["default"])
-                if meta["widget"] == "checkbox":
-                    result.append(gr.update(value=val == "1"))
-                elif meta["widget"] == "dropdown":
-                    result.append(gr.update(value=rocm_mgr._dropdown_display(val, meta["options"])))
-                else:
-                    result.append(gr.update(value=rocm_mgr._expand_venv(val)))
-            return result
-
         btn_info.click(fn=_info_html, inputs=[], outputs=[info_out], show_progress='hidden')
         btn_apply.click(fn=apply_fn, inputs=components, outputs=[style_out] + components, show_progress='hidden')
         btn_reset.click(fn=reset_fn, inputs=[], outputs=[style_out] + components, show_progress='hidden')
         btn_clear.click(fn=clear_fn, inputs=[], outputs=[style_out] + components, show_progress='hidden')
         btn_delete.click(fn=delete_fn, inputs=[], outputs=[style_out] + components, show_progress='hidden')
-        btn_rdna2.click(fn=lambda: profile_fn("RDNA2"), inputs=[], outputs=[style_out] + components, show_progress='hidden')
-        btn_rdna3.click(fn=lambda: profile_fn("RDNA3"), inputs=[], outputs=[style_out] + components, show_progress='hidden')
-        btn_rdna4.click(fn=lambda: profile_fn("RDNA4"), inputs=[], outputs=[style_out] + components, show_progress='hidden')
 
         return components
