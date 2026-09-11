@@ -1,7 +1,7 @@
 import os
 import time
 from modules.logger import log
-from modules.civitai.models_civitai import CivitModel, CivitVersion, CivitImage, CivitSearchResponse, CivitTagResponse, CivitCreatorResponse, CivitUserProfile
+from modules.civitai.models_civitai import CivitModel, CivitVersion, CivitVersionMini, CivitImage, CivitSearchResponse, CivitTagResponse, CivitCreatorResponse, CivitUserProfile
 
 
 options_cache: dict = {}
@@ -120,6 +120,17 @@ class CivitaiClient:
             return CivitVersion.parse_obj(r.json())
         except Exception as e:
             log.error(f'CivitAI get version by hash parse error: hash={hash_str} {e}')
+            return None
+
+    def get_version_mini(self, version_id: int, *, token: str | None = None) -> CivitVersionMini | None:
+        r = self._get(f'/model-versions/mini/{version_id}', token=token)
+        if r.status_code != 200:
+            log.error(f'CivitAI get version mini: id={version_id} code={r.status_code}')
+            return None
+        try:
+            return CivitVersionMini.parse_obj(r.json())
+        except Exception as e:
+            log.error(f'CivitAI get version mini parse error: id={version_id} {e}')
             return None
 
     def get_images(self, *, model_version_id: int | None = None, limit: int | None = None, token: str | None = None) -> list[CivitImage]:

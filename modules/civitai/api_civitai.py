@@ -158,6 +158,15 @@ def get_version_by_hash(hash_str: str, token: str | None = None):
     return version_to_dict(version)
 
 
+def get_version_mini(version_id: int, token: str | None = None):
+    """Download-shaped version view carrying permission and early-access flags."""
+    from modules.civitai.client_civitai import client
+    version = client.get_version_mini(version_id, token=token)
+    if version is None:
+        return JSONResponse(content={"error": "version not found"}, status_code=404)
+    return version_to_dict(version)
+
+
 def get_options():
     """Get valid types, sort, period, base_models from CivitAI API discovery."""
     from modules.civitai.client_civitai import client
@@ -687,6 +696,7 @@ def register_api(api):
     api.add_api_route("/sdapi/v2/civitai/model/{model_id}", get_model, methods=["GET"], tags=["CivitAI"])
     api.add_api_route("/sdapi/v2/civitai/version/{version_id}", get_version, methods=["GET"], tags=["CivitAI"])
     api.add_api_route("/sdapi/v2/civitai/version/by-hash/{hash_str}", get_version_by_hash, methods=["GET"], tags=["CivitAI"])
+    api.add_api_route("/sdapi/v2/civitai/version/mini/{version_id}", get_version_mini, methods=["GET"], tags=["CivitAI"])
     api.add_api_route("/sdapi/v2/civitai/options", get_options, methods=["GET"], tags=["CivitAI"])
     api.add_api_route("/sdapi/v2/civitai/tags", get_tags, methods=["GET"], tags=["CivitAI"])
     api.add_api_route("/sdapi/v2/civitai/creators", get_creators, methods=["GET"], tags=["CivitAI"])

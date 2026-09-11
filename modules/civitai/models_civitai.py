@@ -23,6 +23,7 @@ class CivitFileHashes(BaseModel):
     autov3: str | None = Field(None, alias="AutoV3")
     crc32: str | None = Field(None, alias="CRC32")
     blake3: str | None = Field(None, alias="BLAKE3")
+    sha256_12: str | None = Field(None, alias="SHA256_12")
 
 
 class CivitFileMetadata(BaseModel):
@@ -86,6 +87,36 @@ class CivitVersion(BaseModel):
         # str validation and turned every version lookup into a 404. Fall back
         # to the default instead of rejecting the whole version.
         return "Unknown" if v in (None, "") else v
+
+
+class CivitVersionMini(BaseModel):
+    # primary file flattened onto the version plus permission flags; earlyAccessEndsAt and freeTrialLimit exist only during early access
+    class Config:
+        allow_population_by_field_name = True
+    air: str = ""
+    version_name: str = Field("", alias="versionName")
+    model_name: str = Field("", alias="modelName")
+    user_id: int = Field(0, alias="userId")
+    base_model: str = Field("Unknown", alias="baseModel")
+    availability: str = "Unknown"
+    published_at: str | None = Field(None, alias="publishedAt")
+    size: float = 0
+    file_type: str = Field("", alias="fileType")
+    file_name: str = Field("", alias="fileName")
+    format: str = ""
+    hashes: CivitFileHashes = Field(default_factory=CivitFileHashes)
+    download_urls: list[str] = Field(default_factory=list, alias="downloadUrls")
+    can_generate: bool = Field(False, alias="canGenerate")
+    is_featured: bool = Field(False, alias="isFeatured")
+    require_auth: bool = Field(False, alias="requireAuth")
+    check_permission: bool = Field(False, alias="checkPermission")
+    additional_resource_charge: bool = Field(False, alias="additionalResourceCharge")
+    payout_enabled: bool = Field(False, alias="payoutEnabled")
+    minor: bool = False
+    sfw_only: bool = Field(False, alias="sfwOnly")
+    fees: list = Field(default_factory=list)
+    early_access_ends_at: str | None = Field(None, alias="earlyAccessEndsAt")
+    free_trial_limit: int | None = Field(None, alias="freeTrialLimit")
 
 
 class CivitCreator(BaseModel):
