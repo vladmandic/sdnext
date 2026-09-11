@@ -1,7 +1,6 @@
 import os
 import time
 from modules.logger import log
-from modules.civitai.basemodels_civitai import fetch_github_base_models
 from modules.civitai.models_civitai import CivitModel, CivitVersion, CivitImage, CivitSearchResponse, CivitTagResponse, CivitCreatorResponse, CivitUserProfile
 
 
@@ -287,20 +286,15 @@ class CivitaiClient:
                             break
             except Exception as e:
                 log.debug(f'CivitAI discover options: key={key} {e}')
-        # Enrich base-model names with github metadata (group/hidden/ecosystem).
-        # github also serves as the name-list fallback when both /enums and the
-        # probe came back empty.
-        github_entries = fetch_github_base_models()
-        github_index: dict = {entry['name']: entry for entry in github_entries}
-        if not result['base_models'] and github_entries:
-            result['base_models'] = [entry['name'] for entry in github_entries]
+        # hidden marks names in BaseModel but not in ActiveBaseModel, the retired set; an empty ActiveBaseModel hides nothing
+        active = set(enums.get('ActiveBaseModel', []) or [])
         result['base_models_info'] = [
-            github_index.get(name, {'name': name, 'type': 'image', 'group': '', 'hidden': False})
+            {'name': name, 'type': 'image', 'group': '', 'hidden': bool(active) and name not in active}
             for name in result['base_models']
         ]
         options_cache = result
         options_cache_time = now
-        log.debug(f'CivitAI options: types={len(result["types"])} sort={len(result["sort"])} period={len(result["period"])} base_models={len(result["base_models"])} (enriched={len(github_index)})')
+        log.debug(f'CivitAI options: types={len(result["types"])} sort={len(result["sort"])} period={len(result["period"])} base_models={len(result["base_models"])} active={len(active)}')
         return result
 
 
