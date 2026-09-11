@@ -374,14 +374,14 @@ def post_settings(request: dict):
             if user is None:
                 return JSONResponse(content={"error": "Invalid API token"}, status_code=400)
             log.info(f'CivitAI token validated: user={user.get("username", "?")}')
-        shared.opts.data['civitai_token'] = token.strip()
+        shared.opts.civitai_token = token.strip()
     save_subfolder_enabled = request.get('save_subfolder_enabled')
     if save_subfolder_enabled is not None:
-        shared.opts.data['civitai_save_subfolder_enabled'] = bool(save_subfolder_enabled)
+        shared.opts.civitai_save_subfolder_enabled = bool(save_subfolder_enabled)
     if save_subfolder is not None:
-        shared.opts.data['civitai_save_subfolder'] = save_subfolder
+        shared.opts.civitai_save_subfolder = save_subfolder
     if discard_hash_mismatch is not None:
-        shared.opts.data['civitai_discard_hash_mismatch'] = discard_hash_mismatch
+        shared.opts.civitai_discard_hash_mismatch = discard_hash_mismatch
     shared.opts.save()
     return get_settings()
 
