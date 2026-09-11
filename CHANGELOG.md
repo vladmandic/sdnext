@@ -119,6 +119,7 @@ Plus inevitable bug-fixes...
   - lucida: handle requirements
   - lumina-dimoo: attention-kwargs, thanks @Anai-Guo
   - minimax: crop image to video aspect ratio
+  - modular: handle module with remote-code
   - network: improve type/version lookup
   - offline: honor offline mode for more models, thanks @ryanmeador
   - openvino: optimize recompile checks and lora loading

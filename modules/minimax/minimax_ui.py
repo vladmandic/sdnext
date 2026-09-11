@@ -24,6 +24,7 @@ def create_ui(prompt, _negative, styles, overrides, script_inputs, mp4_fps, mp4_
             with gr.Accordion(open=True, label='Parameters', elem_id='minimax_param_accordion') as _param_accordion:
                 with gr.Row():
                     width, height = ui_sections.create_resolution_inputs('minimax', default_width=1024, default_height=576, step=32)
+                    btn_detect_image_size = ToolButton(value=ui_symbols.detect, elem_id="minimax_resize_detect_size")
                 with gr.Row():
                     steps = gr.Slider(minimum=2, maximum=100, step=1, label="MiniMax steps", elem_id='minimax_steps', value=30)
                     frames = gr.Slider(label='MiniMax frames', minimum=22, maximum=362, step=17, value=124, elem_id='minimax_frames')
@@ -68,8 +69,18 @@ def create_ui(prompt, _negative, styles, overrides, script_inputs, mp4_fps, mp4_
         model_info = next((m for m in models['MiniMax'] if m.name == model_name), None)
         minimax_video.load_model(model_info.name if model_info is not None else None)
 
+    def on_image_size(init_image):
+        if init_image is not None:
+            try:
+                width, height = init_image.size
+                return gr.update(value=width), gr.update(value=height)
+            except Exception:
+                pass
+        return gr.update(), gr.update()
+
     model.change(fn=on_change, inputs=[model, init_image], outputs=[workflow, input_accordion, reference_accordion], show_progress='hidden')
     init_image.change(fn=on_change, inputs=[model, init_image], outputs=[workflow, input_accordion, reference_accordion], show_progress='hidden')
+    btn_detect_image_size.click(fn=on_image_size, inputs=[init_image], outputs=[width, height])
     btn_load.click(fn=on_load, inputs=[model], outputs=[])
 
     task_id = gr.Textbox(visible=False, value='')
