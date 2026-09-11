@@ -51,15 +51,14 @@ class CivitFile(BaseModel):
 
 
 class CivitStats(BaseModel):
+    # counts CivitAI does not report arrive as null, not zero
     class Config:
         allow_population_by_field_name = True
-    download_count: int = Field(0, alias="downloadCount")
-    favorite_count: int = Field(0, alias="favoriteCount")
-    thumb_up_count: int = Field(0, alias="thumbsUpCount")
-    thumb_down_count: int = Field(0, alias="thumbsDownCount")
-    comment_count: int = Field(0, alias="commentCount")
-    rating_count: int = Field(0, alias="ratingCount")
-    rating: float = 0
+    download_count: int | None = Field(0, alias="downloadCount")
+    thumb_up_count: int | None = Field(0, alias="thumbsUpCount")
+    thumb_down_count: int | None = Field(0, alias="thumbsDownCount")
+    comment_count: int | None = Field(0, alias="commentCount")
+    tipped_amount_count: int | None = Field(0, alias="tippedAmountCount")
 
 
 class CivitVersion(BaseModel):
@@ -192,9 +191,12 @@ class CivitCreatorResponse(BaseModel):
 
 
 class CivitUserProfile(BaseModel):
+    # tier is omitted for non-members; email, emailVerified and tokenScope are left unmodelled to keep the address out of the API response
     class Config:
         allow_population_by_field_name = True
     id: int = 0
     username: str = ""
-    image: str | None = None
-    profile_picture: str | None = Field(None, alias="profilePicture")
+    tier: str | None = None
+    status: str | None = None
+    is_member: bool = Field(False, alias="isMember")
+    subscriptions: list = Field(default_factory=list)
