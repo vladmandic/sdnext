@@ -5,11 +5,16 @@ from modules.logger import log
 
 
 # Map CivitAI model types to shared.opts directory settings and fallback subfolder
-# names. 'Text Encoder' is a file type, not a model type: versions bundle companion
-# files, and clients route those by the file's own type.
+# names. 'Text Encoder' is the file type of bundled companion files, 'TextEncoder'
+# the model type. Types absent here land in Stable-diffusion.
 TYPE_MAP = {
     'Checkpoint': ('ckpt_dir', 'Stable-diffusion'),
     'Text Encoder': ('te_dir', 'Text-encoder'),
+    'TextEncoder': ('te_dir', 'Text-encoder'),
+    'UNet': ('unet_dir', 'UNET'),
+    'CLIP': ('clip_models_path', 'CLIP'),
+    'CLIPVision': ('clip_models_path', 'CLIP'),
+    'Detection': ('yolo_dir', 'yolo'),
     'TextualInversion': ('embeddings_dir', 'embeddings'),
     'Hypernetwork': ('hypernetwork_dir', 'hypernetworks'),
     'AestheticGradient': ('ckpt_dir', 'Stable-diffusion'),
@@ -25,6 +30,9 @@ TYPE_MAP = {
     'Upscaler': ('esrgan_models_path', 'ESRGAN'),
     'Other': ('ckpt_dir', 'Stable-diffusion'),
 }
+
+# unmapped types already logged; one warning each per session
+warned_types: set[str] = set()
 
 # CivitAI has no type for a standalone transformer, so DiT finetunes ship as
 # 'Checkpoint' like full models. Bases listed here are full checkpoints and stay
@@ -53,6 +61,9 @@ def get_type_folder(model_type: str, base_model: str = '') -> Path:
                 return Path(paths.models_path) / custom[model_type]
         except Exception as e:
             log.warning(f'CivitAI type folder override parse error: {e}')
+    if model_type not in TYPE_MAP and model_type not in warned_types:
+        warned_types.add(model_type)
+        log.warning(f'CivitAI type unmapped: type="{model_type}" folder="Stable-diffusion"')
     opt_attr, fallback_dir = TYPE_MAP.get(model_type, ('ckpt_dir', 'Stable-diffusion'))
     if model_type == 'Checkpoint' and base_model and not is_full_checkpoint_base(base_model):
         opt_attr, fallback_dir = 'unet_dir', 'UNET'
