@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2026-09-11
+## Update for 2026-09-12
 
-### Highlights for 2026-09-11
+### Highlights for 2026-09-12
 
 *What's New*? Well, code-wise, this is a big one...  
 First, a-lot-of-optimizations:
@@ -24,7 +24,7 @@ Plus inevitable bug-fixes...
 
 [Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-09-11
+### Details for 2026-09-12
 
 - **Models**
   - [Anima 2.9B Preview v1](https://huggingface.co/yeoj34760/Anima-2.9B)  
@@ -116,6 +116,7 @@ Plus inevitable bug-fixes...
   - api: prompt enhance with vision
   - compile: keep model compiled state
   - detailer: handling of stop/skip/pause
+  - framepack: correct device assignment, thanks @li-lizhe
   - log: ansi color handling
   - lora: cleanup tags
   - lora: support transformer ref models
