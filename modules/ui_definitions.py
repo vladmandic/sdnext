@@ -596,6 +596,10 @@ def create_settings(cmd_opts):
         "quicksetting_sep_images": OptionInfo("<h2>Quicksettings</h2>", "", gr.HTML),
         "quicksettings_list": OptionInfo(["sd_model_checkpoint"], "Quicksettings list", gr.Dropdown, lambda: {"multiselect":True, "choices": list(options_templates.keys())}),
 
+        "selections_sep_ui": OptionInfo("<h2>Selections</h2>", "", gr.HTML),
+        "show_samplers": OptionInfo([], "Show samplers in user interface", gr.Dropdown, lambda: {"multiselect": True, "choices": [x.name for x in list_samplers()]}, refresh=list_samplers),
+        "show_upscalers": OptionInfo([], "Show upscalers in user interface", gr.Dropdown, lambda: {"multiselect": True, "choices": list_upscalers()}, refresh=refresh_upscalers),
+
         "server_sep_ui": OptionInfo("<h2>Startup & Server Options</h2>", "", gr.HTML),
         "autolaunch": OptionInfo(False, "Autolaunch browser upon startup"),
         "motd": OptionInfo(False, "Show MOTD"),
@@ -772,12 +776,6 @@ def create_settings(cmd_opts):
     # --- Extensions ---
     options_templates.update(options_section(('extensions', "Extensions"), {
         "disable_all_extensions": OptionInfo("none", "Disable all extensions", gr.Radio, {"choices": ["none", "user", "all"]}),
-    }))
-
-    # --- Sampler Settings ---
-    options_templates.update(options_section(('sampler', "Sampler Settings"), {
-        "show_samplers": OptionInfo([], "Show samplers in user interface", gr.CheckboxGroup, lambda: {"choices": [x.name for x in list_samplers()]}, refresh=list_samplers),
-        "show_upscalers": OptionInfo([], "Show upscalers in user interface", gr.CheckboxGroup, lambda: {"choices": list_upscalers()}, refresh=refresh_upscalers),
     }))
 
     # --- Hidden Options ---

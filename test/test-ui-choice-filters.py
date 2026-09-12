@@ -5,7 +5,7 @@ import sys
 import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
-from modules.ui_choices import filter_ui_choices
+from modules.ui_common import filter_ui_choices
 
 
 class TestUiChoiceFilters(unittest.TestCase):
@@ -30,6 +30,11 @@ class TestUiChoiceFilters(unittest.TestCase):
     def test_saved_selection_remains_available_when_not_preferred(self):
         visible, filtered = filter_ui_choices(self.choices, ['Euler'], selected='DPM++ 2M')
         self.assertEqual(visible, ['Euler', 'DPM++ 2M'])
+        self.assertTrue(filtered)
+
+    def test_none_remains_the_first_choice(self):
+        visible, filtered = filter_ui_choices(['Lanczos', 'None', 'Nearest'], ['Lanczos'], selected='None')
+        self.assertEqual(visible, ['None', 'Lanczos'])
         self.assertTrue(filtered)
 
 

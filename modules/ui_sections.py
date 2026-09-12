@@ -2,7 +2,6 @@ import gradio as gr
 from modules import shared, modelloader, ui_symbols, ui_common, sd_samplers
 from modules.logger import log
 from modules.ui_components import ToolButton
-from modules.ui_choices import filter_ui_choices
 from modules.caption import caption
 
 
@@ -220,7 +219,7 @@ def sampler_choices(choices=None, selected='Default', same_as_primary=False):
         sd_samplers.set_samplers()
         choices = [sampler for sampler in sd_samplers.samplers if sampler.name != 'Same as primary']
     names = [choice.name if hasattr(choice, 'name') else choice for choice in choices]
-    visible, filtered = filter_ui_choices(names, shared.opts.show_samplers, selected)
+    visible, filtered = ui_common.filter_ui_choices(names, shared.opts.show_samplers, selected)
     if same_as_primary:
         visible.insert(0, 'Same as primary')
     value = selected if selected in visible else visible[0]
@@ -229,14 +228,14 @@ def sampler_choices(choices=None, selected='Default', same_as_primary=False):
 
 def upscaler_choices(choices, selected=None):
     """Build display-only upscaler choices without changing available upscalers."""
-    return filter_ui_choices(choices, shared.opts.show_upscalers, selected)
+    return ui_common.filter_ui_choices(choices, shared.opts.show_upscalers, selected)
 
 
 def create_filter_indicator(tabname, kind, filtered):
     if not filtered:
         return None
-    indicator = gr.Button(value=f'{kind} list filtered', elem_id=f'{tabname}_{kind.lower()}_filter_indicator', elem_classes=['filter-indicator'])
-    indicator.click(fn=None, _js="() => openSettingsSection('sampler')", inputs=[], outputs=[], show_progress='hidden')
+    indicator = ToolButton(value=ui_symbols.info, tooltip=f'{kind} list filtered', elem_id=f'{tabname}_{kind.lower()}_filter_indicator', elem_classes=['filter-indicator'])
+    indicator.click(fn=None, _js="() => openSettingsSection('ui')", inputs=[], outputs=[], show_progress='hidden')
     return indicator
 
 
@@ -247,8 +246,8 @@ def create_sampler_and_steps_selection(choices, tabname, default_steps:int=20):
     dropdown_choices, default_value, filtered = sampler_choices(choices)
     with gr.Row(elem_id=f"{tabname}_sampler_row", elem_classes=['flex-break', 'flexbox']):
         steps = gr.Slider(minimum=1, maximum=100, step=1, label="Steps", elem_id=f"{tabname}_steps", value=default_steps)
-        create_filter_indicator(tabname, 'Sampler', filtered)
         sampler_index = gr.Dropdown(label='Sampling method', elem_id=f"{tabname}_sampling", choices=dropdown_choices, value=default_value, type="value")
+        create_filter_indicator(tabname, 'Sampler', filtered)
     return steps, sampler_index
 
 
@@ -372,8 +371,8 @@ def create_hires_inputs(tab):
             hr_force = gr.Checkbox(label='Force HiRes', value=False, elem_id=f"{tab}_hr_force")
         with gr.Row(elem_id=f"{tab}_hires_fix_row2"):
             dropdown_choices, _default_value, filtered = sampler_choices(selected='Same as primary', same_as_primary=True)
-            create_filter_indicator(tab, 'Sampler', filtered)
             hr_sampler_index = gr.Dropdown(label='Refine sampler', elem_id=f"{tab}_sampling_alt", choices=dropdown_choices, value='Same as primary', type="value")
+            create_filter_indicator(tab, 'Sampler', filtered)
         with gr.Row(elem_id=f"{tab}_hires_row2"):
             hr_second_pass_steps = gr.Slider(minimum=0, maximum=99, step=1, label='HiRes steps', elem_id=f"{tab}_steps_alt", value=20)
             denoising_strength = gr.Slider(minimum=0.0, maximum=0.99, step=0.01, label='Strength', value=0.3, elem_id=f"{tab}_denoising_strength")
@@ -398,8 +397,8 @@ def create_resize_inputs(tab, images, accordion=True, latent=False, non_zero=Tru
                 available_upscalers = [x for x in available_upscalers if not x.lower().startswith('latent')]
             available_upscalers, filtered = upscaler_choices(available_upscalers, available_upscalers[0])
             resize_mode = gr.Dropdown(label=f"Mode{prefix}" if non_zero else "Resize mode", elem_id=f"{tab}_resize_mode", choices=shared.resize_modes, type="index", value='Fixed')
-            create_filter_indicator(tab, 'Upscaler', filtered)
             resize_name = gr.Dropdown(label=f"Method{prefix}" if non_zero else "Resize method", elem_id=f"{tab}_resize_name", choices=available_upscalers, value=available_upscalers[0], visible=True)
+            create_filter_indicator(tab, 'Upscaler', filtered)
             resize_context_choices = ["Add with forward", "Remove with forward", "Add with backward", "Remove with backward"]
             resize_context = gr.Dropdown(label=f"Context{prefix}", elem_id=f"{tab}_resize_context", choices=resize_context_choices, value=resize_context_choices[0], visible=False)
 
