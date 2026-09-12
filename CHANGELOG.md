@@ -19,6 +19,7 @@ And some cool new stuff and models:
   **Anima 2.9B**, **LLaDa-Image**  
 - And few cloud models:  
   *Google's Gemini, NanoBanana, Veo, Omni* and *X.AI's Grok*  
+- Some (light) UI restyling
 
 Plus inevitable bug-fixes...
 

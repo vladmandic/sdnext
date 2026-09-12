@@ -12561,7 +12561,7 @@ var ConnectionMonitorState = class _ConnectionMonitorState {
       else return;
     }
     this.element.dataset.hint = this.toHTML();
-    this.element.style.backgroundColor = this.online ? "var(--sd-main-accent-color)" : "var(--color-error)";
+    this.element.style.background = this.online ? "var(--sd-main-accent-color)" : "var(--color-error)";
   }
 };
 async function updateIndicator(online, data = {}, msg) {
@@ -16119,7 +16119,7 @@ async function createSplash() {
       log("splashVisible", { visible: false, elapsed: Math.round(performance.now() - appStartTime) });
       clearInterval(splashMonitor);
     }
-  }, 2500);
+  }, 5e3);
 }
 window.onload = createSplash;
 

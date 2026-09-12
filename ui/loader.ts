@@ -121,7 +121,7 @@ async function createSplash() {
       log('splashVisible', { visible: false, elapsed: Math.round(performance.now() - appStartTime) });
       clearInterval(splashMonitor);
     }
-  }, 2500);
+  }, 5000);
 }
 
 window.onload = createSplash;

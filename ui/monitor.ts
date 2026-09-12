@@ -65,7 +65,7 @@ export class ConnectionMonitorState {
       else return;
     }
     this.element.dataset.hint = this.toHTML();
-    this.element.style.backgroundColor = this.online ? 'var(--sd-main-accent-color)' : 'var(--color-error)';
+    this.element.style.background = this.online ? 'var(--sd-main-accent-color)' : 'var(--color-error)';
   }
 }
 

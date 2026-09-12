@@ -602,7 +602,7 @@ def create_settings(cmd_opts):
         "ui_disabled": OptionInfo([], "Disabled UI tabs", gr.Dropdown, { 'visible': False }),
 
         "cards_sep_ui": OptionInfo("<h2>Networks panel</h2>", "", gr.HTML),
-        "extra_networks_card_size": OptionInfo(140, "Network card size (px)", gr.Slider, {"minimum": 20, "maximum": 2000, "step": 1}),
+        "extra_networks_card_size": OptionInfo(130, "Network card size (px)", gr.Slider, {"minimum": 20, "maximum": 2000, "step": 1}),
         "extra_networks_card_cover": OptionInfo("sidebar", "Network panel position", gr.Radio, {"choices": ["cover", "inline", "sidebar"]}),
         "extra_networks_card_square": OptionInfo(True, "Disable variable aspect ratio"),
 

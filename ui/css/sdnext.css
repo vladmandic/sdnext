@@ -5,6 +5,13 @@
   font-weight: 100;
   src: local('NotoSansNerd'), url('fonts/notosans-nerdfont-regular.ttf');
 }
+@font-face {
+  font-display: swap;
+  font-family: 'Ubuntu';
+  font-style: normal;
+  font-weight: 100;
+  src: local('Ubuntu'), url('fonts/ubuntu-nerdfont.ttf');
+}
 
 :root {
   --card-size: 160px;
@@ -72,7 +79,7 @@
   --sd-tooltip-text-color: var(--sd-input-background-color);
   --sd-body-font: 'IBM Plex Mono', monospace;
   --sd-text-font: 'IBM Plex Mono', monospace;
-  --sd-button-font: 'NotoSans', sans-serif;
+  --sd-button-font: 'Ubuntu', sans-serif;
   --sd-image-fit: scale-down;
   --sd-panel-min-width: 256px;
   --sd-grid-image-size: 150px;
@@ -289,12 +296,12 @@ input::-webkit-outer-spin-button, input::-webkit-inner-spin-button {
 .gradio-dropdown .token {
   overflow-x: hidden;
   padding: var(--spacing-xs) !important;
-  font-family: 'NotoSans', var(--font);
+  font-family: 'Ubuntu', var(--font);
 }
 
 .gradio-dropdown .wrap input,
 .gradio-dropdown input {
-  font-family: 'NotoSans', var(--font);
+  font-family: 'Ubuntu', var(--font);
 }
 
 .gradio-html {
