@@ -193,6 +193,8 @@ def img2img(id_task: str, state: str, mode: int,
     if sampler_index is None:
         log.warning('Sampler: invalid')
         sampler_index = 0
+    if hr_sampler_index is None or hr_sampler_index == 'Same as primary':
+        hr_sampler_index = sampler_index
 
     mode = int(mode)
     image = None

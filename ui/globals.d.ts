@@ -142,6 +142,7 @@ declare global {
     onUiUpdate?: (callback: () => void) => void; // ui/script.ts
     timer?: (name: string, elapsed: number) => Promise<void>; // ui/timers.ts
     markIfModified?: (setting_name: string, value: unknown) => void; // ui/settings.ts
+    openSettingsSection?: (sectionId: string) => void; // ui/settings.ts
     appendContextMenuOption?: (targetElementSelector: string, entryName: string, entryFunction: () => void, primary?: boolean) => string; // ui/contextMenus.ts
     generateForever?: (genbuttonid: string) => void; // ui/contextMenus.ts
     removeContextMenuOption?: (id: string) => void; // ui/contextMenus.ts

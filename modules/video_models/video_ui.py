@@ -60,8 +60,15 @@ def refresh_upscalers():
     from modules import shared, modelloader
     modelloader.load_upscalers() # refresh
     upscalers = [u for u in shared.sd_upscalers if 'output_type' in inspect.signature(u.scaler.do_upscale).parameters.keys()]
-    upscaler_names = ['None'] + [u.name for u in upscalers]
-    return upscaler_names
+    return ['None'] + [u.name for u in upscalers]
+
+
+def video_upscaler_choices(selected='None', refresh=False):
+    from modules import shared, modelloader
+    if refresh:
+        modelloader.load_upscalers()
+    upscalers = [upscaler for upscaler in shared.sd_upscalers if 'output_type' in inspect.signature(upscaler.scaler.do_upscale).parameters.keys()]
+    return ui_sections.upscaler_choices(['None'] + [upscaler.name for upscaler in upscalers], selected)
 
 
 def create_ui_outputs():
@@ -96,8 +103,17 @@ def create_ui_outputs():
                 with gr.Row():
                     upscale_scale = gr.Slider(label="Video scale", minimum=1, maximum=4, value=1, step=0.1, elem_id="video_outputs_upscale_scale")
                 with gr.Row():
-                    upscale_upscaler = gr.Dropdown(label="Video Upscaler", choices=['None'], value='None', type='value', elem_id="video_outputs_upscale_upscaler")
-                    _upscale_upscaler_btn = ui_common.create_refresh_button(upscale_upscaler, refresh_upscalers)
+                    upscaler_names, filtered = video_upscaler_choices()
+                    ui_sections.create_filter_indicator('video', 'Upscaler', filtered)
+                    upscale_upscaler = gr.Dropdown(label="Video Upscaler", choices=upscaler_names, value='None', type='value', elem_id="video_outputs_upscale_upscaler")
+
+                    def refresh_video_upscalers(selected):
+                        choices, _ = video_upscaler_choices(selected, refresh=True)
+                        value = selected if selected in choices else choices[0]
+                        return gr.update(choices=choices, value=value)
+
+                    _upscale_upscaler_btn = ToolButton(value=ui_symbols.refresh, elem_id='video_upscalers_refresh')
+                    _upscale_upscaler_btn.click(fn=refresh_video_upscalers, inputs=[upscale_upscaler], outputs=[upscale_upscaler], show_progress='hidden')
     return mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, mp4_thumb, upscale_scale, upscale_upscaler
 
 

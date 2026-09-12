@@ -51,6 +51,11 @@ def list_samplers():
     return modules.sd_samplers.all_samplers
 
 
+def list_upscalers():
+    from modules import shared # pylint: disable=redefined-outer-name
+    return [upscaler.name for upscaler in shared.sd_upscalers]
+
+
 def get_openvino_device_list():
     try:
         import modules.intel.openvino  # pylint: disable=redefined-outer-name
@@ -592,6 +597,10 @@ def create_settings(cmd_opts):
         "quicksetting_sep_images": OptionInfo("<h2>Quicksettings</h2>", "", gr.HTML),
         "quicksettings_list": OptionInfo(["sd_model_checkpoint"], "Quicksettings list", gr.Dropdown, lambda: {"multiselect":True, "choices": list(options_templates.keys())}),
 
+        "selections_sep_ui": OptionInfo("<h2>Selections</h2>", "", gr.HTML),
+        "show_samplers": OptionInfo([], "Show samplers in user interface", gr.Dropdown, lambda: {"multiselect": True, "choices": [x.name for x in list_samplers()]}, refresh=list_samplers),
+        "show_upscalers": OptionInfo([], "Show upscalers in user interface", gr.Dropdown, lambda: {"multiselect": True, "choices": list_upscalers()}, refresh=refresh_upscalers),
+
         "server_sep_ui": OptionInfo("<h2>Startup & Server Options</h2>", "", gr.HTML),
         "autolaunch": OptionInfo(False, "Autolaunch browser upon startup"),
         "motd": OptionInfo(False, "Show MOTD"),
@@ -831,7 +840,6 @@ def create_settings(cmd_opts):
                 "control_move_processor": OptionInfo(False, "Processor move to CPU when complete", gr.Checkbox, {"visible": False}),
                 "control_unload_processor": OptionInfo(False, "Processor unload after use", gr.Checkbox, {"visible": False}),
                 # sampler settings are handled separately
-                "show_samplers": OptionInfo([], "Show samplers in user interface", gr.CheckboxGroup, lambda: {"choices": [x.name for x in list_samplers()], "visible": False}),
                 "eta_noise_seed_delta": OptionInfo(0, "Noise seed delta (eta)", gr.Number, {"precision": 0, "visible": False}),
                 "scheduler_eta": OptionInfo(1.0, "Noise multiplier (eta)", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.01, "visible": False}),
                 "schedulers_solver_order": OptionInfo(0, "Solver order (where", gr.Slider, {"minimum": 0, "maximum": 5, "step": 1, "visible": False}),

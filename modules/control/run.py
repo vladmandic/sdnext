@@ -444,7 +444,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
     if sampler_index is None:
         log.warning('Sampler: invalid')
         sampler_index = 0
-    if hr_sampler_index is None:
+    if hr_sampler_index is None or hr_sampler_index == 'Same as primary':
         hr_sampler_index = sampler_index
     if isinstance(extra, list):
         extra = create_override_settings_dict(extra)
