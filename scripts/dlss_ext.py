@@ -176,12 +176,12 @@ def supersample(pkg_path, images, ss_vsr_quality, ss_size_mode, ss_scale_factor,
         if response.get('status') != 'ok':
             error = response.get('error') or {}
             log.error(f'DLSS: {error.get("message")}')
-            return None
+            return images
         return c.nchw_to_images(response.get('result'))
     except Exception as e:
         log.error(f'DLSS: {e}')
         errors.display(e, 'DLSS')
-        return None
+        return images
 
 
 def neuralrender(pkg_path, images, nr_style, nr_intensity, nr_local_tone, nr_local_structure, nr_skin_structure, nr_upscaling_factor, nr_preset, nr_automatic_mask, nr_model_preset):
@@ -215,18 +215,17 @@ def neuralrender(pkg_path, images, nr_style, nr_intensity, nr_local_tone, nr_loc
     except Exception as e:
         log.error(f'DLSS: {e}')
         errors.display(e, 'DLSS')
-        return None
+        return images
 
 
 def framegen(pkg_path, images, fg_source_fps, fg_target_fps, fg_engine):
     # source and target fps need to be aligned to closest item from FPS_CHOICES
-    FPS_CHOICES = ['23.976', '25', '29.97', '30', '50', '59.94', '60', '90', '119.88', '120', '144', '165', '180', '240', '360', '480']
     fg_source_fps = min(FPS_CHOICES, key=lambda x: abs(float(x) - float(fg_source_fps)))
     fg_target_fps = min(FPS_CHOICES, key=lambda x: abs(float(x) - float(fg_target_fps)))
     try:
         if len(images) < 2:
             log.warning('DLSS: FrameGen requires at least two frames, skipping')
-            return None
+            return images
         options = { 'ai_gpu_uuid': 'auto', 'engine': fg_engine }
         frames = c.images_to_nchw(images)
         if debug:
@@ -239,12 +238,12 @@ def framegen(pkg_path, images, fg_source_fps, fg_target_fps, fg_engine):
         if response.get('status') != 'ok':
             error = response.get('error') or {}
             log.error(f'DLSS: {error.get("message")}')
-            return None
+            return images
         return c.nchw_to_images(response.get('result'))
     except Exception as e:
         log.error(f'DLSS: {e}')
         errors.display(e, 'DLSS')
-        return None
+        return images
 
 
 def dlss(p: processing.StableDiffusionProcessing | None, pp: processing.Processed | scripts_postprocessing.PostprocessedImage,
