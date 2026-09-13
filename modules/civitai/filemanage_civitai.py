@@ -118,7 +118,7 @@ def resolve_save_path(model_type: str, model_name: str = "", base_model: str = "
     for key, value in replacements.items():
         subfolder = subfolder.replace(key, value)
     # Clean up empty path segments
-    subfolder = re.sub(r'[/\\]+', os.sep, subfolder)
+    subfolder = re.sub(r'[/\\]+', lambda _match: os.sep, subfolder) # callable repl: a string repl reads the Windows backslash as an escape
     subfolder = subfolder.strip(os.sep)
     return base_folder / subfolder
 
