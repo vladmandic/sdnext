@@ -694,6 +694,13 @@ def backfill_preview_parameters(model_path: str, preview_url: str, meta: dict | 
 
 # ---- Legacy compatibility functions ----
 
+def save_civit_meta(model_path: str, data: dict) -> str:
+    from modules.json_helpers import writefile
+    fn = os.path.splitext(model_path)[0] + '.json'
+    writefile(data, filename=fn, mode='w', silent=True)
+    return fn
+
+
 def download_civit_meta(model_path: str, model_id):
     fn = os.path.splitext(model_path)[0] + '.json'
     url = f'https://civitai.com/api/v1/models/{model_id}'
@@ -701,8 +708,7 @@ def download_civit_meta(model_path: str, model_id):
     if r.status_code == 200:
         try:
             data = r.json()
-            from modules.json_helpers import writefile
-            writefile(data, filename=fn, mode='w', silent=True)
+            save_civit_meta(model_path, data)
             log.info(f'CivitAI download: id={model_id} url={url} file="{fn}"')
             return r.status_code, len(data), ''
         except Exception as e:

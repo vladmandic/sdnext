@@ -424,9 +424,12 @@ def post_metadata_scan(request: dict | None = None):
     from modules.civitai import metadata_civitai
     page = (request or {}).get('page', None)
     results = []
-    for batch in metadata_civitai.civit_search_metadata(title=page, raw=True):
-        if isinstance(batch, list):
-            results = batch
+    try:
+        for batch in metadata_civitai.civit_search_metadata(title=page, raw=True):
+            if isinstance(batch, list):
+                results = batch
+    except metadata_civitai.SweepBusy as e:
+        return JSONResponse(content={"error": str(e)}, status_code=409)
     return {"results": results}
 
 
@@ -434,9 +437,12 @@ def post_metadata_update():
     """Update local metadata from CivitAI."""
     from modules.civitai import metadata_civitai
     items = []
-    for batch in metadata_civitai.civit_update_metadata(raw=True):
-        if isinstance(batch, list):
-            items = batch
+    try:
+        for batch in metadata_civitai.civit_update_metadata(raw=True):
+            if isinstance(batch, list):
+                items = batch
+    except metadata_civitai.SweepBusy as e:
+        return JSONResponse(content={"error": str(e)}, status_code=409)
     results = []
     for item in items:
         results.append({
@@ -681,8 +687,11 @@ def legacy_post_civitai(page: str | None = None):
     """Legacy POST /sdapi/v1/civitai — scan metadata."""
     from modules.civitai import metadata_civitai
     result = []
-    for r in metadata_civitai.civit_search_metadata(title=page, raw=True):
-        result = r
+    try:
+        for r in metadata_civitai.civit_search_metadata(title=page, raw=True):
+            result = r
+    except metadata_civitai.SweepBusy as e:
+        return JSONResponse(content={"error": str(e)}, status_code=409)
     return result
 
 
