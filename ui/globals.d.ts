@@ -94,7 +94,7 @@ declare global {
     downloadCivitModel?: (...args: unknown[]) => unknown[]; // ui/civitai.ts
     modelCardClick?: (id: string | number) => Promise<void>; // ui/civitai.ts
     startCivitAllDownload?: (evt: Event) => void; // ui/civitai.ts
-    startCivitDownload?: (url: string, name: string, type: string, base: string, modelId: number, versionId: number) => void; // ui/civitai.ts
+    startCivitFileDownload?: (versionId: number, fileId: number) => void; // ui/civitai.ts
     clickDocsPage?: (page: string) => Promise<void>; // ui/docs.ts
     getDocsPage?: () => string; // ui/docs.ts
     getGitHubWikiPage?: () => string; // ui/docs.ts

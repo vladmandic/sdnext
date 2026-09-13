@@ -71,6 +71,8 @@ def file_to_legacy_dict(f) -> dict:
         'size': int(f.size_kb * 1024),
         'name': f.name,
         'type': f.type,
+        'primary': bool(f.primary),
+        'metadata': {'fp': f.metadata.fp, 'format': f.metadata.format, 'size': f.metadata.size, 'quantType': f.metadata.quant_type},
         'hashes': [h for h in [f.hashes.sha256, f.hashes.autov1, f.hashes.autov2, f.hashes.autov3, f.hashes.crc32, f.hashes.blake3] if h],
         'url': f.download_url,
     }
