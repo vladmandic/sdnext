@@ -62,7 +62,7 @@ def create_ui(parent):
             with gr.Row():
                 fg_enabled = gr.Checkbox(label='FG enable', value=False, elem_id='dlss_fg_enabled')
             with gr.Row():
-                fg_source_fps = gr.Dropdown(label='Source FPS', choices=FPS_CHOICES, value='24', elem_id='dlss_fg_source_fps')
+                fg_source_fps = gr.Dropdown(label='Source FPS', choices=FPS_CHOICES, value='23.976', elem_id='dlss_fg_source_fps')
                 fg_target_fps = gr.Dropdown(label='Target FPS', choices=FPS_CHOICES, value='60', elem_id='dlss_fg_target_fps')
             with gr.Row():
                 fg_engine = gr.Dropdown(label='Engine', choices=['Auto', 'Native DLSSG', 'Cascade'], value='Auto', elem_id='dlss_fg_engine')
@@ -219,6 +219,10 @@ def neuralrender(pkg_path, images, nr_style, nr_intensity, nr_local_tone, nr_loc
 
 
 def framegen(pkg_path, images, fg_source_fps, fg_target_fps, fg_engine):
+    # source and target fps need to be aligned to closest item from FPS_CHOICES
+    FPS_CHOICES = ['23.976', '25', '29.97', '30', '50', '59.94', '60', '90', '119.88', '120', '144', '165', '180', '240', '360', '480']
+    fg_source_fps = min(FPS_CHOICES, key=lambda x: abs(float(x) - float(fg_source_fps)))
+    fg_target_fps = min(FPS_CHOICES, key=lambda x: abs(float(x) - float(fg_target_fps)))
     try:
         if len(images) < 2:
             log.warning('DLSS: FrameGen requires at least two frames, skipping')
