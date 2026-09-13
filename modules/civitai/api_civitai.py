@@ -681,7 +681,7 @@ def legacy_get_civitai(
             query=query, tag=tag, types=types, sort=sort, period=period,
             nsfw=nsfw, limit=limit, base=base, token=token, exact=exact,
         )
-        return [model_to_legacy_dict(m) for m in models]
+        return [model_to_legacy_dict(m) for m in models.items]
     return JSONResponse(content=[], status_code=200)
 
 

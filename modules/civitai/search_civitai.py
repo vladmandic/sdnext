@@ -1,5 +1,6 @@
 import re
 import time
+from html import escape
 from installer import log
 from modules.civitai.client_civitai import client
 from modules.civitai.models_civitai import CivitModel, CivitSearchResponse
@@ -16,10 +17,10 @@ def search_civitai(
         base: str = '',
         token: str | None = None,
         exact: bool = True,
-) -> list[CivitModel]:
+) -> CivitSearchResponse:
     if not query and not tag and not sort:
         log.error('CivitAI: no search criteria provided')
-        return []
+        return CivitSearchResponse(error='no search criteria provided')
 
     t0 = time.time()
 
@@ -35,8 +36,8 @@ def search_civitai(
         if model:
             t1 = time.time()
             log.info(f'CivitAI result: id={query} time={t1 - t0:.2f}')
-            return [model]
-        return []
+            return CivitSearchResponse(items=[model])
+        return CivitSearchResponse(error=f'model {query} not found')
 
     response: CivitSearchResponse = client.search_models(
         query=query,
@@ -61,17 +62,20 @@ def search_civitai(
             if any(q_lower in name for name in names):
                 exact_models.append(model)
 
-    result = exact_models if exact_models else all_models
+    response.items = exact_models if exact_models else all_models
     t1 = time.time()
     log.info(f'CivitAI result: exact={len(exact_models)} total={len(all_models)} time={t1 - t0:.2f}')
-    return result
+    return response
 
 
-def create_model_cards(all_models: list[CivitModel]) -> str:
-    details = """
-        <div id="model-details">
-        </div>
-    """
+def create_model_cards(response: CivitSearchResponse) -> str:
+    if response.error:
+        notice = f'CivitAI: {escape(response.error)}'
+    elif not response.items:
+        notice = 'No models found'
+    else:
+        notice = ''
+    details = f'<div id="model-details">{notice}</div>'
     cards = """
         <div id="model-cards" class="extra-network-cards">
             {cards}
@@ -85,7 +89,7 @@ def create_model_cards(all_models: list[CivitModel]) -> str:
         </div>
     """
     all_cards = ''
-    for model in all_models:
+    for model in response.items:
         previews = []
         for version in model.versions:
             for image in version.images:

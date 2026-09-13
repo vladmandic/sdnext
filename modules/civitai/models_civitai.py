@@ -188,6 +188,7 @@ class CivitSearchResponse(BaseModel):
     items: list[CivitModel] = Field(default_factory=list)
     metadata: CivitSearchMetadata = Field(default_factory=CivitSearchMetadata)
     request_url: str | None = Field(None, alias="requestUrl")
+    error: str | None = None  # server or parse failure text; items is empty when set
 
 
 class CivitTag(BaseModel):

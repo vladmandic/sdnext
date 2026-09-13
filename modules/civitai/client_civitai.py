@@ -141,8 +141,9 @@ class CivitaiClient:
             params['favorites'] = 'true'
         r = self._get('/models', params=params, token=token)
         if r.status_code != 200:
-            log.error(f'CivitAI search: code={r.status_code} message="{response_message(r)}"')
-            return CivitSearchResponse()
+            message = response_message(r)
+            log.error(f'CivitAI search: code={r.status_code} message="{message}"')
+            return CivitSearchResponse(error=message)
         data = r.json()
         if 'items' not in data:
             # single model by numeric query — wrap in search response
@@ -155,7 +156,7 @@ class CivitaiClient:
             response = CivitSearchResponse.parse_obj(data)
         except Exception as e:
             log.error(f'CivitAI search parse error: {e}')
-            return CivitSearchResponse()
+            return CivitSearchResponse(error='search response could not be parsed')
         # /models rejects server-side level filtering and its nsfw boolean leaks
         # Mature+ content, so filter on each model's aggregate nsfwLevel here:
         # nsfw on keeps every level, nsfw off/unset keeps SFW (None + Soft).
