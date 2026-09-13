@@ -17,7 +17,8 @@ if TYPE_CHECKING:
 
 
 gradio_theme = gr.themes.Base()
-opts = SimpleNamespace(**readfile('config.json'))
+dct: dict = readfile('config.json')
+opts = SimpleNamespace(**dct)
 if 'theme_type' not in opts.__dict__:
     opts.theme_type = 'Modern'
 if 'gradio_theme' not in opts.__dict__:
