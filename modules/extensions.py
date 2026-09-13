@@ -73,21 +73,10 @@ def temp_disable_extensions():
         'sd-extension-nudenet',
         'sd-extension-promptgen',
     ]
-    disable_themes = [
-        'sd-webui-lobe-theme',
-        'cozy-nest',
-        'sdnext-modernui',
-    ]
     disabled = []
-    if shared.cmd_opts.theme is not None:
-        theme_name = shared.cmd_opts.theme
-    else:
-        theme_name = f'{shared.opts.theme_type.lower()}/{shared.opts.gradio_theme}'
-    if theme_name == 'lobe':
-        disable_themes.remove('sd-webui-lobe-theme')
-    elif theme_name == 'cozy-nest' or theme_name == 'cozy':
-        disable_themes.remove('cozy-nest')
-    elif '/' not in theme_name: # set default themes per type
+    theme_type = shared.cmd_opts.theme if shared.cmd_opts.theme is not None else shared.opts.theme_type
+    theme_name = f'{theme_type.lower()}/{shared.opts.gradio_theme}'
+    if '/' not in theme_name: # set default themes per type
         if theme_name == 'standard' or theme_name == 'default':
             theme_name = 'standard/black-teal'
         if theme_name == 'modern':
@@ -103,7 +92,6 @@ def temp_disable_extensions():
     elif theme_name.lower().startswith('modern'):
         shared.opts.data['theme_type'] = 'Modern'
         shared.opts.data['gradio_theme'] = theme_name[7:]
-        disable_themes.remove('sdnext-modernui')
     elif theme_name.lower().startswith('huggingface') or theme_name.lower().startswith('gradio') or theme_name.lower().startswith('none'):
         shared.opts.data['theme_type'] = 'None'
         shared.opts.data['gradio_theme'] = theme_name
@@ -112,9 +100,6 @@ def temp_disable_extensions():
         shared.opts.data['theme_type'] = 'Standard'
         shared.opts.data['gradio_theme'] = 'black-teal'
 
-    for ext in disable_themes:
-        if ext.lower() not in shared.opts.disabled_extensions:
-            disabled.append(ext)
     if shared.cmd_opts.safe:
         for ext in disable_safe:
             if ext.lower() not in shared.opts.disabled_extensions:
