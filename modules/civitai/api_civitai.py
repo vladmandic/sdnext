@@ -567,7 +567,6 @@ def buildsidecar_index():
                     continue
                 # Match the companion file to a JSON entry by size (sizeKB)
                 companion_size_kb = os.path.getsize(companion) / 1024.0
-                companion_name = os.path.basename(base)
                 best_sha = None
                 best_diff = float('inf')
                 for v in data.get('modelVersions', []):
@@ -580,7 +579,7 @@ def buildsidecar_index():
                                 best_sha = sha
                                 best_diff = diff
                 if best_sha:
-                    sidecar_index[best_sha.lower()] = {"filename": companion_name, "type": model_type}
+                    sidecar_index[best_sha.lower()] = {"filename": companion, "type": model_type}
             except Exception:
                 continue
     log.debug(f'CivitAI sidecar index: {len(sidecar_index)} hashes from sidecar files')
@@ -597,54 +596,60 @@ def invalidatesidecar_index():
 # ---------------------------------------------------------------------------
 
 def post_check_local(request: dict):
-    """Check which SHA256 hashes correspond to locally downloaded files."""
+    """Check which SHA256 hashes correspond to local model files, dropping hash cache entries whose files are gone."""
     from modules import hashes as hash_module
-    input_hashes = request.get('hashes', [])
-    if not input_hashes:
+    from modules.civitai.filemanage_civitai import hash_cache_path, prune_hash_cache
+    requested = [str(h) for h in request.get('hashes', []) if h]
+    if not requested:
         return {"found": {}}
-    # Build reverse lookup: lowercase sha256 -> {filename, type}
+    prune_hash_cache()
+    wanted = {h.lower() for h in requested}
+    titles_by_sha: dict[str, list[str]] = {}
+    for title, entry in list(hash_module.cache().items()):
+        sha = (entry.get("sha256") or "").lower()
+        if sha in wanted:
+            titles_by_sha.setdefault(sha, []).append(title)
     found = {}
-    for title, entry in hash_module.cache().items():
-        sha = entry["sha256"]
-        if not sha:
-            continue
-        parts = title.split("/", 1)
-        file_type = parts[0] if len(parts) > 1 else "unknown"
-        found[sha.lower()] = {"filename": title, "type": file_type}
-    # Supplement from in-memory checkpoint registry
+    gone = []
+    for sha, titles in titles_by_sha.items():
+        for title in titles:
+            path = hash_cache_path(title)
+            if path is None: # no loaded registry names the file
+                continue
+            if os.path.exists(path):
+                found[sha] = {"filename": path, "type": title.split("/", 1)[0]}
+                break
+            gone.append(title)
+    if gone:
+        for title in gone:
+            hash_module.cache().pop(title, None)
+        hash_module.save_cache()
+        log.debug(f'CivitAI check local: pruned={len(gone)} hash cache entries without files')
     try:
         from modules.sd_checkpoint import checkpoints_list
-        for _title, cp in checkpoints_list.items():
-            if cp.sha256:
-                key = cp.sha256.lower()
-                if key not in found:
-                    found[key] = {"filename": cp.filename, "type": "checkpoint"}
+        for cp in checkpoints_list.values():
+            key = (cp.sha256 or "").lower()
+            if key in wanted and key not in found and os.path.exists(cp.filename):
+                found[key] = {"filename": cp.filename, "type": "checkpoint"}
     except Exception:
         pass
-    # Supplement from in-memory LoRA registry
     try:
         from modules.lora.lora_load import available_networks
-        for _name, net in available_networks.items():
-            if net.hash:
-                key = net.hash.lower()
-                if key not in found:
-                    found[key] = {"filename": net.filename, "type": "lora"}
+        for net in available_networks.values():
+            key = (net.hash or "").lower()
+            if key in wanted and key not in found and os.path.isfile(net.filename):
+                found[key] = {"filename": net.filename, "type": "lora"}
     except Exception:
         pass
-    # Supplement from sidecar index (covers files never hashed locally)
     sidecar = buildsidecar_index()
-    for h in input_hashes:
-        if not h:
-            continue
-        key = h.lower()
-        if key not in found and key in sidecar:
-            found[key] = sidecar[key]
-    # Match requested hashes
     result = {}
-    for h in input_hashes:
-        if not h:
-            continue
-        match = found.get(h.lower())
+    for h in requested:
+        key = h.lower()
+        match = found.get(key)
+        if match is None:
+            entry = sidecar.get(key)
+            if entry and os.path.isfile(entry["filename"]):
+                match = entry
         if match:
             result[h] = match
     return {"found": result}

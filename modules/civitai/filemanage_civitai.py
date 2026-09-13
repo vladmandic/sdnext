@@ -142,6 +142,76 @@ def hash_cache_title(kind: str | None, filename: str, name: str | None = None) -
     return None
 
 
+hash_cache_pruned = False
+
+
+def loader_root(kind: str) -> str | None:
+    """Folder the loader of kind lists, or None for a kind no loader owns."""
+    from modules import shared, paths
+    if kind == 'vae':
+        return getattr(shared.opts, 'vae_dir', '') or os.path.join(paths.models_path, 'VAE')
+    if kind == 'unet':
+        return getattr(shared.opts, 'unet_dir', '')
+    if kind == 'lora':
+        return getattr(shared.cmd_opts, 'lora_dir', '')
+    if kind == 'checkpoint':
+        return getattr(shared.opts, 'ckpt_dir', '') or os.path.join(paths.models_path, 'Stable-diffusion')
+    return None
+
+
+def loader_registry(kind: str) -> dict[str, str] | None:
+    """Name to path map of the loader that reads the kind's hash cache keys, or None for a kind no loader owns."""
+    if kind == 'vae':
+        from modules.sd_vae import vae_dict
+        return vae_dict
+    if kind == 'unet':
+        from modules.sd_unet import unet_dict
+        return unet_dict
+    if kind == 'lora':
+        from modules.lora.lora_load import available_networks
+        return {name: entry.filename for name, entry in available_networks.items()}
+    if kind == 'checkpoint':
+        from modules.sd_checkpoint import checkpoints_list
+        return {entry.name: entry.filename for entry in checkpoints_list.values()}
+    return None
+
+
+def hash_cache_path(title: str) -> str | None:
+    """Path the loader registry holds for a hash cache key, or None when no loaded registry names it."""
+    kind, _, name = title.partition('/')
+    if kind == 'vae' and os.path.isabs(name):
+        return name
+    registry = loader_registry(kind)
+    return registry.get(name) if registry else None
+
+
+def hash_cache_stale(title: str) -> bool:
+    """True when the key's loader folder is reachable but the registry no longer lists the file, or lists a path that is gone."""
+    kind, _, name = title.partition('/')
+    if kind == 'vae' and os.path.isabs(name):
+        return os.path.isdir(os.path.dirname(name)) and not os.path.exists(name)
+    root = loader_root(kind)
+    if not root or not os.path.isdir(root):
+        return False
+    path = (loader_registry(kind) or {}).get(name)
+    return path is None or not os.path.exists(path)
+
+
+def prune_hash_cache():
+    """Drop hash cache entries for files that are gone, once per process."""
+    global hash_cache_pruned # pylint: disable=global-statement
+    if hash_cache_pruned:
+        return
+    hash_cache_pruned = True
+    from modules import hashes
+    gone = [title for title in list(hashes.cache()) if hash_cache_stale(title)]
+    for title in gone:
+        hashes.cache().pop(title, None)
+    if gone:
+        hashes.save_cache()
+        log.info(f'CivitAI hash cache: pruned={len(gone)} entries without files')
+
+
 def resolve_save_path(model_type: str, model_name: str = "", base_model: str = "",
                       nsfw: bool = False, creator: str = "", model_id: int = 0,
                       version_id: int = 0, version_name: str = "") -> Path:
