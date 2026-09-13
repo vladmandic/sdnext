@@ -1,5 +1,6 @@
 import os
 import sys
+import contextlib
 import time
 import json
 from typing import overload, Literal
@@ -8,6 +9,18 @@ import orjson
 from modules.logger import log
 
 locking_available = True  # used by file read/write locking
+
+
+def replace_file(source: str, target: str, attempts: int = 10, delay: float = 0.05):
+    """os.replace that waits out a target another handle holds open, which Windows reports as a permission error."""
+    for attempt in range(attempts):
+        try:
+            os.replace(source, target)
+            return
+        except PermissionError:
+            if attempt == attempts - 1:
+                raise
+            time.sleep(delay)
 
 
 @overload
@@ -27,6 +40,8 @@ def readfile(filename: str | os.PathLike[str], silent: bool = False, lock: bool 
             lock_file = fasteners.InterProcessReaderWriterLock(f"{filename}.lock")
             lock_file.logger.disabled = True  # type: ignore - False positive. Bad typing in Fasteners.
             locked = lock_file.acquire_read_lock(blocking=True, timeout=3)
+            if not locked:
+                log.warning(f'File read lock: file="{filename}" timeout')
         except Exception as err:
             lock_file = None
             locking_available = False
@@ -57,11 +72,9 @@ def readfile(filename: str | os.PathLike[str], silent: bool = False, lock: bool 
 
     try:
         if locking_available and lock_file is not None:
-            lock_file.release_read_lock()
-        if locked and os.path.exists(f"{filename}.lock"):
-            os.remove(f"{filename}.lock")
-    except Exception:
-        locking_available = False
+            lock_file.release_read_lock()  # the lock file stays: removing it after release races other holders
+    except Exception as err:
+        log.error(f'File read lock release: file="{filename}" {err}')
 
     if isinstance(data, list) and as_type == "dict":
         if not data:
@@ -93,8 +106,9 @@ def writefile(obj: dict | list, filename: str | os.PathLike[str], mode="w", sile
 
     try:
         t0 = time.time()
-        data = copy.deepcopy(obj) # ensure keys/items aren't added/deleted during json.dumps
-        for k, v in obj.items() if isinstance(obj, dict) else []: # validate each key-by-key to avoid global exceptions
+        snapshot = obj.copy() if isinstance(obj, (dict, list)) else obj # dict.copy and list.copy run under the GIL, so a concurrent insert cannot interrupt them
+        data = copy.deepcopy(snapshot)
+        for k, v in list(data.items()) if isinstance(data, dict) else []: # validate each key-by-key to avoid global exceptions
             try:
                 _tmp = json.dumps(v, indent=2, default=default, allow_nan=False, ensure_ascii=False)
             except Exception as err:
@@ -111,6 +125,8 @@ def writefile(obj: dict | list, filename: str | os.PathLike[str], mode="w", sile
             lock_file = fasteners.InterProcessReaderWriterLock(f"{filename}.lock") if locking_available else None
             lock_file.logger.disabled = True  # type: ignore - False positive. Bad typing in Fasteners.
             locked = lock_file.acquire_write_lock(blocking=True, timeout=3) if lock_file is not None else False
+            if not locked:
+                log.warning(f'File write lock: file="{filename}" timeout')
     except Exception as err:
         locking_available = False
         lock_file = None
@@ -119,11 +135,17 @@ def writefile(obj: dict | list, filename: str | os.PathLike[str], mode="w", sile
 
     try:
         if atomic:
-            with tempfile.NamedTemporaryFile(mode=mode, encoding="utf8", delete=False, dir=os.path.dirname(filename)) as f:
-                f.write(output)
-                f.flush()
-                os.fsync(f.fileno())
-                os.replace(f.name, filename)
+            fd, temp_name = tempfile.mkstemp(dir=os.path.dirname(os.path.abspath(filename)), prefix=f"{os.path.basename(filename)}.", suffix=".tmp")
+            try:
+                with os.fdopen(fd, mode, encoding="utf8") as f:
+                    f.write(output)
+                    f.flush()
+                    os.fsync(f.fileno())
+                replace_file(temp_name, filename)
+            except BaseException:
+                with contextlib.suppress(OSError):
+                    os.remove(temp_name)
+                raise
         else:
             with open(filename, mode=mode, encoding="utf8") as file:
                 file.write(output)
@@ -136,8 +158,6 @@ def writefile(obj: dict | list, filename: str | os.PathLike[str], mode="w", sile
 
     try:
         if locking_available and lock_file is not None:
-            lock_file.release_write_lock()
-        if locked and os.path.exists(f"{filename}.lock"):
-            os.remove(f"{filename}.lock")
-    except Exception:
-        locking_available = False
+            lock_file.release_write_lock()  # the lock file stays: removing it after release races other holders
+    except Exception as err:
+        log.error(f'File write lock release: file="{filename}" {err}')
