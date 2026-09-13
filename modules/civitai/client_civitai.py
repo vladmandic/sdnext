@@ -1,4 +1,5 @@
 import os
+import json
 import time
 import threading
 from types import SimpleNamespace
@@ -39,6 +40,24 @@ def retry_delay(response, attempt: int) -> float:
     except (TypeError, ValueError):
         delay = 2 ** attempt
     return min(max(delay, 0.0), RETRY_DELAY_MAX)
+
+
+def response_message(response) -> str:
+    """CivitAI error text from a failed response: its error string, ZodError issues, or the HTTP reason."""
+    try:
+        body = response.json()
+    except Exception:
+        body = None
+    error = body.get('error') if isinstance(body, dict) else None
+    if isinstance(error, dict):
+        error = error.get('message', '')
+        try:
+            error = '; '.join(f"{'.'.join(str(p) for p in issue.get('path', []))}: {issue.get('message', '')}" for issue in json.loads(error))
+        except Exception:
+            pass
+    if not error:
+        error = getattr(response, 'reason', '') or getattr(response, 'text', '')
+    return str(error).strip()[:200]
 
 
 def post_json(url: str, body, headers: dict):
@@ -82,10 +101,11 @@ class CivitaiClient:
                     r = post_json(url, body, headers)
                 else:
                     r = shared.req(url, headers=headers if headers else None, stream=stream)
-            if r.status_code != 429 or attempt >= RETRY_LIMIT:
+            retry_after = (getattr(r, 'headers', None) or {}).get('Retry-After')
+            if not (r.status_code == 429 or (r.status_code == 503 and retry_after is not None)) or attempt >= RETRY_LIMIT: # CivitAI sends 503 with Retry-After when search is overloaded
                 return r
             delay = retry_delay(r, attempt)
-            log.warning(f'CivitAI rate limited: path={path} attempt={attempt + 1} delay={delay:.0f}s')
+            log.warning(f'CivitAI retry: path={path} code={r.status_code} attempt={attempt + 1} delay={delay:.0f}s message="{response_message(r)}"')
             time.sleep(delay)
             attempt += 1
 
@@ -121,7 +141,7 @@ class CivitaiClient:
             params['favorites'] = 'true'
         r = self._get('/models', params=params, token=token)
         if r.status_code != 200:
-            log.error(f'CivitAI search: code={r.status_code} reason={getattr(r, "reason", "")}')
+            log.error(f'CivitAI search: code={r.status_code} message="{response_message(r)}"')
             return CivitSearchResponse()
         data = r.json()
         if 'items' not in data:
@@ -147,7 +167,7 @@ class CivitaiClient:
     def get_model(self, model_id: int, *, token: str | None = None) -> CivitModel | None:
         r = self._get(f'/models/{model_id}', token=token)
         if r.status_code != 200:
-            log.error(f'CivitAI get model: id={model_id} code={r.status_code}')
+            log.error(f'CivitAI get model: id={model_id} code={r.status_code} message="{response_message(r)}"')
             return None
         try:
             return CivitModel.parse_obj(r.json())
@@ -158,7 +178,7 @@ class CivitaiClient:
     def get_version(self, version_id: int, *, token: str | None = None) -> CivitVersion | None:
         r = self._get(f'/model-versions/{version_id}', token=token)
         if r.status_code != 200:
-            log.error(f'CivitAI get version: id={version_id} code={r.status_code}')
+            log.error(f'CivitAI get version: id={version_id} code={r.status_code} message="{response_message(r)}"')
             return None
         try:
             return CivitVersion.parse_obj(r.json())
@@ -169,6 +189,8 @@ class CivitaiClient:
     def get_version_by_hash(self, hash_str: str, *, token: str | None = None) -> CivitVersion | None:
         r = self._get(f'/model-versions/by-hash/{hash_str}', token=token)
         if r.status_code != 200:
+            if r.status_code != 404:
+                log.error(f'CivitAI get version by hash: hash={hash_str} code={r.status_code} message="{response_message(r)}"')
             return None
         try:
             return CivitVersion.parse_obj(r.json())
@@ -179,7 +201,7 @@ class CivitaiClient:
     def get_version_mini(self, version_id: int, *, token: str | None = None) -> CivitVersionMini | None:
         r = self._get(f'/model-versions/mini/{version_id}', token=token)
         if r.status_code != 200:
-            log.error(f'CivitAI get version mini: id={version_id} code={r.status_code}')
+            log.error(f'CivitAI get version mini: id={version_id} code={r.status_code} message="{response_message(r)}"')
             return None
         try:
             return CivitVersionMini.parse_obj(r.json())
@@ -194,7 +216,7 @@ class CivitaiClient:
             chunk = hashes[i:i + BY_HASH_IDS_LIMIT]
             r = self.send('POST', '/model-versions/by-hash/ids', body=chunk, token=token)
             if r.status_code != 200:
-                log.error(f'CivitAI version ids by hash: count={len(chunk)} code={r.status_code}')
+                log.error(f'CivitAI version ids by hash: count={len(chunk)} code={r.status_code} message="{response_message(r)}"')
                 failed.update(dict.fromkeys(chunk, r.status_code))
                 continue
             try:
@@ -211,7 +233,7 @@ class CivitaiClient:
             chunk = hashes[i:i + BY_HASH_LIMIT]
             r = self.send('POST', '/model-versions/by-hash', body=chunk, token=token)
             if r.status_code != 200:
-                log.error(f'CivitAI versions by hash: count={len(chunk)} code={r.status_code}')
+                log.error(f'CivitAI versions by hash: count={len(chunk)} code={r.status_code} message="{response_message(r)}"')
                 failed.update(dict.fromkeys(chunk, r.status_code))
                 continue
             try:
@@ -229,7 +251,7 @@ class CivitaiClient:
             params = {'ids': ','.join(str(m) for m in chunk), 'limit': MODEL_IDS_LIMIT, 'nsfw': 'true'} # ids query drops NSFW models unless nsfw=true
             r = self.send('GET', '/models', params=params, token=token)
             if r.status_code != 200:
-                log.error(f'CivitAI models by id: count={len(chunk)} code={r.status_code}')
+                log.error(f'CivitAI models by id: count={len(chunk)} code={r.status_code} message="{response_message(r)}"')
                 failed.update(dict.fromkeys(chunk, r.status_code))
                 continue
             try:
@@ -248,6 +270,7 @@ class CivitaiClient:
             params['limit'] = limit
         r = self._get('/images', params=params, token=token)
         if r.status_code != 200:
+            log.error(f'CivitAI get images: code={r.status_code} message="{response_message(r)}"')
             return []
         data = r.json()
         items = data.get('items', [])
@@ -269,6 +292,7 @@ class CivitaiClient:
             params['limit'] = limit
         r = self._get('/images', params=params, token=token)
         if r.status_code != 200:
+            log.error(f'CivitAI get images: code={r.status_code} message="{response_message(r)}"')
             return []
         data = r.json()
         return data.get('items', [])
@@ -283,6 +307,7 @@ class CivitaiClient:
             params['page'] = page
         r = self._get('/tags', params=params)
         if r.status_code != 200:
+            log.error(f'CivitAI get tags: code={r.status_code} message="{response_message(r)}"')
             return CivitTagResponse()
         try:
             return CivitTagResponse.parse_obj(r.json())
@@ -300,6 +325,7 @@ class CivitaiClient:
             params['page'] = page
         r = self._get('/creators', params=params)
         if r.status_code != 200:
+            log.error(f'CivitAI get creators: code={r.status_code} message="{response_message(r)}"')
             return CivitCreatorResponse()
         try:
             return CivitCreatorResponse.parse_obj(r.json())
@@ -310,6 +336,8 @@ class CivitaiClient:
     def get_me(self, token: str | None = None) -> CivitUserProfile | None:
         r = self._get('/me', token=token)
         if r.status_code != 200:
+            if r.status_code != 401:
+                log.error(f'CivitAI get me: code={r.status_code} message="{response_message(r)}"')
             return None
         try:
             return CivitUserProfile.parse_obj(r.json())
@@ -328,7 +356,7 @@ class CivitaiClient:
         """Civitai enum lists (ModelType, ModelFileType, BaseModel, ActiveBaseModel, BaseModelType). Public endpoint."""
         r = self._get('/enums')
         if r.status_code != 200:
-            log.debug(f'CivitAI enums: code={r.status_code}')
+            log.debug(f'CivitAI enums: code={r.status_code} message="{response_message(r)}"')
             return {}
         try:
             return r.json()
@@ -372,11 +400,10 @@ class CivitaiClient:
                     if not isinstance(error, dict):
                         continue
                     # Parse ZodError: error.message is a JSON-encoded array of issues
-                    import json as _json
                     issues = error.get('issues', [])
                     if not issues:
                         try:
-                            issues = _json.loads(error.get('message', '[]'))
+                            issues = json.loads(error.get('message', '[]'))
                         except Exception:
                             issues = []
                     for issue in issues:
