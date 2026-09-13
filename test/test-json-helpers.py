@@ -10,6 +10,10 @@ Covers:
 - locked readers never see a torn file while unlocked writers rewrite it in place
 - a lock file left behind by the former file lock is removed
 - concurrent inserts into a shared dict never drop a save
+- default writes are atomic, so unlocked readers never see a torn file either
+- an atomic write through a symlink replaces the file it points at and keeps the link
+- a read waits out an open that is refused while a replace is in flight
+- an empty file reads as empty and is reported unless the read is silent
 - readfile returns what writefile wrote, as dict and as list
 
 No running server required.
@@ -25,6 +29,7 @@ import shutil
 import sys
 import tempfile
 import threading
+import time
 
 script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, script_dir)
@@ -36,16 +41,21 @@ from modules import json_helpers  # pylint: disable=wrong-import-position
 
 
 class ErrorLog:
-    """Counts error lines from json_helpers while passing everything else to the real logger."""
+    """Counts error and warning lines from json_helpers while passing everything else to the real logger."""
 
     def __init__(self, inner):
         self.inner = inner
         self.errors = []
+        self.warnings = []
         self.lock = threading.Lock()
 
     def error(self, message, *args, **kwargs):
         with self.lock:
             self.errors.append(str(message))
+
+    def warning(self, message, *args, **kwargs):
+        with self.lock:
+            self.warnings.append(str(message))
 
     def count(self, needle):
         return sum(1 for m in self.errors if needle in m)
@@ -195,6 +205,85 @@ def test_concurrent_inserts_keep_every_save(folder, threads=4, per_thread=40):
         assert len(json.load(f)) == threads * per_thread, 'last save is incomplete'
 
 
+def test_default_writes_never_tear(folder, writers=4, per_writer=20, readers=2):
+    jh = fresh_helper()
+    target = os.path.join(folder, 'default.json')
+    jh.writefile({'seed': 0}, target, silent=True)
+    stop = threading.Event()
+    torn = []
+
+    def reader(_n):
+        while not stop.is_set():
+            if not jh.readfile(target, silent=True, as_type='dict'):
+                torn.append(1)
+            time.sleep(0.001)  # real readers do not spin; a spinning reader starves the writer's retry on Windows
+
+    def writer(n):
+        for i in range(per_writer):
+            jh.writefile({'writer': n, 'i': i, 'blob': 'x' * (40000 + 1000 * n)}, target, silent=True)
+
+    pool = [threading.Thread(target=reader, args=(r,)) for r in range(readers)]
+    for t in pool:
+        t.start()
+    run_threads(writer, writers)
+    stop.set()
+    for t in pool:
+        t.join()
+    assert torn == [], f'{len(torn)} unlocked reads returned nothing'
+    assert jh.log.errors == [], jh.log.errors
+    assert leftovers(folder, target) == [], f'temp files left: {leftovers(folder, target)}'
+
+
+def test_atomic_write_keeps_symlink(folder):
+    jh = fresh_helper()
+    real = os.path.join(folder, 'real.json')
+    link = os.path.join(folder, 'link.json')
+    jh.writefile({'v': 0}, real, silent=True)
+    try:
+        os.symlink(real, link)
+    except OSError as e:
+        log.info(f'  SKIP symlink not available: {e}')
+        return
+    jh.writefile({'v': 1}, link, silent=True)
+    assert os.path.islink(link), 'symlink was replaced by a file'
+    assert jh.readfile(real, silent=True, as_type='dict') == {'v': 1}, 'target of the symlink not updated'
+    assert sorted(os.listdir(folder)) == ['link.json', 'real.json'], os.listdir(folder)
+    assert jh.log.errors == [], jh.log.errors
+
+
+def test_read_waits_out_refused_open(folder):
+    jh = fresh_helper()
+    target = os.path.join(folder, 'refused.json')
+    jh.writefile({'x': 1}, target, silent=True)
+    calls = []
+    real_open = open
+
+    def refuse_twice(*args, **kwargs):
+        calls.append(1)
+        if len(calls) <= 2:
+            raise PermissionError(13, 'replace in flight')
+        return real_open(*args, **kwargs)
+
+    jh.open = refuse_twice  # module globals shadow the builtin inside read_bytes
+    try:
+        assert jh.readfile(target, silent=True, as_type='dict') == {'x': 1}
+    finally:
+        del jh.open
+    assert len(calls) == 3, f'{len(calls)} open attempts'
+    assert jh.log.errors == [], jh.log.errors
+
+
+def test_empty_file_is_reported(folder):
+    jh = fresh_helper()
+    target = os.path.join(folder, 'empty.json')
+    with open(target, 'w', encoding='utf8'):
+        pass
+    assert jh.readfile(target, as_type='dict') == {}
+    assert jh.readfile(target, silent=True, as_type='list') == []
+    assert len(jh.log.warnings) == 1 and 'empty' in jh.log.warnings[0], jh.log.warnings
+    assert jh.log.errors == [], jh.log.errors
+
+
 def test_roundtrip(folder):
     jh = fresh_helper()
     target = os.path.join(folder, 'roundtrip.json')
@@ -216,6 +305,10 @@ def run_all():
         test_locked_readers_never_see_torn_writes,
         test_legacy_lock_file_removed,
         test_concurrent_inserts_keep_every_save,
+        test_default_writes_never_tear,
+        test_atomic_write_keeps_symlink,
+        test_read_waits_out_refused_open,
+        test_empty_file_is_reported,
         test_roundtrip,
     ]
     passed = 0
@@ -236,7 +329,6 @@ def run_all():
 
 
 if __name__ == '__main__':
-    import time
     t0 = time.time()
     ok = run_all()
     log.warning(f'Total time: {time.time() - t0:.2f}s')

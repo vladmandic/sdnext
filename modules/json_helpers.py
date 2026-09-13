@@ -14,7 +14,7 @@ path_locks_guard = threading.Lock()
 
 def path_lock(filename: str | os.PathLike[str]) -> threading.RLock:
     """One lock per file path; threads of this process serialize on it, other processes are covered by atomic replace."""
-    key = os.path.normcase(os.path.abspath(filename))
+    key = os.path.normcase(os.path.realpath(filename))
     with path_locks_guard:
         lock = path_locks.get(key)
         if lock is None:
@@ -22,6 +22,19 @@ def path_lock(filename: str | os.PathLike[str]) -> threading.RLock:
             with contextlib.suppress(OSError):
                 os.remove(f"{key}.lock")  # left behind by the file lock this replaces
         return lock
+
+
+def read_bytes(filename: str | os.PathLike[str], attempts: int = 5, delay: float = 0.01) -> bytes:
+    """Read a whole file, waiting out an open that Windows refuses while a replace of the same name is in flight."""
+    for attempt in range(attempts):
+        try:
+            with open(filename, "rb") as file:
+                return file.read()
+        except PermissionError:
+            if attempt == attempts - 1:
+                raise
+            time.sleep(delay)
+    return b""
 
 
 def replace_file(source: str, target: str, attempts: int = 10, delay: float = 0.05):
@@ -49,11 +62,12 @@ def readfile(filename: str | os.PathLike[str], silent: bool = False, lock: bool 
     with path_lock(filename) if lock else contextlib.nullcontext():
         try:
             t0 = time.time()
-            with open(filename, "rb") as file:
-                b = file.read()
-                if len(b) == 0:
-                    return {} if as_type == "dict" else []
-                data = orjson.loads(b)  # pylint: disable=no-member
+            b = read_bytes(filename)
+            if len(b) == 0:
+                if not silent:
+                    log.warning(f'Read: file="{filename}" empty')
+                return {} if as_type == "dict" else []
+            data = orjson.loads(b)  # pylint: disable=no-member
             t1 = time.time()
             if not silent:
                 fn = f"{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}"  # pylint: disable=protected-access
@@ -81,14 +95,17 @@ def readfile(filename: str | os.PathLike[str], silent: bool = False, lock: bool 
     return data
 
 
-def writefile(obj: dict | list, filename: str | os.PathLike[str], mode="w", silent=False, atomic=False):
-    """Write obj as JSON; writes to the same path from this process run one at a time, in call order."""
+def writefile(obj: dict | list, filename: str | os.PathLike[str], mode="w", silent=False, atomic=True):
+    """Write obj as JSON through a temp file and replace; writes to the same path from this process run one at a time, in call order."""
     import copy
     import tempfile
 
     def default(obj):
         log.error(f'Save: file="{filename}" not a valid object: {obj}')
         return str(obj)
+
+    if mode != "w":
+        atomic = False  # append cannot go through a temp file
 
     with path_lock(filename):
         try:
@@ -109,13 +126,14 @@ def writefile(obj: dict | list, filename: str | os.PathLike[str], mode="w", sile
 
         try:
             if atomic:
-                fd, temp_name = tempfile.mkstemp(dir=os.path.dirname(os.path.abspath(filename)), prefix=f"{os.path.basename(filename)}.", suffix=".tmp")
+                target = os.path.realpath(filename)  # replace the file a symlink points at, not the symlink
+                fd, temp_name = tempfile.mkstemp(dir=os.path.dirname(target), prefix=f"{os.path.basename(target)}.", suffix=".tmp")
                 try:
                     with os.fdopen(fd, mode, encoding="utf8") as f:
                         f.write(output)
                         f.flush()
                         os.fsync(f.fileno())
-                    replace_file(temp_name, filename)
+                    replace_file(temp_name, target)
                 except BaseException:
                     with contextlib.suppress(OSError):
                         os.remove(temp_name)
