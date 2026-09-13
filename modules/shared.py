@@ -16,7 +16,7 @@ import modules.memmon
 import modules.paths as paths
 from modules.json_helpers import readfile # pylint: disable=W0611
 from modules.shared_helpers import listdir, req # pylint: disable=W0611
-from modules import errors, devices, shared_state, cmd_args, theme, history, files_cache # pylint: disable=unused-import
+from modules import errors, devices, shared_state, cmd_args, history, files_cache # pylint: disable=unused-import
 from modules.memstats import memory_stats # pylint: disable=unused-import
 
 # main entry point that triggers package imports

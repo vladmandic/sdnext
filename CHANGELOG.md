@@ -135,6 +135,7 @@ Plus inevitable bug-fixes...
   - prompt: unnecessary secondary prompt if same
   - prompt: clean prompt after network parsing
   - rife: cleanup dead code, thanks @Anai-Guo
+  - theme: fix circular imports changing theme to default
   - todo: remove dead code, thanks @Anai-Guo
   - ui: js fetch exception handling
   - update: handle git errors gracefully
