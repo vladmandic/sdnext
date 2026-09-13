@@ -6,7 +6,9 @@ Covers:
 
 - atomic saves replace a fresh or existing target and leave no temp file, including when the save fails
 - an atomic save waits out a target another thread briefly holds open, which Windows otherwise refuses
-- locking stays available under overlapping locked reads and writes and the lock file is left in place
+- overlapping locked reads and atomic writes never fail or read a torn file, and no lock file is created
+- locked readers never see a torn file while unlocked writers rewrite it in place
+- a lock file left behind by the former file lock is removed
 - concurrent inserts into a shared dict never drop a save
 - readfile returns what writefile wrote, as dict and as list
 
@@ -116,23 +118,63 @@ def test_atomic_save_waits_for_open_target(folder):
     assert leftovers(folder, target) == [], f'temp files left: {leftovers(folder, target)}'
 
 
-def test_locking_survives_overlap(folder, threads=8, iterations=25):
+def test_overlapping_locked_access(folder, threads=8, iterations=25):
     jh = fresh_helper()
     target = os.path.join(folder, 'locked.json')
     jh.writefile({'seed': 0}, target, silent=True)
+    torn = []
 
     def worker(n):
         for i in range(iterations):
             if (n + i) % 2:
                 jh.writefile({'n': n, 'i': i}, target, silent=True, atomic=True)
-            else:
-                jh.readfile(target, silent=True, lock=True, as_type='dict')
+            elif not jh.readfile(target, silent=True, lock=True, as_type='dict'):
+                torn.append((n, i))
 
     run_threads(worker, threads)
-    assert jh.locking_available, 'locking switched itself off'
     assert jh.log.errors == [], jh.log.errors
-    assert os.path.exists(target + '.lock'), 'lock file was removed'
+    assert torn == [], f'{len(torn)} reads returned nothing'
+    assert not os.path.exists(target + '.lock'), 'a lock file was created'
     assert leftovers(folder, target) == [], f'temp files left: {leftovers(folder, target)}'
+
+
+def test_locked_readers_never_see_torn_writes(folder, writers=8, per_writer=15, readers=2):
+    jh = fresh_helper()
+    target = os.path.join(folder, 'config.json')
+    jh.writefile({'seed': 0}, target, silent=True)
+    stop = threading.Event()
+    torn = []
+
+    def reader(_n):
+        while not stop.is_set():
+            if not jh.readfile(target, silent=True, lock=True, as_type='dict'):
+                torn.append(1)
+
+    def writer(n):
+        for i in range(per_writer):
+            jh.writefile({'writer': n, 'i': i, 'blob': 'x' * (40000 + 1000 * n)}, target, silent=True, atomic=False)
+
+    pool = [threading.Thread(target=reader, args=(r,)) for r in range(readers)]
+    for t in pool:
+        t.start()
+    run_threads(writer, writers)
+    stop.set()
+    for t in pool:
+        t.join()
+    assert torn == [], f'{len(torn)} reads returned nothing'
+    with open(target, encoding='utf8') as f:
+        json.load(f)
+    assert jh.log.errors == [], jh.log.errors
+
+
+def test_legacy_lock_file_removed(folder):
+    jh = fresh_helper()
+    target = os.path.join(folder, 'legacy.json')
+    with open(target + '.lock', 'w', encoding='utf8'):
+        pass
+    jh.writefile({'x': 1}, target, silent=True)
+    assert not os.path.exists(target + '.lock'), 'legacy lock file kept'
+    assert jh.log.errors == [], jh.log.errors
 
 
 def test_concurrent_inserts_keep_every_save(folder, threads=4, per_thread=40):
@@ -170,7 +212,9 @@ def run_all():
         test_atomic_save_replaces_target,
         test_failed_atomic_save_leaves_no_temp,
         test_atomic_save_waits_for_open_target,
-        test_locking_survives_overlap,
+        test_overlapping_locked_access,
+        test_locked_readers_never_see_torn_writes,
+        test_legacy_lock_file_removed,
         test_concurrent_inserts_keep_every_save,
         test_roundtrip,
     ]
