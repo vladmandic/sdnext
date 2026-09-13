@@ -10997,7 +10997,7 @@ async function sendNotification() {
 // ui/progressBar.ts
 var lastState = {};
 var refreshInterval = 1e4;
-var progressTimeout = 180;
+var progressTimeout = 600;
 var startTimeout = 5;
 function setRefreshInterval() {
   refreshInterval = window.opts.live_preview_refresh_period || 500;
@@ -12341,6 +12341,16 @@ function showAllSettings() {
     elem.style.display = "block";
   });
 }
+function openSettingsSection(sectionId) {
+  const settingsTab = gradioApp().getElementById("tab_settings");
+  const settingsButton = settingsTab ? gradioApp().querySelector(`button[aria-controls="${settingsTab.id}"]`) : null;
+  settingsButton?.click();
+  const section = gradioApp().getElementById(`settings_section_tab_${sectionId}`);
+  const sectionButton = section ? gradioApp().querySelector(`button[aria-controls="${section.id}"]`) : null;
+  sectionButton?.click();
+  section?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+window.openSettingsSection = openSettingsSection;
 function markIfModified(setting_name, value) {
   if (!opts_metadata[setting_name]) return;
   const elem = gradioApp().getElementById(`modification_indicator_${setting_name}`);

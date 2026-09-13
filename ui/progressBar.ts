@@ -4,7 +4,7 @@ import { sendNotification } from './notification';
 
 let lastState: any = {};
 let refreshInterval = 10000;
-const progressTimeout = 180;
+const progressTimeout = 600;
 const startTimeout = 5;
 
 export function setRefreshInterval() {
