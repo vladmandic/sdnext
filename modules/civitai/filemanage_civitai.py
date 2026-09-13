@@ -93,6 +93,55 @@ def iter_type_roots() -> set[Path]:
     return {r for r in roots if r.is_dir()}
 
 
+def path_under(filename: str, root: str | None) -> bool:
+    if not root:
+        return False
+    root = os.path.normcase(os.path.abspath(root)).rstrip(os.sep) + os.sep
+    return os.path.normcase(os.path.abspath(filename)).startswith(root)
+
+
+def loader_kind(filename: str) -> str | None:
+    """Model loader that lists this file, judged by the folder it is in."""
+    from modules import shared, paths
+    ckpt_roots = (getattr(shared.opts, 'ckpt_dir', ''), os.path.join(paths.models_path, 'Stable-diffusion'))
+    if path_under(filename, getattr(shared.opts, 'vae_dir', '')) or path_under(filename, os.path.join(paths.models_path, 'VAE')):
+        return 'vae'
+    if filename.endswith('.vae.safetensors') and any(path_under(filename, root) for root in ckpt_roots):
+        return 'vae'
+    if path_under(filename, getattr(shared.opts, 'unet_dir', '')):
+        return 'unet'
+    if path_under(filename, getattr(shared.cmd_opts, 'lora_dir', '')):
+        return 'lora'
+    if any(path_under(filename, root) for root in ckpt_roots):
+        return 'checkpoint'
+    return None
+
+
+def hash_cache_title(kind: str | None, filename: str, name: str | None = None) -> str | None:
+    """Hash cache key the loader of kind reads for filename, or None when it keeps none."""
+    from modules import shared, paths
+    basename = os.path.basename(filename)
+    stem = os.path.splitext(basename)[0]
+    if kind == 'lora': # lora_load registers the basename with dots replaced
+        return 'lora/' + stem.replace('.', '_')
+    if kind == 'unet': # sd_unet keeps the extension on anything but safetensors
+        return f"unet/{name or (stem if '.safetensors' in basename else basename)}"
+    if kind == 'vae':
+        return f'vae/{os.path.abspath(filename)}'
+    if kind == 'checkpoint':
+        if name is None: # CheckpointInfo matches the folder by string prefix, then drops the extension
+            relname = filename
+            ckpt_dir = getattr(shared.opts, 'ckpt_dir', '') or ''
+            model_path = os.path.abspath(os.path.join(paths.models_path, 'Stable-diffusion'))
+            if ckpt_dir and relname.startswith(ckpt_dir):
+                relname = os.path.relpath(filename, ckpt_dir)
+            elif relname.startswith(model_path):
+                relname = os.path.relpath(filename, model_path)
+            name = os.path.splitext(relname)[0]
+        return f'checkpoint/{name}'
+    return None
+
+
 def resolve_save_path(model_type: str, model_name: str = "", base_model: str = "",
                       nsfw: bool = False, creator: str = "", model_id: int = 0,
                       version_id: int = 0, version_name: str = "") -> Path:

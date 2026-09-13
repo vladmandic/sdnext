@@ -5,6 +5,7 @@ import threading
 import concurrent.futures
 from modules.shared import log, opts, max_workers, state, cmd_opts
 from modules.civitai.client_civitai import client
+from modules.civitai.filemanage_civitai import hash_cache_title
 
 
 GIB = 1024 ** 3
@@ -34,17 +35,13 @@ class CivitModel:
         self.status = 'Not found'
 
 
+PAGE_KINDS = {'model': 'checkpoint', 'lora': 'lora', 'unet/dit': 'unet', 'vae': 'vae'}
+
+
 def cache_title(page: str, item: dict) -> str | None:
     """Hash cache key read by the page's own loader, or None when it keeps no cache entry."""
-    if page == 'model':
-        return f"checkpoint/{item.get('name')}"
-    if page == 'lora': # lora_load registers the basename with dots replaced
-        return 'lora/' + os.path.splitext(os.path.basename(item.get('filename', '')))[0].replace('.', '_')
-    if page == 'unet/dit':
-        return f"unet/{item.get('name')}"
-    if page == 'vae':
-        return f"vae/{item.get('filename')}"
-    return None
+    kind = PAGE_KINDS.get(page)
+    return hash_cache_title(kind, item.get('filename') or '', name=item.get('name') if kind in ('checkpoint', 'unet') else None)
 
 
 def resolve_sha256(entries: list[tuple[str, dict]], size_limit: int | None = None) -> tuple[dict[str, str], dict[str, str]]:
