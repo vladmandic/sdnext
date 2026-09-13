@@ -15,6 +15,7 @@ Covers:
 - a read waits out an open that is refused while a replace is in flight
 - an empty file reads as empty and is reported unless the read is silent
 - readfile returns what writefile wrote, as dict and as list
+- the hash cache saves cleanly while other threads keep adding hashes
 
 No running server required.
 
@@ -284,6 +285,47 @@ def test_empty_file_is_reported(folder):
     assert jh.log.errors == [], jh.log.errors
 
 
+def test_hash_cache_saves_under_concurrent_adds(folder, adders=4, per_adder=200):
+    jh = fresh_helper()
+    from modules import hashes  # pylint: disable=import-outside-toplevel
+    saved_filename = hashes.cache_filename
+    hashes.cache_filename = os.path.join(folder, 'cache.json')
+    hashes.cache('hashes').clear()
+    hashes.cache('hashes-addnet').clear()
+    stop = threading.Event()
+
+    def adder(n):
+        for i in range(per_adder):
+            hashes.cache('hashes').add_hash(f'checkpoint/{n}-{i}', 1.0, 'a' * 64)
+            if i % 10 == 9:
+                hashes.save_cache()
+
+    def churn(_n):  # a second store whose size keeps changing while the saves run, bounded so the snapshots stay small
+        i = 0
+        while not stop.is_set():
+            store = hashes.cache('hashes-addnet')
+            if i % 500 == 499:
+                store.clear()
+            else:
+                store.add_hash(f'lora/{i % 500}', 1.0, 'b' * 64)
+            i += 1
+
+    thread = threading.Thread(target=churn, args=(0,))
+    thread.start()
+    try:
+        run_threads(adder, adders)
+    finally:
+        stop.set()
+        thread.join()
+        hashes.cache_filename = saved_filename
+    assert jh.log.errors == [], jh.log.errors
+    with open(os.path.join(folder, 'cache.json'), encoding='utf8') as f:
+        on_disk = json.load(f)
+    assert len(on_disk['hashes']) == adders * per_adder, f'{len(on_disk["hashes"])} of {adders * per_adder} hashes on disk'
+    hashes.cache('hashes').clear()
+    hashes.cache('hashes-addnet').clear()
+
+
 def test_roundtrip(folder):
     jh = fresh_helper()
     target = os.path.join(folder, 'roundtrip.json')
@@ -309,6 +351,7 @@ def run_all():
         test_atomic_write_keeps_symlink,
         test_read_waits_out_refused_open,
         test_empty_file_is_reported,
+        test_hash_cache_saves_under_concurrent_adds,
         test_roundtrip,
     ]
     passed = 0
