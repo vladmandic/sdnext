@@ -307,7 +307,7 @@ def process_hires(p: processing.StableDiffusionProcessing, output):
             sched_eta = p.scheduler_eta if p.scheduler_eta is not None else shared.opts.scheduler_eta
             if len(p.refiner_prompt) > 0:
                 prompts = len(output.images)* [p.refiner_prompt]
-                prompts, p.network_data = extra_networks.parse_prompts(prompts)
+                prompts, p.network_data = extra_networks.parse_prompts(prompts, p.network_data)
                 reset_prompts = True
             if reset_prompts or ('base' in p.skip):
                 extra_networks.activate(p)

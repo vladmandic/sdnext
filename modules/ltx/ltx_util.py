@@ -249,7 +249,7 @@ def get_conditions(width, height, condition_strength, condition_images, conditio
 def get_prompts(p):
     prompt = shared.prompt_styles.apply_styles_to_prompt(p.prompt, p.styles)
     negative = shared.prompt_styles.apply_negative_styles_to_prompt(p.negative_prompt, p.styles)
-    prompts, networks = extra_networks.parse_prompts([prompt])
+    prompts, networks = extra_networks.parse_prompts([prompt], p.network_data)
     prompt = prompts[0] if len(prompts) > 0 else prompt
     return prompt, negative, networks
 

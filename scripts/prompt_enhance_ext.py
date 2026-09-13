@@ -6,7 +6,7 @@ import torch
 import transformers
 import gradio as gr
 from PIL import Image
-from modules import scripts_manager, shared, devices, errors, processing, sd_models, sd_modules, timer
+from modules import scripts_manager, shared, devices, errors, processing, sd_models, sd_modules, timer, extra_networks
 from modules import ui_control_helpers
 from modules.sd_offload_aux import register_aux, deregister_aux, move_aux_to_gpu, offload_aux
 from modules.logger import log
@@ -732,6 +732,8 @@ class PromptEnhanceScript(scripts_manager.Script):
         p.prompt = shared.prompt_styles.apply_styles_to_prompt(p.prompt, p.styles)
         p.negative_prompt = shared.prompt_styles.apply_negative_styles_to_prompt(p.negative_prompt, p.styles)
         shared.prompt_styles.apply_styles_to_extra(p)
+        prompts, p.network_data = extra_networks.parse_prompts([p.prompt], p.network_data)
+        p.prompt = prompts[0]
         p.styles = []
         jobid = shared.state.begin('LLM')
         p.extra_generation_params['LLM'] = get_model_repo_from_display(llm_model)

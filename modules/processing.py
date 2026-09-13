@@ -510,8 +510,7 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
                 p.scripts.before_process_batch(p, batch_number=n, prompts=p.prompts, seeds=p.seeds, subseeds=p.subseeds)
             if not p.prompts:
                 break
-            p.prompts, p.network_data = extra_networks.parse_prompts(p.prompts)
-
+            p.prompts, p.network_data = extra_networks.parse_prompts(p.prompts, p.network_data)
 
             if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
                 p.scripts.process_batch(p, batch_number=n, prompts=p.prompts, seeds=p.seeds, subseeds=p.subseeds)

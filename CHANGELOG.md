@@ -127,6 +127,7 @@ Plus inevitable bug-fixes...
   - log: ansi color handling
   - lora: cleanup tags
   - lora: support transformer ref models
+  - lora: keep parsed network data through pipeline
   - lucida: handle requirements
   - lumina-dimoo: attention-kwargs, thanks @Anai-Guo
   - metadata: fix wildcard info

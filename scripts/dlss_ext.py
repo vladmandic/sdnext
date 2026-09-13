@@ -301,14 +301,14 @@ def dlss(p: processing.StableDiffusionProcessing | None, pp: processing.Processe
         t0 = time.time()
         if p:
             p.extra_generation_params["DLSSSuperSample"] = True
-        log.debug(f'DLSS: method=SuperSample quality="{ss_vsr_quality}" mode="{ss_size_mode}" scale={ss_scale_factor} width={ss_width} height={ss_height}')
+        log.info(f'DLSS: method=SuperSample quality="{ss_vsr_quality}" mode="{ss_size_mode}" scale={ss_scale_factor} width={ss_width} height={ss_height}')
         if ss_append:
             originals.extend(current_images)
         output = supersample(pkg_path, current_images, ss_vsr_quality, ss_size_mode, ss_scale_factor, ss_width, ss_height)
         if debug:
             log.trace(f'DLSS: method=SuperSample images={len(output) if output else 0} time={time.time() - t0:.3f}')
         if output:
-            images.extend(output)
+            images = output
             current_images = output
         t.ts('supersample', t0)
 
@@ -318,14 +318,14 @@ def dlss(p: processing.StableDiffusionProcessing | None, pp: processing.Processe
         t0 = time.time()
         if p:
             p.extra_generation_params["DLSSNeuralRender"] = True
-        log.debug(f'DLSS: method=NeuralRender style={nr_style} intensity={nr_intensity} tone={nr_local_tone} structure={nr_local_structure} skin={nr_skin_structure} scale={nr_upscaling_factor} preset={nr_preset} mask={nr_automatic_mask} model={nr_model_preset}')
+        log.info(f'DLSS: method=NeuralRender style={nr_style} intensity={nr_intensity} tone={nr_local_tone} structure={nr_local_structure} skin={nr_skin_structure} scale={nr_upscaling_factor} preset={nr_preset} mask={nr_automatic_mask} model={nr_model_preset}')
         if nr_append:
             originals.extend(current_images)
         output = neuralrender(pkg_path, current_images, nr_style, nr_intensity, nr_local_tone, nr_local_structure, nr_skin_structure, nr_upscaling_factor, nr_preset, nr_automatic_mask, nr_model_preset)
         if debug:
             log.trace(f'DLSS: method=NeuralRender images={len(output) if output else 0} time={time.time() - t0:.3f}')
         if output:
-            images.extend(output)
+            images = output
             current_images = output
         t.ts('neuralrender', t0)
 
@@ -333,12 +333,12 @@ def dlss(p: processing.StableDiffusionProcessing | None, pp: processing.Processe
         t0 = time.time()
         if p:
             p.extra_generation_params["DLSSFrameGen"] = True
-        log.debug(f'DLSS: method=FrameGen source={fg_source_fps} target={fg_target_fps} engine={fg_engine}')
+        log.info(f'DLSS: method=FrameGen source={fg_source_fps} target={fg_target_fps} engine={fg_engine}')
         output = framegen(pkg_path, current_images, fg_source_fps, fg_target_fps, fg_engine)
         if debug:
             log.trace(f'DLSS: method=FrameGen images={len(output) if output else 0} time={time.time() - t0:.3f}')
         if output:
-            images.extend(output)
+            images = output
             current_images = output
         t.ts('framegen', t0)
 

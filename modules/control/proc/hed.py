@@ -102,8 +102,8 @@ class HEDdetector:
         if scribble:
             detected_map = nms(detected_map, 127, 3.0)
             detected_map = cv2.GaussianBlur(detected_map, (0, 0), 3.0)
-            detected_map[detected_map > 4] = 255
-            detected_map[detected_map < 255] = 0
+            detected_map[detected_map > 4] = 255 # pylint: disable=unsupported-assignment-operation
+            detected_map[detected_map < 255] = 0 # pylint: disable=unsupported-assignment-operation
         if opts.control_move_processor:
             self.model.to('cpu')
         if output_type == "pil":
