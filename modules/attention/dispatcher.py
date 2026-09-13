@@ -72,7 +72,7 @@ def get_hf_api_hijack(user_agent = None): # pylint: disable=unused-argument
 def hijack_kernels():
     global orig_get_kernel # pylint: disable=global-statement
     try:
-        install('kernels==0.16.0')
+        install('kernels==0.16.1')
         import kernels
         import kernels.utils
         log.debug(f'Attention dispatcher: kernels={kernels.__version__}')

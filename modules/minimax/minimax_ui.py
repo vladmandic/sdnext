@@ -36,7 +36,8 @@ def create_ui(prompt, _negative, styles, overrides, script_inputs, mp4_fps, mp4_
                     random_seed = ToolButton(ui_symbols.random, elem_id='minimax_seed_random')
                     random_seed.click(fn=lambda: -1, show_progress='hidden', inputs=[], outputs=[seed])
                 with gr.Row():
-                    audio_enable = gr.Checkbox(label='Enable audio', value=True, elem_id="minimax_audio_enable")
+                    enable_audio = gr.Checkbox(label='Enable audio', value=True, elem_id="minimax_audio_enable")
+                    enable_preview = gr.Checkbox(label='Enable preview', value=True, elem_id="minimax_preview_enable")
             with gr.Accordion(open=False, label="Input media", elem_id='minimax_input_media_accordion', visible=True) as input_accordion:
                 with gr.Row():
                     init_image = gr.Image(label='Image', elem_id='minimax_init_image', type='pil', image_mode='RGB', width=256, height=256)
@@ -97,7 +98,8 @@ def create_ui(prompt, _negative, styles, overrides, script_inputs, mp4_fps, mp4_
         mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt,
         mp4_video, mp4_frames, mp4_sf, mp4_thumb,
         mp4_scale, mp4_upscaler,
-        audio_enable,
+        enable_audio,
+        enable_preview,
         overrides,
     ]
     video_outputs = [

@@ -6,12 +6,12 @@
 
 *What's New*? Well, code-wise, this is a big one...  
 First, a-lot-of-optimizations:
-- updated core packages
-- improved **LoRA** performance and quality, especially with quantized models
-- newly structured **attention** mechanisms
-- modular pipelines with new **guidance** methods
-- support for different **caching** stacks
-- compute updates across the board
+- Updated core packages
+- Improved **LoRA** performance and quality, especially with quantized models
+- Newly structured **attention** mechanisms
+- Modular pipelines with new **guidance** methods
+- Support for different **caching** stacks
+- Compute updates across the board
 
 And some cool new stuff and models:
 - **DLSSv5** integration  
@@ -32,7 +32,10 @@ Plus inevitable bug-fixes...
     LLaDA-Image is a 6.5B transformer with massive 16.3B fully-custom MoE text-encoder and optional 1.3B SigVQ conditioning model  
     with support for text-to-image, vq-conditioned text-to-image and image-editing workflows  
     *note* model is extremely quantization sensitive so minimum allowed quant type is `uint8`  
-  - [MiniMax-H3](https://huggingface.co/MiniMaxAI/MiniMax-H3) update with pre-quantized `sdnq-uint8` *pruned* variants  
+  - [MiniMax-H3](https://huggingface.co/MiniMaxAI/MiniMax-H3) updates  
+    new [SDNQ-uint8](https://huggingface.co/OzzyGT/MiniMax_H3_sdnq_8bit_pruned) pre-quantized *pruned* variants  
+    new [Nunchaku-Lite](https://huggingface.co/rootonchair/MiniMax-H3-nunchaku-lite-int4) variant  
+    new [VDN](https://huggingface.co/OpenVDN/vdn-minimax-h3) *video-delta-net* variant  
 - **LoRA**
   - see [LoRA docs](https://vladmandic.github.io/sdnext-docs/LoRA) for all of the improvements and usage instructions  
     *note*: lora now has its own settings section in *settings -> lora*
@@ -108,7 +111,10 @@ Plus inevitable bug-fixes...
     *note*: requires grok api key  
   - remove `/redocs` as `/docs` are primary api docs  
   - rebuild docs site index  
-  - **ui**: ability to filter samplers and upscalers, thanks @emecii
+- **UI**
+  - some (light) re-styling of the *Default* theme
+  - add new *Tillerz-CleanDark* theme, thanks @Tillerz
+  - ability to filter samplers and upscalers, thanks @emecii
 - **Wiki/Docs**:
   - new articles: *Attention, Modular-Pipelines*
   - updated: *LoRA, MiniMax*

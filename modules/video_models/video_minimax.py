@@ -5,7 +5,7 @@ from modules.logger import log
 MIN_LATENT_FRAMES = 7 # decoder floor: fewer latent frames leave the chunked decode with nothing to emit
 
 
-def apply_overrides(p, pipe, still: bool = False, audio: bool = True):
+def apply_overrides(p, pipe, still: bool = False, audio: bool = True, preview: bool = False):
     """Per-generation constraints shared by the video tab and the image path: canvas and frame
     alignment, the bespoke scheduler guard, tiling, and the audio/still toggles."""
     if still:
@@ -39,6 +39,13 @@ def apply_overrides(p, pipe, still: bool = False, audio: bool = True):
     p.task_args['output'] = ['videos', 'audio', 'sampling_rate'] if audio else ['videos']
     p.task_args['output_type'] = 'pil' if still else 'np'
     p.video_still = still
+
+    if preview:
+        from pipelines.minimax.minimax_latents import unpack_latents
+        pipe.custom_unpack_latents = unpack_latents # add a helper to unpack the video latents from the block state
+    else:
+        if hasattr(pipe, 'custom_unpack_latents'):
+            del pipe.custom_unpack_latents
 
 
 def set_still(pipe, enabled: bool = True):

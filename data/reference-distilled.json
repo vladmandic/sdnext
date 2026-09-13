@@ -25,6 +25,14 @@
     "size": 19.38,
     "date": "2023 November"
   },
+  "SDXL Flash Mini": {
+    "path": "SDXL-Flash_Mini.safetensors@https://huggingface.co/sd-community/sdxl-flash-mini/resolve/main/SDXL-Flash_Mini.safetensors?download=true",
+    "preview": "SDXL-Flash_Mini.jpg",
+    "desc": "Introducing the new fast model SDXL Flash (Mini), we learned that all fast XL models work fast, but the quality decreases, and we also made a fast model, but it is not as fast as LCM, Turbo, Lightning and Hyper, but the quality is higher.",
+    "extras": "sampler: DEIS, steps: 40, cfg_scale: 6.0",
+    "experimental": true,
+    "date": "2024 May"
+  },
   "Tencent HunyuanDiT 1.1 Distilled": {
     "path": "Tencent-Hunyuan/HunyuanDiT-v1.1-Diffusers-Distilled",
     "desc": "Hunyuan-DiT : A Powerful Multi-Resolution Diffusion Transformer with Fine-Grained Chinese Understanding.",
@@ -258,12 +266,5 @@
     "extras": "steps: 4, cfg_scale: 1.0",
     "size": 37.15,
     "date": "2026 September"
-  },
-  "SDXL Flash Mini": {
-    "path": "SDXL-Flash_Mini.safetensors@https://huggingface.co/sd-community/sdxl-flash-mini/resolve/main/SDXL-Flash_Mini.safetensors?download=true",
-    "preview": "SDXL-Flash_Mini.jpg",
-    "desc": "Introducing the new fast model SDXL Flash (Mini), we learned that all fast XL models work fast, but the quality decreases, and we also made a fast model, but it is not as fast as LCM, Turbo, Lightning and Hyper, but the quality is higher.",
-    "extras": "sampler: DEIS, steps: 40, cfg_scale: 6.0",
-    "experimental": true
   }
 }

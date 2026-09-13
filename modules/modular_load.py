@@ -38,7 +38,7 @@ def is_modular(obj) -> bool:
     return 'Modular' in cls.__name__
 
 
-def preload_components(pipe, workflow: str | None, load_config: dict | None = None) -> dict:
+def preload_components(pipe, workflow: str | None, load_config: dict | None = None, loaded: dict | None = None) -> dict:
     """Load the denoiser and text encoder through the shared loaders rather than the pipeline's own.
 
     `load_components` fetches every component into the pipeline's cache directory with no
@@ -53,8 +53,10 @@ def preload_components(pipe, workflow: str | None, load_config: dict | None = No
     """
     from pipelines import generic
     specs = getattr(pipe, '_component_specs', {}) # pylint: disable=protected-access
-    loaded = {}
+    loaded = loaded or {}
     for name in missing_components(pipe, workflow):
+        if name in loaded:
+            continue
         spec = specs.get(name)
         if spec is None or getattr(spec, 'default_creation_method', None) != 'from_pretrained':
             continue
@@ -71,7 +73,7 @@ def preload_components(pipe, workflow: str | None, load_config: dict | None = No
         elif origin.startswith('transformers') and ('text_encoder' in name):
             # shared substitution is on: the map matches class plus a substring of the repo name, so its entries have to run narrow before broad
             component = generic.load_text_encoder(repo, cls_name=cls, load_config=load_config, subfolder=subfolder)
-        if 'transformer' in name:
+        if ('transformer' in name) and (component is None):
             # fallback for component with remote-code as it does not have resolvable cls
             component = generic.load_transformer(repo, cls_name=None, load_config=load_config, subfolder=subfolder, trust_remote_code=True)
         if component is not None:
@@ -96,7 +98,15 @@ def missing_components(pipe, workflow: str | None) -> list:
     return [name for name in names if getattr(pipe, name, None) is None]
 
 
-def load_modular_pipe(repo_cls, repo: str, workflow: str | None = None, revision: str | None = None, offline_args: dict | None = None, base: bool = False, load_config: dict | None = None):
+def load_modular_pipe(repo_cls,
+                      repo: str,
+                      workflow: str | None = None,
+                      revision: str | None = None,
+                      offline_args: dict | None = None,
+                      base: bool = False,
+                      load_config: dict | None = None,
+                      loaded: dict | None = None,
+                     ):
     if repo_cls is None or isinstance(repo_cls, str):
         log.error(f'Load modular: repo="{repo}" cls="{repo_cls}" pipeline class not found: diffusers too old')
         return None
@@ -112,7 +122,7 @@ def load_modular_pipe(repo_cls, repo: str, workflow: str | None = None, revision
             **offline_args,
         )
         # the workflow restricts the component fetch only: passing it to from_pretrained instead would prune the blocks tree to one task and disable runtime dispatch between them
-        preloaded = preload_components(pipe, workflow, load_config=load_config)
+        preloaded = preload_components(pipe, workflow, load_config=load_config, loaded=loaded)
         if preloaded:
             pipe.update_components(**preloaded) # registered before the rest, which load_components then skips
             log.debug(f'Load modular: cls={pipe.__class__.__name__} preloaded={list(preloaded)}')

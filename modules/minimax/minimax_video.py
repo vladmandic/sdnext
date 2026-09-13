@@ -88,7 +88,7 @@ def generate(task_id, _ui_state,
              mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt,
              mp4_video, mp4_frames, mp4_sf, mp4_thumb,
              mp4_scale, mp4_upscaler,
-             audio_enable,
+             enable_audio, enable_preview,
             _overrides,
             *args,
             **_kwargs,
@@ -144,7 +144,7 @@ def generate(task_id, _ui_state,
                 outpath_samples=paths.resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_video),
                 ops=['video'],
             )
-            video_minimax.apply_overrides(p, shared.sd_model, still=False, audio=audio_enable)
+            video_minimax.apply_overrides(p, shared.sd_model, still=False, audio=enable_audio, preview=enable_preview)
             video_minimax.set_sampler_shift(shared.sd_model, video_shift=video_shift, audio_shift=audio_shift)
             log.debug(f'Video: engine="{engine}" model="{model}" workflow={workflow} cls={shared.sd_model.__class__.__name__} shift={video_shift}:{audio_shift} kwargs={p.task_args}')
             processing.fix_seed(p)
@@ -168,7 +168,7 @@ def generate(task_id, _ui_state,
             sd_models.offload_ondemand(shared.sd_model, reason='finish', force=True) # force offload all loaded modules to cpu
             devices.torch_gc(force=True) # free gpu memory before saving video
 
-            audio = getattr(processed, 'audio', None) if audio_enable else None
+            audio = getattr(processed, 'audio', None) if enable_audio else None
             if audio is not None:
                 audio = audio[0].float().cpu() if audio.ndim == 3 else audio.float().cpu()
                 aac_sample_rate = getattr(shared.sd_model, 'audio_sampling_rate', 32000)

@@ -24,7 +24,6 @@ def load_transformer(
         override_slot='primary',
         trust_remote_code=False,
         **kwargs):
-
     """Load a DiT transformer from the base repo, or from a user-selected
     single file when the slot's UNET override dropdown is set.
 
@@ -164,19 +163,19 @@ def load_transformer(
                 **load_kwargs,
             )
 
-        # 4. default loading from local file (also the fallback when an incompatible override is dropped above)        # 5. default loading from diffusers repo (also the fallback when an incompatible override is dropped above)
+        # 4. default loading from diffusers repo (also the fallback when an incompatible override is dropped above)
         else:
             transformer = load_from_repo()
 
         # mark the dropdown selection as loaded so the slot's onchange callback, does not force a redundant full reload for an already-consumed override
-        if transformer is not None and override_name is not None and getattr(shared.opts, override_opt, None) == override_name:
+        if (transformer is not None) and (override_name is not None) and getattr(shared.opts, override_opt, None) == override_name:
             setattr(sd_unet, tracker_attr, override_name)
 
         sd_models.allow_post_quant = False # we already handled it
         if shared.opts.diffusers_offload_mode != 'none' and transformer is not None:
             sd_models.move_model(transformer, devices.cpu)
 
-        if transformer is not None and not hasattr(transformer, 'quantization_config'): # attach quantization_config
+        if (transformer is not None) and not hasattr(transformer, 'quantization_config'): # attach quantization_config
             if hasattr(transformer, 'config') and hasattr(transformer.config, 'quantization_config'):
                 transformer.quantization_config = transformer.config.quantization_config
             elif (quant_type is not None) and (quant_args.get('quantization_config', None) is not None):

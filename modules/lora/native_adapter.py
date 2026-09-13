@@ -644,21 +644,16 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
                     continue
 
             if not shapes_match(sd_module, target_w["lora_down.weight"], target_w["lora_up.weight"]):
-                log.warning(
-                    f'Network load: type=LoRA name="{name}" arch={arch_name} key={network_key}'
-                    f' lora={target_w["lora_down.weight"].shape[1]}x{target_w["lora_up.weight"].shape[0]}'
-                    f' module={getattr(sd_module, "weight", None).shape if hasattr(sd_module, "weight") else "?"}'
-                    f' shape mismatch'
-                )
+                if l.debug:
+                    _module = f'{getattr(sd_module, "weight", None).shape if hasattr(sd_module, "weight") else "?"}'
+                    log.warning(f'Network load: type=LoRA name="{name}" arch={arch_name} key={network_key} lora={target_w["lora_down.weight"].shape[1]}x{target_w["lora_up.weight"].shape[0]} module={_module} shape mismatch')
                 mismatch += 1
                 continue
 
             if "diff_b" in target_w and not bias_delta_fits(sd_module, target_w["diff_b"]):
-                log.warning(
-                    f'Network load: type=LoRA name="{name}" arch={arch_name} key={network_key}'
-                    f' bias={tuple(target_w["diff_b"].shape)} module={tuple(sd_module.bias.shape)}'
-                    f' bias shape mismatch'
-                )
+                if l.debug:
+                    _bias = f'bias={tuple(target_w["diff_b"].shape)} module={tuple(sd_module.bias.shape)}'
+                    log.warning(f'Network load: type=LoRA name="{name}" arch={arch_name} key={network_key} {_bias} bias shape mismatch')
                 mismatch += 1
                 continue
 
