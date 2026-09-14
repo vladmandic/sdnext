@@ -49,6 +49,7 @@ Plus inevitable bug-fixes...
     can significantly improve lora quality when using multiple loras at once  
   - per-block strength
   - native support for **MiniMax**
+    see [MiniMax Turbo LoRA collection](https://huggingface.co/vladmandic/MiniMax-H3-Turbo-LoRA) for LoRAs and examples  
 - **DLSS**
   - add DLSS support for: *NeuralRender, SuperSample and FrameGen*  
     dlls 5 caused quite a stir, but combined with generative ai it becomes a nice tool  
@@ -107,6 +108,7 @@ Plus inevitable bug-fixes...
     *note*: this may break compatibility with some legacy packages, so report any finidings  
 - **Other**
   - video preview: TAESD support for **MiniMax**
+  - **minimax** video and audio shift are now dependent on steps instead of static
   - support `xai grok` for prompt enhance workflows  
     *note*: requires grok api key  
   - remove `/redocs` as `/docs` are primary api docs  

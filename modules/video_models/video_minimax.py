@@ -91,8 +91,25 @@ def set_audio(pipe, enabled: bool):
         log.debug(f'Pipeline: cls={pipe.__class__.__name__} audio=disabled')
 
 
-def set_sampler_shift(pipe, video_shift: float = 12.0, audio_shift: float = 3.0):
-    if getattr(pipe, 'scheduler', None) is not None and getattr(pipe.scheduler, 'config', None) is not None:
-        pipe.scheduler.config.shift = video_shift
-    if getattr(pipe, 'audio_scheduler', None) is not None and getattr(pipe.audio_scheduler, 'config', None) is not None:
-        pipe.audio_scheduler.config.shift = audio_shift
+def calculate_video_shift(steps: int, value: float = 0.40, max_shift: float = 16.0) -> int:
+    value = max(0.05, min(0.95, value))
+    return min(max_shift, round((value * steps) + 0.5))
+
+
+def calculate_audio_shift(steps: int, value: float = 0.15, max_shift: float = 6.0) -> int:
+    value = max(0.05, min(0.95, value))
+    return min(max_shift, round((value * steps) + 0.5))
+
+
+def set_sampler_shift(pipe, steps: int, video_shift: float = 12.0, audio_shift: float = 3.0):
+    import diffusers
+    if getattr(pipe, 'scheduler', None) is None or getattr(pipe.scheduler, 'config', None) is None:
+        log.warning(f'Pipeline: cls={pipe.__class__.__name__} scheduler is missing')
+        return
+    video_calc_shift = calculate_video_shift(steps=steps, value=video_shift)
+    audio_calc_shift = calculate_audio_shift(steps=steps, value=audio_shift)
+    dct_video = { 'shift': video_shift, 'steps': video_calc_shift }
+    dct_audio = { 'shift': audio_shift, 'steps': audio_calc_shift }
+    pipe.scheduler = diffusers.MiniMaxH3Scheduler(shift=video_calc_shift)
+    pipe.audio_scheduler.config.shift = diffusers.MiniMaxH3Scheduler(shift=audio_calc_shift)
+    log.debug(f'Pipeline: scheduler={pipe.scheduler.__class__.__name__} video={dct_video} audio={dct_audio} ')
