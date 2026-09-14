@@ -2,9 +2,7 @@
 
 ## Short-term
 
-- MiniMax: Create pre-quants for MiniMax-H3-Turbo, MiniMax-H3-Pruned-Turbo
 - Control tab verify overrides handling, @vladmandic
-- LTX: Create pre-quant for LTX-2.5
 - LTX: Implement LTX2DFRPipeline
 - ROCm: v10
 - Video: unify execution path for ui and api
@@ -13,7 +11,6 @@
 ## Issues
 
 - [Inpaint](https://discord.com/channels/1101998836328697867/1130536562422186044/1506850651035144322), @vladmandic
-- [OpenVINO](https://github.com/vladmandic/sdnext/issues/4939), @vladmandic
 
 ## Features
 
@@ -29,9 +26,6 @@
 ### Roadmap
 
 - Automated testing and integrate models repo
-- [MiniMax VDN](https://huggingface.co/OpenVDN/vdn-minimax-h3)
-- [MiniMax VSA](https://huggingface.co/FastVideo/FastVideo-FastH3-4-step-Preview-v1-VSA-DataFree)
-- [MiniMax Nunchaku-Lite](https://huggingface.co/rootonchair/MiniMax-H3-nunchaku-lite-int4)
 - Video upscaling: LTX-Upscaler
 - Video upscaling: [MiniMax-Upscaler](https://huggingface.co/LBH-123-AI/Minimax_h3_latent_Upscaler)
 - Video capabilities to processing tab, add RIFE, upscaling (once available)

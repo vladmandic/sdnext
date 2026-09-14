@@ -22,11 +22,11 @@ class SdVersion(enum.Enum):
 
 
 class NetworkOnDisk:
-    def __init__(self, name, filename):
+    def __init__(self, name: str, filename: str):
         self.shorthash = None
         self.hash = None
-        self.name = name
-        self.filename = filename
+        self.name: str = name
+        self.filename: str = filename
         if filename.startswith(shared.cmd_opts.lora_dir):
             # strip("/") missed Windows's leading backslash after the slice; normalize separators
             # so the registry key is one canonical form on every OS.

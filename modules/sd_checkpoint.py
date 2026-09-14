@@ -27,11 +27,11 @@ warn_once = False
 
 class CheckpointInfo:
     def __init__(self, filename: str, name: str | None = None, sha: str | None = None, subfolder: str | None = None, model_type: str = 'checkpoint', folder: str | None = None):
-        self.name = name
-        self.hash = sha
-        self.filename = filename if filename is not None else 'none'
-        self.type = ''
-        self.subfolder = subfolder
+        self.filename: str = filename if filename is not None else 'none'
+        self.name: str = name if name is not None else ''
+        self.hash: str | None = sha
+        self.type: str = ''
+        self.subfolder: str | None = subfolder
         relname = self.filename
         app_path = os.path.abspath(paths.script_path)
 
