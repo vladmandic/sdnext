@@ -24,6 +24,8 @@ Save formats exercised, each seen in a published LoRA:
 - diffusers names with kohya suffixes: the alibaba-pai Acc LoRAs.
 - peft wrapper around a ``dit`` attribute (``base_model.model.dit.blocks.0...``):
   the mvp-lab RAVEN LoRA.
+- pruned checkpoints (``MiniMaxH3PrunedTransformer3DModel``): AdaLN deltas
+  trained at the released width refit onto the rank-k curve basis.
 
 The reference module tree is the real ``MiniMaxH3Transformer3DModel`` at tiny
 dims, so module names and target shapes are authoritative. Every LoRA file
@@ -201,12 +203,34 @@ class _MockSdModel:
         self.__class__.__name__ = 'MiniMaxH3ModularPipeline'
 
 
-def install_mock_pipe():
+def install_mock_pipe(transformer=REF):
     """Point shared.sd_model at a mock exposing the reference transformer; re-installed per load so stamps do not leak."""
-    sd_model = _MockSdModel(_MockPipeline(REF))
+    sd_model = _MockSdModel(_MockPipeline(transformer))
     from modules.modeldata import model_data
     model_data.sd_model = sd_model
     return sd_model
+
+
+CURVE_RANK = 2
+
+
+class _CurveTimeEmbedder(nn.Module):
+    """The pruned class's table lookup, reduced to the basis buffer the loader reads."""
+
+    def __init__(self, rank, width):
+        super().__init__()
+        self.register_buffer('basis', torch.randn(rank, width))
+
+
+def pruned_reference():
+    """REF with every AdaLN projection folded onto a rank-2 curve basis, the layout of MiniMaxH3PrunedTransformer3DModel."""
+    import copy
+    pruned = copy.deepcopy(REF)
+    pruned.time_embedder = _CurveTimeEmbedder(CURVE_RANK, pruned.transformer_blocks[0].adaln_proj.linear.in_features)
+    for block in pruned.transformer_blocks:
+        block.adaln_proj.linear = nn.Linear(CURVE_RANK, block.adaln_proj.linear.out_features)
+    pruned.norm_out.linear = nn.Linear(CURVE_RANK, pruned.norm_out.linear.out_features)
+    return pruned
 
 
 # ============================================================
@@ -280,8 +304,8 @@ class _MockNetworkOnDisk:
         self.metadata = metadata or {}
 
 
-def load_native(state_dict, name='test', metadata=None):
-    install_mock_pipe()
+def load_native(state_dict, name='test', metadata=None, transformer=REF):
+    install_mock_pipe(transformer)
     with TempLora(state_dict, name=name, metadata=metadata) as nod:
         return M.try_load(name, nod, lora_scale=1.0)
 
@@ -605,6 +629,22 @@ def test_non_numeric_metadata_alpha_is_ignored():
     return True
 
 
+def test_adaln_deltas_project_onto_the_pruned_basis():
+    """On a pruned transformer an AdaLN delta trained at the released width binds as up @ (down @ basis.T); every other layer binds verbatim."""
+    pruned = pruned_reference()
+    basis = pruned.time_embedder.basis
+    sd = {k: v for k, v in synth_diffusers(suffix=KOHYA).items() if not k.startswith('time_embedder.')} # the pruned class drops the time embedder MLP
+    net = load_native(sd, name='pruned', transformer=pruned)
+    assert net is not None and net.mismatch == 0, f'mismatch={None if net is None else net.mismatch}'
+    expected = identity_deltas(sd)
+    curve_keys = [k for k in expected if k.endswith('_adaln_proj_linear') and '_refiner_' not in k] + ['lora_transformer_norm_out_linear']
+    for key in curve_keys:
+        expected[key] = expected[key] @ basis.T
+    assert_same_deltas(native_deltas(net), expected)
+    assert tuple(net.modules['lora_transformer_norm_out_linear'].down_model.weight.shape) == (RANK, CURVE_RANK)
+    return True
+
+
 # ============================================================
 # Tests - real files
 # ============================================================
@@ -665,6 +705,7 @@ def run_tests():
         test_metadata_alpha_scales_an_alphaless_file,
         test_metadata_alpha_yields_to_alpha_tensors,
         test_non_numeric_metadata_alpha_is_ignored,
+        test_adaln_deltas_project_onto_the_pruned_basis,
     ]:
         run_test(CAT_LOADER, fn)
 

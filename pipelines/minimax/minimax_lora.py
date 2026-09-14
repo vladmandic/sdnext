@@ -12,6 +12,9 @@ lands on the fused SwiGLU projection with its two output halves swapped.
 
 import re
 
+import torch
+
+from modules.logger import log
 from modules.lora import native_adapter
 
 
@@ -215,8 +218,38 @@ _BIND_KWARGS = dict(
 )
 
 
+def pruned_basis(sd_module, rank, width):
+    """The AdaLN curve basis of the loaded transformer that owns ``sd_module``, or None on an unpruned model."""
+    from modules import shared
+    pipe = getattr(shared.sd_model, "pipe", shared.sd_model)
+    for component in ("transformer", "transformer_ref"):
+        transformer = getattr(pipe, component, None)
+        basis = getattr(getattr(transformer, "time_embedder", None), "basis", None)
+        if basis is None or tuple(basis.shape) != (rank, width):
+            continue
+        if any(module is sd_module for module in transformer.modules()):
+            return basis
+    return None
+
+
+def project_pruned_adaln(sd_module, network_key, w):
+    """Refit an AdaLN delta trained on the released time embedding onto the pruned curve basis: the pruned class
+    stores ``W @ P``, so ``up @ down`` lands exactly as ``up @ (down @ P)``."""
+    down = w.get("lora_down.weight")
+    shape = native_adapter.module_shape(sd_module)
+    if down is None or down.ndim != 2 or shape is None or len(shape) != 2 or down.shape[1] == shape[1]:
+        return None
+    basis = pruned_basis(sd_module, shape[1], down.shape[1])
+    if basis is None:
+        return None
+    projected = dict(w)
+    projected["lora_down.weight"] = (down.to(dtype=torch.float32, device=basis.device) @ basis.to(dtype=torch.float32).T).to(dtype=down.dtype, device=down.device)
+    log.debug(f'Network load: type=LoRA arch=minimaxh3 key={network_key} adaln projected {down.shape[1]}->{shape[1]}')
+    return projected
+
+
 def try_load_lora(name, network_on_disk, lora_scale):
-    return native_adapter.try_load_lora(name, network_on_disk, lora_scale, network_alpha=file_alpha(network_on_disk), **_BIND_KWARGS)
+    return native_adapter.try_load_lora(name, network_on_disk, lora_scale, network_alpha=file_alpha(network_on_disk), adapt_weights=project_pruned_adaln, **_BIND_KWARGS)
 
 
 def try_load_lokr(name, network_on_disk, lora_scale):
