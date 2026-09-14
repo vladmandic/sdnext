@@ -117,6 +117,23 @@ def loader_kind(filename: str) -> str | None:
     return None
 
 
+def register_download(filename: str):
+    """Add a finished download to its loader's list: one file for lora, a folder scan for unet, vae and checkpoint."""
+    kind = loader_kind(filename)
+    if kind == 'lora':
+        from modules.lora.lora_load import add_network
+        add_network(filename)
+    elif kind == 'unet':
+        from modules.sd_unet import refresh_unet_list
+        refresh_unet_list()
+    elif kind == 'vae':
+        from modules.sd_vae import refresh_vae_list
+        refresh_vae_list()
+    elif kind == 'checkpoint':
+        from modules.sd_models import list_models
+        list_models()
+
+
 def hash_cache_title(kind: str | None, filename: str, name: str | None = None) -> str | None:
     """Hash cache key the loader of kind reads for filename, or None when it keeps none."""
     from modules import shared, paths

@@ -338,12 +338,11 @@ class DownloadManager:
         # Download metadata and preview
         self._fetch_sidecar(item, final_file)
 
-        # Refresh model list and extra-networks cache
         try:
-            from modules.sd_models import list_models
-            list_models()
-        except Exception:
-            pass
+            from modules.civitai.filemanage_civitai import register_download
+            register_download(final_file)
+        except Exception as e:
+            log.warning(f'CivitAI download register: id={item.id} {e}')
         try:
             from modules.api.loras import _invalidate_extra_networks
             _invalidate_extra_networks()
@@ -823,7 +822,5 @@ def download_civit_model(model_url: str, model_name: str = '', model_path: str =
     while item.status in ("queued", "downloading"):
         time.sleep(0.5)
     if item.status == "completed" and not item.error:
-        from modules.sd_models import list_models
-        list_models()
         return os.path.join(item.folder, item.filename)
     return None

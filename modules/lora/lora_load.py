@@ -211,6 +211,33 @@ def maybe_recompile_model(names, te_multipliers):
     return recompile_model, skip_lora_load
 
 
+def add_network(filename):
+    """Register one network file in the available-network tables."""
+    if not os.path.isfile(filename):
+        return
+    name = os.path.splitext(os.path.basename(filename))[0]
+    name = name.replace('.', '_')
+    try:
+        entry = network.NetworkOnDisk(name, filename)
+        available_networks[entry.name] = entry
+        if entry.alias in available_network_aliases:
+            forbidden_network_aliases[entry.alias.lower()] = 1
+        available_network_aliases[entry.name] = entry
+        if entry.fullname != entry.name:
+            available_network_aliases[entry.fullname] = entry
+        # entry.name mangles dots to underscores for legacy reasons and entry.fullname
+        # carries any subfolder prefix, so neither matches when the user types the file's
+        # natural basename. setdefault avoids clobbering an explicit primary entry when
+        # two files in different subfolders share a basename.
+        basename_alias = os.path.splitext(os.path.basename(filename))[0]
+        if basename_alias and basename_alias not in (entry.name, entry.fullname):
+            available_network_aliases.setdefault(basename_alias, entry)
+        if entry.shorthash:
+            available_network_hash_lookup[entry.shorthash] = entry
+    except OSError as e: # should catch FileNotFoundError and PermissionError etc.
+        log.error(f'LoRA: filename="{filename}" {e}')
+
+
 def list_available_networks():
     t0 = time.time()
     available_networks.clear()
@@ -220,31 +247,6 @@ def list_available_networks():
     forbidden_network_aliases.update({"none": 1, "Addams": 1})
     if not os.path.exists(shared.cmd_opts.lora_dir):
         log.warning(f'LoRA directory not found: path="{shared.cmd_opts.lora_dir}"')
-
-    def add_network(filename):
-        if not os.path.isfile(filename):
-            return
-        name = os.path.splitext(os.path.basename(filename))[0]
-        name = name.replace('.', '_')
-        try:
-            entry = network.NetworkOnDisk(name, filename)
-            available_networks[entry.name] = entry
-            if entry.alias in available_network_aliases:
-                forbidden_network_aliases[entry.alias.lower()] = 1
-            available_network_aliases[entry.name] = entry
-            if entry.fullname != entry.name:
-                available_network_aliases[entry.fullname] = entry
-            # entry.name mangles dots to underscores for legacy reasons and entry.fullname
-            # carries any subfolder prefix, so neither matches when the user types the file's
-            # natural basename. setdefault avoids clobbering an explicit primary entry when
-            # two files in different subfolders share a basename.
-            basename_alias = os.path.splitext(os.path.basename(filename))[0]
-            if basename_alias and basename_alias not in (entry.name, entry.fullname):
-                available_network_aliases.setdefault(basename_alias, entry)
-            if entry.shorthash:
-                available_network_hash_lookup[entry.shorthash] = entry
-        except OSError as e: # should catch FileNotFoundError and PermissionError etc.
-            log.error(f'LoRA: filename="{filename}" {e}')
 
     candidates = sorted(files_cache.list_files(shared.cmd_opts.lora_dir, ext_filter=[".pt", ".ckpt", ".safetensors"]))
     with concurrent.futures.ThreadPoolExecutor(max_workers=shared.max_workers) as executor:
