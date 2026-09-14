@@ -16241,6 +16241,8 @@ async function initStartup() {
 onUiLoaded(initStartup);
 onUiReady(() => log("uiReady"));
 window.initStartup = initStartup;
+window.addEventListener("pageshow", (evt) => log("pageShow", evt));
+window.addEventListener("pagehide", (evt) => log("pageHide", evt));
 
 // ui/extensions.ts
 function extensions_apply(_extensionsDisabledList, _extensionsUpdateList, disableAll) {
@@ -16397,6 +16399,9 @@ var selectedType = [];
 var selectedBase = [];
 var selectedModelId = [];
 var selectedVersionId = [];
+var currentModel = null;
+var precisionOrder = ["fp32", "bf16", "fp16", "fp8", "int8", "int4"];
+var companionTypes = ["VAE", "Text Encoder"];
 function clearModelDetails() {
   const el2 = gradioApp().getElementById("model-details") || gradioApp().getElementById("civitai_models_output") || gradioApp().getElementById("models_outcome");
   if (!el2) return;
@@ -16427,6 +16432,7 @@ var modelDetailsHTML = `
           <th>Type</th>
           <th>Base</th>
           <th>File</th>
+          <th>Variant</th>
           <th>Updated</th>
           <th>Size</th>
           <th>Availability</th>
@@ -16439,19 +16445,65 @@ var modelDetailsHTML = `
     </table>
   </div>
 `;
-var modelVersionsHTML = `
-  <tr>
-    <td>{url}</td>
-    <td>{name}</td>
-    <td>{type}</td>
-    <td>{base}</td>
-    <td>{file}</td>
-    <td>{mtime}</td>
-    <td>{size}</td>
-    <td>{availability}</td>
-    <td><div>{desc}</div></td>
-  </tr>
-`;
+function fileVariant(file) {
+  return file.metadata?.fp || file.metadata?.quantType || null;
+}
+function sortFiles(files) {
+  const isModel = (f) => f.type === "Model" || f.type === "Pruned Model";
+  const rank = (f) => {
+    const index = precisionOrder.indexOf((fileVariant(f) || "").toLowerCase());
+    return index < 0 ? precisionOrder.length : index;
+  };
+  return [...files].sort((a, b) => Number(isModel(b)) - Number(isModel(a)) || rank(a) - rank(b) || (b.size || 0) - (a.size || 0));
+}
+function insertNameSuffix(name, suffix) {
+  const dot = name.lastIndexOf(".");
+  return dot > 0 ? `${name.slice(0, dot)}-${suffix}${name.slice(dot)}` : `${name}-${suffix}`;
+}
+function fileSaveName(file, siblings) {
+  const tier1 = (f) => {
+    const variant = fileVariant(f);
+    return variant ? insertNameSuffix(f.name || "", variant) : f.name || "";
+  };
+  const tier2 = (f) => f.metadata?.size ? insertNameSuffix(tier1(f), f.metadata.size) : tier1(f);
+  const others = siblings.filter((s) => s.id !== file.id);
+  const name = tier1(file);
+  if (!others.some((s) => tier1(s) === name)) return name;
+  const sized = tier2(file);
+  if (!others.some((s) => tier2(s) === sized)) return sized;
+  return insertNameSuffix(name, String(file.id));
+}
+function escapeHTML(text) {
+  return text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+}
+function versionRows(version, divider) {
+  const files = sortFiles(version.files);
+  const entries = files.length > 0 ? files : [null];
+  const border = divider ? ' style="border-top: 1px solid var(--sd-panel-border-color, #555)"' : "";
+  const span = entries.length > 1 ? ` rowspan="${entries.length}"` : "";
+  const versionCell = (content) => `<td${span}${border}>${content}</td>`;
+  return entries.map((file, i) => {
+    const first = i === 0;
+    const cell = (content) => `<td${first ? border : ""}>${content}</td>`;
+    const link = file ? `<div class="link" onclick="startCivitFileDownload(${version.id}, ${file.id})"> \u{F01DA} </div>` : "";
+    const name = file ? `<a href="${escapeHTML(file.url || "")}" target="_blank" rel="noopener noreferrer">${escapeHTML(file.name || "unknown")}</a>${file.primary ? ' <span title="Primary file">\u2605</span>' : ""}` : "unknown";
+    const variant = file ? [fileVariant(file), file.metadata?.size].filter(Boolean).join(" \xB7 ") : "";
+    const size = file?.size ? `${(file.size / 1024 / 1024 / 1024).toFixed(2)} GB` : "unknown";
+    const cells = [
+      cell(link),
+      first ? versionCell(escapeHTML(version.name || "unknown")) : "",
+      cell(escapeHTML(file?.type || "unknown")),
+      first ? versionCell(escapeHTML(version.base || "unknown")) : "",
+      cell(name),
+      cell(escapeHTML(variant || "-")),
+      first ? versionCell(new Date(version.mtime).toLocaleDateString()) : "",
+      cell(size),
+      first ? versionCell(escapeHTML(version.availability || "unknown")) : "",
+      first ? versionCell(`<div>${version.desc || "no description available"}</div>`) : ""
+    ];
+    return `<tr>${cells.join("")}</tr>`;
+  }).join("");
+}
 async function modelCardClick(id) {
   log("modelCardClick id", id);
   const el2 = gradioApp().getElementById("model-details") || gradioApp().getElementById("civitai_models_output") || gradioApp().getElementById("models_outcome");
@@ -16465,17 +16517,8 @@ async function modelCardClick(id) {
   log("modelCardClick data", dataArray);
   if (!dataArray || dataArray.length === 0) return;
   const data = dataArray[0];
-  const versionsHTML = data.versions.map((v) => modelVersionsHTML.format({
-    url: `<div class="link" onclick="startCivitDownload('${v.files[0]?.url}', '${v.files[0]?.name}', '${data.type}', '${v.base || ""}', ${data.id}, ${v.id})"> \u{F01DA} </div>`,
-    name: v.name || "unknown",
-    type: v.files[0]?.type || "unknown",
-    base: v.base || "unknown",
-    mtime: new Date(v.mtime).toLocaleDateString(),
-    availability: v.availability || "unknown",
-    size: v.files[0]?.size ? `${(v.files[0].size / 1024 / 1024).toFixed(2)} MB` : "unknown",
-    file: `<a href=${v.files[0]?.url} target="_blank" rel="noopener noreferrer">${v.files[0]?.name || "unknown"}</a>`,
-    desc: v.desc || "no description available"
-  })).join("");
+  currentModel = data;
+  const versionsHTML = data.versions.map((v, i) => versionRows(v, i > 0)).join("");
   const url2 = `<a href="${data.url}" target="_blank" rel="noopener noreferrer">${data.name || "unknown"}</a>`;
   const creator = `<a href="https://civitai.com/user/${data.creator}" target="_blank" rel="noopener noreferrer">${data.creator || "unknown"}</a>`;
   const images = data.versions.map((v) => v.images).flat().map((i) => i.url);
@@ -16495,41 +16538,29 @@ async function modelCardClick(id) {
   el2.innerHTML = modelHTML;
 }
 window.modelCardClick = modelCardClick;
-function startCivitDownload(url2, name, type, base, modelId, versionId) {
-  log("startCivitDownload", { url: url2, name, type, base, modelId, versionId });
-  selectedURL = [url2];
-  selectedName = [name];
-  selectedType = [type];
-  selectedBase = [base || ""];
-  selectedModelId = [modelId || 0];
-  selectedVersionId = [versionId || 0];
+function queueFiles(model, queued) {
+  selectedURL = queued.map(({ file }) => file.url || "");
+  selectedName = queued.map(({ version, file }) => fileSaveName(file, version.files));
+  selectedType = queued.map(({ file }) => (companionTypes.includes(file.type || "") ? file.type : model.type) || "");
+  selectedBase = queued.map(({ version }) => version.base || "");
+  selectedModelId = queued.map(() => model.id || 0);
+  selectedVersionId = queued.map(({ version }) => version.id || 0);
   const civitDownloadBtn = gradioApp().getElementById("civitai_download_btn");
   if (civitDownloadBtn) civitDownloadBtn.click();
 }
-window.startCivitDownload = startCivitDownload;
+function startCivitFileDownload(versionId, fileId) {
+  log("startCivitFileDownload", { versionId, fileId });
+  const version = currentModel?.versions.find((v) => v.id === versionId);
+  const file = version?.files.find((f) => f.id === fileId);
+  if (!currentModel || !version || !file) return;
+  queueFiles(currentModel, [{ version, file }]);
+}
+window.startCivitFileDownload = startCivitFileDownload;
 function startCivitAllDownload(evt) {
   log("startCivitAllDownload", evt);
-  const table = gradioApp().getElementById("model-versions-table");
-  if (!table) return;
-  const versions = table.querySelectorAll("tr");
-  selectedURL = [];
-  selectedName = [];
-  selectedType = [];
-  selectedBase = [];
-  selectedModelId = [];
-  selectedVersionId = [];
-  for (const version of versions) {
-    const parsed = version.querySelector("td:nth-child(1) div")?.getAttribute("onclick")?.match(/startCivitDownload\('([^']+)', '([^']+)', '([^']+)', '([^']*)', (\d+), (\d+)\)/);
-    if (!parsed || parsed.length < 7) continue;
-    selectedURL.push(parsed[1]);
-    selectedName.push(parsed[2]);
-    selectedType.push(parsed[3]);
-    selectedBase.push(parsed[4]);
-    selectedModelId.push(parseInt(parsed[5], 10));
-    selectedVersionId.push(parseInt(parsed[6], 10));
-  }
-  const civitDownloadBtn = gradioApp().getElementById("civitai_download_btn");
-  if (civitDownloadBtn) civitDownloadBtn.click();
+  if (!currentModel) return;
+  const queued = currentModel.versions.map((version) => ({ version, file: version.files.find((f) => f.primary) || version.files[0] })).filter((entry) => !!entry.file);
+  queueFiles(currentModel, queued);
 }
 window.startCivitAllDownload = startCivitAllDownload;
 function downloadCivitModel(modelUrl, modelName, modelType, modelBase, mId, vId, modelPath, civitToken, innerHTML) {

@@ -133,6 +133,8 @@ onUiLoaded(initStartup);
 onUiReady(() => log('uiReady'));
 
 window.initStartup = initStartup;
+window.addEventListener('pageshow', (evt) => log('pageShow', evt));
+window.addEventListener('pagehide', (evt) => log('pageHide', evt));
 
 // onAfterUiUpdate(() => log('evt onAfterUiUpdate'));
 // onUiLoaded(() => log('evt onUiLoaded'));
