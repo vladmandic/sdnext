@@ -207,8 +207,11 @@ def apply_wildcards_to_prompt(prompt, all_wildcards, seed=-1, silent=False, p: S
     if (len(replaced_files) > 0 or len(missing_files) > 0) and not silent:
         log.debug(f'Apply wildcards: found={replaced_files} missing={missing_files} path="{shared.opts.wildcards_dir}" type=file seed={seed} time={t2-t1:.2f}')
         if p is not None:
-            wildcards = p.extra_generation_params.get('Wildcards', []) + replaced_files
-            p.extra_generation_params['Wildcards'] = ', '.join(wildcards)
+            existing_wildcards = p.extra_generation_params.get('Wildcards', [])
+            if p.batch_size > 1 and existing_wildcards == replaced_files:
+                pass
+            else:
+                p.extra_generation_params['Wildcards'] = existing_wildcards + replaced_files
     if old_state is not None:
         random.setstate(old_state)
     return prompt
