@@ -39,6 +39,8 @@ def modular_step(components: diffusers.modular_pipelines.ModularPipeline, state:
 
 
 def modular_intercept(self, components, state: diffusers.modular_pipelines.modular_pipeline.BlockState, *args, **kwargs):
+    if shared.state.interrupted or shared.state.skipped:
+        raise AssertionError('Interrupted...')
     t0 = time.time()
     block = type(self).__name__
     # run code before block call
@@ -117,6 +119,8 @@ def install_state_hook(pipe):
 
     def set_phase(phase: str, module: torch.nn.Module | None = None):
         # every stage runs inside one pipeline call, so the forward hooks are the only place the current stage is visible
+        if shared.state.interrupted or shared.state.skipped:
+            raise AssertionError('Interrupted...')
         if getattr(pipe, 'sdnext_phase', None) != phase:
             pipe.sdnext_phase = phase
             jobid = getattr(pipe, 'sdnext_phaseid', None) # previous jobid if any

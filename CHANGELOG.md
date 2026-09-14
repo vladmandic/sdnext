@@ -33,7 +33,7 @@ Plus inevitable bug-fixes...
     with support for text-to-image, vq-conditioned text-to-image and image-editing workflows  
     *note* model is extremely quantization sensitive so minimum allowed quant type is `uint8`  
   - [MiniMax-H3](https://huggingface.co/MiniMaxAI/MiniMax-H3) updates  
-    new [SDNQ-uint8](https://huggingface.co/OzzyGT/MiniMax_H3_sdnq_8bit_pruned) pre-quantized *pruned* variants  
+    new [SDNQ-uint8](https://huggingface.co/OzzyGT/MiniMax_H3_sdnq_8bit_pruned) pre-quantized *base* and *pruned* variants  
     new [Nunchaku-Lite](https://huggingface.co/rootonchair/MiniMax-H3-nunchaku-lite-int4) variant  
     new [VDN](https://huggingface.co/OpenVDN/vdn-minimax-h3) *video-delta-net* variant  
 - **LoRA**

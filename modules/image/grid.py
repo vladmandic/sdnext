@@ -154,7 +154,7 @@ def get_font(fontsize: float):
 def draw_grid_annotations(im: Image.Image, width: int, height: int, x_texts: list[list[GridAnnotation]], y_texts: list[list[GridAnnotation]], margin=0, title: list[GridAnnotation] | None = None):
     def wrap(drawing: ImageDraw.ImageDraw, text, font, line_length):
         lines = ['']
-        for word in text.split():
+        for word in text.split('/\\'):
             line = f'{lines[-1]} {word}'.strip()
             if drawing.textlength(line, font=font) <= line_length:
                 lines[-1] = line
@@ -162,7 +162,7 @@ def draw_grid_annotations(im: Image.Image, width: int, height: int, x_texts: lis
                 lines.append(word)
         return lines
 
-    def draw_texts(drawing: ImageDraw.ImageDraw, draw_x: float, draw_y: float, lines, initial_fnt: ImageFont.FreeTypeFont, initial_fontsize: int):
+    def draw_texts(drawing: ImageDraw.ImageDraw, draw_x: float, draw_y: float, lines: list[GridAnnotation], initial_fnt: ImageFont.FreeTypeFont, initial_fontsize: int):
         for line in lines:
             font = initial_fnt
             fontsize = initial_fontsize

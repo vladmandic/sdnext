@@ -93,8 +93,7 @@ class DLSSFrameGen:
                 capabilities = probe_frame_interpolation_capabilities(options.ai_gpu_uuid)
                 log.debug(f'DLSSFrameGen: capabilities={capabilities}')
                 if not capabilities.available:
-                    raise StandaloneError("feature_unavailable", "FrameGen: unavailable. " + capabilities.detail,
-                    )
+                    raise StandaloneError("feature_unavailable", "FrameGen: unavailable. " + capabilities.detail)
                 plan = choose_interpolation_plan(
                     source_rate,
                     target_rate,
@@ -102,6 +101,7 @@ class DLSSFrameGen:
                     capabilities.native_multiplier,
                     cfr=True,
                 )
+                log.debug(f'DLSSFrameGen: plan={plan}')
                 source_frames = [
                     _TimedFrame(rgb_to_rgba(nchw_image_to_hwc(frames, index, name="frames")), Fraction(index, 1) / source_rate)
                     for index in range(batch)
@@ -146,6 +146,7 @@ class DLSSFrameGen:
             ideal = Fraction(index, 1) / target_rate
             selected = min(frames, key=lambda frame, target=ideal: abs(frame.timestamp - target))
             result.append(_TimedFrame(selected.rgba.copy(), ideal))
+        log.debug(f'DLSSFrameGen: input={len(frames)} resampled={len(result)}')
         return result
 
     @staticmethod
@@ -155,6 +156,7 @@ class DLSSFrameGen:
         try:
             stage_count = plan.cascade_stages or 1
             for stage_index in range(stage_count):
+                log.debug(f'DirectDLSSGSession: index={stage_index + 1} count={stage_count} stage create')
                 generated_count = (
                     plan.generated_per_interval
                     if plan.path == "Native DLSSG"
@@ -195,6 +197,7 @@ class DLSSFrameGen:
             return result
         finally:
             for session in reversed(sessions):
+                log.debug(f'DirectDLSSGSession: session={session} close')
                 try:
                     session.close()
                 except (OSError, RuntimeError, ValueError):

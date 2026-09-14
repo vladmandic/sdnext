@@ -62,10 +62,10 @@ def create_ui(parent):
             with gr.Row():
                 fg_enabled = gr.Checkbox(label='FG enable', value=False, elem_id='dlss_fg_enabled')
             with gr.Row():
-                fg_source_fps = gr.Dropdown(label='Source FPS', choices=FPS_CHOICES, value='23.976', elem_id='dlss_fg_source_fps')
-                fg_target_fps = gr.Dropdown(label='Target FPS', choices=FPS_CHOICES, value='60', elem_id='dlss_fg_target_fps')
+                fg_source_fps = gr.Dropdown(label='FG source FPS', choices=FPS_CHOICES, value='23.976', elem_id='dlss_fg_source_fps')
+                fg_target_fps = gr.Dropdown(label='FG target FPS', choices=FPS_CHOICES, value='60', elem_id='dlss_fg_target_fps')
             with gr.Row():
-                fg_engine = gr.Dropdown(label='Engine', choices=['Auto', 'Native DLSSG', 'Cascade'], value='Auto', elem_id='dlss_fg_engine')
+                fg_engine = gr.Dropdown(label='FG engine', choices=['Auto', 'Native DLSSG', 'Cascade'], value='Auto', elem_id='dlss_fg_engine')
 
         with gr.Accordion('DLSS Status', open=True, elem_id='dlss_status'):
             ss_status = gr.JSON({ 'Status': 'unknown' if len(shared.opts.dlss_pkg_path) < 4 else 'stored'})
@@ -231,9 +231,10 @@ def framegen(pkg_path, images, fg_source_fps, fg_target_fps, fg_engine):
         if debug:
             log.trace(f'DLSS: method=FrameGen input={frames.shape} options={options}')
         response = c.controller.call(
-            pkg_path, 'framegen',
+            pkg_path,
+            'framegen',
             { 'frames': frames, 'source_fps': fg_source_fps, 'target_fps': fg_target_fps, 'options': options },
-            timeout=300.0,
+            timeout=600.0,
         )
         if response.get('status') != 'ok':
             error = response.get('error') or {}
@@ -333,10 +334,11 @@ def dlss(p: processing.StableDiffusionProcessing | None, pp: processing.Processe
         t0 = time.time()
         if p:
             p.extra_generation_params["DLSSFrameGen"] = True
-        log.info(f'DLSS: method=FrameGen source={fg_source_fps} target={fg_target_fps} engine={fg_engine}')
+        log.info(f'DLSS: method=FrameGen source={fg_source_fps} target={fg_target_fps} engine="{fg_engine}"')
         output = framegen(pkg_path, current_images, fg_source_fps, fg_target_fps, fg_engine)
         if debug:
-            log.trace(f'DLSS: method=FrameGen images={len(output) if output else 0} time={time.time() - t0:.3f}')
+            t1 = time.time()
+            log.trace(f'DLSS: method=FrameGen frames={len(output) if output else 0} time={t1 - t0:.3f}')
         if output:
             images = output
             current_images = output

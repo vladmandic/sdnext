@@ -322,6 +322,8 @@ def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=Non
         if net is None:
             failed_to_load_networks.append(name)
             lora_ver = network_on_disk.sd_version if network_on_disk is not None else None
+            if lora_ver is None or len(lora_ver) == 0:
+                lora_ver = "unknown"
             log.error(f'Network load: type=LoRA name="{name}" detected={lora_ver} not loaded')
             continue
         if hasattr(sd_model, 'embedding_db'):

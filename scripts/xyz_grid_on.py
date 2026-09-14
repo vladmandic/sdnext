@@ -352,6 +352,7 @@ class XYZGridScript(scripts_manager.Script):
                     return processing.Processed(p, [], p.seed, ""), 0
             p.xyz = True
             pc = copy(p)
+            pc.network_data = None
             pc.override_settings_restore_afterwards = False
             pc.styles = pc.styles[:]
             if no_fixed_seeds:
