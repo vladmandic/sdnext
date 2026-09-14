@@ -55,6 +55,9 @@ def response_message(response) -> str:
             error = '; '.join(f"{'.'.join(str(p) for p in issue.get('path', []))}: {issue.get('message', '')}" for issue in json.loads(error))
         except Exception:
             pass
+    message = body.get('message') if isinstance(body, dict) else None
+    if isinstance(error, str) and isinstance(message, str) and message and message != error: # download refusals carry a short error and a longer message
+        error = f'{error}: {message}'
     if not error:
         error = getattr(response, 'reason', '') or getattr(response, 'text', '')
     return str(error).strip()[:200]

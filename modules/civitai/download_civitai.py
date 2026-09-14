@@ -200,9 +200,12 @@ class DownloadManager:
         try:
             r = shared.req(item.url, headers=headers if headers else None, stream=True)
             if r.status_code not in (200, 206):
+                from modules.civitai.client_civitai import response_message
+                reason = response_message(r)
                 item.status = "failed"
-                item.error = f'HTTP {r.status_code}'
+                item.error = f'HTTP {r.status_code}: {reason}' if reason else f'HTTP {r.status_code}'
                 item.completed_at = datetime.now()
+                log.error(f'CivitAI download refused: id={item.id} file="{item.filename}" code={r.status_code} message="{reason}"')
                 return
 
             # A text/* response is an error or login page served with HTTP 200,
@@ -212,7 +215,7 @@ class DownloadManager:
                 item.status = "failed"
                 item.error = f'invalid content-type: {content_type}'
                 item.completed_at = datetime.now()
-                log.warning(f'CivitAI download invalid content-type: id={item.id} content-type="{content_type}"')
+                log.warning(f'CivitAI download invalid content-type: id={item.id} file="{item.filename}" content-type="{content_type}"')
                 return
 
             # A 200 reply to a Range request means the server ignored the range
@@ -276,7 +279,7 @@ class DownloadManager:
                     item.status = "failed"
                     item.error = f'incomplete: expected={expected} got={written}'
                     item.completed_at = datetime.now()
-                    log.warning(f'CivitAI download incomplete: id={item.id} expected={expected} got={written}')
+                    log.warning(f'CivitAI download incomplete: id={item.id} file="{item.filename}" expected={expected} got={written}')
                     return
             elif written < 1024:
                 try:
@@ -293,7 +296,7 @@ class DownloadManager:
             item.status = "failed"
             item.error = str(e)
             item.completed_at = datetime.now()
-            log.error(f'CivitAI download error: id={item.id} {e}')
+            log.error(f'CivitAI download error: id={item.id} file="{item.filename}" {e}')
             return
 
         computed = digest.hexdigest()
@@ -317,6 +320,7 @@ class DownloadManager:
             item.status = "failed"
             item.error = f'rename failed: {e}'
             item.completed_at = datetime.now()
+            log.error(f'CivitAI download rename failed: id={item.id} file="{final_file}" {e}')
             return
 
         item.status = "completed"
