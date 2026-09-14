@@ -91,12 +91,12 @@ def set_audio(pipe, enabled: bool):
         log.debug(f'Pipeline: cls={pipe.__class__.__name__} audio=disabled')
 
 
-def calculate_video_shift(steps: int, value: float = 0.40, max_shift: float = 16.0) -> int:
+def calculate_video_shift(steps: int, value: float = 0.40, max_shift: float = 16.0) -> float:
     value = max(0.05, min(0.95, value))
     return min(max_shift, round((value * steps) + 0.5))
 
 
-def calculate_audio_shift(steps: int, value: float = 0.15, max_shift: float = 6.0) -> int:
+def calculate_audio_shift(steps: int, value: float = 0.15, max_shift: float = 6.0) -> float:
     value = max(0.05, min(0.95, value))
     return min(max_shift, round((value * steps) + 0.5))
 
