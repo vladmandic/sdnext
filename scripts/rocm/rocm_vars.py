@@ -288,63 +288,12 @@ SOLVER_DTYPE_TAGS: Dict[str, str] = {
     "MIOPEN_DEBUG_CK_DEFAULT_KERNELS":                                 "FP16/BF16/FP32",
 }
 
-# Build full merged var registry
+# Solver controls are currently hidden. Keep their metadata above for reference, but do not
+# expose or apply it through the active ROCm configuration registry.
 ROCM_ENV_VARS: Dict[str, Dict[str, Any]] = {}
 ROCM_ENV_VARS.update(GENERAL_VARS)
-for _var, _desc in _SOLVER_DESCS.items():
-    ROCM_ENV_VARS[_var] = {
-        "default": "0" if _var in SOLVER_DISABLED_BY_DEFAULT else "1",
-        "desc": _desc,
-        "widget": "checkbox",
-        "options": None,
-        "dtype": SOLVER_DTYPE_TAGS.get(_var),
-        "restart_required": False,
-    }
 
-# UI group ordering for solver sections
-SOLVER_GROUPS: List[Tuple[str, List[str]]] = [
-    ("Algorithm/Solver Group Enables", [
-        "MIOPEN_DEBUG_CONV_FFT", "MIOPEN_DEBUG_CONV_DIRECT", "MIOPEN_DEBUG_CONV_GEMM",
-        "MIOPEN_DEBUG_CONV_WINOGRAD", "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM",
-    ]),
-    ("Immediate Fallback Mode", [
-        "MIOPEN_DEBUG_CONV_IMMED_FALLBACK", "MIOPEN_DEBUG_ENABLE_AI_IMMED_MODE_FALLBACK",
-        "MIOPEN_DEBUG_FORCE_IMMED_MODE_FALLBACK",
-    ]),
-    ("Build Method Toggles", [
-        "MIOPEN_DEBUG_GCN_ASM_KERNELS", "MIOPEN_DEBUG_HIP_KERNELS",
-        "MIOPEN_DEBUG_OPENCL_CONVOLUTIONS", "MIOPEN_DEBUG_OPENCL_WAVE64_NOWGP",
-        "MIOPEN_DEBUG_ATTN_SOFTMAX",
-    ]),
-    ("Direct ASM Solver Toggles", [
-        "MIOPEN_DEBUG_CONV_DIRECT_ASM_3X3U", "MIOPEN_DEBUG_CONV_DIRECT_ASM_1X1U",
-        "MIOPEN_DEBUG_CONV_DIRECT_ASM_1X1UV2",
-        "MIOPEN_DEBUG_CONV_DIRECT_ASM_1X1U_SEARCH_OPTIMIZED", "MIOPEN_DEBUG_CONV_DIRECT_ASM_1X1U_AI_HEUR",
-    ]),
-    ("Direct OpenCL Solver Toggles", [
-        "MIOPEN_DEBUG_CONV_DIRECT_OCL_FWD", "MIOPEN_DEBUG_CONV_DIRECT_OCL_FWD1X1",
-    ]),
-    ("Winograd Solver Toggles", [
-        "MIOPEN_DEBUG_AMD_WINOGRAD_3X3", "MIOPEN_DEBUG_AMD_WINOGRAD_RXS",
-        "MIOPEN_DEBUG_AMD_WINOGRAD_RXS_FWD_BWD",
-        "MIOPEN_DEBUG_AMD_WINOGRAD_RXS_F3X2", "MIOPEN_DEBUG_AMD_WINOGRAD_RXS_F2X3",
-        "MIOPEN_DEBUG_AMD_WINOGRAD_RXS_F2X3_G1", "MIOPEN_DEBUG_AMD_FUSED_WINOGRAD",
-        "MIOPEN_DEBUG_AMD_WINOGRAD_FURY_RXS_F2X3",
-        "MIOPEN_DEBUG_AMD_WINOGRAD_FURY_RXS_F3X2", "MIOPEN_DEBUG_AMD_WINOGRAD_RAGE_RXS_F2X3",
-    ]),
-    ("Multi-pass Winograd Toggles", [
-        "MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F3X2", "MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F3X3",
-    ]),
-    ("Implicit GEMM Toggles", [
-        "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_FWD_V4R1", "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_FWD_V4R1_1X1",
-        "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_FWD_V4R1", "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_FWD_V4R4",
-    ]),
-    ("Group Conv / CK Toggles (RDNA3/4+)", [
-        "MIOPEN_DEBUG_GROUP_CONV_IMPLICIT_GEMM_HIP_FWD_XDLOPS",
-        "MIOPEN_DEBUG_GROUP_CONV_IMPLICIT_GEMM_HIP_FWD_XDLOPS_AI_HEUR",
-        "MIOPEN_DEBUG_CK_DEFAULT_KERNELS",
-    ]),
-]
+SOLVER_GROUPS: List[Tuple[str, List[str]]] = []
 
 # Variables that are relevant only when hipBLASLt is the active GEMM backend.
 # These are visually greyed-out in the UI when rocBLAS (MIOPEN_GEMM_ENFORCE_BACKEND="1") is selected.

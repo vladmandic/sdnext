@@ -270,10 +270,6 @@ def apply_env(config: Optional[Dict[str, str]] = None) -> None:
     if unavailable:
         for var in unavailable:
             os.environ[var] = "0"
-    dtype_str = _resolve_dtype()
-    if dtype_str in ('FP16', 'BF16'):
-        for var in _FP32_ONLY_SOLVERS:
-            os.environ[var] = "0"
 
 
 def start_miopen_logging() -> None:

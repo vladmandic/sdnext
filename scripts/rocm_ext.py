@@ -87,15 +87,15 @@ class ROCmScript(scripts_manager.Script):
                     components.append(comp)
 
             # Solver groups (all checkboxes, grouped by section)
-            for group_name, varlist in rocm_vars.SOLVER_GROUPS:
-                with gr.Group():
-                    gr.HTML(f"<h3>{group_name}</h3><hr>")
-                    for name in varlist:
-                        meta = rocm_vars.ROCM_ENV_VARS[name]
-                        comp = _make_component(name, meta, config)
-                        var_names.append(name)
-                        components.append(comp)
-            gr.HTML("<br><center><div style='margin:0 Auto'><a href='https://rocm.docs.amd.com/projects/MIOpen/en/develop/reference/env_variables.html' target='_blank'>&#128196; MIOpen Environment Variables Reference</a></div></center><br>")
+            # for group_name, varlist in rocm_vars.SOLVER_GROUPS:
+            #    with gr.Group():
+            #        gr.HTML(f"<h3>{group_name}</h3><hr>")
+            #        for name in varlist:
+            #            meta = rocm_vars.ROCM_ENV_VARS[name]
+            #            comp = _make_component(name, meta, config)
+            #            var_names.append(name)
+            #            components.append(comp)
+            # gr.HTML("<br><center><div style='margin:0 Auto'><a href='https://rocm.docs.amd.com/projects/MIOpen/en/develop/reference/env_variables.html' target='_blank'>&#128196; MIOpen Environment Variables Reference</a></div></center><br>")
 
         def _autosave_field(name, value):
             meta = rocm_vars.ROCM_ENV_VARS[name]
