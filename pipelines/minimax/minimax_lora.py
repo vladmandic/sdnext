@@ -15,7 +15,11 @@ import re
 import torch
 
 from modules.logger import log
-from modules.lora import native_adapter
+from modules.lora import native_adapter, network_pdd
+
+
+# Parallel decoding heads: the audio projection follows the audio schedule, and MiniMaxH3Scheduler counts the terminal sigma in num_inference_steps.
+PDD = network_pdd.ArchSpec(schedulers={"audio_proj_out": "audio_scheduler"}, steps_for=lambda intervals: intervals + 1)
 
 
 KNOWN_PREFIXES = (
@@ -199,8 +203,9 @@ def network_prefix_for(prefix_used):
 
 
 def file_alpha(network_on_disk):
-    """The training alpha some trainers record in the safetensors metadata instead of per-key tensors, or None."""
-    alpha = (getattr(network_on_disk, "metadata", None) or {}).get("alpha")
+    """The file-level training alpha from the safetensors metadata (alpha, or lora_alpha in PDD files), or None."""
+    metadata = getattr(network_on_disk, "metadata", None) or {}
+    alpha = metadata.get("alpha", metadata.get("lora_alpha"))
     if alpha is None:
         return None
     try:
@@ -287,5 +292,6 @@ def try_load(name, network_on_disk, lora_scale):
         family_loaders=(
             try_load_lora, try_load_lokr, try_load_loha, try_load_oft,
             try_load_ia3, try_load_glora, try_load_norm, try_load_full,
+            network_pdd.try_load,
         ),
     )

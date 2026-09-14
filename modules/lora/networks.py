@@ -48,8 +48,9 @@ from modules.lora import lora_common as l
 from modules.lora import lora_overrides
 from modules.lora import lora_sdnq
 from modules.lora import lora_stack
+from modules.lora import network_pdd
 from modules.lora.lora_apply import network_apply_weights, network_apply_direct, network_backup_weights, network_calc_weights
-from modules import shared, devices, sd_models
+from modules import shared, devices, sd_models, errors
 from modules.logger import log, console
 
 
@@ -334,7 +335,12 @@ def finish_pass(ctx, t0):
         log.error(f'Network load: type=LoRA networks={[n.name for n in l.loaded_networks]} weights={ctx.applied_weight} bias={ctx.applied_bias} refused={ctx.refused} network partially applied')
     if l.debug and len(l.loaded_networks) > 0:
         log.debug(f'Network load: type=LoRA networks={[n.name for n in l.loaded_networks]} modules={ctx.active_components} layers={ctx.total} weights={ctx.applied_weight} bias={ctx.applied_bias} refused={ctx.refused} backup={round(ctx.backup_size/1024/1024/1024, 2)} fuse={ctx.fuse}:{shared.opts.lora_fuse_diffusers} device={ctx.device} time={l.timer.summary}')
-    if len(applied_layers) > 0 or shared.opts.diffusers_offload_mode == "sequential" or len(ctx.group_stripped) > 0:
+    try:
+        heads_changed = network_pdd.reconcile(ctx.sd_model, l.loaded_networks, default_components) # carried projections swap with the loaded set before the offload snapshot below
+    except Exception as e:
+        heads_changed = False
+        errors.display(e, 'Network load: type=PDD')
+    if len(applied_layers) > 0 or shared.opts.diffusers_offload_mode == "sequential" or len(ctx.group_stripped) > 0 or heads_changed:
         sd_models.set_diffuser_offload(ctx.sd_model, op="model")
 
 
