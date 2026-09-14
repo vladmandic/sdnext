@@ -167,7 +167,7 @@ class DownloadManager:
         # Create temp file name from URL hash
         url_hash = hashlib.sha256(item.url.encode('utf-8')).hexdigest()[:8]
         temp_file = os.path.join(item.folder, f'{url_hash}.tmp')
-        final_file = os.path.join(item.folder, item.filename)
+        final_file = os.path.abspath(os.path.join(item.folder, item.filename))
 
         # Check if already exists
         if os.path.isfile(final_file):
@@ -371,9 +371,9 @@ class DownloadManager:
             if version and version.images:
                 for img in version.images:
                     if img.url:
-                        code, _size, _note = download_civit_preview(final_file, img.url, meta=img.meta)
+                        code, _size, note = download_civit_preview(final_file, img.url, meta=img.meta)
                         if code == 200:
-                            log.info(f'CivitAI preview saved: id={item.id}')
+                            log.info(f'CivitAI preview saved: id={item.id} file="{note}"')
                             break
                         if code == 304 and backfill_preview_parameters(final_file, img.url, img.meta):
                             log.info(f'CivitAI preview backfilled: id={item.id}')
@@ -671,7 +671,7 @@ def backfill_preview_parameters(model_path: str, preview_url: str, meta: dict | 
     ext = os.path.splitext(preview_url)[1].lower()
     base = os.path.splitext(model_path)[0]
     if ext in VIDEO_PREVIEW_EXTENSIONS:
-        if not os.path.exists(base + ext):
+        if not any(os.path.exists(base + e) for e in VIDEO_PREVIEW_EXTENSIONS):
             return False
         preview_file = base + '.thumb.jpg'
         if not os.path.exists(preview_file):
@@ -718,61 +718,89 @@ def download_civit_meta(model_path: str, model_id):
     return r.status_code, '', ''
 
 
+VIDEO_CONTENT_TYPES = {'video/mp4': '.mp4', 'video/webm': '.webm'}
+
+
+def transcoded_video_url(preview_url: str) -> str | None:
+    """The CDN's H.264 copy of a CivitAI video, or None for any other URL."""
+    if '/original=true/' not in preview_url:
+        return None
+    return preview_url.replace('/original=true/', '/transcode=true,width=450/', 1)
+
+
 def download_civit_preview(model_path: str, preview_url: str, meta: dict | None = None):
+    """Save the preview behind preview_url beside model_path; on 200 the note is the file the UI shows."""
     if model_path is None:
         return 500, '', ''
-    ext = os.path.splitext(preview_url)[1]
-    preview_file = os.path.splitext(model_path)[0] + ext
-    is_video = preview_file.lower().endswith(VIDEO_PREVIEW_EXTENSIONS)
-    is_json = preview_file.lower().endswith('.json')
-    if is_json:
+    ext = os.path.splitext(preview_url)[1].lower()
+    base = os.path.splitext(model_path)[0]
+    if ext == '.json':
         log.warning(f'CivitAI download: url="{preview_url}" skip json')
         return 500, '', 'expected preview image got json'
-    if os.path.exists(preview_file):
-        return 304, '', 'already exists'
-    r = shared.req(preview_url, stream=True)
-    total_size = int(r.headers.get('content-length', 0))
-    block_size = 16384
-    written = 0
+    is_video = ext in VIDEO_PREVIEW_EXTENSIONS
+    if is_video:
+        if any(os.path.exists(base + e) for e in VIDEO_PREVIEW_EXTENSIONS):
+            return 304, '', 'already exists'
+        candidates = [url for url in (transcoded_video_url(preview_url), preview_url) if url] # the original may be AV1, which OpenCV builds without dav1d cannot decode
+    else:
+        if os.path.exists(base + ext):
+            return 304, '', 'already exists'
+        candidates = [preview_url]
     jobid = shared.state.begin('Download CivitAI')
     try:
-        with open(preview_file, 'wb') as f:
-            for data in r.iter_content(block_size):
-                written += len(data)
-                f.write(data)
-        if written < 1024:
-            os.remove(preview_file)
-            return 400, '', 'removed invalid download'
-        if is_video:
-            from modules.civitai.video_helper import save_video_frame
-            save_video_frame(preview_file)
-            if meta:
-                thumb_file = os.path.splitext(preview_file)[0] + '.thumb.jpg'
-                if os.path.exists(thumb_file):
-                    try:
-                        parameters = civitai_meta_to_parameters(meta)
-                        if parameters and embed_preview_parameters(thumb_file, parameters):
-                            log.debug(f'CivitAI preview embed: file="{thumb_file}"')
-                    except Exception as e:
-                        log.debug(f'CivitAI preview embed skipped: file="{thumb_file}" {e}')
-        else:
-            from PIL import Image
-            img = Image.open(preview_file)
-            log.info(f'CivitAI download: url={preview_url} file="{preview_file}" size={total_size} image={img.size}')
-            img.close()
+        for url in candidates:
+            r = shared.req(url, stream=True)
+            headers = getattr(r, 'headers', None) or {}
+            if r.status_code != 200:
+                log.warning(f'CivitAI preview: url="{url}" code={r.status_code}')
+                continue
+            if is_video:
+                content_type = headers.get('content-type', '').split(';')[0].strip().lower()
+                file_ext = VIDEO_CONTENT_TYPES.get(content_type)
+                if file_ext is None:
+                    log.warning(f'CivitAI preview: url="{url}" content-type="{content_type}" not a video')
+                    continue
+                preview_file = base + file_ext # named by content; the URL says .mp4 for webm originals
+            else:
+                preview_file = base + ext
+            total_size = int(headers.get('content-length', 0))
+            written = 0
+            with open(preview_file, 'wb') as f:
+                for data in r.iter_content(16384):
+                    written += len(data)
+                    f.write(data)
+            if written < 1024:
+                os.remove(preview_file)
+                log.warning(f'CivitAI preview: url="{url}" file="{preview_file}" removed invalid download')
+                continue
+            if is_video:
+                from modules.civitai.video_helper import save_video_frame
+                thumb_file = base + '.thumb.jpg'
+                if save_video_frame(preview_file) is None or not os.path.exists(thumb_file):
+                    os.remove(preview_file)
+                    continue
+                log.info(f'CivitAI download: url={url} file="{preview_file}" size={total_size} thumb="{thumb_file}"')
+                shown = thumb_file
+            else:
+                from PIL import Image
+                img = Image.open(preview_file)
+                log.info(f'CivitAI download: url={url} file="{preview_file}" size={total_size} image={img.size}')
+                img.close()
+                shown = preview_file
             if meta:
                 try:
                     parameters = civitai_meta_to_parameters(meta)
-                    if parameters and embed_preview_parameters(preview_file, parameters):
-                        log.debug(f'CivitAI preview embed: file="{preview_file}"')
+                    if parameters and embed_preview_parameters(shown, parameters):
+                        log.debug(f'CivitAI preview embed: file="{shown}"')
                 except Exception as e:
-                    log.debug(f'CivitAI preview embed skipped: file="{preview_file}" {e}')
+                    log.debug(f'CivitAI preview embed skipped: file="{shown}" {e}')
+            return 200, str(total_size), shown
+        return 415, '', 'no usable preview'
     except Exception as e:
-        log.error(f'CivitAI download error: url={preview_url} file="{preview_file}" written={written} {e}')
-        shared.state.end(jobid)
+        log.error(f'CivitAI preview error: url={preview_url} file="{base}" {e}')
         return 500, '', str(e)
-    shared.state.end(jobid)
-    return 200, str(total_size), ''
+    finally:
+        shared.state.end(jobid)
 
 
 def declared_sha256(version_id: int, url: str, filename: str, token: str | None = None) -> str:
