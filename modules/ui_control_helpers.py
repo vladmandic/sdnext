@@ -248,3 +248,9 @@ def copy_input(mode_from, mode_to, input_image, input_resize, input_inpaint):
 
 def transfer_input(dst):
     return [gr.update(visible=dst=='Image'), gr.update(visible=dst=='Outpaint'), gr.update(visible=dst=='Inpaint'), gr.update(interactive=dst!='Image'), gr.update(interactive=dst!='Inpaint'), gr.update(interactive=dst!='Outpaint')]
+
+
+def lora_mask_sheet(width: int, height: int):
+    """Black sheet at the generation size, painted per colour plane to confine lora networks."""
+    width, height = max(int(width or 0), 64), max(int(height or 0), 64)
+    return Image.new('RGB', (width, height), color=(0, 0, 0))

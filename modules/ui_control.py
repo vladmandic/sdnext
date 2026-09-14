@@ -200,6 +200,12 @@ def create_ui(_blocks: gr.Blocks=None):
                 ui_common.reuse_seed(subseed, reuse_subseed, subseed=True)
 
                 mask_controls = masking.create_segment_ui()
+                with masking.mask_accordion: # modern ui portals this accordion whole, so the sheet input travels with the mask controls
+                    with gr.Row():
+                        lora_mask = gr.Image(label="LoRA mask", elem_id="control_lora_mask", type="pil", image_mode="RGB", tool="color-sketch", interactive=True, height=gr_height, elem_classes=['control-image'])
+                    with gr.Row():
+                        btn_lora_mask_new = gr.Button(value="New sheet", elem_id="control_lora_mask_new")
+                    btn_lora_mask_new.click(fn=helpers.lora_mask_sheet, inputs=[width_before, height_before], outputs=[lora_mask], show_progress='hidden', queue=False)
 
                 cfg_name, cfg_scale, cfg_image, cfg_rescale, cfg_start, cfg_stop, cfg_true, cfg_adaptive = ui_guidance.create_guidance_inputs('control')
                 vae_type, tiling, hidiffusion, clip_skip = ui_sections.create_advanced_inputs('control')
@@ -332,6 +338,7 @@ def create_ui(_blocks: gr.Blocks=None):
                 refiner_start, refiner_prompt, refiner_negative,
                 video_skip_frames, video_type, video_duration, video_loop, video_pad, video_interpolate,
                 override_script_name, override_script_args, override_settings,
+                lora_mask,
             ]
             output_fields = [
                 output_image,

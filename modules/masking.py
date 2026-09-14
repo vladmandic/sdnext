@@ -138,6 +138,7 @@ generator: MaskGenerationPipeline = None
 busy = False
 btn_mask = None
 btn_lama = None
+mask_accordion = None
 lama_model = None
 controls = []
 opts = SimpleNamespace(**{
@@ -520,8 +521,8 @@ def create_segment_ui():
         opts.auto_segment, opts.auto_mask, opts.seg_score_thresh, opts.seg_iou_thresh, opts.seg_nms_thresh = args
         debug(f'Update mask opts: {args}')
 
-    global btn_mask, btn_lama # pylint: disable=global-statement
-    with gr.Accordion(open=False, label="Mask", elem_id="control_mask", elem_classes=["small-accordion"]):
+    global btn_mask, btn_lama, mask_accordion # pylint: disable=global-statement
+    with gr.Accordion(open=False, label="Mask", elem_id="control_mask", elem_classes=["small-accordion"]) as mask_accordion:
         controls.clear()
         with gr.Row():
             controls.append(gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label='Dilate', value=0, elem_id="control_mask_dilate"))
