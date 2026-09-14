@@ -92,6 +92,9 @@ def _resolve_prefix(network_prefix, prefix_used):
 SUFFIX_NORMALIZE = {
     "lora_A.weight": "lora_down.weight",
     "lora_B.weight": "lora_up.weight",
+    # bare parameter names, saved by wrappers that hold the factors as nn.Parameter (alibaba-pai PDD files)
+    "lora_down": "lora_down.weight",
+    "lora_up": "lora_up.weight",
 }
 
 
@@ -103,6 +106,7 @@ SUFFIX_NORMALIZE = {
 LORA_SUFFIXES = (
     ".lora_down.weight", ".lora_up.weight", ".lora_mid.weight",
     ".lora_A.weight",    ".lora_B.weight",
+    ".lora_down",        ".lora_up",
     # diff_b: bias delta some saves pair with the weight LoRA, applied as ex_bias.
     # magnitude / lora_magnitude_vector: DoRA row norms (ai-toolkit / PEFT key
     # names); converted onto the dora_scale path by try_load_lora.
@@ -154,7 +158,7 @@ FULL_SUFFIXES = (
 # on accidental overlaps with other families.
 
 LORA_MARKERS = (
-    ".lora_down.weight", ".lora_up.weight",
+    ".lora_down", ".lora_up", # bare and .weight forms alike
     ".lora_A.weight", ".lora_B.weight",
     # PEFT named-adapter saves embed the slot name as ``.lora_A.<name>.weight``;
     # the trailing-dot forms catch every variant.

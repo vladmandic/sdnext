@@ -85,20 +85,6 @@ BARE_DIFFUSERS_PREFIX_USED = native_adapter.BARE_DIFFUSERS_PREFIX_USED
 has_marker = native_adapter.has_marker
 
 
-MINIMAX_EXTRA_SUFFIXES = (".lora_down", ".lora_up", ".lora_A", ".lora_B")
-MINIMAX_LORA_SUFFIXES = native_adapter.LORA_SUFFIXES + MINIMAX_EXTRA_SUFFIXES
-MINIMAX_SUFFIX_NORMALIZE = {
-    "lora_down": "lora_down.weight",
-    "lora_up": "lora_up.weight",
-    "lora_A": "lora_down.weight",
-    "lora_B": "lora_up.weight",
-}
-
-
-def normalize_mini_max_suffix(suffix: str) -> str:
-    return MINIMAX_SUFFIX_NORMALIZE.get(suffix, suffix)
-
-
 def _flattened(dotted):
     return re.escape(dotted.replace(".", "_"))
 
@@ -132,11 +118,7 @@ def parse_key(key, suffixes):
     key = native_adapter.unwrap_peft_wrapper(key)
     if key.startswith("dit."):
         key = "diffusion_model." + key[len("dit."):]
-    parsed = native_adapter.parse_key(key, suffixes, prefixes=KNOWN_PREFIXES)
-    if parsed is None:
-        return None
-    prefix_used, base, suffix = parsed
-    return prefix_used, base, normalize_mini_max_suffix(suffix)
+    return native_adapter.parse_key(key, suffixes, prefixes=KNOWN_PREFIXES)
 
 
 def group_by_suffixes(state_dict, suffixes, *, prefixes=None): # pylint: disable=unused-argument
