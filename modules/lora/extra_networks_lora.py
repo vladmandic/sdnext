@@ -1,7 +1,7 @@
 import os
 import re
 import numpy as np
-from modules.lora import networks, lora_overrides, lora_load, lora_diffusers
+from modules.lora import networks, lora_overrides, lora_load, lora_diffusers, lora_mask
 from modules.lora import lora_common as l
 from modules import extra_networks, shared, sd_models
 from modules.logger import log
@@ -99,6 +99,7 @@ def parse(p, params_list, step=0):
     dyn_dims = []
     lora_modules = []
     block_specs = []
+    mask_specs = []
     for params in params_list:
         name = params.positional[0]
 
@@ -133,6 +134,7 @@ def parse(p, params_list, step=0):
         unet_multipliers.append(unet_multiplier)
         dyn_dims.append(dyn_dim)
         block_specs.append(params.named.get('lbw', None)) # per-block strength; resolved per layer by lora_blocks
+        mask_specs.append(params.named.get('mask', None)) # sheet plane confining the network to a region; hooked after activation by lora_mask
 
         lora_module = []
         name_lower = params.positional[0].lower()
@@ -152,7 +154,21 @@ def parse(p, params_list, step=0):
 
         lora_modules.append(lora_module)
 
-    return names, te_multipliers, unet_multipliers, dyn_dims, lora_modules, block_specs
+    return names, te_multipliers, unet_multipliers, dyn_dims, lora_modules, block_specs, mask_specs
+
+
+def masked_networks(names, mask_specs):
+    """Map network name to sheet plane for every tag carrying a valid mask value."""
+    masked = {}
+    for name, spec in zip(names, mask_specs, strict=False):
+        if spec is None:
+            continue
+        plane = lora_mask.parse_channel(spec)
+        if plane is None:
+            log.warning(f'Network mask: name="{name}" channel="{spec}" unknown, expected r, g, b or l')
+            continue
+        masked[name] = plane
+    return masked
 
 
 def unload_diffusers():
@@ -223,9 +239,10 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
         if len(params_list) > 0 and not self.active: # activate patches once
             self.active = True
             self.model = shared.opts.sd_model_checkpoint
-        names, te_multipliers, unet_multipliers, dyn_dims, lora_modules, block_specs = parse(p, params_list, step)
+        names, te_multipliers, unet_multipliers, dyn_dims, lora_modules, block_specs, mask_specs = parse(p, params_list, step)
         requested = self.signature(names, te_multipliers, unet_multipliers, block_specs)
         reason = ''
+        has_changed = False
 
         load_method, load_reason = lora_overrides.get_method()
         from modules.lora import lora_stack
@@ -272,6 +289,9 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
                     l.previously_loaded_networks = l.loaded_networks.copy()
                 shared.state.end(jobid)
 
+        if step == 0 or has_changed: # a re-applied set carries new factors, so the hooks are rebuilt with it
+            lora_mask.install(p, masked_networks(names, mask_specs), load_method)
+
         if len(l.loaded_networks) > 0 and (len(networks.applied_layers) > 0 or load_method=='diffusers' or load_method=='nunchaku') and step == 0:
             infotext(p)
             prompt(p)
@@ -282,6 +302,7 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
                 log.info(f'Network status: type=LoRA networks={[n.name for n in l.loaded_networks]} method={actual_method}({load_reason}) mode={networks.effective_mode()} stack={stack} te={te_multipliers} unet={unet_multipliers} time={l.timer.summary} changed={has_changed} reason="{reason}"')
 
     def deactivate(self, p, force=False): # pylint: disable=unused-argument
+        lora_mask.remove() # masks are per generation; the merged weights stay for the next one
         if len(lora_diffusers.diffuser_loaded) > 0 and (shared.opts.lora_force_reload or force):
             log.debug(f'Network unload: type=LoRA method=diffusers loaded={len(lora_diffusers.diffuser_loaded)} opts={shared.opts.lora_force_reload} force={force}')
             unload_diffusers()

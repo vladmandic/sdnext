@@ -98,6 +98,7 @@ class APIGenerate:
             "sampler_name": helpers.validate_sampler_name(txt2imgreq.sampler_name or txt2imgreq.sampler_index),
             "do_not_save_samples": not txt2imgreq.save_images,
             "do_not_save_grid": not txt2imgreq.save_images,
+            "lora_mask": helpers.decode_base64_to_image(txt2imgreq.lora_mask) if txt2imgreq.lora_mask else None,
         })
         if populate.sampler_name:
             populate.sampler_index = None  # prevent a warning later on
@@ -125,6 +126,7 @@ class APIGenerate:
             b64images = []
         else:
             b64images = list(map(helpers.encode_pil_to_base64, processed.images)) if send_images else []
+        txt2imgreq.lora_mask = None
         self.sanitize_b64(txt2imgreq)
         info = processed.js() if processed else ''
         return models.ResTxt2Img(images=b64images, parameters=vars(txt2imgreq), info=info)
@@ -150,6 +152,7 @@ class APIGenerate:
             "do_not_save_samples": not img2imgreq.save_images,
             "do_not_save_grid": not img2imgreq.save_images,
             "mask": mask,
+            "lora_mask": helpers.decode_base64_to_image(img2imgreq.lora_mask) if img2imgreq.lora_mask else None,
         })
         if populate.sampler_name:
             populate.sampler_index = None  # prevent a warning later on
@@ -181,6 +184,7 @@ class APIGenerate:
         if not img2imgreq.include_init_images:
             img2imgreq.init_images = None
             img2imgreq.mask = None
+        img2imgreq.lora_mask = None
         self.sanitize_b64(img2imgreq)
         info = processed.js() if processed else ''
         return models.ResImg2Img(images=b64images, parameters=vars(img2imgreq), info=info)

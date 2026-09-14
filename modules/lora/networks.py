@@ -45,6 +45,7 @@ import rich.progress as rp
 from modules.errorlimiter import limit_errors
 from modules.lora import lora_blocks
 from modules.lora import lora_common as l
+from modules.lora import lora_mask
 from modules.lora import lora_overrides
 from modules.lora import lora_sdnq
 from modules.lora import lora_stack
@@ -347,6 +348,7 @@ def network_activate(include=None, exclude=None):
     t0 = time.time()
     ctx = ActivationPass(lora_overrides.fuse_native()) # fuse resolved once: the backup, apply and restore paths must agree
     applied_layers.clear()
+    lora_mask.remove() # hooks cancel the factors of the set being replaced
     lora_sdnq.reset_pass()
     modules = {}
     try:
@@ -399,6 +401,7 @@ def network_deactivate(include=None, exclude=None):
         exclude = []
     if include is None:
         include = []
+    lora_mask.remove()
     fuse = lora_overrides.fuse_native() # must match network_activate: backup mode restores in its restore-only pass instead
     if not fuse or shared.opts.lora_force_diffusers:
         return

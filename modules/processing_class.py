@@ -92,6 +92,7 @@ class StableDiffusionProcessing:
                  mask_apply_overlay: bool | None = None,
                  include_mask: bool | None = None,
                  inpainting_mask_weight: float | None = None,
+                 lora_mask: Image.Image | None = None, # colour sheet whose planes confine lora networks tagged with mask=r, g, b or l
                  # output and saving
                  samples_save: bool | None = None,
                  samples_format: str | None = None,
@@ -372,6 +373,7 @@ class StableDiffusionProcessing:
         self.mask_apply_overlay = mask_apply_overlay
         self.include_mask = include_mask
         self.inpainting_mask_weight = inpainting_mask_weight
+        self.lora_mask = lora_mask
         self.samples_save = samples_save
         self.samples_format = samples_format
         self.save_images_before_highres_fix = save_images_before_highres_fix

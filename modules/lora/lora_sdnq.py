@@ -176,6 +176,7 @@ def remove_factors(self):
     self.svd_up = svd_up
     self.svd_down = svd_down
     del self.sdnq_lora_svd_stash
+    self.sdnq_lora_segments = {}
     lora_stack.drop(getattr(self, 'network_layer_name', None)) # a selection schedule must not outlive the segments it points into
     return True
 
@@ -197,7 +198,7 @@ def apply_factors(self, network_layer_name, wanted_names):
     deq = self.sdnq_dequantizer
     dtype = deq.result_dtype
 
-    ups, downs = [], []
+    ups, downs, names = [], [], []
     for net in l.loaded_networks:
         module = net.modules.get(network_layer_name, None)
         if module is None:
@@ -210,9 +211,11 @@ def apply_factors(self, network_layer_name, wanted_names):
             down = rotate_hadamard(down.to(dtype=torch.float32), group_size=deq.hadamard_group_size).to(dtype=dtype)
         ups.append(up_eff)
         downs.append(down)
+        names.append(net.name)
     if not ups:
         return changed
-    append_factors(self, ups, downs)
+    segments, transposed = append_factors(self, ups, downs)
+    record_segments(self, list(zip(names, segments, strict=True)), None, transposed)
     factor_layers.append(network_layer_name)
     return True
 
@@ -257,6 +260,17 @@ def append_factors(self, ups, downs):
     self.svd_up = torch.nn.Parameter(new_up.to(device=device), requires_grad=False)
     self.svd_down = torch.nn.Parameter(new_down.to(device=device), requires_grad=False)
     return segments, deq.use_quantized_matmul
+
+
+def record_segments(self, exact, hosted, transposed):
+    """Remember which network owns which rank range on the channel; a hosted remainder is owned only when one network fed it."""
+    table = {name: (start, stop, 'exact') for name, (start, stop) in exact}
+    if hosted is not None:
+        names, (start, stop) = hosted
+        if len(names) == 1:
+            table[names[0]] = (start, stop, 'hosted')
+    self.sdnq_lora_segments = table
+    self.sdnq_lora_segments_transposed = transposed
 
 
 def channel_candidate(self, network_layer_name, wanted_names):
@@ -320,15 +334,17 @@ def apply_cached(self, network_layer_name, wanted_names):
     dtype = deq.result_dtype
     remove_factors(self) # before the rule: the svd-channel check must see the checkpoint's own state, and a declined layer must fall through pristine
     stack_dense = lora_stack.mode() in lora_stack.DENSE_MODES and not network_layer_name.startswith('lora_te')
-    members = []
-    if not stack_dense:
-        for net in l.loaded_networks:
-            module = net.modules.get(network_layer_name, None)
-            if module is None:
-                continue
-            factors = get_module_factors(module, devices.device, dtype, original_shape=deq.original_shape)
-            if factors is not None:
-                members.append(factors)
+    members, member_names, other_names = [], [], []
+    for net in l.loaded_networks:
+        module = net.modules.get(network_layer_name, None)
+        if module is None:
+            continue
+        factors = None if stack_dense else get_module_factors(module, devices.device, dtype, original_shape=deq.original_shape)
+        if factors is not None:
+            members.append(factors)
+            member_names.append(net.name)
+        else:
+            other_names.append(net.name)
     if not stack_dense and len(members) == 0 and self.svd_up is None:
         step = grid_step(self)
         if step > 0 and rms / step > REQUANT_RATIO and energy < REQUANT_ENERGY:
@@ -340,7 +356,8 @@ def apply_cached(self, network_layer_name, wanted_names):
         ups.append(up_eff)
         downs.append(down)
     lora_factor_cache.note_hit()
-    append_factors(self, ups + [up_h.to(device=devices.device, dtype=dtype)], downs + [down_h.to(device=devices.device, dtype=dtype)])
+    segments, transposed = append_factors(self, ups + [up_h.to(device=devices.device, dtype=dtype)], downs + [down_h.to(device=devices.device, dtype=dtype)])
+    record_segments(self, list(zip(member_names, segments[:-1], strict=True)), (other_names, segments[-1]), transposed)
     hosted_layers.append((network_layer_name, energy, calibrated))
     hosted_ranks.append(int(up_h.shape[1]))
     return True
@@ -371,16 +388,18 @@ def apply_hosted(self, network_layer_name, updown, wanted_names):
         return None
     dtype = deq.result_dtype
 
-    members = []
+    members, member_names, other_names = [], [], []
     stack_dense = lora_stack.mode() in lora_stack.DENSE_MODES and not network_layer_name.startswith('lora_te')
-    if not stack_dense: # dense stack modes host the combined delta wholesale; the members' content is already inside it
-        for net in l.loaded_networks:
-            module = net.modules.get(network_layer_name, None)
-            if module is None:
-                continue
-            factors = get_module_factors(module, devices.device, dtype, original_shape=deq.original_shape)
-            if factors is not None:
-                members.append(factors)
+    for net in l.loaded_networks:
+        module = net.modules.get(network_layer_name, None)
+        if module is None:
+            continue
+        factors = None if stack_dense else get_module_factors(module, devices.device, dtype, original_shape=deq.original_shape) # dense stack modes host the combined delta wholesale
+        if factors is not None:
+            members.append(factors)
+            member_names.append(net.name)
+        else:
+            other_names.append(net.name)
 
     # requantize keeps a delta the grid can resolve and that truncation would genuinely
     # cut: both terms must agree, since a thin delta rounds away on the grid however
@@ -412,7 +431,8 @@ def apply_hosted(self, network_layer_name, updown, wanted_names):
             routed_layers.append(network_layer_name)
             return None
         up_h, down_h = trim_null_tail(up_h, down_h)
-        append_factors(self, ups + [up_h.to(device=devices.device, dtype=dtype)], downs + [down_h.to(device=devices.device, dtype=dtype)])
+        segments, transposed = append_factors(self, ups + [up_h.to(device=devices.device, dtype=dtype)], downs + [down_h.to(device=devices.device, dtype=dtype)])
+        record_segments(self, list(zip(member_names, segments[:-1], strict=True)), (other_names, segments[-1]), transposed)
         hosted_layers.append((network_layer_name, energy, calibrated))
         hosted_ranks.append(int(up_h.shape[1]))
         return True
@@ -423,7 +443,8 @@ def apply_hosted(self, network_layer_name, updown, wanted_names):
         routed_layers.append(network_layer_name) # the stored entry memoizes the routing; replays skip the sketch
         return None
     up_h, down_h = trim_null_tail(up_h, down_h) # the int8 roundtrip zeroes the numeric tail the eps slice keeps; fresh and replayed attaches must trim alike
-    append_factors(self, ups + [up_h], downs + [down_h])
+    segments, transposed = append_factors(self, ups + [up_h], downs + [down_h])
+    record_segments(self, list(zip(member_names, segments[:-1], strict=True)), (other_names, segments[-1]), transposed)
     hosted_layers.append((network_layer_name, energy, calibrated))
     hosted_ranks.append(int(up_h.shape[1]))
     return True

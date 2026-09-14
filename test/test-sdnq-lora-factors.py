@@ -76,7 +76,7 @@ modules.cmd_args.parsed, _ = modules.cmd_args.parser.parse_known_args([])
 
 from modules.errors import log   # pylint: disable=wrong-import-position
 from modules import shared, sd_models        # pylint: disable=wrong-import-position
-from modules.lora import network, network_lora, lora_blocks, lora_sdnq, lora_stack, networks  # pylint: disable=wrong-import-position
+from modules.lora import network, network_lora, lora_blocks, lora_mask, lora_sdnq, lora_stack, networks  # pylint: disable=wrong-import-position
 from modules.lora import lora_common as l_common   # pylint: disable=wrong-import-position
 from sdnq.quantizer import sdnq_quantize_layer, SDNQConfig  # pylint: disable=wrong-import-position
 
@@ -2988,6 +2988,282 @@ def test_layout_recomputes_on_mapping_change():
     return True
 
 
+# ============================================================
+# Tests - spatial masks (modules/lora/lora_mask.py)
+# ============================================================
+
+CAT_MASK = category('masks')
+
+
+def mask_geometry(txtlen, grid_h, grid_w, shuffle=False):
+    """Synthetic token geometry; a shuffled image order proves the mask follows per-token coordinates, not the packing."""
+    hw = torch.stack(torch.meshgrid(torch.arange(grid_h), torch.arange(grid_w), indexing='ij'), dim=-1).reshape(-1, 2)
+    if shuffle:
+        hw = hw[torch.randperm(hw.shape[0], generator=torch.Generator().manual_seed(0))]
+    return lora_mask.Geometry(txtlen, grid_h * grid_w, hw, (grid_h, grid_w))
+
+
+def half_sheet(h=32, w=32):
+    """Plane r covers the left half, g the right half, b the top half, l mirrors r."""
+    sheet = torch.zeros(4, h, w)
+    sheet[0, :, :w // 2] = 1.0
+    sheet[1, :, w // 2:] = 1.0
+    sheet[2, :h // 2, :] = 1.0
+    sheet[3] = sheet[0]
+    return sheet
+
+
+def mask_arm(run, txtlen=8, grid=8, shuffle=False):
+    run.clear()
+    run.sheet = half_sheet()
+    run.geometry = mask_geometry(txtlen, grid, grid, shuffle=shuffle)
+
+
+def kept_tokens(run, txtlen):
+    """Bool per token of the joint sequence: text plus image tokens on the red half stay merged."""
+    keep = torch.ones(txtlen + run.geometry.imglen, dtype=torch.bool, device=DEVICE)
+    keep[txtlen:] = (run.geometry.hw[:, 1] < run.geometry.grid[1] // 2).to(DEVICE)
+    return keep
+
+
+def cancel_ratio(y_hooked, y_base, y_merged, keep):
+    """Residual against the base on cancelled tokens, relative to the delta's own footprint there."""
+    residual = (y_hooked - y_base)[:, ~keep].float().norm()
+    footprint = (y_merged - y_base)[:, ~keep].float().norm()
+    return float(residual / footprint.clamp(min=1e-12))
+
+
+def plain_layer(name='lora_transformer_plain', seed=3):
+    torch.manual_seed(seed)
+    lin = torch.nn.Linear(IN_F, OUT_F, bias=False, dtype=torch.bfloat16, device=DEVICE)
+    with torch.no_grad():
+        lin.weight.copy_(torch.randn(OUT_F, IN_F, device=DEVICE) * 0.04)
+    lin.network_layer_name = name
+    lin.network_current_names = ()
+    return lin
+
+
+def check_hooked_layer(layer, entry, y_base, y_merged, tolerance):
+    """Register the hook on a merged layer and verify: kept tokens bit-exact to the merged output, cancelled tokens back on the base."""
+    txtlen = 8
+    mask_arm(lora_mask.run, txtlen=txtlen, grid=8)
+    x = torch.randn(1, txtlen + 64, IN_F, device=DEVICE, dtype=torch.bfloat16, generator=torch.Generator(device=DEVICE).manual_seed(5))
+    keep = kept_tokens(lora_mask.run, txtlen)
+    handle = layer.register_forward_hook(lora_mask.make_hook([entry]))
+    try:
+        y = layer(x)
+    finally:
+        handle.remove()
+        lora_mask.run.clear()
+    assert torch.equal(y[:, keep], y_merged(x)[:, keep]), 'white tokens and text keep the merged output bit-exact'
+    ratio = cancel_ratio(y, y_base(x), y_merged(x), keep)
+    assert ratio < tolerance, f'black tokens must return to the base output: ratio={ratio:.4f}'
+    return ratio
+
+
+def test_mask_token_mask_follows_position_ids():
+    run = lora_mask.MaskRun()
+    mask_arm(run, txtlen=16, grid=8, shuffle=True)
+    cpu = torch.device('cpu')
+    joint = run.token_mask(0, 16 + 64 + 48, cpu, torch.float32) # joint sequence padded past the image tokens
+    assert joint.shape == (1, 128, 1)
+    assert torch.equal(joint[0, :16, 0], torch.ones(16)) and torch.equal(joint[0, 80:, 0], torch.ones(48)), 'text and padding stay unmasked'
+    expected = (run.geometry.hw[:, 1] < 4).float()
+    assert torch.equal(joint[0, 16:80, 0], expected), 'image tokens follow their (h, w) coordinates through a shuffled order'
+    image_only = run.token_mask(0, 64, cpu, torch.float32)
+    assert torch.equal(image_only[0, :, 0], expected), 'single-stream image projections mask from offset 0'
+    assert run.token_mask(0, 16, cpu, torch.float32) is None, 'text-only projections are skipped'
+    assert run.token_mask(0, 64, cpu, torch.float32) is image_only, 'token masks are cached per plane and length'
+    top = run.token_mask(2, 64, cpu, torch.float32)
+    assert torch.equal(top[0, :, 0], (run.geometry.hw[:, 0] < 4).float()), 'planes select different regions'
+    run.capture(None, (), {}, lambda module, args, kwargs: mask_geometry(16, 4, 4))
+    assert run.geometry.grid == (4, 4) and len(run.cache) == 0, 'a new grid invalidates the cache'
+    assert run.token_mask(0, 32, cpu, torch.float32).shape == (1, 32, 1)
+    return True
+
+
+def test_mask_hook_cancels_plain_layer_delta():
+    lin = plain_layer()
+    A, B, _D = make_delta(sigma=3e-3)
+    net = make_net('a', lin, A, B)
+    with mock_model(plain=lin):
+        W0 = lin.weight.detach().clone()
+        activate(net)
+        assert not torch.equal(lin.weight, W0), 'delta must be merged'
+        entry, why = lora_mask.layer_entry(lin, net, net.modules[lin.network_layer_name], 0)
+        assert why is None and isinstance(entry, lora_mask.StaticEntry)
+        check_hooked_layer(lin, entry, lambda x: torch.nn.functional.linear(x, W0), lambda x: torch.nn.functional.linear(x, lin.weight), tolerance=0.05)
+        activate()
+    return True
+
+
+def mask_segment_case(weights_dtype, use_quantized_matmul, hosted, force_segment=False):
+    layer = build_layer(weights_dtype, use_quantized_matmul=use_quantized_matmul, use_hadamard=True)
+    A, B, D = make_delta(sigma=3e-3)
+    net = make_dense_net('h', layer, D) if hosted else make_net('h', layer, A, B)
+    with host_rank(64), mock_model(lin=layer):
+        base_state = dq(layer)
+        activate(net)
+        segments = getattr(layer, 'sdnq_lora_segments', {})
+        assert 'h' in segments and segments['h'][2] == ('hosted' if hosted else 'exact'), f'segments={segments}'
+        if force_segment: # read the exact factors back through the live channel, exercising the segment path in this layout
+            start, stop, _kind = segments['h']
+            layer.sdnq_lora_segments['h'] = (start, stop, 'hosted')
+        entry, why = lora_mask.layer_entry(layer, net, net.modules[layer.network_layer_name], 0)
+        assert why is None
+        assert isinstance(entry, lora_mask.SegmentEntry if (hosted or force_segment) else lora_mask.StaticEntry)
+        merged_state = dq(layer)
+        with torch.no_grad():
+            ratio = check_hooked_layer(layer, entry, lambda x: torch.nn.functional.linear(x, base_state.to(torch.bfloat16)), lambda x: layer(x), tolerance=0.1)
+        assert not torch.equal(base_state, merged_state)
+        activate()
+    return ratio
+
+
+def test_mask_hook_cancels_exact_segment():
+    mask_segment_case('uint4', use_quantized_matmul=False, hosted=False)
+    return True
+
+
+def test_mask_hook_cancels_hosted_segment():
+    mask_segment_case('uint4', use_quantized_matmul=False, hosted=True)
+    return True
+
+
+def test_mask_hook_cancels_transposed_segment():
+    mask_segment_case('int8', use_quantized_matmul=True, hosted=False, force_segment=True)
+    return True
+
+
+def test_mask_segments_attribute_single_owner():
+    layer = build_layer('uint4')
+    A, B, D = make_delta(sigma=3e-3)
+    plain = make_net('p', layer, A, B)
+    dense1 = make_dense_net('d1', layer, D)
+    dense2 = make_dense_net('d2', layer, D)
+    with host_rank(64), mock_model(lin=layer):
+        activate(plain, dense1)
+        seg = layer.sdnq_lora_segments
+        assert seg.get('p', (0, 0, ''))[2] == 'exact' and seg.get('d1', (0, 0, ''))[2] == 'hosted', f'segments={seg}'
+        activate(plain, dense1, dense2)
+        seg = layer.sdnq_lora_segments
+        assert seg.get('p', (0, 0, ''))[2] == 'exact' and 'd1' not in seg and 'd2' not in seg, f'a shared host has no owner: {seg}'
+        activate()
+        assert getattr(layer, 'sdnq_lora_segments', {}) == {}, 'removal clears the record'
+    return True
+
+
+def test_mask_channel_parse_and_blocked_reasons():
+    assert [lora_mask.parse_channel(v) for v in ('R', 'green', 'b', 'l', 'x', None)] == [0, 1, 2, 3, None, None]
+    assert lora_mask.blocked_reason('diffusers') == 'method=diffusers'
+    layer = build_layer('uint4')
+    with mock_model(lin=layer):
+        old_stack = shared.opts.lora_stack_mode
+        old_apply = getattr(shared.opts, 'lora_sdnq_apply', 'exact')
+        holder = shared.sd_model.pipe.transformer
+        try:
+            shared.opts.lora_stack_mode = 'ties'
+            assert lora_mask.blocked_reason('native') == 'stack=ties'
+            shared.opts.lora_stack_mode = 'sum'
+            assert lora_mask.blocked_reason('native') is None
+            shared.opts.lora_sdnq_apply = 'requantize'
+            assert lora_mask.blocked_reason('native') is None, 'the requantize setting only matters on a quantized denoiser'
+            holder.quantization_config = {'quant_method': 'sdnq'}
+            assert lora_mask.blocked_reason('native') == 'sdnq apply=requantize'
+        finally:
+            shared.opts.lora_stack_mode = old_stack
+            shared.opts.lora_sdnq_apply = old_apply
+            if hasattr(holder, 'quantization_config'):
+                del holder.quantization_config
+    return True
+
+
+def test_mask_text_switch_cancels_every_stream():
+    lin = plain_layer()
+    A, B, _D = make_delta(sigma=3e-3)
+    net = make_net('a', lin, A, B)
+    with mock_model(plain=lin):
+        W0 = lin.weight.detach().clone()
+        activate(net)
+        entry, _why = lora_mask.layer_entry(lin, net, net.modules[lin.network_layer_name], 0)
+        handle = lin.register_forward_hook(lora_mask.make_hook([entry]))
+        old = lora_mask.MASK_TEXT
+        try:
+            mask_arm(lora_mask.run, txtlen=8, grid=8)
+            folded = torch.randn(3, 5, IN_F, device=DEVICE, dtype=torch.bfloat16) # text length folded into the batch, as the text fusion blocks do
+            vector = torch.randn(2, IN_F, device=DEVICE, dtype=torch.bfloat16) # modulation-style 2-d input
+            joint = torch.randn(1, 72, IN_F, device=DEVICE, dtype=torch.bfloat16)
+            lora_mask.MASK_TEXT = False
+            assert torch.equal(lin(folded), torch.nn.functional.linear(folded, lin.weight)), 'without the switch a folded sequence keeps the merged output'
+            assert torch.equal(lin(vector), torch.nn.functional.linear(vector, lin.weight))
+            assert torch.equal(lin(joint)[:, :8], torch.nn.functional.linear(joint, lin.weight)[:, :8]), 'text tokens keep the adapter'
+            lora_mask.MASK_TEXT = True
+            lora_mask.run.cache.clear()
+            for x in (folded, vector):
+                base = torch.nn.functional.linear(x, W0)
+                merged = torch.nn.functional.linear(x, lin.weight)
+                ratio = float((lin(x) - base).float().norm() / (merged - base).float().norm())
+                assert ratio < 0.05, f'the switch cancels a stream without image tokens: ratio={ratio:.4f}'
+            keep = torch.zeros(72, dtype=torch.bool, device=DEVICE)
+            keep[8:] = (lora_mask.run.geometry.hw[:, 1] < 4).to(DEVICE)
+            ratio = cancel_ratio(lin(joint), torch.nn.functional.linear(joint, W0), torch.nn.functional.linear(joint, lin.weight), keep)
+            assert ratio < 0.05, f'text positions of a joint sequence are cancelled too: ratio={ratio:.4f}'
+        finally:
+            lora_mask.MASK_TEXT = old
+            handle.remove()
+            lora_mask.run.clear()
+        activate()
+    return True
+
+
+def test_mask_install_and_fallback():
+    import types
+    from PIL import Image
+    lin = plain_layer()
+    A, B, _D = make_delta(sigma=3e-3)
+    good = make_net('good', lin, A, B)
+    bad = make_net('bad', lin, A, B, dora=True) # DoRA on a plain layer is not cancellable, so it applies unmasked with a warning
+    sheet = torch.zeros(32, 32, 3, dtype=torch.uint8)
+    sheet[:, :16, 0] = 255
+    p = types.SimpleNamespace(lora_mask=Image.fromarray(sheet.numpy()), extra_generation_params={})
+    with mock_model(plain=lin):
+        holder = shared.sd_model.pipe.transformer
+        lora_mask.GEOMETRY[holder.__class__.__name__] = lambda module, args, kwargs: mask_geometry(8, 8, 8)
+        try:
+            W0 = lin.weight.detach().clone()
+            activate(good, bad)
+            lora_mask.install(p, {'good': 0, 'bad': 1}, 'native')
+            assert lora_mask.run.active and lora_mask.run.names == {'good': 'r'} and lora_mask.run.layers == {'good': 1}
+            assert lora_mask.run.fallback.get('bad', '').startswith('family='), f'fallback={lora_mask.run.fallback}'
+            assert p.extra_generation_params['LoRA masks'] == 'good=r' and p.extra_generation_params['LoRA mask fallback'].startswith('bad=family=')
+            assert len(lora_mask.run.handles) == 2, 'one geometry pre-hook on the denoiser and one hook on the single hooked layer'
+            try:
+                holder() # the geometry pre-hook runs before the mock's forward raises
+            except NotImplementedError:
+                pass
+            assert lora_mask.run.geometry is not None and lora_mask.run.geometry.grid == (8, 8)
+            x = torch.randn(1, 72, IN_F, device=DEVICE, dtype=torch.bfloat16, generator=torch.Generator(device=DEVICE).manual_seed(6))
+            y_merged = torch.nn.functional.linear(x, lin.weight)
+            y = lin(x)
+            keep = kept_tokens(lora_mask.run, 8)
+            assert torch.equal(y[:, keep], y_merged[:, keep])
+            dora_only = y_merged - torch.nn.functional.linear(x, W0) # the merged weight carries both deltas; only the plain one is cancelled
+            cancelled = (y - y_merged)[:, ~keep].float().norm()
+            assert cancelled > 0 and cancelled < dora_only[:, ~keep].float().norm(), 'the masked network is cancelled while the fallback network stays'
+            lora_mask.remove()
+            assert not lora_mask.run.active and torch.equal(lin(x), y_merged), 'removal restores the plain merged forward'
+            lora_mask.install(p, {}, 'native')
+            assert not lora_mask.run.active, 'no masked networks installs nothing'
+            p.lora_mask = None
+            lora_mask.install(p, {'good': 0}, 'native')
+            assert not lora_mask.run.active and lora_mask.run.fallback.get('good') == 'no mask sheet'
+        finally:
+            lora_mask.GEOMETRY.pop(holder.__class__.__name__, None)
+            lora_mask.remove()
+            activate()
+    return True
+
+
 def run_tests():
     t0 = time.time()
     log.warning('=== Erasure law ===')
@@ -3059,6 +3335,11 @@ def run_tests():
                test_block_weight_zero_kills_layer_delta, test_signature_suffix_inactive_and_changes, test_factor_cache_invalidates_on_block_weight,
                test_stack_ties_respects_per_net_blocks, test_pending_promote_updates_block_spec, test_layout_recomputes_on_mapping_change]:
         run_test(CAT_BLOCKS, fn)
+    log.warning('=== Spatial masks ===')
+    for fn in [test_mask_token_mask_follows_position_ids, test_mask_hook_cancels_plain_layer_delta, test_mask_hook_cancels_exact_segment,
+               test_mask_hook_cancels_hosted_segment, test_mask_hook_cancels_transposed_segment, test_mask_segments_attribute_single_owner,
+               test_mask_channel_parse_and_blocked_reasons, test_mask_text_switch_cancels_every_stream, test_mask_install_and_fallback]:
+        run_test(CAT_MASK, fn)
 
     elapsed = time.time() - t0
     log.warning('=== Results ===')

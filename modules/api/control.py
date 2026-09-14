@@ -271,6 +271,7 @@ class APIControl:
             "inputs": [helpers.decode_base64_to_image(x) for x in req.inputs] if req.inputs else None,
             "inits": decoded_inits,
             "mask": helpers.decode_base64_to_image(req.mask) if req.mask else None,
+            "lora_mask": helpers.decode_base64_to_image(req.lora_mask) if getattr(req, 'lora_mask', None) else None,
         })
 
         args = self.sanitize_args(args)
