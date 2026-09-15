@@ -385,8 +385,6 @@ def git(arg: str, folder: str | None= None, ignore: bool = False, optional: bool
 
 # reattach as needed as head can get detached
 def branch(folder=None):
-    if args.experimental or args.skip_git or args.skip_all:
-        return None
     t_start = time.time()
     if not os.path.exists(os.path.join(folder or os.curdir, '.git')):
         return None
@@ -405,6 +403,9 @@ def branch(folder=None):
                 log.debug(f'Submodule: folder="{folder}" reattach={b} git detached head detected')
     except Exception:
         b = git('git rev-parse --abbrev-ref HEAD', folder, optional=True)
+
+    if args.experimental or args.skip_git or args.skip_all:
+        return b
 
     if 'main' in b:
         tgt = 'main'
