@@ -327,7 +327,7 @@ class StableDiffusionXLPuLIDPipeline:
                                                     return_image_latents=False,
                                                     )
                 latents = latents[0]
-                debug(f'PulID noise: op=inpaint latent={latents.shape} image={image} mask={mask_image} dtype={latents.dtype}')
+                debug(f'PulID noise: op=inpaint latent={list(latents.shape)} image={image} mask={mask_image} dtype={latents.dtype}')
             else:  # img2img
                 latents = self.pipe.prepare_latents(image,
                                                     None,  # timestep (not needed)
@@ -338,10 +338,10 @@ class StableDiffusionXLPuLIDPipeline:
                                                     None,  # generator
                                                     False,  # add_noise
                                                     )
-                debug(f'PulID noise: op=img2img latent={latents.shape} image={image} dtype={latents.dtype}')
+                debug(f'PulID noise: op=img2img latent={list(latents.shape)} image={image} dtype={latents.dtype}')
         else:
             latents = torch.zeros_like(noise)
-            debug(f'PulID noise: op=txt2img latent={latents.shape} dtype={latents.dtype}')
+            debug(f'PulID noise: op=txt2img latent={list(latents.shape)} dtype={latents.dtype}')
         return latents, noise
 
     def __call__(
@@ -379,7 +379,7 @@ class StableDiffusionXLPuLIDPipeline:
         # latents
         latent, noise = self.init_latent(seed, size, image, mask_image, strength, width, height)
         noisy_latent = latent + noise * sigmas[0].to(noise)
-        debug(f'PulID noisy: latent={noisy_latent.shape} dtype={noisy_latent.dtype}')
+        debug(f'PulID noisy: latent={list(noisy_latent.shape)} dtype={noisy_latent.dtype}')
 
         (
             prompt_embeds,
@@ -425,7 +425,7 @@ class StableDiffusionXLPuLIDPipeline:
 
         # process output
         latents = latents.to(dtype=self.pipe.vae.dtype, device=self.device)
-        debug(f'PulID output: latent={latents.shape} dtype={latents.dtype}')
+        debug(f'PulID output: latent={list(latents.shape)} dtype={latents.dtype}')
         if output_type == 'latent':
             images = self.pipe.image_processor.postprocess(latents, output_type='latent')
         elif output_type == 'np':

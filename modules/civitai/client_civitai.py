@@ -1,8 +1,10 @@
 import os
+import json
 import time
+import threading
+from types import SimpleNamespace
 from modules.logger import log
-from modules.civitai.basemodels_civitai import fetch_github_base_models
-from modules.civitai.models_civitai import CivitModel, CivitVersion, CivitImage, CivitSearchResponse, CivitTagResponse, CivitCreatorResponse, CivitUserProfile
+from modules.civitai.models_civitai import CivitModel, CivitVersion, CivitVersionMini, CivitImage, CivitSearchResponse, CivitTagResponse, CivitCreatorResponse, CivitUserProfile
 
 
 options_cache: dict = {}
@@ -11,6 +13,64 @@ OPTIONS_TTL = 3600  # 1 hour
 # Civitai nsfwLevel bitmask: 1=PG/None 2=PG-13/Soft 4=R/Mature 8=X 16=XXX 32=Blocked
 NSFW_LEVEL_SFW = 3   # None + Soft: Civitai's SFW browsing boundary
 NSFW_LEVEL_ALL = 63  # every level set: disables filtering
+BY_HASH_IDS_LIMIT = 10000  # POST /model-versions/by-hash/ids request cap
+BY_HASH_LIMIT = 100  # POST /model-versions/by-hash request cap
+MODEL_IDS_LIMIT = 100  # GET /models page cap; longer ids lists paginate
+RETRY_LIMIT = 4  # retries after HTTP 429
+RETRY_DELAY_MAX = 60  # seconds
+request_slots: threading.BoundedSemaphore | None = None
+request_slots_lock = threading.Lock()
+
+
+def get_request_slots() -> threading.BoundedSemaphore:
+    """Process-wide cap on concurrent CivitAI API requests, sized to shared.max_workers."""
+    global request_slots # pylint: disable=global-statement
+    with request_slots_lock:
+        if request_slots is None:
+            from modules.shared import max_workers
+            request_slots = threading.BoundedSemaphore(max_workers)
+    return request_slots
+
+
+def retry_delay(response, attempt: int) -> float:
+    """Seconds before retrying a 429: Retry-After when given in seconds, otherwise exponential."""
+    headers = getattr(response, 'headers', None) or {}
+    try:
+        delay = float(headers.get('Retry-After'))
+    except (TypeError, ValueError):
+        delay = 2 ** attempt
+    return min(max(delay, 0.0), RETRY_DELAY_MAX)
+
+
+def response_message(response) -> str:
+    """CivitAI error text from a failed response: its error string, ZodError issues, or the HTTP reason."""
+    try:
+        body = response.json()
+    except Exception:
+        body = None
+    error = body.get('error') if isinstance(body, dict) else None
+    if isinstance(error, dict):
+        error = error.get('message', '')
+        try:
+            error = '; '.join(f"{'.'.join(str(p) for p in issue.get('path', []))}: {issue.get('message', '')}" for issue in json.loads(error))
+        except Exception:
+            pass
+    message = body.get('message') if isinstance(body, dict) else None
+    if isinstance(error, str) and isinstance(message, str) and message and message != error: # download refusals carry a short error and a longer message
+        error = f'{error}: {message}'
+    if not error:
+        error = getattr(response, 'reason', '') or getattr(response, 'text', '')
+    return str(error).strip()[:200]
+
+
+def post_json(url: str, body, headers: dict):
+    """POST with the timeout, TLS and failure shape of shared.req."""
+    import requests
+    try:
+        return requests.post(url, json=body, timeout=30, headers=headers, verify=False, allow_redirects=True)
+    except Exception as e:
+        log.error(f'HTTP request error: url={url} {e}')
+        return SimpleNamespace(status_code=500, text=f'HTTP request error: url={url} {e}')
 
 
 class CivitaiClient:
@@ -25,7 +85,7 @@ class CivitaiClient:
             return tok
         return os.environ.get('CIVITAI_TOKEN', None)
 
-    def _get(self, path: str, params: dict | None = None, token: str | None = None, stream: bool = False):
+    def send(self, method: str, path: str, params: dict | None = None, body=None, token: str | None = None, stream: bool = False):
         from modules import shared
         url = f"{self.BASE_URL}{path}"
         headers = {}
@@ -37,7 +97,23 @@ class CivitaiClient:
             query = urlencode({k: v for k, v in params.items() if v is not None and v != ''}, doseq=True)
             if query:
                 url = f"{url}?{query}"
-        return shared.req(url, headers=headers if headers else None, stream=stream)
+        attempt = 0
+        while True:
+            with get_request_slots():
+                if method == 'POST':
+                    r = post_json(url, body, headers)
+                else:
+                    r = shared.req(url, headers=headers if headers else None, stream=stream)
+            retry_after = (getattr(r, 'headers', None) or {}).get('Retry-After')
+            if not (r.status_code == 429 or (r.status_code == 503 and retry_after is not None)) or attempt >= RETRY_LIMIT: # CivitAI sends 503 with Retry-After when search is overloaded
+                return r
+            delay = retry_delay(r, attempt)
+            log.warning(f'CivitAI retry: path={path} code={r.status_code} attempt={attempt + 1} delay={delay:.0f}s message="{response_message(r)}"')
+            time.sleep(delay)
+            attempt += 1
+
+    def _get(self, path: str, params: dict | None = None, token: str | None = None, stream: bool = False):
+        return self.send('GET', path, params=params, token=token, stream=stream)
 
     def search_models(self, *, query: str = "", tag: str = "", types: str = "", sort: str = "", period: str = "",
                       base_models: list[str] | None = None, nsfw: bool | None = None, limit: int = 20,
@@ -68,8 +144,9 @@ class CivitaiClient:
             params['favorites'] = 'true'
         r = self._get('/models', params=params, token=token)
         if r.status_code != 200:
-            log.error(f'CivitAI search: code={r.status_code} reason={getattr(r, "reason", "")}')
-            return CivitSearchResponse()
+            message = response_message(r)
+            log.error(f'CivitAI search: code={r.status_code} message="{message}"')
+            return CivitSearchResponse(error=message)
         data = r.json()
         if 'items' not in data:
             # single model by numeric query — wrap in search response
@@ -82,7 +159,7 @@ class CivitaiClient:
             response = CivitSearchResponse.parse_obj(data)
         except Exception as e:
             log.error(f'CivitAI search parse error: {e}')
-            return CivitSearchResponse()
+            return CivitSearchResponse(error='search response could not be parsed')
         # /models rejects server-side level filtering and its nsfw boolean leaks
         # Mature+ content, so filter on each model's aggregate nsfwLevel here:
         # nsfw on keeps every level, nsfw off/unset keeps SFW (None + Soft).
@@ -94,7 +171,7 @@ class CivitaiClient:
     def get_model(self, model_id: int, *, token: str | None = None) -> CivitModel | None:
         r = self._get(f'/models/{model_id}', token=token)
         if r.status_code != 200:
-            log.error(f'CivitAI get model: id={model_id} code={r.status_code}')
+            log.error(f'CivitAI get model: id={model_id} code={r.status_code} message="{response_message(r)}"')
             return None
         try:
             return CivitModel.parse_obj(r.json())
@@ -105,7 +182,7 @@ class CivitaiClient:
     def get_version(self, version_id: int, *, token: str | None = None) -> CivitVersion | None:
         r = self._get(f'/model-versions/{version_id}', token=token)
         if r.status_code != 200:
-            log.error(f'CivitAI get version: id={version_id} code={r.status_code}')
+            log.error(f'CivitAI get version: id={version_id} code={r.status_code} message="{response_message(r)}"')
             return None
         try:
             return CivitVersion.parse_obj(r.json())
@@ -116,12 +193,78 @@ class CivitaiClient:
     def get_version_by_hash(self, hash_str: str, *, token: str | None = None) -> CivitVersion | None:
         r = self._get(f'/model-versions/by-hash/{hash_str}', token=token)
         if r.status_code != 200:
+            if r.status_code != 404:
+                log.error(f'CivitAI get version by hash: hash={hash_str} code={r.status_code} message="{response_message(r)}"')
             return None
         try:
             return CivitVersion.parse_obj(r.json())
         except Exception as e:
             log.error(f'CivitAI get version by hash parse error: hash={hash_str} {e}')
             return None
+
+    def get_version_mini(self, version_id: int, *, token: str | None = None) -> CivitVersionMini | None:
+        r = self._get(f'/model-versions/mini/{version_id}', token=token)
+        if r.status_code != 200:
+            log.error(f'CivitAI get version mini: id={version_id} code={r.status_code} message="{response_message(r)}"')
+            return None
+        try:
+            return CivitVersionMini.parse_obj(r.json())
+        except Exception as e:
+            log.error(f'CivitAI get version mini parse error: id={version_id} {e}')
+            return None
+
+    def get_version_ids_by_hash(self, hashes: list[str], *, token: str | None = None) -> tuple[list[dict], dict[str, int]]:
+        """{modelVersionId, modelId, hash} rows for SHA256 hashes, plus the status code for each hash whose request failed."""
+        rows, failed = [], {}
+        for i in range(0, len(hashes), BY_HASH_IDS_LIMIT):
+            chunk = hashes[i:i + BY_HASH_IDS_LIMIT]
+            r = self.send('POST', '/model-versions/by-hash/ids', body=chunk, token=token)
+            if r.status_code != 200:
+                log.error(f'CivitAI version ids by hash: count={len(chunk)} code={r.status_code} message="{response_message(r)}"')
+                failed.update(dict.fromkeys(chunk, r.status_code))
+                continue
+            try:
+                rows.extend(r.json())
+            except Exception as e:
+                log.error(f'CivitAI version ids by hash parse error: count={len(chunk)} {e}')
+                failed.update(dict.fromkeys(chunk, 500))
+        return rows, failed
+
+    def get_versions_by_hash(self, hashes: list[str], *, token: str | None = None) -> tuple[list[CivitVersion], dict[str, int]]:
+        """Full versions for SHA256 hashes, plus the status code for each hash whose request failed."""
+        versions, failed = [], {}
+        for i in range(0, len(hashes), BY_HASH_LIMIT):
+            chunk = hashes[i:i + BY_HASH_LIMIT]
+            r = self.send('POST', '/model-versions/by-hash', body=chunk, token=token)
+            if r.status_code != 200:
+                log.error(f'CivitAI versions by hash: count={len(chunk)} code={r.status_code} message="{response_message(r)}"')
+                failed.update(dict.fromkeys(chunk, r.status_code))
+                continue
+            try:
+                versions.extend([CivitVersion.parse_obj(v) for v in r.json()])
+            except Exception as e:
+                log.error(f'CivitAI versions by hash parse error: count={len(chunk)} {e}')
+                failed.update(dict.fromkeys(chunk, 500))
+        return versions, failed
+
+    def get_models_raw(self, model_ids: list[int], *, token: str | None = None) -> tuple[dict[int, dict], dict[int, int]]:
+        """Unparsed /models items keyed by id, plus the status code for each id whose request failed."""
+        models, failed = {}, {}
+        for i in range(0, len(model_ids), MODEL_IDS_LIMIT):
+            chunk = model_ids[i:i + MODEL_IDS_LIMIT]
+            params = {'ids': ','.join(str(m) for m in chunk), 'limit': MODEL_IDS_LIMIT, 'nsfw': 'true'} # ids query drops NSFW models unless nsfw=true
+            r = self.send('GET', '/models', params=params, token=token)
+            if r.status_code != 200:
+                log.error(f'CivitAI models by id: count={len(chunk)} code={r.status_code} message="{response_message(r)}"')
+                failed.update(dict.fromkeys(chunk, r.status_code))
+                continue
+            try:
+                for item in r.json().get('items', []):
+                    models[item['id']] = item
+            except Exception as e:
+                log.error(f'CivitAI models by id parse error: count={len(chunk)} {e}')
+                failed.update(dict.fromkeys(chunk, 500))
+        return models, failed
 
     def get_images(self, *, model_version_id: int | None = None, limit: int | None = None, token: str | None = None) -> list[CivitImage]:
         params: dict = {}
@@ -131,6 +274,7 @@ class CivitaiClient:
             params['limit'] = limit
         r = self._get('/images', params=params, token=token)
         if r.status_code != 200:
+            log.error(f'CivitAI get images: code={r.status_code} message="{response_message(r)}"')
             return []
         data = r.json()
         items = data.get('items', [])
@@ -152,6 +296,7 @@ class CivitaiClient:
             params['limit'] = limit
         r = self._get('/images', params=params, token=token)
         if r.status_code != 200:
+            log.error(f'CivitAI get images: code={r.status_code} message="{response_message(r)}"')
             return []
         data = r.json()
         return data.get('items', [])
@@ -166,6 +311,7 @@ class CivitaiClient:
             params['page'] = page
         r = self._get('/tags', params=params)
         if r.status_code != 200:
+            log.error(f'CivitAI get tags: code={r.status_code} message="{response_message(r)}"')
             return CivitTagResponse()
         try:
             return CivitTagResponse.parse_obj(r.json())
@@ -183,6 +329,7 @@ class CivitaiClient:
             params['page'] = page
         r = self._get('/creators', params=params)
         if r.status_code != 200:
+            log.error(f'CivitAI get creators: code={r.status_code} message="{response_message(r)}"')
             return CivitCreatorResponse()
         try:
             return CivitCreatorResponse.parse_obj(r.json())
@@ -193,6 +340,8 @@ class CivitaiClient:
     def get_me(self, token: str | None = None) -> CivitUserProfile | None:
         r = self._get('/me', token=token)
         if r.status_code != 200:
+            if r.status_code != 401:
+                log.error(f'CivitAI get me: code={r.status_code} message="{response_message(r)}"')
             return None
         try:
             return CivitUserProfile.parse_obj(r.json())
@@ -211,7 +360,7 @@ class CivitaiClient:
         """Civitai enum lists (ModelType, ModelFileType, BaseModel, ActiveBaseModel, BaseModelType). Public endpoint."""
         r = self._get('/enums')
         if r.status_code != 200:
-            log.debug(f'CivitAI enums: code={r.status_code}')
+            log.debug(f'CivitAI enums: code={r.status_code} message="{response_message(r)}"')
             return {}
         try:
             return r.json()
@@ -255,11 +404,10 @@ class CivitaiClient:
                     if not isinstance(error, dict):
                         continue
                     # Parse ZodError: error.message is a JSON-encoded array of issues
-                    import json as _json
                     issues = error.get('issues', [])
                     if not issues:
                         try:
-                            issues = _json.loads(error.get('message', '[]'))
+                            issues = json.loads(error.get('message', '[]'))
                         except Exception:
                             issues = []
                     for issue in issues:
@@ -287,20 +435,15 @@ class CivitaiClient:
                             break
             except Exception as e:
                 log.debug(f'CivitAI discover options: key={key} {e}')
-        # Enrich base-model names with github metadata (group/hidden/ecosystem).
-        # github also serves as the name-list fallback when both /enums and the
-        # probe came back empty.
-        github_entries = fetch_github_base_models()
-        github_index: dict = {entry['name']: entry for entry in github_entries}
-        if not result['base_models'] and github_entries:
-            result['base_models'] = [entry['name'] for entry in github_entries]
+        # hidden marks names in BaseModel but not in ActiveBaseModel, the retired set; an empty ActiveBaseModel hides nothing
+        active = set(enums.get('ActiveBaseModel', []) or [])
         result['base_models_info'] = [
-            github_index.get(name, {'name': name, 'type': 'image', 'group': '', 'hidden': False})
+            {'name': name, 'type': 'image', 'group': '', 'hidden': bool(active) and name not in active}
             for name in result['base_models']
         ]
         options_cache = result
         options_cache_time = now
-        log.debug(f'CivitAI options: types={len(result["types"])} sort={len(result["sort"])} period={len(result["period"])} base_models={len(result["base_models"])} (enriched={len(github_index)})')
+        log.debug(f'CivitAI options: types={len(result["types"])} sort={len(result["sort"])} period={len(result["period"])} base_models={len(result["base_models"])} active={len(active)}')
         return result
 
 

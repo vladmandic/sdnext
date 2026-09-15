@@ -16,17 +16,8 @@ def rename(src:str, dst:str):
             raise e
 
 
-def install_requirements(attention:str='SDPA'):
+def install_requirements():
     install('av')
-    if attention == 'Xformers':
-        log.debug('FramePack install: xformers')
-        install('xformers')
-    elif attention == 'FlashAttention':
-        log.debug('FramePack install: flash-attn')
-        install('flash-attn')
-    elif attention == 'SageAttention':
-        log.debug('FramePack install: sageattention')
-        install('sageattention')
 
 
 def git_clone(git_repo:str, git_dir:str, tmp_dir:str):

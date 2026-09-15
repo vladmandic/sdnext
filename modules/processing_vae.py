@@ -82,6 +82,8 @@ def full_vqgan_decode(latents, model):
 
 def full_vae_decode(latents, model):
     t0 = time.time()
+    if latents.ndim == 4 and latents.shape[1] == 3: # already decoded
+        return latents
     if not hasattr(model, 'vae') and hasattr(model, 'pipe'):
         model = model.pipe
     if model is None or not hasattr(model, 'vae'):
@@ -394,7 +396,7 @@ def reprocess(gallery):
     latent, index = shared.history.selected
     if latent is None or gallery is None:
         return None
-    log.info(f'Reprocessing: latent={latent.shape}')
+    log.info(f'Reprocessing: latent={list(latent.shape)}')
     reprocessed = vae_decode(latent, shared.sd_model, output_type='pil')
     outputs = []
     for i0, i1 in zip(gallery, reprocessed, strict=False):

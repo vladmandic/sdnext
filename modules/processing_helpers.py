@@ -17,12 +17,16 @@ debug_steps = log.trace if os.environ.get('SD_STEPS_DEBUG', None) is not None el
 debug_steps('Trace: STEPS')
 
 
-def is_modular():
-    return sd_models.get_diffusers_task(shared.sd_model) == sd_models.DiffusersTaskType.MODULAR
+def is_modular(pipe = None):
+    if not shared.sd_loaded:
+        return False
+    pipe = pipe or shared.sd_model
+    return sd_models.get_diffusers_task(pipe) == sd_models.DiffusersTaskType.MODULAR
 
 
-def is_txt2img():
-    return sd_models.get_diffusers_task(shared.sd_model) == sd_models.DiffusersTaskType.TEXT_2_IMAGE
+def is_txt2img(pipe = None):
+    pipe = pipe or shared.sd_model
+    return sd_models.get_diffusers_task(pipe) == sd_models.DiffusersTaskType.TEXT_2_IMAGE
 
 
 def is_refiner_enabled(p):
@@ -155,9 +159,11 @@ def images_tensor_to_samples(image, approximation=None, model=None): # pylint: d
     return x_latent
 
 
-def get_sampler_name(sampler_index: int | None = None, img: bool = False) -> str:
+def get_sampler_name(sampler_index: int | str | None = None, img: bool = False) -> str:
     sampler_index = sampler_index or 0
-    if len(sd_samplers.samplers) > sampler_index:
+    if isinstance(sampler_index, str) and any(sampler.name == sampler_index for sampler in sd_samplers.samplers):
+        sampler_name = sampler_index
+    elif isinstance(sampler_index, int) and 0 <= sampler_index < len(sd_samplers.samplers):
         sampler_name = sd_samplers.samplers[sampler_index].name
     else:
         sampler_name = "Default"
@@ -391,7 +397,7 @@ def resize_init_images(p):
             p.init_images = [p.image]
         if getattr(p, 'init_images', None) is not None and len(p.init_images) > 0:
             p.init_images = decode_images(p.init_images)
-            vae_scale_factor = sd_vae.get_vae_scale_factor()
+            vae_scale_factor = sd_vae.get_vae_scale_factor(init_image=True)
             tgt_width = vae_scale_factor * math.ceil(p.init_images[0].width / vae_scale_factor)
             tgt_height = vae_scale_factor * math.ceil(p.init_images[0].height / vae_scale_factor)
             if p.init_images[0].size != (tgt_width, tgt_height):

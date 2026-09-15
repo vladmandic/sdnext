@@ -28,7 +28,7 @@ vae_scale_override = {
 }
 
 
-def get_vae_scale_factor(model: DiffusionPipeline | None = None):
+def get_vae_scale_factor(model: DiffusionPipeline | None = None, init_image: bool = False):
     if not shared.sd_loaded:
         vae_scale_factor = 8
         return vae_scale_factor
@@ -49,6 +49,8 @@ def get_vae_scale_factor(model: DiffusionPipeline | None = None):
         vae_scale_factor = model.pipe.vae_scale_factor
     elif hasattr(model, 'config') and hasattr(model.config, 'vae_scale_factor'):
         vae_scale_factor = model.config.vae_scale_factor
+    elif hasattr(model, 'vae') and hasattr(model.vae, 'spatial_compression_ratio'):
+        vae_scale_factor = model.vae.spatial_compression_ratio # video autoencoders carry the ratio on the instance, which also covers subclasses the name table misses
     else:
         # log.warning(f'VAE: cls={model.__class__.__name__ if model else "None"} scale=unknown')
         vae_scale_factor = 8
@@ -56,9 +58,12 @@ def get_vae_scale_factor(model: DiffusionPipeline | None = None):
         patch_size = model.patch_size
         if isinstance(patch_size, (tuple, list)): # 3d patch sizes are (t, h, w); spatial term is last
             patch_size = patch_size[-1]
+    multiple = vae_scale_factor * patch_size
+    if init_image and model is not None and hasattr(model, 'init_image_multiple'): # a pipeline that downsamples its source image needs a larger multiple than its output
+        multiple = max(multiple, int(model.init_image_multiple))
     if debug:
-        log.trace(f'VAE: cls={model.__class__.__name__ if model else "None"} scale={vae_scale_factor} patch={patch_size}')
-    return vae_scale_factor * patch_size
+        log.trace(f'VAE: cls={model.__class__.__name__ if model else "None"} scale={vae_scale_factor} patch={patch_size} multiple={multiple}')
+    return multiple
 
 
 def load_vae_dict(filename: str):

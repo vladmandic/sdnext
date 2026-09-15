@@ -27,24 +27,28 @@ window.api = '/sdapi/v1';
 window.subpath = '';
 
 const startupPromises: Promise<unknown>[] = [];
-let ok = false;
+let optsReady = false;
+let initialized = false;
 
 async function waitForOpts() {
   // make sure all of the ui is ready and options are loaded
   const t0 = performance.now();
   let t1 = performance.now();
   while (true) {
-    if (t1 - t0 > 120000) {
+    if (t1 - t0 > 60000) {
       log('waitForOpts timeout');
       break;
     }
     if (window.opts && Object.keys(window.opts).length > 0) {
-      ok = window.opts.theme_type === 'Modern' ? 'uiux_separator_appearance' in window.opts : true;
-      if (ok) {
+      optsReady = (window.opts.theme_type === 'Modern') ? 'uiux_separator_appearance' in window.opts : true;
+      if (optsReady) {
         log('waitForOpts', Math.round(t1 - t0));
         timer('waitForOpts', t1 - t0);
         break;
       }
+    }
+    if (t1 - t0 > 15000) {
+      log('waitForOpts delayed', Math.round(t1 - t0));
     }
     await sleep(100);
     t1 = performance.now();
@@ -66,7 +70,9 @@ async function updateSubpath() {
   log('API', { url: window.api });
 }
 
-async function initStartup() {
+export async function initStartup() {
+  if (initialized) return;
+  initialized = true;
   const t0 = performance.now();
   log('initGradio', Math.round(t0 - appStartTime));
   timer('initGradio', t0 - appStartTime);
@@ -96,7 +102,7 @@ async function initStartup() {
   executeCallbacks(uiReadyCallbacks);
 
   // optionally wait for modern ui
-  if (window.waitForUiReady) await window.waitForUiReady();
+  if (window.opts.theme_type.toLowerCase().startsWith('modern') && window.waitForUiReady) await window.waitForUiReady();
 
   // post startup tasks that may take longer but are not critical
   startupPromises.push(Promise.resolve(initLogMonitor()));
@@ -125,6 +131,10 @@ async function initStartup() {
 
 onUiLoaded(initStartup);
 onUiReady(() => log('uiReady'));
+
+window.initStartup = initStartup;
+window.addEventListener('pageshow', (evt) => log('pageShow', evt));
+window.addEventListener('pagehide', (evt) => log('pageHide', evt));
 
 // onAfterUiUpdate(() => log('evt onAfterUiUpdate'));
 // onUiLoaded(() => log('evt onUiLoaded'));

@@ -236,13 +236,18 @@ class XYZGridScript(scripts_manager.Script):
                 valslist = [x for x in valslist_ext if x not in valslist]
             elif opt.type == str_permutations: # pylint: disable=comparison-with-callable
                 valslist = list(permutations(valslist))
-            valslist = [opt.type(x) for x in valslist]
+            elif opt.type == bool:
+                valslist = [str(x).strip().lower() in ['true', 't', 'yes', 'y', '1', 'on'] for x in valslist]
+            else:
+                valslist = [opt.type(x) for x in valslist]
             # Confirm options are valid before starting
             if opt.confirm:
                 opt.confirm(p, valslist)
             return valslist
 
         def parse_axis(x_type, x_values, x_values_dropdown):
+            if x_type is None:
+                x_type = 0
             x_opt = None
             if isinstance(x_type, str):
                 x_opt = [o for o in self.current_axis_options if o.label.lower() == x_type.lower()]
@@ -347,6 +352,7 @@ class XYZGridScript(scripts_manager.Script):
                     return processing.Processed(p, [], p.seed, ""), 0
             p.xyz = True
             pc = copy(p)
+            pc.network_data = None
             pc.override_settings_restore_afterwards = False
             pc.styles = pc.styles[:]
             if no_fixed_seeds:
@@ -382,6 +388,7 @@ class XYZGridScript(scripts_manager.Script):
                         pc.extra_generation_params["Fixed Y Values"] = ", ".join([str(y) for y in ys])
                 info = processing.create_infotext(pc, pc.all_prompts, pc.all_seeds, pc.all_subseeds, grid=f'{len(xs)}x{len(ys)}')
                 grid_infotext.append(info)
+
             if ix == 0 and iy == 0 and iz == 0 and len(zs) > 1: # create main grid info text
                 pc.extra_generation_params = copy(pc.extra_generation_params)
                 if z_opt.label != 'Nothing':
@@ -391,6 +398,7 @@ class XYZGridScript(scripts_manager.Script):
                         pc.extra_generation_params["Fixed Z Values"] = ", ".join([str(z) for z in zs])
                 info = processing.create_infotext(pc, pc.all_prompts, pc.all_seeds, pc.all_subseeds, grid=f'{len(zs)}x{len(xs)}x{len(ys)}')
                 grid_infotext.insert(0, info)
+
             t1 = time.time()
             return processed, t1-t0
 

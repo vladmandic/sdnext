@@ -7,6 +7,8 @@ from modules.logger import log
 from modules.image.namegen import FilenameGenerator # pylint: disable=unused-import
 from modules.paths import resolve_output_path
 
+os.environ.setdefault('OPENCV_FFMPEG_LOGLEVEL', '8') # fatal only; OpenCV reads it once, at its first capture
+
 
 def interpolate_frames(images, count: int = 0, scale: float = 1.0, pad: int = 1, change: float = 0.3):
     if images is None:
@@ -113,9 +115,9 @@ def get_video_params(filepath: str, capture: bool = False):
     codec = decode_fourcc(video.get(cv2.CAP_PROP_FOURCC))
     frame = None
     if capture:
-        _status, frame = video.read()
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        frame = Image.fromarray(frame)
+        ok, raw = video.read()
+        if ok and raw is not None:
+            frame = Image.fromarray(cv2.cvtColor(raw, cv2.COLOR_BGR2RGB))
     video.release()
     return frames, fps, duration, w, h, codec, frame
 

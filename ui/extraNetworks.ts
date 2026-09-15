@@ -103,7 +103,7 @@ function readCardTags(el, tags) {
     updateInput(textarea);
   };
 
-  if (tags.length === 0) return;
+  if (!tags || tags.length === 0) return;
   const cardTags = tags.split('|');
   if (!cardTags || cardTags.length === 0) return;
   const tagsEl = el.getElementsByClassName('tags')[0];

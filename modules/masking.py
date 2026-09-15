@@ -117,16 +117,6 @@ def fill(image, mask):
     return image_mod.convert("RGB")
 
 
-"""
-[docs](https://huggingface.co/docs/transformers/v4.36.1/en/model_doc/sam#overview)
-TODO: additional masking algorithms
-- PerSAM
-- REMBG
-- https://huggingface.co/docs/transformers/tasks/semantic_segmentation
-- transformers.pipeline.MaskGenerationPipeline: https://huggingface.co/models?pipeline_tag=mask-generation
-- transformers.pipeline.ImageSegmentationPipeline: https://huggingface.co/models?pipeline_tag=image-segmentation
-"""
-
 MODELS = {
     'None': None,
     'Facebook SAM ViT Base': 'facebook/sam-vit-base',
@@ -273,7 +263,7 @@ def run_rembg(input_image: Image.Image, input_mask: np.ndarray):
     if "U2NET_HOME" not in os.environ:
         os.environ["U2NET_HOME"] = os.path.join(paths.models_path, "Rembg")
     if opts.model == 'ben2':
-        from modules import ben2
+        from modules.rembg import ben2
         args = {
             'image': input_image,
             'refine': True,

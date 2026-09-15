@@ -10051,6 +10051,7 @@ var ignoreElements = ["logMonitorData", "logWarnings", "logErrors", "tooltip-con
 var ignoreElementsSet = new Set(ignoreElements);
 var ignoreClasses = ["wrap"];
 var mutationTimer;
+var mutationTS;
 var validMutations = [];
 async function mutationCallback(mutations) {
   if (mutations.length <= 0) return;
@@ -10064,7 +10065,10 @@ async function mutationCallback(mutations) {
   if (validMutations.length < 1) return;
   if (mutationTimer) clearTimeout(mutationTimer);
   mutationTimer = setTimeout(async () => {
+    const ts = Date.now() - mutationTS;
+    if (!executedOnLoaded && ts > 1e3) log("onUiLoaded delayed", { ts, prompts: anyPromptExists() });
     if (!executedOnLoaded && anyPromptExists()) {
+      log("onUiLoaded", ts);
       executedOnLoaded = true;
       executeCallbacks(uiLoadedCallbacks);
     }
@@ -10083,6 +10087,7 @@ async function mutationCallback(mutations) {
 }
 document.addEventListener("DOMContentLoaded", () => {
   log("DOMContentLoaded");
+  mutationTS = Date.now();
   gradioObserver = new MutationObserver(mutationCallback);
   gradioObserver.observe(gradioApp(), { childList: true, subtree: true, attributes: false });
 });
@@ -10403,7 +10408,7 @@ function readCardTags(el2, tags) {
     textarea.value = new_prompt;
     updateInput(textarea);
   };
-  if (tags.length === 0) return;
+  if (!tags || tags.length === 0) return;
   const cardTags = tags.split("|");
   if (!cardTags || cardTags.length === 0) return;
   const tagsEl = el2.getElementsByClassName("tags")[0];
@@ -10992,7 +10997,7 @@ async function sendNotification() {
 // ui/progressBar.ts
 var lastState = {};
 var refreshInterval = 1e4;
-var progressTimeout = 180;
+var progressTimeout = 600;
 var startTimeout = 5;
 function setRefreshInterval() {
   refreshInterval = window.opts.live_preview_refresh_period || 500;
@@ -11102,6 +11107,7 @@ function requestProgress(id_task = "undefined", progressEl = null, galleryEl = n
   let img;
   const initLivePreview = () => {
     if (!parentGallery) return;
+    debug("initLivePreview", { el: galleryEl, parent: parentGallery });
     const footers = Array.from(gradioApp().querySelectorAll(".gallery_footer"));
     for (const footer of footers) {
       if (footer.id !== "gallery_footer") footer.style.display = "none";
@@ -11152,7 +11158,7 @@ function requestProgress(id_task = "undefined", progressEl = null, galleryEl = n
   };
   const previewVisible = () => {
     try {
-      return !galleryEl?.closest(".section")?.classList.contains("minimize");
+      return galleryEl ? !galleryEl.closest(".section")?.classList.contains("minimize") : true;
     } catch {
       return true;
     }
@@ -11231,7 +11237,7 @@ async function updateUI(model) {
 }
 async function updateModel() {
   const req = await authFetch2(`${window.api}/checkpoint`);
-  if (req.ok) {
+  if (req && req.ok) {
     const model = await req.json();
     if (model?.type?.length > 0) updateUI(model);
   }
@@ -11348,7 +11354,7 @@ async function setTheme(val, old) {
   for (const link of links) {
     const href = link.href.replace(old, val);
     const res = await authFetch2(href);
-    if (res.ok) {
+    if (res?.ok) {
       log("setTheme", old, val);
       link.href = link.href.replace(old, val);
     } else {
@@ -11528,7 +11534,7 @@ function submit_framepack(...args) {
 function submit_ltx(...args) {
   const id = randomId();
   log("submitFramepack", id);
-  requestProgress(id, null, null);
+  requestProgress(id, null, gradioApp().getElementById("ltx_output_video"));
   window.submit_state = "";
   args[0] = id;
   return args;
@@ -11536,7 +11542,7 @@ function submit_ltx(...args) {
 function submit_minimax(...args) {
   const id = randomId();
   log("submitMiniMax", id);
-  requestProgress(id, null, null);
+  requestProgress(id, null, gradioApp().getElementById("minimax_output_video"));
   window.submit_state = "";
   args[0] = id;
   return args;
@@ -12335,6 +12341,16 @@ function showAllSettings() {
     elem.style.display = "block";
   });
 }
+function openSettingsSection(sectionId) {
+  const settingsTab = gradioApp().getElementById("tab_settings");
+  const settingsButton = settingsTab ? gradioApp().querySelector(`button[aria-controls="${settingsTab.id}"]`) : null;
+  settingsButton?.click();
+  const section = gradioApp().getElementById(`settings_section_tab_${sectionId}`);
+  const sectionButton = section ? gradioApp().querySelector(`button[aria-controls="${section.id}"]`) : null;
+  sectionButton?.click();
+  section?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+window.openSettingsSection = openSettingsSection;
 function markIfModified(setting_name, value) {
   if (!opts_metadata[setting_name]) return;
   const elem = gradioApp().getElementById(`modification_indicator_${setting_name}`);
@@ -12445,7 +12461,7 @@ async function initModels() {
   const en = gradioApp().getElementById("txt2img_extra_networks");
   if (!el2 || !en) return;
   const req = await authFetch2(`${window.api}/sd-models`);
-  const res = req.ok ? await req.json() : [];
+  const res = req && req.ok ? await req.json() : [];
   log("initModels", res.length);
   const ready = () => `
     <p style='color: white'>Ready</p>
@@ -12555,7 +12571,7 @@ var ConnectionMonitorState = class _ConnectionMonitorState {
       else return;
     }
     this.element.dataset.hint = this.toHTML();
-    this.element.style.backgroundColor = this.online ? "var(--sd-main-accent-color)" : "var(--color-error)";
+    this.element.style.background = this.online ? "var(--sd-main-accent-color)" : "var(--color-error)";
   }
 };
 async function updateIndicator(online, data = {}, msg) {
@@ -13493,7 +13509,7 @@ async function delayFetchThumb(fn, signal) {
     outstanding++;
     const ts = t0.toString();
     const res = await authFetch2(`${window.api}/browser/thumb?file=${encodeURI(fn)}&ts=${ts}&exif=false`, { priority: "low" });
-    if (!res.ok) {
+    if (!res?.ok) {
       error(`fetchThumb: ${res.statusText}`);
       return void 0;
     }
@@ -13568,7 +13584,7 @@ Resolution: ${this.width} x ${this.height}`;
         }
       }
     };
-    let ok2 = true;
+    let ok = true;
     if (cachedData?.img) {
       img.src = cachedData.img;
       this.exif = cachedData.exif;
@@ -13581,7 +13597,7 @@ Resolution: ${this.width} x ${this.height}`;
       try {
         const json = await delayFetchThumb(this.src, this.#signal);
         if (!json) {
-          ok2 = false;
+          ok = false;
           pb.stats.failed = (pb.stats.failed || 0) + 1;
         } else {
           img.src = json.data;
@@ -13616,7 +13632,7 @@ Resolution: ${this.width} x ${this.height}`;
     pb.stats.callback = (pb.stats.callback || 0) + Math.round(performance.now() - t0);
     if (this.#signal.aborted) return;
     galleryHashes.add(this.hash);
-    if (!ok2) return;
+    if (!ok) return;
     img.onclick = () => {
       setGallerySelectionByElement(this, { send: true });
     };
@@ -14260,6 +14276,7 @@ async function observeImageError(img) {
     img.src = loadingSvg;
     const { default: heic2any } = await import("https://esm.sh/heic2any@0.0.4");
     const res = await authFetch2(origSrc);
+    if (!res || res.status !== 200) return;
     const imageBlob = await res.blob();
     if (!imageBlob || imageBlob.size <= 1024) {
       error("imageHEIC", { src: origSrc, res, blob: imageBlob });
@@ -14735,7 +14752,7 @@ var xnEngine = {
   async fetchJson(path) {
     try {
       const resp = await authFetch(`${window.api}${path}`);
-      if (!resp.ok) throw new Error(`${resp.status}`);
+      if (!resp?.ok) throw new Error(`${resp?.status}`);
       return await resp.json();
     } catch (e) {
       log("autoComplete", { xnFetchFailed: path, error: String(e) });
@@ -14752,16 +14769,24 @@ var xnEngine = {
       }
       this.lora = new XnIndex(items);
     }
-    const embData = await this.fetchJson("/embeddings");
-    if (embData && typeof embData === "object") {
-      const loaded = Array.isArray(embData.loaded) ? embData.loaded : [];
-      this.embed = new XnIndex(loaded.map((name) => ({ name: String(name) })));
+    if (window.opts.diffusers_enable_embed) {
+      const embData = await this.fetchJson("/embeddings");
+      if (embData && typeof embData === "object") {
+        const loaded = Array.isArray(embData.loaded) ? embData.loaded : [];
+        this.embed = new XnIndex(loaded.map((name) => ({ name: String(name) })));
+      }
+    } else {
+      this.embed = new XnIndex([]);
     }
-    const wcData = await this.fetchJson("/wildcards");
-    if (Array.isArray(wcData)) {
-      this.wildcard = new XnIndex(
-        wcData.filter((w) => typeof w === "object" && w && "name" in w && typeof w.name === "string").map((w) => ({ name: w.name }))
-      );
+    if (window.opts.wildcards_enabled) {
+      const wcData = await this.fetchJson("/wildcards");
+      if (Array.isArray(wcData)) {
+        this.wildcard = new XnIndex(
+          wcData.filter((w) => typeof w === "object" && w && "name" in w && typeof w.name === "string").map((w) => ({ name: w.name }))
+        );
+      }
+    } else {
+      this.wildcard = new XnIndex([]);
     }
     log("autoComplete", {
       xnLoaded: true,
@@ -14984,7 +15009,7 @@ var engine = {
     await Promise.all(toLoad.map(async (name) => {
       try {
         const resp = await authFetch(`${window.api}/autocomplete/${name}`);
-        if (!resp.ok) throw new Error(`${resp.status}`);
+        if (!resp?.ok) throw new Error(`${resp?.status}`);
         const data = await resp.json();
         this.indices.set(name, new TagIndex(data));
         if (data.categories) {
@@ -16084,8 +16109,8 @@ async function createSplash() {
       <div id="splashLog" class="splash-log" style="position: fixed; bottom: 0; text-align: left; padding: 8vh 8px 8px 8px; font-size: 12px; width: 100%; background: linear-gradient(0deg, darkslategray, transparent); opacity: 50%;"></div>
     </div>`;
   document.body.insertAdjacentHTML("beforeend", splash);
-  const ok2 = await preloadImages();
-  if (!ok2) {
+  const ok = await preloadImages();
+  if (!ok) {
     removeSplash();
     return;
   }
@@ -16104,6 +16129,15 @@ async function createSplash() {
     if (motdEl) motdEl.innerHTML = clean;
   }).catch((err) => error(`getMOTD: ${err}`));
   log("loadGradioUi");
+  const splashMonitor = setInterval(() => {
+    const splashVisible = !!document.getElementById("splash");
+    if (splashVisible) {
+      log("splashVisible", { visible: true, elapsed: Math.round(performance.now() - appStartTime) });
+    } else {
+      log("splashVisible", { visible: false, elapsed: Math.round(performance.now() - appStartTime) });
+      clearInterval(splashMonitor);
+    }
+  }, 5e3);
 }
 window.onload = createSplash;
 
@@ -16122,22 +16156,26 @@ function addLegacyNotice() {
 window.api = "/sdapi/v1";
 window.subpath = "";
 var startupPromises = [];
-var ok = false;
+var optsReady = false;
+var initialized = false;
 async function waitForOpts() {
   const t0 = performance.now();
   let t1 = performance.now();
   while (true) {
-    if (t1 - t0 > 12e4) {
+    if (t1 - t0 > 6e4) {
       log("waitForOpts timeout");
       break;
     }
     if (window.opts && Object.keys(window.opts).length > 0) {
-      ok = window.opts.theme_type === "Modern" ? "uiux_separator_appearance" in window.opts : true;
-      if (ok) {
+      optsReady = window.opts.theme_type === "Modern" ? "uiux_separator_appearance" in window.opts : true;
+      if (optsReady) {
         log("waitForOpts", Math.round(t1 - t0));
         timer("waitForOpts", t1 - t0);
         break;
       }
+    }
+    if (t1 - t0 > 15e3) {
+      log("waitForOpts delayed", Math.round(t1 - t0));
     }
     await sleep(100);
     t1 = performance.now();
@@ -16157,6 +16195,8 @@ async function updateSubpath() {
   log("API", { url: window.api });
 }
 async function initStartup() {
+  if (initialized) return;
+  initialized = true;
   const t0 = performance.now();
   log("initGradio", Math.round(t0 - appStartTime));
   timer("initGradio", t0 - appStartTime);
@@ -16178,7 +16218,7 @@ async function initStartup() {
   await waitForOpts();
   await updateSubpath();
   executeCallbacks(uiReadyCallbacks);
-  if (window.waitForUiReady) await window.waitForUiReady();
+  if (window.opts.theme_type.toLowerCase().startsWith("modern") && window.waitForUiReady) await window.waitForUiReady();
   startupPromises.push(Promise.resolve(initLogMonitor()));
   startupPromises.push(Promise.resolve(setRefreshInterval()));
   startupPromises.push(Promise.resolve(setupExtraNetworks()));
@@ -16200,6 +16240,9 @@ async function initStartup() {
 }
 onUiLoaded(initStartup);
 onUiReady(() => log("uiReady"));
+window.initStartup = initStartup;
+window.addEventListener("pageshow", (evt) => log("pageShow", evt));
+window.addEventListener("pagehide", (evt) => log("pageHide", evt));
 
 // ui/extensions.ts
 function extensions_apply(_extensionsDisabledList, _extensionsUpdateList, disableAll) {
@@ -16356,6 +16399,9 @@ var selectedType = [];
 var selectedBase = [];
 var selectedModelId = [];
 var selectedVersionId = [];
+var currentModel = null;
+var precisionOrder = ["fp32", "bf16", "fp16", "fp8", "int8", "int4"];
+var companionTypes = ["VAE", "Text Encoder"];
 function clearModelDetails() {
   const el2 = gradioApp().getElementById("model-details") || gradioApp().getElementById("civitai_models_output") || gradioApp().getElementById("models_outcome");
   if (!el2) return;
@@ -16386,6 +16432,7 @@ var modelDetailsHTML = `
           <th>Type</th>
           <th>Base</th>
           <th>File</th>
+          <th>Variant</th>
           <th>Updated</th>
           <th>Size</th>
           <th>Availability</th>
@@ -16398,19 +16445,65 @@ var modelDetailsHTML = `
     </table>
   </div>
 `;
-var modelVersionsHTML = `
-  <tr>
-    <td>{url}</td>
-    <td>{name}</td>
-    <td>{type}</td>
-    <td>{base}</td>
-    <td>{file}</td>
-    <td>{mtime}</td>
-    <td>{size}</td>
-    <td>{availability}</td>
-    <td><div>{desc}</div></td>
-  </tr>
-`;
+function fileVariant(file) {
+  return file.metadata?.fp || file.metadata?.quantType || null;
+}
+function sortFiles(files) {
+  const isModel = (f) => f.type === "Model" || f.type === "Pruned Model";
+  const rank = (f) => {
+    const index = precisionOrder.indexOf((fileVariant(f) || "").toLowerCase());
+    return index < 0 ? precisionOrder.length : index;
+  };
+  return [...files].sort((a, b) => Number(isModel(b)) - Number(isModel(a)) || rank(a) - rank(b) || (b.size || 0) - (a.size || 0));
+}
+function insertNameSuffix(name, suffix) {
+  const dot = name.lastIndexOf(".");
+  return dot > 0 ? `${name.slice(0, dot)}-${suffix}${name.slice(dot)}` : `${name}-${suffix}`;
+}
+function fileSaveName(file, siblings) {
+  const tier1 = (f) => {
+    const variant = fileVariant(f);
+    return variant ? insertNameSuffix(f.name || "", variant) : f.name || "";
+  };
+  const tier2 = (f) => f.metadata?.size ? insertNameSuffix(tier1(f), f.metadata.size) : tier1(f);
+  const others = siblings.filter((s) => s.id !== file.id);
+  const name = tier1(file);
+  if (!others.some((s) => tier1(s) === name)) return name;
+  const sized = tier2(file);
+  if (!others.some((s) => tier2(s) === sized)) return sized;
+  return insertNameSuffix(name, String(file.id));
+}
+function escapeHTML(text) {
+  return text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+}
+function versionRows(version, divider) {
+  const files = sortFiles(version.files);
+  const entries = files.length > 0 ? files : [null];
+  const border = divider ? ' style="border-top: 1px solid var(--sd-panel-border-color, #555)"' : "";
+  const span = entries.length > 1 ? ` rowspan="${entries.length}"` : "";
+  const versionCell = (content) => `<td${span}${border}>${content}</td>`;
+  return entries.map((file, i) => {
+    const first = i === 0;
+    const cell = (content) => `<td${first ? border : ""}>${content}</td>`;
+    const link = file ? `<div class="link" onclick="startCivitFileDownload(${version.id}, ${file.id})"> \u{F01DA} </div>` : "";
+    const name = file ? `<a href="${escapeHTML(file.url || "")}" target="_blank" rel="noopener noreferrer">${escapeHTML(file.name || "unknown")}</a>${file.primary ? ' <span title="Primary file">\u2605</span>' : ""}` : "unknown";
+    const variant = file ? [fileVariant(file), file.metadata?.size].filter(Boolean).join(" \xB7 ") : "";
+    const size = file?.size ? `${(file.size / 1024 / 1024 / 1024).toFixed(2)} GB` : "unknown";
+    const cells = [
+      cell(link),
+      first ? versionCell(escapeHTML(version.name || "unknown")) : "",
+      cell(escapeHTML(file?.type || "unknown")),
+      first ? versionCell(escapeHTML(version.base || "unknown")) : "",
+      cell(name),
+      cell(escapeHTML(variant || "-")),
+      first ? versionCell(new Date(version.mtime).toLocaleDateString()) : "",
+      cell(size),
+      first ? versionCell(escapeHTML(version.availability || "unknown")) : "",
+      first ? versionCell(`<div>${version.desc || "no description available"}</div>`) : ""
+    ];
+    return `<tr>${cells.join("")}</tr>`;
+  }).join("");
+}
 async function modelCardClick(id) {
   log("modelCardClick id", id);
   const el2 = gradioApp().getElementById("model-details") || gradioApp().getElementById("civitai_models_output") || gradioApp().getElementById("models_outcome");
@@ -16424,17 +16517,8 @@ async function modelCardClick(id) {
   log("modelCardClick data", dataArray);
   if (!dataArray || dataArray.length === 0) return;
   const data = dataArray[0];
-  const versionsHTML = data.versions.map((v) => modelVersionsHTML.format({
-    url: `<div class="link" onclick="startCivitDownload('${v.files[0]?.url}', '${v.files[0]?.name}', '${data.type}', '${v.base || ""}', ${data.id}, ${v.id})"> \u{F01DA} </div>`,
-    name: v.name || "unknown",
-    type: v.files[0]?.type || "unknown",
-    base: v.base || "unknown",
-    mtime: new Date(v.mtime).toLocaleDateString(),
-    availability: v.availability || "unknown",
-    size: v.files[0]?.size ? `${(v.files[0].size / 1024 / 1024).toFixed(2)} MB` : "unknown",
-    file: `<a href=${v.files[0]?.url} target="_blank" rel="noopener noreferrer">${v.files[0]?.name || "unknown"}</a>`,
-    desc: v.desc || "no description available"
-  })).join("");
+  currentModel = data;
+  const versionsHTML = data.versions.map((v, i) => versionRows(v, i > 0)).join("");
   const url2 = `<a href="${data.url}" target="_blank" rel="noopener noreferrer">${data.name || "unknown"}</a>`;
   const creator = `<a href="https://civitai.com/user/${data.creator}" target="_blank" rel="noopener noreferrer">${data.creator || "unknown"}</a>`;
   const images = data.versions.map((v) => v.images).flat().map((i) => i.url);
@@ -16454,41 +16538,29 @@ async function modelCardClick(id) {
   el2.innerHTML = modelHTML;
 }
 window.modelCardClick = modelCardClick;
-function startCivitDownload(url2, name, type, base, modelId, versionId) {
-  log("startCivitDownload", { url: url2, name, type, base, modelId, versionId });
-  selectedURL = [url2];
-  selectedName = [name];
-  selectedType = [type];
-  selectedBase = [base || ""];
-  selectedModelId = [modelId || 0];
-  selectedVersionId = [versionId || 0];
+function queueFiles(model, queued) {
+  selectedURL = queued.map(({ file }) => file.url || "");
+  selectedName = queued.map(({ version, file }) => fileSaveName(file, version.files));
+  selectedType = queued.map(({ file }) => (companionTypes.includes(file.type || "") ? file.type : model.type) || "");
+  selectedBase = queued.map(({ version }) => version.base || "");
+  selectedModelId = queued.map(() => model.id || 0);
+  selectedVersionId = queued.map(({ version }) => version.id || 0);
   const civitDownloadBtn = gradioApp().getElementById("civitai_download_btn");
   if (civitDownloadBtn) civitDownloadBtn.click();
 }
-window.startCivitDownload = startCivitDownload;
+function startCivitFileDownload(versionId, fileId) {
+  log("startCivitFileDownload", { versionId, fileId });
+  const version = currentModel?.versions.find((v) => v.id === versionId);
+  const file = version?.files.find((f) => f.id === fileId);
+  if (!currentModel || !version || !file) return;
+  queueFiles(currentModel, [{ version, file }]);
+}
+window.startCivitFileDownload = startCivitFileDownload;
 function startCivitAllDownload(evt) {
   log("startCivitAllDownload", evt);
-  const table = gradioApp().getElementById("model-versions-table");
-  if (!table) return;
-  const versions = table.querySelectorAll("tr");
-  selectedURL = [];
-  selectedName = [];
-  selectedType = [];
-  selectedBase = [];
-  selectedModelId = [];
-  selectedVersionId = [];
-  for (const version of versions) {
-    const parsed = version.querySelector("td:nth-child(1) div")?.getAttribute("onclick")?.match(/startCivitDownload\('([^']+)', '([^']+)', '([^']+)', '([^']*)', (\d+), (\d+)\)/);
-    if (!parsed || parsed.length < 7) continue;
-    selectedURL.push(parsed[1]);
-    selectedName.push(parsed[2]);
-    selectedType.push(parsed[3]);
-    selectedBase.push(parsed[4]);
-    selectedModelId.push(parseInt(parsed[5], 10));
-    selectedVersionId.push(parseInt(parsed[6], 10));
-  }
-  const civitDownloadBtn = gradioApp().getElementById("civitai_download_btn");
-  if (civitDownloadBtn) civitDownloadBtn.click();
+  if (!currentModel) return;
+  const queued = currentModel.versions.map((version) => ({ version, file: version.files.find((f) => f.primary) || version.files[0] })).filter((entry) => !!entry.file);
+  queueFiles(currentModel, queued);
 }
 window.startCivitAllDownload = startCivitAllDownload;
 function downloadCivitModel(modelUrl, modelName, modelType, modelBase, mId, vId, modelPath, civitToken, innerHTML) {

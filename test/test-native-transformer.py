@@ -843,6 +843,7 @@ def test_transformer_spec_defaults():
     assert spec.acceptable_missing == ('rope.', 'pos_embedder.', 'learnable_pos_embed.')
     assert spec.ignored_prefixes == ('cond_stage_model.', 'conditioner.', 'first_stage_model.', 'text_encoders.', 'vae.')
     assert spec.forbidden_markers == ()
+    assert spec.infer_config is None
 
 
 def test_sibling_spec_defaults():
@@ -901,6 +902,23 @@ class MockKwargsTransformer(MockMiniTransformer):
     def from_config(cls, config: dict, **kwargs) -> 'MockKwargsTransformer':
         cls.last_kwargs = dict(kwargs)
         return cls(dim=config['dim'])
+
+
+class MockLayeredTransformer(torch.nn.Module):
+    """Depth comes from config, mirroring ``num_layers`` on real DiTs."""
+
+    @classmethod
+    def from_config(cls, config: dict) -> 'MockLayeredTransformer':
+        return cls(dim=config['dim'], num_layers=config['num_layers'])
+
+    def __init__(self, dim: int, num_layers: int):
+        super().__init__()
+        self.blocks = torch.nn.ModuleList([torch.nn.Linear(dim, dim) for _ in range(num_layers)])
+
+
+def infer_num_layers(state_dict: dict) -> dict:
+    indices = [int(k.split('.')[1]) for k in state_dict if k.startswith('blocks.')]
+    return {'num_layers': max(indices) + 1} if indices else {}
 
 
 def write_fixture(state_dict_keys: dict, fd: int, path: str, metadata: dict | None = None) -> str:
@@ -1007,6 +1025,51 @@ def test_load_forwards_kwargs_to_from_config():
 
         assert MockKwargsTransformer.last_kwargs == {'low_cpu_mem_usage': True}
         assert isinstance(transformer, MockKwargsTransformer)
+    finally:
+        if os.path.exists(path):
+            os.unlink(path)
+
+
+def test_load_infer_config_sizes_module_to_file():
+    """A file deeper than the base config loads only with the hook; without it
+    the extra block is an arch mismatch."""
+    fd, path = tempfile.mkstemp(suffix='.safetensors')
+    try:
+        dim = 8
+        file_layers = 3
+        raw = {}
+        for i in range(file_layers):
+            raw[f'model.diffusion_model.blocks.{i}.weight'] = torch.randn(dim, dim)
+            raw[f'model.diffusion_model.blocks.{i}.bias'] = torch.zeros(dim)
+        write_fixture(raw, fd, path)
+
+        orig_fetch = nt.fetch_component_config
+        nt.fetch_component_config = lambda repo, sub: {'dim': dim, 'num_layers': 2}
+        from modules import model_quant
+        orig_get_dit = model_quant.get_dit_args
+        orig_get_qtype = model_quant.get_quant_type
+        orig_do_post = model_quant.do_post_load_quant
+        model_quant.get_dit_args = lambda *a, **k: ({}, {})
+        model_quant.get_quant_type = lambda *a, **k: None
+        model_quant.do_post_load_quant = lambda *a, **k: None
+
+        try:
+            try:
+                nt.load(local_file=path, repo_id='fake/repo', spec=nt.TransformerSpec(cls=MockLayeredTransformer), diffusers_cfg={})
+                raise AssertionError('expected OverrideArchMismatch without infer_config')
+            except nt.OverrideArchMismatch:
+                pass
+            spec = nt.TransformerSpec(cls=MockLayeredTransformer, infer_config=infer_num_layers)
+            transformer, _ = nt.load(local_file=path, repo_id='fake/repo', spec=spec, diffusers_cfg={})
+        finally:
+            nt.fetch_component_config = orig_fetch
+            model_quant.get_dit_args = orig_get_dit
+            model_quant.get_quant_type = orig_get_qtype
+            model_quant.do_post_load_quant = orig_do_post
+
+        assert len(transformer.blocks) == file_layers
+        loaded_w = transformer.blocks[2].weight.detach().cpu()
+        assert torch.allclose(loaded_w, raw['model.diffusion_model.blocks.2.weight'].to(loaded_w.dtype))
     finally:
         if os.path.exists(path):
             os.unlink(path)
@@ -2205,6 +2268,61 @@ def test_build_component_comfy_preempts_sdnq_fresh_quant():
 
 
 # ============================================================
+# anima config inference (depth-expanded checkpoints)
+# ============================================================
+
+def anima_block_keys(count: int, prefix: str = 'blocks') -> dict:
+    sd = {}
+    for i in range(count):
+        sd[f'{prefix}.{i}.self_attn.q_proj.weight'] = torch.zeros(2, 2)
+        sd[f'{prefix}.{i}.mlp.layer2.weight'] = torch.zeros(2, 2)
+    return sd
+
+
+def test_anima_infer_config_counts_cosmos_blocks():
+    """40-block file reports num_layers=40; adapter ``blocks.N`` keys and
+    top-level tensors do not count."""
+    from pipelines import anima
+    sd = anima_block_keys(40)
+    sd['llm_adapter.blocks.5.self_attn.q_proj.weight'] = torch.zeros(2, 2)
+    sd['x_embedder.proj.1.weight'] = torch.zeros(2, 2)
+    sd['final_layer.linear.weight'] = torch.zeros(2, 2)
+    assert anima.infer_config(sd) == {'num_layers': 40}
+
+
+def test_anima_infer_config_matches_base_depth():
+    from pipelines import anima
+    assert anima.infer_config(anima_block_keys(28)) == {'num_layers': 28}
+
+
+def test_anima_infer_config_diffusers_layout():
+    """Files already in diffusers key layout count ``transformer_blocks.N``."""
+    from pipelines import anima
+    assert anima.infer_config(anima_block_keys(40, prefix='transformer_blocks')) == {'num_layers': 40}
+
+
+def test_anima_infer_config_comfy_sidecars_do_not_inflate():
+    """Per-block quant sidecars share the block index and do not change the count."""
+    from pipelines import anima
+    sd = anima_block_keys(40)
+    for i in range(40):
+        sd[f'blocks.{i}.self_attn.q_proj.weight_scale'] = torch.zeros(2, 1)
+        sd[f'blocks.{i}.self_attn.q_proj.comfy_quant'] = torch.zeros(8, dtype=torch.uint8)
+    assert anima.infer_config(sd) == {'num_layers': 40}
+
+
+def test_anima_infer_config_no_blocks_returns_empty():
+    from pipelines import anima
+    assert anima.infer_config({'x_embedder.proj.1.weight': torch.zeros(2, 2)}) == {}
+    assert anima.infer_config({}) == {}
+
+
+def test_anima_spec_registers_infer_config():
+    from pipelines import anima
+    assert anima.ANIMA_SPEC.infer_config is anima.infer_config
+
+
+# ============================================================
 # Run
 # ============================================================
 
@@ -2353,6 +2471,7 @@ def run_all():
     for fn in [
         test_load_end_to_end_with_bfl_prefix_no_converter,
         test_load_forwards_kwargs_to_from_config,
+        test_load_infer_config_sizes_module_to_file,
         test_load_end_to_end_with_sibling_partition,
         test_load_raises_on_missing_sibling_class,
         test_load_rejects_non_safetensors,
@@ -2398,6 +2517,18 @@ def run_all():
         test_load_fused_comfy_end_to_end,
         test_load_fused_bf16_end_to_end,
         test_load_fused_convrot_end_to_end,
+    ]:
+        run_test(cat, fn)
+
+    log.warning('=== anima config inference ===')
+    cat = category('anima')
+    for fn in [
+        test_anima_infer_config_counts_cosmos_blocks,
+        test_anima_infer_config_matches_base_depth,
+        test_anima_infer_config_diffusers_layout,
+        test_anima_infer_config_comfy_sidecars_do_not_inflate,
+        test_anima_infer_config_no_blocks_returns_empty,
+        test_anima_spec_registers_infer_config,
     ]:
         run_test(cat, fn)
 

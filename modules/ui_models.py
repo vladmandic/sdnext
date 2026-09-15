@@ -521,7 +521,7 @@ def create_ui():
                 )
 
             with gr.Tab(label="CivitAI", elem_id="models_civitai_tab") as civitai_tab:
-                from modules.civitai.search_civitai import search_civitai, create_model_cards, base_models
+                from modules.civitai.search_civitai import search_civitai, create_model_cards
 
                 sort_fallback = ['', 'Most Downloaded', 'Highest Rated', 'Most Liked', 'Most Discussed',
                                  'Most Collected', 'Most Images', 'Newest', 'Oldest']
@@ -572,7 +572,7 @@ def create_ui():
                     civit_download_btn = gr.Button(value="Download model", variant='primary', elem_id="civitai_download_btn", visible=False)
                     with gr.Row():
                         civit_type = gr.Dropdown(choices=type_fallback, label='CivitAI model type', value='', elem_id='civit_type')
-                        civit_base = gr.Dropdown(choices=base_models, label='CivitAI base model', value='')
+                        civit_base = gr.Dropdown(choices=[''], label='CivitAI base model', value='')
                     with gr.Row():
                         civit_sort = gr.Dropdown(choices=sort_fallback, label='CivitAI sort', value='', elem_id='civit_sort')
                         civit_period = gr.Dropdown(
@@ -628,14 +628,15 @@ def create_ui():
 
                 def civitai_on_tab_enter():
                     nonlocal _civitai_loaded
-                    if _civitai_loaded:
-                        return [gr.update(), gr.update(), gr.update(), gr.update(), gr.update()]
-                    _civitai_loaded = True
                     from modules.civitai.client_civitai import client
-                    options = client.discover_options()
+                    options = client.discover_options()  # cached, so every visit can refresh the choices
                     type_choices = [''] + (options.get('types', []) or type_fallback[1:])
                     sort_choices = [''] + (options.get('sort', []) or sort_fallback[1:])
-                    base_choices = [''] + (options.get('base_models', []) or base_models[1:])
+                    hidden_bases = {entry.get('name') for entry in options.get('base_models_info', []) if entry.get('hidden')}  # retired bases, which the site's own filter omits too
+                    base_choices = [''] + [base for base in options.get('base_models', []) if base not in hidden_bases]
+                    if _civitai_loaded:
+                        return [gr.update(choices=type_choices), gr.update(choices=sort_choices), gr.update(choices=base_choices), gr.update(), gr.update()]
+                    _civitai_loaded = True
                     results = search_civitai(query='', sort='Most Downloaded', period='AllTime', limit=20)
                     html = create_model_cards(results)
                     return [

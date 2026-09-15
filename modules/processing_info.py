@@ -59,9 +59,11 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         "Scheduler": shared.sd_model.scheduler.__class__.__name__ if getattr(shared.sd_model, 'scheduler', None) is not None else None,
         "Seed": all_seeds[index],
         "Seed resize from": None if p.seed_resize_from_w <= 0 or p.seed_resize_from_h <= 0 else f"{p.seed_resize_from_w}x{p.seed_resize_from_h}",
+        "CFG name": p.cfg_name if p.cfg_name != 'Default' else None,
         "CFG scale": p.cfg_scale if p.cfg_scale > -1 else None,
         "CFG rescale": p.cfg_rescale if p.cfg_rescale > -1 else None,
-        "CFG end": p.cfg_end if p.cfg_end < 1.0 else None,
+        "CFG start": p.cfg_start if p.cfg_start > 0.0 else None,
+        "CFG stop": p.cfg_stop if p.cfg_stop < 1.0 else None,
         "CFG true": p.cfg_true if p.cfg_true > 0 else None,
         "CFG adaptive": p.cfg_adaptive if p.cfg_adaptive != 0.5 else None,
         "CLiP-skip": p.clip_skip if p.clip_skip > 1 else None,
@@ -183,7 +185,7 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         args['ToMe'] = _tome if _tome != 0 else None
     elif _token_method == 'ToDo':
         args['ToDo'] = _todo if _todo != 0 else None
-    if hasattr(shared.sd_model, 'embedding_db') and len(shared.sd_model.embedding_db.embeddings_used) > 0: # register used embeddings
+    if hasattr(shared.sd_model, 'embedding_db') and (shared.sd_model.embedding_db is not None) and len(shared.sd_model.embedding_db.embeddings_used) > 0: # register used embeddings
         args['Embeddings'] = ', '.join(shared.sd_model.embedding_db.embeddings_used)
 
     # samplers
@@ -206,11 +208,6 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         args['Sampler shift'] = get_opt('schedulers_shift') if get_opt('schedulers_shift') != shared.opts.data_labels.get('schedulers_shift').default else None
         args['Sampler dynamic shift'] = get_opt('schedulers_dynamic_shift') if get_opt('schedulers_dynamic_shift') != shared.opts.data_labels.get('schedulers_dynamic_shift').default else None
 
-    # model specific
-    if shared.sd_model_type == 'h1':
-        args['LLM'] =  None if shared.opts.model_h1_llama_repo == 'Default' else shared.opts.model_h1_llama_repo
-
-    # args.update(p.extra_generation_params)
     for k, v in p.extra_generation_params.items():
         if isinstance(v, (list, tuple)) and (job_size > index) and (len(v) > 1) and (len(v) == job_size): # likely a per-job param
             args[k] = v[index]

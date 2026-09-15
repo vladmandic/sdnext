@@ -59,6 +59,7 @@ def enhance(args): # pylint: disable=redefined-outer-name
         options['model'] = str(args.model)
     if args.image:
         options['image'] = encode(args.image)
+        options['use_vision'] = True
     response = post('/sdapi/v1/prompt-enhance', options)
     return response
 
@@ -72,6 +73,6 @@ if __name__ == "__main__":
     parser.add_argument('--image', type=str, default=None, required=False, help='optional input image')
     parser.add_argument('--nsfw', type=bool, action=argparse.BooleanOptionalAction, required=False, help='nsfw allowed')
     args = parser.parse_args()
-    log.info(f'api-upscale: {args}')
+    log.info(f'api-enhance: {args}')
     result = enhance(args)
     log.info(result)

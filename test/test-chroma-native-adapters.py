@@ -591,7 +591,7 @@ def test_parse_key_all_prefixes():
         # Bare BFL path (no prefix)
         ('double_blocks.0.img_attn.proj.lora_A.weight',
          C.LORA_SUFFIXES,
-         (None, 'double_blocks.0.img_attn.proj', 'lora_down.weight')),
+         (C.BARE_DIFFUSERS_PREFIX_USED, 'double_blocks.0.img_attn.proj', 'lora_down.weight')),
         ('random.unrelated.key', C.LORA_SUFFIXES, None),
     ]
     for key, suffixes, expected in cases:
@@ -649,7 +649,7 @@ def test_resolve_targets_extra_and_guidance():
     for bfl_base, diffusers_path in C.CHROMA_EXTRA_MAP.items():
         for prefix, base in [
             ('diffusion_model.', bfl_base),
-            (None, bfl_base),
+            (C.BARE_DIFFUSERS_PREFIX_USED, bfl_base),
             ('lora_unet_', bfl_base.replace('.', '_')),
         ]:
             targets = C.resolve_targets(prefix, base)
@@ -657,12 +657,12 @@ def test_resolve_targets_extra_and_guidance():
     cases = [
         # BFL MLP leaves rename to the PixArt projection names.
         (('diffusion_model.', 'distilled_guidance_layer.layers.0.in_layer'), 'distilled_guidance_layer.layers.0.linear_1'),
-        ((None, 'distilled_guidance_layer.layers.1.out_layer'), 'distilled_guidance_layer.layers.1.linear_2'),
+        ((C.BARE_DIFFUSERS_PREFIX_USED, 'distilled_guidance_layer.layers.1.out_layer'), 'distilled_guidance_layer.layers.1.linear_2'),
         (('lora_unet_', 'distilled_guidance_layer_layers_0_in_layer'), 'distilled_guidance_layer_layers_0_linear_1'),
         (('lora_unet_', 'distilled_guidance_layer_layers_1_out_layer'), 'distilled_guidance_layer_layers_1_linear_2'),
         # Verbatim leaves are untouched in either naming.
         (('diffusion_model.', 'distilled_guidance_layer.in_proj'), 'distilled_guidance_layer.in_proj'),
-        ((None, 'distilled_guidance_layer.layers.0.linear_1'), 'distilled_guidance_layer.layers.0.linear_1'),
+        ((C.BARE_DIFFUSERS_PREFIX_USED, 'distilled_guidance_layer.layers.0.linear_1'), 'distilled_guidance_layer.layers.0.linear_1'),
     ]
     for (prefix, base), expected in cases:
         targets = C.resolve_targets(prefix, base)

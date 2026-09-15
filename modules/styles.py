@@ -200,14 +200,18 @@ def apply_wildcards_to_prompt(prompt, all_wildcards, seed=-1, silent=False, p: S
             except Exception as e:
                 log.error(f'Wildcards: wildcard="{wildcard}" error={e}')
     t1 = time.time()
-    prompt, replaced_file, not_found = apply_file_wildcards(prompt, [], [], recursion=0, seed=seed, p=p)
+    prompt, replaced_files, missing_files = apply_file_wildcards(prompt, [], [], recursion=0, seed=seed, p=p)
     t2 = time.time()
     if replaced and not silent:
         log.debug(f'Apply wildcards: {replaced} path="{shared.opts.wildcards_dir}" type=style time={t1-t0:.2f}')
-    if (len(replaced_file) > 0 or len(not_found) > 0) and not silent:
-        log.debug(f'Apply wildcards: found={replaced_file} missing={not_found} path="{shared.opts.wildcards_dir}" type=file seed={seed} time={t2-t2:.2f}')
+    if (len(replaced_files) > 0 or len(missing_files) > 0) and not silent:
+        log.debug(f'Apply wildcards: found={replaced_files} missing={missing_files} path="{shared.opts.wildcards_dir}" type=file seed={seed} time={t2-t1:.2f}')
         if p is not None:
-            p.extra_generation_params['Wildcards'] = p.extra_generation_params.get('Wildcards', []) + [replaced_file]
+            existing_wildcards = p.extra_generation_params.get('Wildcards', [])
+            if p.batch_size > 1 and existing_wildcards == replaced_files:
+                pass
+            else:
+                p.extra_generation_params['Wildcards'] = existing_wildcards + replaced_files
     if old_state is not None:
         random.setstate(old_state)
     return prompt
@@ -243,12 +247,15 @@ def apply_styles_to_extra(p, style: Style):
         'size',
     ]
     reference_style = get_reference_style()
-    extra = infotext.parse(reference_style) if shared.opts.extra_network_reference_values else {}
+    reference = infotext.parse(reference_style) if shared.opts.extra_network_reference_values else {}
+    extra = reference.copy()
     style_extra = apply_wildcards_to_prompt(style.extra, [style.wildcards], silent=True, p=p)
     style_extra = ' ' + style_extra.lower()
     extra.update(infotext.parse(style_extra))
     extra.pop('Prompt', None)
     extra.pop('Negative prompt', None)
+    has_prompt = (style.prompt is not None) and len(style.prompt) > 2
+    has_negative = (style.negative_prompt is not None) and len(style.negative_prompt) > 2
     if debug_enabled:
         log.trace(f'Apply style extra: {extra}')
 
@@ -284,7 +291,7 @@ def apply_styles_to_extra(p, style: Style):
             if debug_enabled:
                 log.trace(f'Apply style skip: {k}={v}')
             skipped.append(f'{k}={v}')
-    log.debug(f'Apply style: name="{style.name}" params={params} settings={settings} unknown={skipped} reference={True if reference_style else False}')
+    log.debug(f'Apply style: name="{style.name}" prompt={has_prompt} negative={has_negative} params={params} settings={settings} unknown={skipped} reference={reference}')
 
 
 class StyleDatabase:

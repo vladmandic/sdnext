@@ -1,9 +1,11 @@
+import os
 import importlib.util
 import transformers
 import diffusers
 from modules import shared, devices, sd_models, model_quant, sd_hijack_te, sd_hijack_vae, errors
 from modules.logger import log
 from pipelines import generic
+from pipelines.generic_map import transformers_map
 
 
 def _import_from_file(module_name, file_path):
@@ -13,17 +15,18 @@ def _import_from_file(module_name, file_path):
     return mod
 
 
-def init_transformer_component(repo_id, diffusers_load_config, adapter_cls):
+def init_transformer_component(repo_id, diffusers_load_config, adapter_cls, local_file=None):
     """Load (transformer, llm_adapter_or_none).
 
-    If the UNET dropdown points at a valid safetensors, route through
-    :mod:`pipelines.native_transformer` with :data:`pipelines.anima.ANIMA_SPEC`,
-    which extracts any bundled ``llm_adapter`` weights inline with the
-    transformer. Otherwise fall back to :func:`generic.load_transformer` and
-    return ``None`` for the adapter so the caller loads it from the base repo.
+    A UNET dropdown selection, else ``local_file`` (a single-file checkpoint),
+    goes through :mod:`pipelines.native_transformer`, which also extracts a
+    bundled ``llm_adapter``. Without either, the transformer comes from the base
+    repo and the adapter is ``None`` for the caller to load.
     """
+    from modules import sd_unet
     from pipelines import native_transformer
-    local_file = native_transformer.resolve_path()
+    override = native_transformer.resolve_path()
+    local_file = override or local_file
     if local_file is not None:
         from pipelines.anima import ANIMA_SPEC
         try:
@@ -31,11 +34,13 @@ def init_transformer_component(repo_id, diffusers_load_config, adapter_cls):
                 local_file, repo_id, ANIMA_SPEC, diffusers_load_config,
                 sibling_classes={'llm_adapter': adapter_cls},
             )
-            return transformer, siblings.get('llm_adapter')
         except Exception as e:
             log.error(f'Load model: type=Anima custom transformer="{local_file}": {e}')
             errors.display(e, 'Load')
             return None, None
+        if override is not None:
+            sd_unet.loaded_unet = shared.opts.sd_unet
+        return transformer, siblings.get('llm_adapter')
     transformer = generic.load_transformer(
         repo_id,
         cls_name=diffusers.CosmosTransformer3DModel,
@@ -51,9 +56,15 @@ def load_anima(checkpoint_info, diffusers_load_config=None):
     repo_id = sd_models.path_to_repo(checkpoint_info)
     sd_models.hf_auth_check(checkpoint_info)
 
+    # single-file checkpoint: transformer (and bundled llm_adapter) from the file, everything else from the base repo
+    local_file = None
+    if repo_id is not None and os.path.isfile(repo_id) and repo_id.lower().endswith('.safetensors'):
+        local_file = repo_id
+        repo_id = transformers_map['AnimaTextToImagePipeline']
+
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, allow_quant=False)
     load_args.pop('cache_dir', None)
-    log.debug(f'Load model: type=Anima repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
+    log.debug(f'Load model: type=Anima repo="{repo_id}" file="{local_file}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
     if repo_id is None or repo_id.lower() == 'none':
         return None
@@ -69,9 +80,8 @@ def load_anima(checkpoint_info, diffusers_load_config=None):
     diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING["anima"] = AnimaInpaintPipeline
     generic.set_pipeline('Anima', AnimaTextToImagePipeline)
 
-    # UNET dropdown (shared.opts.sd_unet) may redirect the transformer to a
-    # community file that bundles both the transformer and the llm_adapter.
-    transformer, llm_adapter = init_transformer_component(repo_id, diffusers_load_config, modeling_llm_adapter.AnimaLLMAdapter)
+    # UNET dropdown or single-file checkpoint may bundle transformer and llm_adapter
+    transformer, llm_adapter = init_transformer_component(repo_id, diffusers_load_config, modeling_llm_adapter.AnimaLLMAdapter, local_file=local_file)
     if transformer is None:
         return None
     text_encoder = generic.load_text_encoder(

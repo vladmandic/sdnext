@@ -186,11 +186,7 @@ def context_hypertile_vae(p):
     from modules import shared
     if shared.sd_model is None or not get_opt(p, 'hypertile_vae_enabled'):
         return nullcontext()
-    if shared.opts.cross_attention_optimization == 'Sub-quadratic':
-        log.warning('Hypertile UNet is not compatible with Sub-quadratic cross-attention optimization')
-        return nullcontext()
     global max_h, max_w, error_reported # pylint: disable=global-statement
-    error_reported = False
     error_reported = False
     set_resolution(p)
     max_h, max_w = 0, 0
@@ -216,9 +212,6 @@ def context_hypertile_vae(p):
 def context_hypertile_unet(p):
     from modules import shared
     if shared.sd_model is None or not get_opt(p, 'hypertile_unet_enabled'):
-        return nullcontext()
-    if shared.opts.cross_attention_optimization == 'Sub-quadratic' and not shared.cmd_opts.experimental:
-        log.warning('Hypertile UNet is not compatible with Sub-quadratic cross-attention optimization')
         return nullcontext()
     global max_h, max_w, error_reported # pylint: disable=global-statement
     error_reported = False

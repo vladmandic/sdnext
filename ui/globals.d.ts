@@ -23,6 +23,7 @@ declare global {
     // state objects
     api: string; // ui/startup.ts
     subpath: string; // ui/startup.ts
+    initStartup?: () => void; // ui/startup.ts
     opts: Record<string, any>; // ui/ui.ts
     localization?: Record<string, any>; // ui/ui.ts
     titles?: Record<string, any>; // ui/ui.ts
@@ -93,7 +94,7 @@ declare global {
     downloadCivitModel?: (...args: unknown[]) => unknown[]; // ui/civitai.ts
     modelCardClick?: (id: string | number) => Promise<void>; // ui/civitai.ts
     startCivitAllDownload?: (evt: Event) => void; // ui/civitai.ts
-    startCivitDownload?: (url: string, name: string, type: string, base: string, modelId: number, versionId: number) => void; // ui/civitai.ts
+    startCivitFileDownload?: (versionId: number, fileId: number) => void; // ui/civitai.ts
     clickDocsPage?: (page: string) => Promise<void>; // ui/docs.ts
     getDocsPage?: () => string; // ui/docs.ts
     getGitHubWikiPage?: () => string; // ui/docs.ts
@@ -141,6 +142,7 @@ declare global {
     onUiUpdate?: (callback: () => void) => void; // ui/script.ts
     timer?: (name: string, elapsed: number) => Promise<void>; // ui/timers.ts
     markIfModified?: (setting_name: string, value: unknown) => void; // ui/settings.ts
+    openSettingsSection?: (sectionId: string) => void; // ui/settings.ts
     appendContextMenuOption?: (targetElementSelector: string, entryName: string, entryFunction: () => void, primary?: boolean) => string; // ui/contextMenus.ts
     generateForever?: (genbuttonid: string) => void; // ui/contextMenus.ts
     removeContextMenuOption?: (id: string) => void; // ui/contextMenus.ts

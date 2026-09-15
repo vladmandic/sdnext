@@ -40,7 +40,6 @@ from modules.lora.native_adapter import ChunkSpec
 
 KNOWN_PREFIXES = native_adapter.KNOWN_PREFIXES_DEFAULT
 
-BARE_DIFFUSERS_PREFIXES = ("layers.", "noise_refiner.", "context_refiner.")
 
 # Checkpoint qk-norm names vs the diffusers attention module names.
 ZIMAGE_NORM_ALIASES = {
@@ -109,7 +108,6 @@ def parse_key(key, suffixes):
     return native_adapter.parse_key(
         key, suffixes,
         prefixes=KNOWN_PREFIXES,
-        bare_diffusers_prefixes=BARE_DIFFUSERS_PREFIXES,
     )
 
 
@@ -118,7 +116,6 @@ def group_by_suffixes(state_dict, suffixes):
     return native_adapter.group_by_suffixes(
         state_dict, suffixes,
         prefixes=KNOWN_PREFIXES,
-        bare_diffusers_prefixes=BARE_DIFFUSERS_PREFIXES,
     )
 
 
@@ -199,7 +196,6 @@ def _underscore_to_diffusers_targets(base):
 _BIND_KWARGS = dict(
     resolve_targets=resolve_targets,
     prefixes=KNOWN_PREFIXES,
-    bare_diffusers_prefixes=BARE_DIFFUSERS_PREFIXES,
     arch_name="zimage",
 )
 

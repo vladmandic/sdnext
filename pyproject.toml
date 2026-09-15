@@ -113,7 +113,6 @@ main.ignore-paths=[
     "modules/flash_attn_triton_amd",
     "modules/ggml",
     "modules/hidiffusion",
-    "modules/hijack/ddpm_edit.py",
     "modules/intel",
     "modules/intel/ipex",
     "modules/framepack/pipeline",
@@ -136,6 +135,7 @@ main.ignore-paths=[
     "pipelines/flex2",
     "pipelines/hdm",
     "pipelines/hidream",
+    "pipelines/llada",
     "pipelines/lumina_dimmo",
     "pipelines/mageflow",
     "pipelines/meissonic",
@@ -149,7 +149,6 @@ main.ignore-paths=[
     "scripts/consistory",
     "scripts/ctrlx",
     "scripts/daam",
-    "scripts/demofusion",
     "scripts/differential_diffusion.py",
     "scripts/freescale",
     "scripts/infiniteyou",
@@ -159,16 +158,18 @@ main.ignore-paths=[
     "scripts/mod",
     "scripts/pixelsmith",
     "scripts/pulid",
-    "scripts/xadapter",
     "extensions-builtin/sd-extension-chainner/nodes",
     "extensions-builtin/sdnq",
 ]
 main.ignore-patterns=[
+    "/usr/lib/.*",
     ".*test*.py$",
     ".*_model.py$",
     ".*_arch.py$",
     ".*_model_arch.py*",
     ".*_model_arch_v2.py$",
+    ".*\\.pyi$",
+    ".*/site-packages/.*",
 ]
 main.ignored-modules=""
 main.jobs=4
@@ -351,7 +352,7 @@ variables.init-import=false
 variables.redefining-builtins-modules=["six.moves","past.builtins","future.builtins","builtins","io"]
 
 [tool.pyright]
-pythonVersion = "3.10"
+pythonVersion = "3.11"
 pythonPlatform = "All"
 typeCheckingMode = "off"
 venvPath = "./venv"
@@ -382,9 +383,10 @@ python-version = "3.10"
 [tool.ty.src]
 include = [
     "*.py",
+    "modules/*.py",
+    "pipelines/*.py",
+    "scripts/*.py",
     "modules/**/*.py",
-    "pipelines/**/*.py",
-    "scripts/**/*.py",
     "extensions-builtin/**/*.py"
 ]
 exclude = [
@@ -410,8 +412,8 @@ exclude = [
     "modules/teacache",
     "modules/face/*.py",
     "modules/sub_quadratic_attention.py",
-    "pipelines/**/*.py",
-    "scripts/**/*.py",
+    "pipelines/*/**/*.py",
+    "scripts/*/**/*.py",
 ]
 
 [tool.ty.rules]

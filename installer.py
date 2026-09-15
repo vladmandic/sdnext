@@ -1,5 +1,6 @@
 from functools import lru_cache
 import os
+import re
 import sys
 import json
 import time
@@ -57,6 +58,7 @@ args = Dot({
     'use_ipex': False,
     'use_cuda': False,
     'use_rocm': False,
+    'use_openvino': False,
     'experimental': False,
     'test': False,
     'tls_selfsign': False,
@@ -383,12 +385,11 @@ def git(arg: str, folder: str | None= None, ignore: bool = False, optional: bool
 
 # reattach as needed as head can get detached
 def branch(folder=None):
-    # if args.experimental:
-    #    return None
     t_start = time.time()
     if not os.path.exists(os.path.join(folder or os.curdir, '.git')):
         return None
     branches = []
+    detached = False
     try:
         b = git('branch --show-current', folder, optional=True)
         if b == '':
@@ -397,20 +398,30 @@ def branch(folder=None):
         if len(branches) > 0 and len(marked) > 0:
             b = marked[0]
             if ('detached' in b or 'HEAD' in b) and len(branches) > 1:
+                detached = True
                 b = branches[1].strip()
-                log.debug(f'Git detached head detected: folder="{folder}" reattach={b}')
+                log.debug(f'Submodule: folder="{folder}" reattach={b} git detached head detected')
     except Exception:
         b = git('git rev-parse --abbrev-ref HEAD', folder, optional=True)
+
+    if args.experimental or args.skip_git or args.skip_all:
+        return b
+
     if 'main' in b:
-        b = 'main'
+        tgt = 'main'
     elif 'master' in b:
-        b = 'master'
+        tgt = 'master'
     else:
-        b = b.split('\n')[0].replace('*', '').strip()
-    log.debug(f'Git submodule: {folder} / {b}')
-    git(f'checkout {b}', folder, ignore=True, optional=True)
+        tgt = b.split('\n')[0].replace('*', '').strip()
+    if (tgt != b) or detached:
+        log.debug(f'Submodule: folder="{folder}" branch="{b}" target="{tgt}"')
+        git(f'checkout {tgt}', folder, ignore=True, optional=True)
+        git('fetch', folder, ignore=True)
+        git(f'merge --ff-only origin/{tgt}', folder, ignore=True)
+    else:
+        log.debug(f'Submodule: folder="{folder}" branch="{b}"')
     ts('branch', t_start)
-    return b
+    return tgt
 
 
 # restart process
@@ -552,33 +563,19 @@ def check_python(supported_minors=None, experimental_minors=None, reason=None):
 
 
 # register sdnq package from github submodule
-def register_sdnq(skip=False, devices=None, shared=None):
-    if not skip:
-        t_start = time.time()
-        fn = os.path.join('extensions-builtin', 'sdnq', 'src', 'sdnq', '__init__.py')
-        name = "sdnq"
-        spec = importlib.util.spec_from_file_location(name, fn)
-        module = importlib.util.module_from_spec(spec)
-        sys.modules[name] = module
-        spec.loader.exec_module(module) # this is where actual import happens
-        import sdnq # pylint: disable=unused-import # test import
-        ts('sdnq', t_start)
-    if devices is not None:
-        import sdnq
-        sdnq.sdnext.devices = devices
-        sdnq.quantizer.devices = devices
-        sdnq.dequantizer.devices = devices
-        sdnq.quant_utils.devices = devices
-        sdnq.kernel_wrappers.devices = devices
-    if shared is not None:
-        import sdnq
-        sdnq.sdnext.shared = shared
-        sdnq.quantizer.shared = shared
-        sdnq.dequantizer.shared = shared
-        sdnq.quant_utils.shared = shared
-        sdnq.kernel_wrappers.shared = shared
-        sdnq.common.shared = shared
-        sdnq.loader.shared = shared
+def register_sdnq():
+    t_start = time.time()
+    os.environ.setdefault('SDNQ_LOGGER_NAME', 'sd')
+    if not args.use_openvino:
+        os.environ.setdefault('SDNQ_USE_OPENVINO_MM', '0')
+    fn = os.path.join('extensions-builtin', 'sdnq', 'src', 'sdnq', '__init__.py')
+    name = "sdnq"
+    spec = importlib.util.spec_from_file_location(name, fn)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module) # this is where actual import happens
+    import sdnq # pylint: disable=unused-import # test import
+    ts('sdnq', t_start)
 
 
 # check diffusers version
@@ -653,6 +650,26 @@ def check_onnx():
     ts('onnx', t_start)
 
 
+# check numpy version
+def check_numpy():
+    t_start = time.time()
+    if args.skip_all or args.skip_requirements:
+        return
+    torch_ver = package_version('torch') or ''
+    ver_match = re.match(r'^(\d+)\.(\d+)', torch_ver)
+    if ver_match:
+        torch_major, torch_minor = map(int, ver_match.groups())
+    else:
+        torch_major, torch_minor = 0, 0
+    if (torch_major, torch_minor) < (2, 11):
+        install('numpy==2.1.2', 'numpy', ignore=True)
+        install('scipy==1.14.1', 'scipy', ignore=True)
+    else:
+        install('numpy==2.4.6', 'numpy', ignore=True)
+        install('scipy==1.18.1', 'scipy', ignore=True)
+    ts('numpy', t_start)
+
+
 def install_cuda():
     t_start = time.time()
     log.info('CUDA: nVidia toolkit detected')
@@ -660,7 +677,7 @@ def install_cuda():
     if args.use_nightly:
         cmd = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu132 --extra-index-url https://download.pytorch.org/whl/nightly/cu130')
     else:
-        cmd = os.environ.get('TORCH_COMMAND', 'torch==2.13.0+cu132 torchvision==0.28.0+cu132 --index-url https://download.pytorch.org/whl/cu132')
+        cmd = os.environ.get('TORCH_COMMAND', 'torch==2.14.0+cu132 torchvision==0.29.0+cu132 --index-url https://download.pytorch.org/whl/cu132')
     return cmd
 
 
@@ -732,7 +749,7 @@ def install_rocm_zluda():
                 zluda_installer.load()
             except Exception as e:
                 log.error(f'Load ZLUDA: {e}')
-        else: # TODO rocm: switch to pytorch source when it becomes available
+        else:
             if device is None:
                 log.error('ROCm: no agent found - make sure that graphics driver is installed and up to date')
             if device is not None and device.therock is not None:
@@ -821,10 +838,10 @@ def install_openvino():
     if sys.platform == 'darwin':
         torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.11.0 torchvision==0.26.0')
     else:
-        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.11.0+cpu torchvision==0.26.0 --index-url https://download.pytorch.org/whl/cpu')
+        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.13.0+cpu torchvision==0.28.0 --index-url https://download.pytorch.org/whl/cpu')
 
     if not (args.skip_all or args.skip_requirements):
-        install(os.environ.get('OPENVINO_COMMAND', 'openvino==2026.2.1'), 'openvino')
+        install(os.environ.get('OPENVINO_COMMAND', 'openvino==2026.3.1'), 'openvino')
     ts('openvino', t_start)
     return torch_command
 
@@ -1132,7 +1149,7 @@ def list_extensions_folder(folder, quiet=False):
     disabled_extensions = opts.get('disabled_extensions', [])
     enabled_extensions = [x for x in os.listdir(folder) if os.path.isdir(os.path.join(folder, x)) and x not in disabled_extensions and not x.startswith('.')]
     if not quiet:
-        log.info(f'Extensions: path="{folder}" enabled={enabled_extensions}')
+        log.info(f'Extensions: path="{folder}" available={enabled_extensions}')
     return enabled_extensions
 
 
@@ -1289,13 +1306,6 @@ def install_pydantic():
     reload('pydantic', '2.13.4')
 
 
-def install_scipy():
-    if args.new or (sys.version_info >= (3, 14)):
-        install('scipy==1.17.1', ignore=True, quiet=True)
-    else:
-        install('scipy==1.14.1', ignore=True, quiet=True)
-
-
 def install_opencv():
     install('opencv-python==4.13.0.92', ignore=True, quiet=True)
     install('opencv-python-headless==4.13.0.92', ignore=True, quiet=True)
@@ -1324,7 +1334,6 @@ def install_insightface():
 def install_optional():
     t_start = time.time()
     log.info('Installing optional requirements...')
-    install('pillow-heif')
     install('addict')
     install('yapf')
     install('--no-build-isolation git+https://github.com/Disty0/BasicSR@23c1fb6f5c559ef5ce7ad657f2fa56e41b121754', 'basicsr', ignore=True, quiet=True)
@@ -1335,11 +1344,14 @@ def install_optional():
     install('Cython', ignore=True, quiet=True)
     install('gguf', ignore=True, quiet=True)
     install('hf_transfer', ignore=True, quiet=True)
-    install('hf_xet', ignore=True, quiet=True)
     install('nvidia-ml-py', ignore=True, quiet=True)
+    install('pillow-heif')
     install('pillow-jxl-plugin==1.3.7', ignore=True, quiet=True)
     install('ultralytics==8.4.67', ignore=True, quiet=True)
     install('open-clip-torch', no_deps=True, quiet=True)
+    install('runai_model_streamer', ignore=True, quiet=True)
+    install('facexlib', ignore=True, quiet=True)
+    install('omegaconf', ignore=True, quiet=True)
     install('git+https://github.com/tencent-ailab/IP-Adapter.git', 'ip_adapter', ignore=True, quiet=True)
     # install('git+https://github.com/openai/CLIP.git', 'clip', quiet=True, no_build_isolation=True)
     ts('optional', t_start)
@@ -1360,7 +1372,6 @@ def install_requirements():
         log.info('Install requirements: this may take a while...')
         pip('install -r requirements.txt')
     if args.optional:
-        quick_allowed = False
         install_optional()
     log.info('Install: verifying requirements')
     if args.new:
@@ -1375,7 +1386,6 @@ def install_requirements():
     install_compel()
     install_pydantic()
     install_opencv()
-    install_scipy()
     if args.profile:
         pr.disable()
         print_profile(pr, 'Requirements')
@@ -1384,7 +1394,10 @@ def install_requirements():
 
 # set environment variables controlling the behavior of various libraries
 def set_environment():
+
     log.debug('Setting environment tuning')
+    from modules.logger import console
+    log.debug(f'Console: terminal={console.is_terminal} width={console.width} height={console.height} color={console.color_system} legacy={console.legacy_windows}')
     os.environ.setdefault('ACCELERATE', 'True')
     os.environ.setdefault('ATTN_PRECISION', 'fp16')
     os.environ.setdefault('ClDeviceGlobalMemSizeAvailablePercent', '100')
@@ -1540,7 +1553,7 @@ def check_ui(ver):
         return
     t_start = time.time()
     if not same(ver):
-        log.debug(f'Branch mismatch: {ver}')
+        log.debug(f'Branch mismatch: module=ModernUI {ver}')
         try:
             if 'dev' in ver['branch']:
                 target = 'dev'
@@ -1567,7 +1580,7 @@ def check_kanvas(ver):
         return
     t_start = time.time()
     if not same(ver):
-        log.debug(f'Branch mismatch: {ver}')
+        log.debug(f'Branch mismatch: module=Kanvas {ver}')
         try:
             if 'dev' in ver['branch']:
                 target = 'dev'
@@ -1702,7 +1715,7 @@ def check_version(reset=True): # pylint: disable=unused-argument
         else:
             dt = commits["commit"]["commit"]["author"]["date"]
             commit = commits["commit"]["sha"][:8]
-            log.info(f'Version: app=sd.next latest={dt} hash={commit} branch={branch_name}')
+            log.info(f'Version: app="sd.next" latest={dt} hash={commit} branch={branch_name}')
     except Exception as e:
         log.error(f'Repository failed to check version: {e} {commits}')
     ts('latest', t_start)

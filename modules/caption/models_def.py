@@ -74,13 +74,17 @@ vlm_models = {
     "AIDC Ovis2 2B": "AIDC-AI/Ovis2-2B",
     "AIDC Ovis2 1B": "AIDC-AI/Ovis2-1B",
     # cloud
-    f"Google Gemini 3.5 Flash {ui_symbols.cloud}": "google/gemini-3.5-flash",
-    f"Google Gemini 3.1 Pro {ui_symbols.cloud}": "gemini-3.1-pro-preview",
+    f"Google Gemini 3.8 Flash {ui_symbols.cloud}": "gemini-3.8-flash",
+    f"Google Gemini 3.7 Flash {ui_symbols.cloud}": "gemini-3.7-flash",
+    f"Google Gemini 3.6 Flash {ui_symbols.cloud}": "gemini-3.6-flash",
+    f"Google Gemini 3.5 Flash {ui_symbols.cloud}": "gemini-3.5-flash",
+    f"Google Gemini 3.5 Flash Lite {ui_symbols.cloud}": "gemini-3.5-flash-lite",
     f"Google Gemini 3.1 Flash Lite {ui_symbols.cloud}": "gemini-3.1-flash-lite",
-    f"Google Gemini 3.1 Flash Lite Preview {ui_symbols.cloud}": "gemini-3.1-flash-lite-preview",
-    f"Google Gemini 2.5 Pro {ui_symbols.cloud}": "gemini-2.5-pro",
-    f"Google Gemini 2.5 Flash {ui_symbols.cloud}": "gemini-2.5-flash",
-    f"Google Gemini 2.5 Flash Lite {ui_symbols.cloud}": "gemini-2.5-flash-lite",
+    f"Google Gemini 3.1 Pro {ui_symbols.cloud}": "gemini-3.1-pro-preview",
+    f"X.AI Grok 3 {ui_symbols.cloud}": "grok-3-latest",
+    f"X.AI Grok 3 Fast {ui_symbols.cloud}": "grok-3-fast-latest",
+    f"X.AI Grok 3 Mini {ui_symbols.cloud}": "grok-3-mini-latest",
+    f"X.AI Grok 3 Mini Fast {ui_symbols.cloud}": "grok-3-mini-fast-latest",
 }
 
 # Default model
@@ -224,5 +228,10 @@ Summary:
 
 def get_vlm_repo(display_name: str) -> str:
     """Look up repo ID from display name, stripping any trailing symbols."""
+    from modules.logger import log
     name = display_name.strip()
-    return vlm_models.get(name, name)
+    model = vlm_models.get(name, None)
+    if model is None:
+        log.warning(f"Model '{name}' not found")
+        return name
+    return model

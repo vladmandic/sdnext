@@ -3,6 +3,10 @@ from scripts.xyz.xyz_grid_shared import ( # pylint: disable=no-name-in-module, u
     apply_task_arg,
     apply_task_args,
     apply_setting,
+    apply_attention,
+    apply_attention_dispatcher,
+    save_attention,
+    restore_attention,
     apply_prompt_primary,
     apply_prompt_refine,
     apply_prompt_detailer,
@@ -19,6 +23,9 @@ from scripts.xyz.xyz_grid_shared import ( # pylint: disable=no-name-in-module, u
     list_lora,
     apply_lora,
     apply_lora_strength,
+    list_lora_blocks,
+    apply_lora_blocks,
+    format_value_trim,
     apply_te,
     apply_guidance,
     apply_styles,
@@ -40,7 +47,7 @@ from scripts.xyz.xyz_grid_shared import ( # pylint: disable=no-name-in-module, u
     format_nothing,
     str_permutations,
  )
-from modules import shared, shared_items, sd_samplers, ipadapter, sd_models, sd_vae, sd_unet
+from modules import shared, shared_items, sd_samplers, ipadapter, sd_models, sd_vae, sd_unet, attention, modular_guiders
 from modules.control.units import controlnet, t2iadapter
 from modules.control import processor
 
@@ -104,9 +111,15 @@ class SharedSettingsStackHelper():
     todo_ratio = None
     teacache_thresh = None
     extra_networks_default_multiplier = None
+    lora_force_diffusers = None
+    lora_stack_mode = None
+    lora_stack_density = None
+    lora_stack_alpha = None
+    lora_stack_discrepancy = None
     disable_apply_metadata = None
     disable_apply_params = None
     sdnq_quant_mode = None
+    attention_settings = None
 
     def __enter__(self):
         # Save overridden settings so they can be restored later
@@ -136,10 +149,16 @@ class SharedSettingsStackHelper():
         self.sd_unet = shared.opts.sd_unet
         self.sd_text_encoder = shared.opts.sd_text_encoder
         self.extra_networks_default_multiplier = shared.opts.extra_networks_default_multiplier
+        self.lora_force_diffusers = shared.opts.lora_force_diffusers
+        self.lora_stack_mode = shared.opts.lora_stack_mode
+        self.lora_stack_density = shared.opts.lora_stack_density
+        self.lora_stack_alpha = shared.opts.lora_stack_alpha
+        self.lora_stack_discrepancy = shared.opts.lora_stack_discrepancy
         self.teacache_thresh = shared.opts.teacache_thresh
         self.disable_apply_metadata = shared.opts.disable_apply_metadata
         self.disable_apply_params = shared.opts.disable_apply_params
         self.sdnq_quant_mode = shared.opts.sdnq_quantize_weights_mode
+        self.attention_settings = save_attention()
         shared.opts.data["disable_apply_metadata"] = []
         shared.opts.data["disable_apply_params"] = ''
 
@@ -148,6 +167,11 @@ class SharedSettingsStackHelper():
         shared.opts.data["disable_apply_metadata"] = self.disable_apply_metadata
         shared.opts.data["disable_apply_params"] = self.disable_apply_params
         shared.opts.data["extra_networks_default_multiplier"] = self.extra_networks_default_multiplier
+        shared.opts.data["lora_force_diffusers"] = self.lora_force_diffusers
+        shared.opts.data["lora_stack_mode"] = self.lora_stack_mode
+        shared.opts.data["lora_stack_density"] = self.lora_stack_density
+        shared.opts.data["lora_stack_alpha"] = self.lora_stack_alpha
+        shared.opts.data["lora_stack_discrepancy"] = self.lora_stack_discrepancy
         shared.opts.data["prompt_attention"] = self.prompt_attention
         shared.opts.data["schedulers_solver_order"] = self.schedulers_solver_order
         shared.opts.data["schedulers_sigma_adjust"] = self.schedulers_sigma_adjust
@@ -188,6 +212,7 @@ class SharedSettingsStackHelper():
         if self.sdnq_quant_mode != shared.opts.sdnq_quantize_weights_mode:
             shared.opts.data["sdnq_quantize_weights_mode"] = self.sdnq_quant_mode
             sd_models.reload_model_weights(op='model')
+        restore_attention(self.attention_settings)
 
 
 axis_options = [
@@ -195,7 +220,7 @@ axis_options = [
     AxisOption("[Model] Model", str, apply_checkpoint, cost=1.0, fmt=format_value_add_label, choices=lambda: sorted(sd_models.checkpoints_list)),
     AxisOption("[Model] UNET", str, apply_unet, cost=0.8, choices=lambda: ['None'] + list(sd_unet.unet_dict)),
     AxisOption("[Model] VAE", str, apply_vae, cost=0.6, choices=lambda: ['None'] + list(sd_vae.vae_dict)),
-    AxisOption("[Model] Refiner", str, apply_refiner, cost=0.8, fmt=format_value_add_label, choices=lambda: ['None'] + sorted(sd_models.checkpoints_list)),
+    AxisOption("[Model] Refiner", str, apply_refiner, cost=0.9, fmt=format_value_add_label, choices=lambda: ['None'] + sorted(sd_models.checkpoints_list)),
     AxisOption("[Model] Text encoder", str, apply_te, cost=0.7, choices=shared_items.sd_te_items),
     AxisOption("[Prompt] Search & replace", str, apply_prompt_primary, fmt=format_value_add_label),
     AxisOption("[Prompt] Search & replace refine", str, apply_prompt_refine, fmt=format_value_add_label),
@@ -203,8 +228,14 @@ axis_options = [
     AxisOption("[Prompt] Search & replace all", str, apply_prompt_all, fmt=format_value_add_label),
     AxisOption("[Prompt] Prompt order", str_permutations, apply_order, fmt=format_value_join_list),
     AxisOption("[Prompt] Prompt parser", str, apply_setting("prompt_attention"), choices=lambda: ["native", "compel", "xhinker", "a1111", "fixed"]),
-    AxisOption("[Network] LoRA", str, apply_lora, cost=0.5, choices=list_lora),
-    AxisOption("[Network] LoRA strength", float, apply_lora_strength, cost=0.6),
+    AxisOption("[Network] LoRA", str, apply_lora, cost=0.6, choices=list_lora),
+    AxisOption("[Network] LoRA strength", float, apply_lora_strength, cost=0.5),
+    AxisOption("[Network] LoRA block weight", str, apply_lora_blocks, cost=0.5, fmt=format_value_trim, choices=list_lora_blocks),
+    AxisOption("[Network] LoRA stack mode", str, apply_setting("lora_stack_mode"), cost=0.5, choices=lambda: ["sum", "ties", "dare_ties", "dare_linear", "magnitude_prune", "klora", "estlora"]),
+    AxisOption("[Network] LoRA stack density", float, apply_setting("lora_stack_density"), cost=0.5),
+    AxisOption("[Network] LoRA stack ramp", float, apply_setting("lora_stack_alpha"), cost=0.5),
+    AxisOption("[Network] LoRA stack discrepancy", float, apply_setting("lora_stack_discrepancy"), cost=0.5),
+    AxisOption("[Network] LoRA force diffusers", bool, apply_setting("lora_force_diffusers"), cost=0.65, choices=lambda: [False, True]),
     AxisOption("[Network] Styles", str, apply_styles, choices=lambda: [s.name for s in shared.prompt_styles.styles.values()]),
     AxisOption("[Param] Width", int, apply_field("width")),
     AxisOption("[Param] Height", int, apply_field("height")),
@@ -233,12 +264,13 @@ axis_options = [
     AxisOption("[Sampler] Max shift", float, apply_setting("schedulers_max_shift")),
     AxisOption("[Sampler] ETA delta", float, apply_setting("eta_noise_seed_delta")),
     AxisOption("[Sampler] ETA multiplier", float, apply_setting("scheduler_eta")),
+    AxisOption("[Guidance] Name", str, apply_field("cfg_name"), cost=0.2, choices=lambda: list(modular_guiders.guiders.keys())),
     AxisOption("[Guidance] Scale", float, apply_field("cfg_scale")),
-    AxisOption("[Guidance] End", float, apply_field("cfg_end")),
-    AxisOption("[Guidance] Image scale", float, apply_field("cfg_image")),
     AxisOption("[Guidance] Rescale", float, apply_field("cfg_rescale")),
-    AxisOption("[Guidance] Modular name", str, apply_guidance, choices=lambda: ['Default', 'CFG', 'Auto', 'Zero', 'PAG', 'APG', 'SLG', 'SEG', 'TCFG', 'FDG']),
-    AxisOption("[Refine] Upscaler", str, apply_field("hr_upscaler"), cost=0.3, choices=lambda: [x.name for x in shared.sd_upscalers]),
+    AxisOption("[Guidance] Start", float, apply_field("cfg_start")),
+    AxisOption("[Guidance] Stop", float, apply_field("cfg_stop")),
+    AxisOption("[Guidance] Image scale", float, apply_field("cfg_image")),
+    AxisOption("[Refine] Upscaler", str, apply_field("hr_upscaler"), cost=0.4, choices=lambda: [x.name for x in shared.sd_upscalers]),
     AxisOption("[Refine] Sampler", str, apply_hr_sampler_name, fmt=format_value_add_label, confirm=confirm_samplers, choices=lambda: [x.name for x in sd_samplers.visible_samplers()]),
     AxisOption("[Refine] Denoising strength", float, apply_field("denoising_strength")),
     AxisOption("[Refine] Hires steps", int, apply_field("hr_second_pass_steps")),
@@ -248,8 +280,21 @@ axis_options = [
     AxisOption("[Postprocess] Context", str, apply_context, choices=lambda: ["Add with forward", "Remove with forward", "Add with backward", "Remove with backward"]),
     AxisOption("[Postprocess] Detailer", bool, apply_detailer, fmt=format_bool, choices=lambda: [False, True]),
     AxisOption("[Postprocess] Detailer strength", str, apply_field("detailer_strength")),
-    AxisOption("[Quant] SDNQ quant mode", str, apply_sdnq_quant, cost=0.9, fmt=format_value_add_label, choices=lambda: ['none'] + sorted(shared_items.sdnq_quant_modes)),
-    AxisOption("[Quant] SDNQ quant mode TE", str, apply_sdnq_quant_te, cost=0.9, fmt=format_value_add_label, choices=lambda: ['none'] + sorted(shared_items.sdnq_quant_modes)),
+    AxisOption("[Quant] SDNQ quant mode", str, apply_sdnq_quant, cost=0.85, fmt=format_value_add_label, choices=lambda: ['none'] + sorted(shared_items.sdnq_quant_modes)),
+    AxisOption("[Quant] SDNQ quant mode TE", str, apply_sdnq_quant_te, cost=0.85, fmt=format_value_add_label, choices=lambda: ['none'] + sorted(shared_items.sdnq_quant_modes)),
+    AxisOption("[Attention] Method", str, apply_setting('cross_attention_optimization'), cost=0.4, choices=shared_items.list_crossattention),
+    AxisOption("[Attention] Dispatcher", str, apply_attention_dispatcher, cost=0.4, choices=lambda: ['None'] + attention.list_dispatcher_backends()),
+    AxisOption("[Attention] SDNQ matmul", str, apply_attention('sdnq_attention_matmul_type'), cost=0.4, choices=lambda: list(shared_items.sdnq_matmul_modes)),
+    AxisOption("[Attention] SDNQ PV matmul", str, apply_attention('sdnq_attention_pv_matmul_type'), cost=0.4, choices=lambda: list(shared_items.sdnq_matmul_modes)),
+    AxisOption("[Attention] SDNQ smooth K", str, apply_attention('sdnq_attention_smooth_k'), cost=0.4, choices=lambda: ['False', 'True']),
+    AxisOption("[Attention] SDNQ hadamard", str, apply_attention('sdnq_attention_use_hadamard'), cost=0.4, choices=lambda: ['False', 'True']),
+    AxisOption("[Attention] SDNQ fp16 accumulation", str, apply_attention('sdnq_attention_use_fp16_accum'), cost=0.4, choices=lambda: ['False', 'True']),
+    AxisOption("[Sparse] Enabled", str, apply_attention('sparse_attention_enabled'), cost=0.3, choices=lambda: ['False', 'True']),
+    AxisOption("[Sparse] KV budget", int, apply_attention('sparse_attention_budget'), cost=0.3),
+    AxisOption("[Sparse] Minimum sequence", int, apply_attention('sparse_attention_min_tokens'), cost=0.3),
+    AxisOption("[Sparse] Dense steps", int, apply_attention('sparse_attention_schedule_steps'), cost=0.3),
+    AxisOption("[Sparse] Dense step bonus", int, apply_attention('sparse_attention_schedule_bump'), cost=0.3),
+    AxisOption("[Sparse] Shared heads", str, apply_attention('sparse_attention_head_shared'), cost=0.3, choices=lambda: ['False', 'True']),
     AxisOption("[HDR] Mode", int, apply_field("hdr_mode")),
     AxisOption("[HDR] Brightness", float, apply_field("hdr_brightness")),
     AxisOption("[HDR] Color", float, apply_field("hdr_color")),
@@ -266,13 +311,13 @@ axis_options = [
     AxisOption("[FreeU] 2nd stage backbone factor", float, apply_setting('freeu_b2')),
     AxisOption("[FreeU] 1st stage skip factor", float, apply_setting('freeu_s1')),
     AxisOption("[FreeU] 2nd stage skip factor", float, apply_setting('freeu_s2')),
-    AxisOption("[IP adapter] Name", str, apply_field('ip_adapter_names'), cost=1.0, choices=lambda: list(ipadapter.ADAPTERS)),
+    AxisOption("[IP adapter] Name", str, apply_field('ip_adapter_names'), cost=0.6, choices=lambda: list(ipadapter.ADAPTERS)),
     AxisOption("[IP adapter] Scale", float, apply_field('ip_adapter_scales')),
     AxisOption("[IP adapter] Starts", float, apply_field('ip_adapter_starts')),
     AxisOption("[IP adapter] Ends", float, apply_field('ip_adapter_ends')),
-    AxisOption("[Control] ControlNet", str, apply_control('controlnet'), cost=0.9, choices=lambda: list(controlnet.all_models)),
-    AxisOption("[Control] T2IAdapter", str, apply_control('t2i adapter'), cost=0.9, choices=lambda: list(t2iadapter.all_models)),
-    AxisOption("[Control] Processor", str, apply_control('processor'), cost=0.6, choices=lambda: processor.processors),
+    AxisOption("[Control] ControlNet", str, apply_control('controlnet'), cost=0.7, choices=lambda: list(controlnet.all_models)),
+    AxisOption("[Control] T2IAdapter", str, apply_control('t2i adapter'), cost=0.7, choices=lambda: list(t2iadapter.all_models)),
+    AxisOption("[Control] Processor", str, apply_control('processor'), cost=0.4, choices=lambda: processor.processors),
     AxisOption("[Control] Strength", float, apply_control('control_strength')),
     AxisOption("[Control] Start", float, apply_control('control_start')),
     AxisOption("[Control] End", float, apply_control('control_end')),

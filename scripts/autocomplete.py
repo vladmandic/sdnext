@@ -152,13 +152,13 @@ def on_update(selected):
 class AutocompleteScript(scripts_manager.Script):
     video_capable = scripts_manager.AlwaysVisible
 
-    def show(self, is_img2img):
+    def show(self, is_img2img): # pylint: disable=unused-argument
         return scripts_manager.AlwaysVisible
 
     def title(self):
         return "Tag Autocomplete"
 
-    def ui(self, is_img2img):
+    def ui(self, is_img2img): # pylint: disable=unused-argument
         initial_names = get_all_names()
         initial_enabled = list(shared.opts.data.get('autocomplete_enabled', []))
 

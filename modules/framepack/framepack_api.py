@@ -37,7 +37,6 @@ class ReqFramepack(BaseModel):
     mp4_opt: str | None = Field(default="crf=16", title="Options", description="Options for the video codec")
     mp4_ext: str | None = Field(default="mp4", title="Format", description="Format for the video")
     mp4_interpolate: int | None = Field(default=0, title="Interpolation", description="Interpolation for the video")
-    attention: str | None = Field(default="Default", title="Attention", description="Attention type for the model")
     vae_type: str | None = Field(default="Local", title="VAE", description="VAE type for the model")
     vlm_enhance: bool | None = Field(default=False, title="VLM enhance", description="Enable VLM enhance")
     vlm_model: str | None = Field(default=None, title="VLM model", description="VLM model to use")
@@ -114,7 +113,6 @@ def framepack_post(request: ReqFramepack):
         mp4_opt=request.mp4_opt,
         mp4_ext=request.mp4_ext,
         mp4_interpolate=request.mp4_interpolate,
-        attention=request.attention,
         vae_type=request.vae_type,
         vlm_enhance=request.vlm_enhance,
         vlm_model=request.vlm_model,

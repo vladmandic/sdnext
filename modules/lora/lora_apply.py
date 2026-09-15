@@ -5,6 +5,7 @@ import time
 from typing import TYPE_CHECKING
 import torch
 from modules.lora import lora_common as l
+from modules.lora import lora_stack
 from modules import shared, devices, errors
 from modules.logger import log
 
@@ -16,7 +17,7 @@ if TYPE_CHECKING:
 re_network_name = re.compile(r"(.*)\s*\([0-9a-fA-F]+\)")
 
 
-def network_backup_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.GroupNorm | torch.nn.LayerNorm | diffusers.models.lora.LoRACompatibleLinear | diffusers.models.lora.LoRACompatibleConv, network_layer_name: str, wanted_names: tuple):
+def network_backup_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.GroupNorm | torch.nn.LayerNorm | diffusers.models.lora.LoRACompatibleLinear | diffusers.models.lora.LoRACompatibleConv, network_layer_name: str, wanted_names: tuple, fuse: bool):
     backup_size = 0
     if len(l.loaded_networks) > 0 and network_layer_name is not None and any([net.modules.get(network_layer_name, None) for net in l.loaded_networks]): # noqa: C419 # pylint: disable=R1729
         t0 = time.time()
@@ -24,7 +25,7 @@ def network_backup_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Gr
         weights_backup = getattr(self, "network_weights_backup", None)
         bias_backup = getattr(self, "network_bias_backup", None)
         if weights_backup is not None or bias_backup is not None:
-            if (shared.opts.lora_fuse_native and not isinstance(weights_backup, bool)) or (not shared.opts.lora_fuse_native and isinstance(weights_backup, bool)): # invalidate so we can change direct/backup on-the-fly
+            if (fuse and not isinstance(weights_backup, bool)) or (not fuse and isinstance(weights_backup, bool)): # invalidate so we can change direct/backup on-the-fly
                 weights_backup = None
                 bias_backup = None
                 self.network_weights_backup = weights_backup
@@ -33,7 +34,7 @@ def network_backup_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Gr
         if weights_backup is None and wanted_names != (): # pylint: disable=C1803
             weight = getattr(self, 'weight', None)
             self.network_weights_backup = None
-            if shared.opts.lora_fuse_native:
+            if fuse:
                 self.network_weights_backup = True
             else:
                 self.network_weights_backup = weight.clone().to(devices.cpu)
@@ -53,7 +54,7 @@ def network_backup_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Gr
 
         if bias_backup is None:
             if getattr(self, 'bias', None) is not None:
-                if shared.opts.lora_fuse_native:
+                if fuse:
                     self.network_bias_backup = True
                 else:
                     bias_backup = self.bias.clone()
@@ -67,7 +68,7 @@ def network_backup_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Gr
     return backup_size
 
 
-def network_calc_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.GroupNorm | torch.nn.LayerNorm | diffusers.models.lora.LoRACompatibleLinear | diffusers.models.lora.LoRACompatibleConv, network_layer_name: str, use_previous: bool = False, *, elimit: Callable[[], None] | None = None):
+def network_calc_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.GroupNorm | torch.nn.LayerNorm | diffusers.models.lora.LoRACompatibleLinear | diffusers.models.lora.LoRACompatibleConv, network_layer_name: str, use_previous: bool = False, *, elimit: Callable[[], None] | None = None, per_net: bool = False):
     if shared.opts.diffusers_offload_mode == "none":
         try:
             self.to(devices.device)
@@ -75,6 +76,9 @@ def network_calc_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Grou
             pass
     batch_updown = None
     batch_ex_bias = None
+    stack_deltas = None
+    if per_net or (lora_stack.mode() in lora_stack.DENSE_MODES and network_layer_name is not None and not network_layer_name.startswith('lora_te')):
+        stack_deltas = [] # collect per-net deltas; combined after the loop unless the caller wants them separate (bias deltas stay summed)
     loaded = l.loaded_networks if not use_previous else l.previously_loaded_networks
     for net in loaded:
         module = net.modules.get(network_layer_name, None)
@@ -107,7 +111,9 @@ def network_calc_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Grou
             del weight
 
             if updown is not None:
-                if batch_updown is not None:
+                if stack_deltas is not None:
+                    stack_deltas.append((net.name, updown.to(devices.device)))
+                elif batch_updown is not None:
                     batch_updown += updown.to(batch_updown.device)
                 else:
                     batch_updown = updown.to(devices.device)
@@ -136,6 +142,17 @@ def network_calc_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Grou
             if elimit is not None:
                 elimit()
         continue
+    if per_net:
+        return stack_deltas, batch_ex_bias
+    if stack_deltas is not None and stack_deltas:
+        if len(stack_deltas) >= 2:
+            t0 = time.time()
+            batch_updown = lora_stack.combine(stack_deltas, network_layer_name)
+            l.timer.calc += time.time() - t0
+        else:
+            batch_updown = stack_deltas[0][1]
+        if shared.opts.diffusers_offload_mode == "sequential":
+            batch_updown = batch_updown.to(devices.cpu)
     return batch_updown, batch_ex_bias
 
 

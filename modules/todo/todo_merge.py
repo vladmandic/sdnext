@@ -29,8 +29,6 @@ def init_generator(device: torch.device, fallback: torch.Generator = None):
         return torch.Generator(device="cpu").set_state(torch.get_rng_state())
     elif device.type == "cuda":
         return torch.Generator(device=device).set_state(torch.cuda.get_rng_state())
-    elif device.type == "cuda":
-        return torch.Generator(device=device).set_state(torch.mps.get_rng_state())
     else:
         if fallback is None:
             return init_generator(torch.device("cpu"))

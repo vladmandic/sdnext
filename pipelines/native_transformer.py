@@ -28,9 +28,10 @@ Algorithm:
    in a Cosmos 2.0 loader).
 5. Partition off sibling component keys (e.g. Anima's bundled ``llm_adapter.*``).
 6. Run the spec's converter if present (else pass through unchanged).
-7. Fetch ``<subfolder>/config.json`` from the base repo, instantiate via
-   ``cls.from_config``, ``load_state_dict(strict=False)``, validate, dtype-cast,
-   quantize, and offload-place.
+7. Fetch ``<subfolder>/config.json`` from the base repo, apply the spec's
+   ``infer_config`` overrides, instantiate via ``cls.from_config``,
+   ``load_state_dict(strict=False)``, validate, dtype-cast, quantize, and
+   offload-place.
 8. Repeat the build for each populated sibling (no converter, no quant by
    default; sibling weights are read raw from the bundled file).
 
@@ -44,7 +45,7 @@ import os
 import json
 import time
 from dataclasses import dataclass, field
-from typing import Callable
+from typing import Callable, cast
 
 import huggingface_hub as hf
 import torch
@@ -134,6 +135,11 @@ class TransformerSpec:
     ``converter_handles_quant`` runs the converter before comfy_quant
     detection; such converters must translate marker/scale sidecar keys along
     with the weights. Float-oriented converters keep the default.
+
+    ``infer_config`` receives the transformer state dict after prefix strip and
+    sibling partition, before the converter, and returns config overrides
+    merged over the base repo config (e.g. ``num_layers`` of a depth-expanded
+    finetune).
     """
 
     cls: type
@@ -146,6 +152,7 @@ class TransformerSpec:
     acceptable_missing: tuple[str, ...] = DEFAULT_ACCEPTABLE_MISSING
     zero_init_missing: tuple[str, ...] = ()
     forbidden_markers: tuple[tuple[str, str], ...] = ()
+    infer_config: Callable[[dict], dict] | None = None
 
 
 def make_default_spec(cls: type) -> TransformerSpec:
@@ -178,7 +185,7 @@ def auto_pickup_converter(cls: type) -> Callable[[dict], dict] | None:
     fn = entry.get("checkpoint_mapping_fn")
     if fn is None or is_noop_converter(fn):
         return None
-    return fn
+    return cast('Callable[[dict], dict]', fn) # diffusers' mapping fns vary in signature (extra kwargs/config), all compatible at call sites
 
 
 def is_noop_converter(fn: Callable) -> bool:
@@ -296,6 +303,12 @@ def load(
 
     effective_dtype = dtype if dtype is not None else devices.dtype
     transformer_cfg = fetch_component_config(repo_id, spec.subfolder)
+    if spec.infer_config is not None:
+        inferred = spec.infer_config(transformer_sd)
+        overrides = {k: v for k, v in inferred.items() if transformer_cfg.get(k) != v}
+        if overrides:
+            log.info(f'Load model: type={spec.cls.__name__} native_transformer config={overrides}')
+            transformer_cfg = {**transformer_cfg, **overrides}
     transformer = build_component(
         component_name="transformer",
         state_dict=transformer_sd,
@@ -684,8 +697,9 @@ def partition_siblings(
 def fetch_component_config(repo_id: str, subfolder: str) -> dict:
     """Download and parse ``<subfolder>/config.json`` from the base repo."""
     relative_path = f"{subfolder}/config.json"
+    offline_args = {'local_files_only': True} if shared.opts.offline_mode else {}
     try:
-        local = hf.hf_hub_download(repo_id, filename=relative_path, cache_dir=shared.opts.diffusers_dir)
+        local = hf.hf_hub_download(repo_id, filename=relative_path, cache_dir=shared.opts.diffusers_dir, **offline_args)
     except Exception as e:
         log.error(f' path="{relative_path}" repo="{repo_id}" failed to download: {e}')
         raise RuntimeError('') from e

@@ -1,8 +1,6 @@
 import json
 from starlette.responses import HTMLResponse
 from fastapi import FastAPI
-from fastapi.openapi.docs import get_redoc_html, swagger_ui_default_parameters
-from fastapi.encoders import jsonable_encoder
 
 
 def get_swagger_ui_html(*,
@@ -16,6 +14,8 @@ def get_swagger_ui_html(*,
                         init_oauth: dict | None = None,
                         swagger_ui_parameters: dict | None = None,
                        ) -> HTMLResponse:
+    from fastapi.encoders import jsonable_encoder
+    from fastapi.openapi.docs import swagger_ui_default_parameters
     current_swagger_ui_parameters = swagger_ui_default_parameters.copy()
     if swagger_ui_parameters:
         current_swagger_ui_parameters.update(swagger_ui_parameters)
@@ -79,6 +79,7 @@ def create_docs(app: FastAPI):
 
 
 def create_redocs(app: FastAPI):
+    from fastapi.openapi.docs import get_redoc_html
     @app.get("/redocs", include_in_schema=False) # override for the default fastapi redocs route
     async def custom_redoc_html():
         res = get_redoc_html(

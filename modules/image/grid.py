@@ -80,6 +80,7 @@ def image_grid(imgs: list, batch_size=1, rows: int | None = None, cols: int | No
         for i, img in enumerate(params.imgs):
             if img is not None:
                 grid.paste(img, box=(i % params.cols * w, i // params.cols * h))
+        grid.is_grid = True # flag image as grid
         return grid
     except Exception as e:
         log.error(f'Grid: images={imgs} {e}')
@@ -145,15 +146,15 @@ class GridAnnotation:
 
 def get_font(fontsize: float):
     try:
-        return ImageFont.truetype(shared.opts.font or os.path.join(script_path, "ui", "fonts", "notosans-nerdfont-regular.ttf"), fontsize)
+        return ImageFont.truetype(shared.opts.font or os.path.join(script_path, "ui", "css", "ubuntu-nerdfont.ttf"), fontsize)
     except Exception:
-        return ImageFont.truetype(os.path.join(script_path, "ui", "fonts", "notosans-nerdfont-regular.ttf"), fontsize)
+        return ImageFont.truetype(os.path.join(script_path, "ui", "css", "ubuntu-nerdfont.ttf"), fontsize)
 
 
 def draw_grid_annotations(im: Image.Image, width: int, height: int, x_texts: list[list[GridAnnotation]], y_texts: list[list[GridAnnotation]], margin=0, title: list[GridAnnotation] | None = None):
     def wrap(drawing: ImageDraw.ImageDraw, text, font, line_length):
         lines = ['']
-        for word in text.split():
+        for word in text.split('/\\'):
             line = f'{lines[-1]} {word}'.strip()
             if drawing.textlength(line, font=font) <= line_length:
                 lines[-1] = line
@@ -161,7 +162,7 @@ def draw_grid_annotations(im: Image.Image, width: int, height: int, x_texts: lis
                 lines.append(word)
         return lines
 
-    def draw_texts(drawing: ImageDraw.ImageDraw, draw_x: float, draw_y: float, lines, initial_fnt: ImageFont.FreeTypeFont, initial_fontsize: int):
+    def draw_texts(drawing: ImageDraw.ImageDraw, draw_x: float, draw_y: float, lines: list[GridAnnotation], initial_fnt: ImageFont.FreeTypeFont, initial_fontsize: int):
         for line in lines:
             font = initial_fnt
             fontsize = initial_fontsize

@@ -7,35 +7,37 @@ request_cost = {
     "/file": 0,
     "/internal/progress": 0,
     "/run/predict": 0,
+    "/sdapi/v1/control": 5,
+    "/sdapi/v1/img2img": 5,
+    "/sdapi/v1/txt2img": 5,
+    "/sdapi/v1/video": 5,
     "/sdapi/v1/browser/thumb": 0,
     "/sdapi/v1/network/thumb": 0,
-    "/sdapi/v1/txt2img": 5,
-    "/sdapi/v1/img2img": 5,
-    "/sdapi/v1/control": 5,
-    "/sdapi/v1/video": 5,
 }
 log_cost = {
     "/.well-known/appspecific/com.chrome.devtools.json": -1,
-    "/info": -1,
     "/file": -1,
-    "/token": -1,
-    "/theme.css": -1,
-    "/sdapi/v1/browser/thumb": -1,
-    "/sdapi/v1/network/thumb": -1,
-    "/run/predict": -1,
-    "/queue/join": -1,
+    "/info": -1,
+    "/icon": -1,
     "/internal/progress": -1,
-    "/sdapi/v1/version": -1,
-    "/sdapi/v1/log": -1,
-    "/sdapi/v1/torch": -1,
+    "/queue/join": -1,
+    "/run/predict": -1,
+    "/theme.css": -1,
+    "/token": -1,
+    "/sdapi/v1/checkpoint": -1,
+    "/sdapi/v1/gpu-smi": -1,
     "/sdapi/v1/gpu": -1,
+    "/sdapi/v1/loaded-loras": -1,
+    "/sdapi/v1/log": -1,
     "/sdapi/v1/memory": -1,
     "/sdapi/v1/platform": -1,
-    "/sdapi/v1/checkpoint": -1,
-    "/sdapi/v1/loaded-loras": -1,
-    "/sdapi/v1/gpu-smi": -1,
-    "/sdapi/v1/status": 60,
     "/sdapi/v1/progress": 60,
+    "/sdapi/v1/start": -1,
+    "/sdapi/v1/status": 60,
+    "/sdapi/v1/torch": -1,
+    "/sdapi/v1/version": -1,
+    "/sdapi/v1/browser/thumb": -1,
+    "/sdapi/v1/network/thumb": -1,
 }
 log_exclude_suffix = ['.css', '.js', '.ico', '.svg']
 log_exclude_prefix = ['/assets']
@@ -99,6 +101,13 @@ def get_api_stats():
     limiter.stats()
 
 
+def init_limiter():
+    global limiter # pylint: disable=global-statement
+    from modules.shared import opts, cmd_opts
+    if opts.server_rate_limit != limiter.request_limit:
+        limiter = Limiter(opts.server_rate_limit, cmd_opts.subpath, cmd_opts.profile)
+
+
 def validate_request(client, endpoint):
     global limiter # pylint: disable=global-statement
     from modules.shared import opts, cmd_opts
@@ -113,6 +122,7 @@ def validate_request(client, endpoint):
         limiter.summary[key] = 0
     limiter.summary[key] += 1
     return limiter.check_request(client, api)
+
 
 def validate_log(client, endpoint):
     api = re.match(r"^[^?#&=]+", endpoint).group(0)

@@ -88,7 +88,7 @@ export const xnEngine: XnEngine = {
     try {
       // const resp = await fetch(`${window.api}${path}`, { credentials: 'include' });
       const resp = await authFetch(`${window.api}${path}`);
-      if (!resp.ok) throw new Error(`${resp.status}`);
+      if (!resp?.ok) throw new Error(`${resp?.status}`);
       return await resp.json();
     } catch (e) {
       log('autoComplete', { xnFetchFailed: path, error: String(e) });
@@ -108,19 +108,27 @@ export const xnEngine: XnEngine = {
       this.lora = new XnIndex(items);
     }
     // Embeddings: {loaded: [...], skipped: [...]}
-    const embData = await this.fetchJson('/embeddings') as Record<string, unknown> | null;
-    if (embData && typeof embData === 'object') {
-      const loaded = Array.isArray(embData.loaded) ? embData.loaded : [];
-      this.embed = new XnIndex(loaded.map((name) => ({ name: String(name) })));
+    if (window.opts.diffusers_enable_embed) {
+      const embData = await this.fetchJson('/embeddings') as Record<string, unknown> | null;
+      if (embData && typeof embData === 'object') {
+        const loaded = Array.isArray(embData.loaded) ? embData.loaded : [];
+        this.embed = new XnIndex(loaded.map((name) => ({ name: String(name) })));
+      }
+    } else {
+      this.embed = new XnIndex([]);
     }
     // Wildcards: [{name}, ...]
-    const wcData = await this.fetchJson('/wildcards');
-    if (Array.isArray(wcData)) {
-      this.wildcard = new XnIndex(
-        wcData
-          .filter((w) => typeof w === 'object' && w && 'name' in w && typeof w.name === 'string')
-          .map((w) => ({ name: w.name })),
-      );
+    if (window.opts.wildcards_enabled) {
+      const wcData = await this.fetchJson('/wildcards');
+      if (Array.isArray(wcData)) {
+        this.wildcard = new XnIndex(
+          wcData
+            .filter((w) => typeof w === 'object' && w && 'name' in w && typeof w.name === 'string')
+            .map((w) => ({ name: w.name })),
+        );
+      }
+    } else {
+      this.wildcard = new XnIndex([]);
     }
     log('autoComplete', {
       xnLoaded: true,

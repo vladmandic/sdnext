@@ -6,6 +6,7 @@ import installer as i
 version = SimpleNamespace(**{
     'url': '',
     'branch': '',
+    'origin': '',
     'current': '0000-00-00',
     'chash': '0000000',
     'latest': '0000-00-00',
@@ -14,34 +15,50 @@ version = SimpleNamespace(**{
 
 
 def get_version():
-    # try:
-    origin = i.git('remote get-url origin')
-    origin = origin.splitlines()[0]
-    version.branch = i.git('rev-parse --abbrev-ref HEAD')
-    version.branch = version.branch.splitlines()[0]
-    version.url = origin.removesuffix('.git') + '/tree/' + version.branch
+    try:
+        origin = i.git('remote get-url origin')
+        origin = origin.splitlines()
+        if len(origin) > 0:
+            version.origin = origin[0]
+            version.url = version.origin.removesuffix('.git') + '/tree/' + version.branch
+        else:
+            version.origin = 'unknown'
+            i.log.warning('Version: origin URL not found')
 
-    ver = i.git('log --pretty=format:"%h %ad" -1 --date=short')
-    ver = ver.splitlines()[0]
-    version.chash, version.current = ver.split(' ')
+        branch = i.git('rev-parse --abbrev-ref HEAD')
+        branch = branch.splitlines()
+        if len(branch) > 0:
+            version.branch = branch[0]
+        else:
+            version.branch = 'unknown'
+            i.log.warning('Version: branch not found')
 
-    i.git('fetch')
-    ver = i.git(f'log origin/{version.branch} --pretty=format:"%h %ad" -1 --date=short')
-    ver = ver.splitlines()[0]
-    version.lhash, version.latest = ver.split(' ')
+        gitlog = i.git('log --pretty=format:"%h %ad" -1 --date=short')
+        gitlog = gitlog.splitlines()
+        if len(gitlog) > 0:
+            version.chash, version.current = gitlog[0].split(' ')
 
-    # except Exception as e:
-    #    i.log.error(f'Version check failed: {e}')
-    i.log.info(f'Version: {vars(version)}')
-    latest = '<div style="color: var(--secondary-500)">You\'re up to date!</div>' if version.chash == version.lhash else '<div style="color: var(--secondary-500)">Update available!</div>'
-    html = f'''
-        <div>URL: <a href="{version.url}" target="_blank">{version.url}</a></div>
-        <div>Current branch: <span style="color: var(--highlight-color)">{version.branch}</span></div>
-        <div>Current version: <span style="color: var(--highlight-color)">{version.current}</span> hash <span style="color: var(--highlight-color)">{version.chash}</span></div>
-        <div>Latest version: <span style="color: var(--highlight-color)">{version.latest}</span> hash <span style="color: var(--highlight-color)">{version.lhash}</span></div>
-        {latest}
-    '''
-    return html
+        i.git('fetch')
+        ver = i.git(f'log origin/{version.branch} --pretty=format:"%h %ad" -1 --date=short')
+        ver = ver.splitlines()
+        if len(ver) > 0 and ' ' in ver[0]:
+            version.lhash, version.latest = ver[0].split(' ')
+
+        i.log.info(f'Version: {vars(version)}')
+        latest = '<div style="color: var(--secondary-500)">You\'re up to date!</div>' if version.chash == version.lhash else '<div style="color: var(--secondary-500)">Update available!</div>'
+        html = f'''
+            <div>URL: <a href="{version.url}" target="_blank">{version.url}</a></div>
+            <div>Origin: <span style="color: var(--highlight-color)">{version.origin}</span></div>
+            <div>Current branch: <span style="color: var(--highlight-color)">{version.branch}</span></div>
+            <div>Current version: <span style="color: var(--highlight-color)">{version.current}</span> hash <span style="color: var(--highlight-color)">{version.chash}</span></div>
+            <div>Latest version: <span style="color: var(--highlight-color)">{version.latest}</span> hash <span style="color: var(--highlight-color)">{version.lhash}</span></div>
+            {latest}
+        '''
+        return html
+    except Exception as e:
+        i.log.error(f'Version: {e}')
+        html = f'<div style="color: var(--error-color)">Error while detecting version<br>{str(e)}</div>'
+        return html
 
 
 def apply_update(update_rebase, update_submodules, update_extensions):

@@ -1,5 +1,6 @@
 import hashlib
 import os.path
+import threading
 from collections import defaultdict
 from typing import Literal, TypeAlias, TypedDict
 from rich import progress, errors
@@ -29,6 +30,7 @@ cache_filename = os.path.join(data_path, "data", "cache.json")
 progress_ok = True
 # defaultdict allows for easily using new stores without needing to define them ahead of time
 _data: defaultdict[str, HashStore] = defaultdict(HashStore)
+cache_lock = threading.Lock()
 
 
 def load_cache():
@@ -38,9 +40,9 @@ def load_cache():
 
 
 def save_cache():
-    # Don't include empty hash stores
-    filtered = filter(lambda item: len(item[1]) > 0, _data.items())
-    writefile(dict(filtered), cache_filename)
+    with cache_lock:  # snapshot and write together, so a later save never lands under an earlier snapshot
+        snapshot = {store: dict(data) for store, data in list(_data.items()) if len(data) > 0}  # dict() of a store runs under the GIL, so add_hash from another thread cannot interrupt it
+        writefile(snapshot, cache_filename)
 
 
 def cache(store: KnownHashStores | str | None = None) -> HashStore:

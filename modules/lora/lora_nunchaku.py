@@ -1,10 +1,17 @@
 import time
 from modules import shared, errors
 from modules.logger import log
-from modules.lora import lora_load, lora_common
+from modules.lora import lora_load, lora_common, network
 
 
 previously_loaded = [] # we maintain private state here
+
+
+def wrap_network(network_on_disk):
+    net = network.Network(network_on_disk.name, network_on_disk)
+    net.mentioned_name = network_on_disk.name
+    network_on_disk.read_hash() # nothing else on this path fills the hash infotext reads
+    return net
 
 
 def load_nunchaku(names, strengths):
@@ -26,7 +33,7 @@ def load_nunchaku(names, strengths):
         from nunchaku.lora.flux.compose import compose_lora
         composed_lora = compose_lora(loras)
         shared.sd_model.transformer.update_lora_params(composed_lora)
-        lora_common.loaded_networks = [n[0] for n in networks] # used by infotext
+        lora_common.loaded_networks[:] = [wrap_network(n[0]) for n in networks] # read by infotext and the trigger tags
         t1 = time.time()
         lora_common.timer.load = t1 - t0
         log.debug(f"Network load: type=LoRA method=nunchaku loras={names} strength={strengths} time={t1-t0:.3f}")

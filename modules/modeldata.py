@@ -119,6 +119,8 @@ def get_model_type(pipe):
         model_type = 'longcat'
     elif 'GlmImage' in name:
         model_type = 'glmimage'
+    elif 'LLaDAImage' in name:
+        model_type = 'lladaimage'
     elif 'Step1XEdit' in name:
         model_type = 'step1x_edit'
     elif 'JoyImageEdit' in name:

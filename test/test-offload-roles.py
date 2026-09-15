@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Offline unit tests for group offload placement in modules.sd_offload.
+Offline unit tests for group offload placement in modules.sd_offload_group.
 
 Every component takes exactly one role, derived from the component itself:
 
@@ -59,7 +59,7 @@ modules.cmd_args.parsed, _ = modules.cmd_args.parser.parse_known_args([])
 from diffusers.utils.accelerate_utils import apply_forward_hook  # pylint: disable=wrong-import-position
 from modules.errors import log                                   # pylint: disable=wrong-import-position
 from modules import shared                                       # pylint: disable=wrong-import-position,unused-import
-from modules import sd_offload                                    # pylint: disable=wrong-import-position
+from modules import sd_offload_group, sd_offload_state, sd_offload_utils  # pylint: disable=wrong-import-position
 
 
 # ============================================================
@@ -246,28 +246,28 @@ ROLE_CASES = [
 def test_role_table():
     wrong = []
     for module_name, cls, expected in ROLE_CASES:
-        role = sd_offload.group_offload_role(module_name, cls())
+        role = sd_offload_group.group_offload_role(module_name, cls())
         if role != expected:
             wrong.append(f'{module_name}/{cls.__name__}: {role} != {expected}')
     assert not wrong, '; '.join(wrong)
 
 
 def test_role_bridge_overrides_denoiser_slot_name():
-    assert sd_offload.group_offload_role('decoder', BridgeModule()) == 'ondemand'
+    assert sd_offload_group.group_offload_role('decoder', BridgeModule()) == 'ondemand'
 
 
 def test_role_upstream_optout_overrides_denoiser_slot_name():
-    assert sd_offload.group_offload_role('transformer', UnsupportedModule()) == 'ondemand'
+    assert sd_offload_group.group_offload_role('transformer', UnsupportedModule()) == 'ondemand'
 
 
 def test_role_undecorated_entry_points_stay_resident():
     # neither group hooks nor the on-demand hook fire for a plain method call, so residency is the only safe placement
-    assert sd_offload.group_offload_role('vae', NoBridgeModule()) == 'resident'
+    assert sd_offload_group.group_offload_role('vae', NoBridgeModule()) == 'resident'
 
 
 def test_role_unknown_component_is_aux():
     # aux is the direction that stays correct when the guess is wrong
-    assert sd_offload.group_offload_role('some_future_head', PlainModule()) == 'aux'
+    assert sd_offload_group.group_offload_role('some_future_head', PlainModule()) == 'aux'
 
 
 def role_with_opts(module_name, module, **opts):
@@ -275,7 +275,7 @@ def role_with_opts(module_name, module, **opts):
     for key, value in opts.items():
         setattr(shared.opts, key, value)
     try:
-        return sd_offload.group_offload_role(module_name, module)
+        return sd_offload_group.group_offload_role(module_name, module)
     finally:
         for key, value in saved.items():
             setattr(shared.opts, key, value)
@@ -303,7 +303,7 @@ def test_role_empty_exclusions_match_nothing():
 
 
 def test_role_main_list_has_no_encoder_names():
-    encoders = [n for n in sd_offload.group_offload_main if 'encoder' in n or 'vae' in n]
+    encoders = [n for n in sd_offload_state.group_offload_main if 'encoder' in n or 'vae' in n]
     assert not encoders, f'encoder-shaped names in the per-step list: {encoders}'
 
 
@@ -317,28 +317,28 @@ def dispatch_calls(pipe):
     seen: dict[str, object] = {}
 
     def name_of(module):
-        return next((n for n in sd_offload.get_module_names(pipe) if getattr(pipe, n, None) is module), module.__class__.__name__)
+        return next((n for n in sd_offload_utils.get_module_names(pipe) if getattr(pipe, n, None) is module), module.__class__.__name__)
 
     def record(name, role, module):
         calls.setdefault(name, []).append(role)
         seen[name] = module
         return True
 
-    orig_component = sd_offload.apply_group_offload_component
-    orig_ondemand = sd_offload.apply_group_offload_ondemand
-    orig_resident = sd_offload.set_group_resident
-    orig_stats = sd_offload.report_group_stats
-    sd_offload.apply_group_offload_component = lambda module, module_name, main: record(module_name, 'main' if main else 'aux', module)
-    sd_offload.apply_group_offload_ondemand = lambda module: record(name_of(module), 'ondemand', module)
-    sd_offload.set_group_resident = lambda module: record(name_of(module), 'resident', module)
-    sd_offload.report_group_stats = lambda sd_model, module_names: None
+    orig_component = sd_offload_group.apply_group_offload_component
+    orig_ondemand = sd_offload_group.apply_group_offload_ondemand
+    orig_resident = sd_offload_group.set_group_resident
+    orig_stats = sd_offload_group.report_group_stats
+    sd_offload_group.apply_group_offload_component = lambda module, module_name, main: record(module_name, 'main' if main else 'aux', module)
+    sd_offload_group.apply_group_offload_ondemand = lambda module: record(name_of(module), 'ondemand', module)
+    sd_offload_group.set_group_resident = lambda module: record(name_of(module), 'resident', module)
+    sd_offload_group.report_group_stats = lambda sd_model, module_names: None
     try:
-        sd_offload.apply_group_offload(pipe)
+        sd_offload_group.apply_group_offload(pipe)
     finally:
-        sd_offload.apply_group_offload_component = orig_component
-        sd_offload.apply_group_offload_ondemand = orig_ondemand
-        sd_offload.set_group_resident = orig_resident
-        sd_offload.report_group_stats = orig_stats
+        sd_offload_group.apply_group_offload_component = orig_component
+        sd_offload_group.apply_group_offload_ondemand = orig_ondemand
+        sd_offload_group.set_group_resident = orig_resident
+        sd_offload_group.report_group_stats = orig_stats
     return calls, seen
 
 
@@ -364,12 +364,34 @@ def test_dispatch_skips_non_modules():
     assert list(calls) == ['transformer'], f'dispatched {list(calls)}'
 
 
+def test_stats_report_once_per_component():
+    seen = []
+    orig_stats = sd_offload_group.report_model_stats
+    sd_offload_group.report_model_stats = lambda module_name, module: seen.append(module_name)
+    try:
+        transformer, vae = PlainModule(), BridgeModule()
+        pipe = FakePipe({'transformer': transformer, 'vae': vae})
+        names = sd_offload_utils.get_module_names(pipe)
+        sd_offload_group.report_group_stats(pipe, names)
+        assert sorted(seen) == ['transformer', 'vae'], f'first report covered {seen}'
+        sd_offload_group.report_group_stats(pipe, names)
+        assert len(seen) == 2, f'a reapply reported again: {seen}'
+        switched = FakePipe({'transformer': transformer, 'vae': vae}) # a task switch rebuilds the pipe around the same components
+        sd_offload_group.report_group_stats(switched, names)
+        assert len(seen) == 2, f'a task switch reported again: {seen}'
+        reloaded = FakePipe({'transformer': PlainModule(), 'vae': vae}) # a reload or a component swap brings a new module
+        sd_offload_group.report_group_stats(reloaded, names)
+        assert seen[2:] == ['transformer'], f'a new component was not reported on its own: {seen}'
+    finally:
+        sd_offload_group.report_model_stats = orig_stats
+
+
 def test_force_sweep_moves_only_stamped_components():
     stamped = SweepModule()
     stamped.sdnext_ondemand = True
     unstamped = SweepModule()
     pipe = FakePipe({'vae': stamped, 'transformer': unstamped})
-    sd_offload.offload_ondemand(pipe, reason='test', force=True)
+    sd_offload_group.offload_ondemand(pipe, reason='test', force=True)
     assert stamped.moved, 'the stamped component must be swept to cpu'
     assert not unstamped.moved, 'a component with no onload path must not be swept'
 
@@ -378,34 +400,34 @@ def test_reapply_after_clearing_the_never_list_restores_hooks():
     module = PlainModule()
     pipe = FakePipe({'text_encoder': module})
     saved_never = shared.opts.diffusers_offload_never
-    orig_device = sd_offload.devices.device
-    orig_stats = sd_offload.report_group_stats
-    sd_offload.devices.device = torch.device('cpu') # residency moves to the accelerator, so pin the target to cpu
-    sd_offload.report_group_stats = lambda sd_model, module_names: None
+    orig_device = sd_offload_group.devices.device
+    orig_stats = sd_offload_group.report_group_stats
+    sd_offload_group.devices.device = torch.device('cpu') # residency moves to the accelerator, so pin the target to cpu
+    sd_offload_group.report_group_stats = lambda sd_model, module_names: None
     try:
         shared.opts.diffusers_offload_never = 'text_encoder'
-        sd_offload.apply_group_offload(pipe)
+        sd_offload_group.apply_group_offload(pipe)
         assert getattr(module, 'sdnext_group_offload_sig', None) is None, 'a resident component must carry no group signature'
         shared.opts.diffusers_offload_never = ''
-        sd_offload.apply_group_offload(pipe)
+        sd_offload_group.apply_group_offload(pipe)
         assert getattr(module, 'sdnext_group_offload_sig', None) not in (None, 'partial'), 'clearing the exclusion must re-place the component'
     finally:
         shared.opts.diffusers_offload_never = saved_never
-        sd_offload.devices.device = orig_device
-        sd_offload.report_group_stats = orig_stats
+        sd_offload_group.devices.device = orig_device
+        sd_offload_group.report_group_stats = orig_stats
 
 
 def test_ondemand_list_tracks_the_stamps():
     pipe = FakePipe({'transformer': PlainModule(), 'vae': BridgeModule()})
-    orig_component = sd_offload.apply_group_offload_component
-    orig_stats = sd_offload.report_group_stats
-    sd_offload.apply_group_offload_component = lambda module, module_name, main: True
-    sd_offload.report_group_stats = lambda sd_model, module_names: None
+    orig_component = sd_offload_group.apply_group_offload_component
+    orig_stats = sd_offload_group.report_group_stats
+    sd_offload_group.apply_group_offload_component = lambda module, module_name, main: True
+    sd_offload_group.report_group_stats = lambda sd_model, module_names: None
     try:
-        sd_offload.apply_group_offload(pipe)
+        sd_offload_group.apply_group_offload(pipe)
     finally:
-        sd_offload.apply_group_offload_component = orig_component
-        sd_offload.report_group_stats = orig_stats
+        sd_offload_group.apply_group_offload_component = orig_component
+        sd_offload_group.report_group_stats = orig_stats
     assert pipe.sdnext_ondemand_modules == ['vae'], f'on-demand list is {pipe.sdnext_ondemand_modules}'
     assert getattr(pipe.vae, 'sdnext_ondemand', False), 'the vae must carry the on-demand stamp'
 
@@ -416,8 +438,8 @@ def test_ondemand_list_tracks_the_stamps():
 
 def test_ondemand_apply_returns_bool_and_is_idempotent():
     module = BridgeModule()
-    first = sd_offload.apply_group_offload_ondemand(module)
-    second = sd_offload.apply_group_offload_ondemand(module)
+    first = sd_offload_group.apply_group_offload_ondemand(module)
+    second = sd_offload_group.apply_group_offload_ondemand(module)
     assert isinstance(first, bool) and isinstance(second, bool), 'placement must report a bool'
     assert first is True, 'the first placement changes the component'
     assert second is False, 'an unchanged component must report no change'
@@ -426,19 +448,19 @@ def test_ondemand_apply_returns_bool_and_is_idempotent():
 
 def test_ondemand_apply_leaves_weights_on_cpu():
     module = BridgeModule()
-    sd_offload.apply_group_offload_ondemand(module)
+    sd_offload_group.apply_group_offload_ondemand(module)
     assert next(module.parameters()).device.type == 'cpu', 'on-demand components rest on cpu'
 
 
 def test_resident_placement_clears_the_ondemand_stamp():
     module = BridgeModule()
-    sd_offload.apply_group_offload_ondemand(module)
-    orig_device = sd_offload.devices.device
-    sd_offload.devices.device = torch.device('cpu') # residency moves to the accelerator, so pin the target to cpu
+    sd_offload_group.apply_group_offload_ondemand(module)
+    orig_device = sd_offload_group.devices.device
+    sd_offload_group.devices.device = torch.device('cpu') # residency moves to the accelerator, so pin the target to cpu
     try:
-        changed = sd_offload.set_group_resident(module)
+        changed = sd_offload_group.set_group_resident(module)
     finally:
-        sd_offload.devices.device = orig_device
+        sd_offload_group.devices.device = orig_device
     assert isinstance(changed, bool) and changed is True, 'moving off the on-demand hook is a change'
     assert not getattr(module, 'sdnext_ondemand', False), 'the on-demand stamp must not survive'
     assert not hasattr(module, '_hf_hook'), 'the on-demand hook must be removed'
@@ -451,7 +473,7 @@ def test_resident_placement_clears_the_ondemand_stamp():
 def test_module_names_reads_specs_on_modular_pipelines():
     # transformer_2 exists only in the specs, so only the specs branch can find it
     pipe = FakeModularPipe({'transformer': PlainModule(), 'vae': BridgeModule(), 'scheduler': object()}, spec_only={'transformer_2': PlainModule()})
-    names = sd_offload.get_module_names(pipe)
+    names = sd_offload_utils.get_module_names(pipe)
     assert names == ['transformer', 'transformer_2', 'vae'], f'got {names}'
     assert 'canvas_short_edge' not in names, 'config scalars must not be enumerated'
 
@@ -464,7 +486,7 @@ def test_module_names_ignores_the_component_registry_on_classic_pipelines():
             raise ValueError('config and signature disagree')
 
     pipe = RaisingPipe({'transformer': PlainModule(), 'vae': BridgeModule()})
-    names = sd_offload.get_module_names(pipe)
+    names = sd_offload_utils.get_module_names(pipe)
     assert names == ['transformer', 'vae'], f'got {names}'
 
 
@@ -474,13 +496,13 @@ def test_module_names_ignores_the_component_registry_on_classic_pipelines():
 
 def test_autoencoders_carry_the_entry_bridge():
     from diffusers import AutoencoderKL, VQModel
-    missing = [cls.__name__ for cls in (AutoencoderKL, VQModel) if not sd_offload.has_entry_bridge(cls)]
+    missing = [cls.__name__ for cls in (AutoencoderKL, VQModel) if not sd_offload_group.has_entry_bridge(cls)]
     assert not missing, f'no entry bridge detected on {missing}'
 
 
 def test_denoisers_do_not_carry_the_entry_bridge():
     from diffusers import SD3Transformer2DModel, UNet2DConditionModel
-    bridged = [cls.__name__ for cls in (UNet2DConditionModel, SD3Transformer2DModel) if sd_offload.has_entry_bridge(cls)]
+    bridged = [cls.__name__ for cls in (UNet2DConditionModel, SD3Transformer2DModel) if sd_offload_group.has_entry_bridge(cls)]
     assert not bridged, f'entry bridge detected on denoisers {bridged}'
 
 
@@ -492,7 +514,7 @@ def test_upstream_still_opts_hunyuandit_out_of_group_offload():
 
 def test_mageflow_vae_carries_the_entry_bridge():
     from pipelines.mageflow.autoencoder_mage_vae import AutoencoderMageVAE
-    assert sd_offload.has_entry_bridge(AutoencoderMageVAE), 'the mageflow vae lost its entry decorators'
+    assert sd_offload_group.has_entry_bridge(AutoencoderMageVAE), 'the mageflow vae lost its entry decorators'
 
 
 # ============================================================
@@ -597,7 +619,7 @@ def inventory_roles(never=''):
     shared.opts.diffusers_offload_never = never
     shared.opts.models_not_to_offload = ''
     try:
-        return {(pipe, slot, comp.__name__): sd_offload.group_offload_role(slot, weightless(comp)) for pipe, slot, comp in rows}
+        return {(pipe, slot, comp.__name__): sd_offload_group.group_offload_role(slot, weightless(comp)) for pipe, slot, comp in rows}
     finally:
         shared.opts.diffusers_offload_never, shared.opts.models_not_to_offload = saved
 
@@ -671,6 +693,7 @@ def run_all():
     for fn in [
         test_dispatch_is_one_arm_per_component,
         test_dispatch_skips_non_modules,
+        test_stats_report_once_per_component,
         test_ondemand_list_tracks_the_stamps,
         test_force_sweep_moves_only_stamped_components,
         test_reapply_after_clearing_the_never_list_restores_hooks,
