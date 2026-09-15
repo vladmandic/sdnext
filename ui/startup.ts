@@ -102,7 +102,7 @@ export async function initStartup() {
   executeCallbacks(uiReadyCallbacks);
 
   // optionally wait for modern ui
-  if (window.waitForUiReady) await window.waitForUiReady();
+  if (window.opts.theme_type.toLowerCase().startsWith('modern') && window.waitForUiReady) await window.waitForUiReady();
 
   // post startup tasks that may take longer but are not critical
   startupPromises.push(Promise.resolve(initLogMonitor()));

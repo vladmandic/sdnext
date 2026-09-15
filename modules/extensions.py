@@ -77,7 +77,7 @@ def temp_disable_extensions():
     theme_type = shared.cmd_opts.theme if shared.cmd_opts.theme is not None else shared.opts.theme_type
     theme_name = f'{theme_type.lower()}/{shared.opts.gradio_theme}'
     if '/' not in theme_name: # set default themes per type
-        if theme_name == 'standard' or theme_name == 'default':
+        if theme_name == 'standard':
             theme_name = 'standard/black-teal'
         if theme_name == 'modern':
             theme_name = 'modern/Default'
@@ -86,19 +86,21 @@ def temp_disable_extensions():
         if theme_name == 'huggingface':
             theme_name = 'huggingface/blaaa'
 
-    if theme_name.lower().startswith('standard') or theme_name.lower().startswith('default'):
+    if theme_name.lower().startswith('standard'):
         shared.opts.data['theme_type'] = 'Standard'
         shared.opts.data['gradio_theme'] = theme_name[9:]
+        disabled.append('sdnext-modernui')
     elif theme_name.lower().startswith('modern'):
         shared.opts.data['theme_type'] = 'Modern'
         shared.opts.data['gradio_theme'] = theme_name[7:]
     elif theme_name.lower().startswith('huggingface') or theme_name.lower().startswith('gradio') or theme_name.lower().startswith('none'):
         shared.opts.data['theme_type'] = 'None'
         shared.opts.data['gradio_theme'] = theme_name
+        disabled.append('sdnext-modernui')
     else:
         log.error(f'UI theme invalid: theme="{theme_name}" available={["standard/*", "modern/*", "none/*"]} fallback="standard/black-teal"')
-        shared.opts.data['theme_type'] = 'Standard'
-        shared.opts.data['gradio_theme'] = 'black-teal'
+        shared.opts.data['theme_type'] = 'Modern'
+        shared.opts.data['gradio_theme'] = 'Default'
 
     if shared.cmd_opts.safe:
         for ext in disable_safe:

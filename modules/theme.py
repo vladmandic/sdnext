@@ -116,19 +116,18 @@ def reload_gradio_theme():
     opts.gradio_theme = theme_name
     log.info(f'UI locale: name="{opts.ui_locale}"')
 
-    if theme_name.lower() in ['lobe', 'cozy-nest']:
-        log.info(f'UI theme extension: name="{theme_name}"')
-        return None
-    elif opts.theme_type == 'Standard':
+    if opts.theme_type == 'Standard':
         gradio_theme = gr.themes.Base(**default_font_params)
-        log.info(f'UI theme: type={opts.theme_type} name="{theme_name}" available={len(available_themes)}')
+        log.debug(f'UI theme: type={opts.theme_type} available={len(available_themes)}')
         log.warning('UI theme: please switch to ModernUI for best experience')
         return 'sdnext.css'
-    elif opts.theme_type == 'Modern':
+
+    if opts.theme_type == 'Modern':
         gradio_theme = gr.themes.Base(**default_font_params)
-        log.info(f'UI theme: type={opts.theme_type} name="{theme_name}" available={len(available_themes)}')
+        log.debug(f'UI theme: type={opts.theme_type} available={len(available_themes)}')
         return 'base.css'
-    elif opts.theme_type == 'None':
+
+    if opts.theme_type == 'None':
         if theme_name.startswith('gradio/'):
             log.warning('UI theme: using Gradio default theme which is not optimized for SD.Next')
             if theme_name == "gradio/default":
@@ -153,8 +152,9 @@ def reload_gradio_theme():
             except Exception as e:
                 log.error(f"UI theme: download error accessing HuggingFace {e}")
                 gradio_theme = gr.themes.Default(**default_font_params)
-        log.info(f'UI theme: type={opts.theme_type} name="{theme_name}" style={opts.theme_style}')
+        log.debug(f'UI theme: type={opts.theme_type} style={opts.theme_style}')
         log.warning('UI theme: please switch to ModernUI for best experience')
         return 'base.css'
+
     log.error(f'UI theme: type={opts.theme_type} unknown')
     return None

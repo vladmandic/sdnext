@@ -16218,7 +16218,7 @@ async function initStartup() {
   await waitForOpts();
   await updateSubpath();
   executeCallbacks(uiReadyCallbacks);
-  if (window.waitForUiReady) await window.waitForUiReady();
+  if (window.opts.theme_type.toLowerCase().startsWith("modern") && window.waitForUiReady) await window.waitForUiReady();
   startupPromises.push(Promise.resolve(initLogMonitor()));
   startupPromises.push(Promise.resolve(setRefreshInterval()));
   startupPromises.push(Promise.resolve(setupExtraNetworks()));

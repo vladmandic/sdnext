@@ -4,7 +4,7 @@
   font-display: swap;
   font-style: normal;
   font-weight: 100;
-  src: local('NotoSansNerd'), url('fonts/notosans-nerdfont-regular.ttf');
+  src: local('NotoSansNerd'), url('notosans-nerdfont-regular.ttf');
 }
 
 html {

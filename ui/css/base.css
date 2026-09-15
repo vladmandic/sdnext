@@ -1,5 +1,5 @@
-@font-face { font-family: 'NotoSans'; font-display: swap; font-style: normal; font-weight: 100; src: local('NotoSansNerd'), url('fonts/notosans-nerdfont-regular.ttf') }
-@font-face { font-family: 'Ubuntu'; font-display: swap; font-style: normal; font-weight: 100; src: local('Ubuntu'), url('fonts/ubuntu-nerdfont.ttf') }
+@font-face { font-family: 'NotoSans'; font-display: swap; font-style: normal; font-weight: 100; src: local('NotoSansNerd'), url('notosans-nerdfont-regular.ttf') }
+@font-face { font-family: 'Ubuntu'; font-display: swap; font-style: normal; font-weight: 100; src: local('Ubuntu'), url('ubuntu-nerdfont.ttf') }
 
 /* toolbutton */
 .gradio-button.tool { max-width: min-content; min-width: min-content !important; align-self: end; font-size: 1.4em; color: var(--body-text-color) !important; }
