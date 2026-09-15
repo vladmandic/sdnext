@@ -525,7 +525,7 @@ def slice_chunk_rows(t, chunk: ChunkSpec):
     return t.contiguous()
 
 
-def _slice_lora_chunk(w, chunk: ChunkSpec):
+def slice_lora_chunk(w, chunk: ChunkSpec):
     """Return a shallow copy of ``w`` with ``lora_up.weight`` sliced per ``chunk``; a dense bias follows a pure reorder."""
     out = dict(w)
     out["lora_up.weight"] = slice_chunk_rows(w["lora_up.weight"], chunk)
@@ -640,7 +640,7 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
                     skipped += 1
                     continue
                 fused_out = w["lora_up.weight"].shape[0]
-                target_w = _slice_lora_chunk(w, chunk)
+                target_w = slice_lora_chunk(w, chunk)
                 target_w = slice_dora_scale(target_w, chunk, fused_out)
                 if target_w is None:
                     log.warning(f'Network load: type=LoRA name="{name}" arch={arch_name} key={network_key} per-input DoRA on fused target skipped (unsupported)')

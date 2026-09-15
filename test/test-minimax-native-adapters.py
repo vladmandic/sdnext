@@ -370,7 +370,7 @@ def native_mapping(state_dict, network_alpha=None):
         if 'lora_down.weight' not in w or 'lora_up.weight' not in w:
             continue
         for path, chunk in native_adapter.resolve_group_targets(M.resolve_targets, prefix, base):
-            target = native_adapter._slice_lora_chunk(w, chunk) if chunk is not None else w # pylint: disable=protected-access
+            target = native_adapter.slice_lora_chunk(w, chunk) if chunk is not None else w
             alpha = network_alpha if 'alpha' not in target else float(target['alpha'])
             scale = 1.0 if alpha is None else alpha / target['lora_down.weight'].shape[0]
             out[path] = (target['lora_down.weight'], target['lora_up.weight'], scale)
