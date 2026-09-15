@@ -18,9 +18,10 @@ class PromptCache:
         return val
 
     def get(self, prompt, negative_prompt=None, cfg_enabled=None):
-        if self.id != id(shared.sd_model):
+        current_id = id(shared.sd_model.sd_checkpoint_info) if hasattr(shared.sd_model, 'sd_checkpoint_info') else id(shared.sd_model)
+        if self.id != current_id:
             self.cache.clear()
-            self.id = id(shared.sd_model)
+            self.id = current_id
             log.debug(f'Encode: prompt cache activate id={self.id} depth={len(self.cache)}')
         negative_prompt = self._hashable(negative_prompt)
         if (isinstance(prompt, list) and len(prompt) == 1 and isinstance(prompt[0], str)):

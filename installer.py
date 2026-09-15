@@ -1553,7 +1553,7 @@ def check_ui(ver):
         return
     t_start = time.time()
     if not same(ver):
-        log.debug(f'Branch mismatch: {ver}')
+        log.debug(f'Branch mismatch: module=ModernUI {ver}')
         try:
             if 'dev' in ver['branch']:
                 target = 'dev'
@@ -1580,7 +1580,7 @@ def check_kanvas(ver):
         return
     t_start = time.time()
     if not same(ver):
-        log.debug(f'Branch mismatch: {ver}')
+        log.debug(f'Branch mismatch: module=Kanvas {ver}')
         try:
             if 'dev' in ver['branch']:
                 target = 'dev'
