@@ -6,7 +6,7 @@ Offline unit tests for the MiniMax schedule shift in modules.video_models.video_
 - ``set_sampler_shift`` writes scheduler, default_scheduler and audio_scheduler and keys the result for infotext
 - a request without values resets what the previous request set
 - the Default sampler restore, a deepcopy of default_scheduler, carries the shift into the sigma grid
-- ``apply_overrides`` records the applied values on the processing object
+- ``apply_overrides`` records the applied values on the processing object and hands the scheduler one grid point more than the step count
 
 No running server required.
 
@@ -188,6 +188,7 @@ def test_apply_overrides_records_the_applied_values():
     assert p.extra_generation_params == {'Video shift': 6.0, 'Audio shift': AUDIO_SHIFT}, f'recorded={p.extra_generation_params}'
     assert shifts(pipe) == (6.0, 6.0, AUDIO_SHIFT), f'shifts={shifts(pipe)}'
     assert p.sampler_name == 'Default'
+    assert p.steps == STEPS and p.task_args['num_inference_steps'] == STEPS + 1 and pipe.num_timesteps == STEPS, f'steps={p.steps} grid_steps={p.task_args["num_inference_steps"]} total={pipe.num_timesteps}'
 
 
 def test_apply_overrides_without_values_uses_the_shipped_schedule():

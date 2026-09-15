@@ -335,7 +335,7 @@ def test_pin_overrides_steps_and_shift():
     pipe.audio_scheduler.set_shift(2.0)
     p = types.SimpleNamespace(steps=30, task_args={'num_inference_steps': 30}, extra_generation_params={'Video shift': 4.0, 'Audio shift': 2.0})
     assert network_pdd.pin(p, pipe) == 9
-    assert p.steps == 9 and p.task_args['num_inference_steps'] == 9
+    assert p.steps == 8 and p.task_args['num_inference_steps'] == 9, f'steps={p.steps} grid_steps={p.task_args["num_inference_steps"]}'
     assert pipe.num_timesteps == 8
     assert pipe.scheduler.shift == 12.0 and pipe.audio_scheduler.shift == 3.0
     assert p.extra_generation_params == {'Video shift': 12.0, 'Audio shift': 3.0}, f'recorded={p.extra_generation_params}'

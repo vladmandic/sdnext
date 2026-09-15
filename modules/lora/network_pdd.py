@@ -285,7 +285,7 @@ def reconcile(pipe, loaded, components):
 
 
 def pin(p, model):
-    """Hold a generation on the distilled step count and shipped schedule while heads are installed; returns the pinned step count or None."""
+    """Hold a generation on the distilled evaluation count and shipped schedule while heads are installed; returns the scheduler step argument or None."""
     state = getattr(model, 'sdnext_pdd', None)
     if state is None:
         return None
@@ -297,13 +297,13 @@ def pin(p, model):
             scheduler.set_shift(scheduler.config['shift'])
             shifts[name] = scheduler.config['shift']
     requested = p.steps
-    p.steps = state.steps
+    p.steps = state.heads.nfe # what the user-facing step count means: transformer evaluations
     if getattr(p, 'task_args', None) is not None:
-        p.task_args['num_inference_steps'] = state.steps
+        p.task_args['num_inference_steps'] = state.steps # the scheduler argument that yields that many grid intervals
     if getattr(model, 'num_timesteps', None) is not None:
         model.num_timesteps = state.heads.nfe # the progress total counts transformer evaluations
     extra = getattr(p, 'extra_generation_params', None)
     if extra is not None:
         extra.update({state.spec.shift_keys[name]: shift for name, shift in shifts.items() if name in state.spec.shift_keys})
-    log.info(f'Network: type=PDD name="{state.name}" steps={state.steps} requested={requested} nfe={state.heads.nfe} shift={shifts}')
+    log.info(f'Network: type=PDD name="{state.name}" steps={state.heads.nfe} requested={requested} grid_steps={state.steps} shift={shifts}')
     return state.steps

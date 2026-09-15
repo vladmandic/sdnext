@@ -29,9 +29,9 @@ def apply_overrides(p, pipe, still: bool = False, audio: bool = True, preview: b
         log.debug(f'Pipeline: cls={pipe.__class__.__name__} frames requested={getattr(p, "frames", None)} aligned={frames}')
     p.frames = frames
     p.task_args['num_frames'] = frames
-    p.steps = max(2, p.steps)
-    p.task_args['num_inference_steps'] = p.steps
-    pipe.num_timesteps = p.steps - 1 # sigma grid includes the terminal point; feeds the progress total
+    p.steps = max(1, p.steps) # transformer evaluations, as on every other model
+    p.task_args['num_inference_steps'] = p.steps + 1 # the scheduler counts the terminal sigma as a grid point
+    pipe.num_timesteps = p.steps # feeds the progress total
     if p.sampler_name not in ('None', 'Default'):
         log.warning(f'Pipeline: cls={pipe.__class__.__name__} sampler={p.sampler_name} unsupported: using model default')
     p.sampler_name = 'Default' # the model default is the bespoke scheduler pair, which discrete samplers must not replace
