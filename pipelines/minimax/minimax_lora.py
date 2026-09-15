@@ -16,10 +16,11 @@ import torch
 
 from modules.logger import log
 from modules.lora import native_adapter, network_pdd
+from modules.video_models.video_minimax import SHIFT_KEYS
 
 
 # Parallel decoding heads: the audio projection follows the audio schedule, and MiniMaxH3Scheduler counts the terminal sigma in num_inference_steps.
-PDD = network_pdd.ArchSpec(schedulers={"audio_proj_out": "audio_scheduler"}, steps_for=lambda intervals: intervals + 1)
+PDD = network_pdd.ArchSpec(schedulers={"audio_proj_out": "audio_scheduler"}, steps_for=lambda intervals: intervals + 1, shift_keys=SHIFT_KEYS)
 
 
 KNOWN_PREFIXES = (

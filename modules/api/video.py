@@ -22,8 +22,9 @@ class ReqVideo(BaseModel):
     frames: int = Field(default=17, ge=1, le=1024, title="Frames", description="Number of frames; 1 produces a single still image on workflow models")
     steps: int = Field(default=50, ge=1, le=200, title="Steps", description="Number of inference steps")
     sampler_name: str = Field(default="Default", title="Sampler", description="Sampler name; Default keeps the model scheduler")
-    sampler_shift: float = Field(default=-1.0, title="Sampler shift", description="Scheduler flow shift; -1 keeps the model default")
+    sampler_shift: float = Field(default=-1.0, title="Sampler shift", description="Scheduler flow shift, the video schedule on models with a separate audio schedule; -1 keeps the model default")
     dynamic_shift: bool = Field(default=False, title="Dynamic shift", description="Enable dynamic scheduler shifting")
+    audio_shift: float = Field(default=-1.0, title="Audio shift", description="Audio schedule shift on models with a separate audio scheduler; -1 keeps the model default")
     seed: int = Field(default=-1, title="Seed", description="Generation seed; -1 for random")
     guidance_scale: float = Field(default=-1.0, title="Guidance scale", description="CFG scale; -1 keeps the model default")
     guidance_true: float = Field(default=-1.0, title="True guidance", description="True CFG scale; -1 keeps the model default")
@@ -173,6 +174,7 @@ class APIVideo:
                     sampler_name=sampler_name,
                     sampler_shift=req.sampler_shift,
                     dynamic_shift=req.dynamic_shift,
+                    audio_shift=req.audio_shift,
                     seed=req.seed,
                     guidance_scale=req.guidance_scale,
                     guidance_true=req.guidance_true,

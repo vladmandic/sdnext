@@ -20,10 +20,11 @@ EXTRAS_KEY = 'pdd'
 class ArchSpec:
     """How an architecture hosts parallel heads: the scheduler behind each head and how interval counts map onto its num_inference_steps."""
 
-    def __init__(self, schedulers=None, default_scheduler='scheduler', steps_for=None):
+    def __init__(self, schedulers=None, default_scheduler='scheduler', steps_for=None, shift_keys=None):
         self.schedulers = schedulers or {} # head path -> attribute of the scheduler the head was trained on
         self.default_scheduler = default_scheduler
         self.steps_for = steps_for or (lambda intervals: intervals) # num_inference_steps that yields this many grid intervals
+        self.shift_keys = shift_keys or {} # scheduler attribute -> infotext key the pinned shift is recorded under
 
     def scheduler_name(self, head):
         return self.schedulers.get(head, self.default_scheduler)
@@ -301,5 +302,8 @@ def pin(p, model):
         p.task_args['num_inference_steps'] = state.steps
     if getattr(model, 'num_timesteps', None) is not None:
         model.num_timesteps = state.heads.nfe # the progress total counts transformer evaluations
+    extra = getattr(p, 'extra_generation_params', None)
+    if extra is not None:
+        extra.update({state.spec.shift_keys[name]: shift for name, shift in shifts.items() if name in state.spec.shift_keys})
     log.info(f'Network: type=PDD name="{state.name}" steps={state.steps} requested={requested} nfe={state.heads.nfe} shift={shifts}')
     return state.steps

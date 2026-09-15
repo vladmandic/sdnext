@@ -114,4 +114,4 @@ def set_overrides(p: processing.StableDiffusionProcessingVideo, selected: Model)
     # MiniMax H3
     if 'MiniMaxH3' in cls:
         from modules.video_models import video_minimax
-        video_minimax.apply_overrides(p, shared.sd_model, still=getattr(p, 'video_still', False), audio=getattr(p, 'video_audio', True))
+        video_minimax.apply_overrides(p, shared.sd_model, still=getattr(p, 'video_still', False), audio=getattr(p, 'video_audio', True), video_shift=getattr(p, 'sampler_shift', None), audio_shift=getattr(p, 'audio_shift', None))
