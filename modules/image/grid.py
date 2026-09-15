@@ -146,9 +146,9 @@ class GridAnnotation:
 
 def get_font(fontsize: float):
     try:
-        return ImageFont.truetype(shared.opts.font or os.path.join(script_path, "ui", "fonts", "notosans-nerdfont-regular.ttf"), fontsize)
+        return ImageFont.truetype(shared.opts.font or os.path.join(script_path, "ui", "css", "ubuntu-nerdfont.ttf"), fontsize)
     except Exception:
-        return ImageFont.truetype(os.path.join(script_path, "ui", "fonts", "notosans-nerdfont-regular.ttf"), fontsize)
+        return ImageFont.truetype(os.path.join(script_path, "ui", "css", "ubuntu-nerdfont.ttf"), fontsize)
 
 
 def draw_grid_annotations(im: Image.Image, width: int, height: int, x_texts: list[list[GridAnnotation]], y_texts: list[list[GridAnnotation]], margin=0, title: list[GridAnnotation] | None = None):
