@@ -156,6 +156,10 @@ def generate(task_id, _ui_state,
 
             _processed: processing.Processed = scripts_manager.scripts_video.run(p, *args)
 
+            if os.environ.get("SD_MINIMAX_VDN", None) is not None:
+                from modules.minimax.minimax_vdn import apply_vdn
+                apply_vdn(shared.sd_model, window_size=12, num_frames=frames, init_gamma=1.0)
+
             if os.environ.get("SD_MINIMAX_CHUNK", None) is not None:
                 from modules.minimax.minimax_chunking import minimax_attention
                 chunk_size = int(os.environ.get("SD_MINIMAX_CHUNK", 0))
