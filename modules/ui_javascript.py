@@ -125,7 +125,7 @@ def reload_javascript():
     js = html_head()
 
     css_files: list[str] = []
-    if (css_base := theme.reload_gradio_theme()) is not None:
+    if (css_base := theme.reload_gradio_theme(shared.opts, shared.cmd_opts)) is not None:
         css_files.append(css_base)
     css_files.append("timesheet.css")
 

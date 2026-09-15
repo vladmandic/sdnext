@@ -1,3 +1,4 @@
+from functools import lru_cache
 import json
 import os
 from types import SimpleNamespace
@@ -60,21 +61,23 @@ def refresh_themes(no_update=False):
     return res
 
 
+@lru_cache(maxsize=1024)
 def list_locales():
     return ['Auto', 'en: English', 'hr: Croatian', 'de: German', 'es: Spanish', 'fr: French', 'it: Italian', 'pt: Portuguese', 'zh: Chinese', 'ja: Japanese', 'ko: Korean', 'ru: Russian']
 
 
+@lru_cache(maxsize=1024)
 def list_themes():
-    if opts.theme_type == 'None':
+    if opts.theme_type.lower() == 'none':
         gradio = ["gradio/default", "gradio/base", "gradio/glass", "gradio/monochrome", "gradio/soft"]
         huggingface = refresh_themes(no_update=True)
         huggingface = {x['id'] for x in huggingface if x['status'] == 'RUNNING' and 'test' not in x['id'].lower()}
         huggingface = [f'huggingface/{x}' for x in huggingface]
         themes = sorted(gradio) + sorted(huggingface, key=str.casefold)
-    elif opts.theme_type == 'Standard':
+    elif opts.theme_type.lower() == 'standard':
         builtin = list_builtin_themes()
         themes = sorted(builtin)
-    elif opts.theme_type == 'Modern':
+    elif opts.theme_type.lower() == 'modern':
         # ext = next((e for e in modules.extensions.extensions if e.name == 'sdnext-modernui'), None)
         # folder = os.path.join(ext.path, 'themes')
         folder = os.path.join('extensions-builtin', 'sdnext-modernui', 'themes')
@@ -92,8 +95,16 @@ def list_themes():
     return themes
 
 
-def reload_gradio_theme():
-    global gradio_theme # pylint: disable=global-statement
+def reload_gradio_theme(_opts, _cmd_opts):
+    global opts, gradio_theme # pylint: disable=global-statement
+    if _opts is not None:
+        opts = _opts
+    if _cmd_opts is not None:
+        if _cmd_opts.theme is not None:
+            if '/' in _cmd_opts.theme:
+                opts.theme_type, opts.gradio_theme = _cmd_opts.theme.split('/', 1)
+            else:
+                opts.theme_type = _cmd_opts.theme
     theme_name = opts.gradio_theme
     default_font_params: FontParams = {
         'font':['Helvetica', 'ui-sans-serif', 'system-ui', 'sans-serif'],
@@ -103,31 +114,29 @@ def reload_gradio_theme():
     available_themes = list_themes()
     if theme_name not in available_themes:
         # log.error(f'UI theme invalid: type={opts.theme_type} theme="{theme_name}"')
-        if opts.theme_type == 'Standard':
+        if opts.theme_type.lower() == 'standard':
             theme_name = 'black-teal'
-        elif opts.theme_type == 'Modern':
-            theme_name = 'Default'
-        elif opts.theme_type == 'None':
+        elif opts.theme_type.lower() == 'none':
             theme_name = 'gradio/default'
         else:
-            opts.theme_type = 'Standard'
-            theme_name = 'black-teal'
+            opts.theme_type = 'modern'
+            theme_name = 'Default'
 
     opts.gradio_theme = theme_name
     log.info(f'UI locale: name="{opts.ui_locale}"')
 
-    if opts.theme_type == 'Standard':
+    if opts.theme_type.lower() == 'standard':
         gradio_theme = gr.themes.Base(**default_font_params)
         log.debug(f'UI theme: type={opts.theme_type} available={len(available_themes)}')
         log.warning('UI theme: please switch to ModernUI for best experience')
         return 'sdnext.css'
 
-    if opts.theme_type == 'Modern':
+    if opts.theme_type.lower() == 'modern':
         gradio_theme = gr.themes.Base(**default_font_params)
         log.debug(f'UI theme: type={opts.theme_type} available={len(available_themes)}')
         return 'base.css'
 
-    if opts.theme_type == 'None':
+    if opts.theme_type.lower() == 'none':
         if theme_name.startswith('gradio/'):
             log.warning('UI theme: using Gradio default theme which is not optimized for SD.Next')
             if theme_name == "gradio/default":
