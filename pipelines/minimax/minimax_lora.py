@@ -49,6 +49,7 @@ STANDALONE_RENAMES = {
     "time_embedder.proj_in": "time_embedder.linear_1",
     "time_embedder.proj_out": "time_embedder.linear_2",
     "final_layer.adaln_proj.linear": "norm_out.linear",
+    "final_layer.norm": "norm_out.norm",
     "final_layer.video_out": "proj_out",
     "final_layer.audio_out": "audio_proj_out",
 }
