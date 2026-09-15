@@ -390,6 +390,7 @@ def oracle_mapping(state_dict, network_alpha=None):
     """
     if any(k.startswith(REFERENCE_PREFIXES) for k in state_dict):
         sd = {k.replace('base_model.model.dit.', 'diffusion_model.', 1) if k.startswith('base_model.model.dit.') else k: v for k, v in state_dict.items()}
+        sd = {k[:-len('.lora_a')] + ('.lora_A.weight' if k.endswith('.lora_a') else '.lora_B.weight') if k.endswith(('.lora_a', '.lora_b')) else k: v for k, v in sd.items()} # lowercase peft names the converter does not read
         converted = convert_diffusers(sd)
         out = {}
         for key, value in converted.items():
