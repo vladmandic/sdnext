@@ -52,7 +52,7 @@ class VectorizedGatedDeltaBranch(nn.Module):
             error = v_f - pred_v
 
             # In-place state update avoids intermediate 5D tensor allocations
-            state.mul_(1.0 - b_f).addcmul_(b_f, error.unsqueeze(-1), k_f.unsqueeze(-2))
+            state.mul_(1.0 - b_f).addcmul_(b_f, error.unsqueeze(-1), k_f.unsqueeze(-2)) # ty: ignore[too-many-positional-arguments]
 
             frame_out = torch.matmul(q_f.unsqueeze(-2), state).squeeze(-2)
 
