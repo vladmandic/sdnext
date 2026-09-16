@@ -91,7 +91,7 @@ class ExtraNetworksPageLora(ui_extra_networks.ExtraNetworksPage):
         return ver
 
     def create_item(self, name):
-        l = lora_load.available_networks.get(name)
+        l = lora_load.available_networks.get(name) or lora_load.available_network_aliases.get(name) # that table mangles dots in the stem to underscores; the aliases carry the natural basename and the subfolder path
         if l is None:
             log.warning(f'Networks: type=lora registered={len(list(lora_load.available_networks))} file="{name}" not registered')
             return None
