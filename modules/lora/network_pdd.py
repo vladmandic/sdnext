@@ -87,9 +87,29 @@ def load(name, metadata, state_dict):
     return ParallelHeads(num_steps, block_size, heads)
 
 
+def header_metadata(filename, name):
+    """The metadata read from the file itself, for when the cached metadata lacks the grid; warns when head-shaped tensors have no grid."""
+    from safetensors import safe_open
+    try:
+        with safe_open(filename, framework='pt', device='cpu') as f:
+            metadata = f.metadata() or {}
+            if METADATA_STEPS in metadata:
+                log.debug(f'Network load: type=PDD name="{name}" grid read from the file header')
+            else:
+                heads = sum(1 for key in f.keys() if key.endswith('.weight') and len(f.get_slice(key).get_shape()) == 3)
+                if heads > 0:
+                    log.warning(f'Network load: type=PDD name="{name}" heads={heads} no {METADATA_STEPS} metadata: heads ignored')
+            return metadata
+    except Exception as e:
+        log.warning(f'Network load: type=PDD name="{name}" header {e}')
+        return {}
+
+
 def try_load(name, network_on_disk, lora_scale): # pylint: disable=unused-argument
     """Family loader for the native chain: a network carrying only the heads."""
     metadata = getattr(network_on_disk, 'metadata', None) or {}
+    if METADATA_STEPS not in metadata:
+        metadata = header_metadata(network_on_disk.filename, name) # the metadata cache keeps a failed read forever and --no-metadata returns nothing
     if METADATA_STEPS not in metadata:
         return None
     from modules.lora import native_adapter

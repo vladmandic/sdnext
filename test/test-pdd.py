@@ -194,6 +194,29 @@ def test_load_without_heads_is_none():
     assert network_pdd.load('x', METADATA, {'transformer_blocks.0.attn.to_q.lora_down': torch.zeros(64, HIDDEN)}) is None
 
 
+def write_pdd_file(folder, metadata):
+    from safetensors.torch import save_file
+    path = os.path.join(folder, 'pdd.safetensors')
+    save_file({'proj_out.weight': torch.zeros(NUM_STEPS, VIDEO_OUT, HIDDEN), 'proj_out.bias': torch.zeros(NUM_STEPS, VIDEO_OUT)}, path, metadata=metadata)
+    return path
+
+
+def test_try_load_reads_the_grid_from_the_file_header():
+    import tempfile
+    with tempfile.TemporaryDirectory() as folder:
+        disk = types.SimpleNamespace(name='pdd', filename=write_pdd_file(folder, METADATA), metadata={}) # the cached metadata lacks the grid
+        net = network_pdd.try_load('pdd', disk, 1.0)
+        assert net is not None and network_pdd.EXTRAS_KEY in net.extras, 'the grid in the file header must be enough'
+        assert net.extras[network_pdd.EXTRAS_KEY].nfe == NUM_STEPS // BLOCK
+
+
+def test_try_load_without_grid_metadata_is_none():
+    import tempfile
+    with tempfile.TemporaryDirectory() as folder:
+        disk = types.SimpleNamespace(name='pdd', filename=write_pdd_file(folder, {'alpha': '1'}), metadata={})
+        assert network_pdd.try_load('pdd', disk, 1.0) is None
+
+
 # ============================================================
 # Tests: grid and fusion math
 # ============================================================
@@ -352,7 +375,7 @@ def test_pin_overrides_steps_and_shift():
 
 def main():
     cat = category('detect')
-    for fn in (test_detect_grid, test_detect_rejects_bad_block, test_load_collects_heads, test_load_without_metadata_is_none, test_load_without_heads_is_none):
+    for fn in (test_detect_grid, test_detect_rejects_bad_block, test_load_collects_heads, test_load_without_metadata_is_none, test_load_without_heads_is_none, test_try_load_reads_the_grid_from_the_file_header, test_try_load_without_grid_metadata_is_none):
         run_test(cat, fn)
     cat = category('math')
     for fn in (test_grid_intervals_match_reference, test_steps_for_counts_terminal_sigma, test_parallel_head_matches_reference_per_block, test_parallel_head_strength_blend, test_parallel_head_clamps_overflow, test_parallel_head_keeps_base_out_of_tree):
