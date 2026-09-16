@@ -6,10 +6,14 @@ walk the trajectory. Heads ride on ``Network.extras['pdd']``: ``reconcile`` inst
 the loaded set, ``pin`` holds the step count and schedule the file was distilled for.
 """
 
+import os
 import copy
 import weakref
 import torch
 from modules.logger import log
+
+
+debug_log = log.trace if os.environ.get('SD_LORA_DEBUG', None) is not None else lambda *args, **kwargs: None
 
 
 METADATA_STEPS = 'pdd_num_steps'
@@ -179,6 +183,7 @@ class ParallelHead(torch.nn.Module):
                 base_bias = self.base_bias.to(device=bias.device)
                 bias = base_bias + self.strength * (bias - base_bias)
         self.fused_index, self.fused_weight, self.fused_bias = index, weight, bias
+        debug_log(f'Network: type=PDD fuse block={index} heads={start}:{stop} out={self.out_features} strength={self.strength}')
 
     def forward(self, hidden_states):
         index = self.step_index()
