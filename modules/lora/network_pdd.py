@@ -231,6 +231,8 @@ def install(pipe, net, heads, spec, components):
         def get_scheduler(name=scheduler_name):
             owner_pipe = pipe_ref()
             return getattr(owner_pipe, name, None) if owner_pipe is not None else None
+        for tensor in list(module.parameters()) + list(module.buffers()):
+            tensor.data = tensor.data.clone() # nothing moves the stashed projection, and a shard view would keep the whole shard mapped
         head = ParallelHead(module, weight, bias, strength, get_scheduler, heads.block_size, intervals)
         parent_path, _, attr = path.rpartition('.')
         parent = component.get_submodule(parent_path) if parent_path else component

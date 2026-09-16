@@ -275,10 +275,13 @@ def test_parallel_head_keeps_base_out_of_tree():
 def test_install_and_restore_round_trip():
     pipe = StubPipe()
     original_video, original_audio = pipe.transformer.proj_out, pipe.transformer.audio_proj_out
+    before = original_video.weight.detach().clone()
+    before_ptr = original_video.weight.data_ptr()
     heads = make_heads()
     assert network_pdd.install(pipe, make_net(heads), heads, minimax_lora.PDD, ['unet', 'transformer']) is True
     assert isinstance(pipe.transformer.proj_out, network_pdd.ParallelHead)
     assert isinstance(pipe.transformer.audio_proj_out, network_pdd.ParallelHead)
+    assert original_video.weight.data_ptr() != before_ptr and torch.equal(original_video.weight, before), 'the stashed projection must own its memory and keep its values'
     assert pipe.sdnext_pdd.steps == 9 and pipe.sdnext_pdd.component == 'transformer'
     pipe.audio_scheduler.set_shift(3.0)
     pipe.scheduler.set_timesteps(9)
