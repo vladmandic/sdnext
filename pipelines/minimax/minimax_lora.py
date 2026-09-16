@@ -10,6 +10,7 @@ fused ``attn.qkv_proj`` splits into ``to_q``/``to_k``/``to_v``, and ``mlp.fc1``
 lands on the fused SwiGLU projection with its two output halves swapped.
 """
 
+import os
 import re
 
 import torch
@@ -17,6 +18,9 @@ import torch
 from modules.logger import log
 from modules.lora import native_adapter, network_pdd
 from modules.video_models.video_minimax import SHIFT_KEYS
+
+
+debug_log = log.trace if os.environ.get('SD_LORA_DEBUG', None) is not None else lambda *args, **kwargs: None
 
 
 # Parallel decoding heads: the audio projection follows the audio schedule, and MiniMaxH3Scheduler counts the terminal sigma in num_inference_steps.
@@ -252,7 +256,7 @@ def project_pruned_adaln(sd_module, network_key, w, transformers=None):
         return None
     projected = dict(w)
     projected["lora_down.weight"] = (down.to(dtype=torch.float32, device=basis.device) @ basis.to(dtype=torch.float32).T).to(dtype=down.dtype, device=down.device)
-    log.debug(f'Network load: type=LoRA arch=minimaxh3 key={network_key} adaln projected {down.shape[1]}->{shape[1]}')
+    debug_log(f'Network load: type=LoRA arch=minimaxh3 key={network_key} adaln projected {down.shape[1]}->{shape[1]}')
     return projected
 
 
