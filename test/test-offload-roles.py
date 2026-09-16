@@ -466,6 +466,59 @@ def test_resident_placement_clears_the_ondemand_stamp():
     assert not hasattr(module, '_hf_hook'), 'the on-demand hook must be removed'
 
 
+def accelerator():
+    """The restore round trip needs a device that swaps tensor data with cpu both ways; meta cannot, so these two tests take a real accelerator or skip."""
+    if torch.cuda.is_available():
+        return torch.device('cuda')
+    log.warning('  SKIP: no accelerator for the round trip')
+    return None
+
+
+def test_ondemand_offload_hands_back_the_loaded_tensors():
+    device = accelerator()
+    if device is None:
+        return True
+    module = BridgeModule()
+    sd_offload_group.apply_group_offload_ondemand(module)
+    loaded = {name: p.data for name, p in module.named_parameters()}
+    pipe = FakePipe({'vae': module})
+    orig_device = sd_offload_group.devices.device
+    sd_offload_group.devices.device = device
+    try:
+        module._hf_hook.pre_forward(module, torch.zeros(1, 4)) # pylint: disable=protected-access
+        assert next(module.parameters()).device.type == device.type, 'the entry hook must onload the whole module'
+        sd_offload_group.offload_ondemand(pipe, force=True)
+    finally:
+        sd_offload_group.devices.device = orig_device
+    for name, param in module.named_parameters():
+        assert param.data.data_ptr() == loaded[name].data_ptr(), f'{name} came back as a copy rather than the loaded tensor'
+    return True
+
+
+def test_group_offload_hands_back_the_loaded_tensors():
+    from diffusers.hooks.group_offloading import _GROUP_OFFLOADING
+    device = accelerator()
+    if device is None:
+        return True
+    module = PlainModule()
+    orig_device = sd_offload_group.devices.device
+    sd_offload_group.devices.device = device
+    try:
+        assert sd_offload_group.apply_group_offload_component(module, 'text_encoder', main=False) is True
+        loaded = {name: p.data for name, p in module.named_parameters()}
+        group = module.proj._diffusers_hook.get_hook(_GROUP_OFFLOADING).group # pylint: disable=protected-access
+        assert group.stream is None and hasattr(group, 'sdnext_onload'), 'aux components take the no-stream path and must carry the restore patch'
+        group.onload_()
+        assert next(module.parameters()).device.type == device.type, 'onload must still move the group'
+        group.offload_()
+    finally:
+        sd_offload_group.devices.device = orig_device
+    for name, param in module.named_parameters():
+        assert param.data.data_ptr() == loaded[name].data_ptr(), f'{name} came back as a copy rather than the loaded tensor'
+    assert sd_offload_group.keep_loaded_tensors(module) == 0, 'a second pass must not patch the same groups again'
+    return True
+
+
 # ============================================================
 # get_module_names
 # ============================================================
@@ -706,6 +759,8 @@ def run_all():
         test_ondemand_apply_returns_bool_and_is_idempotent,
         test_ondemand_apply_leaves_weights_on_cpu,
         test_resident_placement_clears_the_ondemand_stamp,
+        test_ondemand_offload_hands_back_the_loaded_tensors,
+        test_group_offload_hands_back_the_loaded_tensors,
     ]:
         run_test(cat, fn)
 
