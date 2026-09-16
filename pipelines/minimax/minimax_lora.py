@@ -12,7 +12,15 @@ lands on the fused SwiGLU projection with its two output halves swapped.
 
 import re
 
-from modules.lora import native_adapter
+import torch
+
+from modules.logger import log
+from modules.lora import native_adapter, network_pdd
+from modules.video_models.video_minimax import SHIFT_KEYS
+
+
+# Parallel decoding heads: the audio projection follows the audio schedule, and MiniMaxH3Scheduler counts the terminal sigma in num_inference_steps.
+PDD = network_pdd.ArchSpec(schedulers={"audio_proj_out": "audio_scheduler"}, steps_for=lambda intervals: intervals + 1, shift_keys=SHIFT_KEYS)
 
 
 KNOWN_PREFIXES = (
@@ -42,6 +50,7 @@ STANDALONE_RENAMES = {
     "time_embedder.proj_in": "time_embedder.linear_1",
     "time_embedder.proj_out": "time_embedder.linear_2",
     "final_layer.adaln_proj.linear": "norm_out.linear",
+    "final_layer.norm": "norm_out.norm",
     "final_layer.video_out": "proj_out",
     "final_layer.audio_out": "audio_proj_out",
 }
@@ -85,20 +94,6 @@ BARE_DIFFUSERS_PREFIX_USED = native_adapter.BARE_DIFFUSERS_PREFIX_USED
 has_marker = native_adapter.has_marker
 
 
-MINIMAX_EXTRA_SUFFIXES = (".lora_down", ".lora_up", ".lora_A", ".lora_B")
-MINIMAX_LORA_SUFFIXES = native_adapter.LORA_SUFFIXES + MINIMAX_EXTRA_SUFFIXES
-MINIMAX_SUFFIX_NORMALIZE = {
-    "lora_down": "lora_down.weight",
-    "lora_up": "lora_up.weight",
-    "lora_A": "lora_down.weight",
-    "lora_B": "lora_up.weight",
-}
-
-
-def normalize_mini_max_suffix(suffix: str) -> str:
-    return MINIMAX_SUFFIX_NORMALIZE.get(suffix, suffix)
-
-
 def _flattened(dotted):
     return re.escape(dotted.replace(".", "_"))
 
@@ -132,11 +127,7 @@ def parse_key(key, suffixes):
     key = native_adapter.unwrap_peft_wrapper(key)
     if key.startswith("dit."):
         key = "diffusion_model." + key[len("dit."):]
-    parsed = native_adapter.parse_key(key, suffixes, prefixes=KNOWN_PREFIXES)
-    if parsed is None:
-        return None
-    prefix_used, base, suffix = parsed
-    return prefix_used, base, normalize_mini_max_suffix(suffix)
+    return native_adapter.parse_key(key, suffixes, prefixes=KNOWN_PREFIXES)
 
 
 def group_by_suffixes(state_dict, suffixes, *, prefixes=None): # pylint: disable=unused-argument
@@ -214,8 +205,9 @@ def network_prefix_for(prefix_used):
 
 
 def file_alpha(network_on_disk):
-    """The training alpha some trainers record in the safetensors metadata instead of per-key tensors, or None."""
-    alpha = (getattr(network_on_disk, "metadata", None) or {}).get("alpha")
+    """The file-level training alpha from the safetensors metadata (alpha, or lora_alpha in PDD files), or None."""
+    metadata = getattr(network_on_disk, "metadata", None) or {}
+    alpha = metadata.get("alpha", metadata.get("lora_alpha"))
     if alpha is None:
         return None
     try:
@@ -233,8 +225,42 @@ _BIND_KWARGS = dict(
 )
 
 
+def pruned_basis(sd_module, rank, width, transformers=None):
+    """The AdaLN curve basis of the transformer owning ``sd_module``, or None on an unpruned model."""
+    if transformers is None:
+        from modules import shared
+        pipe = getattr(shared.sd_model, "pipe", shared.sd_model)
+        transformers = [getattr(pipe, component, None) for component in ("transformer", "transformer_ref")]
+    for transformer in transformers:
+        basis = getattr(getattr(transformer, "time_embedder", None), "basis", None)
+        if basis is None or tuple(basis.shape) != (rank, width):
+            continue
+        if any(module is sd_module for module in transformer.modules()):
+            return basis
+    return None
+
+
+def project_pruned_adaln(sd_module, network_key, w, transformers=None):
+    """Refit an AdaLN delta trained on the released time embedding onto the pruned curve basis: the pruned class
+    stores ``W @ P``, so ``up @ down`` lands exactly as ``up @ (down @ P)``."""
+    down = w.get("lora_down.weight")
+    shape = native_adapter.module_shape(sd_module)
+    if down is None or down.ndim != 2 or shape is None or len(shape) != 2 or down.shape[1] == shape[1]:
+        return None
+    basis = pruned_basis(sd_module, shape[1], down.shape[1], transformers)
+    if basis is None:
+        return None
+    projected = dict(w)
+    projected["lora_down.weight"] = (down.to(dtype=torch.float32, device=basis.device) @ basis.to(dtype=torch.float32).T).to(dtype=down.dtype, device=down.device)
+    log.debug(f'Network load: type=LoRA arch=minimaxh3 key={network_key} adaln projected {down.shape[1]}->{shape[1]}')
+    return projected
+
+
+adapt_weights = project_pruned_adaln # offline tools refit deltas through the same hook the loader binds
+
+
 def try_load_lora(name, network_on_disk, lora_scale):
-    return native_adapter.try_load_lora(name, network_on_disk, lora_scale, network_alpha=file_alpha(network_on_disk), **_BIND_KWARGS)
+    return native_adapter.try_load_lora(name, network_on_disk, lora_scale, network_alpha=file_alpha(network_on_disk), adapt_weights=project_pruned_adaln, **_BIND_KWARGS)
 
 
 def try_load_lokr(name, network_on_disk, lora_scale):
@@ -272,5 +298,6 @@ def try_load(name, network_on_disk, lora_scale):
         family_loaders=(
             try_load_lora, try_load_lokr, try_load_loha, try_load_oft,
             try_load_ia3, try_load_glora, try_load_norm, try_load_full,
+            network_pdd.try_load,
         ),
     )
