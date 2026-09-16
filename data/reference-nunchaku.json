@@ -298,7 +298,7 @@
   },
   "MiniMaxAI MiniMax-H3 Nunchaku-Lite": {
     "path": "rootonchair/MiniMax-H3-nunchaku-lite-int4",
-    "preview": "OzzyGT/MiniMax_H3_sdnq_dynamic_4bit.jpg",
+    "preview": "MiniMaxAI--MiniMax-H3.jpg",
     "desc": "Nunchaku-Lite quantization using precompiled Kernels",
     "size": 23.70,
     "date": "2026 September"

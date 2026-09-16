@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2026-09-15
+## Update for 2026-09-17
 
-### Highlights for 2026-09-15
+### Highlights for 2026-09-17
 
 *What's New*? Well, code-wise, this is a big one...  
 First, a-lot-of-optimizations:
@@ -14,7 +14,7 @@ First, a-lot-of-optimizations:
 - Compute updates across the board
 
 And some cool new stuff and models:
-- **DLSSv5** integration  
+- **DLSS v5** integration  
 - New models: **Anima 2.9B**, **LLaDa-Image**  
 - And few cloud models: *Google's Gemini, NanoBanana, Veo, Omni* and *X.AI's Grok*  
 - Some (light) UI restyling
@@ -23,7 +23,7 @@ Plus inevitable bug-fixes...
 
 [Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-09-15
+### Details for 2026-09-17
 
 - **Models**
   - [Anima 2.9B Preview v1](https://huggingface.co/yeoj34760/Anima-2.9B)  
@@ -108,7 +108,6 @@ Plus inevitable bug-fixes...
     *note*: this may break compatibility with some legacy packages, so report any finidings  
 - **Other**
   - video preview: TAESD support for **MiniMax**
-  - **minimax** video and audio shift are now dependent on steps instead of static
   - support `xai grok` for prompt enhance workflows  
     *note*: requires grok api key  
   - remove `/redocs` as `/docs` are primary api docs  
@@ -126,6 +125,7 @@ Plus inevitable bug-fixes...
   - compile: keep model compiled state
   - detailer: handling of stop/skip/pause
   - framepack: correct device assignment, thanks @li-lizhe
+  - group offload: improve memory management
   - installer: better handle git detached head
   - json: handle file locks
   - log: ansi color handling
