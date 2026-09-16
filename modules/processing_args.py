@@ -12,6 +12,7 @@ from modules.attention import context as attention_context
 from modules.processing_callbacks import diffusers_callback_legacy, diffusers_callback, set_callbacks_p
 from modules.processing_helpers import get_generator, apply_circular # pylint: disable=unused-import
 from modules.processing_prompt import set_prompt
+from modules.lora import network_pdd
 from modules.api import helpers
 
 
@@ -262,6 +263,10 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:l
             model.set_progress_bar_config(bar_format='Progress {rate_fmt}{postfix} {bar:15} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining} ' + '\x1b[38;5;71m' + desc, ncols=120, colour='#327fba')
 
     possible = get_params(model)
+
+    pinned = network_pdd.pin(p, model) # installed parallel-decoding heads fix the step count and schedule
+    if pinned is not None and 'num_inference_steps' in possible:
+        kwargs['num_inference_steps'] = pinned
 
     debug_log(f'Pipeline: cls={cls} possible={possible}')
     steps = kwargs.get("num_inference_steps", None) or len(getattr(p, 'timesteps', ['1']))

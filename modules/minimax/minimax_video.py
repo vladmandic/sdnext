@@ -144,8 +144,7 @@ def generate(task_id, _ui_state,
                 outpath_samples=paths.resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_video),
                 ops=['video'],
             )
-            video_minimax.apply_overrides(p, shared.sd_model, still=False, audio=enable_audio, preview=enable_preview)
-            video_minimax.set_sampler_shift(shared.sd_model, steps=steps, video_shift=video_shift, audio_shift=audio_shift)
+            video_minimax.apply_overrides(p, shared.sd_model, still=False, audio=enable_audio, preview=enable_preview, video_shift=video_shift, audio_shift=audio_shift)
             log.debug(f'Video: engine="{engine}" model="{model}" workflow={workflow} cls={shared.sd_model.__class__.__name__} audio={enable_audio} preview={enable_preview} kwargs={p.task_args}')
             processing.fix_seed(p)
             p.ops.append('video')

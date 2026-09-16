@@ -92,6 +92,11 @@ def _resolve_prefix(network_prefix, prefix_used):
 SUFFIX_NORMALIZE = {
     "lora_A.weight": "lora_down.weight",
     "lora_B.weight": "lora_up.weight",
+    # bare parameter names, saved by wrappers that hold the factors as nn.Parameter (alibaba-pai PDD files)
+    "lora_down": "lora_down.weight",
+    "lora_a": "lora_down.weight",
+    "lora_b": "lora_up.weight",
+    "lora_up": "lora_up.weight",
 }
 
 
@@ -103,6 +108,8 @@ SUFFIX_NORMALIZE = {
 LORA_SUFFIXES = (
     ".lora_down.weight", ".lora_up.weight", ".lora_mid.weight",
     ".lora_A.weight",    ".lora_B.weight",
+    ".lora_down",        ".lora_up",
+    ".lora_a",           ".lora_b", # lowercase peft factor names without .weight (TaoLive adapters)
     # diff_b: bias delta some saves pair with the weight LoRA, applied as ex_bias.
     # magnitude / lora_magnitude_vector: DoRA row norms (ai-toolkit / PEFT key
     # names); converted onto the dora_scale path by try_load_lora.
@@ -154,7 +161,7 @@ FULL_SUFFIXES = (
 # on accidental overlaps with other families.
 
 LORA_MARKERS = (
-    ".lora_down.weight", ".lora_up.weight",
+    ".lora_down", ".lora_up", ".lora_a", ".lora_b", # bare and .weight forms alike
     ".lora_A.weight", ".lora_B.weight",
     # PEFT named-adapter saves embed the slot name as ``.lora_A.<name>.weight``;
     # the trailing-dot forms catch every variant.
@@ -299,19 +306,19 @@ def finalize_network(net, name, family, lora_scale, t0, unmapped=0, mismatch=0, 
     return net
 
 
-def shapes_match(sd_module, down_w: torch.Tensor, up_w: torch.Tensor) -> bool:
-    """LoRA-style rank-and-dim sanity check against the live module weight.
-
-    Honors SDNQ-quantized modules by reading the original shape from the
-    dequantizer rather than the packed weight tensor.
-    """
+def module_shape(sd_module):
+    """The live weight shape of a module, read from the dequantizer for SDNQ-quantized layers; None without a weight."""
     if not hasattr(sd_module, "weight"):
-        return False
+        return None
     if hasattr(sd_module, "sdnq_dequantizer"):
-        mod_shape = sd_module.sdnq_dequantizer.original_shape
-    else:
-        mod_shape = sd_module.weight.shape
-    if len(mod_shape) < 2 or len(down_w.shape) < 2 or len(up_w.shape) < 2:
+        return tuple(sd_module.sdnq_dequantizer.original_shape)
+    return tuple(sd_module.weight.shape)
+
+
+def shapes_match(sd_module, down_w: torch.Tensor, up_w: torch.Tensor) -> bool:
+    """LoRA-style rank-and-dim sanity check against the live module weight."""
+    mod_shape = module_shape(sd_module)
+    if mod_shape is None or len(mod_shape) < 2 or len(down_w.shape) < 2 or len(up_w.shape) < 2:
         return False
     return down_w.shape[1] == mod_shape[1] and up_w.shape[0] == mod_shape[0]
 
@@ -521,7 +528,7 @@ def slice_chunk_rows(t, chunk: ChunkSpec):
     return t.contiguous()
 
 
-def _slice_lora_chunk(w, chunk: ChunkSpec):
+def slice_lora_chunk(w, chunk: ChunkSpec):
     """Return a shallow copy of ``w`` with ``lora_up.weight`` sliced per ``chunk``; a dense bias follows a pure reorder."""
     out = dict(w)
     out["lora_up.weight"] = slice_chunk_rows(w["lora_up.weight"], chunk)
@@ -572,6 +579,7 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
                   network_prefix=NETWORK_PREFIX_DEFAULT,
                   group_by_suffixes_fn=group_by_suffixes,
                   network_alpha=None,
+                  adapt_weights=None,
                   arch_name="generic"):
     """Generic LoRA loader (handles DoRA via the universal ``finalize_updown`` hook).
 
@@ -580,6 +588,10 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
 
     ``network_alpha`` is a file-level alpha for files without alpha tensors;
     a file carrying any alpha of its own keeps those and ignores it.
+
+    ``adapt_weights(sd_module, network_key, w)`` lets an arch refit a delta onto
+    a module whose live layout differs from the trained one (a pruned AdaLN
+    basis, for instance) before the shape check; returning None keeps ``w``.
     """
     t0 = time.time()
     state_dict = read_state_dict(network_on_disk.filename, what="network")
@@ -631,7 +643,7 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
                     skipped += 1
                     continue
                 fused_out = w["lora_up.weight"].shape[0]
-                target_w = _slice_lora_chunk(w, chunk)
+                target_w = slice_lora_chunk(w, chunk)
                 target_w = slice_dora_scale(target_w, chunk, fused_out)
                 if target_w is None:
                     log.warning(f'Network load: type=LoRA name="{name}" arch={arch_name} key={network_key} per-input DoRA on fused target skipped (unsupported)')
@@ -642,6 +654,9 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
                     log.warning(f'Network load: type=LoRA name="{name}" arch={arch_name} key={network_key} non-per-output diff_b on fused target skipped (unsupported)')
                     skipped += 1
                     continue
+
+            if adapt_weights is not None:
+                target_w = adapt_weights(sd_module, network_key, target_w) or target_w
 
             if not shapes_match(sd_module, target_w["lora_down.weight"], target_w["lora_up.weight"]):
                 if l.debug:
@@ -1128,6 +1143,7 @@ def try_load_chain(name, network_on_disk, lora_scale, family_loaders):
             net = sub
         else:
             net.modules.update(sub.modules)
+            net.extras.update(sub.extras)
     sd_models_utils.state_dict_cache.disable()
     if net is not None and mismatch > 0: # applying only the layers that fit leaves the model in a state nothing was trained for
         log.error(f'Network load: type=LoRA name="{name}" modules={len(net.modules)} mismatch={mismatch} shapes do not match the loaded model')

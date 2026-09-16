@@ -24,6 +24,8 @@ Save formats exercised, each seen in a published LoRA:
 - diffusers names with kohya suffixes: the alibaba-pai Acc LoRAs.
 - peft wrapper around a ``dit`` attribute (``base_model.model.dit.blocks.0...``):
   the mvp-lab RAVEN LoRA.
+- pruned checkpoints (``MiniMaxH3PrunedTransformer3DModel``): AdaLN deltas
+  trained at the released width refit onto the rank-k curve basis.
 
 The reference module tree is the real ``MiniMaxH3Transformer3DModel`` at tiny
 dims, so module names and target shapes are authoritative. Every LoRA file
@@ -201,12 +203,34 @@ class _MockSdModel:
         self.__class__.__name__ = 'MiniMaxH3ModularPipeline'
 
 
-def install_mock_pipe():
+def install_mock_pipe(transformer=REF):
     """Point shared.sd_model at a mock exposing the reference transformer; re-installed per load so stamps do not leak."""
-    sd_model = _MockSdModel(_MockPipeline(REF))
+    sd_model = _MockSdModel(_MockPipeline(transformer))
     from modules.modeldata import model_data
     model_data.sd_model = sd_model
     return sd_model
+
+
+CURVE_RANK = 2
+
+
+class _CurveTimeEmbedder(nn.Module):
+    """The pruned class's table lookup, reduced to the basis buffer the loader reads."""
+
+    def __init__(self, rank, width):
+        super().__init__()
+        self.register_buffer('basis', torch.randn(rank, width))
+
+
+def pruned_reference():
+    """REF with every AdaLN projection folded onto a rank-2 curve basis, the layout of MiniMaxH3PrunedTransformer3DModel."""
+    import copy
+    pruned = copy.deepcopy(REF)
+    pruned.time_embedder = _CurveTimeEmbedder(CURVE_RANK, pruned.transformer_blocks[0].adaln_proj.linear.in_features)
+    for block in pruned.transformer_blocks:
+        block.adaln_proj.linear = nn.Linear(CURVE_RANK, block.adaln_proj.linear.out_features)
+    pruned.norm_out.linear = nn.Linear(CURVE_RANK, pruned.norm_out.linear.out_features)
+    return pruned
 
 
 # ============================================================
@@ -280,8 +304,8 @@ class _MockNetworkOnDisk:
         self.metadata = metadata or {}
 
 
-def load_native(state_dict, name='test', metadata=None):
-    install_mock_pipe()
+def load_native(state_dict, name='test', metadata=None, transformer=REF):
+    install_mock_pipe(transformer)
     with TempLora(state_dict, name=name, metadata=metadata) as nod:
         return M.try_load(name, nod, lora_scale=1.0)
 
@@ -346,7 +370,7 @@ def native_mapping(state_dict, network_alpha=None):
         if 'lora_down.weight' not in w or 'lora_up.weight' not in w:
             continue
         for path, chunk in native_adapter.resolve_group_targets(M.resolve_targets, prefix, base):
-            target = native_adapter._slice_lora_chunk(w, chunk) if chunk is not None else w # pylint: disable=protected-access
+            target = native_adapter.slice_lora_chunk(w, chunk) if chunk is not None else w
             alpha = network_alpha if 'alpha' not in target else float(target['alpha'])
             scale = 1.0 if alpha is None else alpha / target['lora_down.weight'].shape[0]
             out[path] = (target['lora_down.weight'], target['lora_up.weight'], scale)
@@ -365,14 +389,16 @@ def oracle_mapping(state_dict, network_alpha=None):
     a per-key alpha or else the file-level one applied as ``alpha / rank``.
     """
     if any(k.startswith(REFERENCE_PREFIXES) for k in state_dict):
-        sd = {k.replace('base_model.model.dit.', 'diffusion_model.', 1) if k.startswith('base_model.model.dit.') else k: v for k, v in state_dict.items()}
+        ignored = [k for k in state_dict if k.endswith(('.diff', '.diff_b'))] # weight and bias residuals of an extraction: not pairs, the converter rejects them
+        sd = {k.replace('base_model.model.dit.', 'diffusion_model.', 1) if k.startswith('base_model.model.dit.') else k: v for k, v in state_dict.items() if k not in ignored}
+        sd = {k[:-len('.lora_a')] + ('.lora_A.weight' if k.endswith('.lora_a') else '.lora_B.weight') if k.endswith(('.lora_a', '.lora_b')) else k: v for k, v in sd.items()} # lowercase peft names the converter does not read
         converted = convert_diffusers(sd)
         out = {}
         for key, value in converted.items():
             if key.endswith('.lora_A.weight'):
                 path = key[len('transformer.'):-len('.lora_A.weight')]
                 out[path] = (value, converted[f'transformer.{path}.lora_B.weight'], 1.0)
-        return out, []
+        return out, ignored
     has_alpha = any(k.endswith('.alpha') for k in state_dict)
     out, ignored = {}, []
     for key, value in state_dict.items():
@@ -605,6 +631,46 @@ def test_non_numeric_metadata_alpha_is_ignored():
     return True
 
 
+def test_adaln_deltas_project_onto_the_pruned_basis():
+    """On a pruned transformer an AdaLN delta trained at the released width binds as up @ (down @ basis.T); every other layer binds verbatim."""
+    pruned = pruned_reference()
+    basis = pruned.time_embedder.basis
+    sd = {k: v for k, v in synth_diffusers(suffix=KOHYA).items() if not k.startswith('time_embedder.')} # the pruned class drops the time embedder MLP
+    net = load_native(sd, name='pruned', transformer=pruned)
+    assert net is not None and net.mismatch == 0, f'mismatch={None if net is None else net.mismatch}'
+    expected = identity_deltas(sd)
+    curve_keys = [k for k in expected if k.endswith('_adaln_proj_linear') and '_refiner_' not in k] + ['lora_transformer_norm_out_linear']
+    for key in curve_keys:
+        expected[key] = expected[key] @ basis.T
+    assert_same_deltas(native_deltas(net), expected)
+    assert tuple(net.modules['lora_transformer_norm_out_linear'].down_model.weight.shape) == (RANK, CURVE_RANK)
+    return True
+
+
+def test_extraction_residuals_bind():
+    """Bias residuals ride their pair as ex_bias, norm weight residuals bind through the full family, and the final norm resolves."""
+    out_proj = REF.transformer_blocks[0].attn.to_out[0]
+    linear_1 = REF.time_embedder.linear_1
+    sd = {
+        'blocks.0.attn.out_proj.lora_A.weight': torch.randn(RANK, out_proj.in_features),
+        'blocks.0.attn.out_proj.lora_B.weight': torch.randn(out_proj.out_features, RANK),
+        'blocks.0.attn.out_proj.diff_b': torch.randn(out_proj.out_features),
+        'time_embedder.proj_in.lora_A.weight': torch.randn(RANK, linear_1.in_features),
+        'time_embedder.proj_in.lora_B.weight': torch.randn(linear_1.out_features, RANK),
+        'time_embedder.proj_in.diff_b': torch.randn(linear_1.out_features),
+        'blocks.0.norm1.diff': torch.randn(REF.transformer_blocks[0].norm1.weight.shape[0]),
+        'final_layer.norm.diff': torch.randn(REF.norm_out.norm.weight.shape[0]),
+    }
+    net = load_native(sd, name='residuals')
+    assert net is not None, 'chain returned nothing'
+    mods = net.modules
+    assert torch.equal(mods['lora_transformer_transformer_blocks_0_attn_to_out_0'].ex_bias, sd['blocks.0.attn.out_proj.diff_b'])
+    assert torch.equal(mods['lora_transformer_time_embedder_linear_1'].ex_bias, sd['time_embedder.proj_in.diff_b'])
+    assert torch.equal(mods['lora_transformer_transformer_blocks_0_norm1'].weight, sd['blocks.0.norm1.diff'])
+    assert torch.equal(mods['lora_transformer_norm_out_norm'].weight, sd['final_layer.norm.diff'])
+    return True
+
+
 # ============================================================
 # Tests - real files
 # ============================================================
@@ -619,10 +685,14 @@ def test_real_files_match_reference_loaders():
         return True
     for path in REAL_FILES:
         name = os.path.basename(path)
-        with safetensors.safe_open(path, framework='pt') as f:
-            metadata = f.metadata() or {}
+        try:
+            with safetensors.safe_open(path, framework='pt') as f:
+                metadata = f.metadata() or {}
+            sd = safetensors.torch.load_file(path)
+        except safetensors.SafetensorError as e: # a malformed file the loader cannot open either
+            log.warning(f'  {name}: unreadable, skipped: {e}')
+            continue
         network_alpha = M.file_alpha(_MockNetworkOnDisk(path, name, metadata))
-        sd = safetensors.torch.load_file(path)
         native = native_mapping(sd, network_alpha)
         oracle, ignored = oracle_mapping(sd, network_alpha)
         probes = assert_same_factors(native, oracle, name)
@@ -665,6 +735,8 @@ def run_tests():
         test_metadata_alpha_scales_an_alphaless_file,
         test_metadata_alpha_yields_to_alpha_tensors,
         test_non_numeric_metadata_alpha_is_ignored,
+        test_adaln_deltas_project_onto_the_pruned_basis,
+        test_extraction_residuals_bind,
     ]:
         run_test(CAT_LOADER, fn)
 
