@@ -117,6 +117,7 @@ def draw_xyz_grid(p, xs, ys, zs, x_labels, y_labels, z_labels, cell, draw_legend
             continue
         if (not no_grid or include_sub_grids) and images.check_grid_size(to_process):
             grid = images.image_grid(to_process, rows=len(ys))
+            p.is_grid = True
             if draw_legend:
                 grid = images.draw_grid_annotations(grid, w, h, x_texts, y_texts, margin_size, title=z_texts[i])
             processed_result.images.insert(i, grid)
@@ -124,6 +125,7 @@ def draw_xyz_grid(p, xs, ys, zs, x_labels, y_labels, z_labels, cell, draw_legend
             processed_result.all_seeds.insert(i, processed_result.all_seeds[idx0])
             processed_result.infotexts.insert(i, processed_result.infotexts[idx0])
     if len(zs) > 1 and not no_grid and images.check_grid_size(processed_result.images[:len(zs)]): # create grid-of-grids
+        p.is_grid = True
         grid = images.image_grid(processed_result.images[:len(zs)], rows=1)
         processed_result.images.insert(0, grid)
         processed_result.all_prompts.insert(0, processed_result.all_prompts[0])

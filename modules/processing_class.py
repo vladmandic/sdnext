@@ -45,15 +45,11 @@ class StableDiffusionProcessing:
                  sampler_name: str | None = None,
                  hr_sampler_name: str | None = None,
                  eta: float | None = None,
-                 # modular guidance
-                 guidance_name: str = 'Default',
-                 guidance_scale: float = 6.0,
-                 guidance_rescale: float = 0.0,
-                 guidance_start: float = 0.0,
-                 guidance_stop: float = 1.0,
-                 # legacy guidance
+                 # guidance
+                 cfg_name: str = 'Default',
                  cfg_scale: float = 6.0,
-                 cfg_end: float = 1,
+                 cfg_start: float = 0.0,
+                 cfg_stop: float = 1,
                  cfg_rescale: float = 0.0,
                  cfg_true: float = 0.0,
                  cfg_adaptive: float = 0.5,
@@ -254,7 +250,6 @@ class StableDiffusionProcessing:
                  prompt_mean_norm: bool | None = None,
                  diffusers_zeros_prompt_pad: bool | None = None,
                  te_pooled_embeds: bool | None = None,
-                 lora_apply_te: bool | None = None,
                  te_complex_human_instruction: str | None = None,
                  te_use_mask: bool | None = None,
                  # generation modifier overrides (hijack)
@@ -458,16 +453,6 @@ class StableDiffusionProcessing:
         self.do_not_save_grid = do_not_save_grid
         self.override_settings_restore_afterwards = override_settings_restore_afterwards
         self.eta = eta
-        self.guidance_name = guidance_name
-        self.guidance_scale = guidance_scale
-        self.guidance_rescale = guidance_rescale
-        self.guidance_start = guidance_start
-        self.guidance_stop = guidance_stop
-        self.cfg_scale = cfg_scale
-        self.cfg_end = cfg_end
-        self.cfg_rescale = cfg_rescale
-        self.cfg_true = cfg_true
-        self.cfg_adaptive = cfg_adaptive
         self.selected_scale_tab = selected_scale_tab
         self.mask_for_overlay = mask_for_overlay
         self.paste_to = paste_to
@@ -511,6 +496,15 @@ class StableDiffusionProcessing:
             log.error(f'Override: {override_settings} {e}')
             self.override_settings = {}
 
+        # guidance
+        self.cfg_name = cfg_name
+        self.cfg_scale = cfg_scale
+        self.cfg_start = cfg_start
+        self.cfg_stop = cfg_stop
+        self.cfg_rescale = cfg_rescale
+        self.cfg_true = cfg_true
+        self.cfg_adaptive = cfg_adaptive
+
         # scheduler/noise overrides
         self.schedulers_prediction_type = schedulers_prediction_type
         self.schedulers_beta_schedule = schedulers_beta_schedule
@@ -543,7 +537,6 @@ class StableDiffusionProcessing:
         self.prompt_mean_norm = prompt_mean_norm
         self.diffusers_zeros_prompt_pad = diffusers_zeros_prompt_pad
         self.te_pooled_embeds = te_pooled_embeds
-        self.lora_apply_te = lora_apply_te
         self.te_complex_human_instruction = te_complex_human_instruction
         self.te_use_mask = te_use_mask
         # generation modifier overrides (hijack)
@@ -745,7 +738,7 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
 
     def init(self, all_prompts=None, all_seeds=None, all_subseeds=None):
         if self.init_images is not None and len(self.init_images) > 0:
-            vae_scale_factor = sd_vae.get_vae_scale_factor()
+            vae_scale_factor = sd_vae.get_vae_scale_factor(init_image=True)
             if self.width is None or self.width == 0:
                 self.width = int(vae_scale_factor * (self.init_images[0].width * self.scale_by // vae_scale_factor))
             if self.height is None or self.height == 0:

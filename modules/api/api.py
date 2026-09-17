@@ -29,7 +29,7 @@ class Api:
         self.router = APIRouter()
         if shared.cmd_opts.docs:
             docs.create_docs(app)
-            docs.create_redocs(app)
+            # docs.create_redocs(app)
         self.app = app
         self.queue_lock = queue_lock
         self.generate = generate.APIGenerate(queue_lock)
@@ -177,6 +177,11 @@ class Api:
         # upload api
         from modules.api import upload
         upload.register_api()
+
+        # rate limiter
+        from modules.api.validate import init_limiter
+        init_limiter()
+
 
     def add_api_route(self, path: str, fn, auth: bool = True, **kwargs):
         if auth and self.credentials:

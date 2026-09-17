@@ -7,6 +7,7 @@ and Triton GPU acceleration when available.
 Non-CUDA devices fall back to PIL/torch.nn.functional automatically.
 """
 
+import os
 import sys
 import torch
 from PIL import Image
@@ -17,6 +18,7 @@ from modules.image.convert import to_tensor, to_pil
 _sharpfin_checked = False
 _sharpfin_ok = False
 _triton_ok = False
+debug = log.trace if os.environ.get('SD_PROCESS_DEBUG', None) is not None else lambda *args, **kwargs: None
 
 
 def check_sharpfin():
@@ -104,7 +106,7 @@ def _scale_pil(scale_fn, tensor, out_res, rk, dev, dt, do_linear, src_h, src_w, 
                 return scale_fn(tensor, out_res, resize_kernel=rk, device=dev, dtype=dt, do_srgb_conversion=do_linear, use_sparse=True)
             except Exception:
                 _triton_ok = False
-                log.info("Sharpfin: Triton sparse disabled, using dense path")
+                log.debug("Sharpfin: Triton sparse disabled, using dense path")
         return scale_fn(tensor, out_res, resize_kernel=rk, device=dev, dtype=dt, do_srgb_conversion=do_linear, use_sparse=False)
     # Mixed axis: split into two single-axis resizes
     if h > src_h:  # H up, W down
@@ -115,7 +117,7 @@ def _scale_pil(scale_fn, tensor, out_res, rk, dev, dt, do_linear, src_h, src_w, 
                 return scale_fn(intermediate, (h, w), resize_kernel=rk, device=dev, dtype=dt, do_srgb_conversion=do_linear, use_sparse=True)
             except Exception:
                 _triton_ok = False
-                log.info("Sharpfin: Triton sparse disabled, using dense path")
+                log.debug("Sharpfin: Triton sparse disabled, using dense path")
         return scale_fn(intermediate, (h, w), resize_kernel=rk, device=dev, dtype=dt, do_srgb_conversion=do_linear, use_sparse=False)
     # H down, W up
     use_sparse = _want_sparse(dev, rk, True)
@@ -125,7 +127,7 @@ def _scale_pil(scale_fn, tensor, out_res, rk, dev, dt, do_linear, src_h, src_w, 
             return scale_fn(intermediate, (h, w), resize_kernel=rk, device=dev, dtype=dt, do_srgb_conversion=do_linear, use_sparse=False)
         except Exception:
             _triton_ok = False
-            log.info("Sharpfin: Triton sparse disabled, using dense path")
+            log.debug("Sharpfin: Triton sparse disabled, using dense path")
     intermediate = scale_fn(tensor, (h, src_w), resize_kernel=rk, device=dev, dtype=dt, do_srgb_conversion=do_linear, use_sparse=False)
     return scale_fn(intermediate, (h, w), resize_kernel=rk, device=dev, dtype=dt, do_srgb_conversion=do_linear, use_sparse=False)
 
@@ -137,24 +139,24 @@ def resize_pil(image: Image.Image, target_size: tuple[int, int], *, kernel=None,
     is_mask = image.mode == 'L'
 
     if (image.width == w) and (image.height == h):
-        log.debug(f'Resize image: skip={w}x{h} fn={fn}')
+        # log.debug(f'Resize image: skip={w}x{h} fn={fn}')
         return image
 
     from modules import devices
     dev = device if device is not None else devices.device
     if not allow_sharpfin(dev):
-        log.debug(f'Resize image: method=PIL source={image.width}x{image.height} target={w}x{h} device={dev} fn={fn}')
+        debug(f'Resize image: method=PIL source={image.width}x{image.height} target={w}x{h} device={dev} fn={fn}')
         return image.resize((w, h), resample=Image.Resampling.LANCZOS)
 
     rk = get_kernel(kernel)
     if rk is None:
-        log.debug(f'Resize image: method=PIL source={image.width}x{image.height} target={w}x{h} kernel=None fn={fn}')
+        debug(f'Resize image: method=PIL source={image.width}x{image.height} target={w}x{h} kernel=None fn={fn}')
         return image.resize((w, h), resample=Image.Resampling.LANCZOS)
 
     from modules.sharpfin.functional import scale
     dt = dtype or torch.float16
     do_linear = get_linearize(linearize, is_mask=is_mask)
-    log.debug(f'Resize image: method=sharpfin source={image.width}x{image.height} target={w}x{h} kernel={rk} device={dev} linearize={do_linear} fn={fn}')
+    debug(f'Resize image: method=sharpfin source={image.width}x{image.height} target={w}x{h} kernel={rk} device={dev} linearize={do_linear} fn={fn}')
     tensor = to_tensor(image)
     if tensor.dim() == 3:
         tensor = tensor.unsqueeze(0)
@@ -182,14 +184,14 @@ def resize_tensor(tensor: torch.Tensor, target_size: tuple[int, int], *, kernel=
     dev = devices.device
     if not allow_sharpfin(dev):
         mode = 'bilinear' if (target_size[0] * target_size[1]) > (tensor.shape[-2] * tensor.shape[-1]) else 'area'
-        log.debug(f'Resize tensor: method=torch mode={mode} shape={tensor.shape} target={target_size} fn={fn}')
+        debug(f'Resize tensor: method=torch mode={mode} shape={tensor.shape} target={target_size} fn={fn}')
         inp = tensor if tensor.dim() == 4 else tensor.unsqueeze(0)
         result = torch.nn.functional.interpolate(inp, size=target_size, mode=mode, antialias=mode != 'area')
         return result.squeeze(0) if tensor.dim() == 3 else result
     rk = get_kernel(kernel)
     if rk is None:
         mode = 'bilinear' if (target_size[0] * target_size[1]) > (tensor.shape[-2] * tensor.shape[-1]) else 'area'
-        log.debug(f'Resize tensor: method=torch mode={mode} shape={tensor.shape} target={target_size} kernel=None fn={fn}')
+        debug(f'Resize tensor: method=torch mode={mode} shape={tensor.shape} target={target_size} kernel=None fn={fn}')
         inp = tensor if tensor.dim() == 4 else tensor.unsqueeze(0)
         result = torch.nn.functional.interpolate(inp, size=target_size, mode=mode, antialias=mode != 'area')
         return result.squeeze(0) if tensor.dim() == 3 else result
@@ -206,10 +208,10 @@ def resize_tensor(tensor: torch.Tensor, target_size: tuple[int, int], *, kernel=
     both_up = (th >= src_h and tw >= src_w)
     if both_down or both_up:
         use_sparse = _triton_ok and dev.type == 'cuda' and rk.value == 'magic_kernel_sharp_2021' and both_down
-        log.debug(f'Resize tensor: method=sharpfin shape={tensor.shape} target={target_size} direction={both_up}:{both_down} kernel={rk} sparse={use_sparse} fn={fn}')
+        debug(f'Resize tensor: method=sharpfin shape={tensor.shape} target={target_size} direction={both_up}:{both_down} kernel={rk} sparse={use_sparse} fn={fn}')
         result = scale(tensor, target_size, resize_kernel=rk, device=dev, dtype=dt, do_srgb_conversion=linearize, use_sparse=use_sparse)
     else:
-        log.debug(f'Resize tensor: method=sharpfin shape={tensor.shape} target={target_size} direction={both_up}:{both_down} kernel={rk} sparse=False fn={fn}')
+        debug(f'Resize tensor: method=sharpfin shape={tensor.shape} target={target_size} direction={both_up}:{both_down} kernel={rk} sparse=False fn={fn}')
         intermediate = scale(tensor, (th, src_w), resize_kernel=rk, device=dev, dtype=dt, do_srgb_conversion=linearize, use_sparse=False)
         result = scale(intermediate, (th, tw), resize_kernel=rk, device=dev, dtype=dt, do_srgb_conversion=linearize, use_sparse=False)
     if squeezed:

@@ -33,8 +33,10 @@ the standard ``NetworkWeights.w`` slots rather than being baked into the
 factor weights at load time.
 """
 
+import re
 from collections import OrderedDict
 
+from modules.logger import log
 from modules.lora import native_adapter
 
 
@@ -178,12 +180,78 @@ def network_prefix_for(prefix_used):
     return "lora_transformer_"
 
 
+# === Depth-expanded checkpoint block remap ===
+#
+# Anima 2.9B grows the 28-block DiT to 40 by interleaving new blocks among the
+# originals, so a block index trained against 1.0 no longer names the same
+# block. Keyed by (base depth, expanded depth) rather than by model name, so
+# any Anima transformer of a listed depth picks up the table.
+
+BLOCK_EXPANSIONS = {
+    (28, 40): (2, 5, 8, 11, 14, 17, 21, 24, 27, 30, 33, 36),
+}
+
+BLOCK_INDEX = re.compile(r"^blocks([._])(\d+)(?=[._])")
+
+
+def expansion_map(base_depth, expanded_depth):
+    """Map each base-model block index to its position in the expanded model."""
+    inserted = set(BLOCK_EXPANSIONS[(base_depth, expanded_depth)])
+    return dict(enumerate(n for n in range(expanded_depth) if n not in inserted))
+
+
+def transformer_depth():
+    """Block count of the loaded transformer, or 0 when there is nothing to read."""
+    from modules import shared
+    pipe = getattr(shared.sd_model, "pipe", shared.sd_model)
+    blocks = getattr(getattr(pipe, "transformer", None), "transformer_blocks", None)
+    return len(blocks) if blocks is not None else 0
+
+
+def block_index(base):
+    """Leading ``blocks.N`` / ``blocks_N`` index of a parsed key, else None."""
+    m = BLOCK_INDEX.match(base)
+    return int(m.group(2)) if m is not None else None
+
+
+def remap_blocks(groups):
+    """Shift base-depth block indices onto the blocks that carry those weights.
+
+    A LoRA whose highest block index fits inside the base depth was trained on
+    the unexpanded model. Only transformer keys move: llm_adapter and text
+    encoder keys carry their own unrelated numbering.
+    """
+    indices = [i for (prefix, base) in groups
+               if network_prefix_for(prefix) == "lora_transformer_" and (i := block_index(base)) is not None]
+    if not indices:
+        return groups
+    depth = transformer_depth()
+    match = next(((b, e) for (b, e) in BLOCK_EXPANSIONS if e == depth and max(indices) < b), None)
+    if match is None:
+        return groups
+    table = expansion_map(*match)
+    out = {}
+    for (prefix, base), w in groups.items():
+        i = block_index(base) if network_prefix_for(prefix) == "lora_transformer_" else None
+        if i is not None:
+            base = BLOCK_INDEX.sub(rf"blocks\g<1>{table[i]}", base)
+        out[(prefix, base)] = w
+    log.info(f'Network load: arch=anima block remap {match[0]}->{match[1]} keys={len(indices)}')
+    return out
+
+
+def group_by_suffixes_remapped(state_dict, suffixes, **kwargs):
+    """Group by suffix, then remap block indices for depth-expanded transformers."""
+    return remap_blocks(native_adapter.group_by_suffixes(state_dict, suffixes, **kwargs))
+
+
 # === Native loaders (thin wrappers over native_adapter generics) ===
 
 _BIND_KWARGS = dict(
     resolve_targets=resolve_targets,
     prefixes=ANIMA_PREFIXES,
     network_prefix=network_prefix_for,
+    group_by_suffixes_fn=group_by_suffixes_remapped,
     arch_name="anima",
 )
 

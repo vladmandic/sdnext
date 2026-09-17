@@ -28,7 +28,7 @@ class DownloadItem:
     token: str | None = None
     model_id: int = 0
     version_id: int = 0
-    status: str = "queued"  # queued | downloading | verifying | completed | failed | cancelled
+    status: str = "queued"  # queued | downloading | completed | failed | cancelled
     progress: float = 0.0
     bytes_downloaded: int = 0
     bytes_total: int = 0
@@ -167,7 +167,7 @@ class DownloadManager:
         # Create temp file name from URL hash
         url_hash = hashlib.sha256(item.url.encode('utf-8')).hexdigest()[:8]
         temp_file = os.path.join(item.folder, f'{url_hash}.tmp')
-        final_file = os.path.join(item.folder, item.filename)
+        final_file = os.path.abspath(os.path.join(item.folder, item.filename))
 
         # Check if already exists
         if os.path.isfile(final_file):
@@ -195,13 +195,17 @@ class DownloadManager:
 
         item.status = "downloading"
         item.bytes_downloaded = starting_pos
+        digest = hashlib.sha256()
 
         try:
             r = shared.req(item.url, headers=headers if headers else None, stream=True)
             if r.status_code not in (200, 206):
+                from modules.civitai.client_civitai import response_message
+                reason = response_message(r)
                 item.status = "failed"
-                item.error = f'HTTP {r.status_code}'
+                item.error = f'HTTP {r.status_code}: {reason}' if reason else f'HTTP {r.status_code}'
                 item.completed_at = datetime.now()
+                log.error(f'CivitAI download refused: id={item.id} file="{item.filename}" code={r.status_code} message="{reason}"')
                 return
 
             # A text/* response is an error or login page served with HTTP 200,
@@ -211,7 +215,7 @@ class DownloadManager:
                 item.status = "failed"
                 item.error = f'invalid content-type: {content_type}'
                 item.completed_at = datetime.now()
-                log.warning(f'CivitAI download invalid content-type: id={item.id} content-type="{content_type}"')
+                log.warning(f'CivitAI download invalid content-type: id={item.id} file="{item.filename}" content-type="{content_type}"')
                 return
 
             # A 200 reply to a Range request means the server ignored the range
@@ -222,6 +226,10 @@ class DownloadManager:
                 starting_pos = 0
                 item.bytes_downloaded = 0
                 os.truncate(temp_file, 0)
+            if starting_pos > 0: # a resumed download's digest must include the partial already on disk
+                with open(temp_file, 'rb') as partial:
+                    for block in iter(lambda: partial.read(1024 * 1024), b''):
+                        digest.update(block)
 
             total_size = int(r.headers.get('content-length', 0))
             item.bytes_total = starting_pos + total_size
@@ -255,6 +263,7 @@ class DownloadManager:
                             return
 
                         f.write(chunk)
+                        digest.update(chunk)
                         written += len(chunk)
                         item.bytes_downloaded = written
                         if item.bytes_total > 0:
@@ -270,7 +279,7 @@ class DownloadManager:
                     item.status = "failed"
                     item.error = f'incomplete: expected={expected} got={written}'
                     item.completed_at = datetime.now()
-                    log.warning(f'CivitAI download incomplete: id={item.id} expected={expected} got={written}')
+                    log.warning(f'CivitAI download incomplete: id={item.id} file="{item.filename}" expected={expected} got={written}')
                     return
             elif written < 1024:
                 try:
@@ -287,30 +296,22 @@ class DownloadManager:
             item.status = "failed"
             item.error = str(e)
             item.completed_at = datetime.now()
-            log.error(f'CivitAI download error: id={item.id} {e}')
+            log.error(f'CivitAI download error: id={item.id} file="{item.filename}" {e}')
             return
 
-        # Hash verification
-        if item.expected_hash:
-            item.status = "verifying"
-            try:
-                from modules import hashes
-                computed = hashes.calculate_sha256(temp_file, quiet=True)
-                if computed.upper() != item.expected_hash.upper():
-                    discard = getattr(shared.opts, 'civitai_discard_hash_mismatch', True)
-                    if discard:
-                        try:
-                            os.remove(temp_file)
-                        except OSError:
-                            pass
-                        item.status = "failed"
-                        item.error = f'hash mismatch: expected={item.expected_hash[:16]}... got={computed[:16]}...'
-                        item.completed_at = datetime.now()
-                        log.error(f'CivitAI download hash mismatch: id={item.id} expected={item.expected_hash[:16]} got={computed[:16]}')
-                        return
-                    log.warning(f'CivitAI download hash mismatch (kept): id={item.id} expected={item.expected_hash[:16]} got={computed[:16]}')
-            except Exception as e:
-                log.warning(f'CivitAI download hash check failed: id={item.id} {e}')
+        computed = digest.hexdigest()
+        if item.expected_hash and computed != item.expected_hash.lower():
+            if getattr(shared.opts, 'civitai_discard_hash_mismatch', True):
+                try:
+                    os.remove(temp_file)
+                except OSError:
+                    pass
+                item.status = "failed"
+                item.error = f'hash mismatch: expected={item.expected_hash[:16]}... got={computed[:16]}...'
+                item.completed_at = datetime.now()
+                log.error(f'CivitAI download hash mismatch: id={item.id} expected={item.expected_hash[:16]} got={computed[:16]}')
+                return
+            log.warning(f'CivitAI download hash mismatch (kept): id={item.id} expected={item.expected_hash[:16]} got={computed[:16]}')
 
         # Move temp to final
         try:
@@ -319,6 +320,7 @@ class DownloadManager:
             item.status = "failed"
             item.error = f'rename failed: {e}'
             item.completed_at = datetime.now()
+            log.error(f'CivitAI download rename failed: id={item.id} file="{final_file}" {e}')
             return
 
         item.status = "completed"
@@ -326,28 +328,25 @@ class DownloadManager:
         item.completed_at = datetime.now()
         log.info(f'CivitAI download complete: id={item.id} file="{final_file}" size={item.bytes_downloaded}')
 
-        # Write verified hash to cache so check-local finds it immediately
-        if item.expected_hash:
-            try:
-                from modules import hashes
-                model_type_map = {'Checkpoint': 'checkpoint', 'LORA': 'lora', 'TextualInversion': 'embedding', 'VAE': 'vae'}
-                prefix = model_type_map.get(item.model_type, item.model_type.lower())
-                name = os.path.splitext(item.filename)[0]
-                title = f"{prefix}/{name}"
-                hashes.cache().add_hash(title, os.path.getmtime(final_file), item.expected_hash.lower())
+        # the declared hash is cached even on a kept mismatch: it is what CivitAI knows the file by
+        try:
+            from modules import hashes
+            from modules.civitai.filemanage_civitai import loader_kind, hash_cache_title
+            title = hash_cache_title(loader_kind(final_file), final_file)
+            if title is not None:
+                hashes.cache().add_hash(title, os.path.getmtime(final_file), (item.expected_hash or computed).lower())
                 hashes.save_cache()
-            except Exception:
-                pass
+        except Exception as e:
+            log.warning(f'CivitAI download hash cache: id={item.id} {e}')
 
         # Download metadata and preview
         self._fetch_sidecar(item, final_file)
 
-        # Refresh model list and extra-networks cache
         try:
-            from modules.sd_models import list_models
-            list_models()
-        except Exception:
-            pass
+            from modules.civitai.filemanage_civitai import register_download
+            register_download(final_file)
+        except Exception as e:
+            log.warning(f'CivitAI download register: id={item.id} {e}')
         try:
             from modules.api.loras import _invalidate_extra_networks
             _invalidate_extra_networks()
@@ -372,9 +371,9 @@ class DownloadManager:
             if version and version.images:
                 for img in version.images:
                     if img.url:
-                        code, _size, _note = download_civit_preview(final_file, img.url, meta=img.meta)
+                        code, _size, note = download_civit_preview(final_file, img.url, meta=img.meta)
                         if code == 200:
-                            log.info(f'CivitAI preview saved: id={item.id}')
+                            log.info(f'CivitAI preview saved: id={item.id} file="{note}"')
                             break
                         if code == 304 and backfill_preview_parameters(final_file, img.url, img.meta):
                             log.info(f'CivitAI preview backfilled: id={item.id}')
@@ -672,7 +671,7 @@ def backfill_preview_parameters(model_path: str, preview_url: str, meta: dict | 
     ext = os.path.splitext(preview_url)[1].lower()
     base = os.path.splitext(model_path)[0]
     if ext in VIDEO_PREVIEW_EXTENSIONS:
-        if not os.path.exists(base + ext):
+        if not any(os.path.exists(base + e) for e in VIDEO_PREVIEW_EXTENSIONS):
             return False
         preview_file = base + '.thumb.jpg'
         if not os.path.exists(preview_file):
@@ -694,6 +693,13 @@ def backfill_preview_parameters(model_path: str, preview_url: str, meta: dict | 
 
 # ---- Legacy compatibility functions ----
 
+def save_civit_meta(model_path: str, data: dict) -> str:
+    from modules.json_helpers import writefile
+    fn = os.path.splitext(model_path)[0] + '.json'
+    writefile(data, filename=fn, mode='w', silent=True)
+    return fn
+
+
 def download_civit_meta(model_path: str, model_id):
     fn = os.path.splitext(model_path)[0] + '.json'
     url = f'https://civitai.com/api/v1/models/{model_id}'
@@ -701,8 +707,7 @@ def download_civit_meta(model_path: str, model_id):
     if r.status_code == 200:
         try:
             data = r.json()
-            from modules.json_helpers import writefile
-            writefile(data, filename=fn, mode='w', silent=True)
+            save_civit_meta(model_path, data)
             log.info(f'CivitAI download: id={model_id} url={url} file="{fn}"')
             return r.status_code, len(data), ''
         except Exception as e:
@@ -713,65 +718,108 @@ def download_civit_meta(model_path: str, model_id):
     return r.status_code, '', ''
 
 
+VIDEO_CONTENT_TYPES = {'video/mp4': '.mp4', 'video/webm': '.webm'}
+
+
+def transcoded_video_url(preview_url: str) -> str | None:
+    """The CDN's H.264 copy of a CivitAI video, or None for any other URL."""
+    if '/original=true/' not in preview_url:
+        return None
+    return preview_url.replace('/original=true/', '/transcode=true,width=450/', 1)
+
+
 def download_civit_preview(model_path: str, preview_url: str, meta: dict | None = None):
+    """Save the preview behind preview_url beside model_path; on 200 the note is the file the UI shows."""
     if model_path is None:
         return 500, '', ''
-    ext = os.path.splitext(preview_url)[1]
-    preview_file = os.path.splitext(model_path)[0] + ext
-    is_video = preview_file.lower().endswith(VIDEO_PREVIEW_EXTENSIONS)
-    is_json = preview_file.lower().endswith('.json')
-    if is_json:
+    ext = os.path.splitext(preview_url)[1].lower()
+    base = os.path.splitext(model_path)[0]
+    if ext == '.json':
         log.warning(f'CivitAI download: url="{preview_url}" skip json')
         return 500, '', 'expected preview image got json'
-    if os.path.exists(preview_file):
-        return 304, '', 'already exists'
-    r = shared.req(preview_url, stream=True)
-    total_size = int(r.headers.get('content-length', 0))
-    block_size = 16384
-    written = 0
+    is_video = ext in VIDEO_PREVIEW_EXTENSIONS
+    if is_video:
+        if any(os.path.exists(base + e) for e in VIDEO_PREVIEW_EXTENSIONS):
+            return 304, '', 'already exists'
+        candidates = [url for url in (transcoded_video_url(preview_url), preview_url) if url] # the original may be AV1, which OpenCV builds without dav1d cannot decode
+    else:
+        if os.path.exists(base + ext):
+            return 304, '', 'already exists'
+        candidates = [preview_url]
     jobid = shared.state.begin('Download CivitAI')
     try:
-        with open(preview_file, 'wb') as f:
-            for data in r.iter_content(block_size):
-                written += len(data)
-                f.write(data)
-        if written < 1024:
-            os.remove(preview_file)
-            return 400, '', 'removed invalid download'
-        if is_video:
-            from modules.civitai.video_helper import save_video_frame
-            save_video_frame(preview_file)
-            if meta:
-                thumb_file = os.path.splitext(preview_file)[0] + '.thumb.jpg'
-                if os.path.exists(thumb_file):
-                    try:
-                        parameters = civitai_meta_to_parameters(meta)
-                        if parameters and embed_preview_parameters(thumb_file, parameters):
-                            log.debug(f'CivitAI preview embed: file="{thumb_file}"')
-                    except Exception as e:
-                        log.debug(f'CivitAI preview embed skipped: file="{thumb_file}" {e}')
-        else:
-            from PIL import Image
-            img = Image.open(preview_file)
-            log.info(f'CivitAI download: url={preview_url} file="{preview_file}" size={total_size} image={img.size}')
-            img.close()
+        for url in candidates:
+            r = shared.req(url, stream=True)
+            headers = getattr(r, 'headers', None) or {}
+            if r.status_code != 200:
+                log.warning(f'CivitAI preview: url="{url}" code={r.status_code}')
+                continue
+            if is_video:
+                content_type = headers.get('content-type', '').split(';')[0].strip().lower()
+                file_ext = VIDEO_CONTENT_TYPES.get(content_type)
+                if file_ext is None:
+                    log.warning(f'CivitAI preview: url="{url}" content-type="{content_type}" not a video')
+                    continue
+                preview_file = base + file_ext # named by content; the URL says .mp4 for webm originals
+            else:
+                preview_file = base + ext
+            total_size = int(headers.get('content-length', 0))
+            written = 0
+            with open(preview_file, 'wb') as f:
+                for data in r.iter_content(16384):
+                    written += len(data)
+                    f.write(data)
+            if written < 1024:
+                os.remove(preview_file)
+                log.warning(f'CivitAI preview: url="{url}" file="{preview_file}" removed invalid download')
+                continue
+            if is_video:
+                from modules.civitai.video_helper import save_video_frame
+                thumb_file = base + '.thumb.jpg'
+                if save_video_frame(preview_file) is None or not os.path.exists(thumb_file):
+                    os.remove(preview_file)
+                    continue
+                log.info(f'CivitAI download: url={url} file="{preview_file}" size={total_size} thumb="{thumb_file}"')
+                shown = thumb_file
+            else:
+                from PIL import Image
+                img = Image.open(preview_file)
+                log.info(f'CivitAI download: url={url} file="{preview_file}" size={total_size} image={img.size}')
+                img.close()
+                shown = preview_file
             if meta:
                 try:
                     parameters = civitai_meta_to_parameters(meta)
-                    if parameters and embed_preview_parameters(preview_file, parameters):
-                        log.debug(f'CivitAI preview embed: file="{preview_file}"')
+                    if parameters and embed_preview_parameters(shown, parameters):
+                        log.debug(f'CivitAI preview embed: file="{shown}"')
                 except Exception as e:
-                    log.debug(f'CivitAI preview embed skipped: file="{preview_file}" {e}')
+                    log.debug(f'CivitAI preview embed skipped: file="{shown}" {e}')
+            return 200, str(total_size), shown
+        return 415, '', 'no usable preview'
     except Exception as e:
-        log.error(f'CivitAI download error: url={preview_url} file="{preview_file}" written={written} {e}')
-        shared.state.end(jobid)
+        log.error(f'CivitAI preview error: url={preview_url} file="{base}" {e}')
         return 500, '', str(e)
-    shared.state.end(jobid)
-    return 200, str(total_size), ''
+    finally:
+        shared.state.end(jobid)
+
+
+def declared_sha256(version_id: int, url: str, filename: str, token: str | None = None) -> str:
+    """SHA256 CivitAI declares for the version file behind url, matched by download URL, then by file name."""
+    if not version_id:
+        return ''
+    from modules.civitai.client_civitai import client
+    version = client.get_version(version_id, token=token)
+    if version is None:
+        return ''
+    for matches in (lambda f: f.download_url == url, lambda f: f.name == filename):
+        for f in version.files:
+            if f.hashes.sha256 and matches(f):
+                return f.hashes.sha256.lower()
+    return ''
 
 
 def download_civit_model(model_url: str, model_name: str = '', model_path: str = '', model_type: str = '', token: str | None = None,
-                         base_model: str = '', model_id: int = 0, version_id: int = 0):
+                         base_model: str = '', model_id: int = 0, version_id: int = 0, expected_hash: str = ''):
     """Legacy function — delegates to DownloadManager for non-blocking downloads."""
     if not model_url:
         log.error('Model download: no url provided')
@@ -791,20 +839,20 @@ def download_civit_model(model_url: str, model_name: str = '', model_path: str =
         folder = model_path
     else:
         folder = os.path.join(paths.models_path, model_path)
+    expected_hash = expected_hash or declared_sha256(version_id, model_url, model_name, token=token)
     item = download_manager.enqueue(
         url=model_url,
         folder=folder,
         filename=model_name or "Unknown",
         model_type=model_type,
+        expected_hash=expected_hash,
         token=token,
         model_id=model_id,
         version_id=version_id,
     )
     # Wait for completion (legacy blocking behavior)
-    while item.status in ("queued", "downloading", "verifying"):
+    while item.status in ("queued", "downloading"):
         time.sleep(0.5)
     if item.status == "completed" and not item.error:
-        from modules.sd_models import list_models
-        list_models()
         return os.path.join(item.folder, item.filename)
     return None

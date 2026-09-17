@@ -1,0 +1,625 @@
+"""Exact LoRA application for SDNQ-quantized layers.
+
+Baking a LoRA into a quantized weight requantizes it: dequantize, add the
+delta, re-round onto the integer grid. When the per-element delta is smaller
+than half a quantization step (a rank-decomposed delta on a uint4 layer sits
+at a few percent of a step), rounding erases it; what survives is the two
+grid-extrema elements per quantization group (2/group_size of the signal)
+plus grid-shift noise of the same norm as the delta. The optimal in-grid
+representation provably retains ~0%, so no rewrite of the stored integers
+can fix this.
+
+The exact path instead rides the SDNQ svd side-channel: the dequantizer
+computes ``W = dq(q) + svd_up @ svd_down`` in the rotated domain at full
+precision, in every forward mode. A LoRA delta ``B @ A`` is appended as
+extra columns of ``svd_up`` and rows of ``svd_down``; because the Hadamard
+rotation is block-diagonal, symmetric and self-inverse, storing ``A·H`` for
+the down factor makes the round trip exact: ``(B @ (A·H)) · H = B @ A``.
+Quantized weights are never touched, so apply and remove are exact and no
+weight backup is needed. The side-channel storage is lossless; realized
+fidelity floors at the compute dtype, because the dequantizer materializes
+``base + factors`` in the result dtype and a delta below its ULP of the
+base rounds exactly as it would on an unquantized model of that dtype.
+
+Only additive low-rank modules ride the channel exactly (plain LoRA: no
+DoRA, no CP ``mid``, no LyCORIS dense-bias, no ``diff_b``). On sub-8-bit
+formats, sets with non-factorable contributions are hosted instead: the
+families' own ``calc_updown`` delta is truncated to its top singular
+directions and appended the same way, stored at the delta's effective
+rank when the spectrum ends in a numerically null tail (dense-combined
+plain pairs, low-rank LyCORIS). Truncation keeps the dominant part
+of the effect and drops an orthogonal residual, where requantize keeps
+only the grid extrema and adds grid-shift noise of the delta's own
+magnitude. When activation statistics for the checkpoint exist (see
+``lora_calib``), the truncation is channel-weighted to minimize output
+error instead of weight error. At 8 bits and above requantize retains
+most of the delta, so hosting is skipped there and the requantize path
+remains.
+
+A small tail of deltas inverts the tradeoff: when the delta is large
+against the grid step AND the truncation genuinely cuts it, requantize
+retains more than hosting drops, and the layer routes back to the
+requantize path (``REQUANT_RATIO``/``REQUANT_ENERGY``). Both terms must
+agree: a thin delta rounds away on the grid however low its capture, and
+a low-rank delta hosts exactly however fat it is.
+"""
+
+import torch
+
+from modules import devices, shared
+from modules.lora import lora_calib, lora_factor_cache, lora_stack # lora_calib registers its model-load hook on import, so this one has to stay eager
+from modules.lora import lora_common as l
+from modules.logger import log
+
+
+fallback_layers: list[str] = []
+hosted_layers: list[tuple[str, float, bool]] = []
+hosted_ranks: list[int] = []
+factor_layers: list[str] = []
+select_layers: list[str] = []
+routed_layers: list[str] = []
+
+REQUANT_RATIO = 0.30 # delta rms over mean grid step above which requantize can retain the delta
+REQUANT_ENERGY = 0.90 # sketch capture below which truncation genuinely loses part of it
+NULL_TAIL_EPS = 1e-6 # spectrum tail below this fraction of the capture is numerically null; dropping it keeps stored rank at the delta's effective rank
+
+def rank_bucket(r):
+    """Fixed rank ladder for compiled-graph reuse: powers of two up to 256, multiples of 64 above (hosted rank plus exact members)."""
+    if r <= 8:
+        return 8
+    if r <= 256:
+        return 1 << (r - 1).bit_length()
+    return -(-r // 64) * 64
+
+
+def pad_rank(t, dim, bucket):
+    if t.shape[dim] >= bucket:
+        return t
+    shape = list(t.shape)
+    shape[dim] = bucket - t.shape[dim]
+    return torch.cat([t, t.new_zeros(shape)], dim=dim)
+
+
+def enabled():
+    """True while the exact svd-channel machinery may take quantized layers; the requantize choice routes every layer to the legacy weight-rewrite path."""
+    return getattr(shared.opts, 'lora_sdnq_apply', 'exact') != 'requantize'
+
+
+def signature():
+    """Identity suffix for the per-module apply stamp; empty on the default exact mechanism."""
+    return '' if enabled() else '|quant=requantize'
+
+
+def trim_null_tail(up_h, down_h):
+    """Cache entries stored before tail slicing carry null ranks as exact zero columns; trim to the effective rank on attach."""
+    nz = (up_h != 0).any(dim=0)
+    if not bool(nz.all()):
+        k = max(1, int(nz.nonzero().max().item()) + 1) if bool(nz.any()) else 1
+        if k < up_h.shape[1]:
+            return up_h[:, :k].contiguous(), down_h[:k].contiguous()
+    return up_h, down_h
+
+
+def get_module_factors(module, device, dtype, original_shape=None):
+    """Return ``(up_eff, down)`` reproducing ``calc_updown`` exactly, or None.
+
+    ``updown = up @ down * calc_scale() * multiplier()`` for a plain linear
+    LoRA; the scalars fold into the up factor. ``dyn_dim`` slices ranks the
+    same way ``lyco_helpers.rebuild_conventional`` does.
+    """
+    if module.__class__.__name__ != 'NetworkModuleLora':
+        return None
+    if module.dora_scale is not None or module.bias is not None or module.ex_bias is not None:
+        return None
+    if getattr(module, 'mid_model', None) is not None:
+        return None
+    up = module.up_model.weight
+    down = module.down_model.weight
+    if up.ndim != 2 or down.ndim != 2:
+        return None
+    if original_shape is not None and (up.shape[0] != original_shape[0] or down.shape[1] != original_shape[-1]):
+        return None # factor_candidate skips shape checks for layers already in factor mode; recheck here so a malformed stack falls back instead of raising in cat
+    dyn_dim = module.network.dyn_dim
+    if dyn_dim is not None and up.shape[1] != dyn_dim:
+        up = up[:, :dyn_dim]
+        down = down[:dyn_dim]
+    scalar = module.calc_scale() * module.multiplier()
+    up_eff = up.to(device=device, dtype=torch.float32) * scalar
+    return up_eff.to(dtype=dtype), down.to(device=device, dtype=dtype)
+
+
+def factor_candidate(self, network_layer_name, wanted_names):
+    """True when this layer should take the exact svd-append path.
+
+    Requires an SDNQ linear layer whose active networks all contribute plain
+    factorable LoRA modules for this layer. An empty ``wanted_names`` is a
+    removal request and qualifies whenever factors are currently attached.
+    """
+    if not enabled():
+        return False # declined layers with factors still attached are stripped by the activate fallthrough
+    if getattr(self, 'sdnq_dequantizer', None) is None or self.__class__.__name__ != 'SDNQLinear':
+        return False
+    if wanted_names != () and lora_stack.mode() in lora_stack.DENSE_MODES and not network_layer_name.startswith('lora_te'):
+        if sum(1 for net in l.loaded_networks if net.modules.get(network_layer_name, None) is not None) >= 2:
+            return False # dense stack modes combine dense deltas; the factor concat would sum
+    if hasattr(self, 'sdnq_lora_svd_stash'):
+        return True
+    if wanted_names == ():  # nothing attached, nothing to remove
+        return False
+    seen = False
+    for net in l.loaded_networks:
+        module = net.modules.get(network_layer_name, None)
+        if module is None:
+            continue
+        seen = True
+        if module.__class__.__name__ != 'NetworkModuleLora':
+            return False
+        if module.dora_scale is not None or module.bias is not None or module.ex_bias is not None or getattr(module, 'mid_model', None) is not None:
+            return False
+        if module.up_model.weight.ndim != 2 or module.down_model.weight.ndim != 2:
+            return False
+        if module.up_model.weight.shape[0] != self.sdnq_dequantizer.original_shape[0] or module.down_model.weight.shape[1] != self.sdnq_dequantizer.original_shape[-1]:
+            return False
+    return seen
+
+
+def remove_factors(self):
+    """Restore the layer's original svd factors; True when factors were attached."""
+    stash = getattr(self, 'sdnq_lora_svd_stash', None)
+    if stash is None:
+        return False
+    svd_up, svd_down = stash
+    device = self.scale.device # the stash tuple does not follow module device moves; restore onto wherever the layer lives now
+    if svd_up is not None and svd_up.device != device:
+        svd_up = torch.nn.Parameter(svd_up.to(device=device), requires_grad=False)
+        svd_down = torch.nn.Parameter(svd_down.to(device=device), requires_grad=False)
+    self.svd_up = svd_up
+    self.svd_down = svd_down
+    del self.sdnq_lora_svd_stash
+    lora_stack.drop(getattr(self, 'network_layer_name', None)) # a selection schedule must not outlive the segments it points into
+    return True
+
+
+def apply_factors(self, network_layer_name, wanted_names):
+    """Attach the active networks' LoRA factors to this layer's svd side-channel.
+
+    Replaces any previously attached factors (multiplier changes re-enter
+    here with a new ``wanted_names`` signature). Returns True when the layer
+    changed. Falls back to the caller's requantize path by returning None
+    when factor extraction fails at this stage.
+    """
+    from sdnq.quant_utils import rotate_hadamard
+
+    changed = remove_factors(self)
+    if wanted_names == ():
+        return changed
+
+    deq = self.sdnq_dequantizer
+    dtype = deq.result_dtype
+
+    ups, downs = [], []
+    for net in l.loaded_networks:
+        module = net.modules.get(network_layer_name, None)
+        if module is None:
+            continue
+        factors = get_module_factors(module, devices.device, dtype, original_shape=deq.original_shape)
+        if factors is None:
+            return None
+        up_eff, down = factors
+        if deq.use_hadamard:
+            down = rotate_hadamard(down.to(dtype=torch.float32), group_size=deq.hadamard_group_size).to(dtype=dtype)
+        ups.append(up_eff)
+        downs.append(down)
+    if not ups:
+        return changed
+    append_factors(self, ups, downs)
+    factor_layers.append(network_layer_name)
+    return True
+
+
+def append_factors(self, ups, downs):
+    """Concatenate ``[out, r]`` / ``[r, in]`` factor pairs onto the layer's svd channel and stash the originals.
+
+    Returns the appended parts' rank ranges plus the transposed-layout flag; the
+    checkpoint's own factors occupy the range before the first entry and bucket
+    padding lands after the last, so the ranges stay valid on the live buffers.
+    """
+    deq = self.sdnq_dequantizer
+    device = self.scale.device
+    dtype = deq.result_dtype
+    orig_up, orig_down = self.svd_up, self.svd_down
+    orig_rank = 0
+    if orig_up is not None:
+        orig_rank = orig_up.shape[0] if deq.use_quantized_matmul else orig_up.shape[1]
+    segments, offset = [], orig_rank
+    for u in ups:
+        segments.append((offset, offset + u.shape[1]))
+        offset += u.shape[1]
+    if deq.use_quantized_matmul:
+        # matmul layout stores factors transposed: svd_up [r, out], svd_down [in, r]
+        parts_up = ([orig_up.to(device=devices.device, dtype=dtype)] if orig_up is not None else []) + [u.t() for u in ups]
+        parts_down = ([orig_down.to(device=devices.device, dtype=dtype)] if orig_down is not None else []) + [d.t() for d in downs]
+        new_up = torch.cat(parts_up, dim=0).contiguous()
+        new_down = torch.cat(parts_down, dim=1).contiguous()
+    else:
+        parts_up = ([orig_up.to(device=devices.device, dtype=dtype)] if orig_up is not None else []) + ups
+        parts_down = ([orig_down.to(device=devices.device, dtype=dtype)] if orig_down is not None else []) + downs
+        new_up = torch.cat(parts_up, dim=1).contiguous()
+        new_down = torch.cat(parts_down, dim=0).contiguous()
+    from sdnq.common import use_torch_compile
+    if use_torch_compile:
+        # the compiled dequant specializes per factor rank; pad to a fixed bucket so set switches inside a bucket reuse the graph (zero columns contribute exactly nothing)
+        dim_up, dim_down = (0, 1) if deq.use_quantized_matmul else (1, 0)
+        bucket = rank_bucket(new_up.shape[dim_up])
+        new_up = pad_rank(new_up, dim_up, bucket)
+        new_down = pad_rank(new_down, dim_down, bucket)
+    self.sdnq_lora_svd_stash = (orig_up, orig_down)
+    self.svd_up = torch.nn.Parameter(new_up.to(device=device), requires_grad=False)
+    self.svd_down = torch.nn.Parameter(new_down.to(device=device), requires_grad=False)
+    return segments, deq.use_quantized_matmul
+
+
+def channel_candidate(self, network_layer_name, wanted_names):
+    """True when this layer can carry a set on the svd channel: quantized, covered, and given a rank to spend."""
+    if not enabled():
+        return False
+    if int(getattr(shared.opts, 'lora_sdnq_host_rank', 0) or 0) <= 0:
+        return False
+    if getattr(self, 'sdnq_dequantizer', None) is None or self.__class__.__name__ != 'SDNQLinear':
+        return False
+    if wanted_names == ():
+        return False
+    return any(net.modules.get(network_layer_name, None) is not None for net in l.loaded_networks)
+
+
+def select_candidate(self, network_layer_name, wanted_names):
+    """True when a select pair can ride this layer's svd channel; pairs ride it at any bit width."""
+    return channel_candidate(self, network_layer_name, wanted_names)
+
+
+def host_candidate(self, network_layer_name, wanted_names):
+    """True when this layer's set should ride the svd channel as a truncated svd: non-factorable sets below 8 bits, dense-combined sets at any width."""
+    if not channel_candidate(self, network_layer_name, wanted_names):
+        return False
+    if lora_stack.mode() in lora_stack.DENSE_MODES and not network_layer_name.startswith('lora_te'):
+        if sum(1 for net in l.loaded_networks if net.modules.get(network_layer_name, None) is not None) >= 2:
+            return True # combined deltas host at any width: requantizing them is checkpoint-fragile, while single-adapter requantize is well retained
+    from sdnq.common import dtype_dict
+    if dtype_dict[self.sdnq_dequantizer.weights_dtype]['num_bits'] >= 8:
+        return False # requantize retains most of a single set's delta at 8 bits and above; truncation would lose more than it saves
+    return True
+
+
+def grid_step(self):
+    """Mean grid step in weight units; a codebook layer keeps its Lloyd levels in the scale slot, so its step is their mean adjacent gap."""
+    scale = self.scale.detach().float()
+    if self.sdnq_dequantizer.use_codebook:
+        return float(scale.diff(dim=-1).mean())
+    return float(scale.mean())
+
+
+def apply_cached(self, network_layer_name, wanted_names):
+    """Attach a hosted set straight from the factor cache, before the delta exists.
+
+    Probed by the walk ahead of delta assembly: on a usable entry the routing
+    rule is evaluated from the stored delta rms and the cached factors attach
+    exactly as a fetch inside ``apply_hosted`` would, so the pass skips
+    ``calc_updown`` for the layer entirely. Returns True when the layer was
+    served; None sends the caller down the assemble-and-host path (no entry,
+    or the rule wants the grid).
+    """
+    from sdnq.quant_utils import rotate_hadamard
+
+    lora_factor_cache.begin_pass(wanted_names)
+    entry = lora_factor_cache.lookup(network_layer_name)
+    if entry is None:
+        return None
+    up_h, down_h, energy, calibrated, rms = entry
+    up_h, down_h = trim_null_tail(up_h, down_h)
+    deq = self.sdnq_dequantizer
+    dtype = deq.result_dtype
+    remove_factors(self) # before the rule: the svd-channel check must see the checkpoint's own state, and a declined layer must fall through pristine
+    stack_dense = lora_stack.mode() in lora_stack.DENSE_MODES and not network_layer_name.startswith('lora_te')
+    members = []
+    if not stack_dense:
+        for net in l.loaded_networks:
+            module = net.modules.get(network_layer_name, None)
+            if module is None:
+                continue
+            factors = get_module_factors(module, devices.device, dtype, original_shape=deq.original_shape)
+            if factors is not None:
+                members.append(factors)
+    if not stack_dense and len(members) == 0 and self.svd_up is None:
+        step = grid_step(self)
+        if step > 0 and rms / step > REQUANT_RATIO and energy < REQUANT_ENERGY:
+            return None # routed to the grid: the caller assembles the delta and requantizes
+    ups, downs = [], []
+    for up_eff, down in members:
+        if deq.use_hadamard:
+            down = rotate_hadamard(down.to(dtype=torch.float32), group_size=deq.hadamard_group_size).to(dtype=dtype)
+        ups.append(up_eff)
+        downs.append(down)
+    lora_factor_cache.note_hit()
+    append_factors(self, ups + [up_h.to(device=devices.device, dtype=dtype)], downs + [down_h.to(device=devices.device, dtype=dtype)])
+    hosted_layers.append((network_layer_name, energy, calibrated))
+    hosted_ranks.append(int(up_h.shape[1]))
+    return True
+
+
+def apply_hosted(self, network_layer_name, updown, wanted_names):
+    """Host a set's delta on the svd channel: exact factors for factorable
+    members, the top-k singular directions of the remainder for the rest.
+
+    The delta comes from the families' own ``calc_updown``, so every family
+    and scaling quirk is included; factorable members are subtracted out and
+    appended exactly so they never compete with the hosted remainder for
+    rank. When per-checkpoint activation statistics exist (``lora_calib``),
+    input channels are weighted by their RMS before truncation so the kept
+    directions minimize output error rather than weight error. Computed
+    factors are disk-cached per configuration (``lora_factor_cache``) and
+    replayed bit-identically on later applies. Returns None when the delta
+    cannot ride the channel (wrong shape) or when the routing rule prefers
+    the grid for it; the caller falls back to requantize.
+    """
+    from sdnq.quant_utils import rotate_hadamard
+
+    deq = self.sdnq_dequantizer
+    changed = remove_factors(self)
+    if wanted_names == ():
+        return changed
+    if updown is None or updown.ndim != 2 or tuple(updown.shape) != tuple(deq.original_shape):
+        return None
+    dtype = deq.result_dtype
+
+    members = []
+    stack_dense = lora_stack.mode() in lora_stack.DENSE_MODES and not network_layer_name.startswith('lora_te')
+    if not stack_dense: # dense stack modes host the combined delta wholesale; the members' content is already inside it
+        for net in l.loaded_networks:
+            module = net.modules.get(network_layer_name, None)
+            if module is None:
+                continue
+            factors = get_module_factors(module, devices.device, dtype, original_shape=deq.original_shape)
+            if factors is not None:
+                members.append(factors)
+
+    # requantize keeps a delta the grid can resolve and that truncation would genuinely
+    # cut: both terms must agree, since a thin delta rounds away on the grid however
+    # low its capture, and a low-rank delta hosts exactly however fat it is. Scoped to
+    # sets the side-channel would otherwise carry whole: factorable members ride
+    # exactly and dense-combined deltas stay hosted at any magnitude.
+    delta_rms = float(updown.detach().float().square().mean().sqrt())
+    maybe_requant = not stack_dense and len(members) == 0 and self.svd_up is None
+    if maybe_requant:
+        step = grid_step(self)
+        maybe_requant = step > 0 and delta_rms / step > REQUANT_RATIO
+
+    lora_factor_cache.begin_pass(wanted_names)
+    cached = lora_factor_cache.fetch(network_layer_name)
+    D = None if cached is not None else updown.detach().to(devices.device, torch.float32)
+
+    ups, downs = [], []
+    for up_eff, down in members:
+        if D is not None:
+            D = D.sub_(up_eff.to(torch.float32) @ down.to(torch.float32)) # factorable members ride exactly; host only the remainder
+        if deq.use_hadamard:
+            down = rotate_hadamard(down.to(dtype=torch.float32), group_size=deq.hadamard_group_size).to(dtype=dtype)
+        ups.append(up_eff)
+        downs.append(down)
+
+    if cached is not None:
+        up_h, down_h, energy, calibrated, _cached_rms = cached
+        if maybe_requant and energy < REQUANT_ENERGY:
+            routed_layers.append(network_layer_name)
+            return None
+        up_h, down_h = trim_null_tail(up_h, down_h)
+        append_factors(self, ups + [up_h.to(device=devices.device, dtype=dtype)], downs + [down_h.to(device=devices.device, dtype=dtype)])
+        hosted_layers.append((network_layer_name, energy, calibrated))
+        hosted_ranks.append(int(up_h.shape[1]))
+        return True
+
+    up_h, down_h, energy, calibrated = truncate_delta(self, D, dtype)
+    up_h, down_h = lora_factor_cache.store(network_layer_name, up_h, down_h, energy, calibrated, delta_rms)
+    if maybe_requant and energy < REQUANT_ENERGY:
+        routed_layers.append(network_layer_name) # the stored entry memoizes the routing; replays skip the sketch
+        return None
+    up_h, down_h = trim_null_tail(up_h, down_h) # the int8 roundtrip zeroes the numeric tail the eps slice keeps; fresh and replayed attaches must trim alike
+    append_factors(self, ups + [up_h], downs + [down_h])
+    hosted_layers.append((network_layer_name, energy, calibrated))
+    hosted_ranks.append(int(up_h.shape[1]))
+    return True
+
+
+def truncate_delta(self, D, dtype):
+    """Truncate one dense fp32 delta to hosted factors in the layer's channel layout; consumes ``D``.
+
+    Calibration-weighted when statistics exist; the sketch is oversampled past
+    the kept rank so the truncation sits within noise of exact svd. Returns
+    ``(up_h, down_h, energy, calibrated)`` with the down factor rotated into the
+    layer's hadamard domain.
+    """
+    from sdnq.quant_utils import rotate_hadamard
+    deq = self.sdnq_dequantizer
+    cap = int(shared.opts.lora_sdnq_host_rank)
+    q = min(cap, *D.shape)
+    rms = lora_calib.rms_for(self)
+    if rms is not None and rms.shape[-1] == D.shape[-1]:
+        # scale input channels by their activation RMS so truncation minimizes output error rather than weight error
+        rms = rms.to(device=D.device, dtype=torch.float32).clamp(min=1e-8)
+        D = D.mul_(rms)
+    else:
+        rms = None
+    # svd_lowrank draws random projections; fork so user generation seeds are untouched and re-applies are deterministic
+    with torch.random.fork_rng(devices=[D.device] if D.device.type == 'cuda' else []):
+        torch.manual_seed(0)
+        # oversampled sketch with extra power iterations lands within noise of exact svd; only the top q columns are kept
+        U, S, V = torch.svd_lowrank(D, q=min(q + 64, *D.shape), niter=8)
+    U, S, V = U[:, :q], S[:q], V[:, :q]
+    e = S.square()
+    total_e = e.sum()
+    if float(total_e) > 0:
+        # an exactly low-rank delta (dense-combined plain pairs, low-rank LyCORIS) fills the tail with
+        # numerical zeros; storing them would pad the channel to the cap for nothing
+        k = int((torch.cumsum(e, 0) < (1.0 - NULL_TAIL_EPS) * total_e).sum().item()) + 1
+        if k < q:
+            U, S, V = U[:, :k], S[:k], V[:, :k]
+    energy = float(S.square().sum() / D.square().sum().clamp(min=1e-30)) # captured fraction, in the weighted domain when calibrated
+    up_h = (U * S).to(dtype=dtype)
+    down_h = V.t()
+    if rms is not None:
+        down_h = down_h / rms # unscale in the original input basis, before any rotation
+    if deq.use_hadamard:
+        down_h = rotate_hadamard(down_h, group_size=deq.hadamard_group_size)
+    down_h = down_h.to(dtype=dtype)
+    return up_h, down_h, energy, rms is not None
+
+
+def apply_select_cached(self, network_layer_name, wanted_names):
+    """Serve a select pair from cache and live factors before the walk assembles deltas.
+
+    A cached score record plus a factor pair per network (exact factors for
+    factorable members, cached truncations otherwise) rebuild the segments and
+    the selection registration without any ``calc_updown``. Returns None when
+    any piece is missing; the caller assembles and ``apply_select`` recomputes
+    and stores.
+    """
+    from sdnq.quant_utils import rotate_hadamard
+    deq = self.sdnq_dequantizer
+    changed = remove_factors(self)
+    if wanted_names == ():
+        return changed
+    if len(l.loaded_networks) != 2:
+        return None
+    dtype = deq.result_dtype
+    lora_factor_cache.begin_pass(wanted_names)
+    rec = lora_factor_cache.lookup_scores(network_layer_name)
+    if rec is None:
+        return None
+    pairs, notes = [], []
+    for i, net in enumerate(l.loaded_networks):
+        module = net.modules.get(network_layer_name, None)
+        if module is None:
+            return None
+        factors = get_module_factors(module, devices.device, dtype, original_shape=deq.original_shape)
+        if factors is not None:
+            up_i, down_i = factors
+            if deq.use_hadamard:
+                down_i = rotate_hadamard(down_i.to(dtype=torch.float32), group_size=deq.hadamard_group_size).to(dtype=dtype)
+        else:
+            cached = lora_factor_cache.lookup(f'{network_layer_name}#{i}')
+            if cached is None:
+                return None
+            up_i, down_i = cached[0].to(device=devices.device, dtype=dtype), cached[1].to(device=devices.device, dtype=dtype)
+            notes.append((f'{network_layer_name}#{i}', cached[2], cached[3]))
+        pairs.append((up_i, down_i))
+    scores, abs_sums = rec
+    segments, transposed = append_factors(self, [pairs[0][0], pairs[1][0]], [pairs[0][1], pairs[1][1]])
+    lora_stack.register(network_layer_name, self, 'factor', scores, segments=(segments[0], segments[1], transposed), abs_sums=abs_sums)
+    for note in notes:
+        lora_factor_cache.note_hit()
+        hosted_layers.append(note)
+    select_layers.append(network_layer_name)
+    return True
+
+
+def apply_select(self, network_layer_name, per_net, wanted_names):
+    """Attach two networks' contributions as separate side-channel segments for per-layer selection.
+
+    Factorable members ride exactly; the rest host as their own truncated svd
+    with per-net cache entries. Segment ranges and selection scores register
+    with ``lora_stack``; the flip schedule executes from the step callback.
+    Returns None when the pair cannot ride the channel; the caller falls back.
+    """
+    from sdnq.quant_utils import rotate_hadamard
+    deq = self.sdnq_dequantizer
+    changed = remove_factors(self)
+    if wanted_names == ():
+        return changed
+    if per_net is None or len(per_net) != 2:
+        return None
+    dtype = deq.result_dtype
+    lora_factor_cache.begin_pass(wanted_names)
+    pairs, ranks = [], []
+    for i, (net_name, D) in enumerate(per_net):
+        if D is None or D.ndim != 2 or tuple(D.shape) != tuple(deq.original_shape):
+            return None
+        net = next((n for n in l.loaded_networks if n.name == net_name), None)
+        module = net.modules.get(network_layer_name, None) if net is not None else None
+        if module is None:
+            return None
+        ranks.append(int(getattr(module, 'dim', 0) or 0) or min(int(shared.opts.lora_sdnq_host_rank), *deq.original_shape))
+        factors = get_module_factors(module, devices.device, dtype, original_shape=deq.original_shape)
+        if factors is not None:
+            up_i, down_i = factors
+            if deq.use_hadamard:
+                down_i = rotate_hadamard(down_i.to(dtype=torch.float32), group_size=deq.hadamard_group_size).to(dtype=dtype)
+        else:
+            key = f'{network_layer_name}#{i}'
+            cached = lora_factor_cache.fetch(key)
+            if cached is not None:
+                up_i, down_i = cached[0].to(device=devices.device, dtype=dtype), cached[1].to(device=devices.device, dtype=dtype)
+                hosted_layers.append((key, cached[2], cached[3]))
+            else:
+                up_i, down_i, energy, calibrated = truncate_delta(self, D.detach().to(devices.device, torch.float32), dtype)
+                up_i, down_i = lora_factor_cache.store(key, up_i, down_i, energy, calibrated, float(D.detach().float().square().mean().sqrt()))
+                hosted_layers.append((key, energy, calibrated))
+        pairs.append((up_i, down_i))
+    scores, abs_sums = lora_stack.score_pair(per_net[0][1].detach(), per_net[1][1].detach(), ranks[0], ranks[1])
+    lora_factor_cache.store_scores(network_layer_name, scores, abs_sums)
+    segments, transposed = append_factors(self, [pairs[0][0], pairs[1][0]], [pairs[0][1], pairs[1][1]])
+    lora_stack.register(network_layer_name, self, 'factor', scores, segments=(segments[0], segments[1], transposed), abs_sums=abs_sums)
+    select_layers.append(network_layer_name) # counted apart from the plain concat: both ride the svd channel but only one is a summed set
+    return True
+
+
+def note_fallback(self, network_layer_name):
+    """Record a quantized layer taking the requantize path (summary-logged per pass); layers the routing rule sent there are counted apart."""
+    if getattr(self, 'sdnq_dequantizer', None) is not None and network_layer_name not in routed_layers:
+        fallback_layers.append(network_layer_name)
+
+
+def reset_pass():
+    """Clear every per-pass accumulator, so a pass that raised leaves nothing behind for the next one."""
+    fallback_layers.clear()
+    hosted_layers.clear()
+    hosted_ranks.clear()
+    factor_layers.clear()
+    select_layers.clear()
+    routed_layers.clear() # note_fallback reads this to suppress double counting, so a stale entry silences a real fallback
+
+
+def report_fallbacks():
+    hits, misses = lora_factor_cache.flush()
+    if hits > 0 or misses > 0:
+        log.info(f'Network load: type=LoRA quant=sdnq cache hits={hits} misses={misses}')
+    if len(factor_layers) > 0:
+        log.info(f'Network load: type=LoRA quant=sdnq apply=exact layers={len(factor_layers)}')
+    factor_layers.clear()
+    if len(select_layers) > 0:
+        log.info(f'Network load: type=LoRA quant=sdnq apply=select layers={len(select_layers)} mode={lora_stack.mode()}')
+    select_layers.clear()
+    if len(hosted_layers) > 0:
+        energies = sorted(e for _name, e, _c in hosted_layers)
+        median = energies[len(energies) // 2]
+        calibrated = sum(1 for _name, _e, c in hosted_layers if c)
+        ranks = ''
+        if len(hosted_ranks) > 0 and min(hosted_ranks) < int(shared.opts.lora_sdnq_host_rank):
+            rs = sorted(hosted_ranks)
+            ranks = f' k={rs[0]}-{rs[len(rs) // 2]}-{rs[-1]}' # realized rank spread; shown only when a spectrum collapsed below the cap
+        log.info(f'Network load: type=LoRA quant=sdnq apply=hosted layers={len(hosted_layers)} rank={int(shared.opts.lora_sdnq_host_rank)}{ranks}{f" calib={calibrated}" if calibrated else ""} energy={median:.2f} min={energies[0]:.2f}')
+        if l.debug:
+            log.debug(f'Network load: type=LoRA quant=sdnq hosted={[(n, round(e, 3)) for n, e, _c in hosted_layers[:8]]}{"..." if len(hosted_layers) > 8 else ""}')
+    hosted_layers.clear()
+    hosted_ranks.clear()
+    if len(routed_layers) > 0:
+        log.info(f'Network load: type=LoRA quant=sdnq apply=requantize layers={len(routed_layers)} routed=fat-delta')
+        if l.debug:
+            log.debug(f'Network load: type=LoRA quant=sdnq routed={routed_layers[:8]}{"..." if len(routed_layers) > 8 else ""}')
+    routed_layers.clear()
+    if len(fallback_layers) > 0:
+        if enabled():
+            log.warning(f'Network load: type=LoRA quant=sdnq apply=requantize layers={len(fallback_layers)} fidelity=reduced')
+        else:
+            log.info(f'Network load: type=LoRA quant=sdnq apply=requantize layers={len(fallback_layers)} reason=setting')
+        if l.debug:
+            log.debug(f'Network load: type=LoRA quant=sdnq requantized={fallback_layers[:8]}{"..." if len(fallback_layers) > 8 else ""}')
+    fallback_layers.clear()

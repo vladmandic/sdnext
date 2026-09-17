@@ -27,6 +27,8 @@ refresh_time = 0
 extra_pages = shared.extra_networks
 debug = log.trace if os.environ.get('SD_EN_DEBUG', None) is not None else lambda *args, **kwargs: None
 debug('Trace: EN')
+
+card_empty = '<div class="card"></div>'
 card_full = '''
     <div class='card' onclick={card_click} title='{name}' data-page='{page}' data-name='{name}' data-filename='{filename}' data-short='{short}' data-tags='{tags}' data-mtime='{mtime}' data-size='{size}' data-search='{search}' data-version='{version}' style='--data-color: {color}'>
         <div class='overlay'>

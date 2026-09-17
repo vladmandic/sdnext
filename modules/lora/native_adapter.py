@@ -22,9 +22,8 @@ of a fused weight is described) and the per-arch ``resolve_targets`` callable
 each loader passes in (how a parsed ``(prefix, base)`` maps to one or more
 diffusers paths plus optional chunk descriptors).
 
-Per-arch loader modules import this module and pass their own ``prefixes``,
-``bare_prefixes``, ``bare_diffusers_prefixes``, and ``resolve_targets`` to the
-generic helpers.
+Per-arch loader modules import this module and pass their own ``prefixes``
+and ``resolve_targets`` to the generic helpers.
 """
 
 import os
@@ -33,7 +32,7 @@ from dataclasses import dataclass
 
 import torch
 
-from modules import shared, sd_models, sd_models_utils
+from modules.sd_models import read_state_dict # pylint: disable=unused-import
 from modules.logger import log
 from modules.lora import (
     lora_convert, network, network_boft, network_full, network_glora,
@@ -55,10 +54,11 @@ from modules.lora import lora_common as l
 KNOWN_PREFIXES_DEFAULT = ("diffusion_model.", "transformer.", "lora_unet_", "lora_transformer_", "lycoris_")
 
 
-# Sentinel ``prefix_used`` value emitted by :func:`parse_key` when a bare path
-# starting with a member of ``bare_diffusers_prefixes`` matches. A loader
-# ``resolve_targets`` may dispatch on this string to rewrite the base path;
-# when it declines, :func:`resolve_group_targets` binds the path verbatim.
+# Sentinel ``prefix_used`` value emitted by :func:`parse_key` for a bare path,
+# one that matched no arch prefix. A loader ``resolve_targets`` may dispatch on
+# this string to rewrite the base path; when it declines,
+# :func:`resolve_group_targets` binds the path verbatim, and a path naming no
+# live module counts as unmapped instead of vanishing.
 BARE_DIFFUSERS_PREFIX_USED = "bare_diffusers"
 
 
@@ -92,6 +92,11 @@ def _resolve_prefix(network_prefix, prefix_used):
 SUFFIX_NORMALIZE = {
     "lora_A.weight": "lora_down.weight",
     "lora_B.weight": "lora_up.weight",
+    # bare parameter names, saved by wrappers that hold the factors as nn.Parameter (alibaba-pai PDD files)
+    "lora_down": "lora_down.weight",
+    "lora_a": "lora_down.weight",
+    "lora_b": "lora_up.weight",
+    "lora_up": "lora_up.weight",
 }
 
 
@@ -103,6 +108,8 @@ SUFFIX_NORMALIZE = {
 LORA_SUFFIXES = (
     ".lora_down.weight", ".lora_up.weight", ".lora_mid.weight",
     ".lora_A.weight",    ".lora_B.weight",
+    ".lora_down",        ".lora_up",
+    ".lora_a",           ".lora_b", # lowercase peft factor names without .weight (TaoLive adapters)
     # diff_b: bias delta some saves pair with the weight LoRA, applied as ex_bias.
     # magnitude / lora_magnitude_vector: DoRA row norms (ai-toolkit / PEFT key
     # names); converted onto the dora_scale path by try_load_lora.
@@ -154,7 +161,7 @@ FULL_SUFFIXES = (
 # on accidental overlaps with other families.
 
 LORA_MARKERS = (
-    ".lora_down.weight", ".lora_up.weight",
+    ".lora_down", ".lora_up", ".lora_a", ".lora_b", # bare and .weight forms alike
     ".lora_A.weight", ".lora_B.weight",
     # PEFT named-adapter saves embed the slot name as ``.lora_A.<name>.weight``;
     # the trailing-dot forms catch every variant.
@@ -174,9 +181,9 @@ FULL_MARKERS = (".diff",)
 
 @dataclass(frozen=True)
 class ChunkSpec:
-    """How to slice a fused weight along dim 0 for one target module.
+    """How to take a fused weight's rows along dim 0 for one target module.
 
-    Two forms supported:
+    Three forms; the reorder composes with either slice:
 
     - Equal chunks (``idx`` + ``total``): fused QKV split into Q/K/V via
       ``torch.chunk(up, total, dim=0)[idx]``. Used by flux2 / z-image where
@@ -185,6 +192,11 @@ class ChunkSpec:
       ``up[start:end]``. Used by chroma's single-block ``linear1`` which
       fuses Q / K / V / proj_mlp at unequal sizes
       (``[3072, 3072, 3072, 12288]``).
+    - Row reorder (``reorder``): the module lays out equal row blocks in a
+      different order from the save; ``(1, 0)`` swaps the halves of a fused
+      SwiGLU projection saved ``[gate; value]`` onto a ``[value; gate]``
+      module. Applied to the rows the slice selects. Only the LoRA family
+      permutes rows; the others skip a reordered target.
 
     Generic loaders check :attr:`is_equal_chunks` to decide between the two
     forms and select the appropriate ``NetworkModule*Chunk`` /
@@ -194,10 +206,15 @@ class ChunkSpec:
     total: int | None = None
     start: int | None = None
     end: int | None = None
+    reorder: tuple[int, ...] | None = None
 
     @property
     def is_equal_chunks(self) -> bool:
         return self.idx is not None and self.total is not None
+
+    @property
+    def is_slice(self) -> bool:
+        return self.is_equal_chunks or self.start is not None
 
 
 # === Key normalizations (applied universally by parse_key) ===
@@ -248,6 +265,7 @@ def has_marker(state_dict, markers):
 
 
 def resolve_mapping():
+    from modules import shared
     """Ensure ``network_layer_mapping`` is populated, return it (or empty dict)."""
     sd_model = getattr(shared.sd_model, "pipe", shared.sd_model)
     lora_convert.assign_network_names_to_compvis_modules(sd_model)
@@ -288,19 +306,19 @@ def finalize_network(net, name, family, lora_scale, t0, unmapped=0, mismatch=0, 
     return net
 
 
-def shapes_match(sd_module, down_w: torch.Tensor, up_w: torch.Tensor) -> bool:
-    """LoRA-style rank-and-dim sanity check against the live module weight.
-
-    Honors SDNQ-quantized modules by reading the original shape from the
-    dequantizer rather than the packed weight tensor.
-    """
+def module_shape(sd_module):
+    """The live weight shape of a module, read from the dequantizer for SDNQ-quantized layers; None without a weight."""
     if not hasattr(sd_module, "weight"):
-        return False
+        return None
     if hasattr(sd_module, "sdnq_dequantizer"):
-        mod_shape = sd_module.sdnq_dequantizer.original_shape
-    else:
-        mod_shape = sd_module.weight.shape
-    if len(mod_shape) < 2 or len(down_w.shape) < 2 or len(up_w.shape) < 2:
+        return tuple(sd_module.sdnq_dequantizer.original_shape)
+    return tuple(sd_module.weight.shape)
+
+
+def shapes_match(sd_module, down_w: torch.Tensor, up_w: torch.Tensor) -> bool:
+    """LoRA-style rank-and-dim sanity check against the live module weight."""
+    mod_shape = module_shape(sd_module)
+    if mod_shape is None or len(mod_shape) < 2 or len(down_w.shape) < 2 or len(up_w.shape) < 2:
         return False
     return down_w.shape[1] == mod_shape[1] and up_w.shape[0] == mod_shape[0]
 
@@ -368,7 +386,7 @@ def lokr_shapes_match(sd_module, kron_shape, chunk: ChunkSpec | None) -> bool:
     kron_out, kron_in_flat = kron_shape
     if kron_in_flat != mod_in_flat:
         return False
-    if chunk is None:
+    if chunk is None or not chunk.is_slice:
         return kron_out == mod_shape[0]
     if chunk.is_equal_chunks:
         return kron_out == mod_shape[0] * chunk.total
@@ -378,15 +396,15 @@ def lokr_shapes_match(sd_module, kron_shape, chunk: ChunkSpec | None) -> bool:
 # === Parsing primitives ===
 
 
-def parse_key(key, suffixes, *, prefixes=KNOWN_PREFIXES_DEFAULT, bare_prefixes=(), bare_diffusers_prefixes=()):
+def parse_key(key, suffixes, *, prefixes=KNOWN_PREFIXES_DEFAULT):
     """Return ``(prefix_used, base, suffix_normalized)`` or ``None``.
 
-    ``prefix_used`` is the matched element of ``prefixes``, ``BARE_DIFFUSERS_PREFIX_USED``
-    if a member of ``bare_diffusers_prefixes`` matched, or ``None`` for a key
-    that matched a member of ``bare_prefixes``. ``base`` is the path with prefix
-    and suffix removed. ``suffix_normalized`` is the suffix (without the leading
-    dot) after applying :data:`SUFFIX_NORMALIZE` (e.g. ``lora_A.weight`` becomes
-    ``lora_down.weight``).
+    ``prefix_used`` is the matched element of ``prefixes``, or
+    ``BARE_DIFFUSERS_PREFIX_USED`` for a bare key, which the loader offers to
+    the resolver and counts as unmapped when nothing binds. ``base`` is the
+    path with prefix and suffix removed. ``suffix_normalized`` is the suffix
+    (without the leading dot) after applying :data:`SUFFIX_NORMALIZE` (e.g.
+    ``lora_A.weight`` becomes ``lora_down.weight``).
 
     Always applies :func:`unwrap_peft_wrapper` and :func:`strip_peft_adapter_name`
     to the raw key before format detection so callers do not have to opt in.
@@ -401,10 +419,7 @@ def parse_key(key, suffixes, *, prefixes=KNOWN_PREFIXES_DEFAULT, bare_prefixes=(
             stripped = key[len(p):]
             break
     if prefix_used is None:
-        if any(key.startswith(p) for p in bare_diffusers_prefixes):
-            prefix_used = BARE_DIFFUSERS_PREFIX_USED
-        elif not any(key.startswith(p) for p in bare_prefixes):
-            return None
+        prefix_used = BARE_DIFFUSERS_PREFIX_USED
 
     matched_suffix = None
     split_at = -1
@@ -424,7 +439,7 @@ def parse_key(key, suffixes, *, prefixes=KNOWN_PREFIXES_DEFAULT, bare_prefixes=(
     return prefix_used, base, suffix
 
 
-def group_by_suffixes(state_dict, suffixes, *, prefixes=KNOWN_PREFIXES_DEFAULT, bare_prefixes=(), bare_diffusers_prefixes=()):
+def group_by_suffixes(state_dict, suffixes, *, prefixes=KNOWN_PREFIXES_DEFAULT):
     """Group state-dict entries by ``(prefix_used, base)``.
 
     Returns ``{(prefix_used, base): {suffix: tensor, ...}}`` where each suffix
@@ -434,12 +449,7 @@ def group_by_suffixes(state_dict, suffixes, *, prefixes=KNOWN_PREFIXES_DEFAULT, 
     """
     groups: dict[tuple, dict[str, torch.Tensor]] = {}
     for key, value in state_dict.items():
-        parsed = parse_key(
-            key, suffixes,
-            prefixes=prefixes,
-            bare_prefixes=bare_prefixes,
-            bare_diffusers_prefixes=bare_diffusers_prefixes,
-        )
+        parsed = parse_key(key, suffixes, prefixes=prefixes)
         if parsed is None:
             continue
         prefix_used, base, suffix = parsed
@@ -449,11 +459,6 @@ def group_by_suffixes(state_dict, suffixes, *, prefixes=KNOWN_PREFIXES_DEFAULT, 
             groups[(prefix_used, base)] = slot
         slot[suffix] = value
     return groups
-
-
-# Surface ``sd_models.read_state_dict`` here so loader modules don't have to
-# import ``sd_models`` directly; keeps the per-arch wrapper imports compact.
-read_state_dict = sd_models.read_state_dict
 
 
 def resolve_group_targets(resolve_targets, prefix_used, base):
@@ -508,20 +513,27 @@ def resolve_group_targets(resolve_targets, prefix_used, base):
 
 
 def slice_chunk_rows(t, chunk: ChunkSpec):
-    """Slice dim 0 of ``t`` per ``chunk``.
+    """Slice dim 0 of ``t`` per ``chunk``, then lay the selected rows out in the chunk's order.
 
     Equal-chunks form uses ``torch.chunk`` (faster for the symmetric case);
     row-range form uses tensor slicing for arbitrary partitions.
     """
     if chunk.is_equal_chunks:
-        return torch.chunk(t, chunk.total, dim=0)[chunk.idx].contiguous()
-    return t[chunk.start:chunk.end].contiguous()
+        t = torch.chunk(t, chunk.total, dim=0)[chunk.idx]
+    elif chunk.start is not None:
+        t = t[chunk.start:chunk.end]
+    if chunk.reorder is not None:
+        blocks = torch.chunk(t, len(chunk.reorder), dim=0)
+        t = torch.cat([blocks[i] for i in chunk.reorder], dim=0)
+    return t.contiguous()
 
 
-def _slice_lora_chunk(w, chunk: ChunkSpec):
-    """Return a shallow copy of ``w`` with ``lora_up.weight`` sliced per ``chunk``."""
+def slice_lora_chunk(w, chunk: ChunkSpec):
+    """Return a shallow copy of ``w`` with ``lora_up.weight`` sliced per ``chunk``; a dense bias follows a pure reorder."""
     out = dict(w)
     out["lora_up.weight"] = slice_chunk_rows(w["lora_up.weight"], chunk)
+    if "bias" in w and not chunk.is_slice:
+        out["bias"] = slice_chunk_rows(w["bias"], chunk)
     return out
 
 
@@ -564,13 +576,22 @@ def slice_bias_delta(w, chunk: ChunkSpec, fused_out):
 
 def try_load_lora(name, network_on_disk, lora_scale, *,
                   resolve_targets, prefixes=KNOWN_PREFIXES_DEFAULT,
-                  bare_prefixes=(), bare_diffusers_prefixes=(),
                   network_prefix=NETWORK_PREFIX_DEFAULT,
+                  group_by_suffixes_fn=group_by_suffixes,
+                  network_alpha=None,
+                  adapt_weights=None,
                   arch_name="generic"):
     """Generic LoRA loader (handles DoRA via the universal ``finalize_updown`` hook).
 
     Fused targets are chunked at load time by slicing ``lora_up`` along dim 0;
     the down-side is shared across the resolved targets.
+
+    ``network_alpha`` is a file-level alpha for files without alpha tensors;
+    a file carrying any alpha of its own keeps those and ignores it.
+
+    ``adapt_weights(sd_module, network_key, w)`` lets an arch refit a delta onto
+    a module whose live layout differs from the trained one (a pruned AdaLN
+    basis, for instance) before the shape check; returning None keeps ``w``.
     """
     t0 = time.time()
     state_dict = read_state_dict(network_on_disk.filename, what="network")
@@ -579,12 +600,12 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
 
     mapping = resolve_mapping()
     net = new_network(name, network_on_disk)
-    groups = group_by_suffixes(
+    groups = group_by_suffixes_fn(
         state_dict, LORA_SUFFIXES,
         prefixes=prefixes,
-        bare_prefixes=bare_prefixes,
-        bare_diffusers_prefixes=bare_diffusers_prefixes,
     )
+    if network_alpha is not None and any("alpha" in w for w in groups.values()):
+        network_alpha = None
 
     unmapped = 0
     mismatch = 0
@@ -592,6 +613,9 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
     for (prefix, base), w in groups.items():
         if "lora_down.weight" not in w or "lora_up.weight" not in w:
             continue
+        if network_alpha is not None:
+            w = dict(w)
+            w["alpha"] = torch.tensor(float(network_alpha))
         # DoRA magnitude vectors: ai-toolkit saves `magnitude`, PEFT/diffusers
         # `lora_magnitude_vector`. Both are 1-D per-output row norms with
         # dora_scale semantics; reshape to (out, 1) so the apply-time
@@ -612,14 +636,14 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
 
             target_w = w
             if chunk is not None:
-                if "bias" in w or "bias_indices" in w:
+                if "bias_indices" in w or ("bias" in w and chunk.is_slice):
                     # Weight-shaped bias residuals (dense or LyCORIS sparse
                     # triplet) are not partitioned onto fused targets.
                     log.warning(f'Network load: type=LoRA name="{name}" arch={arch_name} key={network_key} weight-shaped bias on fused target skipped (unsupported)')
                     skipped += 1
                     continue
                 fused_out = w["lora_up.weight"].shape[0]
-                target_w = _slice_lora_chunk(w, chunk)
+                target_w = slice_lora_chunk(w, chunk)
                 target_w = slice_dora_scale(target_w, chunk, fused_out)
                 if target_w is None:
                     log.warning(f'Network load: type=LoRA name="{name}" arch={arch_name} key={network_key} per-input DoRA on fused target skipped (unsupported)')
@@ -631,22 +655,20 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
                     skipped += 1
                     continue
 
+            if adapt_weights is not None:
+                target_w = adapt_weights(sd_module, network_key, target_w) or target_w
+
             if not shapes_match(sd_module, target_w["lora_down.weight"], target_w["lora_up.weight"]):
-                log.warning(
-                    f'Network load: type=LoRA name="{name}" arch={arch_name} key={network_key}'
-                    f' lora={target_w["lora_down.weight"].shape[1]}x{target_w["lora_up.weight"].shape[0]}'
-                    f' module={getattr(sd_module, "weight", None).shape if hasattr(sd_module, "weight") else "?"}'
-                    f' shape mismatch'
-                )
+                if l.debug:
+                    _module = f'{getattr(sd_module, "weight", None).shape if hasattr(sd_module, "weight") else "?"}'
+                    log.warning(f'Network load: type=LoRA name="{name}" arch={arch_name} key={network_key} lora={target_w["lora_down.weight"].shape[1]}x{target_w["lora_up.weight"].shape[0]} module={_module} shape mismatch')
                 mismatch += 1
                 continue
 
             if "diff_b" in target_w and not bias_delta_fits(sd_module, target_w["diff_b"]):
-                log.warning(
-                    f'Network load: type=LoRA name="{name}" arch={arch_name} key={network_key}'
-                    f' bias={tuple(target_w["diff_b"].shape)} module={tuple(sd_module.bias.shape)}'
-                    f' bias shape mismatch'
-                )
+                if l.debug:
+                    _bias = f'bias={tuple(target_w["diff_b"].shape)} module={tuple(sd_module.bias.shape)}'
+                    log.warning(f'Network load: type=LoRA name="{name}" arch={arch_name} key={network_key} {_bias} bias shape mismatch')
                 mismatch += 1
                 continue
 
@@ -658,8 +680,8 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
 
 def try_load_lokr(name, network_on_disk, lora_scale, *,
                   resolve_targets, prefixes=KNOWN_PREFIXES_DEFAULT,
-                  bare_prefixes=(), bare_diffusers_prefixes=(),
                   network_prefix=NETWORK_PREFIX_DEFAULT,
+                  group_by_suffixes_fn=group_by_suffixes,
                   arch_name="generic"):
     """Generic LoKR loader.
 
@@ -677,11 +699,9 @@ def try_load_lokr(name, network_on_disk, lora_scale, *,
 
     mapping = resolve_mapping()
     net = new_network(name, network_on_disk)
-    groups = group_by_suffixes(
+    groups = group_by_suffixes_fn(
         state_dict, LOKR_SUFFIXES,
         prefixes=prefixes,
-        bare_prefixes=bare_prefixes,
-        bare_diffusers_prefixes=bare_diffusers_prefixes,
     )
 
     unmapped = 0
@@ -711,6 +731,10 @@ def try_load_lokr(name, network_on_disk, lora_scale, *,
                 continue
             target_w = w
             if chunk is not None:
+                if chunk.reorder is not None:
+                    log.warning(f'Network load: type=LoKR name="{name}" arch={arch_name} key={network_key} row reorder on fused target skipped (unsupported)')
+                    skipped += 1
+                    continue
                 if "bias" in w:
                     log.warning(f'Network load: type=LoKR name="{name}" arch={arch_name} key={network_key} weight-shaped bias on fused target skipped (unsupported)')
                     skipped += 1
@@ -739,8 +763,8 @@ def try_load_lokr(name, network_on_disk, lora_scale, *,
 
 def try_load_loha(name, network_on_disk, lora_scale, *,
                   resolve_targets, prefixes=KNOWN_PREFIXES_DEFAULT,
-                  bare_prefixes=(), bare_diffusers_prefixes=(),
                   network_prefix=NETWORK_PREFIX_DEFAULT,
+                  group_by_suffixes_fn=group_by_suffixes,
                   arch_name="generic"):
     """Generic LoHA (Hadamard product) loader.
 
@@ -757,11 +781,9 @@ def try_load_loha(name, network_on_disk, lora_scale, *,
 
     mapping = resolve_mapping()
     net = new_network(name, network_on_disk)
-    groups = group_by_suffixes(
+    groups = group_by_suffixes_fn(
         state_dict, LOHA_SUFFIXES,
         prefixes=prefixes,
-        bare_prefixes=bare_prefixes,
-        bare_diffusers_prefixes=bare_diffusers_prefixes,
     )
 
     unmapped = 0
@@ -773,7 +795,7 @@ def try_load_loha(name, network_on_disk, lora_scale, *,
         targets = resolve_group_targets(resolve_targets, prefix, base)
         is_fused = any(t[1] is not None for t in targets)
         if is_fused and is_tucker:
-            log.warning(f'Network load: type=LoHA name="{name}" arch={arch_name} key={base} Tucker fused QKV skipped (unsupported)')
+            log.warning(f'Network load: type=LoHA name="{name}" arch={arch_name} key={base} Tucker fused target skipped (unsupported)')
             skipped += 1
             continue
         arch_prefix = _resolve_prefix(network_prefix, prefix)
@@ -785,6 +807,10 @@ def try_load_loha(name, network_on_disk, lora_scale, *,
                 continue
             target_w = w
             if chunk is not None:
+                if chunk.reorder is not None:
+                    log.warning(f'Network load: type=LoHA name="{name}" arch={arch_name} key={network_key} row reorder on fused target skipped (unsupported)')
+                    skipped += 1
+                    continue
                 if "bias" in w:
                     log.warning(f'Network load: type=LoHA name="{name}" arch={arch_name} key={network_key} weight-shaped bias on fused target skipped (unsupported)')
                     skipped += 1
@@ -808,8 +834,8 @@ def try_load_loha(name, network_on_disk, lora_scale, *,
 
 def try_load_oft(name, network_on_disk, lora_scale, *,
                  resolve_targets, prefixes=KNOWN_PREFIXES_DEFAULT,
-                 bare_prefixes=(), bare_diffusers_prefixes=(),
                  network_prefix=NETWORK_PREFIX_DEFAULT,
+                 group_by_suffixes_fn=group_by_suffixes,
                  arch_name="generic"):
     """Generic OFT/BOFT loader.
 
@@ -832,11 +858,9 @@ def try_load_oft(name, network_on_disk, lora_scale, *,
 
     mapping = resolve_mapping()
     net = new_network(name, network_on_disk)
-    groups = group_by_suffixes(
+    groups = group_by_suffixes_fn(
         state_dict, OFT_SUFFIXES,
         prefixes=prefixes,
-        bare_prefixes=bare_prefixes,
-        bare_diffusers_prefixes=bare_diffusers_prefixes,
     )
 
     unmapped = 0
@@ -847,7 +871,7 @@ def try_load_oft(name, network_on_disk, lora_scale, *,
         is_boft = "oft_blocks" in w and w["oft_blocks"].ndim == 4
         targets = resolve_group_targets(resolve_targets, prefix, base)
         if any(t[1] is not None for t in targets):
-            log.warning(f'Network load: type={"BOFT" if is_boft else "OFT"} name="{name}" arch={arch_name} key={base} fused QKV skipped (unsupported)')
+            log.warning(f'Network load: type={"BOFT" if is_boft else "OFT"} name="{name}" arch={arch_name} key={base} fused target skipped (unsupported)')
             skipped += 1
             continue
         arch_prefix = _resolve_prefix(network_prefix, prefix)
@@ -868,8 +892,8 @@ def try_load_oft(name, network_on_disk, lora_scale, *,
 
 def try_load_ia3(name, network_on_disk, lora_scale, *,
                  resolve_targets, prefixes=KNOWN_PREFIXES_DEFAULT,
-                 bare_prefixes=(), bare_diffusers_prefixes=(),
                  network_prefix=NETWORK_PREFIX_DEFAULT,
+                 group_by_suffixes_fn=group_by_suffixes,
                  arch_name="generic"):
     """Generic IA3 loader.
 
@@ -891,11 +915,9 @@ def try_load_ia3(name, network_on_disk, lora_scale, *,
 
     mapping = resolve_mapping()
     net = new_network(name, network_on_disk)
-    groups = group_by_suffixes(
+    groups = group_by_suffixes_fn(
         state_dict, IA3_SUFFIXES,
         prefixes=prefixes,
-        bare_prefixes=bare_prefixes,
-        bare_diffusers_prefixes=bare_diffusers_prefixes,
     )
 
     unmapped = 0
@@ -905,7 +927,7 @@ def try_load_ia3(name, network_on_disk, lora_scale, *,
             continue
         targets = resolve_group_targets(resolve_targets, prefix, base)
         if any(t[1] is not None for t in targets):
-            log.warning(f'Network load: type=IA3 name="{name}" arch={arch_name} key={base} fused QKV skipped (unsupported)')
+            log.warning(f'Network load: type=IA3 name="{name}" arch={arch_name} key={base} fused target skipped (unsupported)')
             skipped += 1
             continue
         arch_prefix = _resolve_prefix(network_prefix, prefix)
@@ -923,8 +945,8 @@ def try_load_ia3(name, network_on_disk, lora_scale, *,
 
 def try_load_glora(name, network_on_disk, lora_scale, *,
                    resolve_targets, prefixes=KNOWN_PREFIXES_DEFAULT,
-                   bare_prefixes=(), bare_diffusers_prefixes=(),
                    network_prefix=NETWORK_PREFIX_DEFAULT,
+                   group_by_suffixes_fn=group_by_suffixes,
                    arch_name="generic"):
     """Generic GLoRA loader.
 
@@ -942,11 +964,9 @@ def try_load_glora(name, network_on_disk, lora_scale, *,
 
     mapping = resolve_mapping()
     net = new_network(name, network_on_disk)
-    groups = group_by_suffixes(
+    groups = group_by_suffixes_fn(
         state_dict, GLORA_SUFFIXES,
         prefixes=prefixes,
-        bare_prefixes=bare_prefixes,
-        bare_diffusers_prefixes=bare_diffusers_prefixes,
     )
 
     unmapped = 0
@@ -956,7 +976,7 @@ def try_load_glora(name, network_on_disk, lora_scale, *,
             continue
         targets = resolve_group_targets(resolve_targets, prefix, base)
         if any(t[1] is not None for t in targets):
-            log.warning(f'Network load: type=GLoRA name="{name}" arch={arch_name} key={base} fused QKV skipped (unsupported)')
+            log.warning(f'Network load: type=GLoRA name="{name}" arch={arch_name} key={base} fused target skipped (unsupported)')
             skipped += 1
             continue
         arch_prefix = _resolve_prefix(network_prefix, prefix)
@@ -974,8 +994,8 @@ def try_load_glora(name, network_on_disk, lora_scale, *,
 
 def try_load_norm(name, network_on_disk, lora_scale, *,
                   resolve_targets, prefixes=KNOWN_PREFIXES_DEFAULT,
-                  bare_prefixes=(), bare_diffusers_prefixes=(),
                   network_prefix=NETWORK_PREFIX_DEFAULT,
+                  group_by_suffixes_fn=group_by_suffixes,
                   arch_name="generic"): # pylint: disable=unused-argument
     """Generic Norm (LayerNorm / RMSNorm weight + bias delta) loader.
 
@@ -996,11 +1016,9 @@ def try_load_norm(name, network_on_disk, lora_scale, *,
 
     mapping = resolve_mapping()
     net = new_network(name, network_on_disk)
-    groups = group_by_suffixes(
+    groups = group_by_suffixes_fn(
         state_dict, NORM_SUFFIXES,
         prefixes=prefixes,
-        bare_prefixes=bare_prefixes,
-        bare_diffusers_prefixes=bare_diffusers_prefixes,
     )
 
     unmapped = 0
@@ -1039,8 +1057,8 @@ def try_load_norm(name, network_on_disk, lora_scale, *,
 
 def try_load_full(name, network_on_disk, lora_scale, *,
                   resolve_targets, prefixes=KNOWN_PREFIXES_DEFAULT,
-                  bare_prefixes=(), bare_diffusers_prefixes=(),
                   network_prefix=NETWORK_PREFIX_DEFAULT,
+                  group_by_suffixes_fn=group_by_suffixes,
                   arch_name="generic"):
     """Generic Full (full-rank weight delta) loader.
 
@@ -1057,11 +1075,9 @@ def try_load_full(name, network_on_disk, lora_scale, *,
 
     mapping = resolve_mapping()
     net = new_network(name, network_on_disk)
-    groups = group_by_suffixes(
+    groups = group_by_suffixes_fn(
         state_dict, FULL_SUFFIXES,
         prefixes=prefixes,
-        bare_prefixes=bare_prefixes,
-        bare_diffusers_prefixes=bare_diffusers_prefixes,
     )
 
     unmapped = 0
@@ -1072,7 +1088,7 @@ def try_load_full(name, network_on_disk, lora_scale, *,
             continue
         targets = resolve_group_targets(resolve_targets, prefix, base)
         if any(t[1] is not None for t in targets):
-            log.warning(f'Network load: type=Full name="{name}" arch={arch_name} key={base} fused QKV skipped (unsupported)')
+            log.warning(f'Network load: type=Full name="{name}" arch={arch_name} key={base} fused target skipped (unsupported)')
             skipped += 1
             continue
         arch_prefix = _resolve_prefix(network_prefix, prefix)
@@ -1114,6 +1130,7 @@ def try_load_chain(name, network_on_disk, lora_scale, family_loaders):
     tuple of partial-applied generic loaders, each already bound to the arch's
     ``resolve_targets`` and prefix tuples.
     """
+    from modules import sd_models_utils
     sd_models_utils.state_dict_cache.enable()
     net = None
     mismatch = 0
@@ -1126,6 +1143,7 @@ def try_load_chain(name, network_on_disk, lora_scale, family_loaders):
             net = sub
         else:
             net.modules.update(sub.modules)
+            net.extras.update(sub.extras)
     sd_models_utils.state_dict_cache.disable()
     if net is not None and mismatch > 0: # applying only the layers that fit leaves the model in a state nothing was trained for
         log.error(f'Network load: type=LoRA name="{name}" modules={len(net.modules)} mismatch={mismatch} shapes do not match the loaded model')

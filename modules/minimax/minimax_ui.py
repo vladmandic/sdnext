@@ -24,17 +24,20 @@ def create_ui(prompt, _negative, styles, overrides, script_inputs, mp4_fps, mp4_
             with gr.Accordion(open=True, label='Parameters', elem_id='minimax_param_accordion') as _param_accordion:
                 with gr.Row():
                     width, height = ui_sections.create_resolution_inputs('minimax', default_width=1024, default_height=576, step=32)
+                    btn_detect_image_size = ToolButton(value=ui_symbols.detect, elem_id="minimax_resize_detect_size")
                 with gr.Row():
-                    steps = gr.Slider(minimum=2, maximum=100, step=1, label="MiniMax Steps", elem_id='minimax_steps', value=30)
-                    frames = gr.Slider(label='MiniMax Frames', minimum=22, maximum=362, step=17, value=124, elem_id='minimax_frames')
+                    steps = gr.Slider(minimum=1, maximum=100, step=1, label="MiniMax steps", elem_id='minimax_steps', value=30)
+                    frames = gr.Slider(label='MiniMax frames', minimum=22, maximum=362, step=17, value=124, elem_id='minimax_frames')
                 with gr.Row():
-                    video_shift = gr.Slider(minimum=8.0, maximum=16.0, step=0.1, label="MiniMax Video Shift", elem_id='minimax_video_shift', value=12)
-                    audio_shift = gr.Slider(minimum=1.5, maximum=6.0, step=0.1, label="MiniMax Audio Shift", elem_id='minimax_audio_shift', value=3)
+                    video_shift = gr.Slider(minimum=0.5, maximum=20.0, step=0.1, value=12.0, label="MiniMax video shift", elem_id='minimax_video_shift')
+                    audio_shift = gr.Slider(minimum=0.5, maximum=10.0, step=0.1, value=3.0, label="MiniMax audio shift", elem_id='minimax_audio_shift')
                 with gr.Row():
                     seed = gr.Number(label='Seed', value=-1, elem_id='minimax_seed', container=True)
                     random_seed = ToolButton(ui_symbols.random, elem_id='minimax_seed_random')
                     random_seed.click(fn=lambda: -1, show_progress='hidden', inputs=[], outputs=[seed])
-                    audio_enable = gr.Checkbox(label='Audio Enabled', value=True, elem_id="minimax_audio_enable")
+                with gr.Row():
+                    enable_audio = gr.Checkbox(label='Enable audio', value=True, elem_id="minimax_audio_enable")
+                    enable_preview = gr.Checkbox(label='Enable preview', value=True, elem_id="minimax_preview_enable")
             with gr.Accordion(open=False, label="Input media", elem_id='minimax_input_media_accordion', visible=True) as input_accordion:
                 with gr.Row():
                     init_image = gr.Image(label='Image', elem_id='minimax_init_image', type='pil', image_mode='RGB', width=256, height=256)
@@ -56,19 +59,29 @@ def create_ui(prompt, _negative, styles, overrides, script_inputs, mp4_fps, mp4_
         model_info = next((m for m in models['MiniMax'] if m.name == model_name), None)
         if model_info is None or model_info.name is None or model_info.name == '' or model_info.name == 'None':
             return gr.update(value='none'), gr.update(visible=False), gr.update(visible=False)
-        log.debug(f'Selected: name="{model_info.name}" repo="{model_info.repo}" cls={model_info.repo_cls}')
         if model_info.workflow == 'fl2va':
             workflow = 'fl2va' if init_image is not None else 't2va'
         else:
             workflow = model_info.workflow
+        log.debug(f'Video: workflow={workflow} name="{model_info.name}" repo="{model_info.repo}" cls={model_info.repo_cls} image={init_image} selected')
         return gr.update(value=f'Workflow: {workflow}'), gr.update(visible=workflow != 'ref2va'), gr.update(visible=workflow == 'ref2va')
 
     def on_load(model_name: str):
         model_info = next((m for m in models['MiniMax'] if m.name == model_name), None)
         minimax_video.load_model(model_info.name if model_info is not None else None)
 
+    def on_image_size(init_image):
+        if init_image is not None:
+            try:
+                width, height = init_image.size
+                return gr.update(value=width), gr.update(value=height)
+            except Exception:
+                pass
+        return gr.update(), gr.update()
+
     model.change(fn=on_change, inputs=[model, init_image], outputs=[workflow, input_accordion, reference_accordion], show_progress='hidden')
     init_image.change(fn=on_change, inputs=[model, init_image], outputs=[workflow, input_accordion, reference_accordion], show_progress='hidden')
+    btn_detect_image_size.click(fn=on_image_size, inputs=[init_image], outputs=[width, height])
     btn_load.click(fn=on_load, inputs=[model], outputs=[])
 
     task_id = gr.Textbox(visible=False, value='')
@@ -85,7 +98,8 @@ def create_ui(prompt, _negative, styles, overrides, script_inputs, mp4_fps, mp4_
         mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt,
         mp4_video, mp4_frames, mp4_sf, mp4_thumb,
         mp4_scale, mp4_upscaler,
-        audio_enable,
+        enable_audio,
+        enable_preview,
         overrides,
     ]
     video_outputs = [

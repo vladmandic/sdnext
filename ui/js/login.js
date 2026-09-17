@@ -34,6 +34,9 @@ function forceLogin() {
   document.body.appendChild(form);
 
   const status = form.querySelector('#loginStatus');
+  if (!status) {
+    console.error('forceLogin', 'loginStatus element not found');
+  }
 
   form.addEventListener('submit', (event) => {
     event.preventDefault();

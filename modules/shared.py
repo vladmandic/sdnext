@@ -10,14 +10,17 @@ from typing import TYPE_CHECKING
 import gradio as gr
 from installer import print_dict # pylint: disable=unused-import
 from modules.logger import log
-log.debug('Initializing: shared module')
 
+log.debug('Initializing: shared module')
 import modules.memmon
 import modules.paths as paths
 from modules.json_helpers import readfile # pylint: disable=W0611
 from modules.shared_helpers import listdir, req # pylint: disable=W0611
-from modules import errors, devices, shared_state, cmd_args, theme, history, files_cache # pylint: disable=unused-import
+from modules import errors, devices, shared_state, cmd_args, history, files_cache # pylint: disable=unused-import
 from modules.memstats import memory_stats # pylint: disable=unused-import
+
+# main entry point that triggers package imports
+from modules import loader # pylint: disable=unused-import
 
 log.debug('Initializing: pipelines')
 from modules import shared_items # pylint: disable=unused-import
@@ -108,8 +111,12 @@ if not files_cache.do_cache_folders:
 
 
 def list_checkpoint_titles():
-    import modules.sd_models # pylint: disable=W0621
-    return modules.sd_models.checkpoint_titles()
+    try:
+        from modules.sd_models import checkpoint_titles # pylint: disable=W0621
+        return checkpoint_titles()
+    except Exception as err:
+        log.error(f'Checkpoints: {err}')
+        return []
 
 
 list_checkpoint_tiles = list_checkpoint_titles # alias for legacy typo
@@ -124,24 +131,24 @@ def is_url(string):
 
 
 def refresh_checkpoints():
-    import modules.sd_models # pylint: disable=W0621
-    return modules.sd_models.list_models()
+    from modules.sd_models import list_models # pylint: disable=W0621
+    return list_models()
 
 
 def refresh_vaes():
-    import modules.sd_vae # pylint: disable=W0621
-    modules.sd_vae.refresh_vae_list()
+    from modules.sd_vae import refresh_vae_list # pylint: disable=W0621
+    refresh_vae_list()
 
 
 def refresh_upscalers():
-    import modules.modelloader # pylint: disable=W0621
-    modules.modelloader.load_upscalers()
+    from modules.modelloader import load_upscalers # pylint: disable=W0621
+    load_upscalers()
 
 
 def list_samplers():
-    import modules.sd_samplers # pylint: disable=W0621
-    modules.sd_samplers.set_samplers()
-    return modules.sd_samplers.all_samplers
+    from modules.sd_samplers import set_samplers, get_samplers # pylint: disable=W0621
+    set_samplers()
+    return get_samplers()
 
 
 log.debug('Initializing: settings')
@@ -204,7 +211,7 @@ def restart_server(restart=True):
             demo.server.should_exit = True
             demo.server.force_exit = True
             demo.close(verbose=False)
-            demo.server.close()
+            # demo.server.close()
             demo.fns = []
         time.sleep(1)
         sys.tracebacklimit = 100

@@ -8,9 +8,11 @@ import numpy as np
 from PIL import Image
 from modules import shared, sd_models, processing, processing_vae, processing_helpers, sd_hijack_hypertile, sd_vae
 from modules.logger import log
+from modules.attention import context as attention_context
 from modules.processing_callbacks import diffusers_callback_legacy, diffusers_callback, set_callbacks_p
 from modules.processing_helpers import get_generator, apply_circular # pylint: disable=unused-import
 from modules.processing_prompt import set_prompt
+from modules.lora import network_pdd
 from modules.api import helpers
 
 
@@ -30,6 +32,9 @@ def task_modular_kwargs(p, model):
     if len(getattr(p, 'init_images', [])) > 0:
         task_args['image'] = p.init_images
         task_args['strength'] = p.denoising_strength
+        if (shared.sd_model_type == 'sdxl') and hasattr(model, 'register_to_config') and (model_cls not in sd_models.i2i_pipes):
+            model.register_to_config(requires_aesthetics_score = False)
+
     mask_image = p.task_args.get('image_mask', None) or getattr(p, 'image_mask', None) or getattr(p, 'mask', None)
     if mask_image is not None:
         task_args['mask_image'] = mask_image
@@ -67,8 +72,8 @@ def task_specific_kwargs(p, model):
                 'width': width,
                 'height': height,
             }
-    elif (task_type == sd_models.DiffusersTaskType.IMAGE_2_IMAGE or is_img2img_model) and len(getattr(p, 'init_images', [])) > 0:
-        if shared.sd_model_type == 'sdxl' and hasattr(model, 'register_to_config'):
+    elif (task_type == sd_models.DiffusersTaskType.IMAGE_2_IMAGE or task_type == sd_models.DiffusersTaskType.MODULAR or is_img2img_model) and (len(getattr(p, 'init_images', [])) > 0):
+        if (shared.sd_model_type == 'sdxl') and hasattr(model, 'register_to_config'):
             if model_cls in sd_models.i2i_pipes:
                 pass
             else:
@@ -106,6 +111,11 @@ def task_specific_kwargs(p, model):
                 'height': p.height,
                 'input_images': [p.init_images], # omnigen expects list-of-lists
             }
+        elif model_cls == 'LLaDAImagePipeline':
+            task_args = {
+                'generation_mode': 'editing',
+                'image': p.init_images[0],
+            }
     elif task_type == sd_models.DiffusersTaskType.INSTRUCT and len(getattr(p, 'init_images', [])) > 0:
         p.ops.append('instruct')
         task_args = {
@@ -114,7 +124,7 @@ def task_specific_kwargs(p, model):
             'image': p.init_images,
             'strength': p.denoising_strength,
         }
-    elif (task_type == sd_models.DiffusersTaskType.INPAINTING or is_img2img_model) and len(getattr(p, 'init_images', [])) > 0:
+    elif (task_type == sd_models.DiffusersTaskType.INPAINTING or task_type == sd_models.DiffusersTaskType.MODULAR or is_img2img_model) and len(getattr(p, 'init_images', [])) > 0:
         if shared.sd_model_type == 'sdxl' and hasattr(model, 'register_to_config'):
             if model_cls in [sd_models.i2i_pipes]:
                 pass
@@ -254,7 +264,11 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:l
 
     possible = get_params(model)
 
-    log.debug(f'Pipeline: cls={cls} possible={possible}')
+    pinned = network_pdd.pin(p, model) # installed parallel-decoding heads fix the step count and schedule
+    if pinned is not None and 'num_inference_steps' in possible:
+        kwargs['num_inference_steps'] = pinned
+
+    debug_log(f'Pipeline: cls={cls} possible={possible}')
     steps = kwargs.get("num_inference_steps", None) or len(getattr(p, 'timesteps', ['1']))
     clip_skip = kwargs.pop("clip_skip", 1)
 
@@ -366,6 +380,7 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:l
         args['callback_steps'] = 1
 
     set_callbacks_p(p)
+    attention_context.new_pass(steps)
     if 'prior_callback_on_step_end' in possible: # Wuerstchen / Cascade
         args['prior_callback_on_step_end'] = diffusers_callback
         if 'prior_callback_on_step_end_tensor_inputs' in possible:
@@ -434,7 +449,7 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:l
     # handle missing resolution
     if args.get('image', None) is not None and ('width' not in args or 'height' not in args):
         if 'width' in possible and 'height' in possible:
-            vae_scale_factor = sd_vae.get_vae_scale_factor(model)
+            vae_scale_factor = sd_vae.get_vae_scale_factor(model, init_image=True)
             if isinstance(args['image'], torch.Tensor) or isinstance(args['image'], np.ndarray):
                 if args['image'].shape[-1] == 3: # nhwc
                     args['width'] = args['image'].shape[-2]

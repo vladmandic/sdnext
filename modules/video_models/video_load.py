@@ -5,7 +5,7 @@ import time
 import torch
 import transformers
 import diffusers
-from modules import shared, errors, sd_models, sd_checkpoint, model_quant, devices, sd_hijack_te, sd_hijack_vae, modular_load
+from modules import shared, errors, sd_models, sd_checkpoint, model_quant, devices, modular_load, sd_hijack_te, sd_hijack_vae, sd_hijack_modular
 from modules.logger import log
 from modules.video_models import models_def, video_utils, video_overrides, video_cache
 from pipelines import generic
@@ -49,6 +49,10 @@ def load_custom(model_name: str):
     if 'veo-3.1' in model_name:
         from modules.video_models.google_veo import load_veo
         pipe = load_veo(model_name)
+        return pipe
+    if 'gemini-omni' in model_name:
+        from modules.video_models.google_omni import load_omni
+        pipe = load_omni(model_name)
         return pipe
     return None
 
@@ -196,7 +200,7 @@ def load_model(selected: models_def.Model):
     shared.sd_model = model_quant.do_post_load_quant(shared.sd_model, allow=False)
     sd_models.set_diffuser_offload(shared.sd_model)
     if modular_load.is_modular(shared.sd_model):
-        modular_load.install_state_hook(shared.sd_model)
+        sd_hijack_modular.install_state_hook(shared.sd_model)
 
     loaded_model = selected.name
     msg = f'Load video: cls={shared.sd_model.__class__.__name__} model="{selected.name}" time={t1-t0:.2f}'
@@ -217,7 +221,8 @@ def load_upscale_vae():
 
     repo_id = 'spacepxl/Wan2.1-VAE-upscale2x'
     subfolder = "diffusers/Wan2.1_VAE_upscale2x_imageonly_real_v1"
-    vae_decode = diffusers.AutoencoderKLWan.from_pretrained(repo_id, subfolder=subfolder, cache_dir=shared.opts.hfcache_dir)
+    offline_args = {'local_files_only': True} if shared.opts.offline_mode else {}
+    vae_decode = diffusers.AutoencoderKLWan.from_pretrained(repo_id, subfolder=subfolder, cache_dir=shared.opts.hfcache_dir, **offline_args)
     vae_decode.requires_grad_(False)
     vae_decode = vae_decode.to(device=devices.device, dtype=devices.dtype)
     vae_decode.eval()

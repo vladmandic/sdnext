@@ -340,9 +340,9 @@ class UpscalerSeedVR(Upscaler):
                 images=tensor,
                 cfg_scale=cfg_scale,
                 cfg_rescale=cfg_rescale,
-                steps=steps, # TODO SeedVR steps
-                batch_size=batch_size, # TODO SeedVR batch size
-                temporal_overlap=batch_overlap, # TODO SeedVR temporal overlap
+                steps=steps,
+                batch_size=batch_size,
+                temporal_overlap=batch_overlap,
                 seed=seed,
                 res_w=width,
                 device=devices.device,

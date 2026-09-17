@@ -238,7 +238,7 @@ def main():
     init_args() # setup argparser and default folders
     installer.args = args
     installer.setup_logging(debug=args.debug, trace=args.trace, filename=args.log)
-    log.info('Starting SD.Next')
+    log.info('Starting: [bold cyan]SD.Next[/]')
     installer.get_logfile()
     try:
         sys.excepthook = installer.custom_excepthook
@@ -262,6 +262,7 @@ def main():
         installer.install('uv', 'uv')
     installer.install_gradio()
     installer.check_torch()
+    installer.check_numpy()
     installer.check_onnx()
     installer.check_transformers()
     installer.check_diffusers()

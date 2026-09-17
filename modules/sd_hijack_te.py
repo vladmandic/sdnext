@@ -2,6 +2,7 @@ import os
 import time
 from modules import shared, errors, timer, sd_models
 from modules.logger import log
+from modules.attention import context as attention_context
 
 
 class PromptCache:
@@ -10,29 +11,41 @@ class PromptCache:
         self.id = None
         self.max = 16
 
-    def get(self, prompt):
-        if self.id != id(shared.sd_model):
+    @staticmethod
+    def _hashable(val):
+        if isinstance(val, list):
+            return tuple(val)
+        return val
+
+    def get(self, prompt, negative_prompt=None, cfg_enabled=None):
+        current_id = id(shared.sd_model.sd_checkpoint_info) if hasattr(shared.sd_model, 'sd_checkpoint_info') else id(shared.sd_model)
+        if self.id != current_id:
             self.cache.clear()
-            self.id = id(shared.sd_model)
+            self.id = current_id
             log.debug(f'Encode: prompt cache activate id={self.id} depth={len(self.cache)}')
+        negative_prompt = self._hashable(negative_prompt)
         if (isinstance(prompt, list) and len(prompt) == 1 and isinstance(prompt[0], str)):
-            cached = self.cache.get(prompt[0], None)
+            cached = self.cache.get((prompt[0], negative_prompt, cfg_enabled), None)
         elif isinstance(prompt, str):
-            cached = self.cache.get(prompt, None)
+            cached = self.cache.get((prompt, negative_prompt, cfg_enabled), None)
         else:
             cached = None
         if cached:
-            log.debug(f'Encode: prompt="{prompt}" cache={len(self.cache)} hit')
+            if isinstance(prompt, list):
+                log.debug(f'Encode: prompt={prompt} cache={len(self.cache)} hit')
+            else:
+                log.debug(f'Encode: prompt="{prompt}" cache={len(self.cache)} hit')
         return cached
 
-    def set(self, prompt, encoded):
+    def set(self, prompt, encoded, negative_prompt=None, cfg_enabled=None):
         if len(self.cache) >= self.max:
             oldest_key = next(iter(self.cache))
             del self.cache[oldest_key]
+        negative_prompt = self._hashable(negative_prompt)
         if (isinstance(prompt, list) and len(prompt) == 1 and isinstance(prompt[0], str)):
-            self.cache[prompt[0]] = encoded
+            self.cache[(prompt[0], negative_prompt, cfg_enabled)] = encoded
         elif isinstance(prompt, str):
-            self.cache[prompt] = encoded
+            self.cache[(prompt, negative_prompt, cfg_enabled)] = encoded
 
 
 prompt_cache = PromptCache()
@@ -55,24 +68,31 @@ def hijack_encode_prompt(*args, **kwargs):
         res = prompt
 
         if hasattr(shared.sd_model, 'before_prompt_encode'):
-            log.debug(f'Encode: prompt="{prompt}" op=before')
+            log.debug('Encode: op=before')
             res = shared.sd_model.before_prompt_encode(prompt)
             if patch_prompt:
                 args_copy[0] = res
 
-        cached = prompt_cache.get(prompt)
+        # cache key must include cfg-affecting kwargs since encode_prompt output (e.g. negative_prompt_embeds) depends on them
+        negative_prompt = kwargs.get('negative_prompt', None)
+        cfg_enabled = kwargs.get('do_classifier_free_guidance', None)
+        cached = prompt_cache.get(prompt, negative_prompt, cfg_enabled)
         if cached is not None:
             res = cached
         else:
-            log.debug(f'Encode: prompt="{prompt}" hijack=True')
-            if hasattr(shared.sd_model, 'orig_encode_prompt'):
-                res = shared.sd_model.orig_encode_prompt(*args_copy, **kwargs)
+            if isinstance(prompt, list):
+                log.debug(f'Encode: prompt={prompt} hijack=True')
             else:
-                res = shared.sd_model.encode_prompt(*args_copy, **kwargs)
-            prompt_cache.set(prompt, res)
+                log.debug(f'Encode: prompt="{prompt}" hijack=True')
+            with attention_context.role('te'):
+                if hasattr(shared.sd_model, 'orig_encode_prompt'):
+                    res = shared.sd_model.orig_encode_prompt(*args_copy, **kwargs)
+                else:
+                    res = shared.sd_model.encode_prompt(*args_copy, **kwargs)
+            prompt_cache.set(prompt, res, negative_prompt, cfg_enabled)
 
         if hasattr(shared.sd_model, 'after_prompt_encode'):
-            log.debug(f'Encode: prompt="{prompt}" op=after')
+            log.debug('Encode: op=after')
             res = shared.sd_model.after_prompt_encode(res)
 
     except Exception as e:

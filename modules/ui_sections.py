@@ -213,13 +213,41 @@ def create_color_inputs(tab):
         return grading_brightness, grading_contrast, grading_saturation, grading_hue, grading_gamma, grading_sharpness, grading_color_temp, grading_shadows, grading_midtones, grading_highlights, grading_clahe_clip, grading_clahe_grid, grading_shadows_tint, grading_highlights_tint, grading_split_tone_balance, grading_vignette, grading_grain, grading_lut_cube_file, grading_lut_strength
 
 
+def sampler_choices(choices=None, selected='Default', same_as_primary=False):
+    """Build display-only sampler choices without changing the sampler catalog."""
+    if choices is None:
+        sd_samplers.set_samplers()
+        choices = [sampler for sampler in sd_samplers.samplers if sampler.name != 'Same as primary']
+    names = [choice.name if hasattr(choice, 'name') else choice for choice in choices]
+    visible, filtered = ui_common.filter_ui_choices(names, shared.opts.show_samplers, selected)
+    if same_as_primary:
+        visible.insert(0, 'Same as primary')
+    value = selected if selected in visible else visible[0]
+    return visible, value, filtered
+
+
+def upscaler_choices(choices, selected=None):
+    """Build display-only upscaler choices without changing available upscalers."""
+    return ui_common.filter_ui_choices(choices, shared.opts.show_upscalers, selected)
+
+
+def create_filter_indicator(tabname, kind, filtered):
+    if not filtered:
+        return None
+    indicator = ToolButton(value=ui_symbols.info, tooltip=f'{kind} list filtered', elem_id=f'{tabname}_{kind.lower()}_filter_indicator', elem_classes=['filter-indicator'])
+    indicator.click(fn=None, _js="() => openSettingsSection('ui')", inputs=[], outputs=[], show_progress='hidden')
+    return indicator
+
+
 def create_sampler_and_steps_selection(choices, tabname, default_steps:int=20):
     if choices is None:
         sd_samplers.set_samplers()
         choices = [x for x in sd_samplers.samplers if not x.name == 'Same as primary']
+    dropdown_choices, default_value, filtered = sampler_choices(choices)
     with gr.Row(elem_id=f"{tabname}_sampler_row", elem_classes=['flex-break', 'flexbox']):
         steps = gr.Slider(minimum=1, maximum=100, step=1, label="Steps", elem_id=f"{tabname}_steps", value=default_steps)
-        sampler_index = gr.Dropdown(label='Sampling method', elem_id=f"{tabname}_sampling", choices=[x.name for x in choices], value='Default', type="index")
+        sampler_index = gr.Dropdown(label='Sampling method', elem_id=f"{tabname}_sampling", choices=dropdown_choices, value=default_value, type="value")
+        create_filter_indicator(tabname, 'Sampler', filtered)
     return steps, sampler_index
 
 
@@ -342,7 +370,9 @@ def create_hires_inputs(tab):
         with gr.Row(elem_id=f"{tab}_hires_fix_row2"):
             hr_force = gr.Checkbox(label='Force HiRes', value=False, elem_id=f"{tab}_hr_force")
         with gr.Row(elem_id=f"{tab}_hires_fix_row2"):
-            hr_sampler_index = gr.Dropdown(label='Refine sampler', elem_id=f"{tab}_sampling_alt", choices=[x.name for x in sd_samplers.samplers], value='Same as primary', type="index")
+            dropdown_choices, _default_value, filtered = sampler_choices(selected='Same as primary', same_as_primary=True)
+            hr_sampler_index = gr.Dropdown(label='Refine sampler', elem_id=f"{tab}_sampling_alt", choices=dropdown_choices, value='Same as primary', type="value")
+            create_filter_indicator(tab, 'Sampler', filtered)
         with gr.Row(elem_id=f"{tab}_hires_row2"):
             hr_second_pass_steps = gr.Slider(minimum=0, maximum=99, step=1, label='HiRes steps', elem_id=f"{tab}_steps_alt", value=20)
             denoising_strength = gr.Slider(minimum=0.0, maximum=0.99, step=0.01, label='Strength', value=0.3, elem_id=f"{tab}_denoising_strength")
@@ -365,11 +395,24 @@ def create_resize_inputs(tab, images, accordion=True, latent=False, non_zero=Tru
                 available_upscalers = ['None']
             if not latent:
                 available_upscalers = [x for x in available_upscalers if not x.lower().startswith('latent')]
+            available_upscalers, filtered = upscaler_choices(available_upscalers, available_upscalers[0])
             resize_mode = gr.Dropdown(label=f"Mode{prefix}" if non_zero else "Resize mode", elem_id=f"{tab}_resize_mode", choices=shared.resize_modes, type="index", value='Fixed')
             resize_name = gr.Dropdown(label=f"Method{prefix}" if non_zero else "Resize method", elem_id=f"{tab}_resize_name", choices=available_upscalers, value=available_upscalers[0], visible=True)
+            create_filter_indicator(tab, 'Upscaler', filtered)
             resize_context_choices = ["Add with forward", "Remove with forward", "Add with backward", "Remove with backward"]
             resize_context = gr.Dropdown(label=f"Context{prefix}", elem_id=f"{tab}_resize_context", choices=resize_context_choices, value=resize_context_choices[0], visible=False)
-            resize_refresh_btn = ui_common.create_refresh_button(resize_name, modelloader.load_upscalers, lambda: {"choices": modelloader.load_upscalers()}, f'{tab}_upscalers_refresh')
+
+            def refresh_upscaler_choices(selected):
+                modelloader.load_upscalers()
+                refreshed = [upscaler.name for upscaler in shared.sd_upscalers]
+                if not latent:
+                    refreshed = [name for name in refreshed if not name.lower().startswith('latent')]
+                refreshed, _ = upscaler_choices(refreshed, selected)
+                value = selected if selected in refreshed else refreshed[0]
+                return gr.update(choices=refreshed, value=value)
+
+            resize_refresh_btn = ToolButton(value=ui_symbols.refresh, elem_id=f'{tab}_upscalers_refresh')
+            resize_refresh_btn.click(fn=refresh_upscaler_choices, inputs=[resize_name], outputs=[resize_name], show_progress='hidden')
 
             def resize_mode_change(mode):
                 if mode is None or mode == 0:

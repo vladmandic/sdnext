@@ -6,7 +6,7 @@ import torch
 import transformers
 import gradio as gr
 from PIL import Image
-from modules import scripts_manager, shared, devices, errors, processing, sd_models, sd_modules, timer
+from modules import scripts_manager, shared, devices, errors, processing, sd_models, sd_modules, timer, extra_networks
 from modules import ui_control_helpers
 from modules.sd_offload_aux import register_aux, deregister_aux, move_aux_to_gpu, offload_aux
 from modules.logger import log
@@ -14,7 +14,7 @@ from modules.caption.logits import LogitsParser
 from modules.caption import helpers
 from scripts.prompt_enhance.options import Options
 from scripts.prompt_enhance.helpers import is_cloud_model, is_vision_model, is_thinking_model, get_model_repo_from_display
-from scripts.prompt_enhance.template import set_template
+from scripts.prompt_enhance.template import set_template, get_system_prompt
 
 
 debug_enabled = os.environ.get('SD_LLM_DEBUG', None) is not None
@@ -279,14 +279,16 @@ class PromptEnhanceScript(scripts_manager.Script):
     def get_image(self, image):
         current_image = None
         try:
-            if image is not None and isinstance(image, gr.Image):
+            if (image is not None) and isinstance(image, list) and len(image) > 0:
+                current_image = image[0]
+            if (image is not None) and isinstance(image, gr.Image):
                 current_image = image.value
-            elif image is not None and isinstance(image, Image.Image): # if image is already a PIL image
+            elif (image is not None) and isinstance(image, Image.Image): # if image is already a PIL image
                 current_image = image
-            if current_image is not None and (current_image.width <= 64 or current_image.height <= 64):
+            if (current_image is not None) and (current_image.width <= 64 or current_image.height <= 64):
                 current_image = None
             # Fallback to Kanvas/Control input if no image from Gradio component (e.g., when Kanvas is active)
-            if current_image is None and ui_control_helpers.input_source is not None:
+            if (current_image is None) and (ui_control_helpers.input_source is not None):
                 if isinstance(ui_control_helpers.input_source, list) and len(ui_control_helpers.input_source) > 0:
                     current_image = ui_control_helpers.input_source[0]
                 elif isinstance(ui_control_helpers.input_source, Image.Image):
@@ -325,11 +327,10 @@ class PromptEnhanceScript(scripts_manager.Script):
         # Strip symbols from model name if present
         model = get_model_repo_from_display(model) if model else self.options.default
         prompt = prompt or (self.prompt.value if self.prompt else "") # Check if self.prompt is None
-        image = None
         if use_vision and is_vision_model(model): # handle vision toggle
             image = image or self.image
-        if image is None:
-            use_vision = False
+        else:
+            image = None
         prefix = prefix or ''
         suffix = suffix or ''
         min_tokens = min_tokens or self.options.min_tokens
@@ -341,7 +342,7 @@ class PromptEnhanceScript(scripts_manager.Script):
         thinking = thinking or self.options.thinking_mode
         sample = sample if sample is not None else self.options.do_sample
         nsfw = nsfw if nsfw is not None else True # Default nsfw to True if not provided
-        debug_log(f'Prompt enhance: model="{model}" model_class="{self.llm.__class__.__name__ if self.llm is not None else "not loaded"}" nsfw={nsfw} thinking={thinking} prefill="{prefill[:30] if prefill else ""}" use_vision={use_vision} image={image is not None}')
+        debug_log(f'Prompt enhance: model="{model}" model_class="{self.llm.__class__.__name__ if self.llm is not None else "not loaded"}" nsfw={nsfw} thinking={thinking} prefill="{prefill[:30] if prefill else ""}" vision={use_vision} image={image}')
 
         while self.busy:
             time.sleep(0.1)
@@ -363,7 +364,9 @@ class PromptEnhanceScript(scripts_manager.Script):
         # Only process images if vision is enabled and model supports it
         if use_vision and is_vision_model(model):
             current_image = self.get_image(image)
-        debug_log(f'Prompt enhance: image={current_image}')
+        if current_image is None:
+            use_vision = False
+        debug_log(f'Prompt enhance: image={current_image} use_vision={use_vision}')
 
         # Check if vision was requested but no image is available
         if use_vision and is_vision_model(model) and current_image is None:
@@ -389,6 +392,47 @@ class PromptEnhanceScript(scripts_manager.Script):
                     current_image = current_image.convert('RGB')
                     debug_log('Prompt enhance: Converted image to RGB mode')
 
+        # Prepare prefill (VQA approach: string concatenation, not assistant message)
+        prefill_text = (prefill or '').strip()
+
+        t0 = time.time()
+        self.busy = True
+
+        if is_cloud_model(model):
+            has_prompt = (prompt_text is not None) and (len(prompt_text) > 4)
+            has_prefill = (prefill_text is not None) and (len(prefill_text) > 4)
+            system = get_system_prompt(system, self.options, nsfw, has_prompt=has_prompt, is_video=self.parent=='video', is_image=current_image is not None)
+            debug_log(f'Prompt enhance: prompt="{prompt_text}"')
+            if 'gemini' in model:
+                from modules.caption import gemini
+                kwargs = {
+                    'temperature': temperature,
+                    'min_output_tokens': min_tokens,
+                    'max_output_tokens': max_tokens,
+                }
+                model_name = model.replace('google/', '')
+                response = gemini.predict(prompt_text, current_image, model_name, system, prefill_text, thinking, kwargs)
+                t1 = time.time()
+                log.info(f'Prompt enhance: model="{model}" nsfw={nsfw} time={t1-t0:.2f} prompt={has_prompt} prefill={has_prefill} image={current_image} thinking={thinking} response={len(response)}')
+                debug_log(f'Prompt enhance: response="{response}"')
+                self.busy = False
+                return response
+            elif 'grok' in model:
+                from modules.caption import grok
+                kwargs = {
+                    'temperature': temperature,
+                }
+                model_name = model.replace('xai/', '')
+                response = grok.predict(prompt_text, current_image, model_name, system, prefill_text, thinking, kwargs)
+                t1 = time.time()
+                log.info(f'Prompt enhance: model="{model}" nsfw={nsfw} time={t1-t0:.2f} prompt={has_prompt} prefill={has_prefill} image={current_image} thinking={thinking} response={len(response)}')
+                debug_log(f'Prompt enhance: response="{response}"')
+                self.busy = False
+                return response
+            else:
+                self.busy = False
+                return 'Model not recognized'
+
         chat_template = set_template(
             system=system,
             prompt=prompt_text,
@@ -400,35 +444,11 @@ class PromptEnhanceScript(scripts_manager.Script):
             module=self.parent,
         )
 
-        # Prepare prefill (VQA approach: string concatenation, not assistant message)
-        prefill_text = (prefill or '').strip()
         use_prefill = len(prefill_text) > 0
         is_thinking = is_thinking_model(model)
-
         debug_log(f'Prompt enhance: system="{system}"')
         debug_log(f'Prompt enhance: prompt="{prompt_text}"')
         debug_log(f'Prompt template: roles={[msg["role"] for msg in chat_template]} thinking={is_thinking}:{thinking} prefill={use_prefill}')
-        t0 = time.time()
-        self.busy = True
-
-        if is_cloud_model(model):
-            if 'gemini' in model:
-                from modules.caption import gemini
-                kwargs = {
-                    'temperature': temperature,
-                    'min_output_tokens': min_tokens,
-                    'max_output_tokens': max_tokens,
-                }
-                model_name = model.replace('google/', '')
-                response = gemini.predict(prompt_text, current_image, model_name, system, model, prefill_text, thinking, kwargs)
-                t1 = time.time()
-                log.info(f'Prompt enhance: model="{model}" nsfw={nsfw} time={t1-t0:.2f} prefill="{prefill_text[:20] if prefill_text else None}" response={len(response)}')
-                debug_log(f'Prompt enhance: response="{response}"')
-                self.busy = False
-                return response
-
-            else:
-                return 'Model not recognized'
 
         try:
             # Qwen3.5 uses native enable_thinking parameter in the chat template
@@ -712,14 +732,17 @@ class PromptEnhanceScript(scripts_manager.Script):
         p.prompt = shared.prompt_styles.apply_styles_to_prompt(p.prompt, p.styles)
         p.negative_prompt = shared.prompt_styles.apply_negative_styles_to_prompt(p.negative_prompt, p.styles)
         shared.prompt_styles.apply_styles_to_extra(p)
+        prompts, p.network_data = extra_networks.parse_prompts([p.prompt], p.network_data)
+        p.prompt = prompts[0]
         p.styles = []
         jobid = shared.state.begin('LLM')
         p.extra_generation_params['LLM'] = get_model_repo_from_display(llm_model)
         p.extra_generation_params['Original'] = p.prompt
+        image = self_image or p.init_images
         p.prompt = self.enhance(
             prompt=p.prompt,
             seed=p.seed,
-            image=self_image,
+            image=image,
             prefix=prompt_prefix,
             suffix=prompt_suffix,
             model=llm_model,

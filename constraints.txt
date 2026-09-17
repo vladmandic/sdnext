@@ -1,3 +1,2 @@
 fastapi==0.124.4
-numpy==2.1.2
 Pillow==12.2.0

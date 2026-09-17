@@ -11,6 +11,7 @@ from modules.shared import opts
 
 from scripts.rocm.rocm_vars import ROCM_ENV_VARS  # pylint: disable=no-name-in-module
 from scripts.rocm import rocm_profiles  # pylint: disable=no-name-in-module
+from scripts.rocm import rocm_log  # pylint: disable=no-name-in-module
 
 
 CONFIG = Path(os.path.abspath(os.path.join('data', 'rocm.json')))
@@ -269,10 +270,16 @@ def apply_env(config: Optional[Dict[str, str]] = None) -> None:
     if unavailable:
         for var in unavailable:
             os.environ[var] = "0"
-    dtype_str = _resolve_dtype()
-    if dtype_str in ('FP16', 'BF16'):
-        for var in _FP32_ONLY_SOLVERS:
-            os.environ[var] = "0"
+
+
+def start_miopen_logging() -> None:
+    """Start explicit MIOpen diagnostic capture for a scoped operation."""
+    rocm_log.start_miopen_logging()
+
+
+def stop_miopen_logging() -> None:
+    """Stop explicit MIOpen diagnostic capture and restore stderr."""
+    rocm_log.stop_miopen_logging()
 
 
 def apply_all(names: list, values: list) -> None:
@@ -333,6 +340,17 @@ def clear_env() -> None:
     log.info(f'ROCm clear_env: cleared={cleared}')
 
 
+def _miopen_user_db_path() -> Path:
+    """Resolve the MIOpen user DB path for the current platform."""
+    configured = os.environ.get("MIOPEN_USER_DB_PATH", "")
+    if configured:
+        return Path(os.path.expandvars(os.path.expanduser(configured)))
+    if sys.platform == "win32":
+        return Path.home() / ".miopen" / "db"
+    cache_home = os.environ.get("XDG_CACHE_HOME", str(Path.home() / ".cache"))
+    return Path(cache_home) / "miopen"
+
+
 def delete_config() -> None:
     """Delete the saved config file, clear all vars, and wipe the MIOpen user DB cache."""
     import shutil  # pylint: disable=import-outside-toplevel
@@ -342,8 +360,8 @@ def delete_config() -> None:
         CONFIG.unlink()
         log.info(f'ROCm delete_config: deleted {CONFIG}')
     _cache = None
-    # Delete the MIOpen user DB (~/.miopen/db) - stale entries can cause solver mismatches
-    miopen_db = Path(os.path.expanduser('~')) / '.miopen' / 'db'
+    # Delete the MIOpen user DB - stale entries can cause solver mismatches.
+    miopen_db = _miopen_user_db_path()
     if miopen_db.exists():
         shutil.rmtree(miopen_db, ignore_errors=True)
         log.info(f'ROCm delete_config: wiped MIOpen user DB at {miopen_db}')
@@ -492,8 +510,8 @@ def info() -> dict:
     else:
         sdb["exists"] = False
 
-    # --- User DB (~/.miopen/db) ---
-    user_db_path = Path.home() / ".miopen" / "db"
+    # --- User DB ---
+    user_db_path = _miopen_user_db_path()
     udb = {"path": str(user_db_path), "exists": user_db_path.exists()}
     if user_db_path.exists():
         ufiles = _user_db_summary(user_db_path)
@@ -520,9 +538,21 @@ def info() -> dict:
     }
 
 
-# Apply saved config to os.environ at import time (only when ROCm is present)
-if installer.torch_info.get('type', None) == 'rocm' and CONFIG.exists():
+def _is_rocm_runtime() -> bool:
+    if installer.torch_info.get('type', None) == 'rocm':
+        return True
     try:
-        apply_env()
+        import torch  # pylint: disable=import-outside-toplevel
+        return bool(getattr(torch.version, 'hip', None))
+    except Exception:
+        return False
+
+
+# Apply saved config to os.environ at import time (only when ROCm is present).
+if _is_rocm_runtime():
+    try:
+        if CONFIG.exists():
+            apply_env()
+        rocm_log.start_miopen_logging()
     except Exception as _e:
         log.debug(f"[rocm_mgr] Warning: failed to apply env at import: {_e}")

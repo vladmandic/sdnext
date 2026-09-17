@@ -130,7 +130,7 @@ export async function setTheme(val, old) {
   for (const link of links) {
     const href = link.href.replace(old, val);
     const res = await authFetch(href);
-    if (res.ok) {
+    if (res?.ok) {
       log('setTheme', old, val);
       link.href = link.href.replace(old, val);
     } else {
@@ -341,7 +341,7 @@ function submit_framepack(...args) {
 function submit_ltx(...args) {
   const id = randomId();
   log('submitFramepack', id);
-  requestProgress(id, null, null);
+  requestProgress(id, null, gradioApp().getElementById('ltx_output_video'));
   window.submit_state = '';
   args[0] = id;
   return args;
@@ -350,7 +350,7 @@ function submit_ltx(...args) {
 function submit_minimax(...args) {
   const id = randomId();
   log('submitMiniMax', id);
-  requestProgress(id, null, null);
+  requestProgress(id, null, gradioApp().getElementById('minimax_output_video'));
   window.submit_state = '';
   args[0] = id;
   return args;

@@ -3,10 +3,11 @@ import os
 import time
 import numpy as np
 import torch
+import diffusers
 from PIL import Image
-from modules import shared, processing, sd_models, errors, sd_hijack_hypertile, processing_vae, sd_models_compile, timer, modelstats, extra_networks, attention
+from modules import shared, processing, sd_models, errors, sd_hijack_hypertile, processing_vae, sd_models_compile, timer, modelstats, extra_networks, attention, modular
 from modules.logger import log
-from modules.processing_helpers import resize_hires, calculate_base_steps, calculate_hires_steps, calculate_refiner_steps, save_intermediate, update_sampler, is_txt2img, is_refiner_enabled, get_job_name
+from modules.processing_helpers import resize_hires, calculate_base_steps, calculate_hires_steps, calculate_refiner_steps, save_intermediate, update_sampler, is_txt2img, is_refiner_enabled, get_job_name, is_modular
 from modules.processing_args import set_pipeline_args
 from modules.onnx_impl import preprocess_pipeline as preprocess_onnx_pipeline, check_parameters_changed as olive_check_parameters_changed
 from modules.lora import lora_common
@@ -14,6 +15,7 @@ from modules.image import convert
 
 
 debug = os.environ.get('SD_DIFFUSERS_DEBUG', None) is not None
+modular_debug = os.environ.get('SD_MODULAR_DEBUG', None) is not None
 output_type = 'np' if os.environ.get('SD_VAE_DEFAULT', None) is not None else 'latent'
 last_p = None
 orig_pipeline = shared.sd_model
@@ -68,69 +70,61 @@ def restore_state(p: processing.StableDiffusionProcessing):
     return p
 
 
-def process_pre(p: processing.StableDiffusionProcessing):
-    from modules import ipadapter, sd_hijack_freeu, para_attention, teacache, hidiffusion, ras, pag, cfgzero, transformer_cache, token_merge, linfusion, cachedit
-    if shared.sd_model is None:
-        log.warning('Processing modifiers: model not loaded')
+def process_pre(p: processing.StableDiffusionProcessing, phase: str | None = None):
+    if not shared.sd_loaded:
         return
-    log.info('Processing modifiers: apply')
-    try:
-        # apply-with-unapply
-        # sd_hijack_compile.install()
-        sd_models_compile.check_deepcache(enable=True)
-        ipadapter.apply(shared.sd_model, p)
-        token_merge.apply_token_merging(shared.sd_model)
-        hidiffusion.apply(p, shared.sd_model_type)
-        ras.apply(shared.sd_model, p)
-        pag.apply(p)
-        cfgzero.apply(p)
-        linfusion.apply(shared.sd_model)
-        cachedit.apply_cache_dit(shared.sd_model)
-
-        # apply-only
-        sd_hijack_freeu.apply_freeu(p)
-        transformer_cache.set_cache()
-        para_attention.apply_first_block_cache()
-        teacache.apply_teacache(p)
-    except Exception as e:
-        log.error(f'Processing apply: {e}')
-        errors.display(e, 'apply')
-
+    if is_modular(shared.sd_model):
+        if modular.is_guider(shared.sd_model):
+            from modules import modular_guiders
+            modular_guiders.set_guider(p, phase)
+    else:
+        try:
+            log.info(f'Processing: modifiers=apply phase={phase}')
+            from modules import ipadapter, sd_hijack_freeu, para_attention, teacache, hidiffusion, ras, pag, cfgzero, transformer_cache, token_merge, linfusion, cachedit
+            # apply-with-unapply
+            # sd_hijack_compile.install()
+            sd_models_compile.check_deepcache(enable=True)
+            token_merge.apply_token_merging(shared.sd_model)
+            hidiffusion.apply(p, shared.sd_model_type)
+            ras.apply(shared.sd_model, p)
+            pag.apply(p)
+            cfgzero.apply(p)
+            linfusion.apply(shared.sd_model)
+            cachedit.apply_cache_dit(shared.sd_model)
+            ipadapter.apply(shared.sd_model, p)
+            # apply-only
+            sd_hijack_freeu.apply_freeu(p)
+            transformer_cache.set_cache(p)
+            para_attention.apply_first_block_cache()
+            teacache.apply_teacache(p)
+        except Exception as e:
+            log.error(f'Processing apply: {e}')
+            errors.display(e, 'apply')
     shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
-    # if hasattr(shared.sd_model, 'unet'):
-    #     sd_models.move_model(shared.sd_model.unet, devices.device)
-    # if hasattr(shared.sd_model, 'transformer'):
-    #     sd_models.move_model(shared.sd_model.transformer, devices.device)
-
-    from modules import modular
-    if modular.is_compatible(shared.sd_model):
-        modular_pipe = modular.convert_to_modular(shared.sd_model)
-        if modular_pipe is not None:
-            shared.sd_model = modular_pipe
-    if modular.is_guider(shared.sd_model):
-        from modules import modular_guiders
-        modular_guiders.set_guider(p)
-
     timer.process.record('pre')
 
 
 def process_post(p: processing.StableDiffusionProcessing):
-    from modules import ipadapter, hidiffusion, ras, pag, cfgzero, token_merge, linfusion, cachedit
-    log.info('Processing modifiers: unapply')
-
-    try:
-        sd_models_compile.check_deepcache(enable=False)
-        ipadapter.unapply(shared.sd_model, unload=getattr(p, 'ip_adapter_unload', False))
-        token_merge.remove_token_merging(shared.sd_model)
-        hidiffusion.unapply()
-        ras.unapply(shared.sd_model)
-        pag.unapply()
-        cfgzero.unapply()
-        linfusion.unapply(shared.sd_model)
-        cachedit.unapply_cache_dir(shared.sd_model)
-    except Exception as e:
-        log.error(f'Processing unapply: {e}')
-        errors.display(e, 'unapply')
+    if not shared.sd_loaded:
+        return
+    if is_modular(shared.sd_model):
+        pass
+    else:
+        try:
+            from modules import ipadapter, hidiffusion, ras, pag, cfgzero, token_merge, linfusion, cachedit
+            log.info('Processing: modifiers=unapply')
+            sd_models_compile.check_deepcache(enable=False)
+            ipadapter.unapply(shared.sd_model, unload=getattr(p, 'ip_adapter_unload', False))
+            token_merge.remove_token_merging(shared.sd_model)
+            hidiffusion.unapply()
+            ras.unapply(shared.sd_model)
+            pag.unapply()
+            cfgzero.unapply()
+            linfusion.unapply(shared.sd_model)
+            cachedit.unapply_cache_dir(shared.sd_model)
+        except Exception as e:
+            log.error(f'Processing unapply: {e}')
+            errors.display(e, 'unapply')
     timer.process.record('post')
 
 
@@ -143,13 +137,13 @@ def process_base(p: processing.StableDiffusionProcessing):
     shared.sd_model = update_pipeline(shared.sd_model, p)
     update_sampler(p, shared.sd_model)
     timer.process.record('prepare')
-    process_pre(p)
+    process_pre(p, 'base')
     sched_eta = p.scheduler_eta if p.scheduler_eta is not None else shared.opts.scheduler_eta
     desc = 'Base'
     if 'detailer' in p.ops:
         desc = 'Detail'
     p.prompts, p.network_data = extra_networks.parse_prompts(p.prompts, p.network_data)
-    extra_networks.activate_filtered(p) # networks must patch weights before prompt encode so te loras affect embeds
+    extra_networks.activate(p) # networks must patch weights before prompt encode so te loras affect embeds
     base_args = set_pipeline_args(
         p=p,
         model=shared.sd_model,
@@ -186,6 +180,8 @@ def process_base(p: processing.StableDiffusionProcessing):
             taskid = shared.state.begin('Inference')
             output = shared.sd_model(**base_args)
             shared.state.end(taskid)
+        if isinstance(output, diffusers.modular_pipelines.PipelineState) and modular_debug:
+            log.trace(f'Pipeline: output={output}')
         if isinstance(output, dict):
             output = SimpleNamespace(**output)
         if isinstance(output, list):
@@ -194,7 +190,7 @@ def process_base(p: processing.StableDiffusionProcessing):
             output = SimpleNamespace(images=[output])
         if not hasattr(output, 'frames') and hasattr(output, 'videos'):
             output.frames = output.videos # modular video pipelines emit videos, not frames
-        if hasattr(output, 'image'):
+        if hasattr(output, 'image') and getattr(output, 'images', None) is None: # for modular output.image may be input and output.images may be output so we dont want to overwrite output
             output.images = output.image
         if hasattr(output, 'images'):
             shared.history.add(output.images, info=processing.create_infotext(p), ops=p.ops)
@@ -224,7 +220,8 @@ def process_base(p: processing.StableDiffusionProcessing):
         for k, v in base_args.items():
             if isinstance(v, torch.Tensor):
                 err_args[k] = f'{v.device}:{v.dtype}:{v.shape}'
-        log.error(f'Processing: step=base args={err_args} {e}')
+        log.error(f'Processing: step=base args={err_args}')
+        log.error(f'Processing: {e}')
         errors.display(e, 'Processing')
         modelstats.analyze()
     finally:
@@ -303,17 +300,17 @@ def process_hires(p: processing.StableDiffusionProcessing, output):
             orig_denoise = p.denoising_strength
             p.denoising_strength = strength
             orig_image = p.task_args.pop('image', None) # remove image override from hires
-            process_pre(p)
+            process_pre(p, 'hires')
 
             prompts = p.prompts
             reset_prompts = False
             sched_eta = p.scheduler_eta if p.scheduler_eta is not None else shared.opts.scheduler_eta
             if len(p.refiner_prompt) > 0:
                 prompts = len(output.images)* [p.refiner_prompt]
-                prompts, p.network_data = extra_networks.parse_prompts(prompts)
+                prompts, p.network_data = extra_networks.parse_prompts(prompts, p.network_data)
                 reset_prompts = True
             if reset_prompts or ('base' in p.skip):
-                extra_networks.activate_filtered(p)
+                extra_networks.activate(p)
 
             hires_args = set_pipeline_args(
                 p=p,
@@ -469,9 +466,11 @@ def process_decode(p: processing.StableDiffusionProcessing, output):
         if not hasattr(output, 'images') and hasattr(output, 'frames'):
             log.debug(f'Generated: frames={len(output.frames[0])}')
             output.images = output.frames[0]
-        if getattr(p, 'video_still', False) and hasattr(output, 'images') and output.images is not None:
+        if hasattr(output, 'latents') and hasattr(output, 'images') and (output.images is None):
+            output.images = output.latents # modular pipelines may return latents instead of images
+        if getattr(p, 'video_still', False) and hasattr(output, 'images') and (output.images is not None):
             output.images = output.images[:1] # only the first frame derives from real latents; the rest decode from padding
-        if output.images is not None and len(output.images) > 0 and isinstance(output.images[0], Image.Image):
+        if (output.images is not None) and (len(output.images) > 0) and isinstance(output.images[0], Image.Image):
             sd_models.offload_ondemand(shared.sd_model) # in-pipe decode paths return materialized frames; the vae seam in processing_vae never runs
             return attach_audio(output.images, audio)
         model = shared.sd_model if not is_refiner_enabled(p) else shared.sd_refiner
@@ -546,8 +545,8 @@ def update_pipeline(sd_model, p: processing.StableDiffusionProcessing):
         global orig_pipeline # pylint: disable=global-statement
         orig_pipeline = updated_model # processed ONNX pipeline should not be replaced with original pipeline.
     current_attn = getattr(updated_model, "current_attn_name", None)
-    if (current_attn != shared.opts.cross_attention_optimization) and (current_attn != shared.opts.sdp_overrides):
-        log.info(f"Setting attention optimization: {shared.opts.cross_attention_optimization}")
+    if current_attn != shared.opts.cross_attention_optimization:
+        # log.info(f"Setting attention optimization: {shared.opts.cross_attention_optimization}")
         attention.set_diffusers_attention(updated_model)
     return updated_model
 
@@ -622,7 +621,7 @@ def process_diffusers(p: processing.StableDiffusionProcessing):
         images = shared.history.last_latent
         output = SimpleNamespace(images=images) if images is not None else None
 
-    if (output is None or (hasattr(output, 'images') and len(output.images) == 0)) and has_images:
+    if (output is None or (hasattr(output, 'images') and (output.images is None or len(output.images) == 0))) and has_images:
         if output is not None:
             log.debug('Processing: using input as base output')
             output.images = p.init_images

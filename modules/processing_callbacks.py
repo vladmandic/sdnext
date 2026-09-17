@@ -4,6 +4,7 @@ import torch
 import numpy as np
 from modules import shared, devices, processing_correction, timer, prompt_parser_diffusers
 from modules.logger import log
+from modules.attention import context as attention_context
 
 
 p = None
@@ -16,6 +17,8 @@ def set_callbacks_p(processing):
     global p, warned # pylint: disable=global-statement
     p = processing
     warned = False
+    from modules.lora import lora_stack
+    lora_stack.reset(int(getattr(processing, 'steps', 0) or 0)) # per-pass: restore initial selections and reschedule flips before any step runs
 
 
 def prompt_callback(step, kwargs):
@@ -36,6 +39,8 @@ def prompt_callback(step, kwargs):
 def diffusers_callback_legacy(step: int, timestep: int, latents: torch.FloatTensor | np.ndarray):
     if p is None:
         return
+    from modules.lora import lora_stack
+    lora_stack.on_step(step)
     if isinstance(latents, np.ndarray): # latents from Onnx pipelines is ndarray.
         latents = torch.from_numpy(latents)
     shared.state.sampling_step = step
@@ -51,17 +56,22 @@ def diffusers_callback_legacy(step: int, timestep: int, latents: torch.FloatTens
             time.sleep(0.1)
 
 
-def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | None = None):
-    if kwargs is None:
-        kwargs = {}
-    t0 = time.time()
-
+def torch_sync():
     if shared.opts.torch_sync:
         if devices.backend == "ipex":
             torch.xpu.synchronize(devices.device)
         elif devices.backend in {"cuda", "zluda", "rocm"}:
             torch.cuda.synchronize(devices.device)
         time.sleep(0.001) # 1ms yield frees GIL for the preview thread
+
+
+def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | None = None):
+    if kwargs is None:
+        kwargs = {}
+    t0 = time.time()
+    from modules.lora import lora_stack
+    lora_stack.on_step(step)
+    torch_sync()
 
     t1 = time.time()
 
@@ -87,6 +97,7 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
     if shared.state.sampling_steps == 0 and getattr(pipe, 'num_timesteps', 0) > 0:
         shared.state.sampling_steps = pipe.num_timesteps
     shared.state.step()
+    attention_context.tick(step + 1)
     if shared.state.interrupted or shared.state.skipped:
         raise AssertionError('Interrupted...')
     if latents is None or p is None:
@@ -112,11 +123,11 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
     if step == 0:
         pipe._cfg_end_applied = False  # pylint: disable=protected-access
 
-    cfg_end = getattr(p, "cfg_end", 1.0) or 1.0
+    cfg_stop = getattr(p, "cfg_stop", None) or getattr(p, "cfg_end", None) or 1.0
     total_steps = getattr(pipe, "num_timesteps", 0)
-    target_step = int(total_steps * cfg_end) if total_steps else 0
+    target_step = int(total_steps * cfg_stop) if total_steps else 0
 
-    if (cfg_end < 1.0) and not getattr(pipe, "_cfg_end_applied", False) and (step >= target_step):
+    if (cfg_stop < 1.0) and not getattr(pipe, "_cfg_end_applied", False) and (step >= target_step):
         pipe._cfg_end_applied = True # pylint: disable=protected-access
         if "PAG" in shared.sd_model.__class__.__name__:
             pipe._guidance_scale = 1.001 if pipe._guidance_scale > 1 else pipe._guidance_scale  # pylint: disable=protected-access

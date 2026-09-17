@@ -1,4 +1,9 @@
+import os
 from modules import shared
+from modules.logger import log
+
+
+debug_log = log.trace if os.environ.get('SD_LORA_DEBUG', None) is not None else lambda *args, **kwargs: None
 
 
 force_hashes_diffusers = [ # forced always
@@ -32,6 +37,7 @@ allow_native = [
     'anima',
     'ernieimage',
     'krea2',
+    'minimaxh3',
 ]
 
 
@@ -77,13 +83,70 @@ def get_method(shorthash=''):
     return 'native', 'default'
 
 
+# Roles a LoRA is fused into; a quantized component in any of them makes fusing unsafe.
+fuse_roots = ('transformer', 'unet', 'text_encoder', 'llm_adapter')
+
+
+def fuse_components(sd_model):
+    """Component names a network fuses into, matched by role prefix so numbered and reference siblings are covered."""
+    names = getattr(sd_model, 'components', None)
+    if not isinstance(names, dict):
+        names = vars(sd_model)
+    return [name for name in names if name.startswith(fuse_roots)]
+
+
+def is_quantized(module):
+    """Return True when ``module`` carries a quantization config.
+
+    ``config.quantization_config`` is read first: SDNQ sets both it and the plain
+    attribute when it quantizes in place, but a checkpoint that ships pre-quantized
+    only reaches the plain attribute through the diffusers ConfigMixin name proxy,
+    which is deprecated for removal.
+    """
+    if module is None:
+        return False
+    config = getattr(module, 'config', None)
+    if config is not None and getattr(config, 'quantization_config', None) is not None:
+        return True
+    return getattr(module, 'quantization_config', None) is not None
+
+
 def disable_fuse():
-    if hasattr(shared.sd_model, 'quantization_config'):
+    """Return True when fusing a network into model weights is unsafe.
+
+    Fusing keeps no pristine copy of the weight, so each apply and restore
+    round-trips it through its storage format. On quantized weights that is a
+    dequantize-add-requantize cycle per network swap whose error compounds.
+    """
+    from modules.lora import lora_common as l
+    from modules.lora import lora_stack
+    if lora_stack.select_possible(len(l.loaded_networks)) or lora_stack.select_engaged():
+        debug_log('LoRA: fuse=False reason="active select mode"')
+        return True # select flips per-layer winners against the pristine backup; a dormant select mode leaves fuse alone
+    sd_model = getattr(shared.sd_model, 'pipe', shared.sd_model)
+    if is_quantized(sd_model):
+        debug_log('LoRA: fuse=False reason="model is quantized"')
         return True
-    if hasattr(shared.sd_model, 'transformer') and hasattr(shared.sd_model.transformer, 'quantization_config'):
+    if any(is_quantized(getattr(sd_model, name, None)) for name in fuse_components(sd_model)):
+        debug_log('LoRA: fuse=False reason="component is quantized"')
         return True
-    if hasattr(shared.sd_model, 'transformer_2') and hasattr(shared.sd_model.transformer_2, 'quantization_config'):
+    if hasattr(sd_model, '_lora_partial'):
+        debug_log('LoRA: fuse=False reason="partial lora applied"')
         return True
-    if hasattr(shared.sd_model, '_lora_partial'):
+    if shared.sd_model_type in fuse_ignore:
+        debug_log(f'LoRA: fuse=False reason="model type {shared.sd_model_type} in fuse_ignore"')
         return True
-    return shared.sd_model_type in fuse_ignore
+    return False
+
+
+def fuse_native():
+    """Return True when the native apply path may fuse into model weights.
+
+    The single source of truth for the native fuse decision: it must agree across
+    the backup, activate and deactivate passes, since backup mode restores from a
+    stored tensor while fuse mode restores by subtracting the delta.
+    """
+    result = shared.opts.lora_fuse_native and not disable_fuse()
+    force = os.environ.get('SD_LORA_FUSE', None) is not None
+    debug_log(f'LoRA: native fuse={result} force={force}')
+    return (result or force)

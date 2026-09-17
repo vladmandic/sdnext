@@ -17,6 +17,7 @@ import modules.loader
 import modules.hashes
 import modules.paths
 import modules.devices
+import modules.attention
 import modules.migrate
 from modules import shared
 from modules import call_queue
@@ -76,10 +77,6 @@ fastapi_args = {
 def initialize():
     log.debug('Initializing: modules')
     from concurrent.futures import ThreadPoolExecutor, as_completed
-
-    from installer import register_sdnq
-    register_sdnq(skip=True, devices=modules.devices, shared=shared) # monkey-patch sdnq to use sdnext devices and shared modules
-
     from modules.models_hf import hf_init
     hf_init()
 
@@ -205,6 +202,8 @@ def load_model():
     shared.opts.onchange("temp_dir", modules.gr_tempdir.on_tmpdir_changed)
     for opt in modules.sd_offload_state.offload_reapply_options:
         shared.opts.onchange(opt, call_queue.wrap_queued_call(modules.sd_models.reapply_offload), call=False)
+    for opt in modules.attention.reapply_options():
+        shared.opts.onchange(opt, call_queue.wrap_queued_call(modules.attention.reapply), call=False)
     timer.startup.record("onchange")
 
 
@@ -250,7 +249,7 @@ def async_policy():
             if shared.cmd_opts.profile:
                 loop.slow_callback_duration = 0.001
             loop.set_debug(shared.cmd_opts.profile)
-            log.debug(f'AsyncIO: loop={loop}')
+            log.debug(f'AsyncIO: loop={loop.__class__.__name__}')
             loop.set_task_factory(verbose_task_factory)
             loop.set_exception_handler(self.handle_exception)
             return loop
@@ -430,7 +429,8 @@ def start_ui():
 
     uc = shared.demo.server.config
     get_name = lambda c: getattr(c, '__name__', c) # pylint: disable=unnecessary-lambda-assignment
-    log.debug(f'Server config: loop={shared.demo.server.loop} http={get_name(uc.http_protocol_class)} ws={get_name(uc.ws_protocol_class)} interface={uc.interface} workers={uc.workers} backlog={uc.backlog} timeout_keep_alive={uc.timeout_keep_alive} timeout_notify={uc.timeout_notify} ws_max_size={uc.ws_max_size} ws_max_queue={uc.ws_max_queue} ws_ping_interval={uc.ws_ping_interval} ws_ping_timeout={uc.ws_ping_timeout}')
+    log.debug(f'Server config: loop={shared.demo.server.loop} http={get_name(uc.http_protocol_class)} ws={get_name(uc.ws_protocol_class)} interface={uc.interface} workers={uc.workers} backlog={uc.backlog} timeout_keep_alive={uc.timeout_keep_alive}')
+    # log.debug(f'Server config: loop={shared.demo.server.loop} http={get_name(uc.http_protocol_class)} ws={get_name(uc.ws_protocol_class)} interface={uc.interface} workers={uc.workers} backlog={uc.backlog} timeout_keep_alive={uc.timeout_keep_alive} timeout_notify={uc.timeout_notify} ws_max_size={uc.ws_max_size} ws_max_queue={uc.ws_max_queue} ws_ping_interval={uc.ws_ping_interval} ws_ping_timeout={uc.ws_ping_timeout}')
 
     if shared.cmd_opts.data_dir is not None:
         modules.gr_tempdir.register_tmp_file(shared.demo, os.path.join(shared.cmd_opts.data_dir, 'x'))
@@ -449,7 +449,7 @@ def start_ui():
             log.info(f'Public URL: {proto}://{public_ip}:{shared.cmd_opts.port}')
     if shared.cmd_opts.docs:
         log.info(f'API docs: {local_url[:-1]}/docs') # pylint: disable=unsubscriptable-object
-        log.info(f'API redocs: {local_url[:-1]}/redocs') # pylint: disable=unsubscriptable-object
+        # log.info(f'API redocs: {local_url[:-1]}/redocs') # pylint: disable=unsubscriptable-object
     if share_url is not None:
         log.info(f'Share URL: {share_url}')
     if getattr(shared.cmd_opts, 'enso', False):

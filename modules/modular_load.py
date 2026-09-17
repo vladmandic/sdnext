@@ -1,14 +1,7 @@
 import time
-import logging
 import torch
-from modules import shared, errors, devices, sd_offload
+from modules import shared, errors, devices, sd_hijack_modular
 from modules.logger import log
-
-
-class InterruptLogFilter(logging.Filter):
-    """Drops the per-block error dumps the modular runner logs when an interrupt raises through it."""
-    def filter(self, record):
-        return 'Interrupted...' not in record.msg
 
 
 def apply_progress_bar_config(block):
@@ -31,82 +24,6 @@ def trace_modules(pipe):
             log.trace(f'Module: name={module_name} cls={module.__class__.__name__} device={next(module.parameters()).device} dtype={next(module.parameters()).dtype}')
 
 
-def install_state_hook(pipe):
-    runner_log = logging.getLogger('diffusers.modular_pipelines.modular_pipeline')
-    if not any(isinstance(f, InterruptLogFilter) for f in runner_log.filters):
-        runner_log.addFilter(InterruptLogFilter())
-
-    def set_phase(phase: str, module: torch.nn.Module | None = None):
-        # every stage runs inside one pipeline call, so the forward hooks are the only place the current stage is visible
-        if getattr(pipe, 'sdnext_phase', None) != phase:
-            pipe.sdnext_phase = phase
-            jobid = getattr(pipe, 'sdnext_phaseid', None) # previous jobid if any
-            shared.state.end(jobid) # clear the previous job if exists
-            pipe.sdnext_phaseid = shared.state.begin(phase) # start a new job for the current phase
-            log.debug(f'Pipeline: phase={phase.replace(" ", "")} cls={pipe.__class__.__name__} module={module.__class__.__name__ if module is not None else None}')
-            return True
-        return False
-
-    def _pre_transformer_hook(module, args): # pylint: disable=unused-argument
-        new_phase = set_phase('Generate', module)
-        if new_phase:
-            sd_offload.offload_ondemand(pipe, exclude=['transformer', 'transformer_ref'], reason='generate', force=hasattr(pipe, 'sdnext_force_offload'))
-        if shared.state.sampling_steps == 0 and getattr(pipe, 'num_timesteps', 0) > 0:
-            shared.state.sampling_steps = pipe.num_timesteps
-        if shared.state.paused:
-            log.debug('Sampling paused')
-            while shared.state.paused:
-                if shared.state.interrupted or shared.state.skipped:
-                    raise AssertionError('Interrupted...')
-                time.sleep(0.1)
-        shared.state.step()
-        if shared.state.interrupted or shared.state.skipped:
-            raise AssertionError('Interrupted...')
-
-    def _pre_text_encode_hook(module, args): # pylint: disable=unused-argument
-        new_phase = set_phase('Text Encode', module)
-        if new_phase:
-            sd_offload.offload_ondemand(pipe, exclude=['text_encoder'], reason='text encode', force=hasattr(pipe, 'sdnext_force_offload'))
-        if shared.state.interrupted or shared.state.skipped:
-            raise AssertionError('Interrupted...')
-
-    def _pre_vae_decode_hook(module, args): # pylint: disable=unused-argument
-        new_phase = set_phase('Decode', module)
-        if new_phase:
-            sd_offload.offload_ondemand(pipe, exclude=['vae', 'audio_vae'], reason='vae decode', force=hasattr(pipe, 'sdnext_force_offload'))
-        if shared.state.interrupted or shared.state.skipped: # fires per tile, so tiled decodes abort promptly
-            raise AssertionError('Interrupted...')
-
-    def _pre_vae_encode_hook(module, args): # pylint: disable=unused-argument
-        new_phase = set_phase('Encode', module)
-        if new_phase:
-            sd_offload.offload_ondemand(pipe, exclude=['vae', 'audio_vae'], reason='vae encode', force=hasattr(pipe, 'sdnext_force_offload'))
-        if shared.state.interrupted or shared.state.skipped: # fires per tile, so tiled encodes abort promptly
-            raise AssertionError('Interrupted...')
-
-    for name in ('transformer', 'transformer_ref'):
-        module = getattr(pipe, name, None)
-        if module is not None:
-            target = getattr(module, 'model', module) # conditioning calls the inner model directly
-            if isinstance(target, torch.nn.Module) and getattr(target, 'sdnext_state_hook', None) is None:
-                target.sdnext_state_hook = target.register_forward_pre_hook(_pre_transformer_hook)
-
-    for name in ('text_encoder', 'text_encoder_2'):
-        module = getattr(pipe, name, None)
-        if module is not None:
-            target = getattr(module, 'model', module) # conditioning calls the inner model directly
-            if isinstance(target, torch.nn.Module) and getattr(target, 'sdnext_state_hook', None) is None:
-                target.sdnext_state_hook = target.register_forward_pre_hook(_pre_text_encode_hook)
-
-    for name in ('vae', 'audio_vae'):
-        decoder = getattr(getattr(pipe, name, None), 'decoder', None) # decode entry points bypass forward, the inner decoder does not
-        if isinstance(decoder, torch.nn.Module) and getattr(decoder, 'sdnext_state_hook', None) is None:
-            decoder.sdnext_state_hook = decoder.register_forward_pre_hook(_pre_vae_decode_hook)
-        encoder = getattr(getattr(pipe, name, None), 'encoder', None) # decode entry points bypass forward, the inner encoder does not
-        if isinstance(encoder, torch.nn.Module) and getattr(encoder, 'sdnext_state_hook', None) is None:
-            encoder.sdnext_state_hook = encoder.register_forward_pre_hook(_pre_vae_encode_hook)
-
-
 def is_modular(obj) -> bool:
     if obj is None:
         return False
@@ -121,7 +38,7 @@ def is_modular(obj) -> bool:
     return 'Modular' in cls.__name__
 
 
-def preload_components(pipe, workflow: str | None, load_config: dict | None = None) -> dict:
+def preload_components(pipe, workflow: str | None, load_config: dict | None = None, loaded: dict | None = None) -> dict:
     """Load the denoiser and text encoder through the shared loaders rather than the pipeline's own.
 
     `load_components` fetches every component into the pipeline's cache directory with no
@@ -136,24 +53,29 @@ def preload_components(pipe, workflow: str | None, load_config: dict | None = No
     """
     from pipelines import generic
     specs = getattr(pipe, '_component_specs', {}) # pylint: disable=protected-access
-    loaded = {}
+    loaded = loaded or {}
     for name in missing_components(pipe, workflow):
+        if name in loaded:
+            continue
         spec = specs.get(name)
         if spec is None or getattr(spec, 'default_creation_method', None) != 'from_pretrained':
             continue
         repo = getattr(spec, 'pretrained_model_name_or_path', None)
-        cls = getattr(spec, 'type_hint', None)
+        cls = getattr(spec, 'type_hint', None) or {}
         if not repo or cls is None:
             continue
         origin = getattr(cls, '__module__', '') or ''
-        cls_name = getattr(cls, '__name__', '') or '' # TODO preload: components with remote code resolve to cls none
+        cls_name = getattr(cls, '__name__', '') or ''
         subfolder = getattr(spec, 'subfolder', None) or name
         component = None
         if origin.startswith('diffusers') and ('Transformer' in cls_name or 'UNet' in cls_name):
             component = generic.load_transformer(repo, cls_name=cls, load_config=load_config, subfolder=subfolder, trust_remote_code=True)
-        elif origin.startswith('transformers') and 'text_encoder' in name:
+        elif origin.startswith('transformers') and ('text_encoder' in name):
             # shared substitution is on: the map matches class plus a substring of the repo name, so its entries have to run narrow before broad
             component = generic.load_text_encoder(repo, cls_name=cls, load_config=load_config, subfolder=subfolder)
+        if ('transformer' in name) and (component is None):
+            # fallback for component with remote-code as it does not have resolvable cls
+            component = generic.load_transformer(repo, cls_name=None, load_config=load_config, subfolder=subfolder, trust_remote_code=True)
         if component is not None:
             loaded[name] = component
     return loaded
@@ -176,7 +98,15 @@ def missing_components(pipe, workflow: str | None) -> list:
     return [name for name in names if getattr(pipe, name, None) is None]
 
 
-def load_modular_pipe(repo_cls, repo: str, workflow: str | None = None, revision: str | None = None, offline_args: dict | None = None, base: bool = False, load_config: dict | None = None):
+def load_modular_pipe(repo_cls,
+                      repo: str,
+                      workflow: str | None = None,
+                      revision: str | None = None,
+                      offline_args: dict | None = None,
+                      base: bool = False,
+                      load_config: dict | None = None,
+                      loaded: dict | None = None,
+                     ):
     if repo_cls is None or isinstance(repo_cls, str):
         log.error(f'Load modular: repo="{repo}" cls="{repo_cls}" pipeline class not found: diffusers too old')
         return None
@@ -192,7 +122,7 @@ def load_modular_pipe(repo_cls, repo: str, workflow: str | None = None, revision
             **offline_args,
         )
         # the workflow restricts the component fetch only: passing it to from_pretrained instead would prune the blocks tree to one task and disable runtime dispatch between them
-        preloaded = preload_components(pipe, workflow, load_config=load_config)
+        preloaded = preload_components(pipe, workflow, load_config=load_config, loaded=loaded)
         if preloaded:
             pipe.update_components(**preloaded) # registered before the rest, which load_components then skips
             log.debug(f'Load modular: cls={pipe.__class__.__name__} preloaded={list(preloaded)}')
@@ -214,7 +144,9 @@ def load_modular_pipe(repo_cls, repo: str, workflow: str | None = None, revision
             # diffusers logger, so the reason is in the log above this line rather than in the exception path
             log.error(f'Load modular: cls={pipe.__class__.__name__} workflow={workflow} missing={missing} components the workflow requires did not load')
 
-        install_state_hook(pipe)
+        sd_hijack_modular.install_state_hook(pipe)
+        sd_hijack_modular.register_callbacks(pipe)
+
         apply_progress_bar_config(pipe._blocks) # pylint: disable=protected-access
         return pipe
     except Exception as e:

@@ -91,11 +91,11 @@ def prepare_prompts(p, init_image, prompt:str, section_prompt:str, num_sections:
     return generated_prompts
 
 
-def load_model(variant, attention):
+def load_model(variant):
     global loaded_variant # pylint: disable=global-statement
     if (shared.sd_model_type != 'hunyuanvideo') or (loaded_variant != variant):
         yield gr.update(), gr.update(), 'Verifying FramePack'
-        framepack_install.install_requirements(attention)
+        framepack_install.install_requirements()
         # framepack_install.git_clone(git_repo=git_repo, git_dir=git_dir, tmp_dir=tmp_dir)
         # framepack_install.git_update(git_dir=git_dir, git_commit=git_commit)
         # sys.path.append(git_dir)
@@ -114,7 +114,7 @@ def unload_model():
     yield gr.update(), gr.update(), 'Model unloaded'
 
 
-def run_framepack(task_id, _ui_state, init_image, end_image, start_weight, end_weight, vision_weight, prompt, system_prompt, optimized_prompt, section_prompt, negative_prompt, styles, seed, resolution, duration, latent_ws, steps, cfg_scale, cfg_distilled, cfg_rescale, shift, use_teacache, use_cfgzero, use_preview, mp4_fps, mp4_codec, mp4_sf, mp4_video, mp4_frames, mp4_thumb, mp4_opt, mp4_ext, mp4_interpolate, mp4_scale, mp4_upscaler, attention, vae_type, variant, vlm_enhance, vlm_model, vlm_system_prompt, *_args, **_kwargs):
+def run_framepack(task_id, _ui_state, init_image, end_image, start_weight, end_weight, vision_weight, prompt, system_prompt, optimized_prompt, section_prompt, negative_prompt, styles, seed, resolution, duration, latent_ws, steps, cfg_scale, cfg_distilled, cfg_rescale, shift, use_teacache, use_cfgzero, use_preview, mp4_fps, mp4_codec, mp4_sf, mp4_video, mp4_frames, mp4_thumb, mp4_opt, mp4_ext, mp4_interpolate, mp4_scale, mp4_upscaler, vae_type, variant, vlm_enhance, vlm_model, vlm_system_prompt, *_args, **_kwargs):
     variant = variant or 'Bi-Directional'
     if variant == 'None':
         log.error('FramePack: no model selected')
@@ -137,7 +137,7 @@ def run_framepack(task_id, _ui_state, init_image, end_image, start_weight, end_w
     with call_queue.get_lock():
         progress.start_task(task_id)
 
-        yield from load_model(variant, attention)
+        yield from load_model(variant)
         if shared.sd_model_type != 'hunyuanvideo':
             progress.finish_task(task_id)
             yield gr.update(), gr.update(), 'Model load failed'

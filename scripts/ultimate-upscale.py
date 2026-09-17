@@ -409,7 +409,7 @@ class UltimateSDUpscaleScript(scripts_manager.Script):
     def title(self):
         return "SD Ultimate Upscale"
 
-    def show(self, is_img2img):
+    def show(self, is_img2img): # pylint: disable=unused-argument
         return True
 
     def ui(self, is_img2img): # pylint: disable=unused-argument

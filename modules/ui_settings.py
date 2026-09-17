@@ -135,16 +135,6 @@ def run_settings(*args):
         from modules.onnx_impl import install_olive, initialize_onnx_pipelines
         install_olive()
         initialize_onnx_pipelines()
-    if shared.cmd_opts.use_openvino:
-        if "Model" not in shared.opts.cuda_compile:
-            log.warning("OpenVINO: Overriding Torch Compile Model")
-            shared.opts.cuda_compile.append("Model")
-        if shared.opts.cuda_compile_backend != shared.opts.openvino_compile_backend:
-            log.warning(f"OpenVINO: Overriding Torch Compile backend={shared.opts.openvino_compile_backend}")
-            shared.opts.cuda_compile_backend = shared.opts.openvino_compile_backend
-        if shared.opts.diffusers_offload_mode != "none":
-            log.warning("OpenVINO: Overriding diffusers_offload_mode=none")
-            shared.opts.diffusers_offload_mode = "none"
     if shared.opts.sd_backend != "diffusers":
         log.error('Legacy option: backend=original is no longer supported')
         shared.opts.sd_backend = "diffusers"
@@ -268,8 +258,9 @@ def create_ui(disabled_tabs=None):
                         item for item in shared.opts.data_labels.items()
                         if item[1].section is not None and item[1].section[0] == section_id
                     ] # find all items in this section
-                    hidden = section_id is None or 'hidden' in section_id.lower() or 'hidden' in section_text.lower()
-                    # log.trace(f'Settings: section="{section_id}" title="{section_text}" items={len(items)} hidden={hidden}')
+                    hidden = (section_id is None) or ('hidden' in section_id.lower()) or ('hidden' in section_text.lower()) or ('legacy' in section_id.lower()) or ('legacy' in section_text.lower())
+                    # for (key, _item) in items:
+                    #     log.trace(f'Settings: id={section_id} text={section_text} key={key} hidden={hidden}')
                     if hidden:
                         for (key, _item) in items:
                             hidden_list.append(key)
@@ -282,7 +273,7 @@ def create_ui(disabled_tabs=None):
                                     quicksettings_list.append((key, item))
                                     components.append(dummy_component)
                                 else:
-                                    with gr.Row(elem_id=f"settings_section_row_{section_id}", elem_classes=["settings_section"]): # only so we can add dirty indicator at the start of the row
+                                    with gr.Row(elem_id=f"settings_section_row_{section_id}", elem_classes=["settings_section"]):
                                         component = create_setting_component(key)
                                         shared.settings_components[key] = component
                                         current_items.append(key)

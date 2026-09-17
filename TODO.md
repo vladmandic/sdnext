@@ -2,15 +2,15 @@
 
 ## Short-term
 
-- LoRA: merge new handler, @CalamitousFelicitousness
-- Attn: merge refactor, @CalamitousFelicitousness
-- MiniMax LoRA: native loader for MiniMax-H3: fl2va, ref2va, pruned
-- MiniMax TAESD: <https://github.com/madebyollin/taehv>
-- MiniMax: Create pre-quant for MiniMax-H3-Turbo
-- Benchmark tool productize: @CalamitousFelicitousness
-- Inpaint: https://discord.com/channels/1101998836328697867/1130536562422186044/1506850651035144322, @vladmandic
 - Control tab verify overrides handling, @vladmandic
-- LTX: Create pre-quant for LTX-2.5
+- LTX: Implement LTX2DFRPipeline
+- ROCm: v10
+- Video: unify execution path for ui and api
+- Torch: update ipex, rocm to torch==2.14
+
+## Issues
+
+- [Inpaint](https://discord.com/channels/1101998836328697867/1130536562422186044/1506850651035144322), @vladmandic
 
 ## Features
 
@@ -21,20 +21,19 @@
 - Lightweight scheduler/queue manager, @vladmandic
 - Integrate natural language image search: [ImageDB](https://github.com/vladmandic/imagedb), @vladmandic
 - Support cloud providers, @CalamitousFelicitousness
+- Benchmark tool productize: @CalamitousFelicitousness
 
 ### Roadmap
 
+- Automated testing and integrate models repo
 - Video upscaling: LTX-Upscaler
+- Video upscaling: [MiniMax-Upscaler](https://huggingface.co/LBH-123-AI/Minimax_h3_latent_Upscaler)
 - Video capabilities to processing tab, add RIFE, upscaling (once available)
 - Distraction-free UI mode with prompt-only, chat-based interface
-- Revisit transformer caching for modular pipelines
-- Revisit guidance for modular pipelines
-- Implement modular for some image models
 - Video models: support finetunes
 - Incorporate [prompting guides](https://github.com/CalamitousFelicitousness/ai-prompting-guides)
 - Video models: use Networks/Reference instead of custom
 - UI Lite vs Expert mode
-- Expand custom VAE support
 - Remove obsolete code:  `olive-ai`
 
 ### OnHold
@@ -50,18 +49,6 @@
 - Cache models in memory
 - Unify *huggingface* and *diffusers* model folders
 - JSON image metadata
-
-### Modular
-
-*Pending finalization of modular pipelines implementation and development of compatibility layer*
-
-- Switch to modular pipelines
-- Feature: Transformers unified cache handler
-- Refactor: [Modular pipelines and guiders](https://github.com/huggingface/diffusers/issues/11915)
-- [MagCache](https://github.com/huggingface/diffusers/pull/12744)
-- [SmoothCache](https://github.com/huggingface/diffusers/issues/11135)
-- [STG](https://github.com/huggingface/diffusers/blob/main/examples/community/README.md#spatiotemporal-skip-guidance)
-- [TextKVCache](https://huggingface.co/NucleusAI/Nucleus-Image#quick-start), @vladmandic
 
 ## New models / Pipelines
 

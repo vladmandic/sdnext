@@ -3,11 +3,12 @@ from modules.logger import log
 
 
 MIN_LATENT_FRAMES = 7 # decoder floor: fewer latent frames leave the chunked decode with nothing to emit
+SHIFT_KEYS = {'scheduler': 'Video shift', 'audio_scheduler': 'Audio shift'} # infotext key per schedule
 
 
-def apply_overrides(p, pipe, still: bool = False, audio: bool = True):
-    """Per-generation constraints shared by the video tab and the image path: canvas and frame
-    alignment, the bespoke scheduler guard, tiling, and the audio/still toggles."""
+def apply_overrides(p, pipe, still: bool = False, audio: bool = True, preview: bool = False, video_shift: float | None = None, audio_shift: float | None = None):
+    """Per-generation constraints shared by the video tab, the api and the image path: canvas and frame
+    alignment, the bespoke scheduler guard, the schedule shifts, tiling, and the audio/still toggles."""
     if still:
         audio = False # a sub-second soundtrack is pure waste on a kept single frame
     multiple = pipe.canvas_multiple
@@ -25,20 +26,28 @@ def apply_overrides(p, pipe, still: bool = False, audio: bool = True):
         while frames > max_frames:
             frames -= pipe.vae_frames_per_chunk
     if frames != getattr(p, 'frames', None):
-        log.debug(f'Pipeline: cls={pipe.__class__.__name__} frames={getattr(p, "frames", None)} aligned={frames}')
+        log.debug(f'Pipeline: cls={pipe.__class__.__name__} frames requested={getattr(p, "frames", None)} aligned={frames}')
     p.frames = frames
     p.task_args['num_frames'] = frames
-    p.steps = max(2, p.steps)
-    p.task_args['num_inference_steps'] = p.steps
-    pipe.num_timesteps = p.steps - 1 # sigma grid includes the terminal point; feeds the progress total
+    p.steps = max(1, p.steps) # transformer evaluations, as on every other model
+    p.task_args['num_inference_steps'] = p.steps + 1 # the scheduler counts the terminal sigma as a grid point
+    pipe.num_timesteps = p.steps # feeds the progress total
     if p.sampler_name not in ('None', 'Default'):
         log.warning(f'Pipeline: cls={pipe.__class__.__name__} sampler={p.sampler_name} unsupported: using model default')
     p.sampler_name = 'Default' # the model default is the bespoke scheduler pair, which discrete samplers must not replace
+    p.extra_generation_params.update(set_sampler_shift(pipe, video_shift=video_shift, audio_shift=audio_shift))
     pipe.vae.enable_tiling() # model always tiles; the shared vae params path may have disabled it
     set_audio(pipe, audio)
     p.task_args['output'] = ['videos', 'audio', 'sampling_rate'] if audio else ['videos']
     p.task_args['output_type'] = 'pil' if still else 'np'
     p.video_still = still
+
+    if preview:
+        from pipelines.minimax.minimax_latents import unpack_latents
+        pipe.custom_unpack_latents = unpack_latents # add a helper to unpack the video latents from the block state
+    else:
+        if hasattr(pipe, 'custom_unpack_latents'):
+            del pipe.custom_unpack_latents
 
 
 def set_still(pipe, enabled: bool = True):
@@ -84,8 +93,27 @@ def set_audio(pipe, enabled: bool):
         log.debug(f'Pipeline: cls={pipe.__class__.__name__} audio=disabled')
 
 
-def set_sampler_shift(pipe, video_shift: float = 12.0, audio_shift: float = 3.0):
-    if getattr(pipe, 'scheduler', None) is not None and getattr(pipe.scheduler, 'config', None) is not None:
-        pipe.scheduler.config.shift = video_shift
-    if getattr(pipe, 'audio_scheduler', None) is not None and getattr(pipe.audio_scheduler, 'config', None) is not None:
-        pipe.audio_scheduler.config.shift = audio_shift
+def resolve_shift(scheduler, requested: float | None = None) -> float:
+    """The shift one request lands on: a positive request value, else the value the scheduler config ships."""
+    if requested is not None and requested > 0:
+        return float(requested)
+    return float(scheduler.config['shift'])
+
+
+def set_sampler_shift(pipe, video_shift: float | None = None, audio_shift: float | None = None) -> dict:
+    """Apply the video and audio schedule shift for one request; returns the applied values keyed for infotext.
+    Non-positive values resolve to the shipped schedule; default_scheduler is written too, since the Default
+    sampler restore copies it over scheduler each generation."""
+    scheduler = getattr(pipe, 'scheduler', None)
+    audio_scheduler = getattr(pipe, 'audio_scheduler', None)
+    if any(not hasattr(s, 'set_shift') or 'shift' not in getattr(s, 'config', {}) for s in (scheduler, audio_scheduler)):
+        log.warning(f'Pipeline: cls={pipe.__class__.__name__} scheduler={scheduler.__class__.__name__} audio={audio_scheduler.__class__.__name__} shift unsupported')
+        return {}
+    video = resolve_shift(scheduler, video_shift)
+    audio = resolve_shift(audio_scheduler, audio_shift)
+    for target in (scheduler, getattr(pipe, 'default_scheduler', None)):
+        if hasattr(target, 'set_shift'):
+            target.set_shift(video)
+    audio_scheduler.set_shift(audio)
+    log.debug(f'Pipeline: cls={pipe.__class__.__name__} shift video={video} audio={audio} requested={video_shift}/{audio_shift}')
+    return {SHIFT_KEYS['scheduler']: video, SHIFT_KEYS['audio_scheduler']: audio}

@@ -180,5 +180,5 @@ def remote_encode(images: list[Image.Image], model_type: str | None = None):
     else:
         return images
     t1 = time.time()
-    log.debug(f'Encode: type="remote" model={model_type} mode={shared.opts.remote_vae_type} image={images} latent={tensors.shape} time={t1-t0:.3f}s')
+    log.debug(f'Encode: type="remote" model={model_type} mode={shared.opts.remote_vae_type} image={images} latent={list(tensors.shape)} time={t1-t0:.3f}s')
     return tensors

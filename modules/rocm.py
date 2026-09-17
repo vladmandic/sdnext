@@ -215,7 +215,7 @@ def get_version() -> str | None:
                 return f'{arr[0]}.{arr[1]}' if len(arr) >= 2 else None
         elif isinstance(environment, PythonPackageEnvironment):
             # If rocm-sdk package is installed, the hip library may be used by PyTorch.
-            ver = ctypes.c_int()
+            ver = ctypes.c_int(0)
             environment.hip.hipRuntimeGetVersion(ctypes.byref(ver))
             major = ver.value // 10000000
             minor = (ver.value // 100000) % 100

@@ -5,6 +5,7 @@ import numpy as np
 from PIL import Image, ImageOps
 from modules import shared, devices, errors, images, scripts_manager, memstats, script_callbacks, extra_networks, sd_models, sd_checkpoint, sd_vae, processing_helpers, processing_grading, timer, masking
 from modules.logger import log
+from modules.attention import context as attention_context
 from modules.sd_hijack_hypertile import context_hypertile_vae, context_hypertile_unet
 from modules.processing_info import create_infotext
 from modules.processing_class import ( # pylint: disable=unused-import
@@ -52,9 +53,14 @@ class Processed:
         self.height = p.height if hasattr(p, 'height') else (self.images[0].height if len(self.images) > 0 else 0)
 
         self.sampler_name = p.sampler_name or ''
+
+        self.cfg_name = p.cfg_name if (p.cfg_name is not None and p.cfg_name != 'Default') else None
         self.cfg_scale = p.cfg_scale if (p.cfg_scale is not None and p.cfg_scale > -1) else None
-        self.cfg_end = p.cfg_end if p.cfg_end < 1 else None
+        self.cfg_rescale = p.cfg_rescale if (p.cfg_rescale is not None and p.cfg_rescale > -1) else None
         self.cfg_image = p.cfg_image if (p.cfg_image is not None and p.cfg_image > -1) else None
+        self.cfg_start = p.cfg_start if p.cfg_start > 0 else None
+        self.cfg_stop = p.cfg_stop if p.cfg_stop < 1 else None
+
         self.steps = p.steps or 0
         self.batch_size = max(1, p.batch_size)
         self.denoising_strength = p.denoising_strength
@@ -102,8 +108,12 @@ class Processed:
             "width": self.width,
             "height": self.height,
             "sampler_name": self.sampler_name,
+            "cfg_name": self.cfg_name,
             "cfg_scale": self.cfg_scale,
-            "cfg_end": self.cfg_end,
+            "cfg_rescale": self.cfg_rescale,
+            "cfg_image": self.cfg_image,
+            "cfg_start": self.cfg_start,
+            "cfg_stop": self.cfg_stop,
             "steps": self.steps,
             "batch_size": self.batch_size,
             "detailer": self.detailer,
@@ -198,6 +208,7 @@ def process_images(p: StableDiffusionProcessing) -> Processed | None:
 
         script_callbacks.before_process_callback(p)
         timer.process.record('pre')
+        attention_context.begin(shared.sd_model, p.steps)
 
         if shared.cmd_opts.profile:
             timer.startup.profile = True
@@ -231,6 +242,7 @@ def process_images(p: StableDiffusionProcessing) -> Processed | None:
                 results = process_images_inner(p)
 
     finally:
+        attention_context.end()
         script_callbacks.after_process_callback(p)
 
         if p.override_settings_restore_afterwards: # restore opts to original state
@@ -340,11 +352,18 @@ def process_samples(p: StableDiffusionProcessing, samples):
                 method = p.color_correction_method if p.color_correction_method is not None else getattr(shared.opts, 'color_correction_method', 'histogram')
                 image = apply_color_correction(p.color_corrections[i], image, method=method)
 
-            if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
+            if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner) and not getattr(p, 'is_grid', False):
                 pp = scripts_manager.PostprocessImageArgs(image)
                 p.scripts.postprocess_image(p, pp)
                 if pp.image is not None:
-                    image = pp.image
+                    if isinstance(pp.image, list) and len(pp.image) > 0: # post process image can return original+processed
+                        for i, img in enumerate(pp.image):
+                            if i+1 < len(pp.image):
+                                out_images.append(img)
+                                out_infotexts.append(f"Postprocess image {i+1}")
+                        image = pp.image[-1]
+                    else:
+                        image = pp.image
 
             grading_params = processing_grading.GradingParams(
                 brightness=getattr(p, 'grading_brightness', 0.0),
@@ -437,6 +456,10 @@ def print_stats():
         if dynamo_dct:
             log.debug(f'Processed: dynamo={dynamo_dct}')
 
+    if timer.blocks.get_total() > 0.1:
+        log.debug(f'Processed: blocks={timer.blocks.dct(min_time=0.1, no_total=True)}')
+        timer.blocks.reset()
+
 
 def process_images_inner(p: StableDiffusionProcessing) -> Processed:
     t0 = time.time()
@@ -487,8 +510,7 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
                 p.scripts.before_process_batch(p, batch_number=n, prompts=p.prompts, seeds=p.seeds, subseeds=p.subseeds)
             if not p.prompts:
                 break
-            p.prompts, p.network_data = extra_networks.parse_prompts(p.prompts)
-
+            p.prompts, p.network_data = extra_networks.parse_prompts(p.prompts, p.network_data)
 
             if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
                 p.scripts.process_batch(p, batch_number=n, prompts=p.prompts, seeds=p.seeds, subseeds=p.subseeds)
@@ -525,7 +547,7 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
 
             if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
                 p.scripts.postprocess_batch(p, samples, batch_number=n)
-            if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
+            if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner) and isinstance(samples, list):
                 p.prompts = p.all_prompts[(n * p.batch_size):((n+1) * p.batch_size)]
                 p.negative_prompts = p.all_negative_prompts[(n * p.batch_size):((n+1) * p.batch_size)]
                 batch_params = scripts_manager.PostprocessBatchListArgs(list(samples))
@@ -593,7 +615,9 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
         audio=audio,
     )
     if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner) and not (shared.state.interrupted or shared.state.skipped):
-        p.scripts.postprocess(p, results)
+        _results = p.scripts.postprocess(p, results)
+        if _results is not None:
+            results = _results
     timer.process.record('post')
     p.ops = list(set(p.ops))
     t3 = time.time()

@@ -72,13 +72,74 @@ def apply_setting(field):
     def fun(p, x, xs):
         t = type(shared.opts.get(field))
         if t == bool:
-            if isinstance(x, str):
-                x = x.lower() in ['true', 't', 'yes', 'y']
-            if isinstance(x, int) or isinstance(x, float):
+            if isinstance(x, bool):
+                x = bool(x)
+            elif isinstance(x, str):
+                x = x.lower() in ['true', 't', 'yes', 'y', 'on']
+            elif isinstance(x, int) or isinstance(x, float):
                 x = x > 0
+            else:
+                x = False
+        elif t == int:
+            x = int(x)
+        elif t == float:
+            x = float(x)
+        elif t == str:
+            x = str(x)
         log.debug(f'XYZ grid apply setting: {field}={t}:{x}')
         shared.opts.data[field] = x
     return fun
+
+
+def attention_options() -> list:
+    """Attention settings an axis can change; the stack helper restores exactly this set."""
+    from modules import attention
+    return ['cross_attention_optimization', 'hf_attention', *attention.reapply_options()]
+
+
+def apply_attention(field):
+    def fun(p, x, xs):
+        from modules import attention
+        apply_setting(field)(p, x, xs)
+        attention.reapply() # backends read their settings when the chain is built, so a write on its own changes nothing
+        owner = next((backend for backend in attention.registry.backends.values() if field in backend.options), None)
+        plan = attention.get_plan()
+        if owner is not None and plan is not None and owner.name not in plan.chain():
+            log.warning(f'XYZ grid apply attention: {field} is read by "{owner.label}" which is not in the active chain={plan.chain()}')
+    return fun
+
+
+def apply_attention_dispatcher(p, x, xs):
+    from modules import attention
+    value = '' if str(x).strip().lower() in ['none', 'default'] else str(x).strip()
+    shared.opts.data['hf_attention'] = value
+    if shared.sd_loaded:
+        attention.set_attention_dispatcher(shared.sd_model)
+    log.debug(f'XYZ grid apply attention: dispatcher="{value}"')
+
+
+def save_attention() -> dict:
+    return {field: shared.opts.data[field] for field in attention_options() if field in shared.opts.data}
+
+
+def restore_attention(saved: dict):
+    """Put back whatever an attention axis changed, keys it introduced included, then rebuild what reads them."""
+    from modules import attention
+    changed = []
+    for field in attention_options():
+        if (field in saved) == (field in shared.opts.data) and saved.get(field, None) == shared.opts.data.get(field, None):
+            continue
+        changed.append(field)
+        if field in saved:
+            shared.opts.data[field] = saved[field]
+        else:
+            shared.opts.data.pop(field, None)
+    if len(changed) == 0:
+        return
+    attention.reapply()
+    if 'hf_attention' in changed and shared.sd_loaded:
+        attention.set_attention_dispatcher(shared.sd_model)
+    log.debug(f'XYZ grid restore attention: {changed}')
 
 
 def apply_seed(p, x, xs):
@@ -260,6 +321,31 @@ def apply_lora_strength(p, x, xs):
     shared.opts.data['extra_networks_default_multiplier'] = x
 
 
+def list_lora_blocks():
+    from modules.lora import lora_blocks
+    from modules.merging.merge_presets import BLOCK_WEIGHTS_PRESETS, SDXL_BLOCK_WEIGHTS_PRESETS
+    return ['None'] + list(lora_blocks.CLASSIC) + list(lora_blocks.CHAIN_NAMES) + sorted(BLOCK_WEIGHTS_PRESETS) + sorted(SDXL_BLOCK_WEIGHTS_PRESETS)
+
+
+re_lora_tag = re.compile(r'<lora:([^>]+)>')
+
+
+def apply_lora_blocks(p, x, xs):
+    x = str(x or '').strip()
+    if ':' in x or '>' in x:
+        log.error(f'XYZ grid apply LoRA block weight: value="{x}" invalid characters')
+        return
+    def rewrite(m):
+        items = [i for i in m.group(1).split(':') if not i.lower().startswith('lbw=')]
+        if x and x.lower() != 'none':
+            items.append(f'lbw={x}')
+        return '<lora:' + ':'.join(items) + '>'
+    p.prompt = re_lora_tag.sub(rewrite, p.prompt)
+    p.all_prompts = None # a populated list would shadow the edited prompt in processing
+    p.all_negative_prompts = None
+    log.debug(f'XYZ grid apply LoRA block weight: "{x}"')
+
+
 def apply_te(p, x, xs):
     shared.opts.data["sd_text_encoder"] = x
     sd_models.reload_text_encoder()
@@ -381,6 +467,13 @@ def format_value(p, opt, x):
 
 def format_value_join_list(p, opt, x):
     return ", ".join(x)
+
+
+def format_value_trim(p, opt, x):
+    x = str(x)
+    if len(x) > 40:
+        x = x[:37] + '...' # block-weight vectors would flood the grid legend
+    return f"{opt.label}: {x}"
 
 
 def do_nothing(p, x, xs):

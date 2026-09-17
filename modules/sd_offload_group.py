@@ -1,4 +1,5 @@
 import time
+import types
 import itertools
 import torch
 import accelerate.hooks
@@ -26,6 +27,59 @@ def group_offload_config(main: bool) -> dict:
         'record_stream': shared.opts.group_offload_record and stream, # record without streams is rejected upstream
         'low_cpu_mem_usage': stream and not shared.opts.group_offload_pin,
     }
+
+
+def group_tensors(group) -> list:
+    """Every parameter and buffer a diffusers group moves, read at call time so a tensor replaced while offloaded is seen."""
+    tensors = []
+    for module in group.modules:
+        tensors.extend(module.parameters())
+        tensors.extend(module.buffers())
+    tensors.extend(group.parameters)
+    tensors.extend(group.buffers)
+    return tensors
+
+
+def loaded_tensors(tensors) -> dict:
+    """The cpu tensors held right now, keyed by parameter, to hand back on offload in place of a fresh copy."""
+    return {t: t.data for t in tensors if t.data.device.type == 'cpu'}
+
+
+def restore_tensors(tensors, loaded: dict | None, non_blocking: bool = False):
+    """Return tensors to cpu: the tensor each was onloaded from where known, a copy otherwise."""
+    for t in tensors:
+        if t.data.device.type == 'cpu':
+            continue
+        source = loaded.get(t) if loaded else None
+        t.data = source if source is not None else t.data.to(devices.cpu, non_blocking=non_blocking)
+
+
+def onload_remember(group):
+    group.sdnext_loaded = loaded_tensors(group_tensors(group))
+    group.sdnext_onload()
+
+
+def offload_restore(group):
+    restore_tensors(group_tensors(group), getattr(group, 'sdnext_loaded', None))
+    group.sdnext_loaded = None # a record lives from one onload to its offload
+
+
+def keep_loaded_tensors(module) -> int:
+    """Groups on the no-stream path copy their weights to fresh cpu memory on every offload; record the cpu
+    tensors at onload and hand them back at offload instead. Returns the number of groups patched."""
+    from diffusers.hooks.group_offloading import _GROUP_OFFLOADING
+    count = 0
+    for sub in module.modules():
+        registry = getattr(sub, '_diffusers_hook', None)
+        hook = registry.get_hook(_GROUP_OFFLOADING) if registry is not None else None
+        group = getattr(hook, 'group', None)
+        if group is None or group.stream is not None or getattr(group, 'offload_to_disk_path', None) or hasattr(group, 'sdnext_onload'):
+            continue
+        group.sdnext_onload = group._onload_from_memory # pylint: disable=protected-access
+        group._onload_from_memory = types.MethodType(onload_remember, group) # pylint: disable=protected-access
+        group._offload_to_memory = types.MethodType(offload_restore, group) # pylint: disable=protected-access
+        count += 1
+    return count
 
 
 def remove_group_offload_component(module) -> bool:
@@ -91,6 +145,9 @@ def apply_group_offload_component(module, module_name: str, main: bool) -> bool:
     sig = f'{devices.device}:{main}:' + ':'.join(str(v) for v in cfg.values())
     if getattr(module, 'sdnext_group_offload_sig', None) == sig:
         return False
+    requested_blocks = int(shared.opts.group_offload_blocks)
+    if cfg['use_stream'] and requested_blocks > 1:
+        log.warning(f'Offload: type=group module={module_name} blocks={requested_blocks} streams=True clamped=1')
     if hasattr(module, '_hf_hook'): # leftover accelerate hooks from a previous offload mode abort the group apply upstream
         module = accelerate.hooks.remove_hook_from_module(module, recurse=True)
     module.sdnext_ondemand = False # group placement replaces any on-demand hook
@@ -99,6 +156,8 @@ def apply_group_offload_component(module, module_name: str, main: bool) -> bool:
     s.debug_move(f'Offload: type=group op=apply type={shared.opts.group_offload_type} module={module_name} pin={cfg["use_stream"] and not cfg["low_cpu_mem_usage"]}') # before the apply: pinning large components takes a while and would otherwise run silently
     module.sdnext_group_offload_sig = 'partial' # a raise below leaves hooks that only a non-empty signature will remove
     apply_group_offloading(module, onload_device=devices.device, offload_device=devices.cpu, **cfg)
+    if not cfg['use_stream']:
+        s.debug_move(f'Offload: type=group op=keep module={module_name} groups={keep_loaded_tensors(module)}')
     module.sdnext_group_offload_sig = sig
     return True
 
@@ -153,6 +212,7 @@ class OnDemandHook(accelerate.hooks.ModelHook):
         param = next(module.parameters(), None)
         if param is not None and not devices.same_device(param.device, devices.device):
             t0 = time.time()
+            module.sdnext_loaded = loaded_tensors(list(module.parameters()) + list(module.buffers()))
             module.to(devices.device, non_blocking=shared.opts.diffusers_offload_nonblocking)
             t1 = time.time()
             process_timer.add('onload', t1 - t0)
@@ -194,7 +254,12 @@ def offload_ondemand(sd_model, include=[], exclude=[], reason='', force=False):
                 continue
             try:
                 t0 = time.time()
-                module.to(devices.cpu, non_blocking=shared.opts.diffusers_offload_nonblocking)
+                loaded = getattr(module, 'sdnext_loaded', None)
+                if loaded:
+                    restore_tensors(list(module.parameters()) + list(module.buffers()), loaded, non_blocking=shared.opts.diffusers_offload_nonblocking)
+                    module.sdnext_loaded = None # a record lives from one onload to its offload
+                else:
+                    module.to(devices.cpu, non_blocking=shared.opts.diffusers_offload_nonblocking)
                 dt = time.time() - t0
                 process_timer.add('offload', dt)
                 moved.append(module_name)
@@ -206,20 +271,17 @@ def offload_ondemand(sd_model, include=[], exclude=[], reason='', force=False):
 
 
 def report_group_stats(sd_model, module_names):
-    """Per-component stats block once per loaded model; balanced mode prints its own from the hook map."""
-    checkpoint_name = sd_model.sd_checkpoint_info.name if getattr(sd_model, "sd_checkpoint_info", None) is not None else sd_model.__class__.__name__
-    if checkpoint_name in s.group_stats_reported: # keyed by checkpoint since a task switch rebuilds the pipe object
+    """Per-component stats block once per loaded component; balanced mode prints its own from the hook map."""
+    modules = {name: getattr(sd_model, name, None) for name in module_names}
+    modules = {name: module for name, module in modules.items() if isinstance(module, torch.nn.Module)}
+    pending = {name: module for name, module in modules.items() if not getattr(module, 'sdnext_stats_reported', False)} # a task switch reuses the modules, a reload brings new ones
+    if not pending:
         return
-    s.group_stats_reported.add(checkpoint_name)
-    total = 0.0
-    counted = []
-    for module_name in module_names:
-        module = getattr(sd_model, module_name, None)
-        if isinstance(module, torch.nn.Module):
-            total += get_module_size(module)[0]
-            counted.append(module_name)
-            report_model_stats(module_name, module)
-    log.info(f'Model class={sd_model.__class__.__name__} modules={len(counted)} size={total:.3f}')
+    for module_name, module in pending.items():
+        module.sdnext_stats_reported = True
+        report_model_stats(module_name, module)
+    total = sum(get_module_size(module)[0] for module in modules.values())
+    log.info(f'Model class={sd_model.__class__.__name__} modules={len(modules)} size={total:.3f}')
 
 
 def apply_group_offload(sd_model):

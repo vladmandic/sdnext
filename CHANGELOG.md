@@ -1,10 +1,167 @@
 # Change Log for SD.Next
 
-## Highlights for 2026-08-26
+## Update for 2026-09-17
+
+### Highlights for 2026-09-17
+
+*What's New*? Well, code-wise, this is a big one...  
+First, a-lot-of-optimizations:
+- Updated core packages
+- Improved **LoRA** performance and quality, especially with quantized models
+- Newly structured **attention** mechanisms
+- Modular pipelines with new **guidance** methods
+- Support for different **caching** stacks
+- Compute updates across the board
+
+And some cool new stuff and models:
+- **DLSS v5** integration  
+- New models: **Anima 2.9B**, **LLaDa-Image**  
+- And few cloud models: *Google's Gemini, NanoBanana, Veo, Omni* and *X.AI's Grok*  
+- Some (light) UI restyling
+
+Plus inevitable bug-fixes...
+
+[Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
+
+### Details for 2026-09-17
+
+- **Models**
+  - [Anima 2.9B Preview v1](https://huggingface.co/yeoj34760/Anima-2.9B)  
+    expanded version of Anima 2B  
+  - [inclusionAI LLaDA-Image](https://huggingface.co/inclusionAI/LLaDA-Image) in *base* and *turbo* variants  
+    LLaDA-Image is a 6.5B transformer with massive 16.3B fully-custom MoE text-encoder and optional 1.3B SigVQ conditioning model  
+    with support for text-to-image, vq-conditioned text-to-image and image-editing workflows  
+    *note* model is extremely quantization sensitive so minimum allowed quant type is `uint8`  
+  - [MiniMax-H3](https://huggingface.co/MiniMaxAI/MiniMax-H3) updates  
+    new [SDNQ-uint8](https://huggingface.co/OzzyGT/MiniMax_H3_sdnq_8bit_pruned) pre-quantized *base* and *pruned* variants  
+    new [Nunchaku-Lite](https://huggingface.co/rootonchair/MiniMax-H3-nunchaku-lite-int4) variant  
+    new [VDN](https://huggingface.co/OpenVDN/vdn-minimax-h3) *video-delta-net* variant  
+- **LoRA**
+  - see [LoRA docs](https://vladmandic.github.io/sdnext-docs/LoRA) for all of the improvements and usage instructions  
+    *note*: lora now has its own settings section in *settings -> lora*
+  - new apply engine that allows lora to be applied much faster
+  - new calibration engine that allows lora to be applied with far smaller error when dealing with highly quantized models
+  - *note*: calibration data is stored once calculated so it can be reused for future runs  
+    location is `models/calibration` folder  
+  - new factor cache that allows lora effects to be pre-calculated and persistently cached for future runs  
+    location is `models/lora-factor-cache` folder  
+  - multi-network stack modes  
+    can significantly improve lora quality when using multiple loras at once  
+  - per-block strength
+  - native support for **MiniMax**
+    see [MiniMax Turbo LoRA collection](https://huggingface.co/vladmandic/MiniMax-H3-Turbo-LoRA) for LoRAs and examples  
+- **DLSS**
+  - add DLSS support for: *NeuralRender, SuperSample and FrameGen*  
+    dlls 5 caused quite a stir, but combined with generative ai it becomes a nice tool  
+  - available as part of image/video generate workflows via *extras -> dlss*  
+    or as a standalone *processing* workflow  
+    or via xyz grid  
+  - *note*: requires nvidia rtx gpu, windows platform and compatible gpu drivers  
+    but...it can be used from wsl2: unpack required package on windows host and you can access it from the wsl2 environment  
+  - *install*: requires [DLSS 5 Visual Enhancer](https://github.com/Merserk/dlss5-visual-enhancer/releases/tag/v7.0)  
+  - *diag*: enable `SD_DLSS_DEBUG=true` and monitor `dlss.log` in the package directory  
+- **Attention**
+  - see [Attention docs](https://vladmandic.github.io/sdnext-docs/Attention) for details and usage instructions  
+    *note*: attention now has its own settings section in *settings -> cross attention*  
+    *note*: this is a breaking change - if you had custom attention settings in previous releases, you will need to re-apply them in the new settings section  
+  - new `sparse-attention` method that can be combined with other attention methods  
+    to reduce memory usage and improve performance on large models  
+  - new attention mechanisms decision tree and apply method refactor
+- **Modular Pipelines**
+  - see [Modular Pipelines docs](https://vladmandic.github.io/sdnext-docs/Modular-Pipelines) for details and usage instructions
+  - new model **Guidance** stack for modular pipelines  
+    includes: *CFG, PAG, Auto, Zero, APG, SLG, SEG, TCFG, FDG*  
+    see [Guidance docs](https://vladmandic.github.io/sdnext-docs/Guidance) for details and usage instructions  
+  - new model **Caching** stack for modular pipelines  
+    includes: *FasterCache, FirstBlockCache, LayerSkip, MagCache, PyramidAttentionBroadcast, TaylorSeerCache, TextKVCache*  
+    see [Caching docs](https://vladmandic.github.io/sdnext-docs/Caching) for details and usage instructions
+  - implement progress and preview
+  - intercept and profiling hooks
+  - on-demand convert standard model on-demand 
+- **Cloud**
+  - updated support for google models in text, image and video workflows  
+    *note*: requires google api key  
+  - [Google Veo](https://ai.google.dev/gemini-api/docs/veo) in *preview*, *fast* and *lite* variants  
+    workflows: *t2v, i2v*  
+  - [Google Omni](https://ai.google.dev/gemini-api/docs/omni) in *flash* variant  
+    workflows: *t2v, i2v*  
+  - [Google Nano Banana](https://ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-image) in *2* and *2 lite* and *pro* variants  
+    workflows: *caption*  
+  - [Google Gemini](https://ai.google.dev/gemini-api/docs/models/gemini-3.8-flash) in *flash* and *pro* variants  
+    workflows: *caption, prompt-enhance*  
+  - added support for xai grok models  
+  - [X.AI Grok](https://x.ai/grok) in *3*, *3 fast*, *3 mini* and *3 mini fast* variants  
+    workflows: *caption, prompt-enhance*  
+    *note*: requires grok api key  
+- **Compute**
+  - cuda: update `torch==2.14.0` with `cuda==13.2`
+  - openvino: update `openvino==2026.3.1` with `torch==2.13.0`
+  - option to skip triton autotune and use default config for all triton kernels  
+    in *settings -> compute settings*  
+    *note*: this may improve initial generate time, but may also reduce performance on some models  
+  - rocm: update `rocm` script and add detailed `miopen` logging, thanks @resonantsky  
+  - new optional transformer hooks  
+    in *settings -> compute add-ons*  
+    *PAG: Perturbed attention guidance, PAB: Pyramid attention broadcast, FBC: First Block Cache, FC: Faster Cache, LS: Layer Skip, MC: Mag Cache, TS: TaylorSeer*  
+    *note*: compatibility of different methods varies across different models  
+  - update `numpy` and `scipy` frozen requirements as required by new compute drivers  
+    *note*: this may break compatibility with some legacy packages, so report any finidings  
+- **Other**
+  - video preview: TAESD support for **MiniMax**
+  - support `xai grok` for prompt enhance workflows  
+    *note*: requires grok api key  
+  - remove `/redocs` as `/docs` are primary api docs  
+  - rebuild docs site index  
+- **UI**
+  - some (light) re-styling of the *Default* theme
+  - add new *Tillerz-CleanDark* theme, thanks @Tillerz
+  - ability to filter samplers and upscalers, thanks @emecii
+- **Wiki/Docs**:
+  - new articles: *Attention, Modular-Pipelines*
+  - updated: *LoRA, MiniMax*
+- **Fixes**
+  - api: prompt enhance with vision
+  - autocomplete: skip disabled networks
+  - compile: keep model compiled state
+  - detailer: handling of stop/skip/pause
+  - framepack: correct device assignment, thanks @li-lizhe
+  - group offload: improve memory management
+  - installer: better handle git detached head
+  - json: handle file locks
+  - log: ansi color handling
+  - lora: cleanup tags
+  - lora: support transformer ref models
+  - lora: keep parsed network data through pipeline
+  - lucida: handle requirements
+  - lumina-dimoo: attention-kwargs, thanks @Anai-Guo
+  - metadata: fix wildcard info
+  - minimax: crop image to video aspect ratio
+  - modular: handle module with remote-code
+  - network: improve type/version lookup
+  - offline: honor offline mode for more models, thanks @ryanmeador
+  - openvino: optimize recompile checks and lora loading
+  - prompt enhance: cloud models use correct system prompt  
+  - prompt enhance: use init image for video
+  - prompt: cache checks when cfg changes
+  - prompt: unnecessary secondary prompt if same
+  - prompt: clean prompt after network parsing
+  - rife: cleanup dead code, thanks @Anai-Guo
+  - temp files: handle locking
+  - theme: fix circular imports changing theme to default
+  - todo: remove dead code, thanks @Anai-Guo
+  - ui: js fetch exception handling
+  - update: handle git errors gracefully
+  - vae: fetch scale factor from the model
+  - vdm scheduler: fix steps, thanks @zjn20030811
+  - xyz grid: apply bool values
+
+## Update for 2026-08-26
+
+### Highlights for 2026-08-26
 
 Time for a new release, *this is a large one*!
 Main focus is improving video workflows which also brings full support for new [MiniMax H3](https://vladmandic.github.io/sdnext-docs/MiniMax) and [LTXVideo-2.5](https://vladmandic.github.io/sdnext-docs/LTX)  
-and improves general video processing with flexible video upscaling, updated interpolation, etc.
+and improvements to general video processing with flexible video upscaling, updated interpolation, etc.
 
 *What else?*
 - [Detailer.next](https://vladmandic.github.io/sdnext-docs/Detailer) with new support for *vision-language models* and *per-class prompts*
@@ -1898,7 +2055,7 @@ And check out new **history** tab in the right panel, it now shows visualization
     *note*: this does not impact the actual image resolution, only the resolution at which detailer internally operates  
   - refactor reuse-seed and add functionality to all tabs  
   - refactor modernui js codebase  
-  - move zluda flash attenion to *Triton Flash attention* option  
+  - move zluda flash attenion to *Triton AMD Flash attention* option  
   - remove samplers filtering  
   - allow both flow-matching and discrete samplers for sdxl models  
   - cleanup command line parameters  

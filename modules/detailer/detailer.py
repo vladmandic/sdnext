@@ -1,4 +1,5 @@
 import re
+import time
 from copy import copy
 import numpy as np
 import gradio as gr
@@ -220,6 +221,19 @@ class Detailer():
         matched_negative_classes = set()
 
         for i, model_val in enumerate(models):
+            if shared.state.skipped:
+                shared.state.skipped = False
+                continue
+            if shared.state.interrupted:
+                break
+            while shared.state.paused:
+                log.debug('Detail paused')
+                if shared.state.interrupted:
+                    break
+                if shared.state.skipped:
+                    continue
+                time.sleep(0.1)
+
             if ':' in model_val:
                 model_name, model_args = model_val.split(':', 1)
             else:
@@ -309,10 +323,23 @@ class Detailer():
             resolved_prompts = assign_prompts(prompt, items)
             resolved_negatives = assign_prompts(negative, items)
             for j, item in enumerate(items):
+                if shared.state.skipped:
+                    shared.state.skipped = False
+                    continue
+                if shared.state.interrupted:
+                    break
+                while shared.state.paused:
+                    log.debug('Detail paused')
+                    if shared.state.interrupted:
+                        break
+                    if shared.state.skipped:
+                        continue
+                    time.sleep(0.1)
                 if item.mask is None:
                     continue
-                pc.keep_prompts = True
+
                 shared.sd_model.fail_on_switch_error = True
+                pc.keep_prompts = True
                 pc.prompt = resolved_prompts[j]
                 pc.negative_prompt = resolved_negatives[j]
                 pc.prompts = [pc.prompt]
@@ -321,7 +348,7 @@ class Detailer():
                 pc.disable_extra_networks = True # disable processing_diffusers from handling network activation since its handled here
                 network_same = len(p.network_data.values()) == len(pc.network_data.values()) and all(x == y for x, y in zip(p.network_data.values(), pc.network_data.values()))
                 if not network_same:
-                    extra_networks.activate_filtered(pc, pc.network_data)
+                    extra_networks.activate(pc, pc.network_data)
                 log.debug(f'Detail: model="{i+1}:{name}" item={j+1}/{len(items)} box={item.box} label="{item.label}" score={item.score:.2f} seg={detailer_opt(p, "detailer_segmentation")} network={network_same} prompt="{pc.prompt}"')
                 pc.init_images = [image]
                 pc.image_mask = [item.mask]
@@ -510,12 +537,12 @@ class Detailer():
                 renoise_end = gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label='Renoise end', value=shared.opts.detailer_sigma_adjust_max, elem_id=f"{tab}_detailer_renoise_end")
             sampler_block = None
             if tab == 'extras': # fold the standalone sampler settings into the detailer accordion; values applied per-job in make_processing, never global opts
-                from modules import sd_samplers
-                sd_samplers.set_samplers()
-                sampler_choices = [s.name for s in sd_samplers.visible_samplers() if s.name != 'Same as primary']
+                from modules import ui_sections
+                sampler_choices, default_value, filtered = ui_sections.sampler_choices()
                 with gr.Accordion('Sampler', open=False, elem_id=f"{tab}_detailer_sampler_accordion", elem_classes=["small-accordion"]):
                     with gr.Row():
-                        d_sampler = gr.Dropdown(label='Sampling method', choices=sampler_choices, value='Default', elem_id=f"{tab}_detailer_sampler")
+                        ui_sections.create_filter_indicator(tab, 'Sampler', filtered)
+                        d_sampler = gr.Dropdown(label='Sampling method', choices=sampler_choices, value=default_value, type='value', elem_id=f"{tab}_detailer_sampler")
                         d_prediction = gr.Dropdown(label='Prediction method', choices=['default', 'epsilon', 'sample', 'v_prediction', 'flow_prediction'], value='default', elem_id=f"{tab}_detailer_prediction")
                     with gr.Row():
                         d_shift = gr.Slider(label='Flow shift', minimum=0, maximum=10, step=0.1, value=shared.opts.schedulers_shift, elem_id=f"{tab}_detailer_shift")

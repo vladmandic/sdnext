@@ -325,6 +325,7 @@ class SimpleProgressBar {
   }
 
   update(loaded, max) {
+    // log('galleryUpdate', { loaded, max });
     this.#progress.style.width = `${Math.floor((loaded / max) * 100)}%`;
     this.#text.textContent = `${loaded}/${max}`;
     if (!this.#visible) {
@@ -503,7 +504,7 @@ async function delayFetchThumb(fn, signal) {
     outstanding++;
     const ts = t0.toString();
     const res = await authFetch(`${window.api}/browser/thumb?file=${encodeURI(fn)}&ts=${ts}&exif=false`, { priority: 'low' });
-    if (!res.ok) {
+    if (!res?.ok) {
       error(`fetchThumb: ${res.statusText}`);
       return undefined;
     }
@@ -1466,6 +1467,7 @@ async function observeImageError(img: HTMLImageElement) {
     // eslint-disable-next-line import-x/no-unresolved
     const { default: heic2any } = await import('https://esm.sh/heic2any@0.0.4');
     const res = await authFetch(origSrc);
+    if (!res || res.status !== 200) return;
     const imageBlob = await res.blob();
     if (!imageBlob || imageBlob.size <= 1024) {
       error('imageHEIC', { src: origSrc, res, blob: imageBlob });

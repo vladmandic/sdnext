@@ -4,7 +4,7 @@ import { sendNotification } from './notification';
 
 let lastState: any = {};
 let refreshInterval = 10000;
-const progressTimeout = 180;
+const progressTimeout = 600;
 const startTimeout = 5;
 
 export function setRefreshInterval() {
@@ -126,6 +126,7 @@ export function requestProgress(id_task = 'undefined', progressEl = null, galler
 
   const initLivePreview = () => {
     if (!parentGallery) return;
+    debug('initLivePreview', { el: galleryEl, parent: parentGallery });
     const footers = Array.from<any>(gradioApp().querySelectorAll('.gallery_footer'));
     for (const footer of footers) {
       if (footer.id !== 'gallery_footer') footer.style.display = 'none'; // remove all footers
@@ -182,7 +183,7 @@ export function requestProgress(id_task = 'undefined', progressEl = null, galler
 
   const previewVisible = () => {
     try {
-      return !galleryEl?.closest('.section')?.classList.contains('minimize');
+      return galleryEl ? !galleryEl.closest('.section')?.classList.contains('minimize') : true;
     } catch {
       return true;
     }

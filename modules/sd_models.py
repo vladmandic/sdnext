@@ -55,6 +55,7 @@ pipe_switch_task_exclude = [
     'Kandinsky5I2IPipeline',
     'GoogleNanoBananaPipeline',
     'Step1XEditPipeline',
+    'LLaDAImagePipeline',
     'BooguImagePipeline',
     'BooguImageTurboPipeline',
 ]
@@ -610,6 +611,10 @@ def load_diffuser_force(detected_model_type: str, checkpoint_info: CheckpointInf
             from pipelines.model_glm import load_glm_image
             sd_model = load_glm_image(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
+        elif model_type in ['LLaDAImage']:
+            from pipelines.model_llada import load_llada_image
+            sd_model = load_llada_image(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
         elif model_type in ['SDXS']:
             from pipelines.model_sdxs import load_sdxs
             sd_model = load_sdxs(checkpoint_info, diffusers_load_config)
@@ -1034,6 +1039,12 @@ def load_diffuser(checkpoint_info: CheckpointInfo | None = None, op='model', rev
         if debug_load:
             log.trace(f'Model components: {list(get_signature(sd_model).values())}')
 
+        from modules import modular
+        if modular.is_compatible(shared.sd_model):
+            modular_pipe = modular.convert_to_modular(shared.sd_model)
+            if modular_pipe is not None:
+                shared.sd_model = modular_pipe
+
         from modules import textual_inversion
         sd_model.embedding_db = textual_inversion.EmbeddingDatabase()
         sd_model.embedding_db.add_embedding_dir(shared.opts.embeddings_dir)
@@ -1064,6 +1075,8 @@ def load_diffuser(checkpoint_info: CheckpointInfo | None = None, op='model', rev
     try:
         if shared.opts.ipex_optimize:
             sd_model = sd_models_compile.ipex_optimize(sd_model)
+        if shared.cmd_opts.use_openvino or devices.backend == 'openvino':
+            sd_models_compile.set_openvino_overrides()
 
         if (shared.opts.cuda_compile_backend != 'none') and len(shared.opts.cuda_compile) > 0:
             if 'components' in shared.opts.cuda_compile_options:
@@ -1132,6 +1145,17 @@ def get_diffusers_task(pipe: diffusers.DiffusionPipeline) -> DiffusersTaskType:
         return DiffusersTaskType.INPAINTING
     else:
         return DiffusersTaskType.TEXT_2_IMAGE
+
+
+def pipe_serves_task(pipe: diffusers.DiffusionPipeline, task_type: DiffusersTaskType) -> bool:
+    """True when the pipeline class is registered for the task in the diffusers auto-pipeline tables."""
+    mappings = {
+        DiffusersTaskType.TEXT_2_IMAGE: diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING,
+        DiffusersTaskType.IMAGE_2_IMAGE: diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING,
+        DiffusersTaskType.INPAINTING: diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING,
+    }
+    mapping = mappings.get(task_type)
+    return mapping is not None and pipe.__class__ in mapping.values()
 
 
 def switch_pipe(cls: type[diffusers.DiffusionPipeline] | str, pipeline: diffusers.DiffusionPipeline | None = None, force = False, args: dict | None = None):
@@ -1244,7 +1268,7 @@ def switch_pipe(cls: type[diffusers.DiffusionPipeline] | str, pipeline: diffuser
 
 
 def clean_diffuser_pipe(pipe):
-    if pipe is not None and shared.sd_model_type == 'sdxl' and hasattr(pipe, 'config') and 'requires_aesthetics_score' in pipe.config and hasattr(pipe, '_internal_dict'):
+    if (pipe is not None) and (shared.sd_model_type == 'sdxl') and hasattr(pipe, 'config') and ('requires_aesthetics_score' in pipe.config) and hasattr(pipe, '_internal_dict'):
         debug_process(f'Pipeline clean: {pipe.__class__.__name__}')
         # diffusers adds requires_aesthetics_score with img2img and complains if requires_aesthetics_score exist in txt2img
         internal_dict = dict(pipe._internal_dict) # pylint: disable=protected-access
@@ -1340,6 +1364,8 @@ def set_diffuser_pipe(pipe, new_pipe_type):
         del pipe.no_task_switch
         return pipe
     if get_diffusers_task(pipe) == new_pipe_type:
+        return pipe
+    if pipe_serves_task(pipe, new_pipe_type): # a class registered for several tasks classifies as one of them
         return pipe
 
     if get_diffusers_task(pipe) == DiffusersTaskType.MODULAR:
@@ -1552,7 +1578,6 @@ def reload_model_weights(sd_model=None, info: CheckpointInfo | None = None, op='
         unload_model_weights(op=op)
         sd_model = None
     timer.load = timer.Timer()
-    # TODO model load: implement model in-memory caching
     timer.load.record("config")
     if sd_model is None or force:
         sd_model = None
@@ -1591,6 +1616,7 @@ def unload_model_weights(op='model'):
         shared.compiled_model_state.compiled_cache.clear()
         shared.compiled_model_state.req_cache.clear()
         shared.compiled_model_state.partitioned_modules.clear()
+        # shared.compiled_model_state = None
     if (op == 'model' or op == 'dict') and model_data.sd_model:
         log.debug(f'Current {op}: {memory_stats()}')
         if not ('Model' in shared.opts.cuda_compile and (shared.opts.cuda_compile_backend == "openvino_fx" or shared.opts.cuda_compile_backend == "openvino")):

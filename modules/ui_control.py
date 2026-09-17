@@ -201,7 +201,7 @@ def create_ui(_blocks: gr.Blocks=None):
 
                 mask_controls = masking.create_segment_ui()
 
-                guidance_name, guidance_scale, guidance_rescale, guidance_start, guidance_stop, cfg_scale, cfg_image, cfg_rescale, cfg_true, cfg_adaptive, cfg_end = ui_guidance.create_guidance_inputs('control')
+                cfg_name, cfg_scale, cfg_image, cfg_rescale, cfg_start, cfg_stop, cfg_true, cfg_adaptive = ui_guidance.create_guidance_inputs('control')
                 vae_type, tiling, hidiffusion, clip_skip = ui_sections.create_advanced_inputs('control')
                 grading_brightness, grading_contrast, grading_saturation, grading_hue, grading_gamma, grading_sharpness, grading_color_temp, grading_shadows, grading_midtones, grading_highlights, grading_clahe_clip, grading_clahe_grid, grading_shadows_tint, grading_highlights_tint, grading_split_tone_balance, grading_vignette, grading_grain, grading_lut_file, grading_lut_strength = ui_sections.create_color_inputs('control')
                 hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundary, hdr_color_picker, hdr_tint_ratio, hdr_apply_hires = ui_sections.create_latent_inputs('control')
@@ -316,8 +316,8 @@ def create_ui(_blocks: gr.Blocks=None):
                 prompt, negative, styles,
                 steps, sampler_index,
                 seed, subseed, subseed_strength, seed_resize_from_h, seed_resize_from_w,
-                guidance_name, guidance_scale, guidance_rescale, guidance_start, guidance_stop,
-                cfg_scale, clip_skip, cfg_image, cfg_rescale, cfg_true, cfg_adaptive, cfg_end, vae_type, tiling, hidiffusion,
+                cfg_name, cfg_scale, cfg_image, cfg_rescale, cfg_start, cfg_stop, cfg_true, cfg_adaptive,
+                clip_skip, vae_type, tiling, hidiffusion,
                 detailer_enabled, detailer_prompt, detailer_negative, detailer_steps, detailer_strength, detailer_resolution, detailer_classes,
                 hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundary, hdr_color_picker, hdr_tint_ratio, hdr_apply_hires,
                 grading_brightness, grading_contrast, grading_saturation, grading_hue, grading_gamma, grading_sharpness, grading_color_temp,
@@ -411,18 +411,17 @@ def create_ui(_blocks: gr.Blocks=None):
                 (mask_controls[5], "Mask dilate"),
                 (mask_controls[6], "Mask auto"),
                 # guidance
-                (guidance_name, "Guidance"),
-                (guidance_scale, "Guidance scale"),
-                (guidance_rescale, "Guidance rescale"),
-                (guidance_start, "Guidance start"),
-                (guidance_stop, "Guidance stop"),
-                # advanced
+                (cfg_name, "CFG name"),
                 (cfg_scale, "CFG scale"),
-                (cfg_end, "CFG end"),
-                (clip_skip, "CLiP-skip"),
+                (cfg_start, "CFG start"),
+                (cfg_stop, "CFG stop"),
+                (cfg_stop, "CFG end"),
+                (cfg_image, "CFG image"),
                 (cfg_image, "Image CFG scale"),
                 (cfg_image, "Hires CFG scale"),
                 (cfg_rescale, "CFG rescale"),
+                # other
+                (clip_skip, "CLiP-skip"),
                 (vae_type, "VAE type"),
                 (tiling, "Tiling"),
                 (hidiffusion, "HiDiffusion"),

@@ -44,19 +44,6 @@ from modules.lora.native_adapter import ChunkSpec
 
 KNOWN_PREFIXES = native_adapter.KNOWN_PREFIXES_DEFAULT
 
-# distilled_guidance_layer. is deliberately a bare-BFL prefix, not a
-# bare-diffusers one: the resolver renames BFL MLP leaves (in_layer/out_layer)
-# and passes diffusers-named leaves (linear_1/linear_2, in_proj, out_proj,
-# norms.N) through verbatim, so both namings route correctly.
-BARE_FLUX_PREFIXES = (
-    "double_blocks.", "single_blocks.",
-    "img_in.", "txt_in.", "final_layer.", "distilled_guidance_layer.",
-)
-
-BARE_DIFFUSERS_PREFIXES = (
-    "transformer_blocks.", "single_transformer_blocks.",
-)
-
 
 # === Fused weight dims ===
 # Defaults match Chroma1-HD (``inner_dim = num_attention_heads *
@@ -97,8 +84,6 @@ def parse_key(key, suffixes):
     return native_adapter.parse_key(
         key, suffixes,
         prefixes=KNOWN_PREFIXES,
-        bare_prefixes=BARE_FLUX_PREFIXES,
-        bare_diffusers_prefixes=BARE_DIFFUSERS_PREFIXES,
     )
 
 
@@ -107,8 +92,6 @@ def group_by_suffixes(state_dict, suffixes):
     return native_adapter.group_by_suffixes(
         state_dict, suffixes,
         prefixes=KNOWN_PREFIXES,
-        bare_prefixes=BARE_FLUX_PREFIXES,
-        bare_diffusers_prefixes=BARE_DIFFUSERS_PREFIXES,
     )
 
 
@@ -122,14 +105,16 @@ def resolve_targets(prefix_used, base):
 
     - ``lora_unet_``: kohya underscore-flat Flux path; parse block type/index
       and module suffix, rename to diffusers.
-    - ``diffusion_model.`` or bare BFL (None): dotted Flux path; same rewrite.
+    - ``diffusion_model.`` or bare (the sentinel): dotted Flux path; same
+      rewrite. BFL MLP leaves under ``distilled_guidance_layer`` rename and
+      diffusers-named leaves pass through verbatim, so both namings route.
 
     Universal passthrough prefixes are handled upstream by
     :func:`native_adapter.resolve_group_targets`.
     """
     if prefix_used == "lora_unet_":
         return _kohya_to_diffusers(base)
-    if prefix_used in (None, "diffusion_model."):
+    if prefix_used in (BARE_DIFFUSERS_PREFIX_USED, "diffusion_model."):
         return _bfl_to_diffusers(base)
     return []
 
@@ -262,8 +247,6 @@ def _split_single_linear1(block_idx):
 _BIND_KWARGS = dict(
     resolve_targets=resolve_targets,
     prefixes=KNOWN_PREFIXES,
-    bare_prefixes=BARE_FLUX_PREFIXES,
-    bare_diffusers_prefixes=BARE_DIFFUSERS_PREFIXES,
     arch_name="chroma",
 )
 

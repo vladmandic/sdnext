@@ -27,6 +27,7 @@ TAESD_MODELS = {
     'TAE HunyuanVideo': { 'fn': 'taehv.pth', 'uri': 'https://github.com/madebyollin/taehv/raw/refs/heads/main/taehv.pth', 'model': None },
     'TAE WanVideo': { 'fn': 'taew1.pth', 'uri': 'https://github.com/madebyollin/taehv/raw/refs/heads/main/taew2_1.pth', 'model': None },
     'TAE MochiVideo': { 'fn': 'taem1.pth', 'uri': 'https://github.com/madebyollin/taem1/raw/refs/heads/main/taem1.pth', 'model': None },
+    'TAE MiniMax-H3': { 'fn': 'taeh3.pth', 'uri': 'https://github.com/madebyollin/taehv/raw/refs/heads/main/taeh3.pth', 'model': None },
 }
 CQYAN_MODELS = {
     'Hybrid-Tiny SD': {
@@ -72,13 +73,15 @@ def get_model(model_cls, variant=None):
     elif model_cls in {'f1', 'h1', 'zimage', 'lumina2', 'chroma', 'longcat', 'omnigen2', 'flite', 'ovis', 'kandinsky5', 'glmimage', 'cogview3', 'cogview4', 'ultraflux'}:
         model_cls = 'f1'
         variant = 'TAE FLUX.1'
-    elif model_cls in {'f2', 'ernieimage', 'lens', 'ideogram4'}:
+    elif model_cls in {'f2', 'ernieimage', 'lens', 'ideogram4', 'lladaimage'}:
         model_cls = 'f2'
         variant = 'TAE FLUX.2'
     elif model_cls in {'sd3'}:
         variant = 'TAE SD3'
     elif model_cls in {'wanai', 'qwen', 'chrono', 'cosmos', 'anima', 'fibo', 'joy', 'krea2'}:
         variant = 'TAE WanVideo'
+    elif model_cls in {'minimaxh3'}:
+        variant = 'TAE MiniMax-H3'
     else:
         warn_once(f'cls={shared.sd_model.__class__.__name__} type={shared.sd_model_type} unsuppported', variant=variant)
         return model_cls, None
@@ -122,10 +125,7 @@ def load_model(model_type = 'decoder', variant = None, vae_file: str | None = No
             log.print() # new line
             log.debug(f'Decode: type="taesd" variant="{variant}" fn="{fn}" layers={shared.opts.taesd_layers} load')
             vae = None
-            if 'TAE HunyuanVideo' in variant:
-                from modules.taesd.taehv import TAEHV
-                vae = TAEHV(checkpoint_path=fn)
-            elif 'TAE WanVideo' in variant:
+            if ('TAE HunyuanVideo' in variant) or ('TAE WanVideo' in variant) or ('TAE MiniMax-H3' in variant):
                 from modules.taesd.taehv import TAEHV
                 vae = TAEHV(checkpoint_path=fn)
             elif 'TAE MochiVideo' in variant:
@@ -185,6 +185,23 @@ def restore_preview_size(image, vae):
     return image
 
 
+def tile_video_frames(tensor):
+    frame_count = tensor.shape[0]
+    requested = shared.opts.taesd_frames
+    if (frame_count <= 1) or (requested == 1):
+        return tensor[0]
+    if (requested == -1) or (requested >= frame_count):
+        indices = list(range(frame_count))
+    else:
+        indices = [round(i * (frame_count - 1) / (requested - 1)) for i in range(requested)]
+    selected = tensor[indices]
+    try:
+        tiled = torch.cat([selected[i] for i in range(selected.shape[0])], dim=-1)
+        return tiled
+    except Exception:
+        return tensor[0]
+
+
 def decode(latents, fast=False):
     global first_run, prev_model, prev_variant # pylint: disable=global-statement
     with lock:
@@ -194,7 +211,7 @@ def decode(latents, fast=False):
                 variant = prev_variant
             else:
                 vae, variant = load_model(model_type='decoder')
-                if vae is None or max(latents.shape) > 256: # safety check of large tensors
+                if vae is None or max(latents.shape) > 384: # safety check of large tensors
                     return latents
                 prev_model = vae
                 prev_variant = variant
@@ -220,7 +237,11 @@ def decode(latents, fast=False):
                     image = image[0]
                 else:
                     image = vae.decode(tensor, return_dict=False)[0]
-                    image = (image / 2.0 + 0.5).clamp(0, 1).detach()
+                    # image = (image / 2.0 + 0.5).clamp(0, 1).detach()
+                    image = image.clamp(0, 1).detach()
+                    if image.ndim == 4 and image.shape[0] > 1 and image.shape[1] == 3: # likely a video latent
+                        # image = tile_video_frames(image)
+                        image = image[0] # just take the first frame for now
                 image = restore_preview_size(image, vae)
                 t1 = time.time()
                 if (t1 - t0) > 5.0 and not first_run:

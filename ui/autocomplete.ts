@@ -239,7 +239,7 @@ const engine = {
     await Promise.all(toLoad.map(async (name) => {
       try {
         const resp = await authFetch(`${window.api}/autocomplete/${name}`);
-        if (!resp.ok) throw new Error(`${resp.status}`);
+        if (!resp?.ok) throw new Error(`${resp?.status}`);
         const data = await resp.json();
         this.indices.set(name, new TagIndex(data));
         // Extract category colors from first loaded file

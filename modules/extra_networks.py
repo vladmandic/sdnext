@@ -121,15 +121,6 @@ def activate(p: StableDiffusionProcessing, extra_network_data: defaultdict[str, 
     p.network_data = extra_network_data
 
 
-def activate_filtered(p: StableDiffusionProcessing, extra_network_data: defaultdict[str, list[ExtraNetworkParams]] | None = None, step=0):
-    """activate with text encoder components gated on lora_apply_te; must run before prompt encode so te networks affect embeds"""
-    apply_te = getattr(p, 'lora_apply_te', None)
-    if apply_te is None:
-        apply_te = shared.opts.lora_apply_te
-    exclude = [] if apply_te else ['text_encoder', 'text_encoder_2', 'text_encoder_3']
-    activate(p, extra_network_data, step=step, exclude=exclude)
-
-
 def deactivate(p: StableDiffusionProcessing, extra_network_data: defaultdict[str, list[ExtraNetworkParams]] | None = None, force: bool | None = None):
     """call deactivate for extra networks in extra_network_data in specified order, then call deactivate for all remaining registered networks"""
     if p.disable_extra_networks:
@@ -173,20 +164,24 @@ def parse_prompt(prompt: str | None) -> tuple[str, defaultdict[str, list[ExtraNe
         return ""
 
     updated_prompt = re.sub(re_extra_net, found, prompt)
+    updated_prompt = updated_prompt.strip(', ')
     return updated_prompt, res
 
 
-def parse_prompts(prompts: list[str], extra_data: defaultdict[str, list[ExtraNetworkParams]] | None = None):
-    updated_prompt_list: list[str] = []
-    extra_data = extra_data or defaultdict(list)
+def parse_prompts(
+    prompts: list[str],
+    extra_data: defaultdict[str, list[ExtraNetworkParams]] | None = None,
+):
+    updated_prompts: list[str] = []
+    if extra_data is None:
+        extra_data = defaultdict(list)
     for prompt in prompts:
         updated_prompt, parsed_extra_data = parse_prompt(prompt)
-        if not extra_data:
-            extra_data = parsed_extra_data
-        elif parsed_extra_data:
-            extra_data = parsed_extra_data
-        else:
-            pass
-        updated_prompt_list.append(updated_prompt)
+        if parsed_extra_data:
+            for key, values in parsed_extra_data.items():
+                for item in values:
+                    if item not in extra_data[key]:
+                        extra_data[key].append(item)
 
-    return updated_prompt_list, extra_data
+        updated_prompts.append(updated_prompt)
+    return updated_prompts, extra_data

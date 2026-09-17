@@ -55,9 +55,20 @@ class ExtraNetworksPageLora(ui_extra_networks.ExtraNetworksPage):
                     tags[tag] = 0
         except Exception:
             pass
+
+        # cleanup tags: remove model names, bad words, and special characters
+        model_words = ['ltx', 'minimax', 'h3', 'sdxl', 'klein', 'wan', 'flux', 'qwen', 'vace', 'lcm', 'slider']
+        bad_words = ['concept', 'style', 'styles', 'base model', 'video', 'audio', 'turbo', 'distill', 'assets', 'action', 'enhancer', 'detail', 'tool', 'dir', 'all']
+        bad_parts = ['lora', 'comfyui', 't2i', 'i2i', 't2v', 'i2v', 'steps']
         bad_chars = [';', ':', '<', ">", "*", '?', '\'', '\"', '(', ')', '[', ']', '{', '}', '\\', '/']
         clean_tags = {}
         for k, v in tags.items():
+            if k in bad_words:
+                continue
+            if any(k.startswith(s) for s in model_words):
+                continue
+            if any(s in k for s in bad_parts):
+                continue
             tag = ''.join(i for i in k if i not in bad_chars).strip()
             clean_tags[tag] = v
 
@@ -80,7 +91,7 @@ class ExtraNetworksPageLora(ui_extra_networks.ExtraNetworksPage):
         return ver
 
     def create_item(self, name):
-        l = lora_load.available_networks.get(name)
+        l = lora_load.available_networks.get(name) or lora_load.available_network_aliases.get(name) # that table mangles dots in the stem to underscores; the aliases carry the natural basename and the subfolder path
         if l is None:
             log.warning(f'Networks: type=lora registered={len(list(lora_load.available_networks))} file="{name}" not registered')
             return None
