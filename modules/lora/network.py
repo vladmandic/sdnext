@@ -1,5 +1,6 @@
 import os
 import enum
+import json
 from collections import namedtuple
 import torch
 from modules import hashes, shared, sd_checkpoint
@@ -53,14 +54,14 @@ class NetworkOnDisk:
 
     def detect_version(self):
         base = str(self.metadata.get('ss_base_model_version', "")).lower()
-        arch = str(self.metadata.get('modelspec.architecture', "")).lower()
+        # base.startswith("sd_1.5") # ostris/ai-toolkit uses this nearly-always and its wrong
         if base.startswith("sd_v1"):
             return 'sd1'
         if base.startswith("sdxl"):
             return 'xl'
         if base.startswith("stable_cascade"):
             return 'sc'
-        if base.startswith("sd3"):
+        if base.startswith("sd3") or base.startswith("3-5-"):
             return 'sd3'
         if base.startswith("flux2") or "klein" in base:
             return 'f2'
@@ -81,10 +82,15 @@ class NetworkOnDisk:
         if base.startswith('minimax'):
             return 'minimax'
 
+        arch = str(self.metadata.get('modelspec.architecture', "")).lower()
         if arch.startswith("stable-diffusion-v1"):
             return 'sd1'
         if arch.startswith("stable-diffusion-xl"):
             return 'xl'
+        if arch.startswith("stable-diffusion-2") or arch.startswith("stable-diffusion-v2"):
+            return 'sd2'
+        if arch.startswith("stable-diffusion-3") or arch.startswith("stable-diffusion-v3"):
+            return 'sd3'
         if arch.startswith("stable-cascade"):
             return 'sc'
         if arch.startswith("flux2") or arch.startswith("flux-2") or ("klein" in arch):
@@ -101,11 +107,22 @@ class NetworkOnDisk:
             return 'anima'
         if arch.startswith('krea2'):
             return 'krea2'
+        if arch.startswith('pixart-sigma'):
+            return 'pixart-sigma'
 
-        if "v1-5" in str(self.metadata.get('ss_sd_model_name', "")):
+        metadata = json.dumps(self.metadata).lower()
+        if 'z-image' in metadata:
+            return 'zimage'
+        if 'v1-5' in metadata:
             return 'sd1'
+        if 'stable-diffusion-2-1' in metadata:
+            return 'sd2'
+        if 'minimax-h3' in metadata:
+            return 'minimax'
+
         if str(self.metadata.get('ss_v2', "")) == "True":
             return 'sd2'
+
         if 'klein' in self.name.lower() or ('klein' in self.fullname.lower()):
             return 'f2'
         if 'flux' in self.name.lower():
@@ -116,6 +133,12 @@ class NetworkOnDisk:
             return 'chroma'
         if 'anima' in self.name.lower():
             return 'anima'
+        if 'qwen' in self.name.lower():
+            return 'qwen'
+        if 'wan' in self.name.lower():
+            return 'wan'
+        if 'minimax' in self.name.lower():
+            return 'minimax'
 
         return ''
 
