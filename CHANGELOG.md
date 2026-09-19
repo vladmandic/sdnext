@@ -1,5 +1,12 @@
 # Change Log for SD.Next
 
+## Refresh for 2026-09-19
+
+- preview mapping for reference networks
+- name mapping for network models and loras
+- additional DLSS reporting
+- gradio temp file error handling
+
 ## Update for 2026-09-17
 
 ### Highlights for 2026-09-17

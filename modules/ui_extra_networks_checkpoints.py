@@ -23,8 +23,6 @@ version_map = {
     "StableDiffusionXL": "SD XL",
     "WanToVideo": "Wan",
     "WanVACE": "Wan",
-    "ZImage": "Z-Image",
-    "Z-Image": "Z-Image",
     "Glm": "GLM-Image",
     "Krea2": "Krea 2",
     "AnimaTextTo": "Anima",
@@ -34,6 +32,9 @@ version_map = {
     "Flux2KleinKV": "Flux 2 Klein",
     "MiniMaxH3": "MiniMax H3",
     "MiniMax_H3": "MiniMax H3",
+    "ZImageTurbo": "Z-Image",
+    "ZImage": "Z-Image",
+    "Z": "Z-Image",
 }
 
 class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):

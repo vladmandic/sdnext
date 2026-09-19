@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import concurrent.futures
 from modules import shared, ui_extra_networks, modelstats
@@ -77,17 +78,30 @@ class ExtraNetworksPageLora(ui_extra_networks.ExtraNetworksPage):
         return clean_tags
 
     _VERSION_DISPLAY = {
-        'f1': 'Flux', 'sd1': 'SD 1.5', 'sd2': 'SD 2', 'xl': 'SDXL',
-        'sd3': 'SD3', 'sc': 'Cascade', 'hv': 'HunyuanVideo',
-        'chroma': 'Chroma', 'zimage': 'zImage', 'qwen': 'Qwen',
+        'f1': 'Flux 1', 'flux.1 d': 'Flux 1',
+        'f2': 'Flux 2',
+        'sd1': 'SD 1.5',
+        'sd2': 'SD 2',
+        'sd3': 'SD 3',
+        'xl': 'SDXL',
+        'sc': 'Cascade',
+        'hv': 'Hunyuan Video',
+        'chroma': 'Chroma',
+        'qwen': 'Qwen',
         'krea2': 'Krea 2',
+        'wan': 'Wan',
+        'minimax': 'MiniMax H3',
+        'pixart-sigma': 'Pixart Sigma',
+        'wan video 2.2 a14b': 'Wan Video A14B', 'wan video 14b': 'Wan Video A14B',
+        'zimage': 'Z-Image', 'zimagebase': 'Z-Image', 'zimageturbo': 'Z-Image',
+        'other': ''
     }
 
     def cleanup_version(self, dct, lora):
         ver = dct.get("baseModel", lora.sd_version)
-        ver = self._VERSION_DISPLAY.get(ver, ver)
-        for suffix in (' 0.9', ' 1.0'):  # strip uninformative minor versions
-            ver = ver.replace(suffix, '')
+        for suffix in ('0.9', '1.0', '768', 'lightning', 'hyper', 'turbo', 'i2v', 't2v-', 't2v', '720p'):  # strip uninformative minor versions
+            ver = re.sub(suffix, '', ver, flags=re.IGNORECASE).strip()
+        ver = self._VERSION_DISPLAY.get(ver.lower(), ver)
         return ver
 
     def create_item(self, name):

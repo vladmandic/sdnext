@@ -88,22 +88,27 @@ def get_images(input_images):
     if not isinstance(input_images, list):
         input_images = [input_images]
     for image in input_images:
-        if image is None:
-            continue
-        if isinstance(image, list):
-            output_images.append(get_images(image)) # recursive
-        elif isinstance(image, Image.Image):
-            output_images.append(image)
-        elif isinstance(image, str):
-            from modules.api.api import decode_base64_to_image
-            decoded_image = decode_base64_to_image(image).convert("RGB")
-            output_images.append(decoded_image)
-        elif hasattr(image, 'name'): # gradio gallery entry
-            pil_image = Image.open(image.name)
-            pil_image.load()
-            output_images.append(pil_image)
-        else:
-            log.error(f'IP adapter: unknown input: {image}')
+        try:
+            if image is None:
+                continue
+            if isinstance(image, list):
+                lst = get_images(image)
+                if len(lst) > 0:
+                    output_images.append(lst) # recursive
+            elif isinstance(image, Image.Image):
+                output_images.append(image)
+            elif isinstance(image, str):
+                from modules.api.api import decode_base64_to_image
+                decoded_image = decode_base64_to_image(image).convert("RGB")
+                output_images.append(decoded_image)
+            elif hasattr(image, 'name'): # gradio gallery entry
+                pil_image = Image.open(image.name)
+                pil_image.load()
+                output_images.append(pil_image)
+            else:
+                log.error(f'IP adapter: unknown input: {image}')
+        except Exception as e:
+            log.error(f'IP adapter: failed to process image: {e}')
     return output_images
 
 
@@ -273,8 +278,7 @@ def parse_params(p: processing.StableDiffusionProcessing, adapters: list, adapte
         for i in range(len(adapter_masks)):
             adapter_masks[i] = mask_processor.preprocess(adapter_masks[i], height=p.height, width=p.width)
         adapter_masks = mask_processor.preprocess(adapter_masks, height=p.height, width=p.width)
-    if adapter_images is None:
-        log.error('IP adapter: no image provided')
+    if adapter_images is None or len(adapter_images) == 0:
         return [], [], [], [], [], []
     if len(adapters) < len(adapter_images):
         adapter_images = adapter_images[:len(adapters)]
