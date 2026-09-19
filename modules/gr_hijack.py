@@ -170,6 +170,11 @@ def patch_gradio():
     except Exception:
         log.error(f'Gradio patch: version={gradio.__version__} preprocess_data not found')
         orig_blocks_preprocess_data = None
+    try:
+        orig_make_temp_copy_if_needed = gradio.components.IOComponent.make_temp_copy_if_needed
+    except Exception:
+        log.error(f'Gradio patch: version={gradio.__version__} make_temp_copy_if_needed not found')
+        orig_make_temp_copy_if_needed = None
 
     async def wrap_cancel_tasks(task_ids: set[str]):
         log.error(f'Gradio cancel: task={task_ids}')
@@ -222,6 +227,17 @@ def patch_gradio():
             return orig_blocks_preprocess_data(self, fn_index, inputs, state)
         except Exception as e:
             log.error(f"Gradio preprocess: {e}")
+            if 'No such file or directory' in str(e):
+                return None
+            raise
+
+    def wrap_make_temp_copy_if_needed(self, file_path) -> str:
+        try:
+            return orig_make_temp_copy_if_needed(self, file_path)
+        except Exception as e:
+            log.error(f"Gradio temp file: {e}")
+            if 'No such file or' in str(e):
+                return file_path
             raise
 
     if orig_call_prediction is not None:
@@ -232,6 +248,8 @@ def patch_gradio():
         gradio.utils.cancel_tasks = wrap_cancel_tasks
     if orig_blocks_preprocess_data is not None:
         gradio.blocks.Blocks.preprocess_data = wrap_blocks_preprocess_data
+    if orig_make_temp_copy_if_needed is not None:
+        gradio.components.IOComponent.make_temp_copy_if_needed = wrap_make_temp_copy_if_needed
 
 
 def patch_gradio_future():

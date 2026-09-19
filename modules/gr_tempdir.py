@@ -105,16 +105,22 @@ def cleanup_tmpdr():
     temp_dir = shared.opts.temp_dir
     if temp_dir == "" or not os.path.isdir(temp_dir):
         temp_dir = os.path.join(paths.temp_dir, "gradio")
-    log.debug(f'Temp folder: path="{temp_dir}"')
     if not os.path.isdir(temp_dir):
+        log.info(f'Temp folder: path="{temp_dir}" exists=False')
         return
-    for root, _dirs, files in os.walk(temp_dir, topdown=False):
-        for name in files:
-            try:
-                _, extension = os.path.splitext(name)
-                if extension not in {".png", ".jpg", ".webp", ".jxl", ".heic", ".heif", ".mp4", ".webm"}:
-                    continue
-                filename = os.path.join(root, name)
-                os.remove(filename)
-            except Exception:
-                pass
+    removed = 0
+    if shared.opts.clean_temp_dir_at_start:
+        for root, _dirs, files in os.walk(temp_dir, topdown=False):
+            for name in files:
+                try:
+                    _, extension = os.path.splitext(name)
+                    if extension not in {".png", ".jpg", ".webp", ".jxl", ".heic", ".heif", ".mp4", ".webm"}:
+                        continue
+                    filename = os.path.join(root, name)
+                    os.remove(filename)
+                    removed += 1
+                except Exception:
+                    pass
+        log.info(f'Temp folder: path="{temp_dir}" exists=True cleanup=True removed={removed}')
+    else:
+        log.info(f'Temp folder: path="{temp_dir}" exists=True cleanup=False')
