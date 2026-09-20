@@ -144,9 +144,8 @@ def generate(task_id, _ui_state,
                 outpath_samples=paths.resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_video),
                 ops=['video'],
             )
-            video_minimax.apply_overrides(p, shared.sd_model, still=False, audio=enable_audio, preview=enable_preview)
-            video_minimax.set_sampler_shift(shared.sd_model, video_shift=video_shift, audio_shift=audio_shift)
-            log.debug(f'Video: engine="{engine}" model="{model}" workflow={workflow} cls={shared.sd_model.__class__.__name__} audio={enable_audio} preview={enable_preview} shift={video_shift}:{audio_shift} kwargs={p.task_args}')
+            video_minimax.apply_overrides(p, shared.sd_model, still=False, audio=enable_audio, preview=enable_preview, video_shift=video_shift, audio_shift=audio_shift)
+            log.debug(f'Video: engine="{engine}" model="{model}" workflow={workflow} cls={shared.sd_model.__class__.__name__} audio={enable_audio} preview={enable_preview} kwargs={p.task_args}')
             processing.fix_seed(p)
             p.ops.append('video')
             p.scripts = scripts_manager.scripts_video
@@ -155,6 +154,10 @@ def generate(task_id, _ui_state,
             p.task_args.update(task_args)
 
             _processed: processing.Processed = scripts_manager.scripts_video.run(p, *args)
+
+            if os.environ.get("SD_MINIMAX_VDN", None) is not None:
+                from modules.minimax.minimax_vdn import apply_vdn
+                apply_vdn(shared.sd_model, window_size=12, num_frames=frames, init_gamma=1.0)
 
             if os.environ.get("SD_MINIMAX_CHUNK", None) is not None:
                 from modules.minimax.minimax_chunking import minimax_attention

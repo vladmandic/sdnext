@@ -26,11 +26,11 @@ def create_ui(prompt, _negative, styles, overrides, script_inputs, mp4_fps, mp4_
                     width, height = ui_sections.create_resolution_inputs('minimax', default_width=1024, default_height=576, step=32)
                     btn_detect_image_size = ToolButton(value=ui_symbols.detect, elem_id="minimax_resize_detect_size")
                 with gr.Row():
-                    steps = gr.Slider(minimum=2, maximum=100, step=1, label="MiniMax steps", elem_id='minimax_steps', value=30)
+                    steps = gr.Slider(minimum=1, maximum=100, step=1, label="MiniMax steps", elem_id='minimax_steps', value=30)
                     frames = gr.Slider(label='MiniMax frames', minimum=22, maximum=362, step=17, value=124, elem_id='minimax_frames')
                 with gr.Row():
-                    video_shift = gr.Slider(minimum=8.0, maximum=16.0, step=0.1, label="MiniMax video shift", elem_id='minimax_video_shift', value=12)
-                    audio_shift = gr.Slider(minimum=1.5, maximum=6.0, step=0.1, label="MiniMax audio shift", elem_id='minimax_audio_shift', value=3)
+                    video_shift = gr.Slider(minimum=0.5, maximum=20.0, step=0.1, value=12.0, label="MiniMax video shift", elem_id='minimax_video_shift')
+                    audio_shift = gr.Slider(minimum=0.5, maximum=10.0, step=0.1, value=3.0, label="MiniMax audio shift", elem_id='minimax_audio_shift')
                 with gr.Row():
                     seed = gr.Number(label='Seed', value=-1, elem_id='minimax_seed', container=True)
                     random_seed = ToolButton(ui_symbols.random, elem_id='minimax_seed_random')

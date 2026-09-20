@@ -25,7 +25,7 @@ fastapi==0.124.4
 uvicorn==0.52.4
 rich==15.0.0
 safetensors==0.8.0
-peft==0.20.0
+peft==0.21.0
 httpx==0.28.1
 requests==2.34.2
 tqdm==4.70.1

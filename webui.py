@@ -306,9 +306,8 @@ def start_common():
             shared.opts.transformers_version = transformers_commit # update installed transformers version
     except Exception:
         pass
-    if shared.opts.clean_temp_dir_at_start:
-        modules.gr_tempdir.cleanup_tmpdr()
-        timer.startup.record("cleanup")
+    modules.gr_tempdir.cleanup_tmpdr()
+    timer.startup.record("cleanup")
 
 
 def mount_subpath(app):

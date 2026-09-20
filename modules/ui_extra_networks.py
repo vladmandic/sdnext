@@ -26,7 +26,6 @@ allowed_dirs = []
 refresh_time = 0
 extra_pages = shared.extra_networks
 debug = log.trace if os.environ.get('SD_EN_DEBUG', None) is not None else lambda *args, **kwargs: None
-debug('Trace: EN')
 
 card_empty = '<div class="card"></div>'
 card_full = '''

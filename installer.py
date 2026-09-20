@@ -385,12 +385,11 @@ def git(arg: str, folder: str | None= None, ignore: bool = False, optional: bool
 
 # reattach as needed as head can get detached
 def branch(folder=None):
-    # if args.experimental:
-    #    return None
     t_start = time.time()
     if not os.path.exists(os.path.join(folder or os.curdir, '.git')):
         return None
     branches = []
+    detached = False
     try:
         b = git('branch --show-current', folder, optional=True)
         if b == '':
@@ -399,20 +398,30 @@ def branch(folder=None):
         if len(branches) > 0 and len(marked) > 0:
             b = marked[0]
             if ('detached' in b or 'HEAD' in b) and len(branches) > 1:
+                detached = True
                 b = branches[1].strip()
-                log.debug(f'Git detached head detected: folder="{folder}" reattach={b}')
+                log.debug(f'Submodule: folder="{folder}" reattach={b} git detached head detected')
     except Exception:
         b = git('git rev-parse --abbrev-ref HEAD', folder, optional=True)
+
+    if args.experimental or args.skip_git or args.skip_all:
+        return b
+
     if 'main' in b:
-        b = 'main'
+        tgt = 'main'
     elif 'master' in b:
-        b = 'master'
+        tgt = 'master'
     else:
-        b = b.split('\n')[0].replace('*', '').strip()
-    log.debug(f'Submodule: folder="{folder}" branch="{b}"')
-    git(f'checkout {b}', folder, ignore=True, optional=True)
+        tgt = b.split('\n')[0].replace('*', '').strip()
+    if (tgt != b) or detached:
+        log.debug(f'Submodule: folder="{folder}" branch="{b}" target="{tgt}"')
+        git(f'checkout {tgt}', folder, ignore=True, optional=True)
+        git('fetch', folder, ignore=True)
+        git(f'merge --ff-only origin/{tgt}', folder, ignore=True)
+    else:
+        log.debug(f'Submodule: folder="{folder}" branch="{b}"')
     ts('branch', t_start)
-    return b
+    return tgt
 
 
 # restart process
@@ -1544,7 +1553,7 @@ def check_ui(ver):
         return
     t_start = time.time()
     if not same(ver):
-        log.debug(f'Branch mismatch: {ver}')
+        log.debug(f'Branch mismatch: module=ModernUI {ver}')
         try:
             if 'dev' in ver['branch']:
                 target = 'dev'
@@ -1571,7 +1580,7 @@ def check_kanvas(ver):
         return
     t_start = time.time()
     if not same(ver):
-        log.debug(f'Branch mismatch: {ver}')
+        log.debug(f'Branch mismatch: module=Kanvas {ver}')
         try:
             if 'dev' in ver['branch']:
                 target = 'dev'

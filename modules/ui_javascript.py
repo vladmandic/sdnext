@@ -65,7 +65,7 @@ def html_login():
 
 def html_css(css: list[str]):
     def stylesheet(fn):
-        return f'<link rel="stylesheet" property="stylesheet" href="{webpath(fn)}">'
+        return f'<link rel="stylesheet" property="stylesheet" href="{webpath(fn)}">\n'
 
     head = ''
     for cssfile in css:
@@ -79,24 +79,41 @@ def html_css(css: list[str]):
         head += stylesheet(cssfile)
 
     usercss = os.path.join(data_path, "user.css") if os.path.exists(os.path.join(data_path, "user.css")) else None
-    if shared.opts.theme_type == 'Standard':
-        # themecss = os.path.join(script_path, 'javascript', f"{shared.opts.gradio_theme}.css")
-        themecss = os.path.join(script_path, 'ui', 'css', f"{shared.opts.gradio_theme}.css")
-        if os.path.exists(themecss):
-            head += stylesheet(themecss)
-            log.debug(f'UI theme: css="{themecss}" base="{css}" user="{usercss}"')
+
+    if shared.cmd_opts.theme is not None:
+        if shared.cmd_opts.theme.lower().startswith('standard'):
+            shared.opts.theme_type = 'Standard'
+        elif shared.cmd_opts.theme.lower().startswith('modern'):
+            shared.opts.theme_type = 'Modern'
         else:
-            log.error(f'UI theme: css="{themecss}" path="{os.getcwd()}" not found')
+            shared.opts.theme_type = 'None'
+
+    if shared.opts.theme_type == 'Standard':
+        if shared.opts.gradio_theme == 'Default':
+            shared.opts.gradio_theme = 'black-teal'
+        themecss = os.path.join(script_path, 'ui', 'css', f"{shared.opts.gradio_theme}.css")
+        if not os.path.exists(themecss):
+            log.error(f'UI theme: type={shared.opts.theme_type} css="{themecss}" path="{os.getcwd()}" not found')
+            shared.opts.gradio_theme = 'black-teal'
+        themecss = os.path.join(script_path, 'ui', 'css', f"{shared.opts.gradio_theme}.css")
+        head += stylesheet(themecss)
+        log.info(f'UI theme: type={shared.opts.theme_type} css="{themecss}" base="{css}" user="{usercss}"')
+
     elif shared.opts.theme_type == 'Modern':
+        if shared.opts.gradio_theme == 'black-teal':
+            shared.opts.gradio_theme = 'Default'
         theme_folder = next((e.path for e in extensions.extensions if e.name == 'sdnext-modernui'), None)
         themecss = os.path.join(theme_folder or '', 'themes', f'{shared.opts.gradio_theme}.css')
-        if os.path.exists(themecss):
-            head += stylesheet(themecss)
-            log.debug(f'UI theme: css="{themecss}" base="{css}" user="{usercss}"')
-        else:
-            log.error(f'UI theme: css="{themecss}" not found')
+        if not os.path.exists(themecss):
+            log.error(f'UI theme: type={shared.opts.theme_type} css="{themecss}" not found')
+            shared.opts.gradio_theme = 'Default'
+        themecss = os.path.join(theme_folder or '', 'themes', f'{shared.opts.gradio_theme}.css')
+        head += stylesheet(themecss)
+        log.info(f'UI theme: type={shared.opts.theme_type} css="{themecss}" base="{css}" user="{usercss}"')
+
     if usercss is not None:
         head += stylesheet(usercss)
+
     return head
 
 
@@ -108,7 +125,7 @@ def reload_javascript():
     js = html_head()
 
     css_files: list[str] = []
-    if (css_base := theme.reload_gradio_theme()) is not None:
+    if (css_base := theme.reload_gradio_theme(shared.opts, shared.cmd_opts)) is not None:
         css_files.append(css_base)
     css_files.append("timesheet.css")
 

@@ -1,8 +1,15 @@
 # Change Log for SD.Next
 
-## Update for 2026-09-14
+## Refresh for 2026-09-19
 
-### Highlights for 2026-09-14
+- preview mapping for reference networks
+- name mapping for network models and loras
+- additional DLSS reporting
+- gradio temp file error handling
+
+## Update for 2026-09-17
+
+### Highlights for 2026-09-17
 
 *What's New*? Well, code-wise, this is a big one...  
 First, a-lot-of-optimizations:
@@ -14,7 +21,7 @@ First, a-lot-of-optimizations:
 - Compute updates across the board
 
 And some cool new stuff and models:
-- **DLSSv5** integration  
+- **DLSS v5** integration  
 - New models: **Anima 2.9B**, **LLaDa-Image**  
 - And few cloud models: *Google's Gemini, NanoBanana, Veo, Omni* and *X.AI's Grok*  
 - Some (light) UI restyling
@@ -23,7 +30,7 @@ Plus inevitable bug-fixes...
 
 [Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-09-14
+### Details for 2026-09-17
 
 - **Models**
   - [Anima 2.9B Preview v1](https://huggingface.co/yeoj34760/Anima-2.9B)  
@@ -49,6 +56,7 @@ Plus inevitable bug-fixes...
     can significantly improve lora quality when using multiple loras at once  
   - per-block strength
   - native support for **MiniMax**
+    see [MiniMax Turbo LoRA collection](https://huggingface.co/vladmandic/MiniMax-H3-Turbo-LoRA) for LoRAs and examples  
 - **DLSS**
   - add DLSS support for: *NeuralRender, SuperSample and FrameGen*  
     dlls 5 caused quite a stir, but combined with generative ai it becomes a nice tool  
@@ -124,6 +132,8 @@ Plus inevitable bug-fixes...
   - compile: keep model compiled state
   - detailer: handling of stop/skip/pause
   - framepack: correct device assignment, thanks @li-lizhe
+  - group offload: improve memory management
+  - installer: better handle git detached head
   - json: handle file locks
   - log: ansi color handling
   - lora: cleanup tags

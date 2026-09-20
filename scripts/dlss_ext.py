@@ -99,7 +99,6 @@ def install():
 
 
 def verify(pkg_path):
-    log.info(f'DLSS verify: path="{pkg_path}"')
     if not os.path.exists(pkg_path) or not os.path.isdir(pkg_path):
         log.error(f'DLSS: path="{pkg_path}" not found')
         return { 'error': 'package path not found' }
@@ -108,7 +107,7 @@ def verify(pkg_path):
     response = c.controller.call(pkg_path, 'verify', { 'gpu_uuid': 'auto', 'options': { 'level': 'deep' } })
     if response.get('status') != 'ok':
         error = response.get('error') or {}
-        log.error(f'DLSS: {error.get("message")}')
+        log.error(f'DLSS: path="{pkg_path}" {response}')
         return { 'error': error.get('message', 'unknown error') }
     report = (response.get('result') or {}).get('report', {})
     if debug:
@@ -116,33 +115,34 @@ def verify(pkg_path):
     checks = { 'passed': 0, 'failed': 0 }
     for check in report.get('checks', []):
         if check.get('passed', False):
+            log.debug(f'DLSS verify: {check}')
             checks['passed'] += 1
         else:
             checks['failed'] += 1
-            log.error(f'DLSS : {check}')
+            log.error(f'DLSS verify: {check}')
     shared.opts.dlss_pkg_path = pkg_path
     shared.opts.save()
-    log.debug(f'DLSS: gpu={report.get("gpu", "unknown")} checks={checks}')
+    log.debug(f'DLSS: path="{pkg_path}" gpu={report.get("gpu", "unknown")} checks={checks}')
     return report
 
 
 def status(pkg_path):
-    log.info(f'DLSS status: path="{pkg_path}"')
     response = c.controller.call(pkg_path, 'status', {})
     if response.get('status') != 'ok':
         error = response.get('error') or {}
-        log.error(f'DLSS: {error.get("message")}')
+        log.error(f'DLSS status: path="{pkg_path}" {response}')
         return { 'error': error.get('message', 'unknown error') }
+    log.debug(f'DLSS status: path="{pkg_path}" {response}')
     return response.get('result', {})
 
 
 def reset(pkg_path):
-    log.info(f'DLSS reset: path="{pkg_path}"')
     response = c.controller.call(pkg_path, 'reset', {})
     if response.get('status') != 'ok':
         error = response.get('error') or {}
         log.error(f'DLSS: {error.get("message")}')
         return { 'error': error.get('message', 'unknown error') }
+    log.info(f'DLSS reset: path="{pkg_path}" {response}')
     return response.get('result', {})
 
 

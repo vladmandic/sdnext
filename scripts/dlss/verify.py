@@ -35,6 +35,9 @@ class VerificationCheck:
     passed: bool
     detail: str = ""
 
+    def __str__(self) -> str:
+        return f'VerificationCheck(name={self.name} passed={self.passed} detail="{self.detail}")'
+
     def to_dict(self) -> dict[str, Any]:
         log.debug(f'DLSSVerify: check="{self.name}" passed={self.passed} detail="{self.detail}"')
         result = {"name": self.name, "passed": self.passed, "detail": self.detail}
@@ -124,7 +127,7 @@ class DLSSVerify:
 
         filtered = tuple(check for check in checks if self._feature_enabled(check.name, options))
         report = VerificationReport(
-            ok=all(check.passed or check.status == "not_run" for check in filtered),
+            ok=all(check.passed for check in filtered),
             level=options.level,
             python=platform.python_version(),
             platform=sys.platform,

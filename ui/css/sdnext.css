@@ -3,14 +3,14 @@
   font-family: 'NotoSans';
   font-style: normal;
   font-weight: 100;
-  src: local('NotoSansNerd'), url('fonts/notosans-nerdfont-regular.ttf');
+  src: local('NotoSansNerd'), url('notosans-nerdfont-regular.ttf');
 }
 @font-face {
   font-display: swap;
   font-family: 'Ubuntu';
   font-style: normal;
   font-weight: 100;
-  src: local('Ubuntu'), url('fonts/ubuntu-nerdfont.ttf');
+  src: local('Ubuntu'), url('ubuntu-nerdfont.ttf');
 }
 
 :root {

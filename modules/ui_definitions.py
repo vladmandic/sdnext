@@ -201,8 +201,8 @@ def create_settings(cmd_opts):
         "sdnq_quantize_shuffle_weights": OptionInfo(False, "Shuffle weights in post mode", gr.Checkbox),
 
         "nunchaku_sep": OptionInfo("<h2>Nunchaku Engine</h2>", "", gr.HTML),
-        "nunchaku_attention": OptionInfo(False, "Nunchaku attention", gr.Checkbox),
-        "nunchaku_offload": OptionInfo(False, "Nunchaku offloading", gr.Checkbox),
+        "nunchaku_attention": OptionInfo(True, "Nunchaku attention", gr.Checkbox),
+        "nunchaku_offload": OptionInfo(True, "Nunchaku offloading", gr.Checkbox),
 
         "layerwise_quantization_sep": OptionInfo("<h2>Layerwise Casting</h2>", "", gr.HTML),
         "layerwise_quantization": OptionInfo([], "Layerwise casting enabled", gr.CheckboxGroup, {"choices": ["Model", "TE"]}),
@@ -592,7 +592,7 @@ def create_settings(cmd_opts):
         "themes_sep_ui": OptionInfo("<h2>Theme options</h2>", "", gr.HTML),
         "theme_type": OptionInfo("Modern", "Theme type", gr.Radio, {"choices": ["Modern", "Standard", "None"]}),
         "theme_style": OptionInfo("Auto", "Theme mode", gr.Radio, {"choices": ["Auto", "Dark", "Light"]}),
-        "gradio_theme": OptionInfo("black-teal", "UI theme", gr.Dropdown, lambda: {"choices": theme.list_themes()}, refresh=theme.refresh_themes),
+        "gradio_theme": OptionInfo("Default", "UI theme", gr.Dropdown, lambda: {"choices": theme.list_themes()}, refresh=theme.refresh_themes),
 
         "quicksetting_sep_images": OptionInfo("<h2>Quicksettings</h2>", "", gr.HTML),
         "quicksettings_list": OptionInfo(["sd_model_checkpoint"], "Quicksettings list", gr.Dropdown, lambda: {"multiselect":True, "choices": list(options_templates.keys())}),
@@ -617,7 +617,7 @@ def create_settings(cmd_opts):
 
         "other_sep_ui": OptionInfo("<h2>Other...</h2>", "", gr.HTML),
         "ui_locale": OptionInfo("Auto", "UI locale", gr.Dropdown, lambda: {"choices": theme.list_locales()}),
-        "font_size": OptionInfo(15, "Font size", gr.Slider, {"minimum": 8, "maximum": 32, "step": 1}),
+        "font_size": OptionInfo(14, "Font size", gr.Slider, {"minimum": 8, "maximum": 32, "step": 1}),
         "gpu_monitor": OptionInfo(3000, "GPU monitor interval", gr.Slider, {"minimum": 100, "maximum": 60000, "step": 100}),
         "aspect_ratios": OptionInfo("1:1, 4:3, 3:2, 16:9, 16:10, 21:9, 2:3, 3:4, 9:16, 10:16, 9:21", "Allowed aspect ratios"),
         "compact_view": OptionInfo(False, "Compact view"),
