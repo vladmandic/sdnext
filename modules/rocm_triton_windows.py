@@ -1,9 +1,11 @@
+import os
 import sys
 import torch
 from modules import shared, devices
 from modules.logger import log
 from modules.rocm import Agent
 
+os.environ["MLIR_ENABLE_REMARK"] = "0" # This is to hide debug spam from triton-windows >= 3.8
 
 if sys.platform == "win32":
     MEM_BUS_WIDTH = {
