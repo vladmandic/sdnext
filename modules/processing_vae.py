@@ -122,7 +122,7 @@ def full_vae_decode(latents, model):
         latents = latents + shift_factor
 
     # check dims
-    if model.vae.__class__.__name__ in ['AutoencoderKLWan', 'AutoencoderKLQwenImage'] and latents.ndim == 4:
+    if model.vae.__class__.__name__ in ['AutoencoderKLWan', 'AutoencoderKLQwenImage', 'AutoencoderKLQwenImage21'] and latents.ndim == 4:
         latents = latents.unsqueeze(2) # video VAEs (wan, qwen-image) expect a frame axis
 
     # handle quants
@@ -224,6 +224,7 @@ def taesd_vae_encode(image):
 
 
 def vae_postprocess(tensor, model, output_type='np'):
+    from PIL import Image
     images = []
     try:
         if isinstance(tensor, list) and len(tensor) > 0 and torch.is_tensor(tensor[0]):
@@ -248,7 +249,7 @@ def vae_postprocess(tensor, model, output_type='np'):
                 if isinstance(images, list) and len(images) > 0 and isinstance(images[0], list):
                     images = [frame for batch in images for frame in batch]
             elif hasattr(model, 'image_processor'):
-                if tensor.ndim == 5 and tensor.shape[1] == 3: # Qwen Image
+                if tensor.ndim == 5 and tensor.shape[1] in (3, 4): # Qwen Image, RGBA for 2.1
                     tensor = tensor[:, :, 0]
                 try:
                     with np.errstate(all='raise'):
@@ -266,7 +267,7 @@ def vae_postprocess(tensor, model, output_type='np'):
             else:
                 from diffusers.image_processor import VaeImageProcessor
                 model.image_processor = VaeImageProcessor()
-                if tensor.ndim == 5 and tensor.shape[1] == 3: # Qwen Image
+                if tensor.ndim == 5 and tensor.shape[1] in (3, 4): # Qwen Image, RGBA for 2.1
                     tensor = tensor[:, :, 0]
                 images = model.image_processor.postprocess(tensor, output_type=output_type)
 
@@ -295,6 +296,11 @@ def vae_postprocess(tensor, model, output_type='np'):
     except Exception as e:
         log.error(f'VAE postprocess: {e}')
         errors.display(e, 'VAE')
+    # alpha stays near 1.0 for opaque RGBA decodes, keep the channel only when something is transparent
+    if isinstance(images, np.ndarray) and images.ndim == 4 and images.shape[-1] == 4 and images[..., 3].min() >= 0.5:
+        images = images[..., :3]
+    elif output_type == 'pil' and isinstance(images, list):
+        images = [i.convert('RGB') if isinstance(i, Image.Image) and i.mode == 'RGBA' and i.getextrema()[3][0] >= 128 else i for i in images]
     return images
 
 

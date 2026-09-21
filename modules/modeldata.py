@@ -101,6 +101,8 @@ def get_model_type(pipe):
         model_type = 'meissonic'
     elif 'LensPipeline' in name:
         model_type = 'lens'
+    elif 'QwenImage21' in name:
+        model_type = 'qwen21'
     elif 'Qwen' in name:
         model_type = 'qwen'
     elif 'ErnieImage' in name or 'ERNIE-Image' in name:
