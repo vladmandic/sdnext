@@ -141,6 +141,22 @@ def set_vae_options(sd_model, vae=None, op:str='model', quiet:bool=False):
                         sd_model.vae.tile_overlap_factor = getattr(sd_model.vae, "tile_overlap_factor_backup", sd_model.vae.tile_overlap_factor)
                     ops['tile'] = sd_model.vae.tile_sample_min_size
                     ops['overlap'] = sd_model.vae.tile_overlap_factor
+                elif hasattr(sd_model.vae, 'tile_sample_min_height') and hasattr(sd_model.vae, 'tile_sample_stride_height'): # 3d vaes tile in pixels, blend is tile minus stride
+                    ratio = int(getattr(sd_model.vae, 'spatial_compression_ratio', 8))
+                    if getattr(sd_model.vae, 'tile_sample_min_height_backup', None) is None:
+                        sd_model.vae.tile_sample_min_height_backup = sd_model.vae.tile_sample_min_height
+                        sd_model.vae.tile_sample_stride_height_backup = sd_model.vae.tile_sample_stride_height
+                    if shared.opts.diffusers_vae_tile_size > 0:
+                        tile = max(int(shared.opts.diffusers_vae_tile_size) // ratio, 2) * ratio
+                        stride = max(int(tile * (1 - shared.opts.diffusers_vae_tile_overlap)) // ratio, 1) * ratio
+                    elif ratio >= 16 and sd_model.vae.tile_sample_min_height_backup < 768:
+                        tile, stride = 768, 576 # upstream reuses the 8x tile geometry, whose 4-latent blend at 16x leaves a visible seam grid
+                    else:
+                        tile, stride = sd_model.vae.tile_sample_min_height_backup, sd_model.vae.tile_sample_stride_height_backup
+                    sd_model.vae.tile_sample_min_height = sd_model.vae.tile_sample_min_width = tile
+                    sd_model.vae.tile_sample_stride_height = sd_model.vae.tile_sample_stride_width = stride
+                    ops['tile'] = tile
+                    ops['stride'] = stride
                 sd_model.vae.enable_tiling()
             else:
                 sd_model.vae.disable_tiling()
