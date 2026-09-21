@@ -148,7 +148,7 @@ def task_specific_kwargs(p, model):
         }
 
     fake_i2i = ['QwenImageEditPipeline', 'QwenImageEditPlusPipeline', 'WanImageToVideoPipeline', 'ChronoEditPipeline']
-    can_i2i = ['QwenImageEditPipeline', 'QwenImageEditPlusPipeline', 'QwenImageLayeredPipeline', 'Kandinsky5I2IPipeline', 'QwenImageLayeredPipeline', 'WanImageToVideoPipeline','ChronoEditPipeline', 'GoogleNanoBananaPipeline', 'GlmImagePipeline', 'Step1XEditPipeline']
+    can_i2i = ['QwenImageEditPipeline', 'QwenImageEditPlusPipeline', 'QwenImage21Pipeline', 'QwenImageLayeredPipeline', 'Kandinsky5I2IPipeline', 'QwenImageLayeredPipeline', 'WanImageToVideoPipeline','ChronoEditPipeline', 'GoogleNanoBananaPipeline', 'GlmImagePipeline', 'Step1XEditPipeline']
 
     # model specific args
     if (model_cls in fake_i2i) and (len(getattr(p, 'init_images', [])) == 0):

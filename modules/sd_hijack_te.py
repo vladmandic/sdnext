@@ -74,9 +74,11 @@ def hijack_encode_prompt(*args, **kwargs):
                 args_copy[0] = res
 
         # cache key must include cfg-affecting kwargs since encode_prompt output (e.g. negative_prompt_embeds) depends on them
+        # condition images are encoded into the embeddings, so a prompt-keyed entry cannot be reused across images
         negative_prompt = kwargs.get('negative_prompt', None)
         cfg_enabled = kwargs.get('do_classifier_free_guidance', None)
-        cached = prompt_cache.get(prompt, negative_prompt, cfg_enabled)
+        cacheable = kwargs.get('image', None) is None
+        cached = prompt_cache.get(prompt, negative_prompt, cfg_enabled) if cacheable else None
         if cached is not None:
             res = cached
         else:
@@ -89,7 +91,8 @@ def hijack_encode_prompt(*args, **kwargs):
                     res = shared.sd_model.orig_encode_prompt(*args_copy, **kwargs)
                 else:
                     res = shared.sd_model.encode_prompt(*args_copy, **kwargs)
-            prompt_cache.set(prompt, res, negative_prompt, cfg_enabled)
+            if cacheable:
+                prompt_cache.set(prompt, res, negative_prompt, cfg_enabled)
 
         if hasattr(shared.sd_model, 'after_prompt_encode'):
             log.debug('Encode: op=after')

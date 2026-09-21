@@ -734,6 +734,13 @@
     "size": 53.74,
     "date": "2025 December"
   },
+  "Qwen-Image-2.1": {
+    "path": "Qwen/Qwen-Image-2.1",
+    "preview": "Qwen--Qwen-Image-2.1.jpg",
+    "desc": "Qwen-Image-2.1 is a unified text-to-image and image editing model with a 7B single-stream transformer and Qwen3-VL text encoder, native transparent RGBA output and up to 10 reference images for editing",
+    "size": 30.86,
+    "date": "2026 September"
+  },
   "lodestones Zeta-Chroma": {
     "path": "lodestones/Zeta-Chroma",
     "preview": "lodestones--Zeta-Chroma.jpg",

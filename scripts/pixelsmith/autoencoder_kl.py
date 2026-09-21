@@ -337,7 +337,7 @@ class PixelSmithVAE(ModelMixin, ConfigMixin, FromOriginalModelMixin):
             row = []
             for j in range(0, x.shape[3], overlap_size):
                 tile = x[:, :, i : i + self.tile_sample_min_size, j : j + self.tile_sample_min_size]
-                tile = self.encoder(tile.to("cuda"))
+                tile = self.encoder(tile.to(x.device))
                 tile = self.quant_conv(tile)
                 row.append(tile)
             rows.append(row)

@@ -583,7 +583,7 @@ def check_diffusers():
     t_start = time.time()
     if args.skip_all:
         return
-    target_commit = "d5baa4fb548294f47dbca49890abd4b291204c60" # diffusers commit hash == 0.40.0.dev0 == 08-15-2026
+    target_commit = "80c7ed262aeffbeb43ef13ae04baeb9b84515a69" # diffusers commit hash == 0.41.0.dev0 == 09-20-2026
     # if args.use_rocm or args.use_zluda:
     #     sha = '043ab2520f6a19fce78e6e060a68dbc947edb9f9' # lock diffusers versions for now
     pkg = package_spec('diffusers')
@@ -666,7 +666,7 @@ def check_numpy():
         install('scipy==1.14.1', 'scipy', ignore=True)
     else:
         install('numpy==2.4.6', 'numpy', ignore=True)
-        install('scipy==1.18.1', 'scipy', ignore=True)
+        install('scipy', 'scipy', ignore=True) # cannot version-lock scipy as different versions are available for different python versions
     ts('numpy', t_start)
 
 
