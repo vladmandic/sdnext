@@ -197,7 +197,7 @@ def group_offload_role(module_name: str, module) -> str:
 def has_entry_bridge(module) -> bool:
     """Entry points decorated with diffusers' apply_forward_hook fire _hf_hook.pre_forward,
     which is what carries the on-demand onload for encode and decode calls that bypass forward."""
-    for name in ('decode', 'encode'):
+    for name in ('decode', 'encode', 'orig_decode', 'orig_encode'): # sd_hijack_vae keeps the decorated entry points under orig_
         fn = getattr(module, name, None)
         if fn is not None and getattr(fn, '__qualname__', '').startswith('apply_forward_hook'):
             return True
