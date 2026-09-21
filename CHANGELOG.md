@@ -2,6 +2,13 @@
 
 ## Refresh for 2026-09-19
 
+- [Qwen-Image 2.1](https://huggingface.co/Qwen/Qwen-Image-2.1) unified text-to-image and image editing model  
+  7B single-stream block-causal transformer with Qwen3-VL 8B text encoder and 64-channel RGBA autoencoder  
+  native transparent output, up to 10 reference images for editing, 2K native resolution  
+- update diffusers to 0.41.0.dev0
+- prompt cache bypass when condition images are encoded
+- group offload places the vae on-demand behind the vae hijack
+- vae tile size setting applies to 3d vaes, 16x vae tile geometry
 - preview mapping for reference networks
 - name mapping for network models and loras
 - additional DLSS reporting

@@ -11,6 +11,7 @@ from modules.json_helpers import readfile
 version_map = {
     "QwenEdit": "Qwen",
     "QwenEditPlus": "Qwen",
+    "Qwen21": "Qwen 2.1",
     "Flux.1 D": "Flux",
     "Flux.1 S": "Flux",
     "FluxKontext": "Flux",

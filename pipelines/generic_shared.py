@@ -123,6 +123,11 @@ shared_te_map = {
         'identifier': ['4b','5b'],
         'target_subfolder': 'Qwen3-VL-4B-Instruct',
     },
+    'Qwen3-VL 8B Conditional Qwen-Image': {  # byte-identical to the base instruct checkpoint
+        'cls': transformers.Qwen3VLForConditionalGeneration,
+        'identifier': ['qwen-image-2.1'],
+        'target_repo': 'Qwen/Qwen3-VL-8B-Instruct',
+    },
     'Qwen3-VL 8B Conditional': {
         'cls': transformers.Qwen3VLForConditionalGeneration,
         'target_repo': 'Boogu/Boogu-Image-0.1-Base',
