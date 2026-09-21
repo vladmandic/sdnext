@@ -666,7 +666,7 @@ def check_numpy():
         install('scipy==1.14.1', 'scipy', ignore=True)
     else:
         install('numpy==2.4.6', 'numpy', ignore=True)
-        install('scipy==1.18.1', 'scipy', ignore=True)
+        install('scipy', 'scipy', ignore=True) # cannot version-lock scipy as different versions are available for different python versions
     ts('numpy', t_start)
 
 
