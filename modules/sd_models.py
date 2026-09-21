@@ -535,6 +535,10 @@ def load_diffuser_force(detected_model_type: str, checkpoint_info: CheckpointInf
             from pipelines.model_joy import load_joyedit
             sd_model = load_joyedit(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
+        elif model_type in ['Qwen21']:
+            from pipelines.model_qwen21 import load_qwen21
+            sd_model = load_qwen21(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
         elif model_type in ['Qwen']:
             from pipelines.model_qwen import load_qwen
             sd_model = load_qwen(checkpoint_info, diffusers_load_config)
