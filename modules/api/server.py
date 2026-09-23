@@ -1,6 +1,5 @@
 import os
 import time
-from pathlib import Path
 from fastapi import Request, Depends, BackgroundTasks, Response
 from fastapi.exceptions import HTTPException
 from fastapi.responses import FileResponse
@@ -17,9 +16,7 @@ def get_js(request: Request):
     # Security: validate path is within allowed directories
     if shared.demo is None:
         raise HTTPException(status_code=503, detail="server not ready")
-    allowed_dirs = shared.demo.allowed_paths
-    if not any(Path(folder).absolute() in Path(file).absolute().parents for folder in allowed_dirs):
-        raise HTTPException(status_code=403, detail=f"file {file}: must be in one of allowed directories")
+    file = helpers.validate_path(file, allowed_file=True)
     ext = file.split('.')[-1]
     if ext not in ['js', 'css', 'map', 'html', 'wasm', 'ttf', 'mjs', 'json']:
         raise HTTPException(status_code=400, detail=f"invalid file extension: {ext}")

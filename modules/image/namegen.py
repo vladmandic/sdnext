@@ -211,8 +211,6 @@ class FilenameGenerator:
         ext = ext.strip()
         parts = Path(fn).parts
         newparts = []
-        # for ch in filename:
-        #     print(repr(ch), hex(ord(ch)), unicodedata.name(ch, 'UNKNOWN'), ch in invalid_chars)
         for i, part in enumerate(parts):
             part = part.translate({ ord(x): '_' for x in invalid_chars })
             if i > 0 or (len(part) >= 2 and part[1] != invalid_folder): # skip drive, otherwise remove

@@ -335,94 +335,55 @@ def get_extensions_list():
     return ext_list
 
 def get_file(file: str):
-    import os
-    from pathlib import Path
     from starlette.responses import FileResponse
-    if shared.demo is None:
-        raise HTTPException(status_code=503, detail="server not ready")
-    allowed_dirs = shared.demo.allowed_paths
-    if not file.strip():
-        raise HTTPException(status_code=400, detail="file path is required")
-    if not any(Path(folder).absolute() in Path(file).absolute().parents for folder in allowed_dirs):
-        raise HTTPException(status_code=403, detail=f"file {file}: must be in one of allowed directories")
-    if not os.path.exists(file):
-        raise HTTPException(status_code=404, detail=f"file not found: {file}")
-    if os.path.isdir(file):
-        raise HTTPException(status_code=403, detail=f"file {file}: is a directory")
-    return FileResponse(file, media_type='application/octet-stream', filename=file)
+    fn = helpers.validate_path(file)
+    return FileResponse(fn, media_type='application/octet-stream', filename=fn)
 
 def get_deletefile(file: str):
     import os
-    from pathlib import Path
-    if shared.demo is None:
-        raise HTTPException(status_code=503, detail="server not ready")
-    allowed_dirs = shared.demo.allowed_paths
-    if file is None or len(file.strip()) == 0:
-        raise HTTPException(status_code=400, detail="file path is required")
-    if not any(Path(folder).absolute() in Path(file).absolute().parents for folder in allowed_dirs):
-        raise HTTPException(status_code=403, detail=f"file {file}: must be in one of allowed directories")
-    if not os.path.exists(file):
-        raise HTTPException(status_code=404, detail=f"file not found: {file}")
+    fn = helpers.validate_path(file)
     try:
-        if os.path.isdir(file):
-            log.warning(f'Delete: folder="{file}"')
+        if os.path.isdir(fn):
+            log.warning(f'Delete: folder="{fn}"')
             import shutil
-            shutil.rmtree(file)
+            shutil.rmtree(fn)
         else:
-            log.warning(f'Delete: file="{file}"')
-            os.remove(file)
-        return {"deleted": f"{file}"}
+            log.warning(f'Delete: file="{fn}"')
+            os.remove(fn)
+        return {"deleted": f"{fn}"}
     except Exception as e:
-        log.error(f'Delete: file="{file}" error: {e}')
-        raise HTTPException(status_code=500, detail=f"error deleting file {file}: {str(e)}") from e
+        log.error(f'Delete: file="{fn}" error: {e}')
+        raise HTTPException(status_code=500, detail=f"error deleting file {fn}: {str(e)}") from e
 
 def get_deleteimage(file: str):
     import os
-    from pathlib import Path
-    if shared.demo is None:
-        raise HTTPException(status_code=503, detail="server not ready")
-    allowed_dirs = shared.demo.allowed_paths
-    if file is None or len(file.strip()) == 0:
-        raise HTTPException(status_code=400, detail="file path is required")
-    if not any(Path(folder).absolute() in Path(file).absolute().parents for folder in allowed_dirs):
-        raise HTTPException(status_code=403, detail=f"file {file}: must be in one of allowed directories")
-    if not os.path.exists(file):
-        raise HTTPException(status_code=404, detail=f"file not found: {file}")
-    if os.path.isdir(file):
-        raise HTTPException(status_code=403, detail=f"file {file}: is a directory")
-    if os.path.splitext(file)[1].lower() not in (".png", ".jpg", ".jpeg", ".webp", ".heic", ".heif", ".tiff"):
-        raise HTTPException(status_code=403, detail=f"file {file}: not an image file")
+    fn = helpers.validate_path(file)
+    if os.path.splitext(fn)[1].lower() not in (".png", ".jpg", ".jpeg", ".webp", ".heic", ".heif", ".tiff"):
+        raise HTTPException(status_code=403, detail=f"file {fn}: not an image file")
     try:
-        os.remove(file)
-        log.warning(f'Delete: image="{file}"')
-        return {"deleted": f"{file}"}
+        os.remove(fn)
+        log.warning(f'Delete: image="{fn}"')
+        return {"deleted": f"{fn}"}
     except Exception as e:
-        log.error(f'Delete: file="{file}" error: {e}')
-        raise HTTPException(status_code=500, detail=f"error deleting file {file}: {str(e)}") from e
+        log.error(f'Delete: image="{fn}" error: {e}')
+        raise HTTPException(status_code=500, detail=f"error deleting image {fn}: {str(e)}") from e
 
 def get_pnginfo(file: str):
     """Extract generation parameters from a image file path. Returns raw info string and parsed parameters dict."""
     import os
-    from pathlib import Path
     from PIL import Image
     from modules import images, infotext
-    allowed_dirs = shared.demo.allowed_paths
-    if not file.strip():
-        raise HTTPException(status_code=400, detail="file path is required")
-    if not any(Path(folder).absolute() in Path(file).absolute().parents for folder in allowed_dirs):
-        raise HTTPException(status_code=403, detail=f"file {file}: must be in one of allowed directories")
-    if os.path.splitext(file)[1].lower() not in (".png", ".jpg", ".jpeg", ".webp", ".heic", ".heif", ".tiff"):
-        raise HTTPException(status_code=403, detail=f"file {file}: not an image file")
-    if not os.path.isfile(file):
-        raise HTTPException(status_code=403, detail=f"file {file}: not an image file")
+    fn = helpers.validate_path(file)
+    if os.path.splitext(fn)[1].lower() not in (".png", ".jpg", ".jpeg", ".webp", ".heic", ".heif", ".tiff"):
+        raise HTTPException(status_code=403, detail=f"file {fn}: not an image file")
     image = None
     try:
-        image = Image.open(file)
+        image = Image.open(fn)
         image.load()
     except Exception as e:
-        raise HTTPException(status_code=403, detail=f"file {file}: not an image file") from e
+        raise HTTPException(status_code=403, detail=f"file {fn}: not an image file") from e
     if image is None:
-        raise HTTPException(status_code=403, detail=f"file {file}: not an image file")
+        raise HTTPException(status_code=403, detail=f"file {fn}: not an image file")
     geninfo, items = images.read_info_from_image(image)
     if geninfo is None:
         geninfo = ""
