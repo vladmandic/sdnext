@@ -11,7 +11,7 @@ debug = os.environ.get('SD_LOAD_DEBUG', None) is not None
 
 def load_transformer(
         repo_id,
-        cls_name,
+        cls_name=None,
         load_config=None,
         subfolder="transformer",
         allow_quant=True,

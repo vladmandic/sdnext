@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-09-21
+## Update for 2026-09-23
 
 - **Models**
   - [Qwen-Image 2.1](https://huggingface.co/Qwen/Qwen-Image-2.1) unified text-to-image and image editing model  
@@ -11,6 +11,7 @@
   - `rocm` windows installation move to *stable*, thanks @resonantsky  
     at the moment, this results in installation of `torch==2.13.0` with `rocm==10.0.0`  
 - **Fixes**
+  - api: hardening all all file-access api endpoints
   - prompt cache: bypass when condition images are encoded
   - group offload: places the vae on-demand behind the vae hijack
   - vae tiling: tile size setting applies to 3d vaes, 16x vae tile geometry
