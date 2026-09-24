@@ -1134,6 +1134,7 @@
     {"id":"","label":"Processor","localized":"","hint":"Processor type to use to preprocess image used for <i>ControlNet</i>","ui":"control"},
     {"id":"","label":"Pose confidence","localized":"","hint":"Minimum keypoint confidence; keypoints and limbs scoring below this value are not drawn","ui":"control"},
     {"id":"","label":"Person detector","localized":"","hint":"Size of the <i>YOLOX</i> person detector used by <i>DWPose</i> to find people before estimating their pose.<br>- <b>tiny</b>: fastest, may miss small or partially visible people<br>- <b>m</b>: balanced default<br>- <b>x</b>: most accurate, slowest","ui":"control"},
+    {"id":"","label":"Use full image if no person detected","localized":"","hint":"When the person detector finds nobody, estimate the pose on the whole image as a single person instead of returning an empty result.<br>Helps with half-body shots, close-up portraits and anime or illustrations, where the detector often fails.<br><br>Disable to return an empty pose when no person is detected.","ui":"control"},
     {"id":"","label":"Parameter free","localized":"","hint":"","ui":"control"},
     {"id":"","label":"Postprocess mask","localized":"","hint":"","ui":"extras"},
     {"id":"","label":"PixelArt block size","localized":"","hint":"","ui":"extras"},

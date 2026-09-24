@@ -184,13 +184,28 @@ class RtmlibPoseDetector:
                 del os.environ['TORCH_HOME']
         return cls(body, mode)
 
-    def __call__(self, image, min_confidence=0.3, draw_body_pose=True, draw_hand_pose=True, draw_face_pose=True, output_type="pil", **kwargs):
+    def detect(self, image, fallback_full_image=True):
+        det_model = getattr(self.pose_model, 'det_model', None)
+        if det_model is None or getattr(self.pose_model, 'one_stage', False): # one-stage models such as rtmo have no person detector
+            return self.pose_model(image)
+        h, w = image.shape[:2]
+        bboxes = det_model(image)
+        if len(bboxes) == 0:
+            # rtmlib pose models silently fall back to the full image on empty bboxes, so make the choice explicit
+            if not fallback_full_image:
+                log.info(f'RtmlibPose: mode={self.mode} no person detected, skipping pose estimation')
+                return None, None
+            log.warning(f'RtmlibPose: mode={self.mode} no person detected, using full image {w}x{h} as person')
+            bboxes = [[0, 0, w, h]]
+        return self.pose_model.pose_model(image, bboxes=bboxes)
+
+    def __call__(self, image, min_confidence=0.3, draw_body_pose=True, draw_hand_pose=True, draw_face_pose=True, fallback_full_image=True, output_type="pil", **kwargs):
         if isinstance(image, Image.Image):
             image = np.array(image)
         if image.ndim == 3 and image.shape[2] == 4:
             image = image[:, :, :3]
         h, w = image.shape[:2]
-        keypoints, scores = self.pose_model(image)
+        keypoints, scores = self.detect(image, fallback_full_image=fallback_full_image)
         canvas = np.zeros((h, w, 3), dtype=np.uint8)
         if keypoints is not None and len(keypoints) > 0:
             import rtmlib
