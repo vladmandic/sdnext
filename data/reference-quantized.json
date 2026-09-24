@@ -309,5 +309,19 @@
     "extras": "sampler: Default",
     "size": 32.29,
     "date": "2026 August"
+  },
+  "Qwen-Image-2.1 sdnq-uint4": {
+    "path": "OzzyGT/Qwen_Image_2_1_sdnq_dynamic_4bit",
+    "preview": "Qwen--Qwen-Image-2.1.jpg",
+    "desc": "Quantization of Qwen-Image-2.1 using SDNQ: dynamic 4-bit uint.",
+    "size": 11.35,
+    "date": "2026 September"
+  },
+  "Qwen-Image-2.1 sdnq-uint8": {
+    "path": "OzzyGT/Qwen_Image_2_1_sdnq_dynamic_8bit",
+    "preview": "Qwen--Qwen-Image-2.1.jpg",
+    "desc": "Quantization of Qwen-Image-2.1 using SDNQ: dynamic 8-bit uint.",
+    "size": 22.70,
+    "date": "2026 September"
   }
 }

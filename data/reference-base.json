@@ -734,13 +734,6 @@
     "size": 53.74,
     "date": "2025 December"
   },
-  "Qwen-Image-2.1": {
-    "path": "Qwen/Qwen-Image-2.1",
-    "preview": "Qwen--Qwen-Image-2.1.jpg",
-    "desc": "Qwen-Image-2.1 is a unified text-to-image and image editing model with a 7B single-stream transformer and Qwen3-VL text encoder, native transparent RGBA output and up to 10 reference images for editing",
-    "size": 30.86,
-    "date": "2026 September"
-  },
   "lodestones Zeta-Chroma": {
     "path": "lodestones/Zeta-Chroma",
     "preview": "lodestones--Zeta-Chroma.jpg",
@@ -1005,6 +998,13 @@
     "desc": "BRIA FIBO 1.5 is an 8-billion parameter text-to-image diffusion model using Flow Matching with a lightweight SmolLM3-3B text encoder, delivering enhanced generation quality and prompt adherence.",
     "extras": "sampler: Default, cfg_scale: 3.5",
     "size": 23.79,
+    "date": "2026 September"
+  },
+  "Qwen-Image-2.1": {
+    "path": "Qwen/Qwen-Image-2.1",
+    "preview": "Qwen--Qwen-Image-2.1.jpg",
+    "desc": "Qwen-Image-2.1 is a unified text-to-image and image editing model with a 7B single-stream transformer and Qwen3-VL text encoder, native transparent RGBA output and up to 10 reference images for editing",
+    "size": 30.86,
     "date": "2026 September"
   },
   "Bria Fibo-Edit 1.5": {
