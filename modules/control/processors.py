@@ -152,18 +152,22 @@ def update_settings(*settings):
     debug(f'Control settings: {settings}')
     def update(what, val):
         processor_id = what[0]
+        # params are read on every Processor.__call__, so only load-time keys (e.g. model, detector) require a reload
+        reload = what[1] != 'params'
         if len(what) == 2 and config[processor_id][what[1]] != val:
             config[processor_id][what[1]] = val
             config[processor_id]['dirty'] = True
             log.debug(f'Control settings: id="{processor_id}" {what[-1]}={val}')
         elif len(what) == 3 and config[processor_id][what[1]][what[2]] != val:
             config[processor_id][what[1]][what[2]] = val
-            config[processor_id]['dirty'] = True
-            log.debug(f'Control settings: id="{processor_id}" {what[-1]}={val}')
+            if reload:
+                config[processor_id]['dirty'] = True
+            log.debug(f'Control settings: id="{processor_id}" {what[-1]}={val} reload={reload}')
         elif len(what) == 4 and config[processor_id][what[1]][what[2]][what[3]] != val:
             config[processor_id][what[1]][what[2]][what[3]] = val
-            config[processor_id]['dirty'] = True
-            log.debug(f'Control settings: id="{processor_id}" {what[-1]}={val}')
+            if reload:
+                config[processor_id]['dirty'] = True
+            log.debug(f'Control settings: id="{processor_id}" {what[-1]}={val} reload={reload}')
 
     update(['HED', 'params', 'scribble'], settings[0])
     update(['Midas Depth Hybrid', 'params', 'bg_th'], settings[1])
@@ -188,18 +192,19 @@ def update_settings(*settings):
     update(['DWPose (Legacy)', 'params', 'draw_body_pose'], settings[20])
     update(['DWPose (Legacy)', 'params', 'draw_hand_pose'], settings[21])
     update(['DWPose (Legacy)', 'params', 'draw_face_pose'], settings[22])
-    update(['RTMW', 'params', 'draw_body_pose'], settings[23])
-    update(['RTMW', 'params', 'draw_hand_pose'], settings[24])
-    update(['RTMW', 'params', 'draw_face_pose'], settings[25])
-    update(['SegmentAnything 1.0', 'model'], settings[26])
-    update(['Edge', 'params', 'pf'], settings[27])
-    update(['Edge', 'params', 'mode'], settings[28])
-    update(['Zoe Depth', 'params', 'gamma_corrected'], settings[29])
-    update(['Marigold Depth', 'params', 'color_map'], settings[30])
-    update(['Marigold Depth', 'params', 'denoising_steps'], settings[31])
-    update(['Marigold Depth', 'params', 'ensemble_size'], settings[32])
-    update(['Depth Anything', 'params', 'color_map'], settings[33])
-    update(['Depth Pro', 'params', 'color_map'], settings[34])
+    update(['RTMW', 'params', 'min_confidence'], settings[23])
+    update(['RTMW', 'params', 'draw_body_pose'], settings[24])
+    update(['RTMW', 'params', 'draw_hand_pose'], settings[25])
+    update(['RTMW', 'params', 'draw_face_pose'], settings[26])
+    update(['SegmentAnything 1.0', 'model'], settings[27])
+    update(['Edge', 'params', 'pf'], settings[28])
+    update(['Edge', 'params', 'mode'], settings[29])
+    update(['Zoe Depth', 'params', 'gamma_corrected'], settings[30])
+    update(['Marigold Depth', 'params', 'color_map'], settings[31])
+    update(['Marigold Depth', 'params', 'denoising_steps'], settings[32])
+    update(['Marigold Depth', 'params', 'ensemble_size'], settings[33])
+    update(['Depth Anything', 'params', 'color_map'], settings[34])
+    update(['Depth Pro', 'params', 'color_map'], settings[35])
 
 
 class Processor:
