@@ -309,6 +309,7 @@ def create_ui_elements(units, result_txt, output_gallery):
                 with gr.Accordion('DWPose', open=True, elem_classes=['processor-settings']):
                     settings.append(gr.Slider(label="Pose confidence", minimum=0.0, maximum=1.0, step=0.01, value=0.3))
                     settings.append(gr.Radio(label="Person detector", choices=['tiny', 'm', 'x'], value='m'))
+                    settings.append(gr.Radio(label="Pose model size", choices=['t', 's', 'm', 'l'], value='l'))
                     settings.append(gr.Checkbox(label="Body", value=True))
                     settings.append(gr.Checkbox(label="Hands", value=True))
                     settings.append(gr.Checkbox(label="Face", value=True))

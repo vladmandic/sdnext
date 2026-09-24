@@ -124,10 +124,14 @@ def draw_skeleton(canvas, keypoints, scores, min_conf):
     return canvas
 
 
-# Original DWPose-l 384x288 (distilled from RTMPose-x on COCO-WholeBody+UBody), ONNX export hosted by OpenMMLab.
-# Same model as dw-ll_ucoco_384 and the original default of rtmlib.Wholebody.
-DWPOSE_MODEL = 'https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/onnx_sdk/rtmpose-l_simcc-ucoco_dw-ucoco_270e-384x288-2438fd99_20230728.zip'
-DWPOSE_INPUT_SIZE = (288, 384)
+# DWPose whole-body models (distilled on COCO-WholeBody+UBody), ONNX exports hosted by OpenMMLab: (onnx model, input size)
+# l is DWPose-l 384x288, same model as dw-ll_ucoco_384 and the original default of rtmlib.Wholebody
+DWPOSE_MODELS = {
+    't': ('https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/onnx_sdk/rtmpose-t_simcc-ucoco_dw-ucoco_270e-256x192-dcf277bf_20230728.zip', (192, 256)),
+    's': ('https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/onnx_sdk/rtmpose-s_simcc-ucoco_dw-ucoco_270e-256x192-3fd922c8_20230728.zip', (192, 256)),
+    'm': ('https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/onnx_sdk/rtmpose-m_simcc-ucoco_dw-ucoco_270e-256x192-c8b76419_20230728.zip', (192, 256)),
+    'l': ('https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/onnx_sdk/rtmpose-l_simcc-ucoco_dw-ucoco_270e-384x288-2438fd99_20230728.zip', (288, 384)),
+}
 
 # YOLOX person detectors trained on HumanArt: (onnx model, input size)
 DETECTORS = {
@@ -150,7 +154,7 @@ class RtmlibPoseDetector:
         self.openpose = openpose
 
     @classmethod
-    def from_pretrained(cls, pretrained_model_or_path="DWPose", cache_dir=None, local_files_only=False, detector='m', **kwargs):
+    def from_pretrained(cls, pretrained_model_or_path="DWPose", cache_dir=None, local_files_only=False, detector='m', pose_size='l', **kwargs):
         from installer import install
         install('rtmlib', quiet=True)
         # rtmlib reads TORCH_HOME to locate its cache at <TORCH_HOME>/hub/checkpoints
@@ -169,8 +173,12 @@ class RtmlibPoseDetector:
                 if detector not in DETECTORS:
                     log.warning(f'RtmlibPose: unknown detector "{detector}", falling back to "m"')
                     detector = 'm'
+                if pose_size not in DWPOSE_MODELS:
+                    log.warning(f'RtmlibPose: unknown pose model size "{pose_size}", falling back to "l"')
+                    pose_size = 'l'
                 det, det_input_size = DETECTORS[detector]
-                body = rtmlib.Wholebody(det=det, det_input_size=det_input_size, pose=DWPOSE_MODEL, pose_input_size=DWPOSE_INPUT_SIZE, backend='onnxruntime', device='cpu', to_openpose=True)
+                pose, pose_input_size = DWPOSE_MODELS[pose_size]
+                body = rtmlib.Wholebody(det=det, det_input_size=det_input_size, pose=pose, pose_input_size=pose_input_size, backend='onnxruntime', device='cpu', to_openpose=True)
             elif mode == 'RTMW-l':
                 # balanced loads rtmw-dw-x-l 256x192 (RTMW-l); lightweight would load rtmw-dw-l-m (RTMW-m)
                 body = rtmlib.Wholebody(mode='balanced', backend='onnxruntime', device='cpu', to_openpose=True)
