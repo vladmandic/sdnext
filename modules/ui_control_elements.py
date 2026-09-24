@@ -306,20 +306,29 @@ def create_ui_elements(units, result_txt, output_gallery):
                 with gr.Accordion('Canny', open=True, elem_classes=['processor-settings']):
                     settings.append(gr.Slider(label="Low threshold", minimum=0, maximum=1000, step=1, value=100))
                     settings.append(gr.Slider(label="High threshold", minimum=0, maximum=1000, step=1, value=200))
+                # one row per group: without rows all controls share a single form that wraps as one flowing row
                 with gr.Accordion('DWPose', open=True, elem_classes=['processor-settings']):
-                    settings.append(gr.Slider(label="Pose confidence", minimum=0.0, maximum=1.0, step=0.01, value=0.3))
-                    settings.append(gr.Radio(label="Person detector", choices=['tiny', 'm', 'x'], value='m'))
-                    settings.append(gr.Radio(label="Pose model size", choices=['t', 's', 'm', 'l'], value='l'))
-                    settings.append(gr.Checkbox(label="Body", value=True))
-                    settings.append(gr.Checkbox(label="Hands", value=True))
-                    settings.append(gr.Checkbox(label="Face", value=True))
-                    settings.append(gr.Checkbox(label="Use full image if no person detected", value=True))
+                    with gr.Row():
+                        settings.append(gr.Slider(label="Pose confidence", minimum=0.0, maximum=1.0, step=0.01, value=0.3))
+                    with gr.Row():
+                        settings.append(gr.Radio(label="Person detector", choices=['tiny', 'm', 'x'], value='m'))
+                    with gr.Row():
+                        settings.append(gr.Radio(label="Pose model size", choices=['t', 's', 'm', 'l'], value='l'))
+                    with gr.Row():
+                        settings.append(gr.Checkbox(label="Body", value=True, min_width=0))
+                        settings.append(gr.Checkbox(label="Hands", value=True, min_width=0))
+                        settings.append(gr.Checkbox(label="Face", value=True, min_width=0))
+                    with gr.Row():
+                        settings.append(gr.Checkbox(label="Use full image if no person detected", value=True))
                 with gr.Accordion('RTMW', open=True, elem_classes=['processor-settings']):
-                    settings.append(gr.Slider(label="Pose confidence", minimum=0.0, maximum=1.0, step=0.01, value=0.3))
-                    settings.append(gr.Checkbox(label="Body", value=True))
-                    settings.append(gr.Checkbox(label="Hands", value=True))
-                    settings.append(gr.Checkbox(label="Face", value=True))
-                    settings.append(gr.Checkbox(label="Use full image if no person detected", value=True))
+                    with gr.Row():
+                        settings.append(gr.Slider(label="Pose confidence", minimum=0.0, maximum=1.0, step=0.01, value=0.3))
+                    with gr.Row():
+                        settings.append(gr.Checkbox(label="Body", value=True, min_width=0))
+                        settings.append(gr.Checkbox(label="Hands", value=True, min_width=0))
+                        settings.append(gr.Checkbox(label="Face", value=True, min_width=0))
+                    with gr.Row():
+                        settings.append(gr.Checkbox(label="Use full image if no person detected", value=True))
                 with gr.Accordion('SegmentAnything 1.0', open=True, elem_classes=['processor-settings']):
                     settings.append(gr.Radio(label="Segment Model", choices=['Base', 'Large'], value='Base'))
                 with gr.Accordion('Edge', open=True, elem_classes=['processor-settings']):
