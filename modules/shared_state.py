@@ -33,6 +33,7 @@ class State:
     job_timestamp = '0'
     _sampling_step = 0
     sampling_steps = 0
+    timestep = 0
     current_latent = None
     current_noise_pred = None
     current_sigma = None
@@ -63,7 +64,7 @@ class State:
         status += 'oom ' if self.oom else ''
         status += 'api ' if self.api else ''
         fn = f'{sys._getframe(3).f_code.co_name}:{sys._getframe(2).f_code.co_name}' # pylint: disable=protected-access
-        return f'State: ts={self.job_timestamp} job={self.job} jobs={self.job_no+1}/{self.job_count}/{self.total_jobs} step={self.sampling_step}/{self.sampling_steps} preview={self.preview_job}/{self.id_live_preview}/{self.current_image_sampling_step} status="{status.strip()}" image={self.current_image} latent={list(self.current_latent.shape) if self.current_latent is not None else None} fn={fn}'
+        return f'State: ts={self.job_timestamp} job={self.job} jobs={self.job_no+1}/{self.job_count}/{self.total_jobs} step={self.sampling_step}/{self.sampling_steps} preview={self.preview_job}/{self.id_live_preview}/{self.current_image_sampling_step} status="{status.strip()}" image={self.current_image} timestep={self.timestep} latent={list(self.current_latent.shape) if self.current_latent is not None else None} fn={fn}'
 
     @property
     def sampling_step(self):
@@ -190,6 +191,7 @@ class State:
         self.job_no = 0
         self.frame_count = 0
         self.preview_job = -1
+        self.timestep = 0
         self.duration = None
         self.paused = False
         self.results = []
@@ -214,6 +216,7 @@ class State:
         self.batch_no = 0
         self.batch_count = 0
         self.job_timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+        self.timestep = 0
         self._sampling_step = 0
         self.sampling_steps = 0
         self.textinfo = None
@@ -286,7 +289,7 @@ class State:
                 sample = self.current_latent
                 self.current_image_sampling_step = self.sampling_step
                 try:
-                    if self.current_noise_pred is not None and self.current_sigma is not None and self.current_sigma_next is not None:
+                    if self.current_noise_pred is not None and self.current_sigma is not None and self.current_sigma_next is not None and self.current_noise_pred.shape == sample.shape:
                         original_sample = sample - (self.current_noise_pred * (self.current_sigma_next-self.current_sigma))
                         if self.prediction_type in {"epsilon", "flow_prediction"}:
                             sample = original_sample - (self.current_noise_pred * self.current_sigma)

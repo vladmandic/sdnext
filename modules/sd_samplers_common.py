@@ -6,7 +6,6 @@ import torch
 from PIL import Image
 from modules import shared, processing, images, sd_samplers, timer
 from modules.logger import log
-from modules.vae import sd_vae_approx, sd_vae_taesd, sd_vae_stablecascade
 from modules.image import convert
 
 
@@ -16,6 +15,7 @@ flow_models = ['f1', 'f2', 'sd3', 'lumina', 'auraflow', 'sana', 'zimage', 'lumin
 warned = False
 queue_lock = threading.Lock()
 debug = os.environ.get('SD_PREVIEW_DEBUG', None) is not None
+use_micro_decoder = ['qwen21']
 
 
 def warn_once(message):
@@ -56,6 +56,9 @@ def single_sample_to_image(sample, approximation=None, fast=False):
 
         if approximation == "None":
             return Image.new(mode="RGB", size=(512, 512)) # already handled
+        elif shared.sd_model_type in use_micro_decoder:
+            from modules.vae import sd_vae_micro
+            x_sample = sd_vae_micro.decode(sample, vae_cls=shared.sd_model.vae.__class__.__name__)
         elif approximation == "TAESD":
             if (len(sample.shape) == 3 or len(sample.shape) == 4) and shared.opts.live_preview_downscale and (sample.shape[-1]*sample.shape[-2] > 128*128):
                 try:
@@ -63,13 +66,17 @@ def single_sample_to_image(sample, approximation=None, fast=False):
                     sample = torch.nn.functional.interpolate(sample.unsqueeze(0), scale_factor=[scale, scale], mode='bilinear', align_corners=False)[0]
                 except Exception:
                     pass
+            from modules.vae import sd_vae_taesd
             x_sample = sd_vae_taesd.decode(sample, fast=fast)
             # x_sample = (1.0 + x_sample) / 2.0 # preview requires smaller range
         elif shared.sd_model_type == 'sc' and approximation != "Full":
+            from modules.vae import sd_vae_stablecascade
             x_sample = sd_vae_stablecascade.decode(sample)
         elif approximation == "Simple":
+            from modules.vae import sd_vae_approx
             x_sample = sd_vae_approx.cheap_approximation(sample) * 0.5 + 0.5
         elif approximation == "Approximate":
+            from modules.vae import sd_vae_approx
             x_sample = sd_vae_approx.nn_approximation(sample) * 0.5 + 0.5
             if shared.sd_model_type == "sdxl":
                 x_sample = x_sample[[2, 1, 0], :, :] # BGR to RGB
