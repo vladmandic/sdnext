@@ -52,7 +52,7 @@ config = {
     'Shuffle': {'class': None, 'group': 'Other', 'checkpoint': False, 'params': {}},
     # legacy models
     'MediaPipe Face (Legacy)': {'class': None, 'group': 'Pose', 'checkpoint': False, 'params': {'max_faces': 1, 'min_confidence': 0.5}},
-    'DWPose (Legacy)': {'class': None, 'group': 'Pose', 'checkpoint': False, 'params': {'min_confidence': 0.3}},
+    'DWPose (Legacy)': {'class': None, 'group': 'Pose', 'checkpoint': False, 'detector': 'm', 'params': {'min_confidence': 0.3, 'draw_body_pose': True, 'draw_hand_pose': True, 'draw_face_pose': True}},
     'TEED (Legacy)': {'class': None, 'group': 'Edge', 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'fal/teed'}, 'params': {}},
     'Anyline (Legacy)': {'class': None, 'group': 'Edge', 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'TheMistoAI/MistoLine'}, 'params': {}},
     'Normal Bae (Legacy)': {'class': None, 'group': 'Normal', 'checkpoint': True, 'params': {}},
@@ -98,7 +98,7 @@ def delay_load_config():
         # pose models
         'OpenPose': {'class': OpenposeDetector, 'group': 'Pose', 'checkpoint': True, 'params': {'include_body': True, 'include_hand': False, 'include_face': False}},
         'MediaPipe Face (Legacy)': {'class': MediapipeFaceDetector, 'group': 'Pose', 'checkpoint': False, 'params': {'max_faces': 1, 'min_confidence': 0.5}},
-        'DWPose (Legacy)': {'class': RtmlibPoseDetector, 'group': 'Pose', 'checkpoint': False, 'params': {'min_confidence': 0.3}},
+        'DWPose (Legacy)': {'class': RtmlibPoseDetector, 'group': 'Pose', 'checkpoint': False, 'detector': 'm', 'params': {'min_confidence': 0.3, 'draw_body_pose': True, 'draw_hand_pose': True, 'draw_face_pose': True}},
         'RTMW': {'class': RtmlibPoseDetector, 'group': 'Pose', 'checkpoint': False, 'params': {'min_confidence': 0.3, 'draw_body_pose': True, 'draw_hand_pose': True, 'draw_face_pose': True}},
         'RTMO': {'class': RtmlibPoseDetector, 'group': 'Pose', 'checkpoint': False, 'params': {'min_confidence': 0.3}},
         'ViTPose': {'class': ViTPoseDetector, 'group': 'Pose', 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'usyd-community/vitpose-plus-base'}, 'params': {'min_confidence': 0.3}},
@@ -184,15 +184,16 @@ def update_settings(*settings):
     update(['Canny', 'params', 'low_threshold'], settings[16])
     update(['Canny', 'params', 'high_threshold'], settings[17])
     update(['DWPose (Legacy)', 'params', 'min_confidence'], settings[18])
-    update(['SegmentAnything 1.0', 'model'], settings[19])
-    update(['Edge', 'params', 'pf'], settings[20])
-    update(['Edge', 'params', 'mode'], settings[21])
-    update(['Zoe Depth', 'params', 'gamma_corrected'], settings[22])
-    update(['Marigold Depth', 'params', 'color_map'], settings[23])
-    update(['Marigold Depth', 'params', 'denoising_steps'], settings[24])
-    update(['Marigold Depth', 'params', 'ensemble_size'], settings[25])
-    update(['Depth Anything', 'params', 'color_map'], settings[26])
-    update(['Depth Pro', 'params', 'color_map'], settings[27])
+    update(['DWPose (Legacy)', 'detector'], settings[19])
+    update(['SegmentAnything 1.0', 'model'], settings[20])
+    update(['Edge', 'params', 'pf'], settings[21])
+    update(['Edge', 'params', 'mode'], settings[22])
+    update(['Zoe Depth', 'params', 'gamma_corrected'], settings[23])
+    update(['Marigold Depth', 'params', 'color_map'], settings[24])
+    update(['Marigold Depth', 'params', 'denoising_steps'], settings[25])
+    update(['Marigold Depth', 'params', 'ensemble_size'], settings[26])
+    update(['Depth Anything', 'params', 'color_map'], settings[27])
+    update(['Depth Pro', 'params', 'color_map'], settings[28])
 
 
 class Processor:
@@ -265,7 +266,7 @@ class Processor:
             jobid = state.begin('Load processor')
             if processor_id in ('DWPose (Legacy)', 'RTMW', 'RTMO'):
                 model_type = {'DWPose (Legacy)': 'DWPose', 'RTMW': 'RTMW-l', 'RTMO': 'RTMO-l'}[processor_id]
-                self.model = cls.from_pretrained(model_type, **self.load_config)
+                self.model = cls.from_pretrained(model_type, detector=config[processor_id].get('detector', 'm'), **self.load_config)
             elif processor_id == 'SegmentAnything 1.0':
                 if 'Base' == config[processor_id]['model']:
                     self.model = cls.from_pretrained(model_path = 'segments-arnaud/sam_vit_b', filename='sam_vit_b_01ec64.pth', model_type='vit_b', **self.load_config)
