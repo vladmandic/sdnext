@@ -31,7 +31,7 @@ requests==2.34.2
 tqdm==4.70.1
 accelerate==1.15.0
 einops==0.8.2
-huggingface_hub==1.31.0
+huggingface_hub==1.32.0
 hf_xet==1.6.0
 pandas==2.3.1
 protobuf==7.36.1

@@ -654,7 +654,7 @@
     "size": 82.71,
     "date": "2025 October"
   },
-  "Bria FIBO": {
+  "Bria Fibo 1.0": {
     "path": "briaai/FIBO",
     "preview": "briaai--FIBO.jpg",
     "desc": "BRIA FIBO is an 8-billion parameter text-to-image diffusion model using Flow Matching and featuring a lightweight SmolLM3-3B text encoder. Delivers high-quality, detailed image generation with efficient inference.",
@@ -803,7 +803,7 @@
     "size": 10.46,
     "date": "2026 January"
   },
-  "Bria Fibo-Edit": {
+  "Bria Fibo-Edit 1.0": {
     "path": "briaai/Fibo-Edit",
     "preview": "briaai--Fibo-Edit.jpg",
     "desc": "BRIA Fibo-Edit is the image editing variant of FIBO, enabling precise image manipulation through text instructions while maintaining consistency and quality.",
@@ -997,6 +997,22 @@
     "desc": "LLaDA-Image is a unified 6B image generation and editing model with text, VQ-conditioned, and reference-image workflows.",
     "extras": "steps: 50, cfg_scale: 5.0",
     "size": 37.15,
+    "date": "2026 September"
+  },
+  "Bria Fibo 1.5": {
+    "path": "briaai/Fibo-1.5",
+    "preview": "briaai--Fibo-1.5.jpg",
+    "desc": "BRIA FIBO 1.5 is an 8-billion parameter text-to-image diffusion model using Flow Matching with a lightweight SmolLM3-3B text encoder, delivering enhanced generation quality and prompt adherence.",
+    "extras": "sampler: Default, cfg_scale: 3.5",
+    "size": 23.79,
+    "date": "2026 September"
+  },
+  "Bria Fibo-Edit 1.5": {
+    "path": "briaai/Fibo-Edit-1.5-base",
+    "preview": "briaai--Fibo-Edit-1.5-base.jpg",
+    "desc": "BRIA Fibo-Edit 1.5 Base is an 8-billion parameter image editing model using Flow Matching and SmolLM3-3B text encoding, supporting instruction-guided editing and multi-reference conditioning.",
+    "extras": "sampler: Default, cfg_scale: 5.0, steps: 30",
+    "size": 22.47,
     "date": "2026 September"
   }
 }

@@ -325,7 +325,11 @@ class PromptEnhanceScript(scripts_manager.Script):
                 use_openai:bool=False,
                ):
         # Strip symbols from model name if present
+        choices = [get_model_repo_from_display(m) for m in Options.get_model_choices()]
         model = get_model_repo_from_display(model) if model else self.options.default
+        if model not in choices:
+            log.error(f'Prompt enhance: model="{model}" not recognized')
+            return prompt
         prompt = prompt or (self.prompt.value if self.prompt else "") # Check if self.prompt is None
         if use_vision and is_vision_model(model): # handle vision toggle
             image = image or self.image

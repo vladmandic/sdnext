@@ -73,10 +73,9 @@ def hijack_encode_prompt(*args, **kwargs):
             if patch_prompt:
                 args_copy[0] = res
 
-        # cache key must include cfg-affecting kwargs since encode_prompt output (e.g. negative_prompt_embeds) depends on them
-        # condition images are encoded into the embeddings, so a prompt-keyed entry cannot be reused across images
+        # cache key must include cfg-affecting kwargs since encode_prompt output may or may not include negative embeddings
         negative_prompt = kwargs.get('negative_prompt', None)
-        cfg_enabled = kwargs.get('do_classifier_free_guidance', None)
+        cfg_enabled = kwargs.get('do_classifier_free_guidance', None) or kwargs.get('guidance_scale', 0) > 1
         cacheable = kwargs.get('image', None) is None
         cached = prompt_cache.get(prompt, negative_prompt, cfg_enabled) if cacheable else None
         if cached is not None:
