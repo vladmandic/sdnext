@@ -3,10 +3,11 @@
 ## Update for 2026-09-24
 
 - **Models**
-  - [Qwen-Image 2.1](https://huggingface.co/Qwen/Qwen-Image-2.1) unified text-to-image and image editing model  
-    7B single-stream block-causal transformer with Qwen3-VL 8B text encoder and 64-channel RGBA autoencoder  
+  - [Qwen-Image 2.1](https://huggingface.co/Qwen/Qwen-Image-2.1) in *base*, *sdnq-4bit* and *sdnq-8bit* variants  
+    Qwen-Image 2.1 is a unified text-to-image and image editing model  
+    with 7B single-stream block-causal transformer with Qwen3-VL 8B text encoder and 64-channel RGBA autoencoder  
     native transparent output, up to 10 reference images for editing, 2K native resolution  
-  - [Bria Fibo 1.5](https://huggingface.co/briaai/Fibo-1.5) including *Base*, *Edit*, and *Edit-Turbo* variants  
+  - [Bria Fibo 1.5](https://huggingface.co/briaai/Fibo-1.5) in *Base*, *Edit*, and *Edit-Turbo* variants  
     BriaFIBO is 8B parameter text-to-image and edit-model using SmolLM3-3B text encoder and with multi-reference editing support  
     *note*: BriaFIBO is designed to work with highly structured [JSON prompts](https://docs.bria.ai/vgl#5-schema-reference)  
     if you provide a simple string-based prompt, sdnext will convert it to naive JSON, but it will be sub-optimal  

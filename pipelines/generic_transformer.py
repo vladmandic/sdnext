@@ -64,7 +64,7 @@ def load_transformer(
         def load_from_repo():
             nonlocal quant_args
             log.debug(f'Load model: transformer="{repo_id}" cls={cls_name.__name__} subfolder={subfolder} loader={get_loader("diffusers")} args={load_args}')
-            if 'sdnq-' in repo_id.lower():
+            if 'sdnq' in repo_id.lower(): # likely a pre-quant model
                 quant_args = {}
             if dtype is not None:
                 load_args['torch_dtype'] = dtype
@@ -124,7 +124,7 @@ def load_transformer(
             # transformer = model_quant.do_post_load_quant(transformer, allow=quant_type is not None)
 
         # 2. load safetensors with native loader if spec is available
-        elif local_file is not None and local_file.lower().endswith('.safetensors') and native_spec is not None:
+        elif (local_file is not None) and local_file.lower().endswith('.safetensors') and (native_spec is not None):
             from pipelines import native_transformer
             log.debug(f'Load model: transformer="{local_file}" cls={cls_name.__name__} quant="{quant_type}" loader=native args={load_args}')
             try:
@@ -150,7 +150,7 @@ def load_transformer(
                     transformer = load_from_repo()
 
         # 3. load safetensors with diffusers loader
-        elif local_file is not None and local_file.lower().endswith('.safetensors'):
+        elif (local_file is not None) and local_file.lower().endswith('.safetensors'):
             if dtype is not None:
                 load_args['torch_dtype'] = dtype
             load_args.pop('device_map', None) # single-file uses different syntax
