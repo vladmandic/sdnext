@@ -17,6 +17,7 @@ processors = [
     'None',
     # pose
     'OpenPose',
+    'DWPose',
     'RTMW',
     'RTMO',
     'ViTPose',
@@ -55,7 +56,6 @@ processors = [
     'Shuffle',
     # legacy
     'MediaPipe Face (Legacy)',
-    'DWPose (Legacy)',
     'TEED (Legacy)',
 ]
 

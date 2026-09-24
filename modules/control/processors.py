@@ -11,11 +11,15 @@ models = {}
 cache_dir = 'models/control/processors'
 debug = log.trace if os.environ.get('SD_CONTROL_DEBUG', None) is not None else lambda *args, **kwargs: None
 debug('Trace: CONTROL')
+aliases = { # renamed processors, so names saved in xyz grids or sent by api clients keep working
+    'DWPose (Legacy)': 'DWPose',
+}
 config = {
     # placeholder
     'None': {},
     # pose models
     'OpenPose': {'class': None, 'group': 'Pose', 'checkpoint': True, 'params': {'include_body': True, 'include_hand': False, 'include_face': False}},
+    'DWPose': {'class': None, 'group': 'Pose', 'checkpoint': False, 'detector': 'm', 'pose_size': 'l', 'params': {'min_confidence': 0.3, 'draw_body_pose': True, 'draw_hand_pose': True, 'draw_face_pose': True, 'fallback_full_image': True}},
     'RTMW': {'class': None, 'group': 'Pose', 'checkpoint': False, 'params': {'min_confidence': 0.3, 'draw_body_pose': True, 'draw_hand_pose': True, 'draw_face_pose': True, 'fallback_full_image': True}},
     'RTMO': {'class': None, 'group': 'Pose', 'checkpoint': False, 'params': {'min_confidence': 0.3}},
     'ViTPose': {'class': None, 'group': 'Pose', 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'usyd-community/vitpose-plus-base'}, 'params': {'min_confidence': 0.3}},
@@ -52,7 +56,6 @@ config = {
     'Shuffle': {'class': None, 'group': 'Other', 'checkpoint': False, 'params': {}},
     # legacy models
     'MediaPipe Face (Legacy)': {'class': None, 'group': 'Pose', 'checkpoint': False, 'params': {'max_faces': 1, 'min_confidence': 0.5}},
-    'DWPose (Legacy)': {'class': None, 'group': 'Pose', 'checkpoint': False, 'detector': 'm', 'pose_size': 'l', 'params': {'min_confidence': 0.3, 'draw_body_pose': True, 'draw_hand_pose': True, 'draw_face_pose': True, 'fallback_full_image': True}},
     'TEED (Legacy)': {'class': None, 'group': 'Edge', 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'fal/teed'}, 'params': {}},
     'Anyline (Legacy)': {'class': None, 'group': 'Edge', 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'TheMistoAI/MistoLine'}, 'params': {}},
     'Normal Bae (Legacy)': {'class': None, 'group': 'Normal', 'checkpoint': True, 'params': {}},
@@ -98,7 +101,7 @@ def delay_load_config():
         # pose models
         'OpenPose': {'class': OpenposeDetector, 'group': 'Pose', 'checkpoint': True, 'params': {'include_body': True, 'include_hand': False, 'include_face': False}},
         'MediaPipe Face (Legacy)': {'class': MediapipeFaceDetector, 'group': 'Pose', 'checkpoint': False, 'params': {'max_faces': 1, 'min_confidence': 0.5}},
-        'DWPose (Legacy)': {'class': RtmlibPoseDetector, 'group': 'Pose', 'checkpoint': False, 'detector': 'm', 'pose_size': 'l', 'params': {'min_confidence': 0.3, 'draw_body_pose': True, 'draw_hand_pose': True, 'draw_face_pose': True, 'fallback_full_image': True}},
+        'DWPose': {'class': RtmlibPoseDetector, 'group': 'Pose', 'checkpoint': False, 'detector': 'm', 'pose_size': 'l', 'params': {'min_confidence': 0.3, 'draw_body_pose': True, 'draw_hand_pose': True, 'draw_face_pose': True, 'fallback_full_image': True}},
         'RTMW': {'class': RtmlibPoseDetector, 'group': 'Pose', 'checkpoint': False, 'params': {'min_confidence': 0.3, 'draw_body_pose': True, 'draw_hand_pose': True, 'draw_face_pose': True, 'fallback_full_image': True}},
         'RTMO': {'class': RtmlibPoseDetector, 'group': 'Pose', 'checkpoint': False, 'params': {'min_confidence': 0.3}},
         'ViTPose': {'class': ViTPoseDetector, 'group': 'Pose', 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'usyd-community/vitpose-plus-base'}, 'params': {'min_confidence': 0.3}},
@@ -187,13 +190,13 @@ def update_settings(*settings):
     update(['MediaPipe Face (Legacy)', 'params', 'min_confidence'], settings[15])
     update(['Canny', 'params', 'low_threshold'], settings[16])
     update(['Canny', 'params', 'high_threshold'], settings[17])
-    update(['DWPose (Legacy)', 'params', 'min_confidence'], settings[18])
-    update(['DWPose (Legacy)', 'detector'], settings[19])
-    update(['DWPose (Legacy)', 'pose_size'], settings[20])
-    update(['DWPose (Legacy)', 'params', 'draw_body_pose'], settings[21])
-    update(['DWPose (Legacy)', 'params', 'draw_hand_pose'], settings[22])
-    update(['DWPose (Legacy)', 'params', 'draw_face_pose'], settings[23])
-    update(['DWPose (Legacy)', 'params', 'fallback_full_image'], settings[24])
+    update(['DWPose', 'params', 'min_confidence'], settings[18])
+    update(['DWPose', 'detector'], settings[19])
+    update(['DWPose', 'pose_size'], settings[20])
+    update(['DWPose', 'params', 'draw_body_pose'], settings[21])
+    update(['DWPose', 'params', 'draw_hand_pose'], settings[22])
+    update(['DWPose', 'params', 'draw_face_pose'], settings[23])
+    update(['DWPose', 'params', 'fallback_full_image'], settings[24])
     update(['RTMW', 'params', 'min_confidence'], settings[25])
     update(['RTMW', 'params', 'draw_body_pose'], settings[26])
     update(['RTMW', 'params', 'draw_hand_pose'], settings[27])
@@ -242,7 +245,7 @@ class Processor:
 
     def config(self, processor_id = None):
         if processor_id is not None:
-            self.processor_id = processor_id
+            self.processor_id = aliases.get(processor_id, processor_id)
         from_config = config.get(self.processor_id, {}).get('load_config', None)
         """
         if load_config is not None:
@@ -258,6 +261,7 @@ class Processor:
         try:
             t0 = time.time()
             processor_id = processor_id or self.processor_id
+            processor_id = aliases.get(processor_id, processor_id)
             if processor_id is None or processor_id == 'None':
                 self.reset()
                 return ''
@@ -278,8 +282,8 @@ class Processor:
             # log.debug(f'Control Processor loading: id="{processor_id}" class={cls.__name__}')
             debug(f'Control Processor config={self.load_config}')
             jobid = state.begin('Load processor')
-            if processor_id in ('DWPose (Legacy)', 'RTMW', 'RTMO'):
-                model_type = {'DWPose (Legacy)': 'DWPose', 'RTMW': 'RTMW-l', 'RTMO': 'RTMO-l'}[processor_id]
+            if processor_id in ('DWPose', 'RTMW', 'RTMO'):
+                model_type = {'DWPose': 'DWPose', 'RTMW': 'RTMW-l', 'RTMO': 'RTMO-l'}[processor_id]
                 self.model = cls.from_pretrained(model_type, detector=config[processor_id].get('detector', 'm'), pose_size=config[processor_id].get('pose_size', 'l'), **self.load_config)
             elif processor_id == 'SegmentAnything 1.0':
                 if 'Base' == config[processor_id]['model']:
