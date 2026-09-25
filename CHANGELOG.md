@@ -21,13 +21,10 @@
   - group offload: places the vae on-demand behind the vae hijack
   - vae tiling: tile size setting applies to 3d vaes, 16x vae tile geometry
   - pixelsmith: vae tiling, thanks @li-lizhe  
-
-## Refresh for 2026-09-19
-
-- preview mapping for reference networks
-- name mapping for network models and loras
-- additional DLSS reporting
-- gradio temp file error handling
+  - networks: preview mapping for reference networks
+  - lora: name mapping for network models and loras
+  - dlss: additional DLSS reporting
+  - temp file: gradio temp file error handling
 
 ## Update for 2026-09-17
 

@@ -73,12 +73,13 @@ class APIProcess:
         global processor # pylint: disable=global-statement
         from modules.control import processors
         processors_list = list(processors.config)
-        if req.model not in processors_list:
+        model = processors.aliases.get(req.model, req.model)
+        if model not in processors_list:
             return JSONResponse(status_code=400, content={"error": f"Processor model not found: id={req.model}"})
         image = decode_base64_to_image(req.image)
-        if processor is None or processor.processor_id != req.model:
+        if processor is None or processor.processor_id != model:
             with self.queue_lock:
-                processor = processors.Processor(req.model)
+                processor = processors.Processor(model)
         for k, v in (req.params or {}).items():
             if k not in processors.config[processor.processor_id]['params']:
                 return JSONResponse(status_code=400, content={"error": f"Processor invalid parameter: id={req.model} {k}={v}"})

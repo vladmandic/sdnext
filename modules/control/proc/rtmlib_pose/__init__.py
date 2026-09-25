@@ -124,6 +124,29 @@ def draw_skeleton(canvas, keypoints, scores, min_conf):
     return canvas
 
 
+# DWPose whole-body models (distilled on COCO-WholeBody+UBody), ONNX exports hosted by OpenMMLab: (onnx model, input size)
+# l is DWPose-l 384x288, same model as dw-ll_ucoco_384 and the original default of rtmlib.Wholebody
+DWPOSE_MODELS = {
+    't': ('https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/onnx_sdk/rtmpose-t_simcc-ucoco_dw-ucoco_270e-256x192-dcf277bf_20230728.zip', (192, 256)),
+    's': ('https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/onnx_sdk/rtmpose-s_simcc-ucoco_dw-ucoco_270e-256x192-3fd922c8_20230728.zip', (192, 256)),
+    'm': ('https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/onnx_sdk/rtmpose-m_simcc-ucoco_dw-ucoco_270e-256x192-c8b76419_20230728.zip', (192, 256)),
+    'l': ('https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/onnx_sdk/rtmpose-l_simcc-ucoco_dw-ucoco_270e-384x288-2438fd99_20230728.zip', (288, 384)),
+}
+
+# YOLOX person detectors trained on HumanArt: (onnx model, input size)
+DETECTORS = {
+    'tiny': ('https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/onnx_sdk/yolox_tiny_8xb8-300e_humanart-6f3252f9.zip', (416, 416)),
+    'm': ('https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/onnx_sdk/yolox_m_8xb8-300e_humanart-c2c7a14a.zip', (640, 640)),
+    'x': ('https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/onnx_sdk/yolox_x_8xb8-300e_humanart-a39d44ed.zip', (640, 640)),
+}
+
+# OpenPose-134 layout returned by rtmlib with to_openpose=True for whole-body models:
+#   0-17 body (with neck), 18-23 feet, 24-91 face, 92-112 left hand, 113-133 right hand
+OPENPOSE_BODY = slice(0, 24)
+OPENPOSE_FACE = slice(24, 92)
+OPENPOSE_HANDS = slice(92, 134)
+
+
 class RtmlibPoseDetector:
     def __init__(self, pose_model, mode, openpose=True):
         self.pose_model = pose_model
@@ -131,7 +154,7 @@ class RtmlibPoseDetector:
         self.openpose = openpose
 
     @classmethod
-    def from_pretrained(cls, pretrained_model_or_path="DWPose", cache_dir=None, local_files_only=False, **kwargs):
+    def from_pretrained(cls, pretrained_model_or_path="DWPose", cache_dir=None, local_files_only=False, detector='m', pose_size='l', **kwargs):
         from installer import install
         install('rtmlib', quiet=True)
         # rtmlib reads TORCH_HOME to locate its cache at <TORCH_HOME>/hub/checkpoints
@@ -143,23 +166,25 @@ class RtmlibPoseDetector:
         try:
             import rtmlib
             mode = pretrained_model_or_path
-            model_map = {
-                'DWPose': ('RTMPose', {'to_openpose': True}),
-                'RTMW-l': ('RTMW', {'to_openpose': True}),
-                'RTMO-l': ('RTMO', {'to_openpose': True}),
-            }
-            if mode not in model_map:
+            if mode not in ('DWPose', 'RTMW-l', 'RTMO-l'):
                 log.warning(f'RtmlibPose: unknown mode "{mode}", falling back to DWPose')
                 mode = 'DWPose'
-            model_name, model_kwargs = model_map[mode]
-            if model_name == 'RTMPose':
-                body = rtmlib.Body(mode='lightweight', backend='onnxruntime', device='cpu', **model_kwargs)
-            elif model_name == 'RTMW':
-                body = rtmlib.Wholebody(mode='lightweight', backend='onnxruntime', device='cpu', to_openpose=True)
-            elif model_name == 'RTMO':
-                body = rtmlib.Body(mode='balanced', backend='onnxruntime', device='cpu', **model_kwargs)
+            if mode == 'DWPose':
+                if detector not in DETECTORS:
+                    log.warning(f'RtmlibPose: unknown detector "{detector}", falling back to "m"')
+                    detector = 'm'
+                if pose_size not in DWPOSE_MODELS:
+                    log.warning(f'RtmlibPose: unknown pose model size "{pose_size}", falling back to "l"')
+                    pose_size = 'l'
+                det, det_input_size = DETECTORS[detector]
+                pose, pose_input_size = DWPOSE_MODELS[pose_size]
+                body = rtmlib.Wholebody(det=det, det_input_size=det_input_size, pose=pose, pose_input_size=pose_input_size, backend='onnxruntime', device='cpu', to_openpose=True)
+            elif mode == 'RTMW-l':
+                # balanced loads rtmw-dw-x-l 256x192 (RTMW-l); lightweight would load rtmw-dw-l-m (RTMW-m)
+                body = rtmlib.Wholebody(mode='balanced', backend='onnxruntime', device='cpu', to_openpose=True)
             else:
-                body = rtmlib.Body(mode='lightweight', backend='onnxruntime', device='cpu')
+                # rtmlib.Body only switches to one-stage RTMO when the pose argument contains 'rtmo'; performance loads rtmo-l
+                body = rtmlib.Body(pose='rtmo', mode='performance', backend='onnxruntime', device='cpu', to_openpose=True)
         finally:
             if old_torch_home is not None:
                 os.environ['TORCH_HOME'] = old_torch_home
@@ -167,16 +192,40 @@ class RtmlibPoseDetector:
                 del os.environ['TORCH_HOME']
         return cls(body, mode)
 
-    def __call__(self, image, min_confidence=0.3, draw_body_pose=True, draw_hand_pose=True, draw_face_pose=True, output_type="pil", **kwargs):
+    def detect(self, image, fallback_full_image=True):
+        det_model = getattr(self.pose_model, 'det_model', None)
+        if det_model is None or getattr(self.pose_model, 'one_stage', False): # one-stage models such as rtmo have no person detector
+            return self.pose_model(image)
+        h, w = image.shape[:2]
+        bboxes = det_model(image)
+        if len(bboxes) == 0:
+            # rtmlib pose models silently fall back to the full image on empty bboxes, so make the choice explicit
+            if not fallback_full_image:
+                log.info(f'RtmlibPose: mode={self.mode} no person detected, skipping pose estimation')
+                return None, None
+            log.warning(f'RtmlibPose: mode={self.mode} no person detected, using full image {w}x{h} as person')
+            bboxes = [[0, 0, w, h]]
+        return self.pose_model.pose_model(image, bboxes=bboxes)
+
+    def __call__(self, image, min_confidence=0.3, draw_body_pose=True, draw_hand_pose=True, draw_face_pose=True, fallback_full_image=True, output_type="pil", **kwargs):
         if isinstance(image, Image.Image):
             image = np.array(image)
         if image.ndim == 3 and image.shape[2] == 4:
             image = image[:, :, :3]
         h, w = image.shape[:2]
-        keypoints, scores = self.pose_model(image)
+        keypoints, scores = self.detect(image, fallback_full_image=fallback_full_image)
         canvas = np.zeros((h, w, 3), dtype=np.uint8)
         if keypoints is not None and len(keypoints) > 0:
             import rtmlib
+            # rtmlib.draw_skeleton draws everything; hide disabled parts by zeroing their scores so they fall below kpt_thr
+            scores = np.array(scores, copy=True)
+            is_wholebody = scores.shape[-1] >= 134
+            if not draw_body_pose:
+                scores[..., OPENPOSE_BODY if is_wholebody else slice(None)] = 0
+            if is_wholebody and not draw_face_pose:
+                scores[..., OPENPOSE_FACE] = 0
+            if is_wholebody and not draw_hand_pose:
+                scores[..., OPENPOSE_HANDS] = 0
             canvas = rtmlib.draw_skeleton(canvas, keypoints, scores, openpose_skeleton=self.openpose, kpt_thr=min_confidence)
         if output_type == "pil":
             canvas = Image.fromarray(canvas)
