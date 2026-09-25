@@ -119,7 +119,7 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         if p.hr_force or ('Latent' in p.hr_upscaler):
             args["Hires force"] = p.hr_force
             args["Hires steps"] = p.hr_second_pass_steps
-            args["Hires strength"] = p.hr_denoising_strength
+            args["Hires strength"] = p.hr_denoising_strength if p.hr_denoising_strength > 0 else p.denoising_strength
             args["Hires sampler"] = p.hr_sampler_name if p.hr_sampler_name != 'Default' else None
             args["Hires CFG scale"] = p.cfg_image if (p.cfg_image is not None and p.cfg_image > -1) else None
     if 'refine' in p.ops:
