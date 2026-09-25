@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-09-24
+## Update for 2026-09-25
 
 - **Models**
   - [Qwen-Image 2.1](https://huggingface.co/Qwen/Qwen-Image-2.1) in *base*, *sdnq-4bit* and *sdnq-8bit* variants  
@@ -25,6 +25,15 @@
   - lora: name mapping for network models and loras
   - dlss: additional DLSS reporting
   - temp file: gradio temp file error handling
+  - pixelsmith: vae tiling, thanks @li-lizhe
+  - txt2img: fix hires strength handling
+
+## Refresh for 2026-09-19
+
+- preview mapping for reference networks
+- name mapping for network models and loras
+- additional DLSS reporting
+- gradio temp file error handling
 
 ## Update for 2026-09-17
 
