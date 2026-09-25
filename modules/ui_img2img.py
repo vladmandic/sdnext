@@ -295,7 +295,7 @@ def create_ui():
                 # refiner
                 (refiner_start, "Refiner start"),
                 (refiner_steps, "Refiner steps"),
-                (refiner_prompt, "refiner prompt"),
+                (refiner_prompt, "Refiner prompt"),
                 (refiner_negative, "Refiner negative"),
                 # guidance
                 (cfg_name, "CFG name"),
