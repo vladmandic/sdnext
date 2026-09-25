@@ -9,6 +9,7 @@ from modules.attention import context as attention_context
 
 p = None
 debug = os.environ.get('SD_CALLBACK_DEBUG', None) is not None
+force_callback = os.environ.get('SD_FORCE_CALLBACK', None) is not None
 debug_callback = log.trace if debug else lambda *args, **kwargs: None
 warned = False
 
@@ -253,6 +254,17 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
         # errors.display(e, 'Callback')
     if shared.cmd_opts.profile and shared.profiler is not None:
         shared.profiler.step()
+
+    try:
+        if force_callback:
+            log.info('Force callback enabled')
+            from modules.sd_samplers_common import single_sample_to_image
+            image = single_sample_to_image(shared.state.current_latent, approximation='Micro')
+            shared.state.assign_current_image(image)
+    except Exception as e:
+        from modules import errors
+        log.error(f'Force callback: {e}')
+        errors.display(e, 'Callback')
 
     t2 = time.time()
     timer.process.add('sync', t1 - t0)

@@ -15,6 +15,12 @@
   - update `diffusers==0.41.0.dev0`
   - `rocm` windows installation move to *stable*, thanks @resonantsky  
     at the moment, this results in installation of `torch==2.13.0` with `rocm==10.0.0`  
+- **Other**
+  - `DWPose`, `RTMW`, `RTMO`: image processor updates, thanks @kirtasshh  
+    refactored to use `ONNX` instead of obsolete `mmpose` lib and with additional configurable settings  
+  - `VAE`: new [MicroDecoder](https://huggingface.co/vladmandic/MicroDecoder) vae implementation  
+    used for live-preview as quick vae and can be trained on any model  
+    currently used for *qwen-image-2.1*  
 - **Fixes**
   - api: hardening all all file-access api endpoints
   - prompt cache: bypass when condition images are encoded
@@ -22,18 +28,16 @@
   - vae tiling: tile size setting applies to 3d vaes, 16x vae tile geometry
   - pixelsmith: vae tiling, thanks @li-lizhe  
   - networks: preview mapping for reference networks
-  - lora: name mapping for network models and loras
   - dlss: additional DLSS reporting
   - temp file: gradio temp file error handling
   - pixelsmith: vae tiling, thanks @li-lizhe
   - txt2img: fix hires strength handling
-
-## Refresh for 2026-09-19
-
-- preview mapping for reference networks
-- name mapping for network models and loras
-- additional DLSS reporting
-- gradio temp file error handling
+  - networks: preview mapping for reference networks
+  - networks: name mapping for network models and loras
+  - dlss: additional DLSS reporting
+  - temp file: gradio temp file error handling
+  - metadata: correct refine prompt restore, thanks @QualiaRain
+  - video: handle failed model load without loading default model, thanks @QualiaRain
 
 ## Update for 2026-09-17
 

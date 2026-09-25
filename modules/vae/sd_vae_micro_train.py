@@ -401,6 +401,37 @@ def get_vae_params(vae_model):
     return scaling_factor, shift_factor, latents_mean, latents_std
 
 
+def encode_vae(vae_model, batch_img: torch.Tensor) -> torch.Tensor:
+    """Dynamically encodes image batch using 4D or 5D shapes depending on VAE requirements."""
+    try:
+        out = vae_model.encode(batch_img)
+    except (ValueError, RuntimeError, TypeError):
+        if batch_img.ndim == 4:
+            out = vae_model.encode(batch_img.unsqueeze(2))
+        elif batch_img.ndim == 5:
+            out = vae_model.encode(batch_img.squeeze(2))
+        else:
+            raise
+
+    if hasattr(out, "latent_dist"):
+        lat = out.latent_dist.mode()
+    elif hasattr(out, "latents"):
+        lat = out.latents
+    elif hasattr(out, "latent"):
+        lat = out.latent
+    elif hasattr(out, "sample"):
+        lat = out.sample
+    elif isinstance(out, (tuple, list)):
+        lat = out[0]
+    else:
+        lat = out
+
+    # Squeeze out temporal frame dimension if present
+    if lat.ndim == 5:
+        lat = lat.squeeze(2)  # Back to [B, C, H_lat, W_lat]
+    return lat
+
+
 class LatentDataset(Dataset):
     def __init__(self, latents: torch.Tensor, target_rgbs: torch.Tensor):
         self.latents = latents
@@ -476,16 +507,10 @@ def main():
                     dtype=dtype
                 )
                 batch_img = torch.cat([batch_img, padding], dim=1)
-            if batch_img.ndim == 4:
-                batch_img = batch_img.unsqueeze(2)  # Shape: [B, C, 1, H, W]
-            out = vae_model.encode(batch_img)
-            lat = out.latent_dist.mode() if hasattr(out, "latent_dist") else getattr(out, "latents", out)
-            # Squeeze out temporal frame dimension if present
-            if lat.ndim == 5:
-                lat = lat.squeeze(2)  # Back to [B, C, H_lat, W_lat]
+            lat = encode_vae(vae_model, batch_img)
             if latents_mean is not None and latents_std is not None:
-                mean_t = torch.tensor(latents_mean, device=lat.device, dtype=lat.dtype).view(1, -1, 1, 1)
-                std_t = torch.tensor(latents_std, device=lat.device, dtype=lat.dtype).view(1, -1, 1, 1)
+                mean_t = torch.tensor(latents_mean[:lat.shape[1]], device=lat.device, dtype=lat.dtype).view(1, -1, 1, 1)
+                std_t = torch.tensor(latents_std[:lat.shape[1]], device=lat.device, dtype=lat.dtype).view(1, -1, 1, 1)
                 lat = (lat - mean_t) / std_t
             else:
                 if shift_factor is not None:
@@ -505,6 +530,7 @@ def main():
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
     all_latents = torch.cat(latents_list, dim=0)
+    in_channels = all_latents.shape[1]
     target_h = all_latents.shape[2] * args.scale
     target_w = all_latents.shape[3] * args.scale
     target_rgbs = (images / 2.0 + 0.5).clamp(0, 1)

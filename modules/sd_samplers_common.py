@@ -51,12 +51,12 @@ def single_sample_to_image(sample, approximation=None, fast=False):
 
         if len(sample.shape) > 4: # likely unknown video latent (e.g. svd)
             return Image.new(mode="RGB", size=(512, 512))
-        if len(sample.shape) == 4 and sample.shape[0]: # likely animatediff latent
-            sample = sample.permute(1, 0, 2, 3)[0]
+        if len(sample.shape) == 4:
+            sample = sample[0] # standard batch [B, C, H, W] -> [C, H, W]
 
         if approximation == "None":
             return Image.new(mode="RGB", size=(512, 512)) # already handled
-        elif shared.sd_model_type in use_micro_decoder:
+        elif approximation == "Micro" or (shared.sd_model_type in use_micro_decoder):
             from modules.vae import sd_vae_micro
             x_sample = sd_vae_micro.decode(sample, vae_cls=shared.sd_model.vae.__class__.__name__)
         elif approximation == "TAESD":
@@ -90,12 +90,12 @@ def single_sample_to_image(sample, approximation=None, fast=False):
             if isinstance(x_sample, Image.Image):
                 image = x_sample
             else:
-                if x_sample.shape[0] > 4 or x_sample.shape[0] == 4:
+                if len(x_sample.shape) == 4:
+                    x_sample = x_sample[0]
+                if x_sample.shape[0] > 4:
                     return Image.new(mode="RGB", size=(512, 512))
                 x_sample = torch.nan_to_num(x_sample, nan=0.0, posinf=1, neginf=0)
                 x_sample = (255.0 * x_sample).to(torch.uint8)
-                if len(x_sample.shape) == 4:
-                    x_sample = x_sample[0]
                 image = convert.to_pil(x_sample)
         except Exception as e:
             warn_once(f'Preview: {e}')
