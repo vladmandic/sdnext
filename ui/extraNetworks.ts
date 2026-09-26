@@ -4,6 +4,20 @@ import { authFetch } from './authWrap';
 import { timer } from './timers';
 
 const activePromptTextarea = {};
+const promptCursor = new WeakMap<HTMLTextAreaElement, number>(); // cursor of each prompt when it lost focus, selection of an unfocused textarea is not reliable
+
+// insert text at the cursor of the prompt, or at the end if the prompt was never focused
+function insertAtCursor(textarea: HTMLTextAreaElement, text: string): void {
+  const value = textarea.value;
+  const cursor = document.activeElement === textarea ? textarea.selectionStart : promptCursor.get(textarea);
+  const pos = Math.min(cursor ?? value.length, value.length);
+  let insert = pos === 0 ? text.trimStart() : text; // network prompts start with a space as separator
+  if (pos < value.length && !/[\s,]/.test(value[pos])) insert += ' ';
+  textarea.value = value.slice(0, pos) + insert + value.slice(pos);
+  promptCursor.set(textarea, pos + insert.length); // next insert follows this one
+  if (document.activeElement === textarea) textarea.setSelectionRange(pos + insert.length, pos + insert.length); // setting value moved the live cursor to the end
+}
+
 const selectedNetworks = {};
 let sortVal = -1;
 let totalCards = -1;
@@ -98,8 +112,8 @@ function readCardTags(el, tags) {
     let new_prompt = textarea.value;
     new_prompt = replaceOutsideBrackets(new_prompt, ` ${tag}`, ''); // try to remove tag
     new_prompt = replaceOutsideBrackets(new_prompt, `${tag} `, '');
-    if (new_prompt === textarea.value) new_prompt += ` ${tag}`; // if not removed, then append it
-    textarea.value = new_prompt;
+    if (new_prompt === textarea.value) insertAtCursor(textarea, ` ${tag}`); // if not removed, then insert it
+    else textarea.value = new_prompt;
     updateInput(textarea);
   };
 
@@ -345,7 +359,7 @@ function cardClicked(textToAdd) {
   log('cardClicked', { tab: tabName, text: textToAdd });
   const textarea = activePromptTextarea[tabName];
   if (textarea.value.indexOf(textToAdd) !== -1) textarea.value = textarea.value.replace(textToAdd, '');
-  else textarea.value += textToAdd;
+  else insertAtCursor(textarea, textToAdd);
   updateInput(textarea);
   markSelectedCards(extractLoraNames(textarea.value), 'lora');
 }
@@ -653,10 +667,11 @@ export async function setupExtraNetworks() {
   setupExtraNetworksForTab('video');
 
   function registerPrompt(tabName, id) {
-    const textarea = gradioApp().querySelector(`#${id} > label > textarea`);
+    const textarea = gradioApp().querySelector<HTMLTextAreaElement>(`#${id} > label > textarea`);
     if (!textarea) return;
     if (!activePromptTextarea[tabName]) activePromptTextarea[tabName] = textarea;
     textarea.addEventListener('focus', () => { activePromptTextarea[tabName] = textarea; });
+    textarea.addEventListener('blur', () => promptCursor.set(textarea, textarea.selectionStart));
   }
 
   registerPrompt('txt2img', 'txt2img_prompt');
@@ -665,6 +680,12 @@ export async function setupExtraNetworks() {
   registerPrompt('img2img', 'img2img_neg_prompt');
   registerPrompt('control', 'control_prompt');
   registerPrompt('control', 'control_neg_prompt');
+  for (const tabName of ['txt2img', 'img2img', 'control']) {
+    registerPrompt(tabName, `${tabName}_refiner_prompt`);
+    registerPrompt(tabName, `${tabName}_refiner_neg_prompt`);
+    registerPrompt(tabName, `${tabName}_detailer_prompt`);
+    registerPrompt(tabName, `${tabName}_detailer_negative`);
+  }
   registerPrompt('video', 'video_prompt');
   registerPrompt('video', 'video_neg_prompt');
   log('initNetworks', window.opts.extra_networks_card_size);
