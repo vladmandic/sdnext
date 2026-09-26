@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-import argparse
-import importlib
+import time
 import math
 import warnings
+import argparse
+import importlib
 from pathlib import Path
 from PIL import Image
 import torch
@@ -12,8 +13,10 @@ import safetensors.torch
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 from torchvision.models import VGG16_Weights, vgg16
-from tqdm import tqdm
+from rich import print, progress as rp # pylint: disable=redefined-builtin
 
+
+warnings.filterwarnings("ignore", category=UserWarning)
 
 # ==============================================================================
 # 1. Advanced Quality Loss & Metrics (PSNR, SSIM, LAB, Saturation, Perceptual, FFT)
@@ -186,7 +189,8 @@ class EnhancedQualityLoss(nn.Module):
 
 
 class DetailedMetricsTracker:
-    def __init__(self):
+    def __init__(self, name):
+        self.name = name
         self.reset()
 
     def reset(self):
@@ -216,6 +220,12 @@ class DetailedMetricsTracker:
 
     def get_averages(self) -> dict:
         return {k: v / max(self.count, 1) for k, v in self.sums.items()}
+
+    def __str__(self) -> str:
+        averages = self.get_averages()
+        color = "green" if "train" in self.name.lower() else "yellow"
+        metrics_fmt = " ".join(f"[dim]{k.replace('_loss', '')}=[/dim][cyan]{v:.3f}[/cyan]" for k, v in averages.items())
+        return f"[{color}]{self.name}[/{color}]({metrics_fmt})"
 
 
 # ==============================================================================
@@ -448,24 +458,41 @@ class LatentDataset(Dataset):
 # 4. Main Training Execution
 # ==============================================================================
 
-def main():
-    parser = argparse.ArgumentParser(description="Train MicroDecoder with enhanced metrics & visual logging.")
-    parser.add_argument("--folder", type=str, required=True, help="Directory containing dataset images.")
-    parser.add_argument("--vae", type=str, required=True, help="VAE class name from Diffusers.")
-    parser.add_argument("--repo", type=str, required=True, help="HuggingFace model repository path.")
-    parser.add_argument("--subfolder", type=str, default="vae", help="Subfolder containing VAE weights.")
-    parser.add_argument("--scale", type=int, default=2, help="Upsampling factor for PixelShuffle.")
-    parser.add_argument("--resolution", type=int, default=512, help="Target training image resolution.")
-    parser.add_argument("--crop", choices=["center", "random"], default="center", help="Cropping mode when resizing non-square images.")
-    parser.add_argument("--dim", type=int, default=256, help="Hidden dimension channel capacity.")
-    parser.add_argument("--epochs", type=int, default=80)
-    parser.add_argument("--batch", type=int, default=16)
-    parser.add_argument("--lr", type=float, default=2.5e-4)
-    parser.add_argument("--ema", type=float, default=0.999, help="EMA decay rate.")
-    parser.add_argument("--val", type=float, default=0.10, help="Fraction of dataset for validation.")
-    parser.add_argument("--max", type=int, default=500, help="Maximum number of dataset images to encode.")
-    parser.add_argument("--output", type=str, default="model-micro.safetensors", help="Path to save output weights.")
-    parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
+class HelpFormatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawDescriptionHelpFormatter):
+    pass
+
+
+def train():
+    print('MicroDecoder Train')
+    epilog = """
+Metrics Legend:
+  tTotal / vTotal : Total weighted loss (lower is better). Combined L1, Perceptual, SSIM, LAB, Gradient, Saturation, and FFT losses
+  tPSNR / vPSNR   : Peak Signal-to-Noise Ratio in dB (higher is better). Measures overall reconstruction quality
+  tSSIM / vSSIM   : Structural Similarity Index in [0, 1] (higher is better). Measures structural and textural accuracy
+  vL1             : Mean Absolute Error in RGB space [0, 1] (lower is better). Measures direct pixel color accuracy
+  vLAB            : Perceptual color difference loss in CIE-LAB space (lower is better). Penalizes color shifts and fading
+"""
+    parser = argparse.ArgumentParser(
+        description="Train MicroDecoder with enhanced metrics & visual logging.",
+        epilog=epilog,
+        formatter_class=HelpFormatter
+    )
+    parser.add_argument("--folder", type=str, required=True, help="Folder containing dataset images")
+    parser.add_argument("--max", type=int, default=500, help="Maximum number of dataset images to encode")
+    parser.add_argument("--resolution", type=int, default=512, help="Target training image resolution")
+    parser.add_argument("--crop", choices=["center", "random"], default="center", help="Cropping mode when resizing non-square images")
+    parser.add_argument("--vae", type=str, required=True, help="Diffusers VAE class name")
+    parser.add_argument("--repo", type=str, required=True, help="HuggingFace model repository path")
+    parser.add_argument("--subfolder", type=str, default="vae", help="Subfolder containing VAE weights")
+    parser.add_argument("--dim", type=int, default=256, help="Hidden dimension channel capacity")
+    parser.add_argument("--epochs", type=int, default=200, help="Number of training epochs")
+    parser.add_argument("--scale", type=int, default=4, help="Upsampling factor for PixelShuffle")
+    parser.add_argument("--batch", type=int, default=16, help="Batch size for encoding and training")
+    parser.add_argument("--lr", type=float, default=2.5e-4, help="Learning rate for AdamW optimizer")
+    parser.add_argument("--ema", type=float, default=0.999, help="EMA decay rate")
+    parser.add_argument("--val", type=float, default=0.10, help="Fraction of dataset for validation")
+    parser.add_argument("--output", type=str, default="microdecoder.safetensors", help="Path to save output weights safetensors file")
+    parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu", help="Target computing device")
 
     args = parser.parse_args()
     print('Args:', args)
@@ -474,12 +501,20 @@ def main():
     diffusers_module = importlib.import_module("diffusers")
     vae_cls = getattr(diffusers_module, args.vae)
     dtype = torch.bfloat16 if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else torch.float32
-
+    print(f'Base VAE: cls={vae_cls} repo="{args.repo}" subfolder="{args.subfolder}"')
     vae_model = vae_cls.from_pretrained(args.repo, subfolder=args.subfolder, torch_dtype=dtype).to(device)
     vae_model.eval()
 
-    scaling_factor, shift_factor, latents_mean, latents_std = get_vae_params(vae_model)
-    in_channels = getattr(vae_model.config, "latent_channels", 64)
+    pbar = rp.Progress(rp.TextColumn('[cyan]{task.description}'),
+                       rp.BarColumn(bar_width=20),
+                       rp.MofNCompleteColumn(),
+                       rp.TaskProgressColumn(),
+                       rp.TimeRemainingColumn(),
+                       rp.TimeElapsedColumn(),
+                       rp.TextColumn("{task.fields[message]}"),
+                       transient=False, redirect_stdout=False,
+                      )
+    pbar.start()
 
     exts = ("*.jpg", "*.jpeg", "*.png", "*.webp")
     image_paths = [p for ext in exts for p in Path(args.folder).glob(ext)][:args.max]
@@ -492,11 +527,24 @@ def main():
         transforms.ToTensor(),
         transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
     ])
-    images = torch.stack([transform(Image.open(p).convert("RGB")) for p in image_paths])
+    images = []
+    task = pbar.add_task("Load", total=len(image_paths), message="Loading images")
+    for p in image_paths:
+        pbar.update(task, advance=1, message=f"{p.name}")
+        img = Image.open(p).convert("RGB")
+        images.append(transform(img))
+        img.close()
+    images = torch.stack(images)
+    pbar.update(task, advance=0, message=f"Images={len(images)} Shape={images.shape}")
+
+    scaling_factor, shift_factor, latents_mean, latents_std = get_vae_params(vae_model)
+    in_channels = getattr(vae_model.config, "latent_channels", 64)
     latents_list = []
     with torch.no_grad():
-        for i in tqdm(range(0, len(images), 8), desc="Encoding Latents"):
-            batch_img = images[i : i + 8].to(device=device, dtype=dtype)
+        task = pbar.add_task("Encode", total=len(images), message="Encoding images")
+        for i in range(0, len(images), args.batch):
+            batch_img = images[i : i + args.batch].to(device=device, dtype=dtype)
+            pbar.update(task, advance=batch_img.shape[0], message=f"Batch {i // args.batch + 1}")
             # Check expected channels
             expected_in_channels = getattr(vae_model.config, "in_channels", 3)
             if batch_img.shape[1] < expected_in_channels:
@@ -526,47 +574,50 @@ def main():
                     else:
                         lat = lat * float(scaling_factor)
             latents_list.append(lat.float().cpu())
-    del vae_model
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
-    all_latents = torch.cat(latents_list, dim=0)
-    in_channels = all_latents.shape[1]
-    target_h = all_latents.shape[2] * args.scale
-    target_w = all_latents.shape[3] * args.scale
-    target_rgbs = (images / 2.0 + 0.5).clamp(0, 1)
-    target_rgbs = F.interpolate(target_rgbs, size=(target_h, target_w), mode="area").float()
-    total_samples = len(all_latents)
-    val_count = max(int(total_samples * args.val), 4) if total_samples >= 8 else 0
-    train_count = total_samples - val_count
-    # Deterministic split
-    indices = torch.randperm(total_samples, generator=torch.Generator().manual_seed(42))
-    train_indices = indices[:train_count]
-    val_indices = indices[train_count:]
+        del vae_model
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        all_latents = torch.cat(latents_list, dim=0)
+        in_channels = all_latents.shape[1]
+        target_h = all_latents.shape[2] * args.scale
+        target_w = all_latents.shape[3] * args.scale
+        target_rgbs = (images / 2.0 + 0.5).clamp(0, 1)
+        target_rgbs = F.interpolate(target_rgbs, size=(target_h, target_w), mode="area").float()
+        total_samples = len(all_latents)
+        val_count = max(int(total_samples * args.val), 4) if total_samples >= 8 else 0
+        if val_count == 0:
+            raise ValueError("Validation set is empty")
+        train_count = total_samples - val_count
+        # Deterministic split
+        indices = torch.randperm(total_samples, generator=torch.Generator().manual_seed(42))
+        train_indices = indices[:train_count]
+        val_indices = indices[train_count:]
 
-    train_dataset = LatentDataset(all_latents[train_indices], target_rgbs[train_indices])
-    train_loader = DataLoader(train_dataset, batch_size=args.batch, shuffle=True, pin_memory=torch.cuda.is_available())
+        train_dataset = LatentDataset(all_latents[train_indices], target_rgbs[train_indices])
+        train_loader = DataLoader(train_dataset, batch_size=args.batch, shuffle=True, pin_memory=torch.cuda.is_available())
 
-    val_dataset = LatentDataset(all_latents[val_indices], target_rgbs[val_indices]) if val_count > 0 else None
-    val_loader = DataLoader(val_dataset, batch_size=args.batch, shuffle=False) if val_dataset else None
+        val_dataset = LatentDataset(all_latents[val_indices], target_rgbs[val_indices])
+        val_loader = DataLoader(val_dataset, batch_size=args.batch, shuffle=False)
+        pbar.update(task, advance=0, message=f"Train={train_count} Validation={val_count} EMA={args.ema}")
 
     model = MicroDecoder(in_channels=in_channels, hidden_dim=args.dim, scale_factor=args.scale).to(device)
     ema_model = EMAModel(model, decay=args.ema)
-
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs, eta_min=1e-6)
     criterion = EnhancedQualityLoss().to(device)
-    train_metrics = DetailedMetricsTracker()
-    val_metrics = DetailedMetricsTracker()
+    train_metrics = DetailedMetricsTracker('Train')
+    val_metrics = DetailedMetricsTracker('Validate')
     eval_model = MicroDecoder(in_channels=in_channels, hidden_dim=args.dim, scale_factor=args.scale).to(device)
+    print(f"Init VAE: model={model.__class__.__name__} ema={ema_model.__class__.__name__} optimizer={optimizer.__class__.__name__} scheduler={scheduler.__class__.__name__} criterion={criterion.__class__.__name__} metrics={train_metrics.__class__.__name__}")
 
     best_val_psnr = -float("inf")
     best_epoch = 0
 
-    print(f"\n--> Training MicroDecoder [{args.epochs} epochs | Channels: {in_channels} | Hidden: {args.dim} | Scale: {args.scale}x]")
-    print(f"--> Dataset: {train_count} train samples | {val_count} validation samples | EMA decay: {args.ema}")
-    print(f"{'Epoch':<6} | {'Train Tot':<9} | {'Tr PSNR':<7} | {'Tr SSIM':<7} | {'Val Tot':<8} | {'Val PSNR':<8} | {'Val SSIM':<8} | {'Val L1':<7} | {'Val LAB':<7}")
-    print("-" * 92)
+    print(f"{'Epoch':<7} | {'tTotal':<9} | {'tPSNR':<7} | {'tSSIM':<7} | {'vTotal':<8} | {'vPSNR':<8} | {'vSSIM':<8} | {'vL1':<7} | {'vLAB':<7}")
+    print("-" * 91)
 
+    t0 = time.perf_counter()
+    task = pbar.add_task("Train", total=args.epochs, message="Training model")
     for epoch in range(1, args.epochs + 1):
         model.train()
         train_metrics.reset()
@@ -603,60 +654,54 @@ def main():
         scheduler.step()
         tr_avg = train_metrics.get_averages()
 
-        # Deterministic Validation using EMA weights
-        if val_loader:
-            ema_model.apply_to(eval_model)
-            eval_model.eval()
-            val_metrics.reset()
+        ema_model.apply_to(eval_model)
+        eval_model.eval()
+        val_metrics.reset()
 
-            with torch.no_grad():
-                for v_latents, v_targets in val_loader:
-                    v_latents = v_latents.to(device)
-                    v_targets = v_targets.to(device)
-                    # Evaluate on clean latents (t=0)
-                    t_val = torch.zeros((v_latents.shape[0], 1), device=device)
-                    v_preds = eval_model(v_latents, t=t_val)
-                    _v_loss, v_components = criterion(v_preds, v_targets)
-                    val_metrics.update(v_preds, v_targets, v_components)
+        with torch.no_grad():
+            for v_latents, v_targets in val_loader:
+                v_latents = v_latents.to(device)
+                v_targets = v_targets.to(device)
+                # Evaluate on clean latents (t=0)
+                t_val = torch.zeros((v_latents.shape[0], 1), device=device)
+                v_preds = eval_model(v_latents, t=t_val)
+                _v_loss, v_components = criterion(v_preds, v_targets)
+                val_metrics.update(v_preds, v_targets, v_components)
 
-            val_avg = val_metrics.get_averages()
-            val_psnr = val_avg['psnr']
-            val_ssim = val_avg['ssim']
-            val_tot = val_avg['total_loss']
-            val_l1 = val_avg['l1_loss']
-            val_lab = val_avg['lab_loss']
+        val_avg = val_metrics.get_averages()
+        val_psnr = val_avg['psnr']
+        val_ssim = val_avg['ssim']
+        val_tot = val_avg['total_loss']
+        val_l1 = val_avg['l1_loss']
+        val_lab = val_avg['lab_loss']
 
-            # Checkpoint best model on validation PSNR
-            if val_psnr > best_val_psnr:
-                best_val_psnr = val_psnr
-                best_epoch = epoch
-                Path(args.output).parent.mkdir(parents=True, exist_ok=True)
-                safetensors.torch.save_file(ema_model.state_dict(), args.output)
-                star = " *"
-            else:
-                star = ""
-        else:
-            val_tot = val_psnr = val_ssim = val_l1 = val_lab = 0.0
-            star = ""
+        # Checkpoint best model on validation PSNR
+        if val_psnr > best_val_psnr:
+            best_val_psnr = val_psnr
+            best_epoch = epoch
             Path(args.output).parent.mkdir(parents=True, exist_ok=True)
-            safetensors.torch.save_file(ema_model.state_dict(), args.output)
+            half_state_dict = {k: v.half() for k, v in ema_model.state_dict().items()}
+            safetensors.torch.save_file(half_state_dict, args.output)
 
-        print(
-            f"{epoch:02d}/{args.epochs:02d}  | "
-            f"{tr_avg['total_loss']:<9.4f} | "
-            f"{tr_avg['psnr']:<7.2f} | "
-            f"{tr_avg['ssim']:<7.4f} | "
-            f"{val_tot:<8.4f} | "
-            f"{val_psnr:<8.2f} | "
-            f"{val_ssim:<8.4f} | "
-            f"{val_l1:<7.4f} | "
-            f"{val_lab:<7.4f}{star}"
-        )
+        if (epoch == 1) or (epoch % 10 == 0) or (epoch >= args.epochs):
+            print(
+                f"{epoch:03d}/{args.epochs:03d} | "
+                f"{tr_avg['total_loss']:<9.4f} | "
+                f"{tr_avg['psnr']:<7.2f} | "
+                f"{tr_avg['ssim']:<7.4f} | "
+                f"{val_tot:<8.4f} | "
+                f"{val_psnr:<8.2f} | "
+                f"{val_ssim:<8.4f} | "
+                f"{val_l1:<7.4f} | "
+                f"{val_lab:<7.4f}"
+            )
+        pbar.update(task, advance=1, message=f"{str(train_metrics)} {str(val_metrics)}")
 
-    print(f"\n--> Training complete! Best validation PSNR: {best_val_psnr:.2f} dB (Epoch {best_epoch})")
-    print(f"--> Saved best EMA model weights to: {args.output}")
+    pbar.stop()
+    t1 = time.perf_counter()
+    print(f"Complete: Time={t1 - t0:.2f} Epoch/Sec={args.epochs / (t1 - t0):.2f} PSNR={best_val_psnr:.2f} dB @ Epoch={best_epoch}")
+    print(f'Save: filename="{args.output}"')
 
 
 if __name__ == "__main__":
-    warnings.filterwarnings("ignore", message=".*local_dir_use_symlinks.*", category=UserWarning)
-    main()
+    train()

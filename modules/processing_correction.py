@@ -7,7 +7,6 @@ import os
 import torch
 from modules import devices
 from modules.logger import log
-from modules.vae import sd_vae_taesd
 
 
 debug_enabled = os.environ.get('SD_HDR_DEBUG', None) is not None
@@ -69,7 +68,8 @@ def get_color(colorstr):
         colorstr = "#000000"
     rgb = torch.tensor(tuple(int(colorstr.lstrip('#')[i:i + 2], 16) for i in (0, 2, 4))).to(dtype=torch.float32)
     rgb = (rgb / 255).unsqueeze(-1).unsqueeze(-1).repeat(1, 64, 64).to(dtype=devices.dtype, device=devices.device)
-    color = sd_vae_taesd.encode(rgb).squeeze(0)[0:3, 5, 5]
+    from modules.processing_vae import full_vae_encode
+    color = full_vae_encode(rgb).squeeze(0)[0:3, 5, 5]
     return color
 
 

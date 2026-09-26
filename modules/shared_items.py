@@ -108,10 +108,6 @@ def sd_vae_items():
     return ["Automatic", "Default"] + list(modules.sd_vae.vae_dict)
 
 
-def sd_taesd_items():
-    import modules.vae.sd_vae_taesd
-    return list(modules.vae.sd_vae_taesd.TAESD_MODELS.keys()) + list(modules.vae.sd_vae_taesd.CQYAN_MODELS.keys())
-
 def refresh_vae_list():
     import modules.sd_vae
     modules.sd_vae.refresh_vae_list()

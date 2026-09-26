@@ -3,9 +3,10 @@ import torch
 import torch.nn.functional as F
 import safetensors.torch
 import huggingface_hub as hf
-from modules import devices, shared, sd_vae
+from modules import devices, shared, paths, sd_vae
 from modules.logger import log
 from modules.vae.sd_vae_micro_train import MicroDecoder
+from modules.vae.model_map import get_vae_type
 
 
 decoder = None
@@ -13,16 +14,21 @@ decoder_cls = None
 repo_id = 'vladmandic/MicroDecoder'
 
 
-def decode(
-    latents: torch.Tensor,
-    vae_cls: str,
-) -> torch.Tensor:
+def decode(latents: torch.Tensor) -> torch.Tensor:
     global decoder, decoder_cls  # pylint: disable=global-statement
+    vae_cls = get_vae_type()
+    if vae_cls is None:
+        return latents
     scale_factor = sd_vae.get_vae_scale_factor()
     in_channels = getattr(shared.sd_model.vae.config, "latent_channels", 64)
 
     if (decoder is None) or (decoder_cls != vae_cls):
-        model_path = hf.hf_hub_download(repo_id=repo_id, filename=f'{vae_cls}.safetensors', cache_dir=shared.opts.hfcache_dir)
+        model_folder = os.path.join(paths.models_path, "Preview")
+        try:
+            model_path = hf.hf_hub_download(repo_id=repo_id, filename=f'microdecoder-{vae_cls}.safetensors', local_dir=model_folder)
+        except Exception as e:
+            log.error(f'MicroDecoder: repo={repo_id} target={vae_cls} {str(e)}')
+            return latents
         if not os.path.exists(model_path):
             log.error(f'MicroDecoder: repo={repo_id} target={vae_cls} file="{model_path}" not found')
             return latents
@@ -32,7 +38,7 @@ def decode(
         num_up = sum(1 for k in state_dict if k.startswith("up_blocks.") and k.endswith(".conv.weight"))
         chk_scale = (2 ** num_up) if num_up > 0 else 1
         decoder = MicroDecoder(in_channels=in_ch, hidden_dim=hidden_dim, scale_factor=chk_scale).to(device=devices.device, dtype=devices.dtype)
-        log.info(f'Decode: cls=MicroDecoder file="{model_path}" target={vae_cls} channels={in_ch} dim={hidden_dim} scale={chk_scale}')
+        log.info(f'\nDecode: type=Micro file="{model_path}" target={vae_cls} channels={in_ch} dim={hidden_dim} scale={chk_scale}')
         decoder.load_state_dict(state_dict)
         decoder.to(device=devices.device, dtype=devices.dtype)
         decoder.eval()

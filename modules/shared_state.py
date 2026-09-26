@@ -276,11 +276,11 @@ class State:
         from modules import shared, images, sd_samplers_common
         if self.disable_preview or (self.preview_job == self.job_no) or (self.current_image_sampling_step == self.sampling_step):
             return False
-
+        if shared.opts.live_preview_force:
+            return True # handled in callback directly
         if (shared.opts.show_progress_type == "None") and (shared.history.last_image is not None):
             last_image = images.image_grid(shared.history.last_image)
             self.assign_current_image(last_image)
-            self.preview_job = -1
             return True
 
         if self.current_latent is not None:
@@ -297,9 +297,8 @@ class State:
                             sample = self.current_noise_pred * (-self.current_sigma / (self.current_sigma**2 + 1) ** 0.5) + (original_sample / (self.current_sigma**2 + 1)) # pylint: disable=invalid-unary-operand-type
                 except Exception:
                     pass # ignore sigma errors
-                image = sd_samplers_common.samples_to_image_grid(sample, fast=self.sampling_step > 1)
+                image = sd_samplers_common.samples_to_image_grid(sample)
                 self.assign_current_image(image)
-                self.preview_job = -1
                 return True
             except Exception as e:
                 self.preview_job = -1
@@ -309,7 +308,6 @@ class State:
         elif self.current_image is not None:
             self.preview_job = self.job_no
             self.assign_current_image(self.current_image)
-            self.preview_job = -1
             return True
         else:
             pass
@@ -318,3 +316,4 @@ class State:
     def assign_current_image(self, image):
         self.current_image = image
         self.id_live_preview += 1
+        self.preview_job = -1

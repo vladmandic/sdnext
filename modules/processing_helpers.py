@@ -277,7 +277,7 @@ def create_random_tensors(shape, seeds, subseeds=None, subseed_strength=0.0, see
     return x
 
 
-def decode_first_stage(model, x):
+def decode_first_stage(model, x, output_type='np', use_job=True):
     if not shared.opts.keep_incomplete and (shared.state.skipped or shared.state.interrupted):
         log.debug(f'Decode VAE: skipped={shared.state.skipped} interrupted={shared.state.interrupted}')
         x_sample = torch.zeros((len(x), 3, x.shape[2] * 8, x.shape[3] * 8), dtype=devices.dtype_vae, device=devices.device)
@@ -288,7 +288,7 @@ def decode_first_stage(model, x):
                 # x_sample = model.decode_first_stage(x) * 0.5 + 0.5
                 x_sample = model.decode_first_stage(x)
             elif hasattr(model, 'vae'):
-                x_sample = processing_vae.vae_decode(latents=x, model=model, output_type='np')
+                x_sample = processing_vae.vae_decode(latents=x, model=model, output_type=output_type, use_job=use_job)
             else:
                 x_sample = x
                 log.error('Decode VAE unknown model')
@@ -434,7 +434,7 @@ def resize_hires(p, latents): # input=latents output=pil if not latent_upscaler 
                 for i in range(len(latents)):
                     if not torch.is_tensor(latents[i]):
                         log.warning(f'Hires: input[{i}]={type(latents[i])} not tensor')
-                        latents[i] = processing_vae.vae_encode(image=latents[i], model=shared.sd_model, vae_type=p.vae_type)
+                        latents[i] = processing_vae.vae_encode(image=latents[i], model=shared.sd_model)
                 latents = torch.cat(latents, dim=0)
             except Exception as e:
                 log.error(f'Hires: prepare latents: {e}')

@@ -53,7 +53,7 @@ def get_all_locations(types: list[str] | None = []) -> list[Location]:
         locations.append(Location('SD Models', opts.ckpt_dir, 'Models'))
         locations.append(Location('Diffusers Models', opts.diffusers_dir, 'Models'))
         locations.append(Location('Huggingface Modules', opts.hfcache_dir, 'Models'))
-        locations.append(Location('VAE', [opts.vae_dir, os.path.join(paths.models_path, "TAESD")], 'Models'))
+        locations.append(Location('VAE', [opts.vae_dir, os.path.join(paths.models_path, "Preview")], 'Models'))
         locations.append(Location('UNet', opts.unet_dir, 'Models'))
         locations.append(Location('TextEncoder', opts.te_dir, 'Models'))
         locations.append(Location('LoRA', opts.lora_dir, 'Models'))

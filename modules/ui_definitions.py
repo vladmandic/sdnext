@@ -652,13 +652,13 @@ def create_settings(cmd_opts):
     # --- Live Previews ---
     options_templates.update(options_section(('live-preview', "Live Previews"), {
         "show_progress_every_n_steps": OptionInfo(1, "Live preview display period", gr.Slider, {"minimum": 0, "maximum": 20, "step": 1, "visible": False}),
-        "show_progress_type": OptionInfo("TAESD", "Live preview method", gr.Dropdown, {"choices": ["None", "Simple", "Approximate", "TAESD", "Full"]}),
+        "show_progress_type": OptionInfo("Tiny", "Live preview method", gr.Dropdown, {"choices": ["None", "Micro", "Tiny", "Full"]}),
         "live_preview_refresh_period": OptionInfo(500, "Progress update period", gr.Slider, {"minimum": 0, "maximum": 5000, "step": 25}),
-        "taesd_variant": OptionInfo(shared_items.sd_taesd_items()[0], "TAESD variant", gr.Dropdown, {"choices": shared_items.sd_taesd_items()}),
-        "taesd_layers": OptionInfo(3, "TAESD decode layers", gr.Slider, {"minimum": 1, "maximum": 3, "step": 1}),
-        "taesd_frames": OptionInfo(4, "TAESD video frames", gr.Slider, {"minimum": -1, "maximum": 32, "step": 1, "visible": False}),
+        "live_preview_force": OptionInfo(False, "Force live previews on each step"),
         "live_preview_require_focus": OptionInfo(True, "Pause live previews when tab is not focused"),
         "live_preview_downscale": OptionInfo(True, "Downscale high resolution live previews"),
+        "taesd_layers": OptionInfo(3, "Tiny: decode layers", gr.Slider, {"minimum": 1, "maximum": 3, "step": 1}),
+        "taesd_frames": OptionInfo(4, "Tiny: video frames", gr.Slider, {"minimum": -1, "maximum": 32, "step": 1, "visible": False}),
 
         "notification_audio_enable": OptionInfo(False, "Play a notification upon completion"),
         "notification_audio_path": OptionInfo("ui/assets/notification.mp3","Path to notification sound", component_args=hide_dirs, folder=True),

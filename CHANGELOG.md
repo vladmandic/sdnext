@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-09-25
+## Update for 2026-09-26
 
 - **Models**
   - [Qwen-Image 2.1](https://huggingface.co/Qwen/Qwen-Image-2.1) in *base*, *sdnq-4bit* and *sdnq-8bit* variants  
@@ -15,12 +15,17 @@
   - update `diffusers==0.41.0.dev0`
   - `rocm` windows installation move to *stable*, thanks @resonantsky  
     at the moment, this results in installation of `torch==2.13.0` with `rocm==10.0.0`  
+- **Preview**
+  - full refactor: refactored taesd, added micro decoder, removed simple and approximate methods
+  - preview methods: *None, Micro, Tiny (TAESD), Full*
+  - new *setting -> live preview -> force live preview on each step*  
+    instead of relying on polling and low-priority updates, forces preview calculation on each step  
+  - new [MicroDecoder](https://huggingface.co/vladmandic/MicroDecoder) vae implementation  
+    used for live-preview as quick vae and can be trained on any model  
 - **Other**
+  - `LivePreview`: full refactor
   - `DWPose`, `RTMW`, `RTMO`: image processor updates, thanks @kirtasshh  
     refactored to use `ONNX` instead of obsolete `mmpose` lib and with additional configurable settings  
-  - `VAE`: new [MicroDecoder](https://huggingface.co/vladmandic/MicroDecoder) vae implementation  
-    used for live-preview as quick vae and can be trained on any model  
-    currently used for *qwen-image-2.1*  
 - **Fixes**
   - api: hardening all all file-access api endpoints
   - prompt cache: bypass when condition images are encoded
