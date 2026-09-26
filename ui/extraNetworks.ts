@@ -7,16 +7,60 @@ const activePromptTextarea = {};
 const promptCursor = new WeakMap<HTMLTextAreaElement, number>(); // cursor of each prompt when it lost focus, selection of an unfocused textarea is not reliable
 const insertOnlyPrompts = new WeakSet<HTMLTextAreaElement>(); // prompts where clicking a card always inserts instead of toggling, since each line can target a different detection
 
+const isSeparator = (ch: string | undefined): boolean => ch === undefined || /[\s,]/.test(ch);
+const isLineSeparator = (ch: string | undefined): boolean => ch !== undefined && ch !== '\n' && /[\s,]/.test(ch);
+
+function setPromptCursor(textarea: HTMLTextAreaElement, pos: number): void {
+  promptCursor.set(textarea, pos);
+  if (document.activeElement === textarea) textarea.setSelectionRange(pos, pos); // setting value moved the live cursor to the end
+}
+
+// move a position inside a <...> tag or inside a word to its end, so inserts never split them
+function snapToBoundary(value: string, pos: number): number {
+  if (pos <= 0) return 0;
+  if (value.lastIndexOf('<', pos - 1) > value.lastIndexOf('>', pos - 1)) {
+    const close = value.indexOf('>', pos);
+    if (close !== -1) pos = close + 1;
+  }
+  while (pos < value.length && !isSeparator(value[pos - 1]) && !isSeparator(value[pos])) pos++;
+  return pos;
+}
+
 // insert text at the cursor of the prompt, or at the end if the prompt was never focused
 function insertAtCursor(textarea: HTMLTextAreaElement, text: string): void {
   const value = textarea.value;
   const cursor = document.activeElement === textarea ? textarea.selectionStart : promptCursor.get(textarea);
-  const pos = Math.min(cursor ?? value.length, value.length);
-  let insert = pos === 0 ? text.trimStart() : text; // network prompts start with a space as separator
-  if (pos < value.length && !/[\s,]/.test(value[pos])) insert += ' ';
+  const pos = snapToBoundary(value, Math.min(cursor ?? value.length, value.length));
+  let insert = pos === 0 || /\s/.test(value[pos - 1]) ? text.trimStart() : text; // network prompts start with a space as separator
+  if (!isSeparator(value[pos])) insert += ' ';
   textarea.value = value.slice(0, pos) + insert + value.slice(pos);
-  promptCursor.set(textarea, pos + insert.length); // next insert follows this one
-  if (document.activeElement === textarea) textarea.setSelectionRange(pos + insert.length, pos + insert.length); // setting value moved the live cursor to the end
+  setPromptCursor(textarea, pos + insert.length); // next insert follows this one
+}
+
+// find text as a standalone item, bounded by start or end of prompt, whitespace or comma
+function findStandalone(value: string, text: string): number {
+  if (text.length === 0) return -1;
+  let idx = value.indexOf(text);
+  while (idx !== -1) {
+    if (isSeparator(value[idx - 1]) && isSeparator(value[idx + text.length])) return idx;
+    idx = value.indexOf(text, idx + 1);
+  }
+  return -1;
+}
+
+// remove text at idx together with its separators, keeping a single separator between its neighbours on the same line
+function removeAt(textarea: HTMLTextAreaElement, idx: number, length: number): void {
+  const value = textarea.value;
+  let start = idx;
+  let end = idx + length;
+  while (isLineSeparator(value[start - 1])) start--;
+  while (isLineSeparator(value[end])) end++;
+  const lineStart = start === 0 || value[start - 1] === '\n';
+  const lineEnd = end === value.length || value[end] === '\n';
+  let joiner = '';
+  if (!lineStart && !lineEnd) joiner = (value.slice(start, idx) + value.slice(idx + length, end)).includes(',') ? ', ' : ' '; // only the separators decide, the text itself may contain commas
+  textarea.value = value.slice(0, start) + joiner + value.slice(end);
+  setPromptCursor(textarea, start + joiner.length);
 }
 
 const selectedNetworks = {};
@@ -361,7 +405,8 @@ function cardClicked(textToAdd) {
   const tabName = getENActiveTab();
   log('cardClicked', { tab: tabName, text: textToAdd });
   const textarea = activePromptTextarea[tabName];
-  if (!insertOnlyPrompts.has(textarea) && textarea.value.indexOf(textToAdd) !== -1) textarea.value = textarea.value.replace(textToAdd, '');
+  const idx = insertOnlyPrompts.has(textarea) ? -1 : findStandalone(textarea.value, textToAdd.trim());
+  if (idx !== -1) removeAt(textarea, idx, textToAdd.trim().length);
   else insertAtCursor(textarea, textToAdd);
   updateInput(textarea);
   markSelectedCards(extractLoraNames(textarea.value), 'lora');
