@@ -1,12 +1,26 @@
 import re
 import time
 from copy import copy
+from collections import defaultdict
 import numpy as np
 import gradio as gr
 from PIL import Image, ImageDraw
 from modules.logger import log
 from modules import shared, processing, devices, processing_class, ui_common, ui_components, ui_symbols, images, extra_networks, sd_models
 from modules.detailer import DetailerResult, detailer_opt, assign_prompts, parse_prompt_lines
+
+
+def networks_equal(a, b) -> bool:
+    return {k: v for k, v in a.items() if len(v) > 0} == {k: v for k, v in b.items() if len(v) > 0}
+
+
+def activate_networks(p, network_data):
+    # activate switches loaded networks to exactly the requested set; the disable flag only guards processing_diffusers
+    disabled = p.disable_extra_networks
+    p.disable_extra_networks = False
+    p.network_data = network_data
+    extra_networks.activate(p, network_data)
+    p.disable_extra_networks = disabled
 
 
 class Detailer():
@@ -220,6 +234,9 @@ class Detailer():
         matched_prompt_classes = set()
         matched_negative_classes = set()
 
+        main_network_data = p.network_data # networks of the main pass are still active when detailer starts
+        active_network_data = main_network_data
+
         for i, model_val in enumerate(models):
             if shared.state.skipped:
                 shared.state.skipped = False
@@ -344,11 +361,13 @@ class Detailer():
                 pc.negative_prompt = resolved_negatives[j]
                 pc.prompts = [pc.prompt]
                 pc.negative_prompts = [pc.negative_prompt]
+                pc.network_data = defaultdict(list) # own dict since pc is a shallow copy of p and parse_prompts updates network_data in place
                 pc.prompts, pc.network_data = extra_networks.parse_prompts(pc.prompts, pc.network_data)
-                pc.disable_extra_networks = True # disable processing_diffusers from handling network activation since its handled here
-                network_same = len(p.network_data.values()) == len(pc.network_data.values()) and all(x == y for x, y in zip(p.network_data.values(), pc.network_data.values()))
+                network_same = networks_equal(active_network_data, pc.network_data)
                 if not network_same:
-                    extra_networks.activate(pc, pc.network_data)
+                    activate_networks(pc, pc.network_data)
+                    active_network_data = pc.network_data
+                pc.disable_extra_networks = True # disable processing_diffusers from handling network activation since its handled here
                 log.debug(f'Detail: model="{i+1}:{name}" item={j+1}/{len(items)} box={item.box} label="{item.label}" score={item.score:.2f} seg={detailer_opt(p, "detailer_segmentation")} network={network_same} prompt="{pc.prompt}"')
                 pc.init_images = [image]
                 pc.image_mask = [item.mask]
@@ -363,8 +382,6 @@ class Detailer():
                 # process
                 jobid = shared.state.begin('Detailer')
                 pp = processing.process_images_inner(pc)
-                if not network_same:
-                    extra_networks.deactivate(pc, force=True)
                 shared.sd_model.fail_on_switch_error = False
                 shared.state.end(jobid)
 
@@ -393,6 +410,9 @@ class Detailer():
                 from modules.control.util import blend
                 p.image_mask = blend([np.array(m) for m in mask_all])
                 p.image_mask = Image.fromarray(p.image_mask)
+
+        if not networks_equal(active_network_data, main_network_data):
+            activate_networks(p, main_network_data) # restore networks of the main pass for the next image in the batch
 
         unmatched_prompt = prompt_classes - matched_prompt_classes
         if len(unmatched_prompt) > 0:
