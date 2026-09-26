@@ -692,11 +692,14 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                         yield terminate(f'Video open failed: path={inputs} {e}')
                     return terminate(f'Video open failed: path={inputs} {e}')
 
+            condition_set = cap is None and isinstance(inputs, list) and len(inputs) > 1 and all(isinstance(image, Image.Image) for image in inputs) and sd_models.get_max_condition_images(pipe) > 0 # a multi-image pipeline takes every input in one run
             while status:
                 processed_image = None
                 if frame is not None:
                     inputs = [Image.fromarray(frame)] # cv2 to pil
                 for i, input_image in enumerate(inputs): # loop per-input, but with early-break
+                    if condition_set and i > 0: # the set ran with the first input
+                        break
                     if pipe is None: # pipe may have been reset externally
                         if cap is None:
                             break # non-video: pipeline was consumed, no need to re-process remaining inputs
@@ -770,6 +773,8 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                                                                           has_models,
                                                                           active_units,
                                                                         )
+                        if condition_set: # the first input is the canvas, the rest of the set reaches the pipeline as given
+                            p.init_images = list(p.init_images) + inputs[1:]
                         if is_generator:
                             yield (None, blended_image, '') # result is control_output, proces_output
 
