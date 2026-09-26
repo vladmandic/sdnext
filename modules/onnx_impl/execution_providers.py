@@ -117,7 +117,10 @@ def install_execution_provider(ep: ExecutionProvider):
         packages.append("onnxruntime-openvino")
     log.info(f'ONNX install: {packages}')
     for package in packages:
-        res += install(package)
+        result = install(package)
+        if isinstance(result, tuple): # install returns pip (result, output) when it runs pip and empty string when package is already installed
+            result = result[1]
+        res += result or ''
     res += '</pre><br>'
     res += 'Server restart required'
     log.info("Server restart required")
