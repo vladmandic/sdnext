@@ -48,20 +48,35 @@ function parseLogLine(line: string): LogLine {
   };
 }
 
+function updateCounters(): void {
+  const elWarn = document.getElementById('logWarnings');
+  const elErr = document.getElementById('logErrors');
+  const modenUIBtn = document.getElementById('btn_console');
+  if (elWarn) elWarn.innerText = String(logWarnings);
+  if (elErr) elErr.innerText = String(logErrors);
+  if (modenUIBtn) {
+    modenUIBtn.setAttribute('error-count', logErrors > 0 ? String(logErrors) : '');
+    modenUIBtn.style.backgroundColor = logErrors > 0 ? 'var(--color-error)' : '';
+    modenUIBtn.title = `Log\nErrors ${logErrors}\nWarnings ${logWarnings}`;
+  }
+}
+
 async function clearErrors(): Promise<void> {
   logWarnings = 0;
   logErrors = 0;
+  updateCounters(); // reset counters and badge only, log rows are kept
   log('clearErrors');
 }
 
 export async function initClearErrorsButton() {
   const btnServerClear = document.getElementById('btn_console_log_server_clear');
   if (btnServerClear) {
-    btnServerClear.onclick = async (evt) => {
+    // use a listener instead of onclick since modernui assigns its own onclick to the same button after this runs
+    btnServerClear.addEventListener('click', (evt) => {
       evt.preventDefault();
       evt.stopPropagation();
       clearErrors();
-    };
+    });
   }
 }
 
@@ -93,16 +108,7 @@ async function logMonitor() {
     }
     if (atBottom) logMonitorEl.scrollTop = logMonitorEl.scrollHeight;
     else if (logMonitorEl.parentElement) logMonitorEl.parentElement.style.cssText = 'border-bottom: 2px solid var(--highlight-color);';
-    const elWarn = document.getElementById('logWarnings');
-    const elErr = document.getElementById('logErrors');
-    const modenUIBtn = document.getElementById('btn_console');
-    if (elWarn) elWarn.innerText = String(logWarnings);
-    if (elErr) elErr.innerText = String(logErrors);
-    if (modenUIBtn) {
-      modenUIBtn.setAttribute('error-count', logErrors > 0 ? String(logErrors) : '');
-      modenUIBtn.style.backgroundColor = logErrors > 0 ? 'var(--color-error)' : '';
-      modenUIBtn.title = `Log\nErrors ${logErrors}\nWarnings ${logWarnings}`;
-    }
+    updateCounters();
   };
 
   const txtGallery = document.getElementById('txt2img_gallery');
