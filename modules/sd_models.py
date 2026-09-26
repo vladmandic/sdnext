@@ -1178,6 +1178,13 @@ def pipe_serves_task(pipe: diffusers.DiffusionPipeline, task_type: DiffusersTask
     return mapping is not None and pipe.__class__ in mapping.values()
 
 
+def get_max_condition_images(pipe: diffusers.DiffusionPipeline | None = None) -> int:
+    """Images the pipeline conditions on as one set shared by every prompt; 0 when an image list means one image per sample."""
+    if pipe is None:
+        pipe = shared.sd_model
+    return int(getattr(pipe, 'max_condition_images', 0) or 0)
+
+
 def switch_pipe(cls: type[diffusers.DiffusionPipeline] | str, pipeline: diffusers.DiffusionPipeline | None = None, force = False, args: dict | None = None):
     """
     args:
