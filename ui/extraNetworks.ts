@@ -5,6 +5,7 @@ import { timer } from './timers';
 
 const activePromptTextarea = {};
 const promptCursor = new WeakMap<HTMLTextAreaElement, number>(); // cursor of each prompt when it lost focus, selection of an unfocused textarea is not reliable
+const insertOnlyPrompts = new WeakSet<HTMLTextAreaElement>(); // prompts where clicking a card always inserts instead of toggling, since each line can target a different detection
 
 // insert text at the cursor of the prompt, or at the end if the prompt was never focused
 function insertAtCursor(textarea: HTMLTextAreaElement, text: string): void {
@@ -110,8 +111,10 @@ function readCardTags(el, tags) {
     e.stopPropagation();
     const textarea = activePromptTextarea[getENActiveTab()];
     let new_prompt = textarea.value;
-    new_prompt = replaceOutsideBrackets(new_prompt, ` ${tag}`, ''); // try to remove tag
-    new_prompt = replaceOutsideBrackets(new_prompt, `${tag} `, '');
+    if (!insertOnlyPrompts.has(textarea)) {
+      new_prompt = replaceOutsideBrackets(new_prompt, ` ${tag}`, ''); // try to remove tag
+      new_prompt = replaceOutsideBrackets(new_prompt, `${tag} `, '');
+    }
     if (new_prompt === textarea.value) insertAtCursor(textarea, ` ${tag}`); // if not removed, then insert it
     else textarea.value = new_prompt;
     updateInput(textarea);
@@ -358,7 +361,7 @@ function cardClicked(textToAdd) {
   const tabName = getENActiveTab();
   log('cardClicked', { tab: tabName, text: textToAdd });
   const textarea = activePromptTextarea[tabName];
-  if (textarea.value.indexOf(textToAdd) !== -1) textarea.value = textarea.value.replace(textToAdd, '');
+  if (!insertOnlyPrompts.has(textarea) && textarea.value.indexOf(textToAdd) !== -1) textarea.value = textarea.value.replace(textToAdd, '');
   else insertAtCursor(textarea, textToAdd);
   updateInput(textarea);
   markSelectedCards(extractLoraNames(textarea.value), 'lora');
@@ -666,12 +669,13 @@ export async function setupExtraNetworks() {
   setupExtraNetworksForTab('control');
   setupExtraNetworksForTab('video');
 
-  function registerPrompt(tabName, id) {
+  function registerPrompt(tabName, id, insertOnly = false) {
     const textarea = gradioApp().querySelector<HTMLTextAreaElement>(`#${id} > label > textarea`);
     if (!textarea) return;
     if (!activePromptTextarea[tabName]) activePromptTextarea[tabName] = textarea;
     textarea.addEventListener('focus', () => { activePromptTextarea[tabName] = textarea; });
     textarea.addEventListener('blur', () => promptCursor.set(textarea, textarea.selectionStart));
+    if (insertOnly) insertOnlyPrompts.add(textarea);
   }
 
   registerPrompt('txt2img', 'txt2img_prompt');
@@ -683,7 +687,7 @@ export async function setupExtraNetworks() {
   for (const tabName of ['txt2img', 'img2img', 'control']) {
     registerPrompt(tabName, `${tabName}_refiner_prompt`);
     registerPrompt(tabName, `${tabName}_refiner_neg_prompt`);
-    registerPrompt(tabName, `${tabName}_detailer_prompt`);
+    registerPrompt(tabName, `${tabName}_detailer_prompt`, true); // per-class and positional lines, same network can be used by multiple detections
     registerPrompt(tabName, `${tabName}_detailer_negative`);
   }
   registerPrompt('video', 'video_prompt');
