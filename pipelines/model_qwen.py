@@ -90,6 +90,7 @@ def load_qwen(checkpoint_info, diffusers_load_config=None):
     pipe.task_args = {
         'output_type': 'np',
     }
+    pipe.patch_size = 2 # latents pack into 2x2 patches and the pipeline floors sizes to vae_scale_factor * 2
     if 'Layered' in repo_id:
         pipe.task_args['use_en_prompt'] = True
         pipe.task_args['cfg_normalize'] = False
