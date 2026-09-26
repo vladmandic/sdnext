@@ -147,6 +147,25 @@ OPENPOSE_FACE = slice(24, 92)
 OPENPOSE_HANDS = slice(92, 134)
 
 
+def set_providers(body, mode):
+    # rtmlib only knows cpu/cuda/rocm/mps devices, so build its models on cpu and recreate each onnxruntime session with the providers selected in settings
+    import onnxruntime as ort
+    from modules import devices
+    available = ort.get_available_providers()
+    requested = list(devices.onnx or [])
+    providers = [p for p in requested if p in available] or ['CPUExecutionProvider']
+    active = []
+    for tool in (getattr(body, 'det_model', None), getattr(body, 'pose_model', None)):
+        if tool is None or getattr(tool, 'backend', None) != 'onnxruntime':
+            continue
+        tool.session = ort.InferenceSession(tool.onnx_model, providers=providers)
+        active = tool.session.get_providers()
+    if len(requested) > 0 and requested[0] not in active:
+        log.warning(f'RtmlibPose: mode={mode} requested={requested} available={available} active={active}')
+    else:
+        log.info(f'RtmlibPose: mode={mode} providers={active}')
+
+
 class RtmlibPoseDetector:
     def __init__(self, pose_model, mode, openpose=True):
         self.pose_model = pose_model
@@ -156,7 +175,7 @@ class RtmlibPoseDetector:
     @classmethod
     def from_pretrained(cls, pretrained_model_or_path="DWPose", cache_dir=None, local_files_only=False, detector='m', pose_size='l', **kwargs):
         from installer import install
-        install('rtmlib', quiet=True)
+        install('rtmlib', quiet=True, no_deps=True) # rtmlib depends on plain onnxruntime which would overwrite onnxruntime-gpu/directml/openvino
         # rtmlib reads TORCH_HOME to locate its cache at <TORCH_HOME>/hub/checkpoints
         old_torch_home = os.environ.get('TORCH_HOME')
         if cache_dir:
@@ -190,6 +209,7 @@ class RtmlibPoseDetector:
                 os.environ['TORCH_HOME'] = old_torch_home
             elif 'TORCH_HOME' in os.environ:
                 del os.environ['TORCH_HOME']
+        set_providers(body, mode)
         return cls(body, mode)
 
     def detect(self, image, fallback_full_image=True):
