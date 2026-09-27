@@ -43,6 +43,7 @@
   - detailer: use of lora models, thanks @kirtasshh
   - dlss: additional DLSS reporting
   - dlss: additional DLSS reporting
+  - flux.2, glm-image, nano banana: declared condition image counts
   - grid: images with transparency keep it in grids and live previews
   - group offload: places the vae on-demand behind the vae hijack
   - img2img: warn and record in the infotext when the output size follows the input image instead of the request
