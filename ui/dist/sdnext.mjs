@@ -10330,6 +10330,54 @@ async function setupControlUI() {
 
 // ui/extraNetworks.ts
 var activePromptTextarea = {};
+var promptCursor = /* @__PURE__ */ new WeakMap();
+var insertOnlyPrompts = /* @__PURE__ */ new WeakSet();
+var isSeparator = (ch) => ch === void 0 || /[\s,]/.test(ch);
+var isLineSeparator = (ch) => ch !== void 0 && ch !== "\n" && /[\s,]/.test(ch);
+function setPromptCursor(textarea, pos) {
+  promptCursor.set(textarea, pos);
+  if (document.activeElement === textarea) textarea.setSelectionRange(pos, pos);
+}
+function snapToBoundary(value, pos) {
+  if (pos <= 0) return 0;
+  if (value.lastIndexOf("<", pos - 1) > value.lastIndexOf(">", pos - 1)) {
+    const close = value.indexOf(">", pos);
+    if (close !== -1) pos = close + 1;
+  }
+  while (pos < value.length && !isSeparator(value[pos - 1]) && !isSeparator(value[pos])) pos++;
+  return pos;
+}
+function insertAtCursor(textarea, text) {
+  const value = textarea.value;
+  const cursor = document.activeElement === textarea ? textarea.selectionStart : promptCursor.get(textarea);
+  const pos = snapToBoundary(value, Math.min(cursor ?? value.length, value.length));
+  let insert = pos === 0 || /\s/.test(value[pos - 1]) ? text.trimStart() : text;
+  if (!isSeparator(value[pos])) insert += " ";
+  textarea.value = value.slice(0, pos) + insert + value.slice(pos);
+  setPromptCursor(textarea, pos + insert.length);
+}
+function findStandalone(value, text) {
+  if (text.length === 0) return -1;
+  let idx = value.indexOf(text);
+  while (idx !== -1) {
+    if (isSeparator(value[idx - 1]) && isSeparator(value[idx + text.length])) return idx;
+    idx = value.indexOf(text, idx + 1);
+  }
+  return -1;
+}
+function removeAt(textarea, idx, length) {
+  const value = textarea.value;
+  let start = idx;
+  let end = idx + length;
+  while (isLineSeparator(value[start - 1])) start--;
+  while (isLineSeparator(value[end])) end++;
+  const lineStart = start === 0 || value[start - 1] === "\n";
+  const lineEnd = end === value.length || value[end] === "\n";
+  let joiner = "";
+  if (!lineStart && !lineEnd) joiner = (value.slice(start, idx) + value.slice(idx + length, end)).includes(",") ? ", " : " ";
+  textarea.value = value.slice(0, start) + joiner + value.slice(end);
+  setPromptCursor(textarea, start + joiner.length);
+}
 var selectedNetworks = {};
 var sortVal = -1;
 var totalCards = -1;
@@ -10402,10 +10450,12 @@ function readCardTags(el2, tags) {
     e.stopPropagation();
     const textarea = activePromptTextarea[getENActiveTab()];
     let new_prompt = textarea.value;
-    new_prompt = replaceOutsideBrackets(new_prompt, ` ${tag}`, "");
-    new_prompt = replaceOutsideBrackets(new_prompt, `${tag} `, "");
-    if (new_prompt === textarea.value) new_prompt += ` ${tag}`;
-    textarea.value = new_prompt;
+    if (!insertOnlyPrompts.has(textarea)) {
+      new_prompt = replaceOutsideBrackets(new_prompt, ` ${tag}`, "");
+      new_prompt = replaceOutsideBrackets(new_prompt, `${tag} `, "");
+    }
+    if (new_prompt === textarea.value) insertAtCursor(textarea, ` ${tag}`);
+    else textarea.value = new_prompt;
     updateInput(textarea);
   };
   if (!tags || tags.length === 0) return;
@@ -10594,8 +10644,9 @@ function cardClicked(textToAdd) {
   const tabName = getENActiveTab();
   log("cardClicked", { tab: tabName, text: textToAdd });
   const textarea = activePromptTextarea[tabName];
-  if (textarea.value.indexOf(textToAdd) !== -1) textarea.value = textarea.value.replace(textToAdd, "");
-  else textarea.value += textToAdd;
+  const idx = insertOnlyPrompts.has(textarea) ? -1 : findStandalone(textarea.value, textToAdd.trim());
+  if (idx !== -1) removeAt(textarea, idx, textToAdd.trim().length);
+  else insertAtCursor(textarea, textToAdd);
   updateInput(textarea);
   markSelectedCards(extractLoraNames(textarea.value), "lora");
 }
@@ -10863,13 +10914,15 @@ async function setupExtraNetworks() {
   setupExtraNetworksForTab("img2img");
   setupExtraNetworksForTab("control");
   setupExtraNetworksForTab("video");
-  function registerPrompt(tabName, id) {
+  function registerPrompt(tabName, id, insertOnly = false) {
     const textarea = gradioApp().querySelector(`#${id} > label > textarea`);
     if (!textarea) return;
     if (!activePromptTextarea[tabName]) activePromptTextarea[tabName] = textarea;
     textarea.addEventListener("focus", () => {
       activePromptTextarea[tabName] = textarea;
     });
+    textarea.addEventListener("blur", () => promptCursor.set(textarea, textarea.selectionStart));
+    if (insertOnly) insertOnlyPrompts.add(textarea);
   }
   registerPrompt("txt2img", "txt2img_prompt");
   registerPrompt("txt2img", "txt2img_neg_prompt");
@@ -10877,6 +10930,12 @@ async function setupExtraNetworks() {
   registerPrompt("img2img", "img2img_neg_prompt");
   registerPrompt("control", "control_prompt");
   registerPrompt("control", "control_neg_prompt");
+  for (const tabName of ["txt2img", "img2img", "control"]) {
+    registerPrompt(tabName, `${tabName}_refiner_prompt`);
+    registerPrompt(tabName, `${tabName}_refiner_neg_prompt`);
+    registerPrompt(tabName, `${tabName}_detailer_prompt`, true);
+    registerPrompt(tabName, `${tabName}_detailer_negative`);
+  }
   registerPrompt("video", "video_prompt");
   registerPrompt("video", "video_neg_prompt");
   log("initNetworks", window.opts.extra_networks_card_size);
@@ -12128,19 +12187,34 @@ function parseLogLine(line) {
     msg: String(parsed.msg ?? "")
   };
 }
+function updateCounters() {
+  const elWarn = document.getElementById("logWarnings");
+  const elErr = document.getElementById("logErrors");
+  const modenUIBtn = document.getElementById("btn_console");
+  if (elWarn) elWarn.innerText = String(logWarnings);
+  if (elErr) elErr.innerText = String(logErrors);
+  if (modenUIBtn) {
+    modenUIBtn.setAttribute("error-count", logErrors > 0 ? String(logErrors) : "");
+    modenUIBtn.style.backgroundColor = logErrors > 0 ? "var(--color-error)" : "";
+    modenUIBtn.title = `Log
+Errors ${logErrors}
+Warnings ${logWarnings}`;
+  }
+}
 async function clearErrors() {
   logWarnings = 0;
   logErrors = 0;
+  updateCounters();
   log("clearErrors");
 }
 async function initClearErrorsButton() {
   const btnServerClear = document.getElementById("btn_console_log_server_clear");
   if (btnServerClear) {
-    btnServerClear.onclick = async (evt) => {
+    btnServerClear.addEventListener("click", (evt) => {
       evt.preventDefault();
       evt.stopPropagation();
       clearErrors();
-    };
+    });
   }
 }
 async function logMonitor() {
@@ -12169,18 +12243,7 @@ async function logMonitor() {
     }
     if (atBottom2) logMonitorEl.scrollTop = logMonitorEl.scrollHeight;
     else if (logMonitorEl.parentElement) logMonitorEl.parentElement.style.cssText = "border-bottom: 2px solid var(--highlight-color);";
-    const elWarn = document.getElementById("logWarnings");
-    const elErr = document.getElementById("logErrors");
-    const modenUIBtn = document.getElementById("btn_console");
-    if (elWarn) elWarn.innerText = String(logWarnings);
-    if (elErr) elErr.innerText = String(logErrors);
-    if (modenUIBtn) {
-      modenUIBtn.setAttribute("error-count", logErrors > 0 ? String(logErrors) : "");
-      modenUIBtn.style.backgroundColor = logErrors > 0 ? "var(--color-error)" : "";
-      modenUIBtn.title = `Log
-Errors ${logErrors}
-Warnings ${logWarnings}`;
-    }
+    updateCounters();
   };
   const txtGallery = document.getElementById("txt2img_gallery");
   if (txtGallery) txtGallery.style.height = window.opts.logmonitor_show ? "50vh" : "55vh";
