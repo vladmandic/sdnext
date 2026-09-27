@@ -10,7 +10,7 @@ registered = False
 def create_ui(parent):
     with gr.Accordion('nVidia DLSS', open=False, elem_id=f'{parent}_dlss_accordion'):
         with gr.Row():
-            dlss_enabled = gr.Dropdown(label='DLSS Operations', choices=['NeuralRender', 'SuperSample', 'FrameGen'], value=[], multiselect=True, elem_id=f'{parent}_dlss_ops')
+            dlss_enabled = gr.Dropdown(label='DLSS Operations', choices=['NeuralRender', 'SuperRes', 'FrameGen'], value=[], multiselect=True, elem_id=f'{parent}_dlss_ops')
 
         with gr.Accordion('DLSS NeuralRender', open=False, elem_id=f'{parent}_dlss_nr'):
             with gr.Row():
@@ -44,7 +44,7 @@ def create_ui(parent):
                 ss_colour = gr.Slider(label='SS colour strength', minimum=0.0, maximum=2.0, step=0.05, value=1.0, elem_id=f'{parent}_dlss_ss_colour')
             with gr.Row():
                 ss_radius = gr.Slider(label='SS detail radius', minimum=1.0, maximum=16.0, step=0.5, value=4.0, elem_id=f'{parent}_dlss_ss_radius')
-                ss_threshold = gr.Slider(label='SS scene cut threshold', minimum=0.0, maximum=1.0, step=0.05, value=0.4, elem_id=f'{parent}_dlss_ss_threshold')
+                ss_threshold = gr.Slider(label='SS scene threshold', minimum=0.0, maximum=1.0, step=0.05, value=0.4, elem_id=f'{parent}_dlss_ss_threshold')
 
         with gr.Accordion('DLSS FrameGen', open=False, elem_id=f'{parent}_dlss_fg'):
             with gr.Row():
@@ -170,4 +170,5 @@ class DLSSPostprocessingScript(scripts_postprocessing.ScriptPostprocessing):
         if result is None or not hasattr(result, "images") or len(result.images) == 0:
             return
         pp.image = result.images[0]
-        pp.info["DLSS"] = f'Ops: {dlss_enabled}'
+        if isinstance(dlss_enabled, list) and pp.image is not None:
+            pp.info["DLSS"] = ' '.join(dlss_enabled)

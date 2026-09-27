@@ -196,7 +196,7 @@ class State:
         self.paused = False
         self.results = []
 
-    def begin(self, title="", task_id=0, api=None):
+    def begin(self, title="", task_id=0, api=None) -> str:
         import modules.devices
         self.clear()
         self.interrupted = self.interrupted if title.startswith('Save') else False

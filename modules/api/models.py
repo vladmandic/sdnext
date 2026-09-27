@@ -628,7 +628,8 @@ def create_model_from_signature(func: Callable, model_name: str, base_model: typ
         if origin in (Union, types.UnionType):
             return Union[tuple(request_type(a) for a in get_args(annotation))]
         if origin is list:
-            return list[tuple(request_type(a) for a in get_args(annotation))]
+            item_args = tuple(request_type(a) for a in get_args(annotation))
+            return types.GenericAlias(list, item_args) if item_args else list
         return annotation
 
     for k, v in annotations.items():

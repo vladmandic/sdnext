@@ -3,7 +3,7 @@ import time
 import numpy as np
 from PIL import Image
 from rich import progress
-from modules import devices
+from modules import devices, shared
 from modules.logger import log
 from modules.processing import StableDiffusionProcessing, Processed
 from modules.scripts_postprocessing import PostprocessedImage
@@ -95,7 +95,7 @@ def dlss_run(p: StableDiffusionProcessing | None,
             dlss_enabled.append('NeuralRender')
         if hasattr(p, 'ss_profile'):
             ss_profile = getattr(p, 'ss_profile', ss_profile)
-            dlss_enabled.append('SuperSample')
+            dlss_enabled.append('SuperRes')
         if hasattr(p, 'fg_profile'):
             fg_profile = getattr(p, 'fg_profile', fg_profile)
             dlss_enabled.append('FrameGen')
@@ -128,7 +128,7 @@ def dlss_run(p: StableDiffusionProcessing | None,
         raw_inputs = []
 
     if not raw_inputs:
-        log.warning('DLSS: No input images')
+        log.warning('DLSS: No input frames')
         return pp
 
     if debug:
@@ -142,7 +142,7 @@ def dlss_run(p: StableDiffusionProcessing | None,
         active_chain = []
         for op in enabled_ops:
             op_lower = op.lower() if isinstance(op, str) else ''
-            if 'neural' in op_lower or op_lower == 'n':
+            if ('neural' in op_lower) or (op_lower == 'n'):
                 nr_model_path = _resolve_model_path(NR_MODEL)
                 if nr_model_path:
                     nr_pipe: DLSSNRPipeline = _get_nr_pipeline(nr_model_path, dlss_graph)
@@ -165,9 +165,15 @@ def dlss_run(p: StableDiffusionProcessing | None,
                     )
                     nr_session = DLSSNRTemporalSession(nr_pipe, options=nr_options, motion=nr_motion)
                     log.debug(f'DLSS init: {nr_session}')
+                    if p is not None:
+                        p.extra_generation_params['DLSSNR'] = f'{nr_opt_profile}'
                     active_chain.append(('nr', nr_session))
-            elif 'frame' in op_lower or op_lower == 'fg' or op_lower == 'f':
-                fg_model_path = _resolve_model_path(FG_MODEL)
+            elif ('frame' in op_lower) or (op_lower == 'fg') or (op_lower == 'f'):
+                if len(raw_inputs) < 2:
+                    log.warning('DLSS FrameGen: not enough input frames')
+                    fg_model_path = None
+                else:
+                    fg_model_path = _resolve_model_path(FG_MODEL)
                 if fg_model_path:
                     fg_pipe: DLSSFGPipeline = _get_fg_pipeline(fg_model_path, dlss_graph)
                     active_pipelines.append(fg_pipe)
@@ -180,8 +186,10 @@ def dlss_run(p: StableDiffusionProcessing | None,
                     )
                     fg_session = DLSSFGSession(fg_pipe, options=fg_options)
                     log.debug(f'DLSS init: {fg_session}')
+                    if p is not None:
+                        p.extra_generation_params['DLSSFG'] = f'{fg_opt_profile}'
                     active_chain.append(('fg', fg_session))
-            elif 'sample' in op_lower or 'super' in op_lower or 'vsr' in op_lower or op_lower == 's':
+            elif ('super' in op_lower) or ('vsr' in op_lower) or (op_lower == 's'):
                 ss_model_path = _resolve_model_path(SS_MODEL)
                 if ss_model_path:
                     vsr_pipe: DLSSVSRPipeline = _get_vsr_pipeline(ss_model_path, dlss_graph)
@@ -197,6 +205,8 @@ def dlss_run(p: StableDiffusionProcessing | None,
                     )
                     vsr_session = DLSSVSRTemporalSession(vsr_pipe, options=vsr_options)
                     log.debug(f'DLSS init: {vsr_session}')
+                    if p is not None:
+                        p.extra_generation_params['DLSSSR'] = f'{ss_opt_profile}'
                     active_chain.append(('vsr', vsr_session))
 
         if not active_chain:
@@ -218,6 +228,8 @@ def dlss_run(p: StableDiffusionProcessing | None,
         pbar_desc = f'ops: {", ".join([name for name, _ in active_chain])}'
         par_enabled = len(input_ndarrays) > 1
         pbar_task = pbar.add_task(description=pbar_desc, total=len(input_ndarrays)) if par_enabled else None
+
+        jobid = shared.state.begin('DLSS')
         with pbar:
             total_produced_frames = []
             for in_nd in input_ndarrays:
@@ -248,6 +260,7 @@ def dlss_run(p: StableDiffusionProcessing | None,
 
         t2 = time.perf_counter()
         log.debug(f'DLSS output: frames={len(output_images)} init={t1 - t0:.4f} time={t2 - t1:.4f} its={len(output_images) / (t2 - t1):.4f}')
+        shared.state.end(jobid)
 
         if has_images:
             pp.images = output_images
