@@ -31,11 +31,15 @@
   - new *setting -> live preview -> force live preview on each step*  
     instead of relying on polling and low-priority updates, forces preview calculation on each step  
 - **Other**
-  - `DWPose`, `RTMW`, `RTMO`: image processor updates, thanks @kirtasshh  
+  - edit-models: simplify usage of multi-image reference editing  
+  - processors: `DWPose`, `RTMW`, `RTMO`: image processor updates, thanks @kirtasshh  
     refactored to use `ONNX` instead of obsolete `mmpose` lib and with additional configurable settings  
-  - simplify usage of multi-image reference editing  
+  - ui: manual clear of errors/warnings, thanks @kirtasshh
+  - ui: selecting lora from networks panel inserts it in active prompt instead of just default, thanks @kirtasshh
 - **Fixes**
   - api: hardening all all file-access api endpoints
+  - api: control endpoint with input images
+  - detailer: use of lora models, thanks @kirtasshh
   - dlss: additional DLSS reporting
   - dlss: additional DLSS reporting
   - grid: images with transparency keep it in grids and live previews
@@ -46,6 +50,7 @@
   - networks: name mapping for network models and loras
   - networks: preview mapping for reference networks
   - networks: preview mapping for reference networks
+  - offload: enable offload using streams on different gpus, thanks @li-lizhe
   - pixelsmith: vae tiling, thanks @li-lizhe
   - pixelsmith: vae tiling, thanks @li-lizhe  
   - prompt cache: bypass when condition images are encoded
