@@ -400,7 +400,12 @@ def resize_init_images(p):
             vae_scale_factor = sd_vae.get_vae_scale_factor(init_image=True)
             tgt_width = vae_scale_factor * math.ceil(p.init_images[0].width / vae_scale_factor)
             tgt_height = vae_scale_factor * math.ceil(p.init_images[0].height / vae_scale_factor)
-            if p.init_images[0].size != (tgt_width, tgt_height):
+            if sd_models.get_max_condition_images() > 0: # the pipeline resamples condition images, the request sets the output size
+                vae_scale_factor = sd_vae.get_vae_scale_factor()
+                tgt_width = vae_scale_factor * (int(p.width) // vae_scale_factor)
+                tgt_height = vae_scale_factor * (int(p.height) // vae_scale_factor)
+                p.width, p.height = tgt_width, tgt_height
+            elif p.init_images[0].size != (tgt_width, tgt_height):
                 log.debug(f'Resizing init images: original={p.init_images[0].width}x{p.init_images[0].height} target={tgt_width}x{tgt_height}')
                 p.init_images = [images.resize_image(1, image, tgt_width, tgt_height, upscaler_name=None) for image in p.init_images]
                 p.height = tgt_height

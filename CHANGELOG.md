@@ -32,6 +32,7 @@
   - img2img: warn and record in the infotext when the output size follows the input image instead of the request
   - prompt cache: bypass when condition images are encoded
   - grid: images with transparency keep it in grids and live previews
+  - multi-image: inputs reach multi-image models as one condition set on every route and the requested size sets the output size
   - group offload: places the vae on-demand behind the vae hijack
   - vae tiling: tile size setting applies to 3d vaes, 16x vae tile geometry
   - pixelsmith: vae tiling, thanks @li-lizhe  
