@@ -43,6 +43,7 @@
   - detailer: use of lora models, thanks @kirtasshh
   - dlss: additional DLSS reporting
   - dlss: additional DLSS reporting
+  - dlss: the detailer and the other per-image steps run once when dlss is off
   - flux.2, glm-image, nano banana: declared condition image counts
   - grid: images with transparency keep it in grids and live previews
   - group offload: places the vae on-demand behind the vae hijack

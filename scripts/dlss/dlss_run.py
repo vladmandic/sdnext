@@ -56,7 +56,7 @@ def dlss_run(p: StableDiffusionProcessing | None,
         log.trace(f'DLSS kwargs={kwargs}')
     if len(args) == 0 and len(kwargs) == 0:
         log.warning('DLSS run called with no additional arguments')
-        return pp
+        return None
     elif len(args) > 0: # called with positional arguments from generate / pp=Processed
         dlss_enabled, dlss_graph, nr_profile, nr_motion, nr_scale, nr_intensity, nr_blend, nr_detail, nr_colour, nr_radius, nr_threshold, nr_normalized, nr_local_tone, nr_local_structure, nr_skin_structure, nr_mask_structure, ss_profile, ss_scale, ss_detail, ss_colour, ss_radius, ss_threshold, fg_profile, fg_mode, fg_factor, fg_threshold = args
     elif len(kwargs) > 0: # called with keyword arguments from postprocess / pp=PostprocessedImage
@@ -88,7 +88,7 @@ def dlss_run(p: StableDiffusionProcessing | None,
         fg_threshold = kwargs.get("fg_threshold", 0.4)
     else:
         log.warning('DLSS run called with unexpected argument structure')
-        return pp
+        return None
     if p is not None: # override load args from processing object
         if hasattr(p, 'nr_profile'):
             nr_profile = getattr(p, 'nr_profile', nr_profile)
@@ -110,7 +110,7 @@ def dlss_run(p: StableDiffusionProcessing | None,
     else:
         enabled_ops = []
     if not enabled_ops:
-        return pp
+        return None
 
     has_images = hasattr(pp, "images") and pp.images is not None
     has_image = hasattr(pp, "image") and pp.image is not None
@@ -129,7 +129,7 @@ def dlss_run(p: StableDiffusionProcessing | None,
 
     if not raw_inputs:
         log.warning('DLSS: No input frames')
-        return pp
+        return None
 
     if debug:
         log.trace(f'DLSS ops={enabled_ops} frames={len(raw_inputs)}')
@@ -210,7 +210,7 @@ def dlss_run(p: StableDiffusionProcessing | None,
                     active_chain.append(('vsr', vsr_session))
 
         if not active_chain:
-            return pp
+            return None
 
         t1 = time.perf_counter()
         is_pil = isinstance(raw_inputs[0], Image.Image)
