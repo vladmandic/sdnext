@@ -49,8 +49,8 @@ def _do_move_to_cpu(model, op_label, size):
     if shared.opts.diffusers_offload_streams:
         global move_stream  # pylint: disable=global-statement
         if move_stream is None:
-            move_stream = torch.cuda.Stream(device=devices.device)
-        with torch.cuda.stream(move_stream):
+            move_stream = devices.create_stream(devices.device)
+        with move_stream:
             model.to(devices.cpu)
     else:
         model.to(devices.cpu)
@@ -73,8 +73,8 @@ def move_aux_to_gpu(name: str) -> None:
     if shared.opts.diffusers_offload_streams:
         global move_stream  # pylint: disable=global-statement
         if move_stream is None:
-            move_stream = torch.cuda.Stream(device=devices.device)
-        with torch.cuda.stream(move_stream):
+            move_stream = devices.create_stream(devices.device)
+        with move_stream:
             entry.model.to(devices.device)
         move_stream.synchronize()
     else:
