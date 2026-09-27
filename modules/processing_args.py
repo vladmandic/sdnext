@@ -438,6 +438,8 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:l
     model_args = getattr(model, 'task_args', {})
     task_kwargs.update(pipe_args or {})
     task_kwargs.update(model_args or {})
+    if ('image' in task_kwargs) and ('image' not in possible) and ('images' in possible): # JoyImageEditPlusPipeline and GoogleNanoBananaPipeline take the list as images
+        task_kwargs['images'] = task_kwargs.pop('image')
     if debug_enabled:
         debug_log(f'Process task args: {task_kwargs}')
     for k, v in task_kwargs.items():

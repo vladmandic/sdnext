@@ -46,6 +46,7 @@
   - grid: images with transparency keep it in grids and live previews
   - group offload: places the vae on-demand behind the vae hijack
   - img2img: warn and record in the infotext when the output size follows the input image instead of the request
+  - joy-image-edit plus, nano banana: the reference image list reaches pipelines whose call takes images
   - metadata: correct refine prompt restore, thanks @QualiaRain
   - multi-image: inputs reach multi-image models as one condition set on every route and the requested size sets the output size
   - networks: name mapping for network models and loras
