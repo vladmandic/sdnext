@@ -33,6 +33,7 @@ def load_flux2_klein(checkpoint_info, diffusers_load_config=None):
         **load_args,
     )
     pipe.patch_size = 2 # latents pack into 2x2 patches and the pipeline floors sizes to vae_scale_factor * 2
+    pipe.max_condition_images = 4 # Klein typically uses 4 condition images
     diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["flux2klein"] = cls
     diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["flux2klein"] = cls
     diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING["flux2klein"] = cls

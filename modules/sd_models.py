@@ -1305,8 +1305,10 @@ def clean_diffuser_pipe(pipe):
 
 
 def copy_diffuser_options(new_pipe, orig_pipe):
+    # every pipeline has these attributes
     new_pipe.sd_checkpoint_info = getattr(orig_pipe, 'sd_checkpoint_info', None)
     new_pipe.sd_model_checkpoint = getattr(orig_pipe, 'sd_model_checkpoint', None)
+    # optional
     new_pipe.embedding_db = getattr(orig_pipe, 'embedding_db', None)
     new_pipe.loaded_loras = getattr(orig_pipe, 'loaded_loras', {})
     new_pipe.sd_model_hash = getattr(orig_pipe, 'sd_model_hash', None)
@@ -1317,7 +1319,10 @@ def copy_diffuser_options(new_pipe, orig_pipe):
     new_pipe.feature_extractor = getattr(orig_pipe, 'feature_extractor', None)
     new_pipe.mask_processor = getattr(orig_pipe, 'mask_processor', None)
     new_pipe.restore_pipeline = getattr(orig_pipe, 'restore_pipeline', None)
-    new_pipe.is_sdxl = getattr(orig_pipe, 'is_sdxl', False) # a1111 compatibility item
+    new_pipe.max_condition_images = getattr(orig_pipe, 'max_condition_images', None)
+    new_pipe.patch_size = getattr(orig_pipe, 'patch_size', None)
+    # a1111 compatibility item
+    new_pipe.is_sdxl = getattr(orig_pipe, 'is_sdxl', False)
     new_pipe.is_sd2 = getattr(orig_pipe, 'is_sd2', False)
     new_pipe.is_sd1 = getattr(orig_pipe, 'is_sd1', True)
     add_noise_pred_to_diffusers_callback(new_pipe)
