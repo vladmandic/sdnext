@@ -59,6 +59,7 @@
   - pixelsmith: vae tiling, thanks @li-lizhe  
   - prompt cache: bypass when condition images are encoded
   - qwen-image, flux.2, glm-image: sizes align to the 16 px floor the pipelines apply
+  - qwen-image-edit: the condition image count is declared on the edit plus pipeline only
   - styles: fix infotext parsing, thanks @obelisk-complex
   - temp file: gradio temp file error handling
   - temp file: gradio temp file error handling
