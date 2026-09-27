@@ -688,7 +688,7 @@ class NullStream: # pylint: disable=too-few-public-methods
     def __enter__(self):
         return self
 
-    def __exit__(self, *args):
+    def __exit__(self, *exc_info):
         return False
 
     def synchronize(self):
