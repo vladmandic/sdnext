@@ -51,6 +51,7 @@
   - networks: preview mapping for reference networks
   - networks: preview mapping for reference networks
   - offload: enable offload using streams on different gpus, thanks @li-lizhe
+  - pag: attention guidance engages again on sd15 and sdxl
   - pixelsmith: vae tiling, thanks @li-lizhe
   - pixelsmith: vae tiling, thanks @li-lizhe  
   - prompt cache: bypass when condition images are encoded
