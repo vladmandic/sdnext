@@ -1,0 +1,694 @@
+{
+  "tensors": {
+    "block0.bot0.head0.bias": {
+      "shape": [
+        32
+      ],
+      "dtype": "float16"
+    },
+    "block0.bot0.head0.weight": {
+      "shape": [
+        32,
+        64,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "block0.bot0.head1.bias": {
+      "shape": [
+        32
+      ],
+      "dtype": "float16"
+    },
+    "block0.bot0.head1.weight": {
+      "shape": [
+        32,
+        64,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "block0.bot0.head2.bias": {
+      "shape": [
+        32
+      ],
+      "dtype": "float16"
+    },
+    "block0.bot0.head2.weight": {
+      "shape": [
+        32,
+        64,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "block0.bot1.bias": {
+      "shape": [
+        8
+      ],
+      "dtype": "float16"
+    },
+    "block0.bot1.weight": {
+      "shape": [
+        8,
+        32,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "block0.res0.bias": {
+      "shape": [
+        64
+      ],
+      "dtype": "float16"
+    },
+    "block0.res0.weight": {
+      "shape": [
+        64,
+        64,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "block0.res1.bias": {
+      "shape": [
+        64
+      ],
+      "dtype": "float16"
+    },
+    "block0.res1.weight": {
+      "shape": [
+        64,
+        64,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "block0.res2.bias": {
+      "shape": [
+        64
+      ],
+      "dtype": "float16"
+    },
+    "block0.res2.weight": {
+      "shape": [
+        64,
+        64,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "block0.res3.bias": {
+      "shape": [
+        64
+      ],
+      "dtype": "float16"
+    },
+    "block0.res3.weight": {
+      "shape": [
+        64,
+        64,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "block0.res4.bias": {
+      "shape": [
+        64
+      ],
+      "dtype": "float16"
+    },
+    "block0.res4.weight": {
+      "shape": [
+        64,
+        64,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "block0.res5.bias": {
+      "shape": [
+        64
+      ],
+      "dtype": "float16"
+    },
+    "block0.res5.weight": {
+      "shape": [
+        64,
+        64,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "block0.res6.bias": {
+      "shape": [
+        64
+      ],
+      "dtype": "float16"
+    },
+    "block0.res6.weight": {
+      "shape": [
+        64,
+        64,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "block0.res7.bias": {
+      "shape": [
+        64
+      ],
+      "dtype": "float16"
+    },
+    "block0.res7.weight": {
+      "shape": [
+        64,
+        64,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "block0.stem0.bias": {
+      "shape": [
+        32
+      ],
+      "dtype": "float16"
+    },
+    "block0.stem0.weight": {
+      "shape": [
+        32,
+        16,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "block0.stem1.bias": {
+      "shape": [
+        32
+      ],
+      "dtype": "float16"
+    },
+    "block0.stem1.weight": {
+      "shape": [
+        32,
+        32,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "block0.stem2.bias": {
+      "shape": [
+        64
+      ],
+      "dtype": "float16"
+    },
+    "block0.stem2.weight": {
+      "shape": [
+        64,
+        32,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "block1.bot0.head0.bias": {
+      "shape": [
+        16
+      ],
+      "dtype": "float16"
+    },
+    "block1.bot0.head0.weight": {
+      "shape": [
+        16,
+        32,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "block1.bot0.head1.bias": {
+      "shape": [
+        16
+      ],
+      "dtype": "float16"
+    },
+    "block1.bot0.head1.weight": {
+      "shape": [
+        16,
+        32,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "block1.bot0.head2.bias": {
+      "shape": [
+        16
+      ],
+      "dtype": "float16"
+    },
+    "block1.bot0.head2.weight": {
+      "shape": [
+        16,
+        32,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "block1.bot1.bias": {
+      "shape": [
+        8
+      ],
+      "dtype": "float16"
+    },
+    "block1.bot1.weight": {
+      "shape": [
+        8,
+        16,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "block1.res0.bias": {
+      "shape": [
+        32
+      ],
+      "dtype": "float16"
+    },
+    "block1.res0.weight": {
+      "shape": [
+        32,
+        32,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "block1.res1.bias": {
+      "shape": [
+        32
+      ],
+      "dtype": "float16"
+    },
+    "block1.res1.weight": {
+      "shape": [
+        32,
+        32,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "block1.res2.bias": {
+      "shape": [
+        32
+      ],
+      "dtype": "float16"
+    },
+    "block1.res2.weight": {
+      "shape": [
+        32,
+        32,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "block1.res3.bias": {
+      "shape": [
+        32
+      ],
+      "dtype": "float16"
+    },
+    "block1.res3.weight": {
+      "shape": [
+        32,
+        32,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "block1.res4.bias": {
+      "shape": [
+        32
+      ],
+      "dtype": "float16"
+    },
+    "block1.res4.weight": {
+      "shape": [
+        32,
+        32,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "block1.res5.bias": {
+      "shape": [
+        32
+      ],
+      "dtype": "float16"
+    },
+    "block1.res5.weight": {
+      "shape": [
+        32,
+        32,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "block1.res6.bias": {
+      "shape": [
+        32
+      ],
+      "dtype": "float16"
+    },
+    "block1.res6.weight": {
+      "shape": [
+        32,
+        32,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "block1.res7.bias": {
+      "shape": [
+        32
+      ],
+      "dtype": "float16"
+    },
+    "block1.res7.weight": {
+      "shape": [
+        32,
+        32,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "block1.stem0.bias": {
+      "shape": [
+        16
+      ],
+      "dtype": "float16"
+    },
+    "block1.stem0.weight": {
+      "shape": [
+        16,
+        18,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "block1.stem1.bias": {
+      "shape": [
+        32
+      ],
+      "dtype": "float16"
+    },
+    "block1.stem1.weight": {
+      "shape": [
+        32,
+        16,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "unet.conv0.bias": {
+      "shape": [
+        32
+      ],
+      "dtype": "float16"
+    },
+    "unet.conv0.weight": {
+      "shape": [
+        32,
+        48,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "unet.conv1.bias": {
+      "shape": [
+        64
+      ],
+      "dtype": "float16"
+    },
+    "unet.conv1.weight": {
+      "shape": [
+        64,
+        32,
+        1,
+        1
+      ],
+      "dtype": "float16"
+    },
+    "unet.conv10.bias": {
+      "shape": [
+        128
+      ],
+      "dtype": "float16"
+    },
+    "unet.conv10.weight": {
+      "shape": [
+        128,
+        128,
+        1,
+        1
+      ],
+      "dtype": "float16"
+    },
+    "unet.conv11.bias": {
+      "shape": [
+        128
+      ],
+      "dtype": "float16"
+    },
+    "unet.conv11.weight": {
+      "shape": [
+        128,
+        128,
+        1,
+        1
+      ],
+      "dtype": "float16"
+    },
+    "unet.conv12.bias": {
+      "shape": [
+        64
+      ],
+      "dtype": "float16"
+    },
+    "unet.conv12.weight": {
+      "shape": [
+        64,
+        128,
+        1,
+        1
+      ],
+      "dtype": "float16"
+    },
+    "unet.conv13.bias": {
+      "shape": [
+        64
+      ],
+      "dtype": "float16"
+    },
+    "unet.conv13.weight": {
+      "shape": [
+        64,
+        64,
+        1,
+        1
+      ],
+      "dtype": "float16"
+    },
+    "unet.conv14.bias": {
+      "shape": [
+        32
+      ],
+      "dtype": "float16"
+    },
+    "unet.conv14.weight": {
+      "shape": [
+        32,
+        64,
+        1,
+        1
+      ],
+      "dtype": "float16"
+    },
+    "unet.conv15.bias": {
+      "shape": [
+        32
+      ],
+      "dtype": "float16"
+    },
+    "unet.conv15.weight": {
+      "shape": [
+        32,
+        32,
+        1,
+        1
+      ],
+      "dtype": "float16"
+    },
+    "unet.conv16.bias": {
+      "shape": [
+        16
+      ],
+      "dtype": "float16"
+    },
+    "unet.conv16.weight": {
+      "shape": [
+        16,
+        32,
+        1,
+        1
+      ],
+      "dtype": "float16"
+    },
+    "unet.conv2.bias": {
+      "shape": [
+        128
+      ],
+      "dtype": "float16"
+    },
+    "unet.conv2.weight": {
+      "shape": [
+        128,
+        64,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "unet.conv3.bias": {
+      "shape": [
+        128
+      ],
+      "dtype": "float16"
+    },
+    "unet.conv3.weight": {
+      "shape": [
+        128,
+        128,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "unet.conv4.bias": {
+      "shape": [
+        256
+      ],
+      "dtype": "float16"
+    },
+    "unet.conv4.weight": {
+      "shape": [
+        256,
+        128,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "unet.conv5.bias": {
+      "shape": [
+        512
+      ],
+      "dtype": "float16"
+    },
+    "unet.conv5.weight": {
+      "shape": [
+        512,
+        256,
+        1,
+        1
+      ],
+      "dtype": "float16"
+    },
+    "unet.conv6.bias": {
+      "shape": [
+        256
+      ],
+      "dtype": "float16"
+    },
+    "unet.conv6.weight": {
+      "shape": [
+        256,
+        512,
+        1,
+        1
+      ],
+      "dtype": "float16"
+    },
+    "unet.conv7.bias": {
+      "shape": [
+        256
+      ],
+      "dtype": "float16"
+    },
+    "unet.conv7.weight": {
+      "shape": [
+        256,
+        256,
+        1,
+        1
+      ],
+      "dtype": "float16"
+    },
+    "unet.conv8.bias": {
+      "shape": [
+        128
+      ],
+      "dtype": "float16"
+    },
+    "unet.conv8.weight": {
+      "shape": [
+        128,
+        256,
+        1,
+        1
+      ],
+      "dtype": "float16"
+    },
+    "unet.conv9.bias": {
+      "shape": [
+        128
+      ],
+      "dtype": "float16"
+    },
+    "unet.conv9.weight": {
+      "shape": [
+        128,
+        128,
+        1,
+        1
+      ],
+      "dtype": "float16"
+    }
+  }
+}

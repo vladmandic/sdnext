@@ -15,13 +15,21 @@
   - update `diffusers==0.41.0.dev0`
   - `rocm` windows installation move to *stable*, thanks @resonantsky  
     at the moment, this results in installation of `torch==2.13.0` with `rocm==10.0.0`  
+- **DLSS** *(reimagined)*
+  - complete reverse-engineering of *nVidia DLSS* to enable gpu-agnostic usage (can even run on cpu)
+  - supports DLSS *NeuralRender*, *SuperRes*, and *FrameGen*
+  - operations can be chained in any desired order
+  - supports image and video processing (with motion vectors for stabilization)
+  - can be used via *generate -> extras* or as a separate *process* workflow
+  - additional gpu-acceleration for cuda is included, but skipped on non-cuda devices
+  - no installation needed, just enable and thats it!
 - **Preview**
-  - full refactor: refactored taesd, added micro decoder, removed simple and approximate methods
-  - preview methods: *None, Micro, Tiny (TAESD), Full*
-  - new *setting -> live preview -> force live preview on each step*  
-    instead of relying on polling and low-priority updates, forces preview calculation on each step  
+  - full refactor: refactored *taesd*, added *micro-decoder*, removed *simple* and *approximate* methods
   - new [MicroDecoder](https://huggingface.co/vladmandic/MicroDecoder) vae implementation  
     used for live-preview as quick vae and can be trained on any model  
+  - available preview methods: *None, Micro, Tiny (TAESD), Full*
+  - new *setting -> live preview -> force live preview on each step*  
+    instead of relying on polling and low-priority updates, forces preview calculation on each step  
 - **Other**
   - `DWPose`, `RTMW`, `RTMO`: image processor updates, thanks @kirtasshh  
     refactored to use `ONNX` instead of obsolete `mmpose` lib and with additional configurable settings  
