@@ -1,6 +1,7 @@
 import re
+import types
 import inspect
-from typing import Any, Optional
+from typing import Any, Optional, Union, get_args, get_origin
 from collections.abc import Callable
 from pydantic import BaseModel, Field, create_model
 from pydantic import VERSION
@@ -599,6 +600,7 @@ class ItemAutocompleteRemote(BaseModel):
 
 def create_model_from_signature(func: Callable, model_name: str, base_model: type[BaseModel] = BaseModel, additional_fields: list | None = None, exclude_fields: list[str] | None = None) -> type[BaseModel]:
     from PIL import Image
+    from modules.control import unit
 
     if exclude_fields is None:
         exclude_fields = []
@@ -618,13 +620,19 @@ def create_model_from_signature(func: Callable, model_name: str, base_model: typ
     defaults = (...,) * non_default_args + defaults
     kw_defaults = kwonlydefaults or {}
     keyword_only_params = {param: (annotations.get(param, Any), kw_defaults.get(param, ...)) for param in kwonlyargs}
+
+    def request_type(annotation): # images and control units reach the api as strings
+        if annotation in (Image.Image, unit.Unit):
+            return str
+        origin = get_origin(annotation)
+        if origin in (Union, types.UnionType):
+            return Union[tuple(request_type(a) for a in get_args(annotation))]
+        if origin is list:
+            return list[tuple(request_type(a) for a in get_args(annotation))]
+        return annotation
+
     for k, v in annotations.items():
-        if v == list[Image.Image]:
-            annotations[k] = list[str]
-        elif v == Image.Image:
-            annotations[k] = str
-        elif str(v) == 'typing.List[modules.control.unit.Unit]':
-            annotations[k] = list[str]
+        annotations[k] = request_type(v)
     model_fields = {param: (annotations.get(param, Any), default) for param, default in zip(args, defaults, strict=False)}
 
     for fld in additional_fields:
