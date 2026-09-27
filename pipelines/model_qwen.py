@@ -96,6 +96,8 @@ def load_qwen(checkpoint_info, diffusers_load_config=None):
         pipe.task_args['cfg_normalize'] = False
         pipe.task_args['layers'] = shared.opts.model_qwen_layers
         pipe.task_args['resolution'] = 640
+    if 'Edit' in repo_id:
+        pipe.max_condition_images = 4 # Qwen-Image-Edit typically uses 4 condition images
 
     generic.load_vae_override(pipe, diffusers_load_config)
 

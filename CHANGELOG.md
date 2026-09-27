@@ -26,6 +26,7 @@
   - `LivePreview`: full refactor
   - `DWPose`, `RTMW`, `RTMO`: image processor updates, thanks @kirtasshh  
     refactored to use `ONNX` instead of obsolete `mmpose` lib and with additional configurable settings  
+  - simplify usage of multi-image reference editing  
 - **Fixes**
   - api: hardening all all file-access api endpoints
   - qwen-image, flux.2, glm-image: sizes align to the 16 px floor the pipelines apply
