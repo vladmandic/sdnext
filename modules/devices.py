@@ -682,6 +682,36 @@ def without_autocast(disable=False):
         return torch.autocast("cpu", enabled=False) if torch.is_autocast_enabled() else contextlib.nullcontext()
 
 
+class NullStream: # pylint: disable=too-few-public-methods
+    """Stand-in for a device stream on backends that do not expose one: runs everything synchronously."""
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc_info):
+        return False
+
+    def synchronize(self):
+        pass
+
+
+def create_stream(target: torch.device | None = None):
+    """Create a stream on the active device so work can run off the default stream.
+    Uses the accelerator-agnostic torch.Stream when available, the cuda/xpu stream api on older torch,
+    and a no-op stream on backends without stream support, so callers never have to branch."""
+    target = target if target is not None else device
+    if hasattr(torch, 'Stream'): # torch >= 2.5
+        try:
+            return torch.Stream(device=target)
+        except Exception:
+            return NullStream()
+    if backend in {'cuda', 'rocm', 'zluda'}:
+        return torch.cuda.Stream(device=target)
+    if backend == 'ipex':
+        return torch.xpu.Stream(device=target)
+    return NullStream()
+
+
 class NansException(Exception):
     pass
 
