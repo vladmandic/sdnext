@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-09-26
+## Update for 2026-09-27
 
 - **Models**
   - [Qwen-Image 2.1](https://huggingface.co/Qwen/Qwen-Image-2.1) in *base*, *sdnq-4bit* and *sdnq-8bit* variants  
@@ -23,30 +23,30 @@
   - new [MicroDecoder](https://huggingface.co/vladmandic/MicroDecoder) vae implementation  
     used for live-preview as quick vae and can be trained on any model  
 - **Other**
-  - `LivePreview`: full refactor
   - `DWPose`, `RTMW`, `RTMO`: image processor updates, thanks @kirtasshh  
     refactored to use `ONNX` instead of obsolete `mmpose` lib and with additional configurable settings  
   - simplify usage of multi-image reference editing  
 - **Fixes**
   - api: hardening all all file-access api endpoints
-  - qwen-image, flux.2, glm-image: sizes align to the 16 px floor the pipelines apply
-  - img2img: warn and record in the infotext when the output size follows the input image instead of the request
-  - prompt cache: bypass when condition images are encoded
+  - dlss: additional DLSS reporting
+  - dlss: additional DLSS reporting
   - grid: images with transparency keep it in grids and live previews
-  - multi-image: inputs reach multi-image models as one condition set on every route and the requested size sets the output size
   - group offload: places the vae on-demand behind the vae hijack
-  - vae tiling: tile size setting applies to 3d vaes, 16x vae tile geometry
-  - pixelsmith: vae tiling, thanks @li-lizhe  
-  - networks: preview mapping for reference networks
-  - dlss: additional DLSS reporting
-  - temp file: gradio temp file error handling
-  - pixelsmith: vae tiling, thanks @li-lizhe
-  - txt2img: fix hires strength handling
-  - networks: preview mapping for reference networks
-  - networks: name mapping for network models and loras
-  - dlss: additional DLSS reporting
-  - temp file: gradio temp file error handling
+  - img2img: warn and record in the infotext when the output size follows the input image instead of the request
   - metadata: correct refine prompt restore, thanks @QualiaRain
+  - multi-image: inputs reach multi-image models as one condition set on every route and the requested size sets the output size
+  - networks: name mapping for network models and loras
+  - networks: preview mapping for reference networks
+  - networks: preview mapping for reference networks
+  - pixelsmith: vae tiling, thanks @li-lizhe
+  - pixelsmith: vae tiling, thanks @li-lizhe  
+  - prompt cache: bypass when condition images are encoded
+  - qwen-image, flux.2, glm-image: sizes align to the 16 px floor the pipelines apply
+  - styles: fix infotext parsing, thanks @obelisk-complex
+  - temp file: gradio temp file error handling
+  - temp file: gradio temp file error handling
+  - txt2img: fix hires strength handling
+  - vae tiling: tile size setting applies to 3d vaes, 16x vae tile geometry
   - video: handle failed model load without loading default model, thanks @QualiaRain
 
 ## Update for 2026-09-17

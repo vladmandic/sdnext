@@ -505,6 +505,7 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:l
     if generator is not None:
         clean['generator'] = f'{generator[0].device}:{[g.initial_seed() for g in generator]}'
     clean['parser'] = prompt_attention
+    clean['ref'] = sd_models.get_max_condition_images(model) > 0
     for k, v in clean.copy().items():
         if v is None:
             clean[k] = None
