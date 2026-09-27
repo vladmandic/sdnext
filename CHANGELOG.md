@@ -39,6 +39,7 @@
 - **Fixes**
   - api: hardening all all file-access api endpoints
   - api: control endpoint with input images
+  - control: hires fixed size keeps the requested width on 16 px and 32 px models
   - detailer: use of lora models, thanks @kirtasshh
   - dlss: additional DLSS reporting
   - dlss: additional DLSS reporting
