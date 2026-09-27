@@ -1350,6 +1350,8 @@ def backup_pipe_components(pipe):
         'mask_processor': getattr(pipe, "mask_processor", None),
         'restore_pipeline': getattr(pipe, "restore_pipeline", None),
         'task_args': getattr(pipe, "task_args", None),
+        'patch_size': getattr(pipe, "patch_size", None),
+        'max_condition_images': getattr(pipe, "max_condition_images", None),
         'hijack_prompt': hasattr(pipe, "orig_encode_prompt"),
         'hijack_vae': hasattr(pipe, "vae") and hasattr(pipe.vae, "orig_decode")
     }
@@ -1377,6 +1379,10 @@ def restore_pipe_components(pipe, components):
         pipe.restore_pipeline = components['restore_pipeline']
     if components['task_args'] is not None:
         pipe.task_args = components['task_args']
+    if components['patch_size'] is not None:
+        pipe.patch_size = components['patch_size']
+    if components['max_condition_images'] is not None:
+        pipe.max_condition_images = components['max_condition_images']
     if components['hijack_prompt']:
         sd_hijack_te.init_hijack(pipe)
     if components['hijack_vae']:
