@@ -198,7 +198,7 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
             if latents.ndim == 3:
                 b, seq_len, packed_ch = latents.shape
                 vae_scale = getattr(pipe, 'vae_scale_factor', 8)
-                patch = getattr(pipe, 'patch_size', 2)
+                patch = getattr(pipe, 'patch_size', None) or 2
                 grid_h = getattr(p, 'height', 1024) // (vae_scale * patch)
                 grid_w = getattr(p, 'width', 1024) // (vae_scale * patch)
                 if grid_h * grid_w != seq_len:  # fallback to square assumption
