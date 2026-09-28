@@ -28,10 +28,8 @@ DEFAULT_FG_MODEL = str(_DIR / "DLSSFrameGen.safetensors")
 DEFAULT_VSR_MODEL = str(_DIR / "DLSSSuperRes.safetensors")
 
 
-def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description="Unified DLSS Pipeline: NeuralRender -> FrameGen -> SuperRes"
-    )
+def parse_args() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Unified DLSS Pipeline: NeuralRender | FrameGen | SuperRes")
 
     # General / IO
     io_group = parser.add_argument_group("I/O & Hardware Options")
@@ -48,7 +46,7 @@ def build_parser() -> argparse.ArgumentParser:
     # DLSS-NeuralRender Options
     nr_group = parser.add_argument_group("DLSS-NeuralRender Options")
     nr_group.add_argument("--nr-model", type=str, default=DEFAULT_NR_MODEL, help="Path to DLSSNeuralRender.safetensors")
-    nr_group.add_argument("--nr-profile", type=str, default="standard", choices=list(NR_PROFILES), help="NR profile preset")
+    nr_group.add_argument("--nr-profile", type=str, default="Standard", choices=list(NR_PROFILES), help="NR profile preset")
     nr_group.add_argument("--nr-scale", type=float, default=1.0, help="NR spatial scale factor")
     nr_group.add_argument("--nr-intensity", type=float, default=1.0, help="NR enhancement intensity")
     nr_group.add_argument("--nr-blend", type=float, default=0.73974609375, help="NR history blend scale")
@@ -74,20 +72,17 @@ def build_parser() -> argparse.ArgumentParser:
     # DLSS-SuperRes Options
     vsr_group = parser.add_argument_group("DLSS-SuperRes (VSR) Options")
     vsr_group.add_argument("--vsr-model", type=str, default=DEFAULT_VSR_MODEL, help="Path to DLSSSuperRes.safetensors")
-    vsr_group.add_argument("--vsr-profile", type=str, default="ultra", choices=list(VSR_PROFILES), help="VSR quality preset")
+    vsr_group.add_argument("--vsr-profile", type=str, default="Ultra", choices=list(VSR_PROFILES), help="VSR quality preset")
     vsr_group.add_argument("--vsr-scale", type=float, default=2.0, help="VSR upscale target factor (e.g. 2.0, 4.0)")
     vsr_group.add_argument("--vsr-detail", type=float, default=1.0, help="VSR detail strength")
     vsr_group.add_argument("--vsr-colour", type=float, default=1.0, help="VSR colour strength")
     vsr_group.add_argument("--vsr-radius", type=float, default=4.0, help="VSR detail radius")
     vsr_group.add_argument("--vsr-threshold", type=float, default=0.4, help="VSR scene cut detection threshold")
 
-    return parser
+    return parser.parse_args()
 
 
-def main() -> None:
-    parser = build_parser()
-    args = parser.parse_args()
-
+def dlss(args) -> None:
     if not args.input or not os.path.exists(args.input):
         raise ValueError(f"Input file does not exist: {args.input}")
 
@@ -114,11 +109,9 @@ def main() -> None:
             mask_structure_strength=args.nr_mask_structure,
             scene_cut_threshold=args.nr_threshold,
         )
-        nr_pipe = DLSSNRPipeline.from_safetensors(
-            args.nr_model, device=args.device, dtype=args.dtype, graphs=args.graph
-        )
+        nr_pipe = DLSSNRPipeline.from_safetensors(args.nr_model, device=args.device, dtype=args.dtype, graphs=args.graph)
         nr_session = DLSSNRTemporalSession(nr_pipe, options=nr_options, motion=args.nr_motion)
-        rp("[bold green]DLSS-NeuralRender (n)[/bold green]:", nr_pipe)
+        rp("[bold green]DLSS-NeuralRender (n)[/bold green]:", nr_pipe, nr_session)
     else:
         rp("[yellow]DLSS-NeuralRender (n): BYPASSED[/yellow]")
 
@@ -131,11 +124,9 @@ def main() -> None:
             mode=args.fg_mode,
             scene_cut_threshold=args.fg_threshold,
         )
-        fg_pipe = DLSSFGPipeline.from_safetensors(
-            args.fg_model, device=args.device, dtype=args.dtype, graphs=args.graph
-        )
+        fg_pipe = DLSSFGPipeline.from_safetensors(args.fg_model, device=args.device, dtype=args.dtype, graphs=args.graph)
         fg_session = DLSSFGSession(fg_pipe, options=fg_options)
-        rp("[bold green]DLSS-FrameGen (f)[/bold green]:", fg_pipe)
+        rp("[bold green]DLSS-FrameGen (f)[/bold green]:", fg_pipe, fg_session)
     else:
         rp("[yellow]DLSS-FrameGen (f): BYPASSED[/yellow]")
 
@@ -150,11 +141,9 @@ def main() -> None:
             detail_radius=args.vsr_radius,
             scene_cut_threshold=args.vsr_threshold,
         )
-        vsr_pipe = DLSSVSRPipeline.from_safetensors(
-            args.vsr_model, device=args.device, dtype=args.dtype, graphs=args.graph
-        )
+        vsr_pipe = DLSSVSRPipeline.from_safetensors(args.vsr_model, device=args.device, dtype=args.dtype, graphs=args.graph)
         vsr_session = DLSSVSRTemporalSession(vsr_pipe, options=vsr_options)
-        rp("[bold green]DLSS-SuperRes (s)[/bold green]:", vsr_pipe)
+        rp("[bold green]DLSS-SuperRes (s)[/bold green]:", vsr_pipe, vsr_session)
     else:
         rp("[yellow]DLSS-SuperRes (s): BYPASSED[/yellow]")
 
@@ -227,11 +216,7 @@ def main() -> None:
             final_frames = current_frames
 
             total_produced_frames += len(final_frames)
-            pbar.update(
-                task,
-                advance=1,
-                description=f"in={in_nd.shape} out={final_frames[0].shape} produced={len(final_frames)} time={(time.perf_counter() - t_frame):.3f}",
-            )
+            pbar.update(task, advance=1, description=f"in={in_nd.shape} out={final_frames[0].shape} produced={len(final_frames)} time={(time.perf_counter() - t_frame):.3f}")
 
             if ou_stream is not None:
                 if ou_stream.width is None:
@@ -253,4 +238,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    _args = parse_args()
+    dlss(_args)
