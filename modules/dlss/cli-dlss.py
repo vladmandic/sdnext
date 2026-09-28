@@ -28,7 +28,7 @@ DEFAULT_FG_MODEL = str(_DIR / "DLSSFrameGen.safetensors")
 DEFAULT_VSR_MODEL = str(_DIR / "DLSSSuperRes.safetensors")
 
 
-def parse_args() -> argparse.ArgumentParser:
+def parse_args():
     parser = argparse.ArgumentParser(description="Unified DLSS Pipeline: NeuralRender | FrameGen | SuperRes")
 
     # General / IO

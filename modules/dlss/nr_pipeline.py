@@ -56,7 +56,7 @@ class DLSSNRPipeline:
     runs the same graph in float16 on GPU devices.
     """
 
-    def __init__(self, weights: dict[str, torch.Tensor], *, device: str | torch.device = "auto", dtype: torch.dtype | None = None, graphs: bool = False, chunk: int = 131072, full: bool = False):
+    def __init__(self, weights: dict[str, torch.Tensor], *, device: str | torch.device = "auto", dtype: torch.dtype | None = None, graphs: bool = False, chunk: int = 131072):
         self.dtype = dtype
         self.device = device
         self.graphs = graphs
