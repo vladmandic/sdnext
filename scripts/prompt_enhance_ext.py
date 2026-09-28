@@ -203,16 +203,15 @@ class PromptEnhanceScript(scripts_manager.Script):
                 response = re.sub(r'<think>.*?</think>', '', response, flags=re.DOTALL)
                 response = response.replace('</think>', '')  # Handle orphaned closing tags
 
-        # remove special characters
-        response = response.replace('"', '').replace("'", "").replace('"', '').replace('"', '').replace('**', '')
-        # remove repeating characters and short repeated tokens from model collapse
+        # strip empty lines
         response = response.replace('\n\n', '\n').replace('  ', ' ').replace('...', '.')
+        # remove repeating characters and short repeated tokens from model collapse
         response = re.sub(r'\b([A-Za-z]{1,3})(?:\s+\1){1,}\b', r'\1', response, flags=re.IGNORECASE)
 
         # remove comments between brackets (but not Reasoning:/Answer: which we may have added)
-        # response = re.sub(r'<.*?>', '', response) # dont remove
-        # response = re.sub(r'\[.*?\]', '', response) # dont remove
-        response = re.sub(r'\/.*?\/', '', response)
+        # response = re.sub(r'<.*?>', '', response)
+        # response = re.sub(r'\[.*?\]', '', response)
+        # response = re.sub(r'\/.*?\/', '', response)
 
         # remove llm commentary
         removed = ''
@@ -230,6 +229,7 @@ class PromptEnhanceScript(scripts_manager.Script):
             debug_log(f'Prompt enhance: max={self.options.max_delim_index} removed="{removed}"')
 
         # remove bullets and lists
+        response = response.replace('**', '')
         lines = [re.sub(r'^(\s*[-*]|\s*\d+)\s+', '', line).strip() for line in response.splitlines()]
         response = '\n'.join(lines)
 
