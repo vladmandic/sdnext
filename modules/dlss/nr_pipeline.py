@@ -8,7 +8,7 @@ from typing import Any
 import numpy as np
 import torch
 
-from . import nr_model as reference
+from .nr_model import NeuralRenderingModel
 from .nr_composition import blend_mask, compose_detail, compose_head, resample
 from .nr_features import NR_PROFILES, NetworkGeometry, make_features
 from .nr_gpu_ops import compose_detail_torch, compose_head_torch, make_features_torch
@@ -49,7 +49,6 @@ def load_weights(path: str | pathlib.Path) -> dict[str, torch.Tensor]:
 
 class DLSSNRPipeline:
     path = ''
-    dtype = torch.float32
     """Runs the recovered transformer on a single RGB frame.
 
     ``precision='reference'`` computes in float32 with the E4M3/half rounding
@@ -57,16 +56,18 @@ class DLSSNRPipeline:
     runs the same graph in float16 on GPU devices.
     """
 
-    def __init__(self, weights: dict[str, torch.Tensor], *, device: str | torch.device = "auto", dtype: torch.dtype | None = None, graphs: bool = False):
+    def __init__(self, weights: dict[str, torch.Tensor], *, device: str | torch.device = "auto", dtype: torch.dtype | None = None, graphs: bool = False, chunk: int = 131072, full: bool = False):
         self.dtype = dtype
-        validate_weights(weights)
         self.device = device
         self.graphs = graphs
+        validate_weights(weights)
         self._graph_cache: dict[tuple[int, int], tuple[torch.cuda.CUDAGraph, torch.Tensor, torch.Tensor]] = {}
-        self.model = reference.NeuralRenderingModel(weights).eval()
+        self.model = NeuralRenderingModel(weights, chunk).eval()
         if dtype is not None:
             if dtype == "fast":
                 self.dtype = torch.float16
+            if dtype == "full":
+                self.dtype = torch.float32
             elif isinstance(dtype, str):
                 self.dtype = getattr(torch, dtype)
             else:
@@ -75,12 +76,12 @@ class DLSSNRPipeline:
         self.model = self.model.to(self.device)
 
     def __str__(self) -> str:
-        return f'DLSSNRPipeline(model="{self.path}" device={self.device} dtype={self.dtype} graphs={self.graphs})'
+        return f'DLSSNRPipeline(model="{self.path}" device={self.device} dtype={self.dtype} graphs={self.graphs} chunk={self.model._chunk_size})'
 
     @classmethod
-    def from_safetensors(cls, path: str | pathlib.Path, *, device: str | torch.device = "auto", dtype: torch.dtype | None = None, graphs: bool = False) -> "DLSSNRPipeline":
+    def from_safetensors(cls, path: str | pathlib.Path, *, device: str | torch.device = "auto", dtype: torch.dtype | None = None, graphs: bool = False, chunk: int = 131072) -> "DLSSNRPipeline":
         cls.path = str(path)
-        return cls(load_weights(path), device=device, dtype=dtype, graphs=graphs)
+        return cls(load_weights(path), device=device, dtype=dtype, graphs=graphs, chunk=chunk)
 
     def _forward_model(self, features: torch.Tensor) -> torch.Tensor:
         """Run the neural rendering model, optionally accelerated via CUDA graphs for static shapes."""

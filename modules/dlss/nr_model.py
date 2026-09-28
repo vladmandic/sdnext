@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-import math
 import os
-
+import math
 import torch
 from torch import nn
 from torch.nn import functional
 
 COSINE_NORM_FLOOR = 0.00006198883056640625
+CHUNK_TOKENS = 131072 # 0=disable chunking, otherwise use 32k-256k
 
 
 def recovered_window_origin(block_index: int) -> tuple[int, int]:
@@ -37,18 +37,6 @@ def recovered_window_origin(block_index: int) -> tuple[int, int]:
     return ((0, -4, 0, -4)[phase % 4], (0, -4, -4, 0)[phase % 4])
 
 
-# Token-local work (feed-forward branches, residuals) and window attention are
-# evaluated in chunks of at most this many tokens, so the temporaries of a
-# block scale with the chunk and not with the frame: a 2560x2880 frame at
-# block 0 otherwise materialises 28k windows of 256x256 scores at once (tens of
-# GB). Every token and window sees the same operations; a BLAS may still round
-# a GEMM differently for a different row count, which the E4M3 publish turns
-# into rare one-quantum flips (max 2e-4 on the output in the tests).
-# ``MLXDLSS_TORCH_CHUNK_TOKENS=0`` disables it.
-CHUNK_TOKENS = int(os.environ.get("MLXDLSS_TORCH_CHUNK_TOKENS", str(1 << 17)))
-
-
-
 def quadratic_gate(value: torch.Tensor) -> torch.Tensor:
     clamped = value.clamp(-4.0, 4.0)
     linear = torch.abs(clamped) * -0.055908203125 + 0.447265625
@@ -75,7 +63,6 @@ def quadratic_gate_activation(value: torch.Tensor) -> torch.Tensor:
 
 def e4m3_round_trip(value: torch.Tensor) -> torch.Tensor:
     """Round to the nearest E4M3 value (round-half-even, saturating at 448).
-
     CPU and CUDA use PyTorch's float8 conversion; tracing (Core ML export) and
     devices without float8 support (MPS) use an exact bit-level equivalent.
     """
@@ -875,9 +862,12 @@ def nearest_upsample2_crop(
 class NeuralRenderingModel(nn.Module):
     """Fixed recovered 71-block graph with external logical weights."""
 
-    def __init__(self, weights: dict[str, torch.Tensor]):
+    def __init__(self, weights: dict[str, torch.Tensor], chunk: int = 131072):
         super().__init__()
         self._weight_attributes: dict[str, str] = {}
+        self._chunk_size = chunk
+        global CHUNK_TOKENS # pylint: disable=global-statement
+        CHUNK_TOKENS = self._chunk_size
         for index, (name, value) in enumerate(sorted(weights.items())):
             attribute = f"weight_{index}"
             self.register_buffer(attribute, value.detach().to(dtype=torch.float32))
@@ -1122,7 +1112,7 @@ class NeuralRenderingModel(nn.Module):
         return value[..., :16] @ out_gain + value[..., 16:] @ out_conv
 
 
-def load_model(path: str | os.PathLike[str]) -> NeuralRenderingModel:
+def load_model(path: str) -> NeuralRenderingModel:
     from safetensors import safe_open
 
     with safe_open(str(path), framework="pt", device="cpu") as source:

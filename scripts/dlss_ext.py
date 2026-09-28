@@ -1,3 +1,4 @@
+import os
 import gradio as gr
 from modules import processing, scripts_manager, scripts_postprocessing
 from modules.dlss import NR_PROFILES, VSR_PROFILES, FG_PROFILES
@@ -15,7 +16,7 @@ def create_ui(parent):
         with gr.Accordion('DLSS NeuralRender', open=False, elem_id=f'{parent}_dlss_nr'):
             with gr.Row():
                 nr_profile = gr.Dropdown(label='NR profile', choices=list(NR_PROFILES), value='Standard', elem_id=f'{parent}_dlss_nr_profile')
-                nr_motion = gr.Dropdown(label='NR motion vector', choices=['flow', 'zero'], value='flow', elem_id=f'{parent}_dlss_nr_motion')
+                nr_motion = gr.Dropdown(label='NR motion vector', choices=['Fast', 'Medium', 'Quality', 'Zero'], value='Medium', elem_id=f'{parent}_dlss_nr_motion')
             with gr.Row():
                 nr_scale = gr.Slider(label='NR scale', minimum=0.1, maximum=4.0, step=0.05, value=1.0, elem_id=f'{parent}_dlss_nr_scale')
                 nr_intensity = gr.Slider(label='NR intensity', minimum=0.0, maximum=2.0, step=0.05, value=1.0, elem_id=f'{parent}_dlss_nr_intensity')
@@ -55,10 +56,14 @@ def create_ui(parent):
                 fg_threshold = gr.Slider(label='FG scene threshold', minimum=0.0, maximum=1.0, step=0.05, value=0.4, elem_id=f'{parent}_dlss_fg_threshold')
 
         with gr.Accordion('DLSS Advanced', open=False, elem_id=f'{parent}_dlss_advanced'):
-            dlss_graph = gr.Checkbox(label='DLSS use CUDA graph', value=False, elem_id=f'{parent}_dlss_graph')
+            with gr.Row():
+                dlss_full = gr.Checkbox(label='DLSS full precision', value=False, elem_id=f'{parent}_dlss_full')
+                dlss_graph = gr.Checkbox(label='DLSS use CUDA graph', value=False, elem_id=f'{parent}_dlss_graph')
+                dlss_chunk = gr.Slider(label='DLSS chunk size', minimum=0, maximum=262144, step=16384, value=131072, elem_id=f'{parent}_dlss_chunk_tokens')
+                dlss_chunk.change(lambda x: os.environ.__setitem__("DLSS_CHUNK_TOKENS", str(x)))
 
     return [
-        dlss_enabled, dlss_graph,
+        dlss_enabled, dlss_graph, dlss_chunk, dlss_full,
         nr_profile, nr_motion, nr_scale, nr_intensity, nr_blend, nr_detail, nr_colour, nr_radius, nr_threshold, nr_normalized, nr_local_tone, nr_local_structure, nr_skin_structure, nr_mask_structure,
         ss_profile, ss_scale, ss_detail, ss_colour, ss_radius, ss_threshold,
         fg_profile, fg_mode, fg_factor, fg_threshold,
@@ -130,10 +135,12 @@ class DLSSPostprocessingScript(scripts_postprocessing.ScriptPostprocessing):
     order = 30000
 
     def ui(self):
-        dlss_enabled, dlss_graph, nr_profile, nr_motion, nr_scale, nr_intensity, nr_blend, nr_detail, nr_colour, nr_radius, nr_threshold, nr_normalized, nr_local_tone, nr_local_structure, nr_skin_structure, nr_mask_structure, ss_profile, ss_scale, ss_detail, ss_colour, ss_radius, ss_threshold, fg_profile, fg_mode, fg_factor, fg_threshold = create_ui('postprocess')
+        dlss_enabled, dlss_graph, dlss_chunk, dlss_full, nr_profile, nr_motion, nr_scale, nr_intensity, nr_blend, nr_detail, nr_colour, nr_radius, nr_threshold, nr_normalized, nr_local_tone, nr_local_structure, nr_skin_structure, nr_mask_structure, ss_profile, ss_scale, ss_detail, ss_colour, ss_radius, ss_threshold, fg_profile, fg_mode, fg_factor, fg_threshold = create_ui('postprocess')
         return {
             "dlss_enabled": dlss_enabled,
             "dlss_graph": dlss_graph,
+            "dlss_chunk": dlss_chunk,
+            "dlss_full": dlss_full,
             "nr_profile": nr_profile,
             "nr_motion": nr_motion,
             "nr_scale": nr_scale,

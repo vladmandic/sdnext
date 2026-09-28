@@ -27,12 +27,12 @@ def normalize_pixel_motion(
     """Engine pixel motion (H, W, 2) -> normalised history-UV offsets, with an optional previous-minus-current jitter delta."""
     pixel_motion = np.asarray(pixel_motion, dtype=np.float32)
     if pixel_motion.ndim != 3 or pixel_motion.shape[2] != 2:
-        raise ValueError("pixel motion must be (height, width, 2)")
+        raise ValueError(f"DLSSNormalize: shape={pixel_motion.shape} invalid")
     if effective_width <= 0 or effective_height <= 0:
-        raise ValueError("effective extent must be positive")
+        raise ValueError("DLSSNormalize: effective extent must be positive")
     for value in (scale_x, scale_y, jitter_dx, jitter_dy):
         if not np.isfinite(value):
-            raise ValueError("motion scale and jitter must be finite")
+            raise ValueError(f"DLSSNormalize: value={value} motion scale and jitter must be finite")
     out = np.empty_like(pixel_motion)
     out[..., 0] = pixel_motion[..., 0] * np.float32(scale_x / effective_width) + np.float32(jitter_dx / effective_width)
     out[..., 1] = pixel_motion[..., 1] * np.float32(scale_y / effective_height) + np.float32(jitter_dy / effective_height)
@@ -128,9 +128,9 @@ def make_temporal_features(
     motion = np.asarray(motion, dtype=np.float32)
     height, width = color.shape[:2]
     if history.shape != color.shape:
-        raise ValueError("history must match the colour shape")
+        raise ValueError(f"DLSSTemporal: shape={history.shape} color={color.shape} not matching")
     if motion.shape != (height, width, 2):
-        raise ValueError("motion must be (height, width, 2)")
+        raise ValueError(f"DLSSTemporal: shape={motion.shape} invalid")
     features = make_features(
         color, frame_index=frame_index, normalized_style=normalized_style, local_tone_strength=local_tone_strength,
         local_structure_strength=local_structure_strength, skin_structure_strength=skin_structure_strength,
@@ -139,13 +139,13 @@ def make_temporal_features(
     yy, xx = np.indices((height, width))
     if depth_guide == "closest":
         if depth is None:
-            raise ValueError("closest-depth guide needs a depth map")
+            raise ValueError("DLSSTemporal: depth=None closest-depth guide needs a depth-map")
         sx, sy = _closest_depth_offsets(np.asarray(depth, dtype=np.float32).reshape(height, width, -1), depth_inverted)
         sampled_motion = motion[sy, sx]
     elif depth_guide == "observed":
         sampled_motion = motion
     else:
-        raise ValueError("depth_guide must be 'observed' or 'closest'")
+        raise ValueError(f"DLSSTemporal: depth={depth_guide} invalid")
     u = (xx.astype(np.float32) + np.float32(0.5)) / np.float32(width) + sampled_motion[..., 0]
     v = (yy.astype(np.float32) + np.float32(0.5)) / np.float32(height) + sampled_motion[..., 1]
     features[..., 7:10] = scaled_color(sample_history(history, u, v))
@@ -177,8 +177,10 @@ def compose_temporal(
     head = np.asarray(head, dtype=np.float32)
     color = np.asarray(color, dtype=np.float32)
     features = np.asarray(features, dtype=np.float32)
-    if head.shape[:2] != color.shape[:2] or features.shape[:2] != color.shape[:2] or features.shape[2] != 16:
-        raise ValueError("head, colour and features must share height and width; features need 16 channels")
+    if head.shape[:2] != color.shape[:2] or features.shape[:2] != color.shape[:2]:
+        raise ValueError(f"DLSSTemporal: head={head.shape} color={color.shape} features={features.shape} not matching")
+    if features.shape[2] != 16:
+        raise ValueError(f"DLSSTemporal: features={features.shape} invalid")
     logit = half(head[..., 3:4])
     alpha = np.clip(1 / (1 + np.exp(-logit)) * half(blend_scale), 0, 1)
     predicted = np.clip(color + half(head[..., :3]) * np.float32(0.25), 0, 1)
@@ -198,11 +200,19 @@ class FlowMotionEstimator:
         try:
             import cv2
         except ImportError as error:  # pragma: no cover - environment dependent
-            raise RuntimeError("optical-flow motion needs OpenCV: pip install 'mlxdlss[video]'") from error
-        presets = {"ultrafast": cv2.DISOPTICAL_FLOW_PRESET_ULTRAFAST, "fast": cv2.DISOPTICAL_FLOW_PRESET_FAST, "medium": cv2.DISOPTICAL_FLOW_PRESET_MEDIUM}
+            raise RuntimeError("FlowMotionEstimator: OpenCV not found") from error
+        presets = {
+            "ultrafast": cv2.DISOPTICAL_FLOW_PRESET_ULTRAFAST,
+            "fast": cv2.DISOPTICAL_FLOW_PRESET_FAST,
+            "medium": cv2.DISOPTICAL_FLOW_PRESET_MEDIUM,
+        }
+        self.profile = presets.get(preset, cv2.DISOPTICAL_FLOW_PRESET_ULTRAFAST)
         self._cv2 = cv2
-        self._flow = cv2.DISOpticalFlow_create(presets.get(preset, cv2.DISOPTICAL_FLOW_PRESET_ULTRAFAST))
-        self.target_dim = max(240, int(target_dim))
+        self._flow = cv2.DISOpticalFlow_create(self.profile)
+        self.target_dim = target_dim
+
+    def __str__(self):
+        return f"FlowMotionEstimator(profile={self.profile} dim={self.target_dim})"
 
     def __call__(self, current: np.ndarray | torch.Tensor, previous: np.ndarray | torch.Tensor) -> np.ndarray:
         if isinstance(current, torch.Tensor):
@@ -211,8 +221,10 @@ class FlowMotionEstimator:
             previous = previous.detach().cpu().numpy()
 
         h, width = current.shape[:2]
-        factor = max(1, int(round(max(h, width) / self.target_dim)))
-
+        if self.target_dim <= 0:
+            factor = 1
+        else:
+            factor = max(1, int(round(max(h, width) / self.target_dim)))
         if factor > 1:
             curr_sub = current[::factor, ::factor]
             prev_sub = previous[::factor, ::factor]
@@ -264,22 +276,26 @@ class DLSSNRTemporalSession:
         self.pipeline = pipeline
         self.options = options or DLSSNRTemporalOptions()
         if self.options.profile not in NR_PROFILES:
-            raise ValueError(f"profile must be one of {tuple(NR_PROFILES)}")
-        if motion == "flow":
-            self.motion = FlowMotionEstimator(preset="ultrafast", target_dim=960)
-        elif motion == "zero":
+            raise ValueError(f"DLSSNRTemporalSession: profile={self.options.profile} invalid")
+        if motion == "Fast":
+            self.motion = FlowMotionEstimator(preset="ultrafast", target_dim=720)
+        elif motion == "Medium":
+            self.motion = FlowMotionEstimator(preset="fast", target_dim=1440)
+        elif motion == "Quality":
+            self.motion = FlowMotionEstimator(preset="medium", target_dim=0)
+        elif motion == "Zero":
             self.motion = zero_motion
         elif callable(motion):
             self.motion = motion
         else:
-            raise ValueError("motion must be 'flow', 'zero' or a callable")
+            raise ValueError(f"DLSSNRTemporalSession: motion={motion} invalid")
         self.history: np.ndarray | torch.Tensor | None = None
         self.previous: np.ndarray | torch.Tensor | None = None
         self.frame_index = 0
         self.scene_cuts = 0
 
     def __str__(self) -> str:
-        return f"DLSSNRTemporalSession(options={self.options} motion={self.motion.__class__.__name__})"
+        return f"DLSSNRTemporalSession(options={self.options} pipeline={self.pipeline} motion={str(self.motion)})"
 
     def reset(self) -> None:
         self.history = None

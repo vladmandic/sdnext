@@ -1,6 +1,7 @@
 import os
 import time
 import numpy as np
+import torch
 from PIL import Image
 from rich import progress
 from modules import devices, shared
@@ -58,10 +59,12 @@ def dlss_run(p: StableDiffusionProcessing | None,
         log.warning('DLSS run called with no additional arguments')
         return None
     elif len(args) > 0: # called with positional arguments from generate / pp=Processed
-        dlss_enabled, dlss_graph, nr_profile, nr_motion, nr_scale, nr_intensity, nr_blend, nr_detail, nr_colour, nr_radius, nr_threshold, nr_normalized, nr_local_tone, nr_local_structure, nr_skin_structure, nr_mask_structure, ss_profile, ss_scale, ss_detail, ss_colour, ss_radius, ss_threshold, fg_profile, fg_mode, fg_factor, fg_threshold = args
+        dlss_enabled, dlss_graph, dlss_chunk, dlss_full, nr_profile, nr_motion, nr_scale, nr_intensity, nr_blend, nr_detail, nr_colour, nr_radius, nr_threshold, nr_normalized, nr_local_tone, nr_local_structure, nr_skin_structure, nr_mask_structure, ss_profile, ss_scale, ss_detail, ss_colour, ss_radius, ss_threshold, fg_profile, fg_mode, fg_factor, fg_threshold = args
     elif len(kwargs) > 0: # called with keyword arguments from postprocess / pp=PostprocessedImage
         dlss_enabled = kwargs.get("dlss_enabled", [])
         dlss_graph = kwargs.get("dlss_graph", False)
+        dlss_chunk = kwargs.get("dlss_chunk", 131072)
+        dlss_full = kwargs.get("dlss_full", False)
         nr_profile = kwargs.get("nr_profile", "None")
         nr_motion = kwargs.get("nr_motion", "flow")
         nr_scale = kwargs.get("nr_scale", 1.0)
@@ -101,7 +104,7 @@ def dlss_run(p: StableDiffusionProcessing | None,
             dlss_enabled.append('FrameGen')
         dlss_enabled = list(set(dlss_enabled))
     if debug:
-        log.trace(f'DLSS enabled={dlss_enabled} graph={dlss_graph} nr_profile={nr_profile} ss_profile={ss_profile} fg_profile={fg_profile} nr_motion={nr_motion} nr_scale={nr_scale} nr_intensity={nr_intensity} nr_blend={nr_blend} nr_detail={nr_detail} nr_colour={nr_colour} nr_radius={nr_radius} nr_threshold={nr_threshold} nr_normalized={nr_normalized} nr_local_tone={nr_local_tone} nr_local_structure={nr_local_structure} nr_skin_structure={nr_skin_structure} nr_mask_structure={nr_mask_structure} ss_scale={ss_scale} ss_detail={ss_detail} ss_colour={ss_colour} ss_radius={ss_radius} ss_threshold={ss_threshold} fg_mode={fg_mode} fg_factor={fg_factor} fg_threshold={fg_threshold}')
+        log.trace(f'DLSS enabled={dlss_enabled} graph={dlss_graph} chunk={dlss_chunk} full={dlss_full} nr_profile={nr_profile} ss_profile={ss_profile} fg_profile={fg_profile} nr_motion={nr_motion} nr_scale={nr_scale} nr_intensity={nr_intensity} nr_blend={nr_blend} nr_detail={nr_detail} nr_colour={nr_colour} nr_radius={nr_radius} nr_threshold={nr_threshold} nr_normalized={nr_normalized} nr_local_tone={nr_local_tone} nr_local_structure={nr_local_structure} nr_skin_structure={nr_skin_structure} nr_mask_structure={nr_mask_structure} ss_scale={ss_scale} ss_detail={ss_detail} ss_colour={ss_colour} ss_radius={ss_radius} ss_threshold={ss_threshold} fg_mode={fg_mode} fg_factor={fg_factor} fg_threshold={fg_threshold}')
 
     if isinstance(dlss_enabled, str):
         enabled_ops = [op.strip() for op in dlss_enabled.split(',') if op.strip()]
@@ -135,6 +138,7 @@ def dlss_run(p: StableDiffusionProcessing | None,
         log.trace(f'DLSS ops={enabled_ops} frames={len(raw_inputs)}')
 
     from scripts.dlss.dlss_model import _resolve_model_path, _get_nr_pipeline, _get_fg_pipeline, _get_vsr_pipeline # delayed import
+    dtype = torch.float32 if dlss_full else torch.float16
 
     active_pipelines = []
     try:
@@ -145,7 +149,7 @@ def dlss_run(p: StableDiffusionProcessing | None,
             if ('neural' in op_lower) or (op_lower == 'n'):
                 nr_model_path = _resolve_model_path(NR_MODEL)
                 if nr_model_path:
-                    nr_pipe: DLSSNRPipeline = _get_nr_pipeline(nr_model_path, dlss_graph)
+                    nr_pipe: DLSSNRPipeline = _get_nr_pipeline(nr_model_path, dlss_graph, dlss_chunk, dtype)
                     active_pipelines.append(nr_pipe)
                     nr_opt_profile = nr_profile if nr_profile and nr_profile != 'None' else 'Standard'
                     nr_options = DLSSNRTemporalOptions(
@@ -175,7 +179,7 @@ def dlss_run(p: StableDiffusionProcessing | None,
                 else:
                     fg_model_path = _resolve_model_path(FG_MODEL)
                 if fg_model_path:
-                    fg_pipe: DLSSFGPipeline = _get_fg_pipeline(fg_model_path, dlss_graph)
+                    fg_pipe: DLSSFGPipeline = _get_fg_pipeline(fg_model_path, dlss_graph, dtype)
                     active_pipelines.append(fg_pipe)
                     fg_opt_profile = fg_profile if fg_profile and fg_profile != 'None' else '2x'
                     fg_options = DLSSFGOptions(
@@ -192,7 +196,7 @@ def dlss_run(p: StableDiffusionProcessing | None,
             elif ('super' in op_lower) or ('vsr' in op_lower) or (op_lower == 's'):
                 ss_model_path = _resolve_model_path(SS_MODEL)
                 if ss_model_path:
-                    vsr_pipe: DLSSVSRPipeline = _get_vsr_pipeline(ss_model_path, dlss_graph)
+                    vsr_pipe: DLSSVSRPipeline = _get_vsr_pipeline(ss_model_path, dlss_graph, dtype)
                     active_pipelines.append(vsr_pipe)
                     ss_opt_profile = ss_profile if ss_profile and ss_profile != 'None' else 'Ultra'
                     vsr_options = DLSSVSRTemporalOptions(
