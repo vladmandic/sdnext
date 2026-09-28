@@ -2,8 +2,6 @@
 
 ## Short-term
 
-- Control tab verify overrides handling, @vladmandic
-- LTX: Implement LTX2DFRPipeline
 - Video: unify execution path for ui and api
 - Torch: update ipex, rocm to torch==2.14
 
@@ -25,13 +23,17 @@
 ### Roadmap
 
 - Automated testing and integrate models repo
+- Video: support finetunes
+- Video: use Networks/Reference instead of custom
+- Video: Implement LTX2DFRPipeline
+
+### Future Considerations
+
 - Video upscaling: LTX-Upscaler
 - Video upscaling: [MiniMax-Upscaler](https://huggingface.co/LBH-123-AI/Minimax_h3_latent_Upscaler)
 - Video capabilities to processing tab, add RIFE, upscaling (once available)
 - Distraction-free UI mode with prompt-only, chat-based interface
-- Video models: support finetunes
 - Incorporate [prompting guides](https://github.com/CalamitousFelicitousness/ai-prompting-guides)
-- Video models: use Networks/Reference instead of custom
 - UI Lite vs Expert mode
 - Remove obsolete code:  `olive-ai`
 

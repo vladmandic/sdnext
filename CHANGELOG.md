@@ -1,6 +1,19 @@
 # Change Log for SD.Next
 
-## Update for 2026-09-27
+## Update for 2026-09-28
+
+### Highlights for 2026-09-28
+
+Two new base models: **Qwen-Image 2.1** and **Bria Fibo 1.5**  
+**DLSS5** reimagined for much higher performance and full cross-platform support  
+New live-preview method using **MicroDecoder**  
+Better handling of multi-image reference editing  
+
+Plus inevitable bug-fixes...
+
+[Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
+
+### Details for 2026-09-28
 
 - **Models**
   - [Qwen-Image 2.1](https://huggingface.co/Qwen/Qwen-Image-2.1) in *base*, *sdnq-4bit* and *sdnq-8bit* variants  
@@ -32,6 +45,7 @@
     instead of relying on polling and low-priority updates, forces preview calculation on each step  
 - **Other**
   - edit-models: simplify usage of multi-image reference editing  
+    automatically handle: flux.2, glm-image, nano-banana, joy-image-edit, qwen-image-edit
   - processors: `DWPose`, `RTMW`, `RTMO`: image processor updates, thanks @kirtasshh  
     refactored to use `ONNX` instead of obsolete `mmpose` lib and with additional configurable settings  
   - ui: manual clear of errors/warnings, thanks @kirtasshh
@@ -41,14 +55,11 @@
   - api: control endpoint with input images
   - control: hires fixed size keeps the requested width on 16 px and 32 px models
   - detailer: use of lora models, thanks @kirtasshh
-  - dlss: additional DLSS reporting
-  - dlss: additional DLSS reporting
   - dlss: the detailer and the other per-image steps run once when dlss is off
-  - flux.2, glm-image, nano banana: declared condition image counts
   - grid: images with transparency keep it in grids and live previews
   - group offload: places the vae on-demand behind the vae hijack
   - img2img: warn and record in the infotext when the output size follows the input image instead of the request
-  - joy-image-edit plus, nano banana: the reference image list reaches pipelines whose call takes images
+  - img2img: qwen-image, flux.2, glm-image align sizes to the 16 px floor
   - metadata: correct refine prompt restore, thanks @QualiaRain
   - multi-image: inputs reach multi-image models as one condition set on every route and the requested size sets the output size
   - networks: name mapping for network models and loras
@@ -56,11 +67,8 @@
   - networks: preview mapping for reference networks
   - offload: enable offload using streams on different gpus, thanks @li-lizhe
   - pag: attention guidance engages again on sd15 and sdxl
-  - pixelsmith: vae tiling, thanks @li-lizhe
   - pixelsmith: vae tiling, thanks @li-lizhe  
   - prompt cache: bypass when condition images are encoded
-  - qwen-image, flux.2, glm-image: sizes align to the 16 px floor the pipelines apply
-  - qwen-image-edit: the condition image count is declared on the edit plus pipeline only
   - styles: fix infotext parsing, thanks @obelisk-complex
   - temp file: gradio temp file error handling
   - temp file: gradio temp file error handling
