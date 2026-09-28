@@ -210,8 +210,8 @@ class PromptEnhanceScript(scripts_manager.Script):
         response = re.sub(r'\b([A-Za-z]{1,3})(?:\s+\1){1,}\b', r'\1', response, flags=re.IGNORECASE)
 
         # remove comments between brackets (but not Reasoning:/Answer: which we may have added)
-        response = re.sub(r'<.*?>', '', response)
-        response = re.sub(r'\[.*?\]', '', response)
+        # response = re.sub(r'<.*?>', '', response) # dont remove
+        # response = re.sub(r'\[.*?\]', '', response) # dont remove
         response = re.sub(r'\/.*?\/', '', response)
 
         # remove llm commentary
