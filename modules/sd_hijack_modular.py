@@ -28,6 +28,10 @@ def modular_step(components: diffusers.modular_pipelines.ModularPipeline, state:
         lora_stack.on_step(shared.state.sampling_step)
         if debug:
             log.trace(f'Modular step: step={shared.state.sampling_step} latent={list(state.latents.shape)}')
+        if shared.opts.live_preview_force and not shared.state.api:
+            from modules.sd_samplers_common import single_sample_to_image
+            image = single_sample_to_image(shared.state.current_latent)
+            shared.state.assign_current_image(image)
     if shared.state.interrupted or shared.state.skipped:
         raise AssertionError('Interrupted...')
     if shared.state.paused:

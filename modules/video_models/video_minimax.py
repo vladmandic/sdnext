@@ -6,7 +6,7 @@ MIN_LATENT_FRAMES = 7 # decoder floor: fewer latent frames leave the chunked dec
 SHIFT_KEYS = {'scheduler': 'Video shift', 'audio_scheduler': 'Audio shift'} # infotext key per schedule
 
 
-def apply_overrides(p, pipe, still: bool = False, audio: bool = True, preview: bool = False, video_shift: float | None = None, audio_shift: float | None = None):
+def apply_overrides(p, pipe, still: bool = False, audio: bool = True, preview: bool = True, video_shift: float | None = None, audio_shift: float | None = None):
     """Per-generation constraints shared by the video tab, the api and the image path: canvas and frame
     alignment, the bespoke scheduler guard, the schedule shifts, tiling, and the audio/still toggles."""
     if still:

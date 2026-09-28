@@ -58,6 +58,41 @@ def to_pil(tensor: torch.Tensor | np.ndarray):
     return image
 
 
+def to_pil_batch(tensor: torch.Tensor | np.ndarray):
+    """Float CHW/HWC or BCHW/BHWC tensor [0,1] -> PIL Image. Stacks batch horizontally. Pure torch, no torchvision."""
+    if isinstance(tensor, torch.Tensor):
+        tensor = tensor.detach().cpu()
+    elif isinstance(tensor, np.ndarray):
+        tensor = torch.from_numpy(tensor)
+    else:
+        fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
+        raise TypeError(f"convert: target=image type={type(tensor)} fn={fn} unsupported")
+    try:
+        if tensor.dim() == 4:
+            if tensor.shape[-1] in (1, 3, 4) and tensor.shape[-1] < tensor.shape[-2]:  # BHWC
+                tensor = tensor.permute(0, 3, 1, 2)
+            tensor = torch.cat(list(tensor), dim=-1)
+        elif tensor.dim() == 3:
+            if tensor.shape[-1] in (1, 3, 4) and tensor.shape[-1] < tensor.shape[-2] and tensor.shape[-1] < tensor.shape[-3]:  # HWC
+                tensor = tensor.permute(2, 0, 1)
+        if tensor.dtype != torch.uint8:
+            tensor = (tensor.clamp(0, 1) * 255).round().to(torch.uint8)
+        ndarr = tensor.permute(1, 2, 0).numpy()
+        if ndarr.shape[2] == 1:
+            ndarr = ndarr[:, :, 0]
+            mode = 'L'
+        elif ndarr.shape[2] == 3:
+            mode = 'RGB'
+        else:
+            mode = 'RGBA'
+        image = Image.fromarray(ndarr, mode=mode)
+    except Exception as e:
+        image = Image.new('RGB', (tensor.shape[-1], tensor.shape[-2]), color=(152, 32, 48))
+        fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
+        log.error(f'Convert: source={type(tensor)} target={image} fn={fn} {e}')
+    return image
+
+
 def pil_to_tensor(image):
     """PIL Image -> uint8 CHW tensor (no float scaling). Replaces TF.pil_to_tensor."""
     if not isinstance(image, Image.Image):

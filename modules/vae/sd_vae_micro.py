@@ -5,7 +5,7 @@ import safetensors.torch
 import huggingface_hub as hf
 from modules import devices, shared, paths, sd_vae
 from modules.logger import log
-from modules.vae.sd_vae_micro_train import MicroDecoder
+from modules.vae.sd_vae_micro_model import MicroDecoder
 from modules.vae.model_map import get_vae_type
 
 
@@ -14,24 +14,50 @@ decoder_cls = None
 repo_id = 'vladmandic/MicroDecoder'
 
 
+def get_timestep() -> torch.Tensor:
+    step = getattr(shared.state, 'sampling_step', 0)
+    steps = getattr(shared.state, 'sampling_steps', 0)
+    ts = getattr(shared.state, 'timestep', 0)
+    try:
+        ts_val = float(ts)
+    except (TypeError, ValueError):
+        ts_val = 0.0
+    if steps > 0 and step > 0:
+        t_val = max(0.0, min(1.0, 1.0 - (float(step) / float(steps))))
+    elif ts_val > 1.0:
+        t_val = max(0.0, min(1.0, ts_val / 1000.0))
+    elif ts_val > 0.0:
+        t_val = max(0.0, min(1.0, ts_val))
+    else:
+        t_val = 0.0
+    return torch.tensor([[t_val]], device=devices.device, dtype=devices.dtype)
+
+
 def decode(latents: torch.Tensor) -> torch.Tensor:
     global decoder, decoder_cls  # pylint: disable=global-statement
     vae_cls = get_vae_type()
     if vae_cls is None:
+        return latents
+    if (latents is None) or (latents.ndim == 2): # likely packed latents that we cant handle directly
         return latents
     scale_factor = sd_vae.get_vae_scale_factor(patch=False)
     in_channels = getattr(shared.sd_model.vae.config, "latent_channels", 64)
 
     if (decoder is None) or (decoder_cls != vae_cls):
         model_folder = os.path.join(paths.models_path, "Preview")
-        try:
-            model_path = hf.hf_hub_download(repo_id=repo_id, filename=f'microdecoder-{vae_cls}.safetensors', local_dir=model_folder)
-        except Exception as e:
-            log.error(f'MicroDecoder: repo={repo_id} target={vae_cls} {str(e)}')
-            return latents
-        if not os.path.exists(model_path):
-            log.error(f'MicroDecoder: repo={repo_id} target={vae_cls} file="{model_path}" not found')
-            return latents
+        os.makedirs(model_folder, exist_ok=True)
+        model_file = f'microdecoder-{vae_cls}.safetensors'
+        if os.path.exists(os.path.join(model_folder, model_file)): # attempt local-first
+            model_path = os.path.join(model_folder, model_file)
+        else:
+            try:
+                model_path = hf.hf_hub_download(repo_id=repo_id, filename=model_file, local_dir=model_folder)
+            except Exception as e:
+                log.error(f'MicroDecoder: repo={repo_id} target={vae_cls} {str(e)}')
+                return latents
+            if not os.path.exists(model_path):
+                log.error(f'MicroDecoder: repo={repo_id} target={vae_cls} file="{model_path}" not found')
+                return latents
         state_dict = safetensors.torch.load_file(model_path, device=str(devices.device))
         hidden_dim = state_dict["in_proj.0.weight"].shape[0] if "in_proj.0.weight" in state_dict else 256 # dynamically detect hidden_dim from checkpoint weights if present
         in_ch = state_dict["in_proj.0.weight"].shape[1] if "in_proj.0.weight" in state_dict else in_channels
@@ -45,29 +71,10 @@ def decode(latents: torch.Tensor) -> torch.Tensor:
         del state_dict
         decoder_cls = vae_cls
 
-    x = latents.to(device=devices.device, dtype=devices.dtype)
-
-    step = getattr(shared.state, 'sampling_step', 0)
-    steps = getattr(shared.state, 'sampling_steps', 0)
-    ts = getattr(shared.state, 'timestep', 0)
-    try:
-        ts_val = float(ts)
-    except (TypeError, ValueError):
-        ts_val = 0.0
-
-    if steps > 0 and step > 0:
-        t_val = max(0.0, min(1.0, 1.0 - (float(step) / float(steps))))
-    elif ts_val > 1.0:
-        t_val = max(0.0, min(1.0, ts_val / 1000.0))
-    elif ts_val > 0.0:
-        t_val = max(0.0, min(1.0, ts_val))
-    else:
-        t_val = 0.0
-    t = torch.tensor([[t_val]], device=devices.device, dtype=devices.dtype)
 
     with devices.inference_context():
-        rgb = decoder(x, t=t)
-        # log.trace(f'MicroDecoder: t={t_val:.3f} shape={x.shape} channels={in_channels} scale={scale_factor} in_min={x.min():.2f} in_max={x.max():.2f} out_min={rgb.min():.2f} out_max={rgb.max():.2f} time={t1 - t0:.6f}')
+        rgb = decoder(latents.to(device=devices.device, dtype=devices.dtype), t=get_timestep())
+        # log.trace(f'MicroDecoder: t={get_timestep():.3f} shape={latents.shape} ch={in_channels} scale={scale_factor} in={latents.min():.2f}:{latents.max():.2f} out={rgb.min():.2f}:{rgb.max():.2f}')
 
     target_size = (latents.shape[-2] * scale_factor, latents.shape[-1] * scale_factor)
     if rgb.shape[-2:] != target_size:

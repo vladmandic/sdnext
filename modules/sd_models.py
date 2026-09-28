@@ -1321,6 +1321,7 @@ def copy_diffuser_options(new_pipe, orig_pipe):
     new_pipe.restore_pipeline = getattr(orig_pipe, 'restore_pipeline', None)
     new_pipe.max_condition_images = getattr(orig_pipe, 'max_condition_images', None)
     new_pipe.patch_size = getattr(orig_pipe, 'patch_size', None)
+    new_pipe.custom_unpack_latents = getattr(orig_pipe, 'custom_unpack_latents', None)
     # a1111 compatibility item
     new_pipe.is_sdxl = getattr(orig_pipe, 'is_sdxl', False)
     new_pipe.is_sd2 = getattr(orig_pipe, 'is_sd2', False)

@@ -117,7 +117,10 @@ def decode(latents):
     if vae is None:
         return latents
     with devices.inference_context():
-        latents = latents.unsqueeze(0) if len(latents.shape) == 3 else latents
+        if latents.ndim == 5:
+            latents = latents.transpose(1, 2)  # [B, C, T, H, W] -> [B, T, C, H, W]
+        if latents.ndim == 3:
+            latents = latents.unsqueeze(0)
         latents = latents.to(devices.device, dtype=dtype)
         if debug:
             log.trace(f'\nDecode: type=Tiny model={loaded_type} cls={loaded_vae.__class__.__name__} group={loaded_cls} shape={latents.shape}')
@@ -125,12 +128,12 @@ def decode(latents):
             b, _c, h, w = latents.shape
             latents = latents.reshape(b, 32, h * 2, w * 2)
         if loaded_cls == 'taesd':
-            image = vae.decoder(latents)[0]
+            image = vae.decoder(latents)
             image = image.clamp(0, 1).detach()
         else:
-            image = vae.decode(latents, return_dict=False)[0]
-            if image.ndim == 4 and image.shape[0] > 1 and image.shape[1] == 3: # likely a video latent
-                image = image[0] # just take the first frame for now
+            image = vae.decode(latents, return_dict=False)
+        if image.ndim == 5:
+            image = image.squeeze(0)
         image = image.clamp(0, 1).detach()
         image = restore_preview_size(image, vae)
         return image

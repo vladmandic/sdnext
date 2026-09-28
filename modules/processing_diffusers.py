@@ -531,7 +531,7 @@ def update_pipeline(sd_model, p: processing.StableDiffusionProcessing):
     if 'MiniMaxH3' in sd_model.__class__.__name__ and not isinstance(p, processing.StableDiffusionProcessingVideo):
         # image tabs run the model in still mode; the video tab applies its own overrides
         from modules.video_models import video_minimax
-        video_minimax.apply_overrides(p, sd_model, still=True, audio=False)
+        video_minimax.apply_overrides(p, sd_model, still=True, audio=False, preview=True)
         if getattr(p, 'detailer_enabled', False):
             log.warning(f'Processing: cls={sd_model.__class__.__name__} detailer not supported')
             p.detailer_enabled = False

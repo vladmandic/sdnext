@@ -43,6 +43,7 @@ Plus inevitable bug-fixes...
   - available preview methods: *None, Micro, Tiny (TAESD), Full*
   - new *setting -> live preview -> force live preview on each step*  
     instead of relying on polling and low-priority updates, forces preview calculation on each step  
+  - previews now work on batched generations
 - **Other**
   - edit-models: simplify usage of multi-image reference editing  
     automatically handle: flux.2, glm-image, nano-banana, joy-image-edit, qwen-image-edit

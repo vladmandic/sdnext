@@ -7,7 +7,7 @@ from PIL import Image
 from modules import shared, processing, images, sd_samplers, timer, errors
 from modules.logger import log
 from modules.image import convert
-from modules.image.util import collapse_alpha
+from modules.image.util import collapse_alpha, draw_text
 
 
 SamplerData = namedtuple('SamplerData', ['name', 'constructor', 'aliases', 'options'])
@@ -15,6 +15,19 @@ flow_models = ['f1', 'f2', 'sd3', 'lumina', 'auraflow', 'sana', 'zimage', 'lumin
 warned = False
 queue_lock = threading.Lock()
 debug = os.environ.get('SD_VAE_DEBUG', None) is not None
+preview_max_latent = 128*128
+missing_img = None
+
+
+def get_missing_img(msg: str | None = None):
+    global missing_img # pylint: disable=global-statement
+    if missing_img is None:
+        missing_img = Image.open(os.path.join("ui", "assets", "missing.png")).convert("RGB")
+        missing_img = missing_img.resize((1024, 1024), Image.Resampling.LANCZOS)
+    img = missing_img.copy()
+    if msg is not None:
+        draw_text(img, str(msg))
+    return img
 
 
 def warn_once(message='', e=None):
@@ -48,19 +61,15 @@ def single_sample_to_image(sample, approximation=None):
             if debug:
                 log.debug(f'Preview sample: shape={list(sample.shape)} dtype={sample.dtype} method={approximation}')
 
-            if len(sample.shape) > 4: # likely unknown video latent (e.g. svd)
-                return Image.new(mode="RGB", size=(512, 512))
-            if len(sample.shape) == 4:
-                sample = sample[0] # standard batch [B, C, H, W] -> [C, H, W]
-            if shared.opts.live_preview_downscale and (len(sample.shape) == 3 or len(sample.shape) == 4) and (sample.shape[-1]*sample.shape[-2] > 128*128):
+            if shared.opts.live_preview_downscale and (sample.ndim == 3 or sample.ndim == 4) and (sample.shape[-1]*sample.shape[-2] > preview_max_latent):
                 try:
-                    scale = (128 * 128) / (sample.shape[-1] * sample.shape[-2])
+                    scale = preview_max_latent / (sample.shape[-1] * sample.shape[-2])
                     sample = torch.nn.functional.interpolate(sample.unsqueeze(0), scale_factor=[scale, scale], mode='bilinear', align_corners=False)[0]
                 except Exception:
                     pass
 
             if approximation == "None":
-                x_sample = Image.new(mode="RGB", size=(512, 512), color=(0, 0, 0))
+                x_sample = get_missing_img()
             elif approximation == "Micro":
                 from modules.vae import sd_vae_micro
                 x_sample = sd_vae_micro.decode(sample)
@@ -71,22 +80,22 @@ def single_sample_to_image(sample, approximation=None):
                 x_sample = processing.decode_first_stage(shared.sd_model, sample.unsqueeze(0), output_type='pil', use_job=False)[0]
             else:
                 warn_once(f"method={approximation} unknown")
-                x_sample = Image.new(mode="RGB", size=(512, 512), color=(0, 0, 0))
+                x_sample = get_missing_img('unknown method')
 
             if isinstance(x_sample, Image.Image):
                 image = x_sample
             else:
-                if len(x_sample.shape) == 4:
-                    x_sample = x_sample[0]
-                if x_sample.shape[0] > 4:
-                    image = Image.new(mode="RGB", size=(512, 512), color=(0, 0, 0))
+                if x_sample.ndim in (1, 2, 5): # invalid
+                    image = get_missing_img('invalid shape')
                 else:
-                    x_sample = torch.nan_to_num(x_sample, nan=0.0, posinf=1, neginf=0)
-                    x_sample = (255.0 * x_sample).to(torch.uint8)
-                    image = collapse_alpha(convert.to_pil(x_sample))
+                    # x_sample = torch.nan_to_num(x_sample, nan=0.0, posinf=1, neginf=0) # let it fail instead
+                    if (x_sample.ndim == 4) and (x_sample.shape[0] == 1 or x_sample.shape[0] > 4):
+                        image = collapse_alpha(convert.to_pil(x_sample[0]))
+                    else:
+                        image = collapse_alpha(convert.to_pil_batch(x_sample))
         except Exception as e:
             warn_once('exception', e)
-            image = Image.new(mode="RGB", size=(512, 512), color=(0, 0, 0))
+            image = get_missing_img(str(e))
         t1 = time.time()
         timer.process.add('preview', t1 - t0)
         return image
