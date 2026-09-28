@@ -72,6 +72,7 @@ Plus inevitable bug-fixes...
   - offload: enable offload using streams on different gpus, thanks @li-lizhe
   - pag: attention guidance engages again on sd15 and sdxl
   - pixelsmith: vae tiling, thanks @li-lizhe  
+  - preview: remove flicker when finishing generation
   - prompt cache: bypass when condition images are encoded
   - styles: fix infotext parsing, thanks @obelisk-complex
   - temp file: gradio temp file error handling

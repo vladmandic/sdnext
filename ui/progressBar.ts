@@ -165,7 +165,7 @@ export function requestProgress(id_task = 'undefined', progressEl = null, galler
       if (parentGallery && livePreview) {
         if (useImage) {
           const previewImg = gradioApp().querySelector('#livePreviewImage');
-          const galleryImg = parentGallery.querySelector('img');
+          const galleryImg = galleryEl.querySelector('img');
           if (previewImg?.src && galleryImg) galleryImg.src = previewImg.src; // copy preview to gallery if everything is ok
         }
         parentGallery.removeChild(livePreview);
