@@ -28,6 +28,8 @@ Plus inevitable bug-fixes...
   - update `diffusers==0.41.0.dev0`
   - `rocm` windows installation move to *stable*, thanks @resonantsky  
     at the moment, this results in installation of `torch==2.13.0` with `rocm==10.0.0`  
+  - options to skip triton autotune for entire model or just text-encoder  
+    in *settings -> compute settings*  
 - **DLSS** *(reimagined)*
   - complete reverse-engineering of *nVidia DLSS* to enable gpu-agnostic usage (can even run on cpu)
   - supports DLSS *NeuralRender*, *SuperRes*, and *FrameGen*
@@ -40,6 +42,7 @@ Plus inevitable bug-fixes...
   - full refactor: refactored *taesd*, added *micro-decoder*, removed *simple* and *approximate* methods
   - new [MicroDecoder](https://huggingface.co/vladmandic/MicroDecoder) vae implementation  
     used for live-preview as quick vae and can be trained on any model  
+    supported *architectures: sd, sdxl, f1, f2, qwen, qwen21, wan21, h3*  
   - available preview methods: *None, Micro, Tiny (TAESD), Full*
   - new *setting -> live preview -> force live preview on each step*  
     instead of relying on polling and low-priority updates, forces preview calculation on each step  
