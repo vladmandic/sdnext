@@ -76,6 +76,10 @@ This folder contains repo-local Copilot skills for recurring SD.Next tasks.
   File: `update-docs/SKILL.md`
   Use when reading markdown files from `wiki/` to correct markdown syntax, improve readability, and optionally normalize structure/links while preserving technical meaning.
 
+- `update-hints`
+  File: `update-hints/SKILL.md`
+  Use when scanning `modules/ui*.py`, `scripts/*.py`, and `ui/locale/locale_en.json` to create missing hints, detect duplicates, flag incorrect hints without auto-updating them, and generate a categorized audit report.
+
 ## Notes
 
 - Keep skills narrowly task-oriented and reusable.
