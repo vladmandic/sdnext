@@ -9,7 +9,7 @@ from modules.shared import opts
 from modules.upscaler import Upscaler, UpscalerData
 from modules.image import convert
 from modules.model_quant import do_post_load_quant
-from modules.logger import log, console
+from modules.logger import log, get_console
 
 
 MODELS_MAP = {
@@ -329,7 +329,7 @@ class UpscalerSeedVR(Upscaler):
         log.info(f'Upscaler: type="{self.name}" model="{selected_file}" {mode} scale={self.scale} width={width} height={height} cfg={cfg_scale}:{cfg_rescale} seed={seed} steps={steps} offload={self.offload} {batch_info} {vae_info}')
 
         import rich.progress as rp
-        self.pbar = rp.Progress(rp.TextColumn('[cyan]SeedVR:'), rp.BarColumn(), rp.MofNCompleteColumn(), rp.TaskProgressColumn(), rp.TimeRemainingColumn(), rp.TimeElapsedColumn(), rp.TextColumn('[cyan]{task.description}'), console=console)
+        self.pbar = rp.Progress(rp.TextColumn('[cyan]SeedVR:'), rp.BarColumn(), rp.MofNCompleteColumn(), rp.TaskProgressColumn(), rp.TimeRemainingColumn(), rp.TimeElapsedColumn(), rp.TextColumn('[cyan]{task.description}'), console=get_console())
         self.task = self.pbar.add_task(total=self.frames, description='starting...')
         with devices.inference_context(), self.pbar:
             self.pbar.update(self.task, description='initialize rope')
