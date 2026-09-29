@@ -11864,21 +11864,6 @@ function updateImg2imgResizeToTextAfterChangingImage() {
   if (el2) setTimeout(() => gradioApp().getElementById("img2img_update_resize_to").click(), 500);
   return [];
 }
-async function toggleCompact(val, old) {
-  if (val === old) return;
-  log("toggleCompact", val);
-  if (val) {
-    gradioApp().style.setProperty("--layout-gap", "var(--spacing-md)");
-    gradioApp().querySelectorAll("input[type=range]").forEach((el2) => el2.classList.add("hidden"));
-    gradioApp().querySelectorAll("div .form").forEach((el2) => el2.classList.add("form-compact"));
-    gradioApp().querySelectorAll(".small-accordion .label-wrap").forEach((el2) => el2.classList.add("accordion-compact"));
-  } else {
-    gradioApp().style.setProperty("--layout-gap", "var(--spacing-xxl)");
-    gradioApp().querySelectorAll("input[type=range]").forEach((el2) => el2.classList.remove("hidden"));
-    gradioApp().querySelectorAll("div .form").forEach((el2) => el2.classList.remove("form-compact"));
-    gradioApp().querySelectorAll(".small-accordion .label-wrap").forEach((el2) => el2.classList.remove("accordion-compact"));
-  }
-}
 var kanvasNotifyTimer;
 function notifyKanvasResize(width, height) {
   if (window.resizeStage) {
@@ -12360,7 +12345,6 @@ function monitorOption(option, callback) {
 }
 var AppyOpts = [
   // monitored opts
-  { compact_view: (val, old) => toggleCompact(val, old) },
   { gradio_theme: (val, old) => setTheme(val, old) },
   { font_size: (val, old) => setFontSize(val, old) }
 ];

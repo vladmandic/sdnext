@@ -741,22 +741,6 @@ function createThemeElement(): HTMLImageElement {
   return el;
 }
 
-export async function toggleCompact(val, old) {
-  if (val === old) return;
-  log('toggleCompact', val);
-  if (val) {
-    gradioApp().style.setProperty('--layout-gap', 'var(--spacing-md)');
-    gradioApp().querySelectorAll('input[type=range]').forEach((el) => el.classList.add('hidden'));
-    gradioApp().querySelectorAll('div .form').forEach((el) => el.classList.add('form-compact'));
-    gradioApp().querySelectorAll('.small-accordion .label-wrap').forEach((el) => el.classList.add('accordion-compact'));
-  } else {
-    gradioApp().style.setProperty('--layout-gap', 'var(--spacing-xxl)');
-    gradioApp().querySelectorAll('input[type=range]').forEach((el) => el.classList.remove('hidden'));
-    gradioApp().querySelectorAll('div .form').forEach((el) => el.classList.remove('form-compact'));
-    gradioApp().querySelectorAll('.small-accordion .label-wrap').forEach((el) => el.classList.remove('accordion-compact'));
-  }
-}
-
 function previewTheme() {
   let name = gradioApp().getElementById('setting_gradio_theme').querySelectorAll('input')?.[0].value || '';
   authFetch(`${window.subpath}/file=data/themes.json`)

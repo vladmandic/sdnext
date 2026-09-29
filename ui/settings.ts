@@ -2,7 +2,7 @@ import { authFetch } from './authWrap';
 import { gradioApp, onAfterUiUpdate, onOptionsChanged, executeCallbacks, optionsChangedCallbacks } from './script';
 import { log, debug, error } from './logger';
 import { getENActiveTab } from './extraNetworks';
-import { registerDragDrop, toggleCompact, setTheme, setFontSize, updateInput } from './ui';
+import { registerDragDrop, setTheme, setFontSize, updateInput } from './ui';
 import { timer } from './timers';
 
 let settingsInitialized = false;
@@ -25,7 +25,6 @@ export function monitorOption(option, callback) {
 }
 
 const AppyOpts = [ // monitored opts
-  { compact_view: (val, old) => toggleCompact(val, old) },
   { gradio_theme: (val, old) => setTheme(val, old) },
   { font_size: (val, old) => setFontSize(val, old) },
 ];
