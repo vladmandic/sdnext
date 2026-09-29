@@ -1514,12 +1514,12 @@ class VQA:
         if model_name is None:
             log.error(f'LLM: type=vlm model="{model_name}" no model selected')
             shared.state.end(jobid)
-            return ''
+            return 'Error: No model selected.'
         vqa_model = get_vlm_repo(model_name)
         if vqa_model == model_name and model_name not in vlm_models.values():
             log.error(f'LLM: type=vlm model="{model_name}" unknown')
             shared.state.end(jobid)
-            return ''
+            return f'Error: Unknown model "{model_name}".'
         if self.model is None or self.loaded != vqa_model:
             from modules import modelloader
             modelloader.hf_login()
@@ -1604,7 +1604,7 @@ class VQA:
                 from modules.caption import grok
                 answer = grok.predict(question, image, vqa_model, system_prompt, prefill, thinking_mode, gen_kwargs)
             else:
-                answer = 'unknown model'
+                raise ValueError(f'no handler for model repo "{vqa_model}"')
         except Exception as e:
             errors.display(e, 'VQA')
             self._generation_overrides = None
