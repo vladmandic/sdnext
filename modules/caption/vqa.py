@@ -1607,7 +1607,9 @@ class VQA:
                 answer = 'unknown model'
         except Exception as e:
             errors.display(e, 'VQA')
-            answer = 'error'
+            self._generation_overrides = None
+            shared.state.end(jobid)
+            return f'Error: {type(e).__name__}: {e}'
         finally:
             sd_models.set_huggingface_options(quiet=True)
             if self.model is not None:
@@ -1717,6 +1719,9 @@ class VQA:
                             annotated_path = os.path.splitext(file)[0] + "_annotated.png"
                             self.last_annotated_image.save(annotated_path)
                         prompts.append(result)
+                        if result.startswith('Error:'):
+                            log.error(f'LLM batch: file="{file}" {result}')
+                            continue
                         if save_txt:
                             writer_txt.add(file, result)
                         if save_json:
