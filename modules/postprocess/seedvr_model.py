@@ -286,6 +286,8 @@ class UpscalerSeedVR(Upscaler):
                    vae_tile_encode: bool = True,
                    vae_tile_decode: bool = True,
                   ):
+        if isinstance(img, str) and batch_overlap >= batch_size:
+            raise ValueError(f'Upscaler: type="{self.name}" batch=(size={batch_size} overlap={batch_overlap}) overlap must be smaller than batch size')
         self.timer = timer.Timer()
         self.offload = offload
         self.load_model(selected_file)
