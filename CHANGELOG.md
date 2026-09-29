@@ -9,6 +9,7 @@
 - **DLSS5** reimagined for much higher performance and full cross-platform support
 - New live-preview method using **MicroDecoder**
 - Better handling of multi-image reference editing
+- Massive updates to UI tooltips/hints: over 1,000 new entries and revised existing ones
 
 Plus quite a few other improvements and inevitable bug-fixes, see full changelog below for details...
 
@@ -56,8 +57,12 @@ Plus quite a few other improvements and inevitable bug-fixes, see full changelog
     automatically handle: flux.2, glm-image, nano-banana, joy-image-edit, qwen-image-edit
   - processors: `DWPose`, `RTMW`, `RTMO`: image processor updates, thanks @kirtasshh  
     refactored to use `ONNX` instead of obsolete `mmpose` lib and with additional configurable settings  
-  - ui: manual clear of errors/warnings, thanks @kirtasshh
-  - ui: selecting lora from networks panel inserts it in active prompt instead of just default, thanks @kirtasshh
+- **UI**
+  - massive improvement to built-in tooltips/hints  
+    over 1,000 new entries, now at zero missing ui controls or settings  
+    revised existing ones  
+  - manual clear of errors/warnings, thanks @kirtasshh
+  - selecting lora from networks panel inserts it in active prompt instead of just default, thanks @kirtasshh
 - **Fixes**
   - api: control endpoint with input images
   - api: hardening all all file-access api endpoints
