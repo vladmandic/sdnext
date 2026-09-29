@@ -58,6 +58,7 @@ pipe_switch_task_exclude = [
     'LLaDAImagePipeline',
     'BooguImagePipeline',
     'BooguImageTurboPipeline',
+    'ObjectClearPipeline',
 ]
 i2i_pipes = [
     'LEditsPPPipelineStableDiffusion', 'LEditsPPPipelineStableDiffusionXL',
@@ -391,6 +392,7 @@ def load_diffuser_force(detected_model_type: str, checkpoint_info: CheckpointInf
     shared.sd_model = None
     model_type = detected_model_type.removesuffix('SDNQ').strip()
     try:
+        # explicit load-by-type
         if model_type in ['Stable Cascade']:
             from pipelines.model_stablecascade import load_cascade_combined
             sd_model = load_cascade_combined(checkpoint_info, diffusers_load_config)
@@ -647,6 +649,11 @@ def load_diffuser_force(detected_model_type: str, checkpoint_info: CheckpointInf
             from pipelines.model_mageflow import load_mageflow
             sd_model = load_mageflow(checkpoint_info, diffusers_load_config)
             allow_post_quant = True
+        # explicit load-by-name
+        elif 'ObjectClear' in checkpoint_info.name:
+            from pipelines.model_objectclear import load_objectclear
+            sd_model = load_objectclear(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False # not compatible
     except Exception as e:
         log.error(f'Load {op}: path="{checkpoint_info.path}" {e}')
         errors.display(e, 'Load')

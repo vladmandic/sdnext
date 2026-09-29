@@ -63,7 +63,7 @@
     "preview": "stabilityai--stable-diffusion-xl-base-1.0.jpg",
     "desc": "Stable Diffusion XL (SDXL) is AI image generation model that is tailored towards more photorealistic outputs with more detailed imagery and composition compared to previous SD models, including SD 2.1. It can make realistic faces and better image composition, all while using shorter and simpler prompts at a greatly increased base resolution of 1024x1024. Just like its predecessors, SDXL has the ability to generate image variations using image-to-image prompting, inpainting (reimagining of the selected parts of an image), and outpainting (creating new parts that lie outside the image borders).",
     "variant": "fp16",
-    "size": 32.0,
+    "size": 6.94,
     "date": "2023 July"
   },
   "SalesForce BLIP-Diffusion": {
@@ -557,6 +557,13 @@
     "desc": "Bria 3.2 is the next-generation commercial-ready text-to-image model. With just 4 billion parameters, it provides exceptional aesthetics and text rendering, evaluated to provide on par results to leading open-source models, and outperforming other licensed models.",
     "preview": "briaai--BRIA-3.2.jpg",
     "size": 18.11,
+    "date": "2025 July"
+  },
+  "ObjectClear": {
+    "path": "jixin0101/ObjectClear",
+    "desc": "ObjectClear: Precise Object and Effect Removal with Adaptive Target-Aware Attention",
+    "preview": "jixin0101--ObjectClear.jpg",
+    "size": 7.795,
     "date": "2025 July"
   },
   "Qwen-Image": {

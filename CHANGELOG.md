@@ -1,29 +1,33 @@
 # Change Log for SD.Next
 
-## Update for 2026-09-28
+## Update for 2026-09-29
 
-### Highlights for 2026-09-28
+### Highlights for 2026-09-29
 
-Two new base models: **Qwen-Image 2.1** and **Bria Fibo 1.5**  
-**DLSS5** reimagined for much higher performance and full cross-platform support  
-New live-preview method using **MicroDecoder**  
-Better handling of multi-image reference editing  
+*What's New*? This release brings:
+- Few new models: **Qwen-Image 2.1**, **Bria Fibo 1.5** and **ObjectClear**
+- **DLSS5** reimagined for much higher performance and full cross-platform support
+- New live-preview method using **MicroDecoder**
+- Better handling of multi-image reference editing
 
-Plus inevitable bug-fixes...
+Plus quite a few other improvements and inevitable bug-fixes, see full changelog below for details...
 
 [Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-09-28
+### Details for 2026-09-29
 
 - **Models**
   - [Qwen-Image 2.1](https://huggingface.co/Qwen/Qwen-Image-2.1) in *base*, *sdnq-4bit* and *sdnq-8bit* variants  
     Qwen-Image 2.1 is a unified text-to-image and image editing model  
     with 7B single-stream block-causal transformer with Qwen3-VL 8B text encoder and 64-channel RGBA autoencoder  
     native transparent output, up to 10 reference images for editing, 2K native resolution  
-  - [Bria Fibo 1.5](https://huggingface.co/briaai/Fibo-1.5) in *Base*, *Edit*, and *Edit-Turbo* variants  
+  - [Bria Fibo 1.5](https://huggingface.co/briaai/Fibo-1.5) in *base*, *edit*, and *edit-turbo* variants  
     BriaFIBO is 8B parameter text-to-image and edit-model using SmolLM3-3B text encoder and with multi-reference editing support  
     *note*: BriaFIBO is designed to work with highly structured [JSON prompts](https://docs.bria.ai/vgl#5-schema-reference)  
     if you provide a simple string-based prompt, sdnext will convert it to naive JSON, but it will be sub-optimal  
+  - [ObjectClear](https://github.com/zjx0101/ObjectClear) in *base* variant  
+    ObjectClear specialized model for object removal using mask-guided inpainting and derived from SDXL  
+    *note*: for optimal results, provide a clear mask indicating target areas and prompt what should be removed  
 - **Compute**
   - update `diffusers==0.41.0.dev0`
   - `rocm` windows installation move to *stable*, thanks @resonantsky  
@@ -55,21 +59,20 @@ Plus inevitable bug-fixes...
   - ui: manual clear of errors/warnings, thanks @kirtasshh
   - ui: selecting lora from networks panel inserts it in active prompt instead of just default, thanks @kirtasshh
 - **Fixes**
-  - api: hardening all all file-access api endpoints
   - api: control endpoint with input images
+  - api: hardening all all file-access api endpoints
   - control: hires fixed size keeps the requested width on 16 px and 32 px models
   - detailer: use of lora models, thanks @kirtasshh
   - dlss: the detailer and the other per-image steps run once when dlss is off
   - grid: images with transparency keep it in grids and live previews
-  - group offload: places the vae on-demand behind the vae hijack
-  - img2img: warn and record in the infotext when the output size follows the input image instead of the request
+  - img2img: inputs reach multi-image models as one condition set on every route and the requested size sets the output size
   - img2img: qwen-image, flux.2, glm-image align sizes to the 16 px floor
+  - img2img: warn and record in the infotext when the output size follows the input image instead of the request
   - metadata: correct refine prompt restore, thanks @QualiaRain
-  - multi-image: inputs reach multi-image models as one condition set on every route and the requested size sets the output size
   - networks: name mapping for network models and loras
   - networks: preview mapping for reference networks
-  - networks: preview mapping for reference networks
   - offload: enable offload using streams on different gpus, thanks @li-lizhe
+  - offload: places the vae on-demand behind the vae hijack for group offload
   - pag: attention guidance engages again on sd15 and sdxl
   - pixelsmith: vae tiling, thanks @li-lizhe  
   - preview: remove flicker when finishing generation
