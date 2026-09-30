@@ -217,17 +217,17 @@ def version_names(version: CivitVersion, context: NameContext, precision: bool =
 
 
 def fetch_version(version_id: int, token: str | None = None) -> tuple[CivitVersion | None, str, int]:
-    """Version with naming-complete file metadata: /model-versions drops GGUF
-    quantType, so such versions take their files from /models instead."""
+    """Version whose files come from /models, the payload the UIs list from:
+    /model-versions drops GGUF quantType and can still name a fresh file by
+    its upload key. The version's own files stand in when /models fails."""
     from modules.civitai.client_civitai import client
     version, error, status = client.fetch_version(version_id, token=token)
     if version is None:
         return None, error, status
-    if any(f.metadata.format == 'GGUF' and file_variant(f) is None for f in version.files):
-        model = client.get_model(version.model_id, token=token)
-        match = next((v for v in model.versions if v.id == version.id), None) if model else None
-        if match is not None:
-            version.files = match.files
+    model = client.get_model(version.model_id, token=token)
+    match = next((v for v in model.versions if v.id == version.id), None) if model else None
+    if match is not None:
+        version.files = match.files
     return version, '', 200
 
 

@@ -13,7 +13,7 @@ Covers:
 - a failed remote header read returning an error and never entering the probe cache
 - a successful header read entering the probe cache
 - a GGUF header read naming the quant from general.file_type, or from the dominant tensor type without it
-- resolve_file reporting the version fetch reason and an unknown file id
+- resolve_file naming files from the /models payload, falling back to /model-versions, and reporting the version fetch reason and an unknown file id
 
 No running server required.
 
@@ -250,7 +250,12 @@ def test_resolve_file():
             return None, 'HTTP 404 Model not found', 404
 
         def get_model(self, model_id, token=None): # pylint: disable=unused-argument
-            return None
+            if model_id != 2908999:
+                return None
+            # /models names the same file id differently from /model-versions for a fresh upload
+            files = json.loads(json.dumps(raw['files']))
+            files[0]['name'] = 'krea2AnimeRenamed_v20.safetensors'
+            return types.SimpleNamespace(versions=[CivitVersion.parse_obj({**raw, 'files': files}), CivitVersion.parse_obj({**raw, 'id': 1})])
 
     sys.modules['modules.civitai.client_civitai'] = types.SimpleNamespace(client=FakeClient())
     sys.modules['modules.shared'] = types.SimpleNamespace(opts=types.SimpleNamespace(civitai_save_precision=True))
@@ -263,14 +268,18 @@ def test_resolve_file():
         check('resolve unknown file', (resolved, error, status), (None, 'file 42 not in version 3357716', 404))
         resolved, error, status = names.resolve_file(3357716, 3246005)
         check('resolve ok', (error, status), ('', 200))
-        check('resolve name', resolved['filename'], 'krea2Anime_v20_3246005-fp8_e4m3fn.safetensors')
+        check('resolve name from /models', resolved['filename'], 'krea2AnimeRenamed_v20-fp8_e4m3fn.safetensors')
+        raw['modelId'] = 1
+        resolved, _error, _status = names.resolve_file(3357716, 3246005)
+        check('resolve name falls back to /model-versions', resolved['filename'], 'krea2Anime_v20_3246005-fp8_e4m3fn.safetensors')
+        raw['modelId'] = 2908999
         check('resolve url', resolved['url'], 'https://civitai.com/api/download/models/3357716?fileId=3246005')
         check('resolve hash', resolved['expected_hash'], (raw['files'][0]['hashes']['SHA256'] or '').lower())
         check('resolve type', resolved['model_type'], 'Checkpoint')
         check('resolve base', (resolved['base_model'], resolved['model_name'], resolved['nsfw']), ('Krea 2', 'Krea2-Anime', True))
         sys.modules['modules.shared'].opts.civitai_save_precision = False
         resolved, _error, _status = names.resolve_file(3357716, 3246005)
-        check('resolve name toggle off', resolved['filename'], 'krea2Anime_v20_3246005.safetensors')
+        check('resolve name toggle off', resolved['filename'], 'krea2AnimeRenamed_v20.safetensors')
     finally:
         sys.modules.pop('modules.civitai.client_civitai', None)
         sys.modules.pop('modules.shared', None)
