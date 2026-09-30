@@ -82,15 +82,19 @@ def split_skip_classes(text: str) -> tuple[set[str], str]:
     return names, '\n'.join(lines)
 
 
-def assign_prompts(text: str, items: list) -> list[str]:
+def assign_prompts(text: str, items: list, default: str = '') -> list[str]:
     """Resolve a detailer prompt/negative-prompt string into one entry per detection.
 
     Detections whose YOLO label matches a '[CLASS=name]' tag get that tag's text.
     Remaining detections fall back to the untagged lines, applied positionally in
     detection order and cycling if there are more detections than fallback lines
     (matching prior behavior when no class tags are used).
+    If there are class tags but no untagged line, remaining detections use the lines of
+    default (the main prompt or negative), the same as an explicit '[prompt]' line.
     """
     class_map, fallback = parse_prompt_lines(text)
+    if len(fallback) == 0 and len(class_map) > 0:
+        _default_classes, fallback = parse_prompt_lines(default)
     if len(fallback) == 0:
         fallback = ['']
     resolved = []

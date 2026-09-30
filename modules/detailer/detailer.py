@@ -377,8 +377,8 @@ class Detailer():
             labels_this_pass = {(item.label or '').strip().lower() for item in items}
             matched_prompt_classes |= (prompt_classes & labels_this_pass)
             matched_negative_classes |= (negative_classes & labels_this_pass)
-            resolved_prompts = assign_prompts(prompt, items)
-            resolved_negatives = assign_prompts(negative, items)
+            resolved_prompts = assign_prompts(prompt, items, default=orig_prompt)
+            resolved_negatives = assign_prompts(negative, items, default=orig_negative)
             for j, item in enumerate(items):
                 if shared.state.skipped:
                     shared.state.skipped = False
