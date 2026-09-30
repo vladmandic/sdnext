@@ -78,6 +78,7 @@ Plus quite a few other improvements and inevitable bug-fixes, see full changelog
   - caption: improve qwen image handling
   - caption: improve error handling
   - civitai: better handle downloads and naming
+  - civitai: reference downloads no longer log an unmapped model type
   - control: hires fixed size keeps the requested width on 16 px and 32 px models
   - detailer: use of lora models, thanks @kirtasshh
   - dlss: the detailer and the other per-image steps run once when dlss is off

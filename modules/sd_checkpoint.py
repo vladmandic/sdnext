@@ -287,7 +287,7 @@ def get_closest_checkpoint_match(s: str) -> CheckpointInfo | None:
     # civitai search
     if shared.opts.sd_checkpoint_autodownload and s.startswith("https://civitai.com/api/download/models"):
         from modules.civitai.download_civitai import download_civit_model
-        fn = download_civit_model(model_url=s, model_name='', model_path='', model_type='Model', token=shared.opts.civitai_token)
+        fn = download_civit_model(model_url=s, model_name='', model_path='', model_type='Checkpoint', token=shared.opts.civitai_token)
         if fn is not None:
             checkpoint_info = CheckpointInfo(fn)
             log.debug(f'Search model: name="{s}" matched="{checkpoint_info.path}" type=civitai')

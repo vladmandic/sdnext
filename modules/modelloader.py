@@ -285,7 +285,7 @@ def load_civitai(model: str, url: str):
     else:
         log.debug(f'Reference download start: model="{name}"')
         from modules.civitai.download_civitai import download_civit_model
-        download_civit_model(model_url=url, model_name=model, model_path='', model_type='safetensors', token=shared.opts.civitai_token)
+        download_civit_model(model_url=url, model_name=model, model_path='', model_type='Checkpoint', token=shared.opts.civitai_token)
         log.debug(f'Reference download complete: model="{name}"')
         sd_models.list_models()
         info = sd_models.get_closest_checkpoint_match(name)
