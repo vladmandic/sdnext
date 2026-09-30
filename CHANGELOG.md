@@ -73,6 +73,7 @@ Plus quite a few other improvements and inevitable bug-fixes, see full changelog
   - img2img: inputs reach multi-image models as one condition set on every route and the requested size sets the output size
   - img2img: qwen-image, flux.2, glm-image align sizes to the 16 px floor
   - img2img: warn and record in the infotext when the output size follows the input image instead of the request
+  - lora: native loading applies the alpha diffusers and diffsynth files store in metadata
   - metadata: correct refine prompt restore, thanks @QualiaRain
   - networks: name mapping for network models and loras
   - networks: preview mapping for reference networks
