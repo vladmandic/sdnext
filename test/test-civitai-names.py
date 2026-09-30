@@ -6,8 +6,8 @@ Covers:
 
 - save names for recorded CivitAI versions with the precision suffix on, matching the reference names in the fixture
 - the collision cascade with the suffix off: role first, then variant, size class and the file id
-- variant tokens from metadata.fp, metadata.quantType and the quantType query parameter of the download url
-- expert roles from the version title, the file name and the safetensors header metadata
+- variant tokens from metadata.fp, metadata.quantType and the quantType query parameter of the download url, skipped when the name spells the token already
+- expert roles from the version title or the safetensors header, never for companions or names that carry a role word
 - header probes upgrading a generic fp8 claim to the exact dtype, and leaving it alone when the probe failed
 - companion files routing to their own type folder
 - a failed remote header read returning an error and never entering the probe cache
@@ -82,6 +82,15 @@ def test_suffix_and_variant():
     check('variant gguf ignores fp', names.file_variant(make_file(1, 'a.gguf', fp='fp16')), None)
     check('variant gguf format ignores fp', names.file_variant(CivitFile.parse_obj({'id': 1, 'name': 'a.bin', 'metadata': {'format': 'GGUF', 'fp': 'fp16', 'quantType': 'Q5_0'}})), 'Q5_0')
     check('variant safetensors quant fallback', names.file_variant(make_file(1, 'a.safetensors', quant='Q8_0')), 'Q8_0')
+    check('carries fp8', names.name_carries('model_fp8.safetensors', 'fp8'), True)
+    check('carries exact only', names.name_carries('model_fp8.safetensors', 'fp8_e4m3fn'), False)
+    check('carries quant', names.name_carries('model-Q8_0.gguf', 'Q8_0'), True)
+    check('carries not q50', names.name_carries('wan_highQ50.gguf', 'Q5_0'), False)
+    check('carries camel', names.name_carries('ideogram4Nvfp4_nvfp4_nf4.safetensors', 'nf4'), True)
+    f = make_file(1, 'model_fp8.safetensors', fp='fp8')
+    check('name skips carried variant', names.save_name(f, [f]), 'model_fp8.safetensors')
+    context = names.apply_peeks(names.NameContext(), [f], {1: {'metadata': None, 'probe': {'ok': True, 'dominant_dtype': 'F8_E4M3'}}})
+    check('name keeps upgraded variant', names.save_name(f, [f], context), 'model_fp8-fp8_e4m3fn.safetensors')
     check('variant bad url', names.file_variant(make_file(1, 'a.gguf', url='')), None)
 
 
@@ -96,6 +105,11 @@ def test_roles():
     check('role metadata', names.role_from_metadata({'model_type': 'ideogram4_uncond'}, ideo), 'uncond')
     check('role metadata cond', names.role_from_metadata({'model_type': 'ideogram4_cond', 'n': 3}, ideo), None)
     check('role metadata none', names.role_from_metadata(None, ideo), None)
+    header = names.NameContext(name='v1.0', base_model='Ideogram 4.0', roles={1: 'uncond', 2: 'uncond', 3: 'uncond'})
+    check('role header', names.file_role(make_file(1, 'x.safetensors'), header), 'uncond')
+    check('role header gated by name', names.file_role(make_file(2, 'x_uncond.safetensors'), header), None)
+    check('role header not on companion', names.file_role(make_file(3, 'x_txt.safetensors', 'Text Encoder'), header), None)
+    check('role title not on companion', names.file_role(make_file(4, 'x.vae.safetensors', 'VAE'), wan), None)
 
 
 def test_peek_upgrade():

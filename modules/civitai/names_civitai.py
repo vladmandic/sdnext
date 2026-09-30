@@ -1,10 +1,11 @@
 """Save names for CivitAI version files.
 
 CivitAI serves one canonical name for every variant of a version, so the
-variant (fp8, bf16, Q8_0) is suffixed unconditionally and the name stays
-stable when a creator adds variants later. Dual-transformer expert roles join
-it, and same-name collisions cascade to the size class, then the file id.
-With civitai_save_precision off the variant is added only on collision.
+variant (fp8, bf16, Q8_0) is suffixed whenever the name does not already
+carry it, and the name stays stable when a creator adds variants later.
+Dual-transformer expert roles join it, and same-name collisions cascade to
+the size class, then the file id. With civitai_save_precision off the
+variant is added only on collision.
 """
 
 import re
@@ -76,6 +77,11 @@ def has_word(text: str, word: str) -> bool:
     return re.search(rf'\b{re.escape(word)}\b', text) is not None
 
 
+def name_carries(name: str, token: str) -> bool:
+    """True when the file name already spells the token out (x_fp8 and fp8, x-Q8_0 and Q8_0)."""
+    return has_word(split_words(name), split_words(token).strip())
+
+
 def find_arch(context: NameContext) -> dict | None:
     for arch in DUAL_TRANSFORMER_ROLES:
         if arch['base'].search(context.base_model or ''):
@@ -94,11 +100,12 @@ def match_role(arch: dict, text: str) -> str | None:
 
 
 def file_role(f: CivitFile, context: NameContext) -> str | None:
-    """Role from the version title, unless the file name already carries it."""
+    """Expert role for a file: from its header, else the version title; never
+    for companions or when the file name already carries a role word."""
     arch = find_arch(context)
-    if arch is None or match_role(arch, split_words(f.name)):
+    if arch is None or f.type in COMPANION_TYPES or match_role(arch, split_words(f.name)):
         return None
-    return match_role(arch, split_words(context.name or ''))
+    return context.roles.get(f.id) or match_role(arch, split_words(context.name or ''))
 
 
 def role_from_metadata(metadata: dict | None, context: NameContext) -> str | None:
@@ -163,10 +170,10 @@ def save_name(f: CivitFile, siblings: list[CivitFile], context: NameContext | No
 
     def with_variant(name, x):
         variant = context.variants.get(x.id) or file_variant(x)
-        return insert_name_suffix(name, variant) if variant else name
+        return insert_name_suffix(name, variant) if variant and not name_carries(x.name, variant) else name
 
     def with_role(name, x):
-        role = context.roles.get(x.id) or file_role(x, context)
+        role = file_role(x, context)
         return insert_name_suffix(name, role) if role else name
 
     def with_size(name, x):
@@ -203,7 +210,7 @@ def version_names(version: CivitVersion, context: NameContext, precision: bool =
         'save_name': save_name(f, version.files, context, precision),
         'type': route_type(f, model_type),
         'variant': context.variants.get(f.id) or file_variant(f),
-        'role': context.roles.get(f.id) or file_role(f, context),
+        'role': file_role(f, context),
         'size': f.metadata.size,
         'sha256': f.hashes.sha256,
     } for f in version.files]

@@ -1072,10 +1072,10 @@
     "2884783": "ideogram4_fp8Scaled-fp8_e4m3fn.safetensors"
    },
    "3005513": {
-    "2884823": "ideogram4_fp8Uncond-fp8_e4m3fn-uncond.safetensors"
+    "2884823": "ideogram4_fp8Uncond-fp8_e4m3fn.safetensors"
    },
    "3003586": {
-    "2949563": "ideogram4INT8_ideogram4UncondINT8-int8.safetensors"
+    "2949563": "ideogram4INT8_ideogram4UncondINT8.safetensors"
    },
    "3246186": {
     "3128946": "ideogram4_txt_3128946-fp8.safetensors",
@@ -1125,10 +1125,10 @@
    "90000001": {
     "1": "synthWan_v10_1-fp8_e5m2-low-noise.safetensors",
     "2": "synthWan_v10_2-bf16-high-noise.safetensors",
-    "3": "synthWan_v10_txt-bf16-high-noise.safetensors"
+    "3": "synthWan_v10_txt-bf16.safetensors"
    },
    "90000002": {
-    "11": "ideoUnofficial_fp8-fp8-uncond.safetensors"
+    "11": "ideoUnofficial_fp8-uncond.safetensors"
    },
    "90000003": {
     "21": "collide-fp16-full.safetensors",
@@ -1160,7 +1160,7 @@
     "2884783": "ideogram4_fp8Scaled.safetensors"
    },
    "3005513": {
-    "2884823": "ideogram4_fp8Uncond-uncond.safetensors"
+    "2884823": "ideogram4_fp8Uncond.safetensors"
    },
    "3003586": {
     "2949563": "ideogram4INT8_ideogram4UncondINT8.safetensors"
@@ -1213,7 +1213,7 @@
    "90000001": {
     "1": "synthWan_v10_1-low-noise.safetensors",
     "2": "synthWan_v10_2-high-noise.safetensors",
-    "3": "synthWan_v10_txt-high-noise.safetensors"
+    "3": "synthWan_v10_txt.safetensors"
    },
    "90000002": {
     "11": "ideoUnofficial_fp8-uncond.safetensors"
