@@ -546,9 +546,8 @@ def create_settings(cmd_opts):
         "gradio_skip_video": OptionInfo(False, "Do not display video output in UI"),
 
         "image_sep_watermark": OptionInfo("<h2>Watermarking</h2>", "", gr.HTML),
-        "image_watermark_enabled": OptionInfo(False, "Include invisible watermark"),
         "image_watermark": OptionInfo('', "Invisible watermark string"),
-        "image_watermark_position": OptionInfo('none', 'Image watermark position', gr.Dropdown, {"choices": ["none", "top/left", "top/right", "bottom/left", "bottom/right", "center", "random"]}),
+        "image_watermark_position": OptionInfo('none', 'Image watermark position', gr.Dropdown, {"choices": ["none", "top/left", "top/center", "top/right", "bottom/left", "bottom/center", "bottom/right", "center", "random"]}),
         "image_watermark_image": OptionInfo('', "Image watermark file"),
     }))
 

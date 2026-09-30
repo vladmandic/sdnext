@@ -26,7 +26,7 @@ def get_missing_img(msg: str | None = None):
         missing_img = missing_img.resize((1024, 1024), Image.Resampling.LANCZOS)
     img = missing_img.copy()
     if msg is not None:
-        draw_text(img, str(msg))
+        draw_text(img, str(msg), fontsize=16, color='#8b0000')
     return img
 
 
@@ -107,6 +107,17 @@ def sample_to_image(samples, index=0, approximation=None):
 
 def samples_to_image_grid(samples, approximation=None):
     return images.image_grid([single_sample_to_image(sample, approximation) for sample in samples])
+
+
+def samples_decode(samples, approximation=None):
+    if samples.ndim == 5:
+        return single_sample_to_image(samples, approximation) # video latent
+    elif samples.ndim == 4: # batch of images
+        return samples_to_image_grid(samples, approximation) # handle batch
+    elif samples.ndim == 3: # single image
+        return single_sample_to_image(samples, approximation)
+    else:
+        raise ValueError(f"Decode: type={approximation} shape={samples.shape} unsupported")
 
 
 def store_latent(decoded):

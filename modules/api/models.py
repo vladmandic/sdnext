@@ -513,6 +513,14 @@ class ReqLatentHistory(BaseModel):
 class ResPreprocess(BaseModel):
     info: str = Field(title="Preprocess info", description="Response string from preprocessing task.")
 
+class ReqWatermark(BaseModel):
+    image: str = Field(title="Image", description="Base64-encoded image to apply or retrieve watermark")
+    wm_text: str | None = Field(default=None, title="Watermark Text", description="Text to use for the watermark")
+    wm_image: str | None = Field(default=None, title="Watermark Image", description="Base64-encoded image to use as the watermark")
+    position: str = Field(default="none", title="Position", description="Position of the watermark on the image")
+    fmt: str = Field(default="PNG", title="Format", description="Output image format for the watermarked image")
+
+
 fields = {}
 for key, metadata in shared.opts.data_labels.items():
     value = shared.opts.data.get(key) or shared.opts.data_labels[key].default

@@ -255,8 +255,8 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
         shared.profiler.step()
 
     if shared.opts.live_preview_force and not shared.state.api:
-        from modules.sd_samplers_common import single_sample_to_image
-        image = single_sample_to_image(shared.state.current_latent)
+        from modules.sd_samplers_common import samples_decode
+        image = samples_decode(shared.state.current_latent)
         shared.state.assign_current_image(image)
 
     t2 = time.time()

@@ -79,7 +79,7 @@ def _resolve_upload_ref(encoding: str, quiet: bool = False):
     return None
 
 
-def encode_pil_to_base64(image):
+def encode_pil_to_base64(image, ext: str | None = None):
     """
     with io.BytesIO() as output_bytes:
         images.save_image(image, output_bytes, shared.opts.samples_format)
@@ -90,7 +90,7 @@ def encode_pil_to_base64(image):
         log.error('API cannot encode image: not a PIL image')
         return ''
     buffered = io.BytesIO()
-    save_image(image, fn=buffered, ext=shared.opts.samples_format)
+    save_image(image, fn=buffered, ext=ext or shared.opts.samples_format)
     b64 = base64.b64encode(buffered.getvalue())
     return b64
 

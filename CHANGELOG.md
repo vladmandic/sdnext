@@ -97,6 +97,7 @@ Plus quite a few other improvements and inevitable bug-fixes, see full changelog
   - pag: attention guidance engages again on sd15 and sdxl
   - pixelsmith: vae tiling, thanks @li-lizhe  
   - preview: remove flicker when finishing generation
+  - preview: better route decode call based on latents ndim
   - prompt cache: bypass when condition images are encoded
   - scheduler: when creating sampler, copy all valid options from default sampler
   - scheduler: debounce sampler options save

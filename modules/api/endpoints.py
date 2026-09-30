@@ -460,3 +460,19 @@ def post_latent_history(req: models.ReqLatentHistory):
     """Select a latent history entry by name. Returns the index of the selected entry."""
     shared.history.index = shared.history.find(req.name)
     return shared.history.index
+
+def post_watermark(req: models.ReqWatermark):
+    """Apply a watermark to an image."""
+    from modules.image import watermark
+    return watermark.post_watermark(
+        image=req.image,
+        wm_text=req.wm_text,
+        wm_image=req.wm_image,
+        position=req.position,
+        fmt=req.fmt
+    )
+
+def get_watermark(req: models.ReqWatermark):
+    """Retrieve the watermark from an image."""
+    from modules.image import watermark
+    return watermark.get_watermark(req.image)
