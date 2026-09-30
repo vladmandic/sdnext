@@ -63,6 +63,9 @@ Plus quite a few other improvements and inevitable bug-fixes, see full changelog
   - processors: `DWPose`, `RTMW`, `RTMO`: image processor updates, thanks @kirtasshh  
     refactored to use `ONNX` instead of obsolete `mmpose` lib and with additional configurable settings  
   - lora: extend support for more model types
+  - scheduler: expose base and max image sequence lengths  
+    recommended to change when target resolution is significantly different from the base resolution  
+  - detailer: add option to skip specific classes using `[SKIP=name]` in the detailer prompt, thanks @kirtasshh
 - **UI**
   - massive improvement to built-in tooltips/hints  
     over 1,000 new entries, now at zero missing ui controls or settings  
@@ -94,7 +97,8 @@ Plus quite a few other improvements and inevitable bug-fixes, see full changelog
   - pixelsmith: vae tiling, thanks @li-lizhe  
   - preview: remove flicker when finishing generation
   - prompt cache: bypass when condition images are encoded
-  - sampler: when creating sampler, copy all valid options from default sampler
+  - scheduler: when creating sampler, copy all valid options from default sampler
+  - scheduler: debounce sampler options save
   - seedvr: handle temporal overap
   - styles: fix infotext parsing, thanks @obelisk-complex
   - temp file: gradio temp file error handling

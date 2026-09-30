@@ -1,8 +1,13 @@
+import threading
 import gradio as gr
 from modules import shared, modelloader, ui_symbols, ui_common, sd_samplers
 from modules.logger import log
 from modules.ui_components import ToolButton
 from modules.caption import caption
+
+
+_save_timer = None
+_save_lock = threading.Lock()
 
 
 def create_toprow(is_img2img: bool = False, id_part: str | None = None, generate_visible: bool = True, negative_visible: bool = True, reprocess_visible: bool = True):
@@ -251,63 +256,88 @@ def create_sampler_and_steps_selection(choices, tabname, default_steps:int=20):
     return steps, sampler_index
 
 
+def save_with_debounce(delay=0.5):
+    global _save_timer # pylint: disable=global-statement
+    with _save_lock:
+        try:
+            if _save_timer is not None and _save_timer.is_alive():
+                _save_timer.cancel()
+        except Exception as e:
+            log.error(f'Sampler: save debounce cancel error: {e}')
+        def _do_save():
+            try:
+                shared.opts.save(silent=True)
+            except Exception as e:
+                log.error(f'Sampler: save execution error: {e}')
+
+        _save_timer = threading.Timer(delay, _do_save)
+        _save_timer.start()
+
+
 def create_sampler_options(tabname):
+
     def set_sampler_options(sampler_options):
         shared.opts.data['schedulers_dynamic_shift'] = 'dynamic' in sampler_options
         shared.opts.data['schedulers_use_thresholding'] = 'thresholding' in sampler_options
         shared.opts.data['schedulers_use_loworder'] = 'low order' in sampler_options
         shared.opts.data['schedulers_rescale_betas'] = 'rescale' in sampler_options
         log.debug(f'Sampler set options: {sampler_options}')
-        shared.opts.save(silent=True)
+        save_with_debounce()
 
     def set_sampler_fallback(fallback):
         log.debug(f'Sampler set options: fallback={fallback}')
         shared.opts.schedulers_fallback = fallback
-        shared.opts.save(silent=True)
+        save_with_debounce()
 
     def set_sampler_timesteps(timesteps):
         log.debug(f'Sampler set options: timesteps={timesteps}')
         shared.opts.schedulers_timesteps = timesteps
-        shared.opts.save(silent=True)
+        save_with_debounce()
 
     def set_sampler_spacing(spacing):
         log.debug(f'Sampler set options: spacing={spacing}')
         shared.opts.schedulers_timestep_spacing = spacing
-        shared.opts.save(silent=True)
+        save_with_debounce()
 
     def set_sampler_sigma(sampler_sigma):
         log.debug(f'Sampler set options: sigma={sampler_sigma}')
         shared.opts.schedulers_sigma = sampler_sigma
-        shared.opts.save(silent=True)
+        save_with_debounce()
 
     def set_sampler_order(sampler_order):
         log.debug(f'Sampler set options: order={sampler_order}')
         shared.opts.schedulers_solver_order = sampler_order
-        shared.opts.save(silent=True)
+        save_with_debounce()
 
     def set_sampler_prediction(sampler_prediction):
         log.debug(f'Sampler set options: prediction={sampler_prediction}')
         shared.opts.schedulers_prediction_type = sampler_prediction
-        shared.opts.save(silent=True)
+        save_with_debounce()
 
     def set_sampler_beta(sampler_beta):
         log.debug(f'Sampler set options: beta={sampler_beta}')
         shared.opts.schedulers_beta_schedule = sampler_beta
-        shared.opts.save(silent=True)
+        save_with_debounce()
 
     def set_sampler_shift(sampler_shift, sampler_base_shift, sampler_max_shift):
         log.debug(f'Sampler set options: shift={sampler_shift} base={sampler_base_shift} max={sampler_max_shift}')
         shared.opts.schedulers_shift = sampler_shift
         shared.opts.schedulers_base_shift = sampler_base_shift
         shared.opts.schedulers_max_shift = sampler_max_shift
-        shared.opts.save(silent=True)
+        save_with_debounce()
+
+    def set_sampler_seq_lens(base_image_seq_len, max_image_seq_len):
+        log.debug(f'Sampler set options: base_image_seq_len={base_image_seq_len} max_image_seq_len={max_image_seq_len}')
+        shared.opts.schedulers_base_image_seq_len = base_image_seq_len
+        shared.opts.schedulers_max_image_seq_len = max_image_seq_len
+        save_with_debounce()
 
     def set_sigma_adjust(val, start, end):
         log.debug(f'Sampler set options: sigma={val} min={start} max={end}')
         shared.opts.schedulers_sigma_adjust = val
         shared.opts.schedulers_sigma_adjust_min = start
         shared.opts.schedulers_sigma_adjust_max = end
-        shared.opts.save(silent=True)
+        save_with_debounce()
 
     # 'linear', 'scaled_linear', 'squaredcos_cap_v2'
     def set_sampler_preset(preset):
@@ -337,6 +367,9 @@ def create_sampler_options(tabname):
         sampler_base_shift = gr.Slider(minimum=0, maximum=10, step=0.01, label="Base shift", value=shared.opts.schedulers_base_shift, elem_id=f"{tabname}_sampler_base_shift")
         sampler_max_shift = gr.Slider(minimum=0, maximum=10, step=0.01, label="Max shift", value=shared.opts.schedulers_max_shift, elem_id=f"{tabname}_sampler_max_shift")
     with gr.Row(elem_classes=['flex-break']):
+        sampler_base_image_seq_len = gr.Slider(minimum=0, maximum=1024, step=16, label='Sampler base seq', value=shared.opts.schedulers_base_image_seq_len, elem_id=f"{tabname}_sampler_base_image_seq_len")
+        sampler_max_image_seq_len = gr.Slider(minimum=0, maximum=16284, step=16, label='Sampler max seq', value=shared.opts.schedulers_max_image_seq_len, elem_id=f"{tabname}_sampler_max_image_seq_len")
+    with gr.Row(elem_classes=['flex-break']):
         options = ['low order', 'thresholding', 'dynamic', 'rescale']
         values = []
         values += ['low order'] if shared.opts.data.get('schedulers_use_loworder', True) else []
@@ -362,6 +395,8 @@ def create_sampler_options(tabname):
     sampler_sigma_adjust_val.change(fn=set_sigma_adjust, inputs=[sampler_sigma_adjust_val, sampler_sigma_adjust_min, sampler_sigma_adjust_max], outputs=[])
     sampler_sigma_adjust_min.change(fn=set_sigma_adjust, inputs=[sampler_sigma_adjust_val, sampler_sigma_adjust_min, sampler_sigma_adjust_max], outputs=[])
     sampler_sigma_adjust_max.change(fn=set_sigma_adjust, inputs=[sampler_sigma_adjust_val, sampler_sigma_adjust_min, sampler_sigma_adjust_max], outputs=[])
+    sampler_base_image_seq_len.change(fn=set_sampler_seq_lens, inputs=[sampler_base_image_seq_len, sampler_max_image_seq_len], outputs=[])
+    sampler_max_image_seq_len.change(fn=set_sampler_seq_lens, inputs=[sampler_base_image_seq_len, sampler_max_image_seq_len], outputs=[])
 
 
 def create_hires_inputs(tab):

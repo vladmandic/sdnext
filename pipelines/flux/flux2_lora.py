@@ -393,6 +393,6 @@ def apply_patch():
                         pretrained_model_name_or_path_or_dict = apply_lora_alphas(sd)
                 except Exception:
                     pass
-        return original_lora_state_dict(cls, pretrained_model_name_or_path_or_dict, **kwargs)
+        return original_lora_state_dict(cls, pretrained_model_name_or_path_or_dict, **kwargs) # pylint: disable=too-many-function-args
 
     Flux2LoraLoaderMixin.lora_state_dict = patched_lora_state_dict

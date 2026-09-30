@@ -239,6 +239,8 @@ class StableDiffusionProcessing:
                  schedulers_sigma_adjust: float | None = None,
                  schedulers_sigma_adjust_min: float | None = None,
                  schedulers_sigma_adjust_max: float | None = None,
+                 schedulers_base_image_seq_len: int | None = None,
+                 schedulers_max_image_seq_len: int | None = None,
                  scheduler_eta: float | None = None,
                  eta_noise_seed_delta: int | None = None,
                  enable_batch_seeds: bool | None = None,
@@ -526,6 +528,8 @@ class StableDiffusionProcessing:
         self.schedulers_sigma_adjust = schedulers_sigma_adjust
         self.schedulers_sigma_adjust_min = schedulers_sigma_adjust_min
         self.schedulers_sigma_adjust_max = schedulers_sigma_adjust_max
+        self.schedulers_base_image_seq_len = schedulers_base_image_seq_len
+        self.schedulers_max_image_seq_len = schedulers_max_image_seq_len
         self.scheduler_eta = scheduler_eta
         self.eta_noise_seed_delta = eta_noise_seed_delta
         self.enable_batch_seeds = enable_batch_seeds

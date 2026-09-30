@@ -858,6 +858,8 @@ def create_settings(cmd_opts):
                 "schedulers_shift": OptionInfo(3, "Sampler shift", gr.Slider, {"minimum": 0.1, "maximum": 10, "step": 0.1, "visible": False}),
                 "schedulers_fallback": OptionInfo(True, "Sampler fallback on invalid", gr.Checkbox, {"visible": False}),
                 "schedulers_dynamic_shift": OptionInfo(False, "Sampler dynamic shift", gr.Checkbox, {"visible": False}),
+                "schedulers_base_image_seq_len": OptionInfo(0, "Sampler base seq", gr.Slider, {"minimum": 0, "maximum": 1024, "step": 16, "visible": False}),
+                "schedulers_max_image_seq_len": OptionInfo(0, "Sampler max seq", gr.Slider, {"minimum": 0, "maximum": 16384, "step": 16, "visible": False}),
                 "schedulers_sigma_adjust": OptionInfo(1.0, "Sigma adjust", gr.Slider, {"minimum": 0.5, "maximum": 1.5, "step": 0.01, "visible": False}),
                 "schedulers_sigma_adjust_min": OptionInfo(0.2, "Sigma adjust start", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.01, "visible": False}),
                 "schedulers_sigma_adjust_max": OptionInfo(0.8, "Sigma adjust end", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.01, "visible": False}),

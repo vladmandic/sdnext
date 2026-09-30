@@ -69,6 +69,8 @@ class Krea2InpaintPipeline(Krea2Img2ImgPipeline):
         latents: Optional[torch.Tensor] = None,
         output_type: str = "pil",
         return_dict: bool = True,
+        dense_mask: bool = False,
+        attention_kwargs: dict | None = None,
         callback_on_step_end: Optional[Union[Callable[[int, int, Dict], None], PipelineCallback, MultiPipelineCallbacks]] = None,
         callback_on_step_end_tensor_inputs: List[str] = ["latents"],
     ):

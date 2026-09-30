@@ -516,10 +516,10 @@ class DiffusionSampler:
         if 'beta_end' in self.config and get_override('schedulers_beta_end') > 0:
             self.config['beta_end'] = get_override('schedulers_beta_end')
         sched_shift = get_override('schedulers_shift')
-        if 'shift' in self.config:
-            self.config['shift'] = sched_shift if sched_shift > 0 else 3
-        if 'flow_shift' in self.config:
-            self.config['flow_shift'] = sched_shift if sched_shift > 0 else 3
+        if 'shift' in self.config and sched_shift > 0:
+            self.config['shift'] = sched_shift
+        if 'flow_shift' in self.config and sched_shift > 0:
+            self.config['flow_shift'] = sched_shift
         if 'use_dynamic_shifting' in self.config:
             self.config['use_dynamic_shifting'] = True if sched_shift == 0 else get_override('schedulers_dynamic_shift')
         if 'base_shift' in self.config:
@@ -530,6 +530,10 @@ class DiffusionSampler:
             self.config['use_beta_sigmas'] = 'StableDiffusion3' in model.__class__.__name__
         if 'rescale_betas_zero_snr' in self.config:
             self.config['rescale_betas_zero_snr'] = get_override('schedulers_rescale_betas')
+        if 'base_image_seq_len' in self.config and get_override('schedulers_base_image_seq_len') > 0:
+            self.config['base_image_seq_len'] = get_override('schedulers_base_image_seq_len')
+        if 'max_image_seq_len' in self.config and get_override('schedulers_max_image_seq_len') > 0:
+            self.config['max_image_seq_len'] = get_override('schedulers_max_image_seq_len')
         sched_ts_spacing = get_override('schedulers_timestep_spacing')
         if 'timestep_spacing' in self.config and sched_ts_spacing != 'default' and sched_ts_spacing is not None:
             self.config['timestep_spacing'] = sched_ts_spacing
@@ -558,7 +562,6 @@ class DiffusionSampler:
         for key in self.config.copy().keys():
             if key not in possible:
                 del self.config[key]
-        self.config['shift_terminal'] = 0.0
         debug_log(f'Sampler: name="{name}"')
         debug_log(f'Sampler: config={self.config}')
         debug_log(f'Sampler: signature={possible}')
