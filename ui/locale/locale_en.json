@@ -1987,7 +1987,7 @@
     {"id": "", "label": "Upscaling", "localized": "", "hint": "Postprocessing image magnification and super-resolution settings", "ui": "settings_postprocessing"},
     {"id": "", "label": "Use cached model config when available", "localized": "", "hint": "Read model architecture config from local cache instead of fetching remotely", "ui": "settings_huggingface"},
     {"id": "", "label": "Use defaults", "localized": "", "hint": "Reset video generation parameters to standard recommended values", "ui": "script_video"},
-    {"id": "", "label": "Use dense masking", "localized": "", "hint": "Apply pixel-dense masking for precise Krea 2 background extraction"},
+    {"id": "", "label": "Use dense masking", "localized": "", "hint": "Use dense non-expanded prompt when performing attention"},
     {"id": "", "label": "Use Dynamic quantization", "localized": "", "hint": "Picks a per-layer weight type automatically instead of one type everywhere. Each layer starts at the <b><i>Quantization type</i></b> (the minimum) and steps up to higher precision until its error meets the <b><i>Dynamic loss threshold</i></b>.<br>Protects error-sensitive layers at the cost of a larger model and slower load.<br><br>Disabled by default.", "reload": "model", "ui": "settings_quantization"},
     {"id": "", "label": "Use dynamic thresholding", "localized": "", "hint": "Apply dynamic latent clamping to prevent oversaturation at high CFG scales"},
     {"id": "", "label": "Use fixed width thumbnails", "localized": "", "hint": "Render gallery preview thumbnails with a fixed pixel width", "ui": "settings_saving-images"},

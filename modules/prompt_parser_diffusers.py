@@ -359,7 +359,7 @@ class DiffusersTextualInversionManager(BaseTextualInversionManager):
     def __init__(self, pipe, tokenizer):
         self.pipe = pipe
         self.tokenizer = tokenizer
-        if hasattr(self.pipe, 'embedding_db'):
+        if getattr(self.pipe, 'embedding_db', None) is not None:
             self.pipe.embedding_db.embeddings_used.clear()
 
     # code from
@@ -376,7 +376,7 @@ class DiffusersTextualInversionManager(BaseTextualInversionManager):
         unique_tokens = set(tokens)
         for token in unique_tokens:
             if token in tokenizer.added_tokens_encoder:
-                if hasattr(self.pipe, 'embedding_db'):
+                if getattr(self.pipe, 'embedding_db', None) is not None:
                     self.pipe.embedding_db.embeddings_used.append(token)
                 replacement = token
                 i = 1
@@ -384,7 +384,7 @@ class DiffusersTextualInversionManager(BaseTextualInversionManager):
                     replacement += f" {token}_{i}"
                     i += 1
                 prompt = prompt.replace(token, replacement)
-        if hasattr(self.pipe, 'embedding_db'):
+        if getattr(self.pipe, 'embedding_db', None) is not None:
             self.pipe.embedding_db.embeddings_used = list(set(self.pipe.embedding_db.embeddings_used))
             if len(self.pipe.embedding_db.embeddings_used) > 0:
                 log.debug(f'Networks: type=embedding used={self.pipe.embedding_db.embeddings_used}')
