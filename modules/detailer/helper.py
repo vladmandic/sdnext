@@ -5,6 +5,7 @@ from modules.logger import log
 
 
 class_tag_re = re.compile(r'^\[class\s*=\s*([^\]]+)\]\s*(.*)$', re.IGNORECASE)
+skip_tag_re = re.compile(r'^\[skip\s*=\s*([^\]]*)\]', re.IGNORECASE)
 
 
 def list_models(self):
@@ -52,6 +53,8 @@ def parse_prompt_lines(text: str):
         line = line.strip()
         if len(line) == 0:
             continue # blank spacer lines don't count as a fallback entry
+        if skip_tag_re.match(line):
+            continue # '[SKIP=...]' lines are directives, not prompt text
         m = class_tag_re.match(line)
         if m:
             names = [n.strip().lower() for n in m.group(1).split(',') if n.strip()]
@@ -60,6 +63,19 @@ def parse_prompt_lines(text: str):
         else:
             fallback.append(line)
     return class_map, fallback
+
+
+def parse_skip_classes(text: str) -> set[str]:
+    """Collect class names from '[SKIP=name]' or '[SKIP=name1,name2]' lines, case-insensitive.
+
+    Detections of these classes are excluded from detailing. Any text after the tag on the same line is ignored.
+    """
+    names: set[str] = set()
+    for line in (text or '').split('\n'):
+        m = skip_tag_re.match(line.strip())
+        if m:
+            names.update(n.strip().lower() for n in m.group(1).split(',') if n.strip())
+    return names
 
 
 def assign_prompts(text: str, items: list) -> list[str]:

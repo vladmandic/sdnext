@@ -7,7 +7,12 @@ import gradio as gr
 from PIL import Image, ImageDraw
 from modules.logger import log
 from modules import shared, processing, devices, processing_class, ui_common, ui_components, ui_symbols, images, extra_networks, sd_models
-from modules.detailer import DetailerResult, detailer_opt, assign_prompts, parse_prompt_lines
+from modules.detailer import DetailerResult, detailer_opt, assign_prompts, parse_prompt_lines, parse_skip_classes
+
+
+DETECTION_COLOR = (0, 190, 190) # processed
+SKIP_COLOR = (230, 200, 0) # skipped by [SKIP=...]
+CONFLICT_COLOR = (220, 40, 40) # [SKIP=...] ignored because a [CLASS=...] line gives the class a prompt
 
 
 def networks_equal(a, b) -> bool:
@@ -149,15 +154,15 @@ class Detailer():
             log.debug(f'Detailer: items={len(items)} filtered={len(filtered)}')
         return filtered
 
-    def draw_masks(self, image: Image.Image, items: list[DetailerResult], p=None) -> Image.Image | np.ndarray:
+    def draw_masks(self, image: Image.Image, items: list[DetailerResult], p=None, colors: list[tuple] | None = None, prefix: str | None = None) -> Image.Image | np.ndarray:
         if not isinstance(image, Image.Image):
             image = Image.fromarray(image)
         image = image.convert('RGBA')
         size = min(image.width, image.height) // 32
         font = images.get_font(size)
-        color = (0, 190, 190)
         # log.debug(f'Detailer: draw={items}')
         for i, item in enumerate(items):
+            color = colors[i] if colors is not None and i < len(colors) else DETECTION_COLOR
             if detailer_opt(p, 'detailer_segmentation') and item.mask is not None:
                 mask = item.mask.convert('L')
             else:
@@ -170,8 +175,9 @@ class Detailer():
             image = Image.alpha_composite(image, overlay)
 
             draw_text = ImageDraw.Draw(image)
-            draw_text.text((item.box[0] + 2, item.box[1] - size - 2), f'{i+1} {item.label} {item.score:.2f}', fill="black", font=font)
-            draw_text.text((item.box[0] + 0, item.box[1] - size - 4), f'{i+1} {item.label} {item.score:.2f}', fill="white", font=font)
+            text = f'{prefix or i+1} {item.label} {item.score:.2f}'
+            draw_text.text((item.box[0] + 2, item.box[1] - size - 2), text, fill="black", font=font)
+            draw_text.text((item.box[0] + 0, item.box[1] - size - 4), text, fill="white", font=font)
         image = image.convert("RGB")
         return np.array(image)
 
@@ -234,6 +240,13 @@ class Detailer():
         matched_prompt_classes = set()
         matched_negative_classes = set()
 
+        # '[SKIP=name]' in either prompt excludes that class from detailing, unless a '[CLASS=name]' line gives it a prompt
+        skip_requested = parse_skip_classes(prompt) | parse_skip_classes(negative)
+        conflict_classes = skip_requested & (prompt_classes | negative_classes)
+        skip_classes = skip_requested - conflict_classes
+        matched_skip_classes = set()
+        warned_conflict_classes = set()
+
         main_network_data = p.network_data # networks of the main pass are still active when detailer starts
         active_network_data = main_network_data
 
@@ -266,11 +279,28 @@ class Detailer():
             if image is None:
                 image = Image.fromarray(np_image)
             items = self.predict(name, model, image, p=p)
+            skipped = []
+            if len(skip_requested) > 0:
+                matched_skip_classes |= skip_requested & {(item.label or '').strip().lower() for item in items}
+                skipped = [item for item in items if (item.label or '').strip().lower() in skip_classes]
+                items = [item for item in items if (item.label or '').strip().lower() not in skip_classes] # before filter so skipped items don't take top-n slots
+                skipped = self.filter(skipped, image, p=p) # same confidence and size limits as processed items
+                if len(skipped) > 0:
+                    log.info(f'Detailer: model="{name}" skipped={len(skipped)} classes={sorted({(item.label or "").strip().lower() for item in skipped})}')
+                    if detailer_opt(p, 'detailer_include_detections', 'detailer_save'):
+                        annotated = self.draw_masks(annotated, skipped, p=p, colors=len(skipped) * [SKIP_COLOR], prefix='skip')
             items = self.filter(items, image, p=p)
 
             if len(items) == 0:
-                log.info(f'Detailer: model="{name}" no items detected')
+                if len(skipped) > 0:
+                    log.info(f'Detailer: model="{name}" all items skipped')
+                else:
+                    log.info(f'Detailer: model="{name}" no items detected')
                 continue
+
+            for label in sorted(conflict_classes & {(item.label or '').strip().lower() for item in items} - warned_conflict_classes):
+                log.warning(f'Detailer: class="{label}" has both [SKIP={label}] and [CLASS={label}] in the detailer prompts: skip ignored, detection processed with its class prompt')
+                warned_conflict_classes.add(label)
 
             if detailer_opt(p, 'detailer_merge') and len(items) > 1:
                 log.debug(f'Detailer: model="{name}" items={len(items)} merge')
@@ -332,7 +362,7 @@ class Detailer():
             if detailer_opt(p, 'detailer_sort'):
                 items = sorted(items, key=lambda x: x.box[0]) # sort items left-to-right to improve consistency
             if detailer_opt(p, 'detailer_include_detections', 'detailer_save'):
-                annotated = self.draw_masks(annotated, items, p=p)
+                annotated = self.draw_masks(annotated, items, p=p, colors=[CONFLICT_COLOR if (item.label or '').strip().lower() in conflict_classes else DETECTION_COLOR for item in items])
 
             labels_this_pass = {(item.label or '').strip().lower() for item in items}
             matched_prompt_classes |= (prompt_classes & labels_this_pass)
@@ -420,6 +450,9 @@ class Detailer():
         unmatched_negative = negative_classes - matched_negative_classes
         if len(unmatched_negative) > 0:
             log.warning(f'Detailer negative: class tags did not match any detection across models={models}: unmatched={sorted(unmatched_negative)}')
+        unmatched_skip = skip_requested - matched_skip_classes
+        if len(unmatched_skip) > 0:
+            log.warning(f'Detailer skip: class tags did not match any detection across models={models}: unmatched={sorted(unmatched_skip)}')
 
         if image is not None:
             np_images.append(np.array(image))
