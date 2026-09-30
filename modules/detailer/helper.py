@@ -65,17 +65,21 @@ def parse_prompt_lines(text: str):
     return class_map, fallback
 
 
-def parse_skip_classes(text: str) -> set[str]:
-    """Collect class names from '[SKIP=name]' or '[SKIP=name1,name2]' lines, case-insensitive.
+def split_skip_classes(text: str) -> tuple[set[str], str]:
+    """Split '[SKIP=name]' or '[SKIP=name1,name2]' directive lines from a detailer prompt.
 
-    Detections of these classes are excluded from detailing. Any text after the tag on the same line is ignored.
+    Returns the lower-cased class names, whose detections are excluded from detailing, and the prompt without
+    those lines. Any text after the tag on the same line is dropped with it.
     """
     names: set[str] = set()
+    lines = []
     for line in (text or '').split('\n'):
         m = skip_tag_re.match(line.strip())
         if m:
             names.update(n.strip().lower() for n in m.group(1).split(',') if n.strip())
-    return names
+        else:
+            lines.append(line)
+    return names, '\n'.join(lines)
 
 
 def assign_prompts(text: str, items: list) -> list[str]:

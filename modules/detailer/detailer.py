@@ -7,7 +7,7 @@ import gradio as gr
 from PIL import Image, ImageDraw
 from modules.logger import log
 from modules import shared, processing, devices, processing_class, ui_common, ui_components, ui_symbols, images, extra_networks, sd_models
-from modules.detailer import DetailerResult, detailer_opt, assign_prompts, parse_prompt_lines, parse_skip_classes
+from modules.detailer import DetailerResult, detailer_opt, assign_prompts, parse_prompt_lines, split_skip_classes
 
 
 DETECTION_COLOR = (0, 190, 190) # processed
@@ -130,7 +130,7 @@ class Detailer():
         )
         return [merged]
 
-    def filter(self, items: list[DetailerResult], image: Image.Image, p: processing.StableDiffusionProcessing = None) -> list[DetailerResult]:
+    def filter(self, items: list[DetailerResult], image: Image.Image, p: processing.StableDiffusionProcessing = None, top_n: bool = True) -> list[DetailerResult]:
         if items is None or len(items) == 0:
             return []
         if p is not None:
@@ -147,7 +147,8 @@ class Detailer():
                 if not ((x_size >= min_size) and (y_size >= min_size) and (x_size <= max_size) and (y_size <= max_size)):
                     filtered.remove(item)
             filtered = sorted(filtered, key=lambda x: x.score, reverse=True)
-            filtered = filtered[:max_detected]
+            if top_n:
+                filtered = filtered[:max_detected]
         else:
             filtered = items
         if len(filtered) != len(items):
@@ -219,14 +220,20 @@ class Detailer():
         # detailer_prompt/negative are the same for every model in the chain, so resolve them once
         orig_prompt: str = orig_p.get('all_prompts', [''])[0]
         orig_negative: str = orig_p.get('all_negative_prompts', [''])[0]
-        prompt: str = orig_p.get('detailer_prompt', '')
-        negative: str = orig_p.get('detailer_negative', '')
-        if prompt is None or len(prompt) == 0:
+        prompt: str = orig_p.get('detailer_prompt', '') or ''
+        negative: str = orig_p.get('detailer_negative', '') or ''
+        # '[SKIP=name]' lines in either detailer prompt are directives: take them out first so a prompt with only skip lines still falls back to the main prompt
+        skip_prompt, stripped_prompt = split_skip_classes(prompt)
+        skip_negative, stripped_negative = split_skip_classes(negative)
+        prompt_only_skip = stripped_prompt != prompt and stripped_prompt.strip() == ''
+        negative_only_skip = stripped_negative != negative and stripped_negative.strip() == ''
+        prompt, negative = stripped_prompt, stripped_negative
+        if len(prompt) == 0 or prompt_only_skip:
             prompt = orig_prompt
         else:
             prompt = prompt.replace('[PROMPT]', orig_prompt)
             prompt = prompt.replace('[prompt]', orig_prompt)
-        if len(negative) == 0:
+        if len(negative) == 0 or negative_only_skip:
             negative = orig_negative
         else:
             negative = negative.replace('[PROMPT]', orig_negative)
@@ -240,8 +247,8 @@ class Detailer():
         matched_prompt_classes = set()
         matched_negative_classes = set()
 
-        # '[SKIP=name]' in either prompt excludes that class from detailing, unless a '[CLASS=name]' line gives it a prompt
-        skip_requested = parse_skip_classes(prompt) | parse_skip_classes(negative)
+        # skipped classes are excluded from detailing, unless a '[CLASS=name]' line gives the class a prompt
+        skip_requested = skip_prompt | skip_negative
         conflict_classes = skip_requested & (prompt_classes | negative_classes)
         skip_classes = skip_requested - conflict_classes
         matched_skip_classes = set()
@@ -280,11 +287,12 @@ class Detailer():
                 image = Image.fromarray(np_image)
             items = self.predict(name, model, image, p=p)
             skipped = []
+            detected = len(items)
             if len(skip_requested) > 0:
                 matched_skip_classes |= skip_requested & {(item.label or '').strip().lower() for item in items}
                 skipped = [item for item in items if (item.label or '').strip().lower() in skip_classes]
                 items = [item for item in items if (item.label or '').strip().lower() not in skip_classes] # before filter so skipped items don't take top-n slots
-                skipped = self.filter(skipped, image, p=p) # same confidence and size limits as processed items
+                skipped = self.filter(skipped, image, p=p, top_n=False) # same confidence and size limits as processed items, max detected only limits processing
                 if len(skipped) > 0:
                     log.info(f'Detailer: model="{name}" skipped={len(skipped)} classes={sorted({(item.label or "").strip().lower() for item in skipped})}')
                     if detailer_opt(p, 'detailer_include_detections', 'detailer_save'):
@@ -292,8 +300,10 @@ class Detailer():
             items = self.filter(items, image, p=p)
 
             if len(items) == 0:
-                if len(skipped) > 0:
+                if len(skipped) > 0 and len(skipped) == detected:
                     log.info(f'Detailer: model="{name}" all items skipped')
+                elif len(skipped) > 0:
+                    log.info(f'Detailer: model="{name}" no items to process: skipped={len(skipped)} filtered={detected - len(skipped)}')
                 else:
                     log.info(f'Detailer: model="{name}" no items detected')
                 continue
