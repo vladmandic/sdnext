@@ -56,6 +56,7 @@ Plus quite a few other improvements and inevitable bug-fixes, see full changelog
   - edit-models: simplify usage of multi-image reference editing  
     automatically handle: flux.2, glm-image, nano-banana, joy-image-edit, qwen-image-edit
   - lora: native loading for qwen-image 2.1, including the fused mlp layout ai-toolkit and musubi-tuner train against
+  - lora: alibaba-pai qwen-image 2.1 fun-acc 4-step runs on the sigma grid it was distilled for
   - processors: `DWPose`, `RTMW`, `RTMO`: image processor updates, thanks @kirtasshh  
     refactored to use `ONNX` instead of obsolete `mmpose` lib and with additional configurable settings  
 - **UI**

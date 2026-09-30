@@ -15,10 +15,17 @@ under every prefix. ComfyUI checkpoints fuse the SwiGLU input as
 ``img_mlp.gate_up`` with rows ``[gate_layer; proj]``, and so do the LoRAs
 ai-toolkit and musubi-tuner train against them; :func:`resolve_targets` splits
 that projection into the two diffusers modules.
+
+Parallel decoding exports (alibaba-pai Fun-Acc) carry their own sigma grid, so
+:data:`PDD` needs no scheduler mapping: the pin hands the pipeline that grid.
 """
 
-from modules.lora import native_adapter
+from modules.lora import native_adapter, network_pdd
 from modules.lora.native_adapter import ChunkSpec
+
+
+# One output projection on the pipeline scheduler; with explicit sigmas the step count is the interval count.
+PDD = network_pdd.ArchSpec()
 
 
 # === Arch-specific prefix configuration ===
@@ -142,5 +149,6 @@ def try_load(name, network_on_disk, lora_scale):
         family_loaders=(
             try_load_lora, try_load_lokr, try_load_loha, try_load_oft,
             try_load_ia3, try_load_glora, try_load_norm, try_load_full,
+            network_pdd.try_load,
         ),
     )
