@@ -12,6 +12,7 @@ Covers:
 - companion files routing to their own type folder
 - a failed remote header read returning an error and never entering the probe cache
 - a successful header read entering the probe cache
+- a GGUF header read naming the quant from general.file_type, or from the dominant tensor type without it
 - resolve_file reporting the version fetch reason and an unknown file id
 
 No running server required.
@@ -78,6 +79,9 @@ def test_suffix_and_variant():
     check('variant quant', names.file_variant(make_file(1, 'a.gguf', quant='Q8_0')), 'Q8_0')
     check('variant url', names.file_variant(make_file(1, 'a.gguf', url='https://civitai.com/api/download/models/1?format=GGUF&quantType=Q4_K_M')), 'Q4_K_M')
     check('variant none', names.file_variant(make_file(1, 'a.gguf', url='https://civitai.com/api/download/models/1?fileId=1')), None)
+    check('variant gguf ignores fp', names.file_variant(make_file(1, 'a.gguf', fp='fp16')), None)
+    check('variant gguf format ignores fp', names.file_variant(CivitFile.parse_obj({'id': 1, 'name': 'a.bin', 'metadata': {'format': 'GGUF', 'fp': 'fp16', 'quantType': 'Q5_0'}})), 'Q5_0')
+    check('variant safetensors quant fallback', names.file_variant(make_file(1, 'a.safetensors', quant='Q8_0')), 'Q8_0')
     check('variant bad url', names.file_variant(make_file(1, 'a.gguf', url='')), None)
 
 
@@ -105,6 +109,12 @@ def test_peek_upgrade():
     check('failed peek name', names.save_name(f, [f], context), 'm-fp8.safetensors')
     context = names.apply_peeks(names.NameContext(), [f], {7: {'metadata': None, 'probe': {'ok': False, 'dominant_dtype': None}}})
     check('upgrade bad probe', context.variants.get(7), None)
+    g = make_file(8, 'm.gguf', fp='fp8', quant='Q8_0')
+    context = names.apply_peeks(names.NameContext(), [g], {8: {'metadata': {}, 'probe': {'ok': True}, 'quant': 'Q4_K_M'}})
+    check('gguf header quant wins', names.save_name(g, [g], context), 'm-Q4_K_M.gguf')
+    context = names.apply_peeks(names.NameContext(), [g], {8: {'metadata': None, 'error': 'HTTP 401'}})
+    check('gguf failed peek uses metadata quant', names.save_name(g, [g], context), 'm-Q8_0.gguf')
+    check('peek targets', [x.id for x in names.peek_targets([f, g, make_file(9, 'c.zip')])], [7, 8])
 
 
 def test_route_type():
@@ -170,6 +180,51 @@ def test_peek_cache():
     sys.modules.pop('modules.paths', None)
 
 
+def gguf_bytes(kv: dict, tensors: list) -> bytes:
+    def string(s):
+        b = s.encode('utf-8')
+        return struct.pack('<Q', len(b)) + b
+    out = b'GGUF' + struct.pack('<IQQ', 3, len(tensors), len(kv))
+    for key, value in kv.items():
+        out += string(key)
+        if isinstance(value, str):
+            out += struct.pack('<I', 8) + string(value)
+        else:
+            out += struct.pack('<II', 4, value)
+    for name, dims, ggml_type in tensors:
+        out += string(name) + struct.pack('<I', len(dims)) + b''.join(struct.pack('<Q', d) for d in dims) + struct.pack('<IQ', ggml_type, 0)
+    return out
+
+
+def test_peek_gguf():
+    from modules.civitai import peek_civitai
+    url = 'https://civitai.com/api/download/models/2?fileId=12'
+    with tempfile.TemporaryDirectory() as tmpdir:
+        peek_civitai.peek_cache = {}
+        install_stubs(tmpdir, gguf_bytes({'general.architecture': 'wan', 'general.file_type': 15}, [('blocks.0.attn.q.weight', [5120, 5120], 12), ('blocks.0.norm.weight', [5120], 0)]))
+        result = peek_civitai.peek_file('m.gguf', url, 12)
+        check('gguf file_type quant', result.get('quant'), 'Q4_K_M')
+        check('gguf metadata', result.get('metadata'), {'general.architecture': 'wan', 'general.file_type': 15})
+        check('gguf probe format', result['probe']['quant']['format'], 'Q4_K')
+        check('gguf tensors', result.get('tensors'), 2)
+        check('gguf cached', peek_civitai.peek_cache_get(12, url), result)
+        peek_civitai.peek_cache = {}
+        install_stubs(tmpdir, gguf_bytes({}, [('w', [16, 16], 8), ('b', [16], 1)]))
+        check('gguf tensor quant', peek_civitai.peek_file('m.gguf', url, 12).get('quant'), 'Q8_0')
+        peek_civitai.peek_cache = {}
+        install_stubs(tmpdir, gguf_bytes({'general.file_type': 999}, [('w', [16, 16], 2)]))
+        check('gguf unknown file_type falls back', peek_civitai.peek_file('m.gguf', url, 12).get('quant'), 'Q4_0')
+        peek_civitai.peek_cache = {}
+        install_stubs(tmpdir, b'GGUF' + struct.pack('<IQQ', 3, 1, 1) + b'\x05')
+        result = peek_civitai.peek_file('m.gguf', url, 12)
+        check('gguf truncated error', 'read window' in (result.get('error') or ''), True)
+        check('gguf truncated not cached', peek_civitai.peek_cache, {})
+        install_stubs(tmpdir, b'\x08' + b'\0' * 40)
+        check('gguf bad magic', peek_civitai.peek_file('m.gguf', url, 12).get('error'), 'not a gguf file')
+    sys.modules.pop('modules.shared', None)
+    sys.modules.pop('modules.paths', None)
+
+
 def test_resolve_file():
     fixture = json.load(open(FIXTURE, encoding='utf-8'))
     raw = next(v for v in fixture['versions'] if v['id'] == 3357716)
@@ -208,7 +263,7 @@ def test_resolve_file():
 
 
 if __name__ == '__main__':
-    for test in [test_fixture_names, test_suffix_and_variant, test_roles, test_peek_upgrade, test_route_type, test_peek_cache, test_resolve_file]:
+    for test in [test_fixture_names, test_suffix_and_variant, test_roles, test_peek_upgrade, test_route_type, test_peek_cache, test_peek_gguf, test_resolve_file]:
         test()
     log.warning(f'Total: {passed} passed, {failed} failed')
     sys.exit(1 if failed else 0)

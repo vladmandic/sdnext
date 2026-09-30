@@ -571,6 +571,92 @@
    ]
   },
   {
+   "source": "GET /model-versions/3011173",
+   "id": 3011173,
+   "modelId": 2681714,
+   "name": "Q4",
+   "baseModel": "Ideogram 4.0",
+   "model": {
+    "name": "Ideogram 4 GGUF",
+    "type": "Checkpoint",
+    "nsfw": false,
+    "poi": false
+   },
+   "files": [
+    {
+     "id": 2890211,
+     "name": "ideogram4GGUF_q4.gguf",
+     "type": "Model",
+     "metadata": {
+      "format": "GGUF",
+      "size": "full"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/3011173?fileId=2890211",
+     "hashes": {
+      "SHA256": "08431D93824E56513CCCC84A4D10D327DF992CFF5B5A0DCFDC739F4D50C2CC9E"
+     }
+    }
+   ]
+  },
+  {
+   "source": "GET /model-versions/2500306",
+   "id": 2500306,
+   "modelId": 2053259,
+   "name": "NSFW FAST MOVE V2 Q4KM H",
+   "baseModel": "Wan Video 2.2 I2V-A14B",
+   "model": {
+    "name": "WAN 2.2 Enhanced NSFW | SVI | camera prompt adherence (Lightning Edition) I2V and T2V fp8 GGUF",
+    "type": "Checkpoint",
+    "nsfw": true,
+    "poi": false
+   },
+   "files": [
+    {
+     "id": 2388352,
+     "name": "wan22EnhancedNSFWSVICamera_nsfwFASTMOVEV2Q4KMH.gguf",
+     "type": "Model",
+     "metadata": {
+      "format": "GGUF",
+      "size": "full",
+      "fp": "fp8"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/2500306?fileId=2388352",
+     "hashes": {
+      "SHA256": "90EBBD34A858C0B6EACDFE259A83F5EB93D623FCD66BBFE5F36076AAE70C2826"
+     }
+    }
+   ]
+  },
+  {
+   "source": "GET /model-versions/2192278",
+   "id": 2192278,
+   "modelId": 1933000,
+   "name": "HIGH Q5_0",
+   "baseModel": "Wan Video 2.2 T2V-A14B",
+   "model": {
+    "name": "Wan 2.2 T2V A14B GGUF",
+    "type": "Checkpoint",
+    "nsfw": false,
+    "poi": false
+   },
+   "files": [
+    {
+     "id": 2085422,
+     "name": "wan22T2VA14BGGUF_highQ50.gguf",
+     "type": "Model",
+     "metadata": {
+      "format": "GGUF",
+      "size": "full",
+      "fp": "fp16"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/2192278?fileId=2085422",
+     "hashes": {
+      "SHA256": "694902F318737151C6599BE284605E94B101843A42252803A5F46321E836C1ED"
+     }
+    }
+   ]
+  },
+  {
    "source": "GET /models?ids=2832886 (synthetic: quantType stripped from metadata, kept in url)",
    "id": 93196857,
    "modelId": 2832886,
@@ -896,6 +982,54 @@
     "dominant_dtype": "I8"
    }
   },
+  "3077947": {
+   "metadata": {
+    "general.architecture": "wan",
+    "general.quantization_version": 2,
+    "general.file_type": 7
+   },
+   "probe": {
+    "ok": true,
+    "dominant_dtype": "Q8_0",
+    "quant": {
+     "scheme": "gguf",
+     "format": "Q8_0"
+    }
+   },
+   "quant": "Q8_0"
+  },
+  "2890211": {
+   "metadata": {},
+   "probe": {
+    "ok": true,
+    "dominant_dtype": "Q4_0",
+    "quant": {
+     "scheme": "gguf",
+     "format": "Q4_0"
+    }
+   },
+   "quant": "Q4_0"
+  },
+  "2388352": {
+   "metadata": {
+    "general.architecture": "wan",
+    "general.quantization_version": 2,
+    "general.file_type": 15
+   },
+   "probe": {
+    "ok": true,
+    "dominant_dtype": "Q4_K",
+    "quant": {
+     "scheme": "gguf",
+     "format": "Q4_K"
+    }
+   },
+   "quant": "Q4_K_M"
+  },
+  "2085422": {
+   "metadata": null,
+   "error": "HTTP 401"
+  },
   "3246945": {
    "metadata": null,
    "error": "HTTP 401"
@@ -919,14 +1053,14 @@
  },
  "expected": {
   "precision_on": {
-   "3003586": {
-    "2949563": "ideogram4INT8_ideogram4UncondINT8-int8.safetensors"
+   "3357716": {
+    "3246005": "krea2Anime_v20_3246005-fp8_e4m3fn.safetensors",
+    "3246945": "krea2Anime_v20_3246945-bf16.safetensors",
+    "3245419": "krea2Anime_v20_3245419-int4.safetensors",
+    "3245462": "krea2Anime_v20_3245462-int8.safetensors"
    },
-   "3005491": {
-    "2884783": "ideogram4_fp8Scaled-fp8_e4m3fn.safetensors"
-   },
-   "3005513": {
-    "2884823": "ideogram4_fp8Uncond-fp8_e4m3fn-uncond.safetensors"
+   "3140650": {
+    "3020814": "krea2_anime2real-pre-bf16.safetensors"
    },
    "3009287": {
     "2888419": "wan22I2VA14BMoeDistill_i2vHigh-nf4.safetensors"
@@ -934,43 +1068,59 @@
    "3009384": {
     "2888503": "wan22I2VA14BMoeDistill_i2vLow-nf4.safetensors"
    },
-   "3025163": {
-    "2903936": "log.txt",
-    "2903951": "1nnie3.safetensors"
+   "3005491": {
+    "2884783": "ideogram4_fp8Scaled-fp8_e4m3fn.safetensors"
    },
-   "3140650": {
-    "3020814": "krea2_anime2real-pre-bf16.safetensors"
+   "3005513": {
+    "2884823": "ideogram4_fp8Uncond-fp8_e4m3fn-uncond.safetensors"
    },
-   "3196857": {
-    "3077905": "gingerlabsWan22T2V_v10_txt-bf16.safetensors",
-    "3077945": "gingerlabsWan22T2V_v10_3077945-fp8.safetensors",
-    "3077947": "gingerlabsWan22T2V_v10_3077947.gguf",
-    "3077948": "gingerlabsWan22T2V_v10_3077948.gguf",
-    "3077956": "gingerlabsWan22T2V_v10_3077956-fp8.safetensors"
+   "3003586": {
+    "2949563": "ideogram4INT8_ideogram4UncondINT8-int8.safetensors"
    },
    "3246186": {
-    "3128937": "ideogram4_3128937-fp32.safetensors",
-    "3128943": "ideogram4_txt_3128943-fp8.safetensors",
     "3128946": "ideogram4_txt_3128946-fp8.safetensors",
     "3128958": "ideogram4_3128958-fp8.safetensors",
+    "3128937": "ideogram4_3128937-fp32.safetensors",
+    "3128943": "ideogram4_txt_3128943-fp8.safetensors",
     "3128969": "ideogram4_3128969-int8.safetensors",
     "3128980": "ideogram4_3128980-nvfp4.safetensors",
     "3129012": "ideogram4_3129012-fp8.safetensors",
     "3129014": "ideogram4_3129014-nvfp4.safetensors",
     "3129032": "ideogram4_3129032-int8.safetensors"
    },
-   "3357716": {
-    "3245419": "krea2Anime_v20_3245419-int4.safetensors",
-    "3245462": "krea2Anime_v20_3245462-int8.safetensors",
-    "3246005": "krea2Anime_v20_3246005-fp8_e4m3fn.safetensors",
-    "3246945": "krea2Anime_v20_3246945-bf16.safetensors"
+   "3025163": {
+    "2903951": "1nnie3.safetensors",
+    "2903936": "log.txt"
    },
    "83196857": {
-    "3077905": "gingerlabsWan22T2V_v10_txt-bf16.safetensors",
     "3077945": "gingerlabsWan22T2V_v10_3077945-fp8.safetensors",
+    "3077905": "gingerlabsWan22T2V_v10_txt-bf16.safetensors",
+    "3077956": "gingerlabsWan22T2V_v10_3077956-fp8.safetensors",
     "3077947": "gingerlabsWan22T2V_v10_3077947-Q8_0.gguf",
-    "3077948": "gingerlabsWan22T2V_v10_3077948-Q8_0.gguf",
-    "3077956": "gingerlabsWan22T2V_v10_3077956-fp8.safetensors"
+    "3077948": "gingerlabsWan22T2V_v10_3077948-Q8_0.gguf"
+   },
+   "3196857": {
+    "3077945": "gingerlabsWan22T2V_v10_3077945-fp8.safetensors",
+    "3077905": "gingerlabsWan22T2V_v10_txt-bf16.safetensors",
+    "3077956": "gingerlabsWan22T2V_v10_3077956-fp8.safetensors",
+    "3077947": "gingerlabsWan22T2V_v10_3077947-Q8_0.gguf",
+    "3077948": "gingerlabsWan22T2V_v10_3077948.gguf"
+   },
+   "3011173": {
+    "2890211": "ideogram4GGUF_q4-Q4_0.gguf"
+   },
+   "2500306": {
+    "2388352": "wan22EnhancedNSFWSVICamera_nsfwFASTMOVEV2Q4KMH-Q4_K_M.gguf"
+   },
+   "2192278": {
+    "2085422": "wan22T2VA14BGGUF_highQ50.gguf"
+   },
+   "93196857": {
+    "3077945": "gingerlabsWan22T2V_v10_3077945-fp8.safetensors",
+    "3077905": "gingerlabsWan22T2V_v10_txt-bf16.safetensors",
+    "3077956": "gingerlabsWan22T2V_v10_3077956-fp8.safetensors",
+    "3077947": "gingerlabsWan22T2V_v10_3077947-Q8_0.gguf",
+    "3077948": "gingerlabsWan22T2V_v10_3077948-Q8_0.gguf"
    },
    "90000001": {
     "1": "synthWan_v10_1-fp8_e5m2-low-noise.safetensors",
@@ -988,13 +1138,6 @@
     "25": "collide.vae-25.safetensors",
     "26": "collide.vae-26.safetensors",
     "27": "noext-fp16"
-   },
-   "93196857": {
-    "3077905": "gingerlabsWan22T2V_v10_txt-bf16.safetensors",
-    "3077945": "gingerlabsWan22T2V_v10_3077945-fp8.safetensors",
-    "3077947": "gingerlabsWan22T2V_v10_3077947-Q8_0.gguf",
-    "3077948": "gingerlabsWan22T2V_v10_3077948-Q8_0.gguf",
-    "3077956": "gingerlabsWan22T2V_v10_3077956-fp8.safetensors"
    }
   },
   "precision_off": {
@@ -1050,6 +1193,15 @@
     "3077956": "gingerlabsWan22T2V_v10_3077956.safetensors",
     "3077947": "gingerlabsWan22T2V_v10_3077947.gguf",
     "3077948": "gingerlabsWan22T2V_v10_3077948.gguf"
+   },
+   "3011173": {
+    "2890211": "ideogram4GGUF_q4.gguf"
+   },
+   "2500306": {
+    "2388352": "wan22EnhancedNSFWSVICamera_nsfwFASTMOVEV2Q4KMH.gguf"
+   },
+   "2192278": {
+    "2085422": "wan22T2VA14BGGUF_highQ50.gguf"
    },
    "93196857": {
     "3077945": "gingerlabsWan22T2V_v10_3077945.safetensors",

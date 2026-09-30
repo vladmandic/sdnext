@@ -52,11 +52,19 @@ def url_quant_type(url: str) -> str | None:
     return values[0] if values else None
 
 
+def is_gguf(f: CivitFile) -> bool:
+    return f.metadata.format == 'GGUF' or f.name.lower().endswith('.gguf')
+
+
 def file_variant(f: CivitFile) -> str | None:
-    """Precision for safetensors is metadata.fp; GGUF quants carry metadata.quantType
-    on the model endpoint only, so fall back to the quantType query param of the
-    download URL (CivitAI's own variant discriminator) when metadata lacks it."""
-    return f.metadata.fp or f.metadata.quant_type or url_quant_type(f.download_url)
+    """Precision for safetensors is metadata.fp. A GGUF's variant is its quant:
+    metadata.quantType (model endpoint only) or the quantType query param of
+    the download URL; its metadata.fp is the dtype it was quantized from, so it
+    never names the file."""
+    quant = f.metadata.quant_type or url_quant_type(f.download_url)
+    if is_gguf(f):
+        return quant
+    return f.metadata.fp or quant
 
 
 def split_words(text: str) -> str:
@@ -102,7 +110,7 @@ def role_from_metadata(metadata: dict | None, context: NameContext) -> str | Non
 
 
 def peek_targets(files: list[CivitFile]) -> list[CivitFile]:
-    return [f for f in files if f.name.lower().endswith('.safetensors')]
+    return [f for f in files if f.name.lower().endswith(('.safetensors', '.gguf'))]
 
 
 def precision_from_dtype(dtype: str | None) -> str | None:
@@ -116,11 +124,15 @@ def precision_claim_satisfied(claimed: str, actual: str) -> bool:
 
 
 def apply_peeks(context: NameContext, files: list[CivitFile], peeks: dict[int, dict]) -> NameContext:
-    """Fold header probes into the context: roles from __metadata__, and a
-    generic metadata variant upgraded to the dtype-exact token."""
+    """Fold header probes into the context: roles from __metadata__, a GGUF's
+    quant from its header, and a generic metadata variant upgraded to the
+    dtype-exact token."""
     for f in files:
         data = peeks.get(f.id) or {}
         context.roles[f.id] = role_from_metadata(data.get('metadata'), context)
+        if data.get('quant'):
+            context.variants[f.id] = data['quant']
+            continue
         probe = data.get('probe')
         if not probe:
             continue
