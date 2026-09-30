@@ -1,21 +1,22 @@
 # Change Log for SD.Next
 
-## Update for 2026-09-29
+## Update for 2026-09-30
 
-### Highlights for 2026-09-29
+### Highlights for 2026-09-30
 
 *What's New*? This release brings:
 - Few new models: **Qwen-Image 2.1**, **Bria Fibo 1.5** and **ObjectClear**
 - **DLSS5** reimagined for much higher performance and full cross-platform support
 - New live-preview method using **MicroDecoder**
 - Better handling of multi-image reference editing
+- Compute updates for ROCm, OpenVINO, and XPU
 - Massive updates to UI tooltips/hints: over 1,000 new entries and revised existing ones
 
 Plus quite a few other improvements and inevitable bug-fixes, see full changelog below for details...
 
 [Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-09-29
+### Details for 2026-09-30
 
 - **Models**
   - [Qwen-Image 2.1](https://huggingface.co/Qwen/Qwen-Image-2.1) in *base*, *sdnq-4bit* and *sdnq-8bit* variants  
@@ -31,10 +32,14 @@ Plus quite a few other improvements and inevitable bug-fixes, see full changelog
     *note*: for optimal results, provide a clear mask indicating target areas and prompt what should be removed  
 - **Compute**
   - update `diffusers==0.41.0.dev0`
-  - `rocm` windows installation move to *stable*, thanks @resonantsky  
-    at the moment, this results in installation of `torch==2.13.0` with `rocm==10.0.0`  
+  - `rocm` linux update to `2.14.0+rocm7.14` *stable* and `2.15.0+rocm10.0` *nightly*
+  - `openvino` update to `torch==2.14.0` with `openvino==2026.4.0`
+  - `xpu` update to `torch==2.14.0+xpu`
+  - `rocm` windows update to `torch==2.14.0` with `rocm==10.0.0`  
+    `rocm` windows installation move to *stable* amd wheels, thanks @resonantsky  
   - options to skip triton autotune for entire model or just text-encoder  
     in *settings -> compute settings*  
+  - warn if torch acceleration is installed but not available
 - **DLSS** *(reimagined)*
   - complete reverse-engineering of *nVidia DLSS* to enable gpu-agnostic usage (can even run on cpu)
   - supports DLSS *NeuralRender*, *SuperRes*, and *FrameGen*
@@ -55,10 +60,9 @@ Plus quite a few other improvements and inevitable bug-fixes, see full changelog
 - **Other**
   - edit-models: simplify usage of multi-image reference editing  
     automatically handle: flux.2, glm-image, nano-banana, joy-image-edit, qwen-image-edit
-  - lora: native loading for qwen-image 2.1, including the fused mlp layout ai-toolkit and musubi-tuner train against
-  - lora: alibaba-pai qwen-image 2.1 fun-acc 4-step runs on the sigma grid it was distilled for
   - processors: `DWPose`, `RTMW`, `RTMO`: image processor updates, thanks @kirtasshh  
     refactored to use `ONNX` instead of obsolete `mmpose` lib and with additional configurable settings  
+  - lora: extend support for more model types
 - **UI**
   - massive improvement to built-in tooltips/hints  
     over 1,000 new entries, now at zero missing ui controls or settings  
@@ -68,14 +72,19 @@ Plus quite a few other improvements and inevitable bug-fixes, see full changelog
 - **Fixes**
   - api: control endpoint with input images
   - api: hardening all all file-access api endpoints
+  - caption: improve qwen image handling
+  - caption: improve error handling
+  - civitai: better handle downloads and naming
   - control: hires fixed size keeps the requested width on 16 px and 32 px models
   - detailer: use of lora models, thanks @kirtasshh
   - dlss: the detailer and the other per-image steps run once when dlss is off
   - grid: images with transparency keep it in grids and live previews
+  - hints: duplicate labels
   - img2img: inputs reach multi-image models as one condition set on every route and the requested size sets the output size
   - img2img: qwen-image, flux.2, glm-image align sizes to the 16 px floor
   - img2img: warn and record in the infotext when the output size follows the input image instead of the request
   - lora: native loading applies the alpha diffusers and diffsynth files store in metadata
+  - lora: alibaba-pai qwen-image 2.1 fun-acc 4-step runs on the sigma grid it was distilled for
   - metadata: correct refine prompt restore, thanks @QualiaRain
   - networks: name mapping for network models and loras
   - networks: preview mapping for reference networks
@@ -85,6 +94,7 @@ Plus quite a few other improvements and inevitable bug-fixes, see full changelog
   - pixelsmith: vae tiling, thanks @li-lizhe  
   - preview: remove flicker when finishing generation
   - prompt cache: bypass when condition images are encoded
+  - seedvr: handle temporal overap
   - styles: fix infotext parsing, thanks @obelisk-complex
   - temp file: gradio temp file error handling
   - temp file: gradio temp file error handling

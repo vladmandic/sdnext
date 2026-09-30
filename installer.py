@@ -681,21 +681,17 @@ def install_cuda():
     return cmd
 
 
-def install_rocm_zluda():
+def install_rocm():
     torch_command = ''
     t_start = time.time()
     if args.skip_all or args.skip_requirements:
         return torch_command
     from modules import rocm
-
     amd_gpus = []
     try:
         amd_gpus = rocm.get_agents()
     except Exception as e:
         log.warning(f'ROCm agent enumerator failed: {e}')
-
-    #os.environ.setdefault('TENSORFLOW_PACKAGE', 'tensorflow')
-
     device = None
     if len(amd_gpus) == 0:
         log.warning('ROCm: no agent was found')
@@ -723,13 +719,12 @@ def install_rocm_zluda():
 
     msg = f'ROCm: version={rocm.version}'
     if device is not None:
-        msg += f', using agent {device}'
+        msg += f' agent={device} active'
     log.info(msg)
 
     if sys.platform == "win32":
         if args.use_zluda:
             torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.1+cu118 torchvision==0.22.1+cu118 --index-url https://download.pytorch.org/whl/cu118')
-
             if args.device_id is not None:
                 if os.environ.get('HIP_VISIBLE_DEVICES', None) is not None:
                     log.warning('Setting HIP_VISIBLE_DEVICES and --device-id at the same time may be mistake.')
@@ -760,28 +755,26 @@ def install_rocm_zluda():
                 check_python(supported_minors=[11, 12, 13], reason='ROCm-Windows: python==3.11/3.12/3.13 required')
                 torch_command = os.environ.get('TORCH_COMMAND', 'torch torchvision torchaudio --index-url https://stable.repo.amd.com/rocm/whl-next/')
             else:
-                check_python(supported_minors=[12], reason='ROCm-Windows: preview python==3.12 required')
+                check_python(supported_minors=[12], reason='ROCm-Windows: python==3.12 required')
                 # torch 2.8.0a0 is the last version with rocm 6.4 support
                 torch_command = os.environ.get('TORCH_COMMAND', '--no-cache-dir https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torch-2.8.0a0%2Bgitfc14c65-cp312-cp312-win_amd64.whl https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torchvision-0.24.0a0%2Bc85f008-cp312-cp312-win_amd64.whl')
 
     else: # linux
-        #check_python(supported_minors=[10, 11, 12, 13, 14], reason='ROCm backend requires a Python version between 3.10 and 3.13')
         rocm_major, rocm_minor = (int(x) for x in rocm.version.split('.')) if rocm.version is not None else (0, 0)
         if args.use_nightly:
-            if rocm.version is None or (rocm_major > 7 or (rocm_major == 7 and rocm_minor >= 14)): # assume the latest if version check fails
-                torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm7.14')
-            else: # oldest rocm version on nightly is 7.2
-                torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm7.2')
+            torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm10.0')
         else:
-            if rocm.version is None or rocm_major > 7: # assume the latest if version check fails
-                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.13.0+rocm7.2 torchvision==0.28.0+rocm7.2 --index-url https://download.pytorch.org/whl/rocm7.2')
+            if (rocm.version is None) or (rocm_major > 7): # assume the latest if version check fails
+                torch_command = os.environ.get('TORCH_COMMAND', '2.14.0+rocm7.14 torchvision --index-url https://download.pytorch.org/whl/rocm7.14')
             else:
                 match rocm_major:
                     case 7:
-                        if rocm_minor >= 2: # latest supported rocm 7.x version is 7.2
-                            torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.13.0+rocm7.2 torchvision==0.28.0+rocm7.2 --index-url https://download.pytorch.org/whl/rocm7.2')
+                        if rocm_minor >= 2: # latest supported rocm 7.x
+                            torch_command = os.environ.get('TORCH_COMMAND', '2.14.0+rocm7.14 torchvision --index-url https://download.pytorch.org/whl/rocm7.14')
                         else:
                             match rocm_minor:
+                                case 2:
+                                    torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.13.0+rocm7.2 torchvision==0.28.0+rocm7.2 --index-url https://download.pytorch.org/whl/rocm7.2')
                                 case 1:
                                     torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.13.0+rocm7.1 torchvision==0.28.0+rocm7.1 --index-url https://download.pytorch.org/whl/rocm7.1')
                                 case _:
@@ -803,8 +796,7 @@ def install_rocm_zluda():
                     case _:
                         # lock to 2.4.1 instead of 2.5.1 for performance reasons there are no support for torch 2.6 for rocm 6.0
                         torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.4.1+rocm6.0 torchvision==0.19.1+rocm6.0 --index-url https://download.pytorch.org/whl/rocm6.0')
-                        log.warning(f"ROCm: unsupported version={rocm.version}")
-                        log.warning("ROCm: minimum supported version=6.0")
+                        log.warning(f"ROCm: unsupported version={rocm.version} minimum supported version=6.0")
 
     if device is None or os.environ.get("HSA_OVERRIDE_GFX_VERSION", None) is not None:
         log.info(f'ROCm: HSA_OVERRIDE_GFX_VERSION auto config skipped: device={device} version={os.environ.get("HSA_OVERRIDE_GFX_VERSION", None)}')
@@ -825,7 +817,7 @@ def install_ipex():
     if args.use_nightly:
         torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --extra-index-url https://download.pytorch.org/whl/nightly/xpu')
     else:
-        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.13.0+xpu torchvision==0.28.0+xpu --extra-index-url https://download.pytorch.org/whl/xpu')
+        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.14.0+xpu torchvision==0.29.0+xpu --extra-index-url https://download.pytorch.org/whl/xpu')
 
     ts('ipex', t_start)
     return torch_command
@@ -838,10 +830,10 @@ def install_openvino():
     if sys.platform == 'darwin':
         torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.11.0 torchvision==0.26.0')
     else:
-        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.13.0+cpu torchvision==0.28.0 --index-url https://download.pytorch.org/whl/cpu')
+        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.14.0+cpu torchvision==0.29.0 --index-url https://download.pytorch.org/whl/cpu')
 
     if not (args.skip_all or args.skip_requirements):
-        install(os.environ.get('OPENVINO_COMMAND', 'openvino==2026.3.1'), 'openvino')
+        install(os.environ.get('OPENVINO_COMMAND', 'openvino==2026.4.0'), 'openvino')
     ts('openvino', t_start)
     return torch_command
 
@@ -956,18 +948,20 @@ def check_torch():
             from modules import rocm
             is_rocm_available = allow_rocm and (args.use_rocm or args.use_zluda or rocm.is_installed) # late eval to avoid unnecessary import
 
-        if is_cuda_available and args.use_cuda: # prioritize cuda
+        # first prioritize use-flags
+        if is_cuda_available and args.use_cuda:
             torch_command = install_cuda()
-        elif is_rocm_available and (args.use_rocm or args.use_zluda): # prioritize rocm
-            torch_command = install_rocm_zluda()
-        elif allow_ipex and args.use_ipex: # prioritize ipex
+        elif is_rocm_available and (args.use_rocm or args.use_zluda):
+            torch_command = install_rocm()
+        elif allow_ipex and args.use_ipex:
             torch_command = install_ipex()
-        elif allow_openvino and args.use_openvino: # prioritize openvino
+        elif allow_openvino and args.use_openvino:
             torch_command = install_openvino()
+        # then try auto-detect
         elif is_cuda_available:
             torch_command = install_cuda()
         elif is_rocm_available:
-            torch_command = install_rocm_zluda()
+            torch_command = install_rocm()
         elif is_ipex_available:
             torch_command = install_ipex()
         else:
@@ -1020,6 +1014,15 @@ def check_torch():
                     torch_info.set(type='cpu')
             except Exception as e:
                 log.error(f'Torch: type=cpu {e}')
+        elif '+rocm' in torch.__version__:
+            if not torch.cuda.is_available():
+                log.warning(f'Torch: version="{torch.__version__}" ROCm version installed but GPU acceleration is not available')
+        elif '+cu' in torch.__version__:
+            if not torch.cuda.is_available():
+                log.warning(f'Torch: version="{torch.__version__}" CUDA version installed but GPU acceleration is not available')
+        elif '+xpu' in torch.__version__:
+            if not torch.xpu.is_available():
+                log.warning(f'Torch: version="{torch.__version__}" XPU version installed but GPU acceleration is not available')
 
         if hasattr(torch, "xpu") and torch.xpu.is_available() and allow_ipex:
             try:
@@ -1062,6 +1065,7 @@ def check_torch():
                     log.info(f'Torch detected: {gpu}')
             except Exception as e:
                 log.error(f'Torch: type=cuda/rocm {e}')
+
         if hasattr(torch, "accelerator") and torch.accelerator.is_available():
             try:
                 _index = torch.accelerator.current_device_index()

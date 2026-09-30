@@ -21,7 +21,7 @@ def modular_step(components: diffusers.modular_pipelines.ModularPipeline, state:
     if 'latents' in keys and state.latents.ndim > 1:
         torch_sync()
         shared.state.step()
-        if hasattr(components, 'custom_unpack_latents'):
+        if getattr(components, 'custom_unpack_latents', None) is not None:
             shared.state.current_latent = components.custom_unpack_latents(state.latents, components, state)
         else:
             shared.state.current_latent = state.latents

@@ -101,6 +101,17 @@ async function tooltipHideDelegated(e) {
   if (e.target.dataset && e.target.dataset.hint) tooltipHide(e);
 }
 
+function getElTitle(el: HTMLElement) {
+  // contat text of all child elements where text is not same as the parent to avoid repeating
+  let title = '';
+  for (const child of Array.from(el.children)) {
+    const childText = (child as HTMLElement).textContent || '';
+    if (childText && childText !== title) title += ' ' + childText;
+  }
+  if (title.length === 0) title = el.textContent || '';
+  return title.trim();
+}
+
 async function tooltipShow(e) {
   if (localeData.expandTimeout) { // clear any existing expansion timeout
     clearTimeout(localeData.expandTimeout);
@@ -122,7 +133,7 @@ async function tooltipShow(e) {
     // set up the complete content structure from the start
     let content = `
       <div class="tooltip-header">
-        <b>${e.target.textContent}</b>
+        <b>${getElTitle(e.target)}</b>
         ${e.target.dataset.longHint ? progressRing : ''}
       </div>
       <div class="separator"></div>

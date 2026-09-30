@@ -15643,6 +15643,15 @@ async function tooltipShowDelegated(e) {
 async function tooltipHideDelegated(e) {
   if (e.target.dataset && e.target.dataset.hint) tooltipHide(e);
 }
+function getElTitle(el2) {
+  let title = "";
+  for (const child of Array.from(el2.children)) {
+    const childText = child.textContent || "";
+    if (childText && childText !== title) title += " " + childText;
+  }
+  if (title.length === 0) title = el2.textContent || "";
+  return title.trim();
+}
 async function tooltipShow(e) {
   if (localeData.expandTimeout) {
     clearTimeout(localeData.expandTimeout);
@@ -15661,7 +15670,7 @@ async function tooltipShow(e) {
     `;
     let content = `
       <div class="tooltip-header">
-        <b>${e.target.textContent}</b>
+        <b>${getElTitle(e.target)}</b>
         ${e.target.dataset.longHint ? progressRing : ""}
       </div>
       <div class="separator"></div>
@@ -16441,7 +16450,7 @@ String.prototype.format = function format(args) {
   return thisString;
 };
 var selectedURL = [];
-var selectedName = [];
+var selectedFileId = [];
 var selectedType = [];
 var selectedBase = [];
 var selectedModelId = [];
@@ -16502,23 +16511,6 @@ function sortFiles(files) {
     return index < 0 ? precisionOrder.length : index;
   };
   return [...files].sort((a, b) => Number(isModel(b)) - Number(isModel(a)) || rank(a) - rank(b) || (b.size || 0) - (a.size || 0));
-}
-function insertNameSuffix(name, suffix) {
-  const dot = name.lastIndexOf(".");
-  return dot > 0 ? `${name.slice(0, dot)}-${suffix}${name.slice(dot)}` : `${name}-${suffix}`;
-}
-function fileSaveName(file, siblings) {
-  const tier1 = (f) => {
-    const variant = fileVariant(f);
-    return variant ? insertNameSuffix(f.name || "", variant) : f.name || "";
-  };
-  const tier2 = (f) => f.metadata?.size ? insertNameSuffix(tier1(f), f.metadata.size) : tier1(f);
-  const others = siblings.filter((s) => s.id !== file.id);
-  const name = tier1(file);
-  if (!others.some((s) => tier1(s) === name)) return name;
-  const sized = tier2(file);
-  if (!others.some((s) => tier2(s) === sized)) return sized;
-  return insertNameSuffix(name, String(file.id));
 }
 function escapeHTML(text) {
   return text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -16587,7 +16579,7 @@ async function modelCardClick(id) {
 window.modelCardClick = modelCardClick;
 function queueFiles(model, queued) {
   selectedURL = queued.map(({ file }) => file.url || "");
-  selectedName = queued.map(({ version, file }) => fileSaveName(file, version.files));
+  selectedFileId = queued.map(({ file }) => file.id || 0);
   selectedType = queued.map(({ file }) => (companionTypes.includes(file.type || "") ? file.type : model.type) || "");
   selectedBase = queued.map(({ version }) => version.base || "");
   selectedModelId = queued.map(() => model.id || 0);
@@ -16610,11 +16602,11 @@ function startCivitAllDownload(evt) {
   queueFiles(currentModel, queued);
 }
 window.startCivitAllDownload = startCivitAllDownload;
-function downloadCivitModel(modelUrl, modelName, modelType, modelBase, mId, vId, modelPath, civitToken, innerHTML) {
-  log("downloadCivitModel", { modelUrl, modelName, modelType, modelBase, mId, vId, modelPath, civitToken });
+function downloadCivitModel(modelUrl, fileId, modelType, modelBase, mId, vId, modelPath, civitToken, innerHTML) {
+  log("downloadCivitModel", { modelUrl, fileId, modelType, modelBase, mId, vId, modelPath, civitToken });
   const el2 = gradioApp().getElementById("civitai_models_output") || gradioApp().getElementById("models_outcome");
   const currentHTML = el2?.innerHTML || "";
-  return [selectedURL, selectedName, selectedType, selectedBase, selectedModelId, selectedVersionId, modelPath, civitToken, currentHTML];
+  return [selectedURL, selectedFileId, selectedType, selectedBase, selectedModelId, selectedVersionId, modelPath, civitToken, currentHTML];
 }
 window.downloadCivitModel = downloadCivitModel;
 var civitMutualExcludeBound = false;
