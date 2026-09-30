@@ -15799,8 +15799,13 @@ async function setHints() {
     let found;
     if (el2.id) found = localeData.data.find((l) => l.id && (l.id === el2.id || el2.id.endsWith(l.id)));
     if (!found) {
-      if (el2.dataset.original) found = localeData.data.find((l) => l.label.toLowerCase().trim() === el2.dataset.original.toLowerCase().trim());
-      else found = localeData.data.find((l) => l.label.toLowerCase().trim() === el2.textContent.toLowerCase().trim());
+      if (el2.dataset.original) {
+        const desired = el2.dataset.original.toLowerCase().trim();
+        if (desired.length > 0) found = localeData.data.find((l) => l.label.toLowerCase().trim() === desired);
+      } else {
+        const desired = el2.textContent.toLowerCase().trim();
+        if (desired.length > 0) found = localeData.data.find((l) => l.label.toLowerCase().trim() === desired);
+      }
     }
     if (found?.localized?.length > 0) {
       if (!el2.dataset.original) el2.dataset.original = el2.textContent;
