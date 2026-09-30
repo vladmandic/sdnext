@@ -293,6 +293,7 @@
     {"id": "", "label": "Checkpoints folder", "localized": "", "hint": "Directory path where model checkpoints and safetensors files are stored"},
     {"id": "", "label": "ChronoEdit", "localized": "", "hint": "ChronoEdit temporal video and sequential image editing pipeline", "ui": "settings_model_options"},
     {"id": "", "label": "CivitAI", "localized": "", "hint": "Search and download models from CitivAI"},
+    {"id": "", "label": "CivitAI add precision to file names", "localized": "", "hint": "Downloaded files are saved with their precision or quantization in the name, such as <code>-fp8_e4m3fn</code> or <code>-Q8_0</code>.<br>When disabled the CivitAI file name is kept and a suffix is added only when two files of a version would otherwise share a name.", "ui": "settings_huggingface"},
     {"id": "", "label": "CivitAI base model", "localized": "", "hint": "Filter <i>CivitAI</i> search results by base model architecture"},
     {"id": "", "label": "CivitAI discard downloads with hash mismatch", "localized": "", "hint": "Delete downloaded models if calculated SHA256 does not match CivitAI metadata", "ui": "settings_huggingface"},
     {"id": "", "label": "CivitAI model type", "localized": "", "hint": "Filter <i>CivitAI</i> search results by model type (checkpoint, LoRA, embedding)"},

@@ -1,0 +1,1080 @@
+{
+ "versions": [
+  {
+   "source": "GET /model-versions/3357716",
+   "id": 3357716,
+   "modelId": 2908999,
+   "name": "v2.0",
+   "baseModel": "Krea 2",
+   "model": {
+    "name": "Krea2-Anime",
+    "type": "Checkpoint",
+    "nsfw": true,
+    "poi": false
+   },
+   "files": [
+    {
+     "id": 3246005,
+     "name": "krea2Anime_v20_3246005.safetensors",
+     "type": "Model",
+     "metadata": {
+      "format": "SafeTensor",
+      "fp": "fp8"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/3357716?fileId=3246005",
+     "hashes": {
+      "SHA256": "03183242413503B2E68C1C5F8832B27228CBAB446419EF8CB39F1C62E09972E3"
+     }
+    },
+    {
+     "id": 3246945,
+     "name": "krea2Anime_v20_3246945.safetensors",
+     "type": "Model",
+     "metadata": {
+      "format": "SafeTensor",
+      "fp": "bf16"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/3357716?fileId=3246945",
+     "hashes": {
+      "SHA256": "7415DA5247E8A9D8D1D145FA41DDF6606AA905B790CAC1DCCE25CB7DC864026F"
+     }
+    },
+    {
+     "id": 3245419,
+     "name": "krea2Anime_v20_3245419.safetensors",
+     "type": "Model",
+     "metadata": {
+      "format": "SafeTensor",
+      "fp": "int4"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/3357716?fileId=3245419",
+     "hashes": {
+      "SHA256": "B13DF571A9C40408FF3181153B42CE9E965E8064CCFF81510CFE653C4E5D73D8"
+     }
+    },
+    {
+     "id": 3245462,
+     "name": "krea2Anime_v20_3245462.safetensors",
+     "type": "Model",
+     "metadata": {
+      "format": "SafeTensor",
+      "fp": "int8"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/3357716?fileId=3245462",
+     "hashes": {
+      "SHA256": "488CC3A6E76122AF512B351EC322A668FE3D2F9A0982B1F0DC59232BC5879E75"
+     }
+    }
+   ]
+  },
+  {
+   "source": "GET /model-versions/3140650",
+   "id": 3140650,
+   "modelId": 2787343,
+   "name": "v1.0",
+   "baseModel": "Krea 2",
+   "model": {
+    "name": "krea2 anime2real lora",
+    "type": "LORA",
+    "nsfw": true,
+    "poi": false
+   },
+   "files": [
+    {
+     "id": 3020814,
+     "name": "krea2_anime2real-pre.safetensors",
+     "type": "Model",
+     "metadata": {
+      "format": "SafeTensor",
+      "fp": "bf16"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/3140650?fileId=3020814",
+     "hashes": {
+      "SHA256": "3BF1EFE5229DE6264CF50CC9E0F5E1B86F67B706A07FC75C760CDB8F35B13A7A"
+     }
+    }
+   ]
+  },
+  {
+   "source": "GET /model-versions/3009287",
+   "id": 3009287,
+   "modelId": 2680039,
+   "name": "I2V high",
+   "baseModel": "Wan Video 2.2 I2V-A14B",
+   "model": {
+    "name": "Wan 2.2 I2V A14B MoE Distill Lightx2v NVFP4",
+    "type": "Checkpoint",
+    "nsfw": false,
+    "poi": false
+   },
+   "files": [
+    {
+     "id": 2888419,
+     "name": "wan22I2VA14BMoeDistill_i2vHigh.safetensors",
+     "type": "Model",
+     "metadata": {
+      "format": "SafeTensor",
+      "size": "full",
+      "fp": "nf4"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/3009287?fileId=2888419",
+     "hashes": {
+      "SHA256": "AB07951145B86D2941607E9D297C38D9E1751263CD3AEF0551C34EE6512736D4"
+     }
+    }
+   ]
+  },
+  {
+   "source": "GET /model-versions/3009384",
+   "id": 3009384,
+   "modelId": 2680039,
+   "name": "I2V low",
+   "baseModel": "Wan Video 2.2 I2V-A14B",
+   "model": {
+    "name": "Wan 2.2 I2V A14B MoE Distill Lightx2v NVFP4",
+    "type": "Checkpoint",
+    "nsfw": false,
+    "poi": false
+   },
+   "files": [
+    {
+     "id": 2888503,
+     "name": "wan22I2VA14BMoeDistill_i2vLow.safetensors",
+     "type": "Model",
+     "metadata": {
+      "format": "SafeTensor",
+      "size": "full",
+      "fp": "nf4"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/3009384?fileId=2888503",
+     "hashes": {
+      "SHA256": "4300872F6106DB804C0ED1919EAF7C016452F120A9C127C1498C448F86197802"
+     }
+    }
+   ]
+  },
+  {
+   "source": "GET /model-versions/3005491",
+   "id": 3005491,
+   "modelId": 2676710,
+   "name": "ideogram4 fp8 scaled",
+   "baseModel": "Ideogram 4.0",
+   "model": {
+    "name": "Ideogram 4",
+    "type": "Checkpoint",
+    "nsfw": false,
+    "poi": false
+   },
+   "files": [
+    {
+     "id": 2884783,
+     "name": "ideogram4_fp8Scaled.safetensors",
+     "type": "Model",
+     "metadata": {
+      "format": "SafeTensor",
+      "size": "full",
+      "fp": "fp8"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/3005491?fileId=2884783",
+     "hashes": {
+      "SHA256": "49A946F1B0F8BCF5EAB7D3B1ECC7B453C104E034CB1B592032745692724BD306"
+     }
+    }
+   ]
+  },
+  {
+   "source": "GET /model-versions/3005513",
+   "id": 3005513,
+   "modelId": 2676710,
+   "name": "ideogram 4 fp8 uncond",
+   "baseModel": "Ideogram 4.0",
+   "model": {
+    "name": "Ideogram 4",
+    "type": "Checkpoint",
+    "nsfw": false,
+    "poi": false
+   },
+   "files": [
+    {
+     "id": 2884823,
+     "name": "ideogram4_fp8Uncond.safetensors",
+     "type": "Model",
+     "metadata": {
+      "format": "SafeTensor",
+      "size": "full",
+      "fp": "fp8"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/3005513?fileId=2884823",
+     "hashes": {
+      "SHA256": "9B359007DAE162CCA7591D00868FEEA733EB7C56E56E3A214A4D5A9A2A07CD60"
+     }
+    }
+   ]
+  },
+  {
+   "source": "GET /model-versions/3003586",
+   "id": 3003586,
+   "modelId": 2674891,
+   "name": "Ideogram 4 Uncond INT8",
+   "baseModel": "Ideogram 4.0",
+   "model": {
+    "name": "Ideogram 4 INT8",
+    "type": "Checkpoint",
+    "nsfw": false,
+    "poi": false
+   },
+   "files": [
+    {
+     "id": 2949563,
+     "name": "ideogram4INT8_ideogram4UncondINT8.safetensors",
+     "type": "Diffusion Model",
+     "metadata": {
+      "format": "SafeTensor",
+      "fp": "int8"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/3003586?fileId=2949563",
+     "hashes": {
+      "SHA256": "BC94BE149DC042EE27AB607FB484F1531D43BB7546397B687F3A2C20BAAC9C7F"
+     }
+    }
+   ]
+  },
+  {
+   "source": "GET /model-versions/3246186",
+   "id": 3246186,
+   "modelId": 2872974,
+   "name": "ideogram-4",
+   "baseModel": "Ideogram 4.0",
+   "model": {
+    "name": "Ideogram 4",
+    "type": "Checkpoint",
+    "nsfw": false,
+    "poi": false
+   },
+   "files": [
+    {
+     "id": 3128946,
+     "name": "ideogram4_txt_3128946.safetensors",
+     "type": "Text Encoder",
+     "metadata": {
+      "format": "SafeTensor",
+      "fp": "fp8"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/3246186?fileId=3128946",
+     "hashes": {
+      "SHA256": "4BA424CF62E51392E4D1A39933E803706F4E823C1065F36AAF149C6453F66BCD"
+     }
+    },
+    {
+     "id": 3128958,
+     "name": "ideogram4_3128958.safetensors",
+     "type": "Diffusion Model",
+     "metadata": {
+      "format": "SafeTensor",
+      "fp": "fp8"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/3246186?fileId=3128958",
+     "hashes": {
+      "SHA256": "49A946F1B0F8BCF5EAB7D3B1ECC7B453C104E034CB1B592032745692724BD306"
+     }
+    },
+    {
+     "id": 3128937,
+     "name": "ideogram4_3128937.safetensors",
+     "type": "Other",
+     "metadata": {
+      "format": "SafeTensor",
+      "fp": "fp32"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/3246186?fileId=3128937",
+     "hashes": {
+      "SHA256": "868FE7B343CC8F3A19DBCFCAFBC3D5F888802BE3F89BD81B65B3621A066CE8F3"
+     }
+    },
+    {
+     "id": 3128943,
+     "name": "ideogram4_txt_3128943.safetensors",
+     "type": "Text Encoder",
+     "metadata": {
+      "format": "SafeTensor",
+      "fp": "fp8"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/3246186?fileId=3128943",
+     "hashes": {
+      "SHA256": "E462E9E0C3B9313AE17F82040D7C77BEB92D7AEF3E40692D7803228DAB7C3B98"
+     }
+    },
+    {
+     "id": 3128969,
+     "name": "ideogram4_3128969.safetensors",
+     "type": "Diffusion Model",
+     "metadata": {
+      "format": "SafeTensor",
+      "fp": "int8"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/3246186?fileId=3128969",
+     "hashes": {
+      "SHA256": "A9164002943463B4C7B2ABD88C82A488C088ACC35762651E4D8604D6CE4A163D"
+     }
+    },
+    {
+     "id": 3128980,
+     "name": "ideogram4_3128980.safetensors",
+     "type": "Diffusion Model",
+     "metadata": {
+      "format": "SafeTensor",
+      "fp": "nvfp4"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/3246186?fileId=3128980",
+     "hashes": {
+      "SHA256": "E7923B4B0A1129AE5AFCC09E63046185688C8B09EB9A1A748CCCDBDE5D381609"
+     }
+    },
+    {
+     "id": 3129012,
+     "name": "ideogram4_3129012.safetensors",
+     "type": "Diffusion Model",
+     "metadata": {
+      "format": "SafeTensor",
+      "fp": "fp8"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/3246186?fileId=3129012",
+     "hashes": {
+      "SHA256": "9B359007DAE162CCA7591D00868FEEA733EB7C56E56E3A214A4D5A9A2A07CD60"
+     }
+    },
+    {
+     "id": 3129014,
+     "name": "ideogram4_3129014.safetensors",
+     "type": "Model",
+     "metadata": {
+      "format": "SafeTensor",
+      "fp": "nvfp4"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/3246186?fileId=3129014",
+     "hashes": {
+      "SHA256": "639E37BD1DD7EE35E23C7CFCCF93A518DDC7F4587818956EC42B31E659FD6AC0"
+     }
+    },
+    {
+     "id": 3129032,
+     "name": "ideogram4_3129032.safetensors",
+     "type": "Diffusion Model",
+     "metadata": {
+      "format": "SafeTensor",
+      "fp": "int8"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/3246186?fileId=3129032",
+     "hashes": {
+      "SHA256": "CD03ED94F244C9CB705E7D30CA0F40B5F5B004BB20674117ADFF88D16416C23D"
+     }
+    }
+   ]
+  },
+  {
+   "source": "GET /model-versions/3025163",
+   "id": 3025163,
+   "modelId": 2694109,
+   "name": "Ideogram Vulva v0.1",
+   "baseModel": "Other",
+   "model": {
+    "name": "Ideogram 4 Innie Vulva X",
+    "type": "LORA",
+    "nsfw": true,
+    "poi": false
+   },
+   "files": [
+    {
+     "id": 2903951,
+     "name": "1nnie3.safetensors",
+     "type": "Model",
+     "metadata": {
+      "format": "SafeTensor"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/3025163?fileId=2903951",
+     "hashes": {
+      "SHA256": "81EDFE8A231253198D8D27D08512B58179DA6B13954B01D925D12E28B2258D83"
+     }
+    },
+    {
+     "id": 2903936,
+     "name": "log.txt",
+     "type": "Config",
+     "metadata": {
+      "format": "Other",
+      "size": null,
+      "fp": null
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/3025163?fileId=2903936",
+     "hashes": {
+      "SHA256": "138BB99E770B54DECBF3AB74D8C87E54DF9FB9AFE6DF77FBA37026265870A95A"
+     }
+    }
+   ]
+  },
+  {
+   "source": "GET /models/2832886",
+   "id": 83196857,
+   "modelId": 2832886,
+   "name": "v1.0",
+   "baseModel": "Wan Video 2.2 T2V-A14B",
+   "model": {
+    "name": "GingerLabs-Wan2.2-T2V-A14B",
+    "type": "Checkpoint",
+    "nsfw": true,
+    "poi": false
+   },
+   "files": [
+    {
+     "id": 3077945,
+     "name": "gingerlabsWan22T2V_v10_3077945.safetensors",
+     "type": "Model",
+     "metadata": {
+      "format": "SafeTensor",
+      "fp": "fp8"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/3196857?fileId=3077945",
+     "hashes": {
+      "SHA256": "7BB3D9A68481BA085532C5496F707477B097307DF9519CD69E5E376E7D9EF22A"
+     }
+    },
+    {
+     "id": 3077905,
+     "name": "gingerlabsWan22T2V_v10_txt.safetensors",
+     "type": "Text Encoder",
+     "metadata": {
+      "format": "SafeTensor",
+      "fp": "bf16"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/3196857?fileId=3077905",
+     "hashes": {
+      "SHA256": "DAA3CDF38E2DC7CD776548E59D7956DB3A3BC95FECF95F95E6CA2722419EEB66"
+     }
+    },
+    {
+     "id": 3077956,
+     "name": "gingerlabsWan22T2V_v10_3077956.safetensors",
+     "type": "Model",
+     "metadata": {
+      "format": "SafeTensor",
+      "fp": "fp8"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/3196857?fileId=3077956",
+     "hashes": {
+      "SHA256": "6527B2AD7DE561171236E7D6B1F4402BC773E846FA1AEBCBFB06A0C36CB1BEE0"
+     }
+    },
+    {
+     "id": 3077947,
+     "name": "gingerlabsWan22T2V_v10_3077947.gguf",
+     "type": "Model",
+     "metadata": {
+      "format": "GGUF",
+      "quantType": "Q8_0"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/3196857?fileId=3077947",
+     "hashes": {
+      "SHA256": "46AB172108085C8AC16ED781CA7613A98C6D4137557D25B271E2B746955479E7"
+     }
+    },
+    {
+     "id": 3077948,
+     "name": "gingerlabsWan22T2V_v10_3077948.gguf",
+     "type": "Model",
+     "metadata": {
+      "format": "GGUF",
+      "quantType": "Q8_0"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/3196857?fileId=3077948",
+     "hashes": {
+      "SHA256": "0BD43225D437002B256A3BF166796917AA24D5AEA2B1B45624DB8ABF63D54967"
+     }
+    }
+   ]
+  },
+  {
+   "source": "GET /model-versions/3196857",
+   "id": 3196857,
+   "modelId": 2832886,
+   "name": "v1.0",
+   "baseModel": "Wan Video 2.2 T2V-A14B",
+   "model": {
+    "name": "GingerLabs-Wan2.2-T2V-A14B",
+    "type": "Checkpoint",
+    "nsfw": true,
+    "poi": false
+   },
+   "files": [
+    {
+     "id": 3077945,
+     "name": "gingerlabsWan22T2V_v10_3077945.safetensors",
+     "type": "Model",
+     "metadata": {
+      "format": "SafeTensor",
+      "fp": "fp8"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/3196857?fileId=3077945",
+     "hashes": {
+      "SHA256": "7BB3D9A68481BA085532C5496F707477B097307DF9519CD69E5E376E7D9EF22A"
+     }
+    },
+    {
+     "id": 3077905,
+     "name": "gingerlabsWan22T2V_v10_txt.safetensors",
+     "type": "Text Encoder",
+     "metadata": {
+      "format": "SafeTensor",
+      "fp": "bf16"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/3196857?fileId=3077905",
+     "hashes": {
+      "SHA256": "DAA3CDF38E2DC7CD776548E59D7956DB3A3BC95FECF95F95E6CA2722419EEB66"
+     }
+    },
+    {
+     "id": 3077956,
+     "name": "gingerlabsWan22T2V_v10_3077956.safetensors",
+     "type": "Model",
+     "metadata": {
+      "format": "SafeTensor",
+      "fp": "fp8"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/3196857?fileId=3077956",
+     "hashes": {
+      "SHA256": "6527B2AD7DE561171236E7D6B1F4402BC773E846FA1AEBCBFB06A0C36CB1BEE0"
+     }
+    },
+    {
+     "id": 3077947,
+     "name": "gingerlabsWan22T2V_v10_3077947.gguf",
+     "type": "Model",
+     "metadata": {
+      "format": "GGUF"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/3196857?fileId=3077947",
+     "hashes": {
+      "SHA256": "46AB172108085C8AC16ED781CA7613A98C6D4137557D25B271E2B746955479E7"
+     }
+    },
+    {
+     "id": 3077948,
+     "name": "gingerlabsWan22T2V_v10_3077948.gguf",
+     "type": "Model",
+     "metadata": {
+      "format": "GGUF"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/3196857?fileId=3077948",
+     "hashes": {
+      "SHA256": "0BD43225D437002B256A3BF166796917AA24D5AEA2B1B45624DB8ABF63D54967"
+     }
+    }
+   ]
+  },
+  {
+   "source": "GET /models?ids=2832886 (synthetic: quantType stripped from metadata, kept in url)",
+   "id": 93196857,
+   "modelId": 2832886,
+   "name": "v1.0",
+   "baseModel": "Wan Video 2.2 T2V-A14B",
+   "model": {
+    "name": "GingerLabs-Wan2.2-T2V-A14B",
+    "type": "Checkpoint",
+    "nsfw": true,
+    "poi": false
+   },
+   "files": [
+    {
+     "id": 3077945,
+     "name": "gingerlabsWan22T2V_v10_3077945.safetensors",
+     "type": "Model",
+     "metadata": {
+      "format": "SafeTensor",
+      "fp": "fp8"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/3196857?fileId=3077945",
+     "hashes": {
+      "SHA256": "7BB3D9A68481BA085532C5496F707477B097307DF9519CD69E5E376E7D9EF22A"
+     }
+    },
+    {
+     "id": 3077905,
+     "name": "gingerlabsWan22T2V_v10_txt.safetensors",
+     "type": "Text Encoder",
+     "metadata": {
+      "format": "SafeTensor",
+      "fp": "bf16"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/3196857?fileId=3077905",
+     "hashes": {
+      "SHA256": "DAA3CDF38E2DC7CD776548E59D7956DB3A3BC95FECF95F95E6CA2722419EEB66"
+     }
+    },
+    {
+     "id": 3077956,
+     "name": "gingerlabsWan22T2V_v10_3077956.safetensors",
+     "type": "Model",
+     "metadata": {
+      "format": "SafeTensor",
+      "fp": "fp8"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/3196857?fileId=3077956",
+     "hashes": {
+      "SHA256": "6527B2AD7DE561171236E7D6B1F4402BC773E846FA1AEBCBFB06A0C36CB1BEE0"
+     }
+    },
+    {
+     "id": 3077947,
+     "name": "gingerlabsWan22T2V_v10_3077947.gguf",
+     "type": "Model",
+     "metadata": {
+      "format": "GGUF"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/3196857?type=Model&format=GGUF&quantType=Q8_0",
+     "hashes": {
+      "SHA256": "46AB172108085C8AC16ED781CA7613A98C6D4137557D25B271E2B746955479E7"
+     }
+    },
+    {
+     "id": 3077948,
+     "name": "gingerlabsWan22T2V_v10_3077948.gguf",
+     "type": "Model",
+     "metadata": {
+      "format": "GGUF"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/3196857?type=Model&format=GGUF&quantType=Q8_0",
+     "hashes": {
+      "SHA256": "0BD43225D437002B256A3BF166796917AA24D5AEA2B1B45624DB8ABF63D54967"
+     }
+    }
+   ]
+  },
+  {
+   "source": "synthetic",
+   "id": 90000001,
+   "modelId": 9000000,
+   "name": "high noise v1.0",
+   "baseModel": "Wan Video 2.2 I2V-A14B",
+   "model": {
+    "name": "Synthetic Wan",
+    "type": "Checkpoint",
+    "nsfw": false,
+    "poi": false
+   },
+   "files": [
+    {
+     "id": 1,
+     "name": "synthWan_v10_1.safetensors",
+     "type": "Model",
+     "metadata": {
+      "format": "SafeTensor",
+      "fp": "fp8"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/90000001?fileId=1",
+     "hashes": {
+      "SHA256": "A1"
+     }
+    },
+    {
+     "id": 2,
+     "name": "synthWan_v10_2.safetensors",
+     "type": "Model",
+     "metadata": {
+      "format": "SafeTensor",
+      "fp": "bf16"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/90000001?fileId=2",
+     "hashes": {
+      "SHA256": "A2"
+     }
+    },
+    {
+     "id": 3,
+     "name": "synthWan_v10_txt.safetensors",
+     "type": "Text Encoder",
+     "metadata": {
+      "format": "SafeTensor",
+      "fp": "bf16"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/90000001?fileId=3",
+     "hashes": {
+      "SHA256": "A3"
+     }
+    }
+   ]
+  },
+  {
+   "source": "synthetic",
+   "id": 90000002,
+   "modelId": 9000001,
+   "name": "uncond fp8",
+   "baseModel": "Other",
+   "model": {
+    "name": "Ideogram 4 Unofficial",
+    "type": "Checkpoint",
+    "nsfw": false,
+    "poi": false
+   },
+   "files": [
+    {
+     "id": 11,
+     "name": "ideoUnofficial_fp8.safetensors",
+     "type": "Model",
+     "metadata": {
+      "format": "SafeTensor",
+      "fp": "fp8"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/90000002?fileId=11",
+     "hashes": {
+      "SHA256": "B1"
+     }
+    }
+   ]
+  },
+  {
+   "source": "synthetic",
+   "id": 90000003,
+   "modelId": 9000002,
+   "name": "v1.0",
+   "baseModel": "SDXL 1.0",
+   "model": {
+    "name": "Collide",
+    "type": "Checkpoint",
+    "nsfw": false,
+    "poi": false
+   },
+   "files": [
+    {
+     "id": 21,
+     "name": "collide.safetensors",
+     "type": "Model",
+     "metadata": {
+      "format": "SafeTensor",
+      "fp": "fp16",
+      "size": "full"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/90000003?fileId=21",
+     "hashes": {
+      "SHA256": "C1"
+     }
+    },
+    {
+     "id": 22,
+     "name": "collide.safetensors",
+     "type": "Pruned Model",
+     "metadata": {
+      "format": "SafeTensor",
+      "fp": "fp16",
+      "size": "pruned"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/90000003?fileId=22",
+     "hashes": {
+      "SHA256": "C2"
+     }
+    },
+    {
+     "id": 23,
+     "name": "collide.safetensors",
+     "type": "Model",
+     "metadata": {
+      "format": "SafeTensor",
+      "fp": "fp16",
+      "size": "pruned"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/90000003?fileId=23",
+     "hashes": {
+      "SHA256": "C3"
+     }
+    },
+    {
+     "id": 24,
+     "name": "collide.safetensors",
+     "type": "Model",
+     "metadata": {
+      "format": "SafeTensor",
+      "fp": "bf16"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/90000003?fileId=24",
+     "hashes": {
+      "SHA256": "C4"
+     }
+    },
+    {
+     "id": 25,
+     "name": "collide.vae.safetensors",
+     "type": "VAE",
+     "metadata": {
+      "format": "SafeTensor"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/90000003?fileId=25",
+     "hashes": {
+      "SHA256": "C5"
+     }
+    },
+    {
+     "id": 26,
+     "name": "collide.vae.safetensors",
+     "type": "VAE",
+     "metadata": {
+      "format": "SafeTensor"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/90000003?fileId=26",
+     "hashes": {
+      "SHA256": "C6"
+     }
+    },
+    {
+     "id": 27,
+     "name": "noext",
+     "type": "Config",
+     "metadata": {
+      "format": "Other",
+      "fp": "fp16"
+     },
+     "downloadUrl": "https://civitai.com/api/download/models/90000003?fileId=27",
+     "hashes": {
+      "SHA256": "C7"
+     }
+    }
+   ]
+  }
+ ],
+ "peeks": {
+  "3246005": {
+   "metadata": null,
+   "probe": {
+    "ok": true,
+    "dominant_dtype": "F8_E4M3"
+   }
+  },
+  "2884783": {
+   "metadata": {
+    "model_type": "ideogram4_cond"
+   },
+   "probe": {
+    "ok": true,
+    "dominant_dtype": "F8_E4M3"
+   }
+  },
+  "2884823": {
+   "metadata": {
+    "model_type": "ideogram4_uncond"
+   },
+   "probe": {
+    "ok": true,
+    "dominant_dtype": "F8_E4M3"
+   }
+  },
+  "3169009": {
+   "metadata": null,
+   "probe": {
+    "ok": true,
+    "dominant_dtype": "F8_E4M3"
+   }
+  },
+  "2888419": {
+   "metadata": {
+    "_quantization_metadata": "{\"format_version\": \"1.0\", \"layers\": {\"blocks.0.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.0.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.0.cross_attn.v\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.0.ffn.0\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.0.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.0.self_attn.k\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.0.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.0.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.0.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.1.cross_attn.k\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.1.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.1.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.1.cross_attn.v\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.1.ffn.0\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.1.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.1.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.1.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.1.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.10.cross_attn.k\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.10.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.10.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.10.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.10.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.10.self_attn.k\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.10.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.10.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.10.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.11.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.11.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.11.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.11.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.11.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.11.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.11.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.11.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.12.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.12.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.12.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.12.ffn.0\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.12.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.12.self_attn.k\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.12.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.12.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.12.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.13.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.13.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.13.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.13.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.13.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.13.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.13.self_attn.k\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.13.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.13.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.13.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.14.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.14.cross_attn.o\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.14.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.14.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.14.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.14.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.14.self_attn.k\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.14.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.14.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.15.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.15.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.15.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.15.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.15.ffn.0\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.15.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.15.self_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.15.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.15.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.15.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.16.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.16.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.16.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.16.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.16.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.16.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.16.self_attn.k\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.16.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.16.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.17.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.17.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.17.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.17.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.17.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.17.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.17.self_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.17.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.17.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.18.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.18.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.18.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.18.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.18.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.18.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.18.self_attn.k\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.18.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.18.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.18.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.19.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.19.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.19.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.19.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.19.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.19.self_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.19.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.19.self_attn.q\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.19.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.2.cross_attn.k\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.2.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.2.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.2.cross_attn.v\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.2.ffn.0\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.2.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.2.self_attn.k\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.2.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.2.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.2.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.20.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.20.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.20.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.20.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.20.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.20.self_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.20.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.20.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.20.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.21.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.21.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.21.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.21.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.21.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.21.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.21.self_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.21.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.21.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.21.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.22.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.22.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.22.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.22.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.22.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.22.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.22.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.22.self_attn.q\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.22.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.23.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.23.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.23.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.23.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.23.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.23.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.23.self_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.23.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.23.self_attn.q\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.23.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.24.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.24.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.24.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.24.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.24.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.24.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.24.self_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.24.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.24.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.24.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.25.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.25.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.25.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.25.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.25.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.25.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.25.self_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.25.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.25.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.25.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.26.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.26.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.26.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.26.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.26.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.26.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.26.self_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.26.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.26.self_attn.q\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.26.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.27.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.27.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.27.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.27.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.27.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.27.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.27.self_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.27.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.27.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.27.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.28.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.28.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.28.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.28.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.28.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.28.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.28.self_attn.k\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.28.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.28.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.28.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.29.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.29.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.29.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.29.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.29.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.29.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.29.self_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.29.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.29.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.29.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.3.cross_attn.k\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.3.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.3.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.3.cross_attn.v\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.3.ffn.0\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.3.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.3.self_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.3.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.3.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.3.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.30.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.30.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.30.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.30.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.30.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.30.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.30.self_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.30.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.30.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.30.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.31.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.31.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.31.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.31.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.31.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.31.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.31.self_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.31.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.31.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.31.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.32.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.32.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.32.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.32.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.32.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.32.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.32.self_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.32.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.32.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.32.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.33.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.33.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.33.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.33.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.33.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.33.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.33.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.33.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.33.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.34.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.34.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.34.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.34.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.34.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.34.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.34.self_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.34.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.34.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.34.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.35.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.35.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.35.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.35.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.35.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.35.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.35.self_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.35.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.35.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.35.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.36.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.36.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.36.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.36.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.36.ffn.0\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.36.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.36.self_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.36.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.36.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.36.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.37.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.37.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.37.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.37.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.37.ffn.0\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.37.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.37.self_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.37.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.37.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.37.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.38.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.38.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.38.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.38.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.38.ffn.0\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.38.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.38.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.38.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.38.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.39.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.39.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.39.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.39.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.39.ffn.0\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.39.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.39.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.39.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.39.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.4.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.4.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.4.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.4.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.4.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.4.self_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.4.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.4.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.4.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.5.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.5.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.5.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.5.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.5.self_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.5.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.5.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.5.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.6.cross_attn.k\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.6.cross_attn.o\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.6.cross_attn.q\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.6.cross_attn.v\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.6.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.6.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.6.self_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.6.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.6.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.6.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.7.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.7.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.7.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.7.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.7.self_attn.k\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.7.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.7.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.7.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.8.cross_attn.k\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.8.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.8.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.8.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.8.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.8.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.8.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.8.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.8.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.9.cross_attn.k\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.9.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.9.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.9.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.9.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.9.self_attn.k\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.9.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.9.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.9.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}}}"
+   },
+   "probe": {
+    "ok": true,
+    "dominant_dtype": "U8"
+   }
+  },
+  "2888503": {
+   "metadata": {
+    "_quantization_metadata": "{\"format_version\": \"1.0\", \"layers\": {\"blocks.0.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.0.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.0.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.0.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.0.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.0.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.0.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.1.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.1.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.1.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.1.cross_attn.v\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.1.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.1.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.1.self_attn.k\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.1.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.1.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.1.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.10.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.10.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.10.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.10.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.10.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.10.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.10.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.10.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.11.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.11.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.11.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.11.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.11.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.11.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.11.self_attn.q\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.11.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.12.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.12.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.12.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.12.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.12.self_attn.k\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.12.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.12.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.12.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.13.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.13.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.13.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.13.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.13.ffn.0\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.13.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.13.self_attn.k\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.13.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.13.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.13.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.14.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.14.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.14.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.14.ffn.0\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.14.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.14.self_attn.k\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.14.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.14.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.15.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.15.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.15.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.15.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.15.ffn.0\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.15.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.15.self_attn.k\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.15.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.15.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.15.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.16.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.16.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.16.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.16.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.16.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.16.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.16.self_attn.k\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.16.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.16.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.17.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.17.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.17.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.17.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.17.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.17.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.17.self_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.17.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.17.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.18.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.18.cross_attn.o\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.18.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.18.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.18.ffn.0\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.18.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.18.self_attn.k\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.18.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.18.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.18.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.19.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.19.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.19.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.19.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.19.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.19.self_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.19.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.19.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.2.cross_attn.k\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.2.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.2.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.2.cross_attn.v\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.2.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.2.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.2.self_attn.k\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.2.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.2.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.2.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.20.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.20.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.20.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.20.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.20.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.20.self_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.20.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.20.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.20.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.21.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.21.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.21.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.21.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.21.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.21.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.21.self_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.21.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.21.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.21.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.22.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.22.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.22.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.22.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.22.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.22.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.22.self_attn.k\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.22.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.22.self_attn.q\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.22.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.23.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.23.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.23.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.23.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.23.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.23.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.23.self_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.23.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.23.self_attn.q\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.23.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.24.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.24.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.24.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.24.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.24.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.24.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.24.self_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.24.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.24.self_attn.q\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.24.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.25.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.25.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.25.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.25.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.25.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.25.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.25.self_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.25.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.25.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.25.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.26.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.26.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.26.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.26.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.26.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.26.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.26.self_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.26.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.26.self_attn.q\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.26.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.27.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.27.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.27.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.27.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.27.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.27.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.27.self_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.27.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.27.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.27.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.28.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.28.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.28.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.28.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.28.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.28.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.28.self_attn.k\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.28.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.28.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.28.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.29.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.29.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.29.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.29.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.29.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.29.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.29.self_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.29.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.29.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.29.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.3.cross_attn.k\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.3.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.3.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.3.cross_attn.v\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.3.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.3.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.3.self_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.3.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.3.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.3.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.30.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.30.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.30.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.30.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.30.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.30.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.30.self_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.30.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.30.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.30.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.31.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.31.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.31.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.31.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.31.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.31.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.31.self_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.31.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.31.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.31.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.32.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.32.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.32.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.32.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.32.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.32.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.32.self_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.32.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.32.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.32.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.33.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.33.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.33.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.33.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.33.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.33.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.33.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.33.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.33.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.34.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.34.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.34.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.34.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.34.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.34.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.34.self_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.34.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.34.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.34.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.35.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.35.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.35.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.35.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.35.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.35.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.35.self_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.35.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.35.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.35.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.36.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.36.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.36.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.36.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.36.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.36.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.36.self_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.36.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.36.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.36.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.37.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.37.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.37.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.37.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.37.ffn.0\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.37.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.37.self_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.37.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.37.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.37.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.38.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.38.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.38.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.38.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.38.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.38.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.38.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.38.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.39.cross_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.39.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.39.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.39.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.39.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.39.self_attn.k\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.39.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.39.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.39.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.4.cross_attn.k\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.4.cross_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.4.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.4.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.4.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.4.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.4.self_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.4.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.4.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.4.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.5.cross_attn.k\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.5.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.5.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.5.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.5.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.5.self_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.5.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.5.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.5.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.6.cross_attn.k\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.6.cross_attn.q\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.6.cross_attn.v\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.6.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.6.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.6.self_attn.k\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.6.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.6.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.6.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.7.cross_attn.k\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.7.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.7.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.7.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.7.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.7.self_attn.k\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.7.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.7.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.7.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.8.cross_attn.k\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.8.cross_attn.o\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.8.cross_attn.q\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.8.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.8.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.8.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.8.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.8.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.8.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.9.cross_attn.k\": {\"format\": \"mxfp8\", \"group_size\": 32}, \"blocks.9.cross_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.9.cross_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.9.ffn.0\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.9.ffn.2\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.9.self_attn.o\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.9.self_attn.q\": {\"format\": \"nvfp4\", \"group_size\": 16}, \"blocks.9.self_attn.v\": {\"format\": \"nvfp4\", \"group_size\": 16}}}"
+   },
+   "probe": {
+    "ok": true,
+    "dominant_dtype": "U8"
+   }
+  },
+  "2949563": {
+   "metadata": {},
+   "probe": {
+    "ok": true,
+    "dominant_dtype": "I8"
+   }
+  },
+  "3246945": {
+   "metadata": null,
+   "error": "HTTP 401"
+  },
+  "1": {
+   "metadata": {
+    "modelspec.title": "Synthetic Wan low noise expert"
+   },
+   "probe": {
+    "ok": true,
+    "dominant_dtype": "F8_E5M2"
+   }
+  },
+  "11": {
+   "metadata": null,
+   "probe": {
+    "ok": false,
+    "dominant_dtype": null
+   }
+  }
+ },
+ "expected": {
+  "precision_on": {
+   "3003586": {
+    "2949563": "ideogram4INT8_ideogram4UncondINT8-int8.safetensors"
+   },
+   "3005491": {
+    "2884783": "ideogram4_fp8Scaled-fp8_e4m3fn.safetensors"
+   },
+   "3005513": {
+    "2884823": "ideogram4_fp8Uncond-fp8_e4m3fn-uncond.safetensors"
+   },
+   "3009287": {
+    "2888419": "wan22I2VA14BMoeDistill_i2vHigh-nf4.safetensors"
+   },
+   "3009384": {
+    "2888503": "wan22I2VA14BMoeDistill_i2vLow-nf4.safetensors"
+   },
+   "3025163": {
+    "2903936": "log.txt",
+    "2903951": "1nnie3.safetensors"
+   },
+   "3140650": {
+    "3020814": "krea2_anime2real-pre-bf16.safetensors"
+   },
+   "3196857": {
+    "3077905": "gingerlabsWan22T2V_v10_txt-bf16.safetensors",
+    "3077945": "gingerlabsWan22T2V_v10_3077945-fp8.safetensors",
+    "3077947": "gingerlabsWan22T2V_v10_3077947.gguf",
+    "3077948": "gingerlabsWan22T2V_v10_3077948.gguf",
+    "3077956": "gingerlabsWan22T2V_v10_3077956-fp8.safetensors"
+   },
+   "3246186": {
+    "3128937": "ideogram4_3128937-fp32.safetensors",
+    "3128943": "ideogram4_txt_3128943-fp8.safetensors",
+    "3128946": "ideogram4_txt_3128946-fp8.safetensors",
+    "3128958": "ideogram4_3128958-fp8.safetensors",
+    "3128969": "ideogram4_3128969-int8.safetensors",
+    "3128980": "ideogram4_3128980-nvfp4.safetensors",
+    "3129012": "ideogram4_3129012-fp8.safetensors",
+    "3129014": "ideogram4_3129014-nvfp4.safetensors",
+    "3129032": "ideogram4_3129032-int8.safetensors"
+   },
+   "3357716": {
+    "3245419": "krea2Anime_v20_3245419-int4.safetensors",
+    "3245462": "krea2Anime_v20_3245462-int8.safetensors",
+    "3246005": "krea2Anime_v20_3246005-fp8_e4m3fn.safetensors",
+    "3246945": "krea2Anime_v20_3246945-bf16.safetensors"
+   },
+   "83196857": {
+    "3077905": "gingerlabsWan22T2V_v10_txt-bf16.safetensors",
+    "3077945": "gingerlabsWan22T2V_v10_3077945-fp8.safetensors",
+    "3077947": "gingerlabsWan22T2V_v10_3077947-Q8_0.gguf",
+    "3077948": "gingerlabsWan22T2V_v10_3077948-Q8_0.gguf",
+    "3077956": "gingerlabsWan22T2V_v10_3077956-fp8.safetensors"
+   },
+   "90000001": {
+    "1": "synthWan_v10_1-fp8_e5m2-low-noise.safetensors",
+    "2": "synthWan_v10_2-bf16-high-noise.safetensors",
+    "3": "synthWan_v10_txt-bf16-high-noise.safetensors"
+   },
+   "90000002": {
+    "11": "ideoUnofficial_fp8-fp8-uncond.safetensors"
+   },
+   "90000003": {
+    "21": "collide-fp16-full.safetensors",
+    "22": "collide-fp16-22.safetensors",
+    "23": "collide-fp16-23.safetensors",
+    "24": "collide-bf16.safetensors",
+    "25": "collide.vae-25.safetensors",
+    "26": "collide.vae-26.safetensors",
+    "27": "noext-fp16"
+   },
+   "93196857": {
+    "3077905": "gingerlabsWan22T2V_v10_txt-bf16.safetensors",
+    "3077945": "gingerlabsWan22T2V_v10_3077945-fp8.safetensors",
+    "3077947": "gingerlabsWan22T2V_v10_3077947-Q8_0.gguf",
+    "3077948": "gingerlabsWan22T2V_v10_3077948-Q8_0.gguf",
+    "3077956": "gingerlabsWan22T2V_v10_3077956-fp8.safetensors"
+   }
+  },
+  "precision_off": {
+   "3357716": {
+    "3246005": "krea2Anime_v20_3246005.safetensors",
+    "3246945": "krea2Anime_v20_3246945.safetensors",
+    "3245419": "krea2Anime_v20_3245419.safetensors",
+    "3245462": "krea2Anime_v20_3245462.safetensors"
+   },
+   "3140650": {
+    "3020814": "krea2_anime2real-pre.safetensors"
+   },
+   "3009287": {
+    "2888419": "wan22I2VA14BMoeDistill_i2vHigh.safetensors"
+   },
+   "3009384": {
+    "2888503": "wan22I2VA14BMoeDistill_i2vLow.safetensors"
+   },
+   "3005491": {
+    "2884783": "ideogram4_fp8Scaled.safetensors"
+   },
+   "3005513": {
+    "2884823": "ideogram4_fp8Uncond-uncond.safetensors"
+   },
+   "3003586": {
+    "2949563": "ideogram4INT8_ideogram4UncondINT8.safetensors"
+   },
+   "3246186": {
+    "3128946": "ideogram4_txt_3128946.safetensors",
+    "3128958": "ideogram4_3128958.safetensors",
+    "3128937": "ideogram4_3128937.safetensors",
+    "3128943": "ideogram4_txt_3128943.safetensors",
+    "3128969": "ideogram4_3128969.safetensors",
+    "3128980": "ideogram4_3128980.safetensors",
+    "3129012": "ideogram4_3129012.safetensors",
+    "3129014": "ideogram4_3129014.safetensors",
+    "3129032": "ideogram4_3129032.safetensors"
+   },
+   "3025163": {
+    "2903951": "1nnie3.safetensors",
+    "2903936": "log.txt"
+   },
+   "83196857": {
+    "3077945": "gingerlabsWan22T2V_v10_3077945.safetensors",
+    "3077905": "gingerlabsWan22T2V_v10_txt.safetensors",
+    "3077956": "gingerlabsWan22T2V_v10_3077956.safetensors",
+    "3077947": "gingerlabsWan22T2V_v10_3077947.gguf",
+    "3077948": "gingerlabsWan22T2V_v10_3077948.gguf"
+   },
+   "3196857": {
+    "3077945": "gingerlabsWan22T2V_v10_3077945.safetensors",
+    "3077905": "gingerlabsWan22T2V_v10_txt.safetensors",
+    "3077956": "gingerlabsWan22T2V_v10_3077956.safetensors",
+    "3077947": "gingerlabsWan22T2V_v10_3077947.gguf",
+    "3077948": "gingerlabsWan22T2V_v10_3077948.gguf"
+   },
+   "93196857": {
+    "3077945": "gingerlabsWan22T2V_v10_3077945.safetensors",
+    "3077905": "gingerlabsWan22T2V_v10_txt.safetensors",
+    "3077956": "gingerlabsWan22T2V_v10_3077956.safetensors",
+    "3077947": "gingerlabsWan22T2V_v10_3077947.gguf",
+    "3077948": "gingerlabsWan22T2V_v10_3077948.gguf"
+   },
+   "90000001": {
+    "1": "synthWan_v10_1-low-noise.safetensors",
+    "2": "synthWan_v10_2-high-noise.safetensors",
+    "3": "synthWan_v10_txt-high-noise.safetensors"
+   },
+   "90000002": {
+    "11": "ideoUnofficial_fp8-uncond.safetensors"
+   },
+   "90000003": {
+    "21": "collide-fp16-full.safetensors",
+    "22": "collide-22.safetensors",
+    "23": "collide-23.safetensors",
+    "24": "collide-bf16.safetensors",
+    "25": "collide.vae-25.safetensors",
+    "26": "collide.vae-26.safetensors",
+    "27": "noext"
+   }
+  }
+ }
+}

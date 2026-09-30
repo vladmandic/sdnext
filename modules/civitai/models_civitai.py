@@ -62,11 +62,22 @@ class CivitStats(BaseModel):
     tipped_amount_count: int | None = Field(0, alias="tippedAmountCount")
 
 
+class CivitVersionModel(BaseModel):
+    # parent model summary carried by /model-versions/{id}
+    class Config:
+        allow_population_by_field_name = True
+    name: str = ""
+    type: str = "Checkpoint"
+    nsfw: bool = False
+    poi: bool = False
+
+
 class CivitVersion(BaseModel):
     class Config:
         allow_population_by_field_name = True
     id: int = 0
     model_id: int = Field(0, alias="modelId")
+    model: CivitVersionModel | None = None
     name: str = "Unknown"
     base_model: str = Field("Unknown", alias="baseModel")
     published_at: str | None = Field(None, alias="publishedAt")

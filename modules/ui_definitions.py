@@ -709,6 +709,7 @@ def create_settings(cmd_opts):
         "civitai_save_subfolder_enabled": OptionInfo(False, 'CivitAI save to subfolders', gr.Checkbox, {"visible": False}),
         "civitai_save_subfolder": OptionInfo('{{BASEMODEL}}', 'CivitAI subfolder template', gr.Textbox, {"visible": False}),
         "civitai_discard_hash_mismatch": OptionInfo(True, 'CivitAI discard downloads with hash mismatch', gr.Checkbox, {"visible": False}),
+        "civitai_save_precision": OptionInfo(True, 'CivitAI add precision to file names', gr.Checkbox),
     }))
 
     # --- Extra Networks ---
