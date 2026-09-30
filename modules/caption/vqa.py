@@ -144,6 +144,12 @@ def is_thinking_model(model_name: str) -> bool:
     return any(indicator in model_lower for indicator in thinking_indicators)
 
 
+def uses_qwen_handler(repo: str) -> bool:
+    """Check if the repo is dispatched to the Qwen VL handler."""
+    repo_lower = repo.lower()
+    return 'qwen' in repo_lower or 'torii' in repo_lower or 'mimo' in repo_lower
+
+
 def check_linear_attention(model):
     """Warn when a hybrid linear-attention model lacks its kernels and falls back to a per-token torch loop."""
     model_type = getattr(getattr(model, 'config', None), 'model_type', '') or ''
@@ -424,7 +430,7 @@ class VQA:
             repo_lower = repo.lower()
             if 'mistral' in repo_lower:
                 self._load_mistral(repo)
-            elif 'qwen' in repo_lower or 'torii' in repo_lower or 'mimo' in repo_lower:
+            elif uses_qwen_handler(repo):
                 self._load_qwen(repo)
             elif 'gemma' in repo_lower and 'pali' not in repo_lower:
                 self._load_gemma(repo)
@@ -1477,11 +1483,8 @@ class VQA:
             image = image[0] if len(image) > 0 else None
         if isinstance(image, dict) and 'name' in image:
             image = Image.open(image['name'])
-        if isinstance(image, Image.Image):
-            if image.width > 768 or image.height > 768:
-                image.thumbnail((768, 768), Image.Resampling.LANCZOS)
-            if image.mode != 'RGB':
-                image = image.convert('RGB')
+        if isinstance(image, Image.Image) and image.mode != 'RGB':
+            image = image.convert('RGB')
         if image is None:
             log.error(f'LLM: model="{model_name}" error="No input image provided"')
             self._generation_overrides = None
@@ -1520,6 +1523,8 @@ class VQA:
             log.error(f'LLM: type=vlm model="{model_name}" unknown')
             shared.state.end(jobid)
             return f'Error: Unknown model "{model_name}".'
+        if isinstance(image, Image.Image) and not uses_qwen_handler(vqa_model) and (image.width > 768 or image.height > 768):  # Qwen processors resize to their own max_pixels budget
+            image.thumbnail((768, 768), Image.Resampling.LANCZOS)
         if self.model is None or self.loaded != vqa_model:
             from modules import modelloader
             modelloader.hf_login()
@@ -1560,7 +1565,7 @@ class VQA:
             elif 'mistral' in vqa_model.lower():
                 handler = 'mistral'
                 answer = self._mistral(question, image, vqa_model, system_prompt, model_name, prefill, thinking_mode)
-            elif 'qwen' in vqa_model.lower() or 'torii' in vqa_model.lower() or 'mimo' in vqa_model.lower():
+            elif uses_qwen_handler(vqa_model):
                 handler = 'qwen'
                 answer = self._qwen(question, image, vqa_model, system_prompt, model_name, prefill, thinking_mode)
             elif 'smol' in vqa_model.lower():
