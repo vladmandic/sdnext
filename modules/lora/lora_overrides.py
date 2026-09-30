@@ -38,6 +38,7 @@ allow_native = [
     'ernieimage',
     'krea2',
     'minimaxh3',
+    'qwen21',
 ]
 
 
