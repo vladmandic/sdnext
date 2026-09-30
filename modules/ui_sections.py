@@ -355,6 +355,8 @@ def create_sampler_options(tabname):
     sampler_prediction.change(fn=set_sampler_prediction, inputs=[sampler_prediction], outputs=[])
     sampler_order.change(fn=set_sampler_order, inputs=[sampler_order], outputs=[])
     sampler_shift.change(fn=set_sampler_shift, inputs=[sampler_shift, sampler_base_shift, sampler_max_shift], outputs=[])
+    sampler_base_shift.change(fn=set_sampler_shift, inputs=[sampler_shift, sampler_base_shift, sampler_max_shift], outputs=[])
+    sampler_max_shift.change(fn=set_sampler_shift, inputs=[sampler_shift, sampler_base_shift, sampler_max_shift], outputs=[])
     sampler_options.change(fn=set_sampler_options, inputs=[sampler_options], outputs=[])
     sampler_fallback.change(fn=set_sampler_fallback, inputs=[sampler_fallback], outputs=[])
     sampler_sigma_adjust_val.change(fn=set_sigma_adjust, inputs=[sampler_sigma_adjust_val, sampler_sigma_adjust_min, sampler_sigma_adjust_max], outputs=[])

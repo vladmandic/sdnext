@@ -552,9 +552,13 @@ class DiffusionSampler:
         # validate all config params
         signature = inspect.signature(constructor, follow_wrapped=True)
         possible = signature.parameters.keys()
+        for key in possible:
+            if (key in orig_config.keys()) and (key not in self.config.keys()): # add all defaults from original default sampler
+                self.config[key] = orig_config[key]
         for key in self.config.copy().keys():
             if key not in possible:
                 del self.config[key]
+        self.config['shift_terminal'] = 0.0
         debug_log(f'Sampler: name="{name}"')
         debug_log(f'Sampler: config={self.config}')
         debug_log(f'Sampler: signature={possible}')

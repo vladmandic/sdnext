@@ -94,6 +94,7 @@ Plus quite a few other improvements and inevitable bug-fixes, see full changelog
   - pixelsmith: vae tiling, thanks @li-lizhe  
   - preview: remove flicker when finishing generation
   - prompt cache: bypass when condition images are encoded
+  - sampler: when creating sampler, copy all valid options from default sampler
   - seedvr: handle temporal overap
   - styles: fix infotext parsing, thanks @obelisk-complex
   - temp file: gradio temp file error handling

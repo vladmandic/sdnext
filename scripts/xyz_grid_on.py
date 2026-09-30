@@ -112,6 +112,8 @@ class XYZGridScript(scripts_manager.Script):
         fill_z_button.click(fn=fill, inputs=[z_type, csv_mode], outputs=[z_values, z_values_dropdown])
 
         def select_axis(axis_type, axis_values, axis_values_dropdown, csv_mode):
+            if axis_type is None:
+                return gr.update(), gr.update(), gr.update()
             choices = self.current_axis_options[axis_type].choices
             has_choices = choices is not None
             current_values = axis_values
@@ -125,7 +127,8 @@ class XYZGridScript(scripts_manager.Script):
                     current_dropdown_values = [restore_comma(x.strip()) for x in re_plain_comma.split(axis_values) if x]
                     current_dropdown_values = list(filter(lambda x: x in choices, current_dropdown_values))
 
-            return (gr.Button.update(visible=has_choices), gr.Textbox.update(visible=not has_choices or csv_mode, value=current_values),
+            return (gr.Button.update(visible=has_choices),
+                    gr.Textbox.update(visible=not has_choices or csv_mode, value=current_values),
                     gr.update(choices=choices if has_choices else None, visible=has_choices and not csv_mode, value=current_dropdown_values))
 
         x_type.change(fn=select_axis, inputs=[x_type, x_values, x_values_dropdown, csv_mode], outputs=[fill_x_button, x_values, x_values_dropdown])
