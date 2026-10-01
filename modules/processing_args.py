@@ -158,7 +158,7 @@ def task_specific_kwargs(p, model):
     if (model_cls in can_i2i) and (len(getattr(p, 'init_images', [])) > 0):
         task_args['image'] = p.init_images
     if (sd_models.get_max_condition_images(model) > 0) and (len(getattr(p, 'init_images', [])) > 0): # otherwise set_pipeline_args sizes the call from the first condition image
-        task_args['width'], task_args['height'] = p.width, p.height
+        task_args['width'], task_args['height'] = width, height
 
     if ('QwenImageLayeredPipeline' in model_cls) and (task_args.get('image', None) is not None):
         image_items = task_args['image']
