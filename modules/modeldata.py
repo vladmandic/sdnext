@@ -91,7 +91,7 @@ def get_model_type(pipe):
         model_type = 'pixartsigma'
     elif "PixArtAlpha" in name:
         model_type = 'pixartalpha'
-    elif 'FIBO' in name:
+    elif 'Fibo' in name or 'FIBO' in name:
         model_type = 'fibo'
     elif "Bria" in name:
         model_type = 'bria'
@@ -145,6 +145,8 @@ def get_model_type(pipe):
         model_type = 'sefi'
     elif 'Mage-Flow' in name:
         model_type = 'mageflow'
+    elif 'ObjectClear' in name:
+        model_type = 'sdxl'
     # video models
     elif "Kandinsky5" in name and '2V' in name:
         model_type = 'kandinsky5video'

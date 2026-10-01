@@ -207,7 +207,10 @@ def get_me(token: str | None = None):
 # ---------------------------------------------------------------------------
 
 def post_download(request: dict):
-    """Queue a download. Returns the download item with its ID."""
+    """Queue a download. Returns the download item with its ID.
+
+    Callers send either url + filename, or version_id + file_id, in which case
+    the server resolves the url, save name, hash and companion type itself."""
     from modules.civitai.download_civitai import download_manager
     url = request.get('url', '')
     filename = request.get('filename', '')
@@ -222,8 +225,23 @@ def post_download(request: dict):
     version_id = request.get('version_id', 0)
     version_name = request.get('version_name', '')
     nsfw = request.get('nsfw', False)
+    file_id = request.get('file_id', 0)
+    if not url and version_id and file_id:
+        from modules.civitai.names_civitai import resolve_file
+        resolved, error, status = resolve_file(int(version_id), int(file_id), token=token)
+        if resolved is None:
+            return JSONResponse(content={"error": error}, status_code=status)
+        url = resolved['url']
+        filename = filename or resolved['filename']
+        expected_hash = expected_hash or resolved['expected_hash']
+        model_type = request.get('model_type') or resolved['model_type']
+        model_name = model_name or resolved['model_name']
+        base_model = base_model or resolved['base_model']
+        model_id = model_id or resolved['model_id']
+        version_name = version_name or resolved['version_name']
+        nsfw = nsfw or resolved['nsfw']
     if not url:
-        return JSONResponse(content={"error": "url is required"}, status_code=400)
+        return JSONResponse(content={"error": "url, or version_id and file_id, is required"}, status_code=400)
     if not folder:
         from modules.civitai.filemanage_civitai import resolve_save_path
         folder = str(resolve_save_path(
@@ -266,93 +284,29 @@ def get_download_status():
     return download_manager.status()
 
 
-peek_cache = None
-
-
-def peek_cache_get(file_id: int, url: str):
-    """Persistent probe cache keyed by civitai file id; content per id is
-    immutable, so entries never expire. A url hash guards against id reuse."""
-    global peek_cache  # pylint: disable=global-statement
-    import hashlib
-    from modules import paths
-    from modules.json_helpers import readfile
-    if peek_cache is None:
-        peek_cache = readfile(paths.civitai_probe_file, silent=True, lock=True, as_type='dict')
-    entry = peek_cache.get(str(file_id))
-    if entry and entry.get('url_hash') == hashlib.sha256(url.encode('utf-8')).hexdigest()[:16]:
-        return entry.get('response')
-    return None
-
-
-def peek_cache_put(file_id: int, url: str, response: dict):
-    import hashlib
-    from modules import paths
-    from modules.json_helpers import writefile
-    peek_cache[str(file_id)] = {
-        'url_hash': hashlib.sha256(url.encode('utf-8')).hexdigest()[:16],
-        'response': response,
-    }
-    writefile(peek_cache, paths.civitai_probe_file, silent=True, atomic=True)
-
-
 def get_peek_header(url: str, file_id: int = 0):
     """Read a remote safetensors JSON header via ranged requests. Returns the
     __metadata__ block plus a full model_probe analysis (architecture,
     dtypes, quant scheme) without downloading the file."""
-    import json
-    import struct
-    from modules import shared
-    # civitai.red serves the same download service and rewrites downloadUrl to
-    # its own host; normalize so the guard, cache hash and fetch host agree.
-    url = url.replace('https://civitai.red/', 'https://civitai.com/', 1)
-    if not url.startswith('https://civitai.com/'):
-        return JSONResponse(content={"error": "only civitai urls are allowed"}, status_code=400)
-    if file_id:
-        cached = peek_cache_get(file_id, url)
-        if cached is not None:
-            return cached
-    base_headers = {}
-    token = getattr(shared.opts, 'civitai_token', '') or ''
-    if token:
-        base_headers['Authorization'] = f'Bearer {token}'
-
-    def read_range(start: int, end: int) -> bytes:
-        r = shared.req(url, headers={**base_headers, 'Range': f'bytes={start}-{end}'}, stream=True)
-        status = getattr(r, 'status_code', 500)
-        if status not in (200, 206):
-            raise RuntimeError(f'HTTP {status}')
-        want = end - start + 1
-        # A 200 reply means the server ignored the range and sends from byte 0.
-        need = end + 1 if status == 200 else want
-        buf = b''
-        try:
-            for chunk in r.iter_content(chunk_size=65536):
-                buf += chunk
-                if len(buf) >= need:
-                    break
-        finally:
-            r.close()
-        return buf[start:start + want] if status == 200 else buf[:want]
-
+    from modules.civitai.peek_civitai import peek_header
     try:
-        prefix = read_range(0, 7)
-        if len(prefix) < 8:
-            return {"metadata": None, "error": "short read"}
-        header_len = struct.unpack('<Q', prefix)[0]
-        if header_len <= 0 or header_len > 16 * 1024 * 1024:
-            return {"metadata": None, "error": f"implausible header length: {header_len}"}
-        header = json.loads(read_range(8, 7 + header_len).decode('utf-8'))
-    except Exception as e:
-        return {"metadata": None, "error": str(e)}
-    from modules import model_probe
-    response = {
-        "metadata": header.get('__metadata__'),
-        "tensors": len([k for k in header if k != '__metadata__']),
-        "probe": model_probe.analyze_header(header),
+        return peek_header(url, file_id)
+    except ValueError as e:
+        return JSONResponse(content={"error": str(e)}, status_code=400)
+
+
+def get_version_names(version_id: int, token: str | None = None):
+    """Save names for every file of a version, as the download route would choose them."""
+    from modules.civitai.names_civitai import fetch_version, version_context, version_names, precision_enabled
+    version, error, status = fetch_version(version_id, token=token)
+    if version is None:
+        return JSONResponse(content={"error": error}, status_code=status)
+    precision = precision_enabled()
+    return {
+        "version_id": version.id,
+        "precision": precision,
+        "files": version_names(version, version_context(version), precision),
     }
-    if file_id:
-        peek_cache_put(file_id, url, response)
-    return response
 
 
 # ---------------------------------------------------------------------------
@@ -368,6 +322,7 @@ def get_settings():
         "save_subfolder": getattr(shared.opts, 'civitai_save_subfolder', '{{BASEMODEL}}'),
         "save_type_folders": getattr(shared.opts, 'civitai_save_type_folders', ''),
         "discard_hash_mismatch": getattr(shared.opts, 'civitai_discard_hash_mismatch', True),
+        "save_precision": getattr(shared.opts, 'civitai_save_precision', True),
         "download_workers": getattr(shared.opts, 'civitai_download_workers', 2),
     }
 
@@ -393,6 +348,9 @@ def post_settings(request: dict):
         shared.opts.civitai_save_subfolder = save_subfolder
     if discard_hash_mismatch is not None:
         shared.opts.civitai_discard_hash_mismatch = discard_hash_mismatch
+    save_precision = request.get('save_precision')
+    if save_precision is not None:
+        shared.opts.civitai_save_precision = bool(save_precision)
     shared.opts.save()
     return get_settings()
 
@@ -713,6 +671,7 @@ def register_api(api):
     api.add_api_route("/sdapi/v2/civitai/version/{version_id}", get_version, methods=["GET"], tags=["CivitAI"])
     api.add_api_route("/sdapi/v2/civitai/version/by-hash/{hash_str}", get_version_by_hash, methods=["GET"], tags=["CivitAI"])
     api.add_api_route("/sdapi/v2/civitai/version/mini/{version_id}", get_version_mini, methods=["GET"], tags=["CivitAI"])
+    api.add_api_route("/sdapi/v2/civitai/version/{version_id}/names", get_version_names, methods=["GET"], tags=["CivitAI"])
     api.add_api_route("/sdapi/v2/civitai/options", get_options, methods=["GET"], tags=["CivitAI"])
     api.add_api_route("/sdapi/v2/civitai/tags", get_tags, methods=["GET"], tags=["CivitAI"])
     api.add_api_route("/sdapi/v2/civitai/creators", get_creators, methods=["GET"], tags=["CivitAI"])

@@ -101,6 +101,17 @@ async function tooltipHideDelegated(e) {
   if (e.target.dataset && e.target.dataset.hint) tooltipHide(e);
 }
 
+function getElTitle(el: HTMLElement) {
+  // contat text of all child elements where text is not same as the parent to avoid repeating
+  let title = '';
+  for (const child of Array.from(el.children)) {
+    const childText = (child as HTMLElement).textContent || '';
+    if (childText && childText !== title) title += ' ' + childText;
+  }
+  if (title.length === 0) title = el.textContent || '';
+  return title.trim();
+}
+
 async function tooltipShow(e) {
   if (localeData.expandTimeout) { // clear any existing expansion timeout
     clearTimeout(localeData.expandTimeout);
@@ -122,7 +133,7 @@ async function tooltipShow(e) {
     // set up the complete content structure from the start
     let content = `
       <div class="tooltip-header">
-        <b>${e.target.textContent}</b>
+        <b>${getElTitle(e.target)}</b>
         ${e.target.dataset.longHint ? progressRing : ''}
       </div>
       <div class="separator"></div>
@@ -334,8 +345,13 @@ export async function setHints() {
     let found;
     if (el.id) found = localeData.data.find((l) => l.id && (l.id === el.id || el.id.endsWith(l.id))); // prefer id match for disambiguation
     if (!found) {
-      if (el.dataset.original) found = localeData.data.find((l) => l.label.toLowerCase().trim() === el.dataset.original.toLowerCase().trim());
-      else found = localeData.data.find((l) => l.label.toLowerCase().trim() === el.textContent.toLowerCase().trim());
+      if (el.dataset.original) {
+        const desired = el.dataset.original.toLowerCase().trim();
+        if (desired.length > 0) found = localeData.data.find((l) => l.label.toLowerCase().trim() === desired);
+      } else {
+        const desired = el.textContent.toLowerCase().trim();
+        if (desired.length > 0) found = localeData.data.find((l) => l.label.toLowerCase().trim() === desired);
+      }
     }
     if (found?.localized?.length > 0) {
       if (!el.dataset.original) el.dataset.original = el.textContent;

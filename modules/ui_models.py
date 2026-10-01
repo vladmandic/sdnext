@@ -543,15 +543,25 @@ def create_ui():
                     opts.civitai_token = token
                     opts.save()
 
-                def civitai_download(model_urls, model_names, model_types, model_bases,
+                def civitai_download(model_urls, file_ids, model_types, model_bases,
                                      model_ids, version_ids, model_path, civit_token, model_output):
                     from modules.civitai.download_civitai import download_civit_model
-                    for model_url, model_name, model_type, model_base, model_id, version_id in zip(
-                            model_urls, model_names, model_types, model_bases, model_ids, version_ids, strict=False):
+                    from modules.civitai.names_civitai import resolve_file
+                    for model_url, file_id, model_type, model_base, model_id, version_id in zip(
+                            model_urls, file_ids, model_types, model_bases, model_ids, version_ids, strict=False):
+                        resolved, error, _status = resolve_file(int(version_id or 0), int(file_id or 0), token=civit_token)
+                        if resolved is None:
+                            log.error(f'CivitAI download: {error}')
+                            yield f"<h4>Download failed</h4><div>{error}</div><br>" + model_output
+                            continue
+                        model_url = resolved['url'] or model_url
+                        model_name = resolved['filename']
+                        model_type = resolved['model_type'] or model_type
                         msg = f"<h4>Initiating download</h4><div>{model_name} | {model_type} | <a href='{model_url}'>{model_url}</a></div><br>"
                         yield msg + model_output
                         download_civit_model(model_url, model_name, model_path, model_type, civit_token,
-                                             base_model=model_base, model_id=int(model_id or 0), version_id=int(version_id or 0))
+                                             base_model=model_base, model_id=int(model_id or 0), version_id=int(version_id or 0),
+                                             expected_hash=resolved['expected_hash'])
                         yield model_output
 
                 def civitai_toggle_subfolder(enabled, template):

@@ -5,6 +5,7 @@ from modules.logger import log
 
 
 class_tag_re = re.compile(r'^\[class\s*=\s*([^\]]+)\]\s*(.*)$', re.IGNORECASE)
+skip_tag_re = re.compile(r'^\[skip\s*=\s*([^\]]*)\]', re.IGNORECASE)
 
 
 def list_models(self):
@@ -52,6 +53,8 @@ def parse_prompt_lines(text: str):
         line = line.strip()
         if len(line) == 0:
             continue # blank spacer lines don't count as a fallback entry
+        if skip_tag_re.match(line):
+            continue # '[SKIP=...]' lines are directives, not prompt text
         m = class_tag_re.match(line)
         if m:
             names = [n.strip().lower() for n in m.group(1).split(',') if n.strip()]
@@ -62,15 +65,36 @@ def parse_prompt_lines(text: str):
     return class_map, fallback
 
 
-def assign_prompts(text: str, items: list) -> list[str]:
+def split_skip_classes(text: str) -> tuple[set[str], str]:
+    """Split '[SKIP=name]' or '[SKIP=name1,name2]' directive lines from a detailer prompt.
+
+    Returns the lower-cased class names, whose detections are excluded from detailing, and the prompt without
+    those lines. Any text after the tag on the same line is dropped with it.
+    """
+    names: set[str] = set()
+    lines = []
+    for line in (text or '').split('\n'):
+        m = skip_tag_re.match(line.strip())
+        if m:
+            names.update(n.strip().lower() for n in m.group(1).split(',') if n.strip())
+        else:
+            lines.append(line)
+    return names, '\n'.join(lines)
+
+
+def assign_prompts(text: str, items: list, default: str = '') -> list[str]:
     """Resolve a detailer prompt/negative-prompt string into one entry per detection.
 
     Detections whose YOLO label matches a '[CLASS=name]' tag get that tag's text.
     Remaining detections fall back to the untagged lines, applied positionally in
     detection order and cycling if there are more detections than fallback lines
     (matching prior behavior when no class tags are used).
+    If there are class tags but no untagged line, remaining detections use the lines of
+    default (the main prompt or negative), the same as an explicit '[prompt]' line.
     """
     class_map, fallback = parse_prompt_lines(text)
+    if len(fallback) == 0 and len(class_map) > 0:
+        _default_classes, fallback = parse_prompt_lines(default)
     if len(fallback) == 0:
         fallback = ['']
     resolved = []

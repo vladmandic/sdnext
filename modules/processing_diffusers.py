@@ -531,7 +531,7 @@ def update_pipeline(sd_model, p: processing.StableDiffusionProcessing):
     if 'MiniMaxH3' in sd_model.__class__.__name__ and not isinstance(p, processing.StableDiffusionProcessingVideo):
         # image tabs run the model in still mode; the video tab applies its own overrides
         from modules.video_models import video_minimax
-        video_minimax.apply_overrides(p, sd_model, still=True, audio=False)
+        video_minimax.apply_overrides(p, sd_model, still=True, audio=False, preview=True)
         if getattr(p, 'detailer_enabled', False):
             log.warning(f'Processing: cls={sd_model.__class__.__name__} detailer not supported')
             p.detailer_enabled = False
@@ -567,6 +567,12 @@ def validate_pipeline(p: processing.StableDiffusionProcessing):
         # dispatches to the keyframe path and reaches a transformer that was never loaded
         log.error(f'Mismatch: type={shared.sd_model_type} cls={shared.sd_model.__class__.__name__} request={p.__class__.__name__} reference workflow requires reference images: use the video tab or the video api')
         return False
+    max_images = sd_models.get_max_condition_images()
+    init_images = getattr(p, 'init_images', None)
+    num_images = len([i for i in init_images if i is not None]) if isinstance(init_images, list) else int(init_images is not None)
+    if max_images > 0 and num_images > max_images:
+        log.error(f'Mismatch: type={shared.sd_model_type} cls={shared.sd_model.__class__.__name__} request={p.__class__.__name__} images={num_images} max={max_images}')
+        return False
     return True
 
 
@@ -590,7 +596,7 @@ def process_diffusers(p: processing.StableDiffusionProcessing):
         p.init_images = [p.init_images]
     if hasattr(p, 'init_images') and isinstance(getattr(p, 'init_images', []), list):
         p.init_images = [i for i in p.init_images if i is not None]
-    if len(getattr(p, 'init_images', [])) > 0:
+    if len(getattr(p, 'init_images', [])) > 0 and sd_models.get_max_condition_images() == 0: # a condition set is shared by every prompt
         while len(p.init_images) < len(p.prompts):
             p.init_images.append(p.init_images[-1])
 

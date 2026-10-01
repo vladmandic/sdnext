@@ -18,9 +18,9 @@ def create_latents(image, p, dtype=None, device=None):
     if image is None:
         return image
     elif isinstance(image, Image.Image):
-        latents = vae_encode(image, model=shared.sd_model, vae_type=p.vae_type)
+        latents = vae_encode(image, model=shared.sd_model)
     elif isinstance(image, list):
-        latents = [vae_encode(i, model=shared.sd_model, vae_type=p.vae_type).squeeze(dim=0) for i in image]
+        latents = [vae_encode(i, model=shared.sd_model).squeeze(dim=0) for i in image]
         latents = torch.stack(latents, dim=0).to(shared.device)
     else:
         log.warning(f'Latents: input type: {type(image)} {image}')
@@ -80,7 +80,7 @@ def full_vqgan_decode(latents, model):
     return decoded
 
 
-def full_vae_decode(latents, model):
+def full_vae_decode(latents, model, use_job=True):
     t0 = time.time()
     if latents.ndim == 4 and latents.shape[1] == 3: # already decoded
         return latents
@@ -168,13 +168,16 @@ def full_vae_decode(latents, model):
     if debug:
         log_debug(f'VAE memory: {shared.mem_mon.read()}')
     vae_name = os.path.splitext(os.path.basename(sd_vae.loaded_vae_file))[0] if sd_vae.loaded_vae_file is not None else "default"
-    vae_scale_factor = sd_vae.get_vae_scale_factor(model)
-    log.debug(f'Decode: vae="{vae_name}" scale={vae_scale_factor} upcast={upcast} slicing={getattr(model.vae, "use_slicing", None)} tiling={getattr(model.vae, "use_tiling", None)} latents={list(latents.shape)}:{latents.device} dtype={latents.dtype} time={t1-t0:.3f}')
+    vae_scale_factor = sd_vae.get_vae_scale_factor(model, patch=False)
+    if use_job:
+        log.debug(f'Decode: vae="{vae_name}" scale={vae_scale_factor} upcast={upcast} slicing={getattr(model.vae, "use_slicing", None)} tiling={getattr(model.vae, "use_tiling", None)} latents={list(latents.shape)}:{latents.device} dtype={latents.dtype} time={t1-t0:.3f}')
     return decoded
 
 
-def full_vae_encode(image, model):
+def full_vae_encode(image, model=None):
     t0 = time.time()
+    if model is None:
+        model = shared.sd_model
     if shared.opts.diffusers_offload_mode != "sequential" and hasattr(model, 'vae'):
         sd_models.move_model(model.vae, devices.device)
         if getattr(model.vae, 'sdnext_ondemand', False):
@@ -217,14 +220,9 @@ def taesd_vae_decode(latents):
     return decoded
 
 
-def taesd_vae_encode(image):
-    log.debug(f'Encode: vae="taesd" image={image.shape}')
-    encoded = sd_vae_taesd.encode(image)
-    return encoded
-
-
 def vae_postprocess(tensor, model, output_type='np'):
     from PIL import Image
+    from modules.image.util import collapse_alpha
     images = []
     try:
         if isinstance(tensor, list) and len(tensor) > 0 and torch.is_tensor(tensor[0]):
@@ -300,11 +298,11 @@ def vae_postprocess(tensor, model, output_type='np'):
     if isinstance(images, np.ndarray) and images.ndim == 4 and images.shape[-1] == 4 and images[..., 3].min() >= 0.5:
         images = images[..., :3]
     elif output_type == 'pil' and isinstance(images, list):
-        images = [i.convert('RGB') if isinstance(i, Image.Image) and i.mode == 'RGBA' and i.getextrema()[3][0] >= 128 else i for i in images]
+        images = [collapse_alpha(i) if isinstance(i, Image.Image) else i for i in images]
     return images
 
 
-def vae_decode(latents, model, output_type='np', vae_type='Full', width=None, height=None, frames=None):
+def vae_decode(latents, model, output_type='np', vae_type='Full', width=None, height=None, frames=None, use_job=True):
     t0 = time.time()
     model = model or shared.sd_model
     if not hasattr(model, 'vae') and hasattr(model, 'pipe'):
@@ -322,12 +320,15 @@ def vae_decode(latents, model, output_type='np', vae_type='Full', width=None, he
         return []
 
     if vae_type == 'Remote':
-        jobid = shared.state.begin('Remote VAE')
+        if use_job:
+            jobid = shared.state.begin('Remote VAE')
         from modules.vae.sd_vae_remote import remote_decode
         tensors = remote_decode(latents=latents, width=width, height=height)
-        shared.state.end(jobid)
+        if use_job:
+            shared.state.end(jobid)
         if tensors is not None and len(tensors) > 0:
             return vae_postprocess(tensors, model, output_type)
+
     if vae_type == 'Repa':
         from modules.vae.sd_vae_repa import repa_load
         vae = repa_load(latents)
@@ -335,7 +336,8 @@ def vae_decode(latents, model, output_type='np', vae_type='Full', width=None, he
         if vae is not None:
             model.vae = vae
 
-    jobid = shared.state.begin('VAE Decode')
+    if use_job:
+        jobid = shared.state.begin('VAE Decode')
     if hasattr(model, '_unpack_latents') and hasattr(model, 'transformer_spatial_patch_size') and frames is not None: # LTX
         latent_num_frames = (frames - 1) // model.vae_temporal_compression_ratio + 1
         latents = model._unpack_latents(latents.unsqueeze(0), latent_num_frames, height // 32, width // 32, model.transformer_spatial_patch_size, model.transformer_temporal_patch_size) # pylint: disable=protected-access
@@ -345,8 +347,10 @@ def vae_decode(latents, model, output_type='np', vae_type='Full', width=None, he
             latents = model._unpack_latents(latents, height, width, model.vae_scale_factor) # pylint: disable=protected-access
         except Exception:
             latents = model._unpack_latents(latents, height, width) # pylint: disable=protected-access # pythoning ask-for-forgiveness if method does not support vae_scale_factor
+
     if latents.ndim == 3: # lost a batch dim in hires
         latents = latents.unsqueeze(0)
+
     if latents.shape[-1] <= 4: # not a latent, likely an image
         decoded = latents.float().cpu().numpy()
     elif vae_type == 'Tiny':
@@ -356,7 +360,7 @@ def vae_decode(latents, model, output_type='np', vae_type='Full', width=None, he
     elif hasattr(model, "vqgan"):
         decoded = full_vqgan_decode(latents=latents, model=model)
     elif hasattr(model, "vae"):
-        decoded = full_vae_decode(latents=latents, model=model)
+        decoded = full_vae_decode(latents=latents, model=model, use_job=use_job)
     else:
         log.error('VAE not found in model')
         decoded = []
@@ -367,29 +371,26 @@ def vae_decode(latents, model, output_type='np', vae_type='Full', width=None, he
         log.debug(f'Profile: VAE decode: {t1-t0:.2f}')
     sd_models.offload_ondemand(model)
     devices.torch_gc()
-    shared.state.end(jobid)
+    if use_job:
+        shared.state.end(jobid)
     return images
 
 
-def vae_encode(image, model, vae_type='Full'): # pylint: disable=unused-variable
+def vae_encode(image, model):
     jobid = shared.state.begin('VAE Encode')
     from modules.image import convert
     if shared.state.interrupted or shared.state.skipped:
         return []
+    if model is None:
+        model = shared.sd_model
     if not hasattr(model, 'vae') and hasattr(model, 'pipe'):
         model = model.pipe
     if not hasattr(model, 'vae'):
         log.error('VAE not found in model')
         return []
     tensor = convert.to_tensor(image.convert("RGB")).unsqueeze(0).to(devices.device, devices.dtype_vae)
-    if vae_type == 'Tiny':
-        latents = taesd_vae_encode(image=tensor)
-    elif vae_type == 'Full' and hasattr(model, 'vae'):
-        tensor = tensor * 2 - 1
-        latents = full_vae_encode(image=tensor, model=shared.sd_model)
-    else:
-        log.error('VAE not found in model')
-        latents = []
+    tensor = tensor * 2 - 1
+    latents = full_vae_encode(image=tensor, model=shared.sd_model)
     sd_models.offload_ondemand(model)
     devices.torch_gc()
     shared.state.end(jobid)

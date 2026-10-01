@@ -129,6 +129,8 @@ class Api:
         self.add_api_route("/sdapi/v1/latents", endpoints.post_latent_history, methods=["POST"], response_model=int, tags=["Functional"])
         self.add_api_route("/sdapi/v1/modules", endpoints.get_modules, methods=["GET"], tags=["Functional"])
         self.add_api_route("/sdapi/v1/sampler", endpoints.get_sampler, methods=["GET"], response_model=dict, tags=["Functional"])
+        self.add_api_route("/sdapi/v1/watermark", endpoints.post_watermark, methods=["POST"], tags=["Functional"])
+        self.add_api_route("/sdapi/v1/watermark", endpoints.get_watermark, methods=["GET"], tags=["Functional"])
 
         # options api
         from modules.api import options

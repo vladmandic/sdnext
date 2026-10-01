@@ -47,6 +47,8 @@ def load_joyedit(checkpoint_info, diffusers_load_config=None):
     pipe.task_args = {
         'output_type': 'np',
     }
+    if 'plus' in repo_id.lower():
+        pipe.max_condition_images = 4 # JoyImageEditPlus typically uses 4 condition images
 
     diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING['joy-image-edit'] = model_cls
     diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING['joy-image-edit'] = model_cls

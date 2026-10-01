@@ -4,25 +4,41 @@ import threading
 from collections import namedtuple
 import torch
 from PIL import Image
-from modules import shared, processing, images, sd_samplers, timer
+from modules import shared, processing, images, sd_samplers, timer, errors
 from modules.logger import log
-from modules.vae import sd_vae_approx, sd_vae_taesd, sd_vae_stablecascade
 from modules.image import convert
+from modules.image.util import collapse_alpha, draw_text
 
 
 SamplerData = namedtuple('SamplerData', ['name', 'constructor', 'aliases', 'options'])
-approximation_indexes = { "Simple": 0, "Approximate": 1, "TAESD": 2, "Full VAE": 3 }
 flow_models = ['f1', 'f2', 'sd3', 'lumina', 'auraflow', 'sana', 'zimage', 'lumina2', 'cogview4', 'h1', 'cosmos', 'anima', 'chroma', 'omnigen', 'omnigen2', 'longcat', 'ideogram4', 'krea2', 'qwen21']
 warned = False
 queue_lock = threading.Lock()
-debug = os.environ.get('SD_PREVIEW_DEBUG', None) is not None
+debug = os.environ.get('SD_VAE_DEBUG', None) is not None
+preview_max_latent = 128*128
+missing_img = None
 
 
-def warn_once(message):
+def get_missing_img(msg: str | None = None):
+    global missing_img # pylint: disable=global-statement
+    if missing_img is None:
+        missing_img = Image.open(os.path.join("ui", "assets", "missing.png")).convert("RGB")
+        missing_img = missing_img.resize((1024, 1024), Image.Resampling.LANCZOS)
+    img = missing_img.copy()
+    if msg is not None:
+        draw_text(img, str(msg), fontsize=16, color='#8b0000')
+    return img
+
+
+def warn_once(message='', e=None):
     global warned # pylint: disable=global-statement
-    if not warned:
-        log.warning(f'VAE: {message}')
-        warned = True
+    if not shared.sd_loaded:
+        return
+    if warned != shared.sd_model_type:
+        log.warning(f'Decode: {message} {str(e) if e is not None else ""}')
+        if e is not None:
+            errors.display(e, 'Decode')
+        warned = shared.sd_model_type
 
 
 def setup_img2img_steps(p, steps=None):
@@ -37,62 +53,49 @@ def setup_img2img_steps(p, steps=None):
     return steps, t_enc
 
 
-def single_sample_to_image(sample, approximation=None, fast=False):
+def single_sample_to_image(sample, approximation=None):
     with queue_lock: # only one preview can run at a time
         t0 = time.time()
-        approximation = approximation or shared.opts.show_progress_type
-        if debug:
-            log.debug(f'Preview sample: shape={list(sample.shape)} dtype={sample.dtype} method={approximation}')
         try:
-            if (sample.dtype == torch.bfloat16) and (approximation in ["Simple", "Approximate"]):
-                sample = sample.to(torch.float16)
-        except Exception as e:
-            warn_once(f'Preview: {e}')
+            approximation = approximation or shared.opts.show_progress_type
+            if debug:
+                log.debug(f'Preview sample: shape={list(sample.shape)} dtype={sample.dtype} method={approximation}')
 
-        if len(sample.shape) > 4: # likely unknown video latent (e.g. svd)
-            return Image.new(mode="RGB", size=(512, 512))
-        if len(sample.shape) == 4 and sample.shape[0]: # likely animatediff latent
-            sample = sample.permute(1, 0, 2, 3)[0]
-
-        if approximation == "None":
-            return Image.new(mode="RGB", size=(512, 512)) # already handled
-        elif approximation == "TAESD":
-            if (len(sample.shape) == 3 or len(sample.shape) == 4) and shared.opts.live_preview_downscale and (sample.shape[-1]*sample.shape[-2] > 128*128):
+            if shared.opts.live_preview_downscale and (sample.ndim == 3 or sample.ndim == 4) and (sample.shape[-1]*sample.shape[-2] > preview_max_latent):
                 try:
-                    scale = (128 * 128) / (sample.shape[-1] * sample.shape[-2])
+                    scale = preview_max_latent / (sample.shape[-1] * sample.shape[-2])
                     sample = torch.nn.functional.interpolate(sample.unsqueeze(0), scale_factor=[scale, scale], mode='bilinear', align_corners=False)[0]
                 except Exception:
                     pass
-            x_sample = sd_vae_taesd.decode(sample, fast=fast)
-            # x_sample = (1.0 + x_sample) / 2.0 # preview requires smaller range
-        elif shared.sd_model_type == 'sc' and approximation != "Full":
-            x_sample = sd_vae_stablecascade.decode(sample)
-        elif approximation == "Simple":
-            x_sample = sd_vae_approx.cheap_approximation(sample) * 0.5 + 0.5
-        elif approximation == "Approximate":
-            x_sample = sd_vae_approx.nn_approximation(sample) * 0.5 + 0.5
-            if shared.sd_model_type == "sdxl":
-                x_sample = x_sample[[2, 1, 0], :, :] # BGR to RGB
-        elif approximation == "Full":
-            x_sample = processing.decode_first_stage(shared.sd_model, sample.unsqueeze(0))[0]
-        else:
-            warn_once(f"VAE: method={approximation} unknown")
-            return Image.new(mode="RGB", size=(512, 512))
 
-        try:
+            if approximation == "None":
+                x_sample = get_missing_img()
+            elif approximation == "Micro":
+                from modules.vae import sd_vae_micro
+                x_sample = sd_vae_micro.decode(sample)
+            elif approximation == "Tiny":
+                from modules.vae import sd_vae_taesd
+                x_sample = sd_vae_taesd.decode(sample)
+            elif approximation == "Full":
+                x_sample = processing.decode_first_stage(shared.sd_model, sample.unsqueeze(0), output_type='pil', use_job=False)[0]
+            else:
+                warn_once(f"method={approximation} unknown")
+                x_sample = get_missing_img('unknown method')
+
             if isinstance(x_sample, Image.Image):
                 image = x_sample
             else:
-                if x_sample.shape[0] > 4 or x_sample.shape[0] == 4:
-                    return Image.new(mode="RGB", size=(512, 512))
-                x_sample = torch.nan_to_num(x_sample, nan=0.0, posinf=1, neginf=0)
-                x_sample = (255.0 * x_sample).to(torch.uint8)
-                if len(x_sample.shape) == 4:
-                    x_sample = x_sample[0]
-                image = convert.to_pil(x_sample)
+                if x_sample.ndim in (1, 2, 5): # invalid
+                    image = get_missing_img('invalid shape')
+                else:
+                    # x_sample = torch.nan_to_num(x_sample, nan=0.0, posinf=1, neginf=0) # let it fail instead
+                    if (x_sample.ndim == 4) and (x_sample.shape[0] == 1 or x_sample.shape[0] > 4):
+                        image = collapse_alpha(convert.to_pil(x_sample[0]))
+                    else:
+                        image = collapse_alpha(convert.to_pil_batch(x_sample))
         except Exception as e:
-            warn_once(f'Preview: {e}')
-            image = Image.new(mode="RGB", size=(512, 512))
+            warn_once('exception', e)
+            image = get_missing_img(str(e))
         t1 = time.time()
         timer.process.add('preview', t1 - t0)
         return image
@@ -102,8 +105,19 @@ def sample_to_image(samples, index=0, approximation=None):
     return single_sample_to_image(samples[index], approximation)
 
 
-def samples_to_image_grid(samples, approximation=None, fast=False):
-    return images.image_grid([single_sample_to_image(sample, approximation, fast=fast) for sample in samples])
+def samples_to_image_grid(samples, approximation=None):
+    return images.image_grid([single_sample_to_image(sample, approximation) for sample in samples])
+
+
+def samples_decode(samples, approximation=None):
+    if samples.ndim == 5:
+        return single_sample_to_image(samples, approximation) # video latent
+    elif samples.ndim == 4: # batch of images
+        return samples_to_image_grid(samples, approximation) # handle batch
+    elif samples.ndim == 3: # single image
+        return single_sample_to_image(samples, approximation)
+    else:
+        raise ValueError(f"Decode: type={approximation} shape={samples.shape} unsupported")
 
 
 def store_latent(decoded):

@@ -1,6 +1,8 @@
 import io
 import os
 import base64
+from pathlib import Path
+from urllib.parse import unquote
 from PIL import Image, PngImagePlugin
 import piexif
 import piexif.helper
@@ -10,6 +12,7 @@ from modules.logger import log
 
 
 _upload_store_getter = None
+MAX_B64_BYTES = 256 * 1024 * 1024 # base64 expands ~4/3 and the response is built in memory; larger artifacts are fetched by path instead
 
 
 def register_upload_store(getter_fn):
@@ -32,7 +35,7 @@ def validate_sampler_name(name):
     raise HTTPException(status_code=404, detail="Sampler not found")
 
 
-def decode_base64_to_image(encoding, quiet=False):
+def decode_base64_to_image(encoding, quiet=False, keep_alpha=False):
     if encoding is None:
         return None
     if isinstance(encoding, str) and encoding.startswith("upload:"):
@@ -46,7 +49,7 @@ def decode_base64_to_image(encoding, quiet=False):
         decoded = base64.b64decode(encoding)
         data = io.BytesIO(decoded)
         image = Image.open(data)
-        image = image.convert('RGB')
+        image = image.convert('RGBA') if keep_alpha else image.convert('RGB')
         return image
     except Exception as e:
         log.warning(f'API cannot decode image: {e}')
@@ -76,7 +79,7 @@ def _resolve_upload_ref(encoding: str, quiet: bool = False):
     return None
 
 
-def encode_pil_to_base64(image):
+def encode_pil_to_base64(image, ext: str | None = None):
     """
     with io.BytesIO() as output_bytes:
         images.save_image(image, output_bytes, shared.opts.samples_format)
@@ -87,12 +90,9 @@ def encode_pil_to_base64(image):
         log.error('API cannot encode image: not a PIL image')
         return ''
     buffered = io.BytesIO()
-    save_image(image, fn=buffered, ext=shared.opts.samples_format)
+    save_image(image, fn=buffered, ext=ext or shared.opts.samples_format)
     b64 = base64.b64encode(buffered.getvalue())
     return b64
-
-
-MAX_B64_BYTES = 256 * 1024 * 1024 # base64 expands ~4/3 and the response is built in memory; larger artifacts are fetched by path instead
 
 
 def encode_file_to_base64(fn: str, max_bytes: int = MAX_B64_BYTES) -> str | None:
@@ -116,13 +116,17 @@ def upscaler_to_index(name: str):
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid upscaler, needs to be one of these: {' , '.join([x.name for x in shared.sd_upscalers])}") from e
 
+
 def save_image(image, fn, ext):
     # actual save
     parameters = image.info.get('parameters', None)
-    image_format = Image.registered_extensions()[f'.{ext}']
+    image_format = Image.registered_extensions()[f'.{ext.lower()}']
     if image_format == 'PNG':
         pnginfo_data = PngImagePlugin.PngInfo()
+        binary_keys = {'icc_profile', 'exif'} # written via dedicated PNG chunks, not as text metadata
         for k, v in image.info.items():
+            if k in binary_keys:
+                continue
             pnginfo_data.add_text(k, str(v))
         image.save(fn, format=image_format, quality=shared.opts.jpeg_quality, pnginfo=pnginfo_data)
     elif image_format == 'JPEG':
@@ -150,3 +154,65 @@ def save_image(image, fn, ext):
     else:
         # log.warning(f'Unrecognized image format: {extension} attempting save as {image_format}')
         image.save(fn, format=image_format, quality=shared.opts.jpeg_quality)
+
+
+def sanitize_filename(filename):
+    import unicodedata
+    # starting reference: <https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file>
+    invalid_chars = (
+        "#<>\"'`"                         # ASCII quote and backtick
+        "’‚‛\u2018\u2019\u201B"           # smart single quotes and variants # noqa: RUF001
+        "\u02BB"                          # modifier letter turned comma
+        "\u201C\u201D\u201F"              # smart double quotes and variants
+        "|?*^%$\u00A0\u2013\u2014\n\t\r"  # pipes, wildcards, percent, currency, NBSP, dashes, control chars
+    )
+    invalid_folder = ':'
+    invalid_files = ['CON', 'PRN', 'AUX', 'NUL', 'NULL', 'COM0', 'COM1', 'LPT0', 'LPT1']
+    invalid_prefix = ', '
+    invalid_suffix = '.,_ '
+    fn, ext = os.path.splitext(unicodedata.normalize('NFKC', filename))
+    fn = fn.strip()
+    ext = ext.strip()
+    parts = Path(fn).parts
+    newparts = []
+    for i, part in enumerate(parts):
+        part = part.translate({ ord(x): '_' for x in invalid_chars })
+        if i > 0 or (len(part) >= 2 and part[1] != invalid_folder): # skip drive, otherwise remove
+            part = part.translate({ ord(x): '_' for x in invalid_folder })
+        part = part.lstrip(invalid_prefix).rstrip(invalid_suffix)
+        if part in invalid_files: # reserved names
+            [part := part.replace(word, '_') for word in invalid_files] # pylint: disable=expression-not-assigned
+        newparts.append(part)
+    fn = str(Path(*newparts))
+    fn = fn.replace('  ', ' ').strip()
+    max_length = max(256 - len(ext), os.statvfs(__file__).f_namemax - 32 if hasattr(os, 'statvfs') else 256 - len(ext))
+    while len(os.path.abspath(fn)) > max_length:
+        fn = fn[:-1]
+    fn += ext
+    return fn
+
+
+def validate_path(fn: str, allowed_dirs: list[str] | None = None, allowed_folder: bool = False, allowed_file: bool = False):
+    if shared.demo is None:
+        raise HTTPException(status_code=503, detail="server not ready")
+    if not fn.strip():
+        raise HTTPException(status_code=400, detail="file path is required")
+
+    allowed = [Path(folder).absolute() for folder in shared.demo.allowed_paths]
+    if allowed_dirs is not None:
+        allowed.extend([Path(folder).absolute() for folder in allowed_dirs])
+    decoded = unquote(fn).replace('%3A', ':')
+    sanitized = sanitize_filename(decoded)
+    resolved = Path(sanitized).resolve()
+    # log.trace(f'API validate: fn="{fn}" sanitized="{sanitized}" resolved="{resolved}" parents={resolved.parents} allowed={allowed}')
+    if not any(folder in resolved.parents for folder in allowed):
+        raise HTTPException(status_code=403, detail=f"file not allowed: {resolved}")
+    if resolved.is_dir():
+        if allowed_folder:
+            return str(resolved)
+        raise HTTPException(status_code=403, detail=f"directory not allowed: {resolved}")
+    if not resolved.is_file():
+        if allowed_file:
+            return str(resolved)
+        raise HTTPException(status_code=404, detail=f"file not found: {resolved}")
+    return str(resolved)

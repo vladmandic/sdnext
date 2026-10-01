@@ -29,6 +29,8 @@ def load_flux2(checkpoint_info, diffusers_load_config=None):
     pipe.task_args = {
         'output_type': 'np',
     }
+    pipe.patch_size = 2 # latents pack into 2x2 patches and the pipeline floors sizes to vae_scale_factor * 2
+    pipe.max_condition_images = 10 # reference images per edit, per bfl
     diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["flux2"] = diffusers.Flux2Pipeline
     diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["flux2"] = diffusers.Flux2Pipeline
     diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING["flux2"] = diffusers.Flux2Pipeline

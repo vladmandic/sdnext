@@ -28,7 +28,7 @@ vae_scale_override = {
 }
 
 
-def get_vae_scale_factor(model: DiffusionPipeline | None = None, init_image: bool = False):
+def get_vae_scale_factor(model: DiffusionPipeline | None = None, init_image: bool = False, patch: bool = True):
     if not shared.sd_loaded:
         vae_scale_factor = 8
         return vae_scale_factor
@@ -54,7 +54,7 @@ def get_vae_scale_factor(model: DiffusionPipeline | None = None, init_image: boo
     else:
         # log.warning(f'VAE: cls={model.__class__.__name__ if model else "None"} scale=unknown')
         vae_scale_factor = 8
-    if model is not None and hasattr(model, 'patch_size'):
+    if patch and model is not None and getattr(model, 'patch_size', None) is not None: # patch=False gives pixels per latent, sizes need the patch multiple; copy_diffuser_options writes absent attributes as None
         patch_size = model.patch_size
         if isinstance(patch_size, (tuple, list)): # 3d patch sizes are (t, h, w); spatial term is last
             patch_size = patch_size[-1]

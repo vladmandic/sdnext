@@ -10330,6 +10330,54 @@ async function setupControlUI() {
 
 // ui/extraNetworks.ts
 var activePromptTextarea = {};
+var promptCursor = /* @__PURE__ */ new WeakMap();
+var insertOnlyPrompts = /* @__PURE__ */ new WeakSet();
+var isSeparator = (ch) => ch === void 0 || /[\s,]/.test(ch);
+var isLineSeparator = (ch) => ch !== void 0 && ch !== "\n" && /[\s,]/.test(ch);
+function setPromptCursor(textarea, pos) {
+  promptCursor.set(textarea, pos);
+  if (document.activeElement === textarea) textarea.setSelectionRange(pos, pos);
+}
+function snapToBoundary(value, pos) {
+  if (pos <= 0) return 0;
+  if (value.lastIndexOf("<", pos - 1) > value.lastIndexOf(">", pos - 1)) {
+    const close = value.indexOf(">", pos);
+    if (close !== -1) pos = close + 1;
+  }
+  while (pos < value.length && !isSeparator(value[pos - 1]) && !isSeparator(value[pos])) pos++;
+  return pos;
+}
+function insertAtCursor(textarea, text) {
+  const value = textarea.value;
+  const cursor = document.activeElement === textarea ? textarea.selectionStart : promptCursor.get(textarea);
+  const pos = snapToBoundary(value, Math.min(cursor ?? value.length, value.length));
+  let insert = pos === 0 || /\s/.test(value[pos - 1]) ? text.trimStart() : text;
+  if (!isSeparator(value[pos])) insert += " ";
+  textarea.value = value.slice(0, pos) + insert + value.slice(pos);
+  setPromptCursor(textarea, pos + insert.length);
+}
+function findStandalone(value, text) {
+  if (text.length === 0) return -1;
+  let idx = value.indexOf(text);
+  while (idx !== -1) {
+    if (isSeparator(value[idx - 1]) && isSeparator(value[idx + text.length])) return idx;
+    idx = value.indexOf(text, idx + 1);
+  }
+  return -1;
+}
+function removeAt(textarea, idx, length) {
+  const value = textarea.value;
+  let start = idx;
+  let end = idx + length;
+  while (isLineSeparator(value[start - 1])) start--;
+  while (isLineSeparator(value[end])) end++;
+  const lineStart = start === 0 || value[start - 1] === "\n";
+  const lineEnd = end === value.length || value[end] === "\n";
+  let joiner = "";
+  if (!lineStart && !lineEnd) joiner = (value.slice(start, idx) + value.slice(idx + length, end)).includes(",") ? ", " : " ";
+  textarea.value = value.slice(0, start) + joiner + value.slice(end);
+  setPromptCursor(textarea, start + joiner.length);
+}
 var selectedNetworks = {};
 var sortVal = -1;
 var totalCards = -1;
@@ -10402,10 +10450,12 @@ function readCardTags(el2, tags) {
     e.stopPropagation();
     const textarea = activePromptTextarea[getENActiveTab()];
     let new_prompt = textarea.value;
-    new_prompt = replaceOutsideBrackets(new_prompt, ` ${tag}`, "");
-    new_prompt = replaceOutsideBrackets(new_prompt, `${tag} `, "");
-    if (new_prompt === textarea.value) new_prompt += ` ${tag}`;
-    textarea.value = new_prompt;
+    if (!insertOnlyPrompts.has(textarea)) {
+      new_prompt = replaceOutsideBrackets(new_prompt, ` ${tag}`, "");
+      new_prompt = replaceOutsideBrackets(new_prompt, `${tag} `, "");
+    }
+    if (new_prompt === textarea.value) insertAtCursor(textarea, ` ${tag}`);
+    else textarea.value = new_prompt;
     updateInput(textarea);
   };
   if (!tags || tags.length === 0) return;
@@ -10594,8 +10644,9 @@ function cardClicked(textToAdd) {
   const tabName = getENActiveTab();
   log("cardClicked", { tab: tabName, text: textToAdd });
   const textarea = activePromptTextarea[tabName];
-  if (textarea.value.indexOf(textToAdd) !== -1) textarea.value = textarea.value.replace(textToAdd, "");
-  else textarea.value += textToAdd;
+  const idx = insertOnlyPrompts.has(textarea) ? -1 : findStandalone(textarea.value, textToAdd.trim());
+  if (idx !== -1) removeAt(textarea, idx, textToAdd.trim().length);
+  else insertAtCursor(textarea, textToAdd);
   updateInput(textarea);
   markSelectedCards(extractLoraNames(textarea.value), "lora");
 }
@@ -10863,13 +10914,15 @@ async function setupExtraNetworks() {
   setupExtraNetworksForTab("img2img");
   setupExtraNetworksForTab("control");
   setupExtraNetworksForTab("video");
-  function registerPrompt(tabName, id) {
+  function registerPrompt(tabName, id, insertOnly = false) {
     const textarea = gradioApp().querySelector(`#${id} > label > textarea`);
     if (!textarea) return;
     if (!activePromptTextarea[tabName]) activePromptTextarea[tabName] = textarea;
     textarea.addEventListener("focus", () => {
       activePromptTextarea[tabName] = textarea;
     });
+    textarea.addEventListener("blur", () => promptCursor.set(textarea, textarea.selectionStart));
+    if (insertOnly) insertOnlyPrompts.add(textarea);
   }
   registerPrompt("txt2img", "txt2img_prompt");
   registerPrompt("txt2img", "txt2img_neg_prompt");
@@ -10877,6 +10930,12 @@ async function setupExtraNetworks() {
   registerPrompt("img2img", "img2img_neg_prompt");
   registerPrompt("control", "control_prompt");
   registerPrompt("control", "control_neg_prompt");
+  for (const tabName of ["txt2img", "img2img", "control"]) {
+    registerPrompt(tabName, `${tabName}_refiner_prompt`);
+    registerPrompt(tabName, `${tabName}_refiner_neg_prompt`);
+    registerPrompt(tabName, `${tabName}_detailer_prompt`, true);
+    registerPrompt(tabName, `${tabName}_detailer_negative`);
+  }
   registerPrompt("video", "video_prompt");
   registerPrompt("video", "video_neg_prompt");
   log("initNetworks", window.opts.extra_networks_card_size);
@@ -11142,7 +11201,7 @@ function requestProgress(id_task = "undefined", progressEl = null, galleryEl = n
       if (parentGallery && livePreview) {
         if (useImage) {
           const previewImg = gradioApp().querySelector("#livePreviewImage");
-          const galleryImg = parentGallery.querySelector("img");
+          const galleryImg = galleryEl.querySelector("img");
           if (previewImg?.src && galleryImg) galleryImg.src = previewImg.src;
         }
         parentGallery.removeChild(livePreview);
@@ -11805,21 +11864,6 @@ function updateImg2imgResizeToTextAfterChangingImage() {
   if (el2) setTimeout(() => gradioApp().getElementById("img2img_update_resize_to").click(), 500);
   return [];
 }
-async function toggleCompact(val, old) {
-  if (val === old) return;
-  log("toggleCompact", val);
-  if (val) {
-    gradioApp().style.setProperty("--layout-gap", "var(--spacing-md)");
-    gradioApp().querySelectorAll("input[type=range]").forEach((el2) => el2.classList.add("hidden"));
-    gradioApp().querySelectorAll("div .form").forEach((el2) => el2.classList.add("form-compact"));
-    gradioApp().querySelectorAll(".small-accordion .label-wrap").forEach((el2) => el2.classList.add("accordion-compact"));
-  } else {
-    gradioApp().style.setProperty("--layout-gap", "var(--spacing-xxl)");
-    gradioApp().querySelectorAll("input[type=range]").forEach((el2) => el2.classList.remove("hidden"));
-    gradioApp().querySelectorAll("div .form").forEach((el2) => el2.classList.remove("form-compact"));
-    gradioApp().querySelectorAll(".small-accordion .label-wrap").forEach((el2) => el2.classList.remove("accordion-compact"));
-  }
-}
 var kanvasNotifyTimer;
 function notifyKanvasResize(width, height) {
   if (window.resizeStage) {
@@ -12128,19 +12172,34 @@ function parseLogLine(line) {
     msg: String(parsed.msg ?? "")
   };
 }
+function updateCounters() {
+  const elWarn = document.getElementById("logWarnings");
+  const elErr = document.getElementById("logErrors");
+  const modenUIBtn = document.getElementById("btn_console");
+  if (elWarn) elWarn.innerText = String(logWarnings);
+  if (elErr) elErr.innerText = String(logErrors);
+  if (modenUIBtn) {
+    modenUIBtn.setAttribute("error-count", logErrors > 0 ? String(logErrors) : "");
+    modenUIBtn.style.backgroundColor = logErrors > 0 ? "var(--color-error)" : "";
+    modenUIBtn.title = `Log
+Errors ${logErrors}
+Warnings ${logWarnings}`;
+  }
+}
 async function clearErrors() {
   logWarnings = 0;
   logErrors = 0;
+  updateCounters();
   log("clearErrors");
 }
 async function initClearErrorsButton() {
   const btnServerClear = document.getElementById("btn_console_log_server_clear");
   if (btnServerClear) {
-    btnServerClear.onclick = async (evt) => {
+    btnServerClear.addEventListener("click", (evt) => {
       evt.preventDefault();
       evt.stopPropagation();
       clearErrors();
-    };
+    });
   }
 }
 async function logMonitor() {
@@ -12169,18 +12228,7 @@ async function logMonitor() {
     }
     if (atBottom2) logMonitorEl.scrollTop = logMonitorEl.scrollHeight;
     else if (logMonitorEl.parentElement) logMonitorEl.parentElement.style.cssText = "border-bottom: 2px solid var(--highlight-color);";
-    const elWarn = document.getElementById("logWarnings");
-    const elErr = document.getElementById("logErrors");
-    const modenUIBtn = document.getElementById("btn_console");
-    if (elWarn) elWarn.innerText = String(logWarnings);
-    if (elErr) elErr.innerText = String(logErrors);
-    if (modenUIBtn) {
-      modenUIBtn.setAttribute("error-count", logErrors > 0 ? String(logErrors) : "");
-      modenUIBtn.style.backgroundColor = logErrors > 0 ? "var(--color-error)" : "";
-      modenUIBtn.title = `Log
-Errors ${logErrors}
-Warnings ${logWarnings}`;
-    }
+    updateCounters();
   };
   const txtGallery = document.getElementById("txt2img_gallery");
   if (txtGallery) txtGallery.style.height = window.opts.logmonitor_show ? "50vh" : "55vh";
@@ -12297,7 +12345,6 @@ function monitorOption(option, callback) {
 }
 var AppyOpts = [
   // monitored opts
-  { compact_view: (val, old) => toggleCompact(val, old) },
   { gradio_theme: (val, old) => setTheme(val, old) },
   { font_size: (val, old) => setFontSize(val, old) }
 ];
@@ -15596,6 +15643,15 @@ async function tooltipShowDelegated(e) {
 async function tooltipHideDelegated(e) {
   if (e.target.dataset && e.target.dataset.hint) tooltipHide(e);
 }
+function getElTitle(el2) {
+  let title = "";
+  for (const child of Array.from(el2.children)) {
+    const childText = child.textContent || "";
+    if (childText && childText !== title) title += " " + childText;
+  }
+  if (title.length === 0) title = el2.textContent || "";
+  return title.trim();
+}
 async function tooltipShow(e) {
   if (localeData.expandTimeout) {
     clearTimeout(localeData.expandTimeout);
@@ -15614,7 +15670,7 @@ async function tooltipShow(e) {
     `;
     let content = `
       <div class="tooltip-header">
-        <b>${e.target.textContent}</b>
+        <b>${getElTitle(e.target)}</b>
         ${e.target.dataset.longHint ? progressRing : ""}
       </div>
       <div class="separator"></div>
@@ -15743,8 +15799,13 @@ async function setHints() {
     let found;
     if (el2.id) found = localeData.data.find((l) => l.id && (l.id === el2.id || el2.id.endsWith(l.id)));
     if (!found) {
-      if (el2.dataset.original) found = localeData.data.find((l) => l.label.toLowerCase().trim() === el2.dataset.original.toLowerCase().trim());
-      else found = localeData.data.find((l) => l.label.toLowerCase().trim() === el2.textContent.toLowerCase().trim());
+      if (el2.dataset.original) {
+        const desired = el2.dataset.original.toLowerCase().trim();
+        if (desired.length > 0) found = localeData.data.find((l) => l.label.toLowerCase().trim() === desired);
+      } else {
+        const desired = el2.textContent.toLowerCase().trim();
+        if (desired.length > 0) found = localeData.data.find((l) => l.label.toLowerCase().trim() === desired);
+      }
     }
     if (found?.localized?.length > 0) {
       if (!el2.dataset.original) el2.dataset.original = el2.textContent;
@@ -16394,7 +16455,7 @@ String.prototype.format = function format(args) {
   return thisString;
 };
 var selectedURL = [];
-var selectedName = [];
+var selectedFileId = [];
 var selectedType = [];
 var selectedBase = [];
 var selectedModelId = [];
@@ -16455,23 +16516,6 @@ function sortFiles(files) {
     return index < 0 ? precisionOrder.length : index;
   };
   return [...files].sort((a, b) => Number(isModel(b)) - Number(isModel(a)) || rank(a) - rank(b) || (b.size || 0) - (a.size || 0));
-}
-function insertNameSuffix(name, suffix) {
-  const dot = name.lastIndexOf(".");
-  return dot > 0 ? `${name.slice(0, dot)}-${suffix}${name.slice(dot)}` : `${name}-${suffix}`;
-}
-function fileSaveName(file, siblings) {
-  const tier1 = (f) => {
-    const variant = fileVariant(f);
-    return variant ? insertNameSuffix(f.name || "", variant) : f.name || "";
-  };
-  const tier2 = (f) => f.metadata?.size ? insertNameSuffix(tier1(f), f.metadata.size) : tier1(f);
-  const others = siblings.filter((s) => s.id !== file.id);
-  const name = tier1(file);
-  if (!others.some((s) => tier1(s) === name)) return name;
-  const sized = tier2(file);
-  if (!others.some((s) => tier2(s) === sized)) return sized;
-  return insertNameSuffix(name, String(file.id));
 }
 function escapeHTML(text) {
   return text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -16540,7 +16584,7 @@ async function modelCardClick(id) {
 window.modelCardClick = modelCardClick;
 function queueFiles(model, queued) {
   selectedURL = queued.map(({ file }) => file.url || "");
-  selectedName = queued.map(({ version, file }) => fileSaveName(file, version.files));
+  selectedFileId = queued.map(({ file }) => file.id || 0);
   selectedType = queued.map(({ file }) => (companionTypes.includes(file.type || "") ? file.type : model.type) || "");
   selectedBase = queued.map(({ version }) => version.base || "");
   selectedModelId = queued.map(() => model.id || 0);
@@ -16563,11 +16607,11 @@ function startCivitAllDownload(evt) {
   queueFiles(currentModel, queued);
 }
 window.startCivitAllDownload = startCivitAllDownload;
-function downloadCivitModel(modelUrl, modelName, modelType, modelBase, mId, vId, modelPath, civitToken, innerHTML) {
-  log("downloadCivitModel", { modelUrl, modelName, modelType, modelBase, mId, vId, modelPath, civitToken });
+function downloadCivitModel(modelUrl, fileId, modelType, modelBase, mId, vId, modelPath, civitToken, innerHTML) {
+  log("downloadCivitModel", { modelUrl, fileId, modelType, modelBase, mId, vId, modelPath, civitToken });
   const el2 = gradioApp().getElementById("civitai_models_output") || gradioApp().getElementById("models_outcome");
   const currentHTML = el2?.innerHTML || "";
-  return [selectedURL, selectedName, selectedType, selectedBase, selectedModelId, selectedVersionId, modelPath, civitToken, currentHTML];
+  return [selectedURL, selectedFileId, selectedType, selectedBase, selectedModelId, selectedVersionId, modelPath, civitToken, currentHTML];
 }
 window.downloadCivitModel = downloadCivitModel;
 var civitMutualExcludeBound = false;

@@ -29,6 +29,7 @@ NATIVE_DISPATCH = {
     'anima':      'pipelines.anima.anima_lora',
     'krea2':      'pipelines.krea2.krea2_lora',
     'minimaxh3':  'pipelines.minimax.minimax_lora',
+    'qwen21':     'pipelines.qwen.qwen21_lora',
 }
 
 

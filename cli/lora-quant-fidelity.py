@@ -76,15 +76,15 @@ modules.cmd_args.parse_args()
 installer.add_args(modules.cmd_args.parser)
 modules.cmd_args.parsed, _unknown = modules.cmd_args.parser.parse_known_args([])
 
-import torch # pylint: disable=wrong-import-position
-from safetensors import safe_open # pylint: disable=wrong-import-position
-from rich import print as rprint # pylint: disable=wrong-import-position
+import torch # pylint: disable=wrong-import-position, wrong-import-order
+from safetensors import safe_open # pylint: disable=wrong-import-position, wrong-import-order
+from rich import print as rprint # pylint: disable=wrong-import-position, wrong-import-order
 
 from modules import shared # pylint: disable=wrong-import-position,unused-import # shared must initialize before sd_models, which imports back into it
 from modules.lora import native_adapter, network, network_lora, network_lokr, network_hada, network_oft, network_full, network_ia3, network_glora, network_norm, lora_sdnq # pylint: disable=wrong-import-position
-from modules.lora.lora_load import NATIVE_DISPATCH # pylint: disable=wrong-import-position
-from sdnq.quantizer import sdnq_quantize_layer_weight # pylint: disable=wrong-import-position
-from sdnq.quant_utils import rotate_hadamard # pylint: disable=wrong-import-position
+from modules.lora.lora_load import NATIVE_DISPATCH # pylint: disable=wrong-import-position, wrong-import-order
+from sdnq.quantizer import sdnq_quantize_layer_weight # pylint: disable=wrong-import-position, wrong-import-order
+from sdnq.quant_utils import rotate_hadamard # pylint: disable=wrong-import-position, wrong-import-order
 
 
 MODEL_ROOTS = [
@@ -661,7 +661,7 @@ def main():
                     grid = f'step-ratio={r["step_ratio"]:.3f} crossers={r["crossers"]*100:5.1f}%' if r['step_ratio'] is not None else 'unquantized reference'
                     rprint(f'    {r["module"]:48s} fam={r["family"]:5s} dtype={r["dtype"]} {grid} rho={r["requant_rho"]:.3f}')
             del mapped, net
-        except KeyboardInterrupt:
+        except KeyboardInterrupt: # pylint: disable=try-except-raise
             raise
         except Exception as e: # one broken file must not cost the rest of the batch
             rprint(f'\n[red]lora failed[/red]: "{os.path.basename(lora_path)}" {type(e).__name__}: {e}')

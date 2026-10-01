@@ -63,7 +63,7 @@
     "preview": "stabilityai--stable-diffusion-xl-base-1.0.jpg",
     "desc": "Stable Diffusion XL (SDXL) is AI image generation model that is tailored towards more photorealistic outputs with more detailed imagery and composition compared to previous SD models, including SD 2.1. It can make realistic faces and better image composition, all while using shorter and simpler prompts at a greatly increased base resolution of 1024x1024. Just like its predecessors, SDXL has the ability to generate image variations using image-to-image prompting, inpainting (reimagining of the selected parts of an image), and outpainting (creating new parts that lie outside the image borders).",
     "variant": "fp16",
-    "size": 32.0,
+    "size": 6.94,
     "date": "2023 July"
   },
   "SalesForce BLIP-Diffusion": {
@@ -559,6 +559,13 @@
     "size": 18.11,
     "date": "2025 July"
   },
+  "ObjectClear": {
+    "path": "jixin0101/ObjectClear",
+    "desc": "ObjectClear: Precise Object and Effect Removal with Adaptive Target-Aware Attention",
+    "preview": "jixin0101--ObjectClear.jpg",
+    "size": 7.795,
+    "date": "2025 July"
+  },
   "Qwen-Image": {
     "path": "Qwen/Qwen-Image",
     "preview": "Qwen--Qwen-Image.jpg",
@@ -654,7 +661,7 @@
     "size": 82.71,
     "date": "2025 October"
   },
-  "Bria FIBO": {
+  "Bria Fibo 1.0": {
     "path": "briaai/FIBO",
     "preview": "briaai--FIBO.jpg",
     "desc": "BRIA FIBO is an 8-billion parameter text-to-image diffusion model using Flow Matching and featuring a lightweight SmolLM3-3B text encoder. Delivers high-quality, detailed image generation with efficient inference.",
@@ -734,13 +741,6 @@
     "size": 53.74,
     "date": "2025 December"
   },
-  "Qwen-Image-2.1": {
-    "path": "Qwen/Qwen-Image-2.1",
-    "preview": "Qwen--Qwen-Image-2.1.jpg",
-    "desc": "Qwen-Image-2.1 is a unified text-to-image and image editing model with a 7B single-stream transformer and Qwen3-VL text encoder, native transparent RGBA output and up to 10 reference images for editing",
-    "size": 30.86,
-    "date": "2026 September"
-  },
   "lodestones Zeta-Chroma": {
     "path": "lodestones/Zeta-Chroma",
     "preview": "lodestones--Zeta-Chroma.jpg",
@@ -803,7 +803,7 @@
     "size": 10.46,
     "date": "2026 January"
   },
-  "Bria Fibo-Edit": {
+  "Bria Fibo-Edit 1.0": {
     "path": "briaai/Fibo-Edit",
     "preview": "briaai--Fibo-Edit.jpg",
     "desc": "BRIA Fibo-Edit is the image editing variant of FIBO, enabling precise image manipulation through text instructions while maintaining consistency and quality.",
@@ -997,6 +997,29 @@
     "desc": "LLaDA-Image is a unified 6B image generation and editing model with text, VQ-conditioned, and reference-image workflows.",
     "extras": "steps: 50, cfg_scale: 5.0",
     "size": 37.15,
+    "date": "2026 September"
+  },
+  "Bria Fibo 1.5": {
+    "path": "briaai/Fibo-1.5",
+    "preview": "briaai--Fibo-1.5.jpg",
+    "desc": "BRIA FIBO 1.5 is an 8-billion parameter text-to-image diffusion model using Flow Matching with a lightweight SmolLM3-3B text encoder, delivering enhanced generation quality and prompt adherence.",
+    "extras": "sampler: Default, cfg_scale: 3.5",
+    "size": 23.79,
+    "date": "2026 September"
+  },
+  "Qwen-Image-2.1": {
+    "path": "Qwen/Qwen-Image-2.1",
+    "preview": "Qwen--Qwen-Image-2.1.jpg",
+    "desc": "Qwen-Image-2.1 is a unified text-to-image and image editing model with a 7B single-stream transformer and Qwen3-VL text encoder, native transparent RGBA output and up to 10 reference images for editing",
+    "size": 30.86,
+    "date": "2026 September"
+  },
+  "Bria Fibo-Edit 1.5": {
+    "path": "briaai/Fibo-Edit-1.5-base",
+    "preview": "briaai--Fibo-Edit-1.5-base.jpg",
+    "desc": "BRIA Fibo-Edit 1.5 Base is an 8-billion parameter image editing model using Flow Matching and SmolLM3-3B text encoding, supporting instruction-guided editing and multi-reference conditioning.",
+    "extras": "sampler: Default, cfg_scale: 5.0, steps: 30",
+    "size": 22.47,
     "date": "2026 September"
   }
 }

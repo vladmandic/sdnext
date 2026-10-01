@@ -203,16 +203,15 @@ class PromptEnhanceScript(scripts_manager.Script):
                 response = re.sub(r'<think>.*?</think>', '', response, flags=re.DOTALL)
                 response = response.replace('</think>', '')  # Handle orphaned closing tags
 
-        # remove special characters
-        response = response.replace('"', '').replace("'", "").replace('"', '').replace('"', '').replace('**', '')
-        # remove repeating characters and short repeated tokens from model collapse
+        # strip empty lines
         response = response.replace('\n\n', '\n').replace('  ', ' ').replace('...', '.')
+        # remove repeating characters and short repeated tokens from model collapse
         response = re.sub(r'\b([A-Za-z]{1,3})(?:\s+\1){1,}\b', r'\1', response, flags=re.IGNORECASE)
 
         # remove comments between brackets (but not Reasoning:/Answer: which we may have added)
-        response = re.sub(r'<.*?>', '', response)
-        response = re.sub(r'\[.*?\]', '', response)
-        response = re.sub(r'\/.*?\/', '', response)
+        # response = re.sub(r'<.*?>', '', response)
+        # response = re.sub(r'\[.*?\]', '', response)
+        # response = re.sub(r'\/.*?\/', '', response)
 
         # remove llm commentary
         removed = ''
@@ -230,6 +229,7 @@ class PromptEnhanceScript(scripts_manager.Script):
             debug_log(f'Prompt enhance: max={self.options.max_delim_index} removed="{removed}"')
 
         # remove bullets and lists
+        response = response.replace('**', '')
         lines = [re.sub(r'^(\s*[-*]|\s*\d+)\s+', '', line).strip() for line in response.splitlines()]
         response = '\n'.join(lines)
 
@@ -325,7 +325,11 @@ class PromptEnhanceScript(scripts_manager.Script):
                 use_openai:bool=False,
                ):
         # Strip symbols from model name if present
+        choices = [get_model_repo_from_display(m) for m in Options.get_model_choices()]
         model = get_model_repo_from_display(model) if model else self.options.default
+        if model not in choices:
+            log.error(f'Prompt enhance: model="{model}" not recognized')
+            return prompt
         prompt = prompt or (self.prompt.value if self.prompt else "") # Check if self.prompt is None
         if use_vision and is_vision_model(model): # handle vision toggle
             image = image or self.image

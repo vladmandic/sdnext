@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from typing import TYPE_CHECKING
 import torch
-from modules import shared, errors, timer, prompt_parser_diffusers, processing_helpers
+from modules import shared, errors, timer, prompt_parser_diffusers, processing_helpers, sd_models
 from modules.logger import log
 
 if TYPE_CHECKING:
@@ -23,7 +23,7 @@ def fix_prompt_batch(p, prompts, negative_prompts, prompts_2, negative_prompts_2
     if type(negative_prompts) is str:
         negative_prompts = [negative_prompts]
 
-    if hasattr(p, 'init_images') and (p.init_images is not None) and (len(p.init_images) > 1) and not getattr(p, 'skip_processing', False):
+    if hasattr(p, 'init_images') and (p.init_images is not None) and (len(p.init_images) > 1) and not getattr(p, 'skip_processing', False) and (sd_models.get_max_condition_images() == 0):
         while len(prompts) < len(p.init_images):
             prompts.append(prompts[-1] if prompts else '')
         while len(negative_prompts) < len(p.init_images):

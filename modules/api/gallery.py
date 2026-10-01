@@ -1,12 +1,10 @@
 import io
 import os
-from pathlib import Path
 import time
 import base64
 from secrets import compare_digest
 from urllib.parse import quote, unquote
 from fastapi.responses import JSONResponse
-from fastapi.exceptions import HTTPException
 from starlette.websockets import WebSocket, WebSocketState
 from pydantic import BaseModel, Field # pylint: disable=no-name-in-module
 from PIL import Image
@@ -215,14 +213,12 @@ def register_api(api): # register api
     # @app.get("/sdapi/v1/browser/thumb", response_model=dict)
     async def get_thumb(file: str, exif: bool = False):
         try:
-            decoded = unquote(file).replace('%3A', ':')
-            allowed_dirs = shared.demo.allowed_paths
-            if not any(Path(folder).absolute() in Path(file).absolute().parents for folder in allowed_dirs):
-                raise HTTPException(status_code=403, detail=f"file {file}: must be in one of allowed directories")
-            if decoded.lower().endswith('.mp4'):
-                return JSONResponse(content=get_video_thumbnail(decoded))
+            from modules.api import helpers
+            fn = helpers.validate_path(file, shared.demo.allowed_paths)
+            if fn.lower().endswith('.mp4'):
+                return JSONResponse(content=get_video_thumbnail(fn))
             else:
-                return JSONResponse(content=get_image_thumbnail(decoded, exif))
+                return JSONResponse(content=get_image_thumbnail(fn, exif))
         except Exception as e:
             log.error(f'Gallery: {file} {e}')
             content = { 'error': str(e) }
@@ -232,9 +228,8 @@ def register_api(api): # register api
     async def ht_files(folder: str):
         try:
             t0 = time.time()
-            allowed_dirs = shared.demo.allowed_paths
-            if not any(Path(folder).absolute() in Path(folder).absolute().parents for folder in allowed_dirs):
-                raise HTTPException(status_code=403, detail=f"folder {folder}: must be in one of allowed directories")
+            from modules.api import helpers
+            folder = helpers.validate_path(folder, allowed_folder=True)
             files = files_cache.directory_files(folder, recursive=True)
             lines = []
             for f in files:

@@ -57,6 +57,7 @@ def task_specific_kwargs(p, model):
     model_cls = model.__class__.__name__
     vae_scale_factor = sd_vae.get_vae_scale_factor(model)
     task_args = {}
+    requested_size = (getattr(p, 'width', None), getattr(p, 'height', None)) # resize_init_images overwrites the request with the image size
     is_img2img_model = bool('Zero123' in model_cls)
     task_type = sd_models.get_diffusers_task(model)
     if len(getattr(p, 'init_images', [])) > 0:
@@ -156,6 +157,8 @@ def task_specific_kwargs(p, model):
         p.init_images = [Image.new('RGB', (p.width, p.height), (0, 0, 0))] # monkey-patch so i2i pipeline does not error-out on t2i
     if (model_cls in can_i2i) and (len(getattr(p, 'init_images', [])) > 0):
         task_args['image'] = p.init_images
+    if (sd_models.get_max_condition_images(model) > 0) and (len(getattr(p, 'init_images', [])) > 0): # otherwise set_pipeline_args sizes the call from the first condition image
+        task_args['width'], task_args['height'] = p.width, p.height
 
     if ('QwenImageLayeredPipeline' in model_cls) and (task_args.get('image', None) is not None):
         image_items = task_args['image']
@@ -163,7 +166,7 @@ def task_specific_kwargs(p, model):
             task_args['image'] = [i.convert('RGBA') for i in image_items]
     if ('LatentConsistencyModelPipeline' in model_cls) and (len(p.init_images) > 0):
         p.ops.append('lcm')
-        init_latents = [processing_vae.vae_encode(image, model=shared.sd_model, vae_type=p.vae_type).squeeze(dim=0) for image in p.init_images]
+        init_latents = [processing_vae.vae_encode(image, model=shared.sd_model).squeeze(dim=0) for image in p.init_images]
         init_latent = torch.stack(init_latents, dim=0).to(shared.device)
         init_noise = p.denoising_strength * processing.create_random_tensors(init_latent.shape[1:], seeds=p.all_seeds, subseeds=p.all_subseeds, subseed_strength=p.subseed_strength, p=p)
         init_latent = (1 - p.denoising_strength) * init_latent + init_noise
@@ -184,6 +187,12 @@ def task_specific_kwargs(p, model):
             'target_subject_category': (getattr(p, 'prompt', '').split() or [''])[-1],
             'output_type': 'pil',
         }
+
+    if (len(getattr(p, 'init_images', [])) > 0) and (None not in requested_size) and ('Size source' not in p.extra_generation_params):
+        output_size = (task_args.get('width', width), task_args.get('height', height)) # a call without a size runs at the image size
+        if any(abs(o - r) >= vae_scale_factor for o, r in zip(output_size, requested_size)): # beyond alignment, so nothing fitted the image to the request
+            log.warning(f'Size: source=image requested={requested_size[0]}x{requested_size[1]} image={output_size[0]}x{output_size[1]}')
+            p.extra_generation_params['Size source'] = 'image'
 
     if debug_enabled:
         debug_log(f'Process task specific args: {task_args}')
@@ -429,6 +438,8 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:l
     model_args = getattr(model, 'task_args', {})
     task_kwargs.update(pipe_args or {})
     task_kwargs.update(model_args or {})
+    if ('image' in task_kwargs) and ('image' not in possible) and ('images' in possible): # JoyImageEditPlusPipeline and GoogleNanoBananaPipeline take the list as images
+        task_kwargs['images'] = task_kwargs.pop('image')
     if debug_enabled:
         debug_log(f'Process task args: {task_kwargs}')
     for k, v in task_kwargs.items():
@@ -496,6 +507,7 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:l
     if generator is not None:
         clean['generator'] = f'{generator[0].device}:{[g.initial_seed() for g in generator]}'
     clean['parser'] = prompt_attention
+    clean['ref'] = sd_models.get_max_condition_images(model) > 0
     for k, v in clean.copy().items():
         if v is None:
             clean[k] = None

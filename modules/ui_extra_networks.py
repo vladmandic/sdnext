@@ -10,12 +10,10 @@ import base64
 import urllib.parse
 import threading
 from types import SimpleNamespace
-from pathlib import Path
 from html.parser import HTMLParser
 from collections import OrderedDict
 import gradio as gr
 from PIL import Image
-from fastapi.exceptions import HTTPException
 from starlette.responses import FileResponse, JSONResponse
 from modules import paths, shared, devices, files_cache, errors, infotext, ui_symbols, ui_components, modelstats
 from modules.logger import log
@@ -58,21 +56,19 @@ preview_map = None
 def init_api():
 
     def get_thumb(filename: str = ""):
+        from modules.api import helpers
         if os.path.join('ui', 'assets') not in allowed_dirs:
             allowed_dirs.append(os.path.join('ui', 'assets'))
         if filename is None or len(filename) == 0:
             return JSONResponse({ "error": "no filename" }, status_code=400)
-        if not any(Path(folder).absolute() in Path(filename).absolute().parents for folder in allowed_dirs):
-            raise HTTPException(status_code=403, detail=f"file {filename}: must be in one of allowed directories")
-        if not os.path.exists(filename) or not os.path.isfile(filename) or os.path.getsize(filename) == 0:
+        fn = helpers.validate_path(filename, allowed_dirs)
+        if not os.path.exists(fn) or not os.path.isfile(fn) or os.path.getsize(fn) == 0:
             return FileResponse('ui/assets/missing.png', headers={"Accept-Ranges": "bytes"})
-        if filename.startswith('html/') or filename.startswith('models/') or filename.startswith('data/') or filename.startswith('ui/'):
-            return FileResponse(filename, headers={"Accept-Ranges": "bytes"})
-        if not any(Path(folder).absolute() in Path(filename).absolute().parents for folder in allowed_dirs):
-            return JSONResponse({ "error": f"file {filename}: must be in one of allowed directories" }, status_code=403)
-        if os.path.splitext(filename)[1].lower() not in (".png", ".jpg", ".jpeg", ".webp"):
-            return JSONResponse({"error": f"file {filename}: not an image file"}, status_code=403)
-        return FileResponse(filename, headers={"Accept-Ranges": "bytes"})
+        if fn.startswith('html/') or fn.startswith('models/') or fn.startswith('data/') or fn.startswith('ui/'):
+            return FileResponse(fn, headers={"Accept-Ranges": "bytes"})
+        if os.path.splitext(fn)[1].lower() not in (".png", ".jpg", ".jpeg", ".webp"):
+            return JSONResponse({"error": f"file {fn}: not an image file"}, status_code=403)
+        return FileResponse(fn, headers={"Accept-Ranges": "bytes"})
 
     def get_metadata(page: str = "", item: str = ""):
         page_dict = next(iter([x for x in shared.extra_networks if x.name.lower() == page.lower()]), None)
@@ -602,8 +598,6 @@ def register_page(page: ExtraNetworksPage):
         debug(f'EN register-page: {page} already registered')
         return
     shared.extra_networks.append(page)
-    # allowed_dirs.clear()
-    # for pg in shared.extra_networks:
     for folder in page.allowed_directories_for_previews():
         if folder not in allowed_dirs:
             allowed_dirs.append(os.path.abspath(folder))

@@ -250,14 +250,15 @@ def setup_logging(debug=None, trace=None, filename=None):
     Padding.__rich_console__ = override_padding
     box.ROUNDED = box.SIMPLE
     patch_traceback_panel()
-    console = Console(
-        log_time=True,
-        log_time_format='%H:%M:%S-%f',
-        tab_size=4,
-        soft_wrap=True,
-        safe_box=True,
-        theme=theme,
-    )
+    if console is None: # created once: modules bind this name at import time and progress bars must share the console the handler prints on
+        console = Console(
+            log_time=True,
+            log_time_format='%H:%M:%S-%f',
+            tab_size=4,
+            soft_wrap=True,
+            safe_box=True,
+            theme=theme,
+        )
 
     logging.basicConfig(level=logging.ERROR, format='%(asctime)s | %(name)s | %(levelname)s | %(module)s | %(message)s', handlers=[logging.NullHandler()]) # redirect default logger to null
 

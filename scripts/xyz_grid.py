@@ -108,6 +108,8 @@ class XYZGridScript(scripts_manager.Script):
         fill_z_button.click(fn=fill, inputs=[z_type, csv_mode], outputs=[z_values, z_values_dropdown])
 
         def select_axis(axis_type, axis_values, axis_values_dropdown, csv_mode):
+            if axis_type is None:
+                return gr.update(), gr.update(), gr.update()
             choices = self.current_axis_options[axis_type].choices
             has_choices = choices is not None
             current_values = axis_values

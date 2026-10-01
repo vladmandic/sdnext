@@ -139,6 +139,7 @@ main.ignore-paths=[
     "pipelines/lumina_dimmo",
     "pipelines/mageflow",
     "pipelines/meissonic",
+    "pipelines/objectclear",
     "pipelines/omnigen2",
     "pipelines/segmoe",
     "pipelines/sefi",

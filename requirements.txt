@@ -25,13 +25,13 @@ fastapi==0.124.4
 uvicorn==0.52.4
 rich==15.0.0
 safetensors==0.8.0
-peft==0.21.0
+peft==0.21.1
 httpx==0.28.1
 requests==2.34.2
 tqdm==4.70.1
 accelerate==1.15.0
 einops==0.8.2
-huggingface_hub==1.31.0
+huggingface_hub==1.33.0
 hf_xet==1.6.0
 pandas==2.3.1
 protobuf==7.36.1

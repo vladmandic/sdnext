@@ -1,0 +1,499 @@
+{
+  "tensors": {
+    "decoder0.conv0.bias": {
+      "shape": [
+        64
+      ],
+      "dtype": "float16"
+    },
+    "decoder0.conv0.weight": {
+      "shape": [
+        64,
+        128,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "decoder0.conv1.bias": {
+      "shape": [
+        64
+      ],
+      "dtype": "float16"
+    },
+    "decoder0.conv1.weight": {
+      "shape": [
+        64,
+        64,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "decoder0.shortcut.bias": {
+      "shape": [
+        64
+      ],
+      "dtype": "float16"
+    },
+    "decoder0.shortcut.weight": {
+      "shape": [
+        64,
+        128,
+        1,
+        1
+      ],
+      "dtype": "float16"
+    },
+    "decoder0.upsample.bias": {
+      "shape": [
+        64
+      ],
+      "dtype": "float16"
+    },
+    "decoder0.upsample.weight": {
+      "shape": [
+        64,
+        64,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "decoder1.conv0.bias": {
+      "shape": [
+        32
+      ],
+      "dtype": "float16"
+    },
+    "decoder1.conv0.weight": {
+      "shape": [
+        32,
+        64,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "decoder1.conv1.bias": {
+      "shape": [
+        32
+      ],
+      "dtype": "float16"
+    },
+    "decoder1.conv1.weight": {
+      "shape": [
+        32,
+        32,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "decoder1.shortcut.bias": {
+      "shape": [
+        32
+      ],
+      "dtype": "float16"
+    },
+    "decoder1.shortcut.weight": {
+      "shape": [
+        32,
+        64,
+        1,
+        1
+      ],
+      "dtype": "float16"
+    },
+    "decoder1.upsample.bias": {
+      "shape": [
+        32
+      ],
+      "dtype": "float16"
+    },
+    "decoder1.upsample.weight": {
+      "shape": [
+        32,
+        64,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "decoder2.conv0.bias": {
+      "shape": [
+        32
+      ],
+      "dtype": "float16"
+    },
+    "decoder2.conv0.weight": {
+      "shape": [
+        32,
+        64,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "decoder2.conv1.bias": {
+      "shape": [
+        32
+      ],
+      "dtype": "float16"
+    },
+    "decoder2.conv1.weight": {
+      "shape": [
+        32,
+        32,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "decoder2.shortcut.bias": {
+      "shape": [
+        32
+      ],
+      "dtype": "float16"
+    },
+    "decoder2.shortcut.weight": {
+      "shape": [
+        32,
+        64,
+        1,
+        1
+      ],
+      "dtype": "float16"
+    },
+    "decoder2.upsample.bias": {
+      "shape": [
+        32
+      ],
+      "dtype": "float16"
+    },
+    "decoder2.upsample.weight": {
+      "shape": [
+        32,
+        32,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "decoder3.conv0.bias": {
+      "shape": [
+        16
+      ],
+      "dtype": "float16"
+    },
+    "decoder3.conv0.weight": {
+      "shape": [
+        16,
+        32,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "decoder3.conv1.bias": {
+      "shape": [
+        16
+      ],
+      "dtype": "float16"
+    },
+    "decoder3.conv1.weight": {
+      "shape": [
+        16,
+        16,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "decoder3.shortcut.bias": {
+      "shape": [
+        16
+      ],
+      "dtype": "float16"
+    },
+    "decoder3.shortcut.weight": {
+      "shape": [
+        16,
+        32,
+        1,
+        1
+      ],
+      "dtype": "float16"
+    },
+    "decoder3.upsample.bias": {
+      "shape": [
+        16
+      ],
+      "dtype": "float16"
+    },
+    "decoder3.upsample.weight": {
+      "shape": [
+        16,
+        32,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "encoder0.conv0.bias": {
+      "shape": [
+        16
+      ],
+      "dtype": "float16"
+    },
+    "encoder0.conv0.weight": {
+      "shape": [
+        16,
+        16,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "encoder0.conv1.bias": {
+      "shape": [
+        16
+      ],
+      "dtype": "float16"
+    },
+    "encoder0.conv1.weight": {
+      "shape": [
+        16,
+        16,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "encoder0.shortcut.bias": {
+      "shape": [
+        16
+      ],
+      "dtype": "float16"
+    },
+    "encoder0.shortcut.weight": {
+      "shape": [
+        16,
+        16,
+        1,
+        1
+      ],
+      "dtype": "float16"
+    },
+    "encoder1.conv0.bias": {
+      "shape": [
+        32
+      ],
+      "dtype": "float16"
+    },
+    "encoder1.conv0.weight": {
+      "shape": [
+        32,
+        16,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "encoder1.conv1.bias": {
+      "shape": [
+        32
+      ],
+      "dtype": "float16"
+    },
+    "encoder1.conv1.weight": {
+      "shape": [
+        32,
+        32,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "encoder1.shortcut.bias": {
+      "shape": [
+        32
+      ],
+      "dtype": "float16"
+    },
+    "encoder1.shortcut.weight": {
+      "shape": [
+        32,
+        16,
+        1,
+        1
+      ],
+      "dtype": "float16"
+    },
+    "encoder2.conv0.bias": {
+      "shape": [
+        32
+      ],
+      "dtype": "float16"
+    },
+    "encoder2.conv0.weight": {
+      "shape": [
+        32,
+        32,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "encoder2.conv1.bias": {
+      "shape": [
+        32
+      ],
+      "dtype": "float16"
+    },
+    "encoder2.conv1.weight": {
+      "shape": [
+        32,
+        32,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "encoder2.shortcut.bias": {
+      "shape": [
+        32
+      ],
+      "dtype": "float16"
+    },
+    "encoder2.shortcut.weight": {
+      "shape": [
+        32,
+        32,
+        1,
+        1
+      ],
+      "dtype": "float16"
+    },
+    "encoder3.conv0.bias": {
+      "shape": [
+        64
+      ],
+      "dtype": "float16"
+    },
+    "encoder3.conv0.weight": {
+      "shape": [
+        64,
+        32,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "encoder3.conv1.bias": {
+      "shape": [
+        64
+      ],
+      "dtype": "float16"
+    },
+    "encoder3.conv1.weight": {
+      "shape": [
+        64,
+        64,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "encoder3.shortcut.bias": {
+      "shape": [
+        64
+      ],
+      "dtype": "float16"
+    },
+    "encoder3.shortcut.weight": {
+      "shape": [
+        64,
+        32,
+        1,
+        1
+      ],
+      "dtype": "float16"
+    },
+    "encoder4.conv0.bias": {
+      "shape": [
+        64
+      ],
+      "dtype": "float16"
+    },
+    "encoder4.conv0.weight": {
+      "shape": [
+        64,
+        64,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "encoder4.conv1.bias": {
+      "shape": [
+        64
+      ],
+      "dtype": "float16"
+    },
+    "encoder4.conv1.weight": {
+      "shape": [
+        64,
+        64,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "encoder4.shortcut.bias": {
+      "shape": [
+        64
+      ],
+      "dtype": "float16"
+    },
+    "encoder4.shortcut.weight": {
+      "shape": [
+        64,
+        64,
+        1,
+        1
+      ],
+      "dtype": "float16"
+    },
+    "output.conv.bias": {
+      "shape": [
+        64
+      ],
+      "dtype": "float16"
+    },
+    "output.conv.weight": {
+      "shape": [
+        64,
+        16,
+        3,
+        3
+      ],
+      "dtype": "float16"
+    },
+    "output.project.bias": {
+      "shape": [
+        48
+      ],
+      "dtype": "float16"
+    },
+    "output.project.weight": {
+      "shape": [
+        48,
+        64,
+        1,
+        1
+      ],
+      "dtype": "float16"
+    }
+  }
+}

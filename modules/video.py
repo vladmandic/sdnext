@@ -78,7 +78,7 @@ def save_video(p, images, filename = None, video_type: str = 'none', duration: f
     else:
         namegen = FilenameGenerator(None, seed=0, prompt='', image=image)
     base_path = resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_video)
-    if filename is None and p is not None:
+    if filename is None:
         filename = namegen.apply(shared.opts.samples_filename_pattern if shared.opts.samples_filename_pattern and len(shared.opts.samples_filename_pattern) > 0 else "[seq]-[prompt_words]")
         filename = os.path.join(base_path, filename)
         filename = namegen.sequence(filename)
@@ -95,6 +95,24 @@ def save_video(p, images, filename = None, video_type: str = 'none', duration: f
     else:
         save_video_atomic(images, filename, video_type, duration, loop, interpolate, scale, pad, change)
     return filename
+
+
+def read_video(filepath: str):
+    import cv2
+    video = cv2.VideoCapture(filepath)
+    if not video.isOpened():
+        msg = f'Video open failed: path="{filepath}"'
+        log.error(msg)
+        raise RuntimeError(msg)
+    frames = []
+    while True:
+        ok, frame = video.read()
+        if not ok or frame is None:
+            break
+        # frames.append(Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)))
+        frames.append(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+    video.release()
+    return frames
 
 
 def get_video_params(filepath: str, capture: bool = False):

@@ -35,28 +35,16 @@ def vae_decode_tiny(latents):
     Returning None leaves the caller on the full vae, so every rejection here is a fallback
     rather than a failure.
     """
-    cls = shared.sd_model.__class__.__name__
-    if 'Hunyuan' in cls:
-        variant = 'TAE HunyuanVideo'
-    elif 'Mochi' in cls:
-        variant = 'TAE MochiVideo'
-    elif 'Wan' in cls:
-        variant = 'TAE WanVideo'
-    elif 'Kandinsky' in cls:
-        variant = 'TAE HunyuanVideo'
-    else:
-        log.warning(f'Decode: type=Tiny cls={cls} not supported')
-        return None
     from modules.vae import sd_vae_taesd
-    vae, variant = sd_vae_taesd.load_model(variant=variant)
+    vae = sd_vae_taesd.load_model()
     if vae is None:
         return None
     expected = getattr(vae, 'latent_channels', None) # 16 on taehv and 12 on taem1, so ask the decoder rather than assume
     channels = latents.shape[1] if latents.ndim == 5 else None # the pipes hand the decoder NCTHW
     if expected is not None and channels is not None and channels != expected:
-        log.warning(f'Decode: type=Tiny cls={cls} latents={channels}ch expected={expected}ch not supported')
+        log.warning(f'Decode: type=Tiny cls={vae.__class__.__name__} latents={channels}ch expected={expected}ch not supported')
         return None
-    log.debug(f'Decode: type=Tiny cls={vae.__class__.__name__} variant="{variant}" latents={latents.shape}')
+    log.debug(f'Decode: type=Tiny cls={vae.__class__.__name__} latents={latents.shape}')
     vae = vae.to(device=devices.device, dtype=devices.dtype)
     latents = latents.transpose(1, 2).to(device=devices.device, dtype=devices.dtype)
     images = vae.decode_video(latents, parallel=False).transpose(1, 2)

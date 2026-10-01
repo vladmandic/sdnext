@@ -111,6 +111,24 @@ shared_te_map = {
         'target_subfolder': 'text_encoder',
     },
 
+    'Qwen3-VL 8B Conditional Qwen-Image SDNQ-UInt4': {
+        'cls': transformers.Qwen3VLForConditionalGeneration,
+        'identifier': ['qwen_image_2_1_sdnq_dynamic_4bit'],
+        'target_repo': 'OzzyGT/Qwen_Image_2_1_sdnq_dynamic_4bit',
+        'target_subfolder': 'text_encoder',
+    },
+    'Qwen3-VL 8B Conditional Qwen-Image SDNQ-UInt8': {
+        'cls': transformers.Qwen3VLForConditionalGeneration,
+        'identifier': ['qwen_image_2_1_sdnq_dynamic_8bit'],
+        'target_repo': 'OzzyGT/Qwen_Image_2_1_sdnq_dynamic_8bit',
+        'target_subfolder': 'text_encoder',
+    },
+    'Qwen3-VL 8B Conditional Qwen-Image': { # byte-identical to the base instruct checkpoint
+        'cls': transformers.Qwen3VLForConditionalGeneration,
+        'identifier': ['qwen-image-2.1'],
+        'target_repo': 'Qwen/Qwen3-VL-8B-Instruct',
+    },
+
     'Qwen3-VL 2B Conditional': {
         'cls': transformers.Qwen3VLForConditionalGeneration,
         'target_repo': 'SeFi-Image/SeFi-Image-1B-Base',
@@ -122,11 +140,6 @@ shared_te_map = {
         'target_repo': 'SeFi-Image/SeFi-Image-5B-Base',
         'identifier': ['4b','5b'],
         'target_subfolder': 'Qwen3-VL-4B-Instruct',
-    },
-    'Qwen3-VL 8B Conditional Qwen-Image': {  # byte-identical to the base instruct checkpoint
-        'cls': transformers.Qwen3VLForConditionalGeneration,
-        'identifier': ['qwen-image-2.1'],
-        'target_repo': 'Qwen/Qwen3-VL-8B-Instruct',
     },
     'Qwen3-VL 8B Conditional': {
         'cls': transformers.Qwen3VLForConditionalGeneration,

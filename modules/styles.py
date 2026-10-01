@@ -251,9 +251,17 @@ def apply_styles_to_extra(p, style: Style):
     extra = reference.copy()
     style_extra = apply_wildcards_to_prompt(style.extra, [style.wildcards], silent=True, p=p)
     style_extra = ' ' + style_extra.lower()
-    extra.update(infotext.parse(style_extra))
-    extra.pop('Prompt', None)
-    extra.pop('Negative prompt', None)
+    parsed = infotext.parse(style_extra)
+    # a leading key not in infotext's recognized-keyword list (e.g. 'Model:') gets swallowed into
+    # a phantom prompt and dropped; recover it via a second parse() pass, merged before the
+    # remainder so later duplicates still win, then strip any stray prompt/negative-prompt key
+    leaked = parsed.pop('Prompt', None)
+    parsed.pop('Negative prompt', None)
+    if leaked:
+        extra.update(infotext.parse(leaked))
+    extra.update(parsed)
+    for key in [k for k in extra if k.lower() in ('prompt', 'negative prompt')]:
+        extra.pop(key)
     has_prompt = (style.prompt is not None) and len(style.prompt) > 2
     has_negative = (style.negative_prompt is not None) and len(style.negative_prompt) > 2
     if debug_enabled:

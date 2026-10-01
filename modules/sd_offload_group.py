@@ -147,7 +147,7 @@ def apply_group_offload_component(module, module_name: str, main: bool) -> bool:
         return False
     requested_blocks = int(shared.opts.group_offload_blocks)
     if cfg['use_stream'] and requested_blocks > 1:
-        log.warning(f'Offload: type=group module={module_name} blocks={requested_blocks} streams=True clamped=1')
+        log.warning(f'Offload: type=group module={module_name} blocks={requested_blocks} streams=True clamped=1 reason="prefetch with streams runs one block per group"')
     if hasattr(module, '_hf_hook'): # leftover accelerate hooks from a previous offload mode abort the group apply upstream
         module = accelerate.hooks.remove_hook_from_module(module, recurse=True)
     module.sdnext_ondemand = False # group placement replaces any on-demand hook

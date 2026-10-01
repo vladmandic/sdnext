@@ -79,6 +79,7 @@ def load_model(selected: models_def.Model):
         loaded_model = None
     if loaded_model == selected.name:
         return ''
+    loaded_model = None
     if shared.sd_loaded:
         sd_models.unload_model_weights()
 
@@ -157,9 +158,10 @@ def load_model(selected: models_def.Model):
         log.error(f'video load: module=pipe repo="{selected.repo}" cls={selected.repo_cls.__name__} {e}')
         errors.display(e, 'video')
 
-    if shared.sd_model is None:
+    if not shared.sd_loaded:
         msg = f'Load video: model="{selected.name}" failed'
         log.error(msg)
+        shared.state.end(jobid)
         return msg
 
     t1 = time.time()

@@ -45,7 +45,7 @@ def vae_decode_tiny(latents):
     global taesd # pylint: disable=global-statement
     if taesd is None:
         from modules.vae import sd_vae_taesd
-        taesd, _variant = sd_vae_taesd.load_model(variant='TAE HunyuanVideo')
+        taesd = sd_vae_taesd.load_model()
         log.debug(f'Video VAE: type=Tiny cls={taesd.__class__.__name__} latents={latents.shape}')
     with devices.inference_context():
         taesd = taesd.to(device=devices.device, dtype=devices.dtype)

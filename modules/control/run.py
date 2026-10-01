@@ -397,6 +397,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                 schedulers_base_shift: float | None = None, schedulers_max_shift: float | None = None, schedulers_rescale_betas: bool | None = None,
                 schedulers_timestep_spacing: str | None = None, schedulers_timesteps_range: int | None = None,
                 schedulers_sigma_adjust: float | None = None, schedulers_sigma_adjust_min: float | None = None, schedulers_sigma_adjust_max: float | None = None,
+                schedulers_base_image_seq_len: int | None = None, schedulers_max_image_seq_len: int | None = None,
                 scheduler_eta: float | None = None, eta_noise_seed_delta: int | None = None, enable_batch_seeds: bool | None = None,
                 diffusers_generator_device: str | None = None, nan_skip: bool | None = None,
                 sequential_seed: bool | None = None,
@@ -573,6 +574,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
         schedulers_base_shift=schedulers_base_shift, schedulers_max_shift=schedulers_max_shift,
         schedulers_rescale_betas=schedulers_rescale_betas, schedulers_timestep_spacing=schedulers_timestep_spacing,
         schedulers_timesteps_range=schedulers_timesteps_range,
+        schedulers_base_image_seq_len=schedulers_base_image_seq_len, schedulers_max_image_seq_len=schedulers_max_image_seq_len,
         schedulers_sigma_adjust=schedulers_sigma_adjust, schedulers_sigma_adjust_min=schedulers_sigma_adjust_min,
         schedulers_sigma_adjust_max=schedulers_sigma_adjust_max,
         scheduler_eta=scheduler_eta, eta_noise_seed_delta=eta_noise_seed_delta,
@@ -620,7 +622,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
     if p.enable_hr and (p.hr_resize_x == 0 or p.hr_resize_y == 0):
         p.hr_upscale_to_x, p.hr_upscale_to_y = int(vae_scale_factor * int(p.width_before * p.hr_scale / vae_scale_factor)), int(vae_scale_factor * int(p.height_before * p.hr_scale / vae_scale_factor))
     elif p.enable_hr and (p.hr_upscale_to_x == 0 or p.hr_upscale_to_y == 0):
-        p.hr_upscale_to_x, p.hr_upscale_to_y = 8 * int(p.hr_resize_x / vae_scale_factor), int(vae_scale_factor * int(p.hr_resize_y / vae_scale_factor))
+        p.hr_upscale_to_x, p.hr_upscale_to_y = int(vae_scale_factor * int(p.hr_resize_x / vae_scale_factor)), int(vae_scale_factor * int(p.hr_resize_y / vae_scale_factor))
 
     global p_extra_args # pylint: disable=global-statement
     for k, v in p_extra_args.items():
@@ -692,11 +694,14 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                         yield terminate(f'Video open failed: path={inputs} {e}')
                     return terminate(f'Video open failed: path={inputs} {e}')
 
+            condition_set = cap is None and isinstance(inputs, list) and len(inputs) > 1 and all(isinstance(image, Image.Image) for image in inputs) and sd_models.get_max_condition_images(pipe) > 0 # a multi-image pipeline takes every input in one run
             while status:
                 processed_image = None
                 if frame is not None:
                     inputs = [Image.fromarray(frame)] # cv2 to pil
                 for i, input_image in enumerate(inputs): # loop per-input, but with early-break
+                    if condition_set and i > 0: # the set ran with the first input
+                        break
                     if pipe is None: # pipe may have been reset externally
                         if cap is None:
                             break # non-video: pipeline was consumed, no need to re-process remaining inputs
@@ -753,6 +758,9 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                     if getattr(pipe, 'skip_processing', False) or getattr(p, 'skip_processing', False):
                         p.init_images = inputs
                         p.extra_generation_params['Process'] = False
+                        if mask is not None: # the mask is applied by preprocessing only
+                            log.warning('Control: process=skip mask=ignored')
+                            p.extra_generation_params['Mask'] = 'ignored'
                     else:
                         processed_image, blended_image = preprocess_image(p,
                                                                           pipe,
@@ -767,6 +775,8 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                                                                           has_models,
                                                                           active_units,
                                                                         )
+                        if condition_set: # the first input is the canvas, the rest of the set reaches the pipeline as given
+                            p.init_images = list(p.init_images) + inputs[1:]
                         if is_generator:
                             yield (None, blended_image, '') # result is control_output, proces_output
 

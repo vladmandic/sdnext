@@ -27,6 +27,9 @@ and ``resolve_targets`` to the generic helpers.
 """
 
 import os
+import re
+import json
+import math
 import time
 from dataclasses import dataclass
 
@@ -97,6 +100,8 @@ SUFFIX_NORMALIZE = {
     "lora_a": "lora_down.weight",
     "lora_b": "lora_up.weight",
     "lora_up": "lora_up.weight",
+    "lora_A": "lora_down.weight",
+    "lora_B": "lora_up.weight",
 }
 
 
@@ -110,6 +115,7 @@ LORA_SUFFIXES = (
     ".lora_A.weight",    ".lora_B.weight",
     ".lora_down",        ".lora_up",
     ".lora_a",           ".lora_b", # lowercase peft factor names without .weight (TaoLive adapters)
+    ".lora_A",           ".lora_B", # peft factor names without .weight (custom adapter saves)
     # diff_b: bias delta some saves pair with the weight LoRA, applied as ex_bias.
     # magnitude / lora_magnitude_vector: DoRA row norms (ai-toolkit / PEFT key
     # names); converted onto the dora_scale path by try_load_lora.
@@ -162,10 +168,8 @@ FULL_SUFFIXES = (
 
 LORA_MARKERS = (
     ".lora_down", ".lora_up", ".lora_a", ".lora_b", # bare and .weight forms alike
-    ".lora_A.weight", ".lora_B.weight",
-    # PEFT named-adapter saves embed the slot name as ``.lora_A.<name>.weight``;
-    # the trailing-dot forms catch every variant.
-    ".lora_A.", ".lora_B.",
+    # bare, .weight and PEFT named-adapter (``.lora_A.<name>.weight``) forms alike
+    ".lora_A", ".lora_B",
 )
 LOKR_MARKERS = (".lokr_w1", ".lokr_w2")
 LOHA_MARKERS = (".hada_w1_a", ".hada_w1_b", ".hada_w2_a", ".hada_w2_b")
@@ -235,6 +239,17 @@ def unwrap_peft_wrapper(key):
     return key
 
 
+def unwrap_comfy_wrapper(key):
+    """Strip the ``diffusion_model.`` a naive diffusers-to-ComfyUI conversion prepends to ``transformer.`` keys.
+
+    The content underneath is the diffusers-PEFT save unchanged, so the key then
+    parses like any ``transformer.`` key.
+    """
+    if key.startswith("diffusion_model.transformer."):
+        return key[len("diffusion_model."):]
+    return key
+
+
 def strip_peft_adapter_name(key):
     """Normalize ``.lora_[AB].<adapter_name>.weight`` to ``.lora_[AB].weight``.
 
@@ -277,6 +292,82 @@ def new_network(name, network_on_disk):
     net = network.Network(name, network_on_disk)
     net.mtime = os.path.getmtime(network_on_disk.filename)
     return net
+
+
+def file_metadata(network_on_disk):
+    """The safetensors metadata of a network file, read from its header when the cached copy is empty."""
+    metadata = getattr(network_on_disk, "metadata", None) or {}
+    if metadata:
+        return metadata
+    filename = getattr(network_on_disk, "filename", "") or ""
+    if not filename.lower().endswith(".safetensors"):
+        return {}
+    try:
+        from safetensors import safe_open
+        with safe_open(filename, framework="pt", device="cpu") as f:
+            return f.metadata() or {}
+    except Exception:
+        return {}
+
+
+def peft_configs(metadata):
+    """``{component: {field: value}}`` from the PEFT ``LoraConfig`` diffusers saves under ``lora_adapter_metadata``."""
+    raw = metadata.get("lora_adapter_metadata")
+    if not raw:
+        return {}
+    try:
+        config = json.loads(raw) if isinstance(raw, str) else dict(raw)
+    except (TypeError, ValueError):
+        return {}
+    components = {}
+    for key, value in config.items():
+        component, _, field = key.rpartition(".")
+        components.setdefault(component, {})[field] = value
+    return components
+
+
+def pattern_value(patterns, name):
+    """The value of the first PEFT pattern key matching module ``name`` (PEFT's ``get_pattern_key`` rule), or None."""
+    for pattern, value in (patterns or {}).items():
+        try:
+            if re.match(rf"(.*\.)?({pattern})$", name):
+                return value
+        except re.error:
+            continue
+    return None
+
+
+def peft_alpha(components):
+    """Per-group alpha for PEFT metadata; ``NetworkModule`` divides by the rank, rsLoRA divides by its square root."""
+    def alpha_for(prefix_used, base, rank):
+        component = "text_encoder" if prefix_used.startswith(("text_encoder", "lora_te")) else "transformer"
+        config = components.get(component) or components.get("")
+        if config is None and len(components) == 1:
+            config = next(iter(components.values()))
+        if not config or config.get("lora_alpha") is None:
+            return None
+        alpha = pattern_value(config.get("alpha_pattern"), base)
+        alpha = float(config["lora_alpha"] if alpha is None else alpha)
+        return alpha * math.sqrt(rank) if config.get("use_rslora") else alpha
+    return alpha_for
+
+
+def file_alpha(network_on_disk):
+    """The alpha a file declares outside its tensors: a float, a ``(prefix_used, base, rank)`` callable for PEFT metadata, or None.
+
+    diffusers saves the PEFT config under ``lora_adapter_metadata``; DiffSynth and
+    alibaba-pai exports carry a flat ``alpha`` or ``lora_alpha``.
+    """
+    metadata = file_metadata(network_on_disk)
+    components = peft_configs(metadata)
+    if components:
+        return peft_alpha(components)
+    for key in ("lora_alpha", "alpha"):
+        try:
+            return float(metadata[key])
+        except (KeyError, TypeError, ValueError):
+            continue
+    return None
 
 
 def finalize_network(net, name, family, lora_scale, t0, unmapped=0, mismatch=0, skipped=0):
@@ -406,10 +497,12 @@ def parse_key(key, suffixes, *, prefixes=KNOWN_PREFIXES_DEFAULT):
     (without the leading dot) after applying :data:`SUFFIX_NORMALIZE` (e.g.
     ``lora_A.weight`` becomes ``lora_down.weight``).
 
-    Always applies :func:`unwrap_peft_wrapper` and :func:`strip_peft_adapter_name`
-    to the raw key before format detection so callers do not have to opt in.
+    Always applies :func:`unwrap_peft_wrapper`, :func:`unwrap_comfy_wrapper` and
+    :func:`strip_peft_adapter_name` to the raw key before format detection so
+    callers do not have to opt in.
     """
     key = unwrap_peft_wrapper(key)
+    key = unwrap_comfy_wrapper(key)
     key = strip_peft_adapter_name(key)
     prefix_used = None
     stripped = key
@@ -586,8 +679,10 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
     Fused targets are chunked at load time by slicing ``lora_up`` along dim 0;
     the down-side is shared across the resolved targets.
 
-    ``network_alpha`` is a file-level alpha for files without alpha tensors;
-    a file carrying any alpha of its own keeps those and ignores it.
+    ``network_alpha`` is a file-level alpha (a float, or a ``(prefix_used, base,
+    rank)`` callable) for files without alpha tensors, read from the file's
+    metadata by :func:`file_alpha` when not given; a file carrying any alpha
+    tensor of its own keeps those and ignores it.
 
     ``adapt_weights(sd_module, network_key, w)`` lets an arch refit a delta onto
     a module whose live layout differs from the trained one (a pruned AdaLN
@@ -604,6 +699,8 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
         state_dict, LORA_SUFFIXES,
         prefixes=prefixes,
     )
+    if network_alpha is None:
+        network_alpha = file_alpha(network_on_disk)
     if network_alpha is not None and any("alpha" in w for w in groups.values()):
         network_alpha = None
 
@@ -614,8 +711,10 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
         if "lora_down.weight" not in w or "lora_up.weight" not in w:
             continue
         if network_alpha is not None:
-            w = dict(w)
-            w["alpha"] = torch.tensor(float(network_alpha))
+            alpha = network_alpha(prefix, base, w["lora_down.weight"].shape[0]) if callable(network_alpha) else network_alpha
+            if alpha is not None:
+                w = dict(w)
+                w["alpha"] = torch.tensor(float(alpha))
         # DoRA magnitude vectors: ai-toolkit saves `magnitude`, PEFT/diffusers
         # `lora_magnitude_vector`. Both are 1-D per-output row norms with
         # dora_scale semantics; reshape to (out, 1) so the apply-time

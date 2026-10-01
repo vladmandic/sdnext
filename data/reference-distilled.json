@@ -266,5 +266,13 @@
     "extras": "steps: 4, cfg_scale: 1.0",
     "size": 37.15,
     "date": "2026 September"
+  },
+  "Bria Fibo-Edit 1.5 Turbo": {
+    "path": "briaai/Fibo-Edit-1.5-turbo",
+    "preview": "briaai--Fibo-Edit-1.5-turbo.jpg",
+    "desc": "BRIA Fibo-Edit 1.5 Turbo is a 4-step distilled variant of Fibo-Edit 1.5 Base optimized for fast interactive image editing with multi-reference conditioning and high efficiency.",
+    "extras": "sampler: Default, cfg_scale: 1.0, steps: 4",
+    "size": 23.79,
+    "date": "2026 September"
   }
 }

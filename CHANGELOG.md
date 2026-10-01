@@ -1,24 +1,117 @@
 # Change Log for SD.Next
 
-## Update for 2026-09-21
+## Update for 2026-10-01
+
+### Highlights for 2026-10-01
+
+*What's New*? This release brings:
+- Few new models: **Qwen-Image 2.1**, **Bria Fibo 1.5** and **ObjectClear**
+- **DLSS5** reimagined for much higher performance and full cross-platform and cross-gpu support
+- New live-preview method using **MicroDecoder**
+- Better handling of multi-image reference editing
+- Compute updates for *ROCm, OpenVINO, and XPU*
+- Massive updates to UI tooltips/hints: *over 1,000 new entries and revised existing ones*
+
+Plus quite a few other improvements and inevitable bug-fixes, see full changelog below for details...
+
+[Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
+
+### Details for 2026-10-01
 
 - **Models**
-  - [Qwen-Image 2.1](https://huggingface.co/Qwen/Qwen-Image-2.1) unified text-to-image and image editing model  
-    7B single-stream block-causal transformer with Qwen3-VL 8B text encoder and 64-channel RGBA autoencoder  
+  - [Qwen-Image 2.1](https://huggingface.co/Qwen/Qwen-Image-2.1) in *base*, *sdnq-4bit* and *sdnq-8bit* variants  
+    Qwen-Image 2.1 is a unified text-to-image and image editing model  
+    with 7B single-stream block-causal transformer with Qwen3-VL 8B text encoder and 64-channel RGBA autoencoder  
     native transparent output, up to 10 reference images for editing, 2K native resolution  
+  - [Bria Fibo 1.5](https://huggingface.co/briaai/Fibo-1.5) in *base*, *edit*, and *edit-turbo* variants  
+    BriaFIBO is 8B parameter text-to-image and edit-model using SmolLM3-3B text encoder and with multi-reference editing support  
+    *note*: BriaFIBO is designed to work with highly structured [JSON prompts](https://docs.bria.ai/vgl#5-schema-reference)  
+    if you provide a simple string-based prompt, sdnext will convert it to naive JSON, but it will be sub-optimal  
+  - [ObjectClear](https://github.com/zjx0101/ObjectClear) in *base* variant  
+    ObjectClear specialized model for object removal using mask-guided inpainting and derived from SDXL  
+    *note*: for optimal results, provide a clear mask indicating target areas and prompt what should be removed  
 - **Compute**
   - update `diffusers==0.41.0.dev0`
-  - `rocm` windows installation move to *stable*, thanks @resonantsky  
-    at the moment, this results in installation of `torch==2.13.0` with `rocm==10.0.0`  
+  - `rocm` linux update to `2.14.0+rocm7.14` *stable* and `2.15.0+rocm10.0` *nightly*
+  - `openvino` update to `torch==2.14.0` with `openvino==2026.4.0`
+  - `xpu` update to `torch==2.14.0+xpu`
+  - `rocm` windows update to `torch==2.14.0` with `rocm==10.0.0`  
+    `rocm` windows installation move to *stable* amd wheels, thanks @resonantsky  
+  - options to skip triton autotune for entire model or just text-encoder  
+    in *settings -> compute settings*  
+  - warn if torch acceleration is installed but not available
+- **DLSS** *(reimagined)*
+  - complete reverse-engineering of *nVidia DLSS* to enable gpu-agnostic usage (can even run on cpu)
+  - supports DLSS *NeuralRender*, *SuperRes*, and *FrameGen*
+  - operations can be chained in any desired order
+  - supports image and video processing (with motion vectors for stabilization)
+  - can be used via *generate -> extras* or as a separate *process* workflow
+  - additional gpu-acceleration for cuda is included, but skipped on non-cuda devices
+  - no installation needed, just enable and thats it!
+  - cli usage in `modules/dlss/cli-dlss.py`  
+- **Preview**
+  - full refactor: refactored *taesd*, added *micro-decoder*, removed *simple* and *approximate* methods
+  - new [MicroDecoder](https://huggingface.co/vladmandic/MicroDecoder) vae implementation  
+    used for live-preview as quick vae and can be trained on any model  
+    supported *architectures: sd, sdxl, f1, f2, qwen, qwen21, wan21, h3*  
+  - available preview methods: *None, Micro, Tiny (TAESD), Full*
+  - new *setting -> live preview -> force live preview on each step*  
+    instead of relying on polling and low-priority updates, forces preview calculation on each step  
+  - previews now work on batched generations
+- **Other**
+  - **edit-models**: simplify usage of multi-image reference editing  
+    automatically handle: flux.2, glm-image, nano-banana, joy-image-edit, qwen-image-edit
+  - **processors**: `DWPose`, `RTMW`, `RTMO`: image processor updates, thanks @kirtasshh  
+    refactored to use `ONNX` instead of obsolete `mmpose` lib and with additional configurable settings  
+  - **lora**: extend support for more model types
+  - **scheduler**: expose base and max image sequence lengths  
+    recommended to change when target resolution is significantly different from the base resolution  
+  - **detailer**: add option to skip specific classes using `[SKIP=name]` in the detailer prompt, thanks @kirtasshh
+  - **watermarking**: updated code for both image(visible) and text(invisible) watermarking  
+    new api endpoint: `/sdapi/v1/watermark` with `POST` and `GET` methods  
+    new cli example: `cli/api-watermark.py`  
+- **UI**
+  - massive improvement to built-in tooltips/hints  
+    over 1,000 new entries, now at zero missing ui controls or settings  
+    revised existing ones  
+  - manual clear of errors/warnings, thanks @kirtasshh
+  - selecting lora from networks panel inserts it in active prompt instead of just default, thanks @kirtasshh
 - **Fixes**
-  - prompt cache: bypass when condition images are encoded
-  - group offload: places the vae on-demand behind the vae hijack
-  - vae tiling: tile size setting applies to 3d vaes, 16x vae tile geometry
-  - pixelsmith: vae tiling, thanks @li-lizhe  
+  - api: control endpoint with input images
+  - api: hardening all all file-access api endpoints
+  - caption: improve qwen image handling
+  - caption: improve error handling
+  - civitai: better handle downloads and naming
+  - civitai: reference downloads no longer log an unmapped model type
+  - control: hires fixed size keeps the requested width on 16 px and 32 px models
+  - detailer: use of lora models, thanks @kirtasshh
+  - dlss: the detailer and the other per-image steps run once when dlss is off
+  - grid: images with transparency keep it in grids and live previews
+  - hints: duplicate labels
+  - img2img: inputs reach multi-image models as one condition set on every route and the requested size sets the output size
+  - img2img: qwen-image, flux.2, glm-image align sizes to the 16 px floor
+  - img2img: warn and record in the infotext when the output size follows the input image instead of the request
+  - lora: native loading applies the alpha diffusers and diffsynth files store in metadata
+  - lora: alibaba-pai qwen-image 2.1 fun-acc 4-step runs on the sigma grid it was distilled for
+  - metadata: correct refine prompt restore, thanks @QualiaRain
+  - networks: name mapping for network models and loras
   - networks: preview mapping for reference networks
-  - lora: name mapping for network models and loras
-  - dlss: additional DLSS reporting
+  - offload: enable offload using streams on different gpus, thanks @li-lizhe
+  - offload: places the vae on-demand behind the vae hijack for group offload
+  - pag: attention guidance engages again on sd15 and sdxl
+  - pixelsmith: vae tiling, thanks @li-lizhe  
+  - preview: remove flicker when finishing generation
+  - preview: better route decode call based on latents ndim
+  - prompt cache: bypass when condition images are encoded
+  - scheduler: when creating sampler, copy all valid options from default sampler
+  - scheduler: debounce sampler options save
+  - seedvr: handle temporal overap
+  - styles: fix infotext parsing, thanks @obelisk-complex
   - temp file: gradio temp file error handling
+  - temp file: gradio temp file error handling
+  - txt2img: fix hires strength handling
+  - vae tiling: tile size setting applies to 3d vaes, 16x vae tile geometry
+  - video: handle failed model load without loading default model, thanks @QualiaRain
 
 ## Update for 2026-09-17
 

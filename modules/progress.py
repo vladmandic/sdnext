@@ -12,7 +12,7 @@ pending_tasks = {}
 finished_tasks = []
 recorded_results = []
 recorded_results_limit = 2
-debug = os.environ.get('SD_PREVIEW_DEBUG', None) is not None
+debug = os.environ.get('SD_VAE_DEBUG', None) is not None
 debug_log = log.trace if debug else lambda *args, **kwargs: None
 
 
@@ -115,10 +115,12 @@ def api_progress(req: ProgressRequest):
         if have_image and shared.state.current_image is not None:
             try:
                 buffered = io.BytesIO()
-                shared.state.current_image.save(buffered, format='jpeg', quality=60)
+                rgb = shared.state.current_image.convert('RGB')
+                rgb.save(buffered, format='jpeg', quality=60)
                 b64 = base64.b64encode(buffered.getvalue())
                 live_preview = f'data:image/jpeg;base64,{b64.decode("ascii")}'
-            except Exception:
+            except Exception as e:
+                log.error(f'Preview: image={shared.state.current_image} {str(e)}')
                 live_preview = None
         else:
             live_preview = None

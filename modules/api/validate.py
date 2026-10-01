@@ -16,15 +16,8 @@ request_cost = {
 }
 log_cost = {
     "/.well-known/appspecific/com.chrome.devtools.json": -1,
-    "/file": -1,
-    "/info": -1,
-    "/icon": -1,
-    "/internal/progress": -1,
-    "/queue/join": -1,
-    "/run/predict": -1,
-    "/theme.css": -1,
-    "/token": -1,
     "/sdapi/v1/checkpoint": -1,
+    "/sdapi/v1/file": 1,
     "/sdapi/v1/gpu-smi": -1,
     "/sdapi/v1/gpu": -1,
     "/sdapi/v1/loaded-loras": -1,
@@ -38,6 +31,14 @@ log_cost = {
     "/sdapi/v1/version": -1,
     "/sdapi/v1/browser/thumb": -1,
     "/sdapi/v1/network/thumb": -1,
+    "/file": -1,
+    "/info": -1,
+    "/icon": -1,
+    "/internal/progress": -1,
+    "/queue/join": -1,
+    "/run/predict": -1,
+    "/theme.css": -1,
+    "/token": -1,
 }
 log_exclude_suffix = ['.css', '.js', '.ico', '.svg']
 log_exclude_prefix = ['/assets']

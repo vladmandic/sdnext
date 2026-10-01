@@ -95,6 +95,19 @@ def generation_step(runner, text_embeds_dict, cond_latents, temporal_overlap, de
     return samples #, last_latents
 
 
+def blend_overlapping_frames(prev_tail, cur_head, overlap):
+    """Crossfade the previous batch tail into the current batch head: Hann window from 3 frames, linear below."""
+    if overlap >= 3:
+        t = torch.linspace(0.0, 1.0, steps=overlap, dtype=torch.float32)
+        u = ((t - 1.0 / 3.0) * 3.0).clamp(0.0, 1.0)
+        w_prev = 0.5 + 0.5 * torch.cos(torch.pi * u)
+    else:
+        w_prev = torch.linspace(1.0, 0.0, steps=overlap, dtype=torch.float32)
+    w_prev = w_prev.view(overlap, 1, 1, 1).to(prev_tail.device)
+    blended = prev_tail.float() * w_prev + cur_head.float() * (1.0 - w_prev)
+    return blended.to(prev_tail.dtype)
+
+
 def cut_videos(videos):
     t = videos.size(1)
 
@@ -173,7 +186,6 @@ def generation_loop(runner,
 
     # Initialize generation state
     final_video_images = None
-    current_idx = 0
 
     # Load text embeddings with adaptive dtype
     text_embeds = {"texts_pos": [runner.text_pos_embeds], "texts_neg": [runner.text_neg_embeds]}
@@ -257,9 +269,15 @@ def generation_loop(runner,
             H, W, C = sample.shape[1], sample.shape[2], sample.shape[3]
             final_video_images = torch.empty((total_frames, H, W, C), dtype=torch.float16)
 
-        batch_frames = sample.shape[0]
-        final_video_images[current_idx:current_idx + batch_frames] = sample
-        current_idx += batch_frames
+        # The runner ignores temporal_overlap, so each batch returns all its frames: the first temporal_overlap
+        # frames of a later batch were already written by the previous one and only serve as context here
+        write_start = start_idx
+        if batch_idx > 0 and temporal_overlap > 0:
+            prev_tail = final_video_images[start_idx:start_idx + temporal_overlap]
+            final_video_images[start_idx:start_idx + temporal_overlap] = blend_overlapping_frames(prev_tail, sample[:temporal_overlap], temporal_overlap)
+            sample = sample[temporal_overlap:]
+            write_start = start_idx + temporal_overlap
+        final_video_images[write_start:write_start + sample.shape[0]] = sample
         del sample
 
         if progress_callback:

@@ -30,7 +30,11 @@ def load_qwen21(checkpoint_info, diffusers_load_config=None):
         native_spec=QWEN21_SPEC,
         modules_to_not_convert=['img_in', 'txt_in', 'time_text_embed', 'modulation', 'norm_out', 'proj_out'],
     )
-    text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.Qwen3VLForConditionalGeneration, load_config=diffusers_load_config)
+    text_encoder = generic.load_text_encoder(
+        repo_id,
+        cls_name=transformers.Qwen3VLForConditionalGeneration,
+        load_config=diffusers_load_config,
+    )
 
     pipe = cls.from_pretrained(
         repo_id,
@@ -41,6 +45,8 @@ def load_qwen21(checkpoint_info, diffusers_load_config=None):
     )
 
     generic.load_vae_override(pipe, diffusers_load_config)
+    pipe.patch_size = 2 # latents pack into 2x2 patches and the pipeline floors sizes to vae_scale_factor * 2
+    pipe.max_condition_images = 10 # reference images per edit, per the model card
 
     del transformer
     del text_encoder

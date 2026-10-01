@@ -167,8 +167,8 @@ def move_module_to_cpu(module, op='unk', force:bool=False):
     def do_move(module):
         if shared.opts.diffusers_offload_streams:
             if s.move_stream is None:
-                s.move_stream = torch.cuda.Stream(device=devices.device)
-            with torch.cuda.stream(s.move_stream):
+                s.move_stream = devices.create_stream(devices.device)
+            with s.move_stream:
                 module = module.to(devices.cpu)
         else:
             module = module.to(devices.cpu)

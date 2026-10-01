@@ -11,30 +11,32 @@ orig_pipeline = None
 
 def apply(p: processing.StableDiffusionProcessing): # pylint: disable=arguments-differ
     global orig_pipeline # pylint: disable=global-statement
-    cls = shared.sd_model.__class__ if shared.sd_loaded else None
-    if cls == StableDiffusionPAGPipeline or cls == StableDiffusionXLPAGPipeline:
-        cls = unapply()
-    if p.cfg_true == 0:
+    if shared.sd_loaded and shared.sd_model.__class__ in (StableDiffusionPAGPipeline, StableDiffusionXLPAGPipeline):
+        unapply()
+    if p.cfg_true is None or p.cfg_true <= 0: # -1 is the ui default and leaves the pipeline alone
         return
-    if cls is not None and 'PAG' in cls.__name__:
+    model = shared.sd_model if shared.sd_loaded else None
+    if model is None:
+        return
+    cls = model.__class__
+    if 'PAG' in cls.__name__:
         pass
-    elif detect.is_sd15(cls):
-        if sd_models.get_diffusers_task(shared.sd_model) != sd_models.DiffusersTaskType.TEXT_2_IMAGE:
+    elif detect.is_sdxl(model): # before is_sd15, whose prefix also matches the sdxl and sd3 class names
+        if sd_models.get_diffusers_task(model) != sd_models.DiffusersTaskType.TEXT_2_IMAGE:
             log.warning(f'PAG: pipeline={cls.__name__} not implemented')
-            return None
-        orig_pipeline = shared.sd_model
-        shared.sd_model = sd_models.switch_pipe(StableDiffusionPAGPipeline, shared.sd_model)
-    elif detect.is_sdxl(cls):
-        if sd_models.get_diffusers_task(shared.sd_model) != sd_models.DiffusersTaskType.TEXT_2_IMAGE:
+            return
+        orig_pipeline = model
+        shared.sd_model = sd_models.switch_pipe(StableDiffusionXLPAGPipeline, model)
+    elif detect.is_sd15(model) and not detect.is_compatible(model, pattern='StableDiffusion3'):
+        if sd_models.get_diffusers_task(model) != sd_models.DiffusersTaskType.TEXT_2_IMAGE:
             log.warning(f'PAG: pipeline={cls.__name__} not implemented')
-            return None
-        orig_pipeline = shared.sd_model
-        shared.sd_model = sd_models.switch_pipe(StableDiffusionXLPAGPipeline, shared.sd_model)
-    elif detect.is_f1(cls):
+            return
+        orig_pipeline = model
+        shared.sd_model = sd_models.switch_pipe(StableDiffusionPAGPipeline, model)
+    elif detect.is_f1(model):
         p.task_args['true_cfg_scale'] = p.cfg_true
     else:
-        # log.warning(f'PAG: pipeline={cls.__name__} required={StableDiffusionPipeline.__name__}')
-        return None
+        return
 
     p.task_args['cfg_true'] = p.cfg_true
     p.task_args['cfg_adaptive_scaling'] = p.cfg_adaptive

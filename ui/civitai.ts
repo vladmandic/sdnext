@@ -66,7 +66,7 @@ String.prototype.format = function format(this: string, args: Record<string, str
 };
 
 let selectedURL: string[] = [];
-let selectedName: string[] = [];
+let selectedFileId: number[] = [];
 let selectedType: string[] = [];
 let selectedBase: string[] = [];
 let selectedModelId: number[] = [];
@@ -133,26 +133,6 @@ function sortFiles(files: CivitFile[]): CivitFile[] {
     return index < 0 ? precisionOrder.length : index;
   };
   return [...files].sort((a, b) => Number(isModel(b)) - Number(isModel(a)) || rank(a) - rank(b) || (b.size || 0) - (a.size || 0));
-}
-
-function insertNameSuffix(name: string, suffix: string): string {
-  const dot = name.lastIndexOf('.');
-  return dot > 0 ? `${name.slice(0, dot)}-${suffix}${name.slice(dot)}` : `${name}-${suffix}`;
-}
-
-// Precision suffix, then full/pruned and the file id only as far as needed to stay unique within the version
-function fileSaveName(file: CivitFile, siblings: CivitFile[]): string {
-  const tier1 = (f: CivitFile) => {
-    const variant = fileVariant(f);
-    return variant ? insertNameSuffix(f.name || '', variant) : f.name || '';
-  };
-  const tier2 = (f: CivitFile) => (f.metadata?.size ? insertNameSuffix(tier1(f), f.metadata.size) : tier1(f));
-  const others = siblings.filter((s) => s.id !== file.id);
-  const name = tier1(file);
-  if (!others.some((s) => tier1(s) === name)) return name;
-  const sized = tier2(file);
-  if (!others.some((s) => tier2(s) === sized)) return sized;
-  return insertNameSuffix(name, String(file.id));
 }
 
 function escapeHTML(text: string): string {
@@ -224,9 +204,10 @@ export async function modelCardClick(id) {
 }
 window.modelCardClick = modelCardClick;
 
+// Save names are chosen server-side from the version and file ids
 function queueFiles(model: CivitModel, queued: QueuedFile[]) {
   selectedURL = queued.map(({ file }) => file.url || '');
-  selectedName = queued.map(({ version, file }) => fileSaveName(file, version.files));
+  selectedFileId = queued.map(({ file }) => file.id || 0);
   selectedType = queued.map(({ file }) => (companionTypes.includes(file.type || '') ? file.type : model.type) || '');
   selectedBase = queued.map(({ version }) => version.base || '');
   selectedModelId = queued.map(() => model.id || 0);
@@ -254,11 +235,11 @@ export function startCivitAllDownload(evt) {
 }
 window.startCivitAllDownload = startCivitAllDownload;
 
-export function downloadCivitModel(modelUrl, modelName, modelType, modelBase, mId, vId, modelPath, civitToken, innerHTML) {
-  log('downloadCivitModel', { modelUrl, modelName, modelType, modelBase, mId, vId, modelPath, civitToken });
+export function downloadCivitModel(modelUrl, fileId, modelType, modelBase, mId, vId, modelPath, civitToken, innerHTML) {
+  log('downloadCivitModel', { modelUrl, fileId, modelType, modelBase, mId, vId, modelPath, civitToken });
   const el = gradioApp().getElementById('civitai_models_output') || gradioApp().getElementById('models_outcome');
   const currentHTML = el?.innerHTML || '';
-  return [selectedURL, selectedName, selectedType, selectedBase, selectedModelId, selectedVersionId, modelPath, civitToken, currentHTML];
+  return [selectedURL, selectedFileId, selectedType, selectedBase, selectedModelId, selectedVersionId, modelPath, civitToken, currentHTML];
 }
 window.downloadCivitModel = downloadCivitModel;
 

@@ -58,6 +58,7 @@ pipe_switch_task_exclude = [
     'LLaDAImagePipeline',
     'BooguImagePipeline',
     'BooguImageTurboPipeline',
+    'ObjectClearPipeline',
 ]
 i2i_pipes = [
     'LEditsPPPipelineStableDiffusion', 'LEditsPPPipelineStableDiffusionXL',
@@ -391,6 +392,7 @@ def load_diffuser_force(detected_model_type: str, checkpoint_info: CheckpointInf
     shared.sd_model = None
     model_type = detected_model_type.removesuffix('SDNQ').strip()
     try:
+        # explicit load-by-type
         if model_type in ['Stable Cascade']:
             from pipelines.model_stablecascade import load_cascade_combined
             sd_model = load_cascade_combined(checkpoint_info, diffusers_load_config)
@@ -647,6 +649,11 @@ def load_diffuser_force(detected_model_type: str, checkpoint_info: CheckpointInf
             from pipelines.model_mageflow import load_mageflow
             sd_model = load_mageflow(checkpoint_info, diffusers_load_config)
             allow_post_quant = True
+        # explicit load-by-name
+        elif 'ObjectClear' in checkpoint_info.name:
+            from pipelines.model_objectclear import load_objectclear
+            sd_model = load_objectclear(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False # not compatible
     except Exception as e:
         log.error(f'Load {op}: path="{checkpoint_info.path}" {e}')
         errors.display(e, 'Load')
@@ -1178,6 +1185,13 @@ def pipe_serves_task(pipe: diffusers.DiffusionPipeline, task_type: DiffusersTask
     return mapping is not None and pipe.__class__ in mapping.values()
 
 
+def get_max_condition_images(pipe: diffusers.DiffusionPipeline | None = None) -> int:
+    """Images the pipeline conditions on as one set shared by every prompt; 0 when an image list means one image per sample."""
+    if pipe is None:
+        pipe = shared.sd_model
+    return int(getattr(pipe, 'max_condition_images', 0) or 0)
+
+
 def switch_pipe(cls: type[diffusers.DiffusionPipeline] | str, pipeline: diffusers.DiffusionPipeline | None = None, force = False, args: dict | None = None):
     """
     args:
@@ -1298,8 +1312,10 @@ def clean_diffuser_pipe(pipe):
 
 
 def copy_diffuser_options(new_pipe, orig_pipe):
+    # every pipeline has these attributes
     new_pipe.sd_checkpoint_info = getattr(orig_pipe, 'sd_checkpoint_info', None)
     new_pipe.sd_model_checkpoint = getattr(orig_pipe, 'sd_model_checkpoint', None)
+    # optional
     new_pipe.embedding_db = getattr(orig_pipe, 'embedding_db', None)
     new_pipe.loaded_loras = getattr(orig_pipe, 'loaded_loras', {})
     new_pipe.sd_model_hash = getattr(orig_pipe, 'sd_model_hash', None)
@@ -1310,7 +1326,11 @@ def copy_diffuser_options(new_pipe, orig_pipe):
     new_pipe.feature_extractor = getattr(orig_pipe, 'feature_extractor', None)
     new_pipe.mask_processor = getattr(orig_pipe, 'mask_processor', None)
     new_pipe.restore_pipeline = getattr(orig_pipe, 'restore_pipeline', None)
-    new_pipe.is_sdxl = getattr(orig_pipe, 'is_sdxl', False) # a1111 compatibility item
+    new_pipe.max_condition_images = getattr(orig_pipe, 'max_condition_images', None)
+    new_pipe.patch_size = getattr(orig_pipe, 'patch_size', None)
+    new_pipe.custom_unpack_latents = getattr(orig_pipe, 'custom_unpack_latents', None)
+    # a1111 compatibility item
+    new_pipe.is_sdxl = getattr(orig_pipe, 'is_sdxl', False)
     new_pipe.is_sd2 = getattr(orig_pipe, 'is_sd2', False)
     new_pipe.is_sd1 = getattr(orig_pipe, 'is_sd1', True)
     add_noise_pred_to_diffusers_callback(new_pipe)
@@ -1338,6 +1358,8 @@ def backup_pipe_components(pipe):
         'mask_processor': getattr(pipe, "mask_processor", None),
         'restore_pipeline': getattr(pipe, "restore_pipeline", None),
         'task_args': getattr(pipe, "task_args", None),
+        'patch_size': getattr(pipe, "patch_size", None),
+        'max_condition_images': getattr(pipe, "max_condition_images", None),
         'hijack_prompt': hasattr(pipe, "orig_encode_prompt"),
         'hijack_vae': hasattr(pipe, "vae") and hasattr(pipe.vae, "orig_decode")
     }
@@ -1365,6 +1387,10 @@ def restore_pipe_components(pipe, components):
         pipe.restore_pipeline = components['restore_pipeline']
     if components['task_args'] is not None:
         pipe.task_args = components['task_args']
+    if components['patch_size'] is not None:
+        pipe.patch_size = components['patch_size']
+    if components['max_condition_images'] is not None:
+        pipe.max_condition_images = components['max_condition_images']
     if components['hijack_prompt']:
         sd_hijack_te.init_hijack(pipe)
     if components['hijack_vae']:

@@ -19,6 +19,7 @@ Usage:
 
 import os
 import sys
+import json
 import types
 
 import torch
@@ -46,6 +47,7 @@ from modules import shared  # pylint: disable=wrong-import-position,unused-impor
 from modules.errors import log  # pylint: disable=wrong-import-position
 from modules.lora import network_pdd  # pylint: disable=wrong-import-position
 from pipelines.minimax import minimax_lora  # pylint: disable=wrong-import-position
+from pipelines.qwen import qwen21_lora  # pylint: disable=wrong-import-position
 
 
 NUM_STEPS = 32
@@ -150,6 +152,45 @@ def make_heads():
 
 def make_net(heads, strength=1.0):
     return types.SimpleNamespace(name='pdd-test', te_multiplier=strength, extras={network_pdd.EXTRAS_KEY: heads})
+
+
+# Qwen-Image-2.1-Fun-Acc-4Step: an inference-only export with one head per step, its own sigma grid and replaced norm weights.
+QWEN_SIGMAS = [1.0, 0.9169867038726807, 0.7861579060554504, 0.5494909882545471, 0.0]
+QWEN_SCHEDULER = dict(use_dynamic_shifting=True, base_shift=0.5, max_shift=0.9, base_image_seq_len=256, max_image_seq_len=8192, shift_terminal=0.02, time_shift_type='exponential')
+
+
+class StubQwenPipe:
+    """A single-stream model: one bias-free output projection, a norm the export replaces, a dynamic-shift flow scheduler,
+    and the read-only num_timesteps property diffusers pipelines expose."""
+
+    def __init__(self):
+        self.transformer = torch.nn.Module()
+        self.transformer.proj_out = torch.nn.Linear(HIDDEN, VIDEO_OUT, bias=False)
+        self.transformer.block = torch.nn.Module()
+        self.transformer.block.norm_q = torch.nn.RMSNorm(8)
+        self.scheduler = diffusers.FlowMatchEulerDiscreteScheduler(**QWEN_SCHEDULER)
+        self._num_timesteps = 40
+
+    @property
+    def num_timesteps(self):
+        return self._num_timesteps
+
+
+def qwen_state_dict():
+    torch.manual_seed(1)
+    return {
+        'proj_out.weight': torch.randn(4, VIDEO_OUT, HIDDEN),
+        'block.norm_q.weight': torch.full((8,), 2.0),
+        'block.attn.to_q.lora_down': torch.zeros(4, HIDDEN),
+        'block.attn.to_q.lora_up': torch.zeros(HIDDEN, 4),
+        'block.attn.to_k.lora_A.weight': torch.zeros(4, HIDDEN),
+        'block.attn.to_k.lora_B.weight': torch.zeros(HIDDEN, 4),
+        'block.attn.to_k.alpha': torch.tensor(4.0),
+    }
+
+
+def qwen_heads():
+    return network_pdd.load('acc', {'pdd_sigmas': json.dumps(QWEN_SIGMAS)}, qwen_state_dict())
 
 
 # ============================================================
@@ -370,6 +411,113 @@ def test_pin_overrides_steps_and_shift():
 
 
 # ============================================================
+# Tests: explicit grids and replaced parameters
+# ============================================================
+
+def test_detect_grid_from_sigmas():
+    metadata = {'pdd_sigmas': json.dumps(QWEN_SIGMAS)}
+    assert network_pdd.detect(metadata) == (4, 1)
+    sigmas = network_pdd.grid_sigmas(metadata)
+    assert sigmas.dtype == torch.float64 and sigmas.tolist() == QWEN_SIGMAS
+    assert network_pdd.detect({'pdd_num_steps': '4', 'pdd_sigmas': json.dumps(QWEN_SIGMAS)}) == (4, 1)
+
+
+def test_detect_rejects_bad_sigmas():
+    for sigmas in ([1.0, 0.5], [0.9, 0.5, 0.0], [1.0, 0.5, 0.6, 0.0]):
+        try:
+            network_pdd.detect({'pdd_sigmas': json.dumps(sigmas)})
+        except ValueError:
+            continue
+        raise AssertionError(f'sigmas {sigmas} accepted')
+    try:
+        network_pdd.detect({'pdd_num_steps': '8', 'pdd_sigmas': json.dumps(QWEN_SIGMAS)})
+    except ValueError:
+        return True
+    raise AssertionError('an 8-step grid accepted 5 sigmas')
+
+
+def test_load_collects_replaced_parameters():
+    heads = qwen_heads()
+    assert heads is not None and set(heads.heads) == {'proj_out'} and heads.heads['proj_out'][1] is None
+    assert set(heads.replaced) == {'block.norm_q.weight'}, f'replaced={list(heads.replaced)}'
+    assert heads.nfe == 4 and heads.sigmas.tolist() == QWEN_SIGMAS
+
+
+def test_try_load_reads_the_sidecar_config():
+    import tempfile
+    from safetensors.torch import save_file
+    with tempfile.TemporaryDirectory() as folder:
+        path = os.path.join(folder, 'acc.safetensors')
+        save_file(qwen_state_dict(), path, metadata={'format': 'qwenimage21_extracted_prefused_v1'})
+        disk = types.SimpleNamespace(name='acc', filename=path, metadata={})
+        assert network_pdd.try_load('acc', disk, 1.0) is None, 'no grid anywhere must leave the heads out'
+        with open(os.path.join(folder, network_pdd.SIDECAR), 'w', encoding='utf8') as f:
+            json.dump({'pdd_num_steps': 4, 'pdd_block_size': 1, 'pdd_sigmas': QWEN_SIGMAS, 'lora_rank': 64}, f)
+        net = network_pdd.try_load('acc', disk, 1.0)
+        assert net is not None, 'the sidecar grid must be enough'
+        heads = net.extras[network_pdd.EXTRAS_KEY]
+        assert heads.nfe == 4 and heads.sigmas.tolist() == QWEN_SIGMAS
+
+
+def test_install_replaces_and_restores_parameters():
+    pipe = StubQwenPipe()
+    original = pipe.transformer.block.norm_q.weight.detach().clone()
+    heads = qwen_heads()
+    assert network_pdd.install(pipe, make_net(heads), heads, qwen21_lora.PDD, ['transformer']) is True
+    assert torch.equal(pipe.transformer.block.norm_q.weight, torch.full((8,), 2.0))
+    network_pdd.restore(pipe)
+    assert torch.equal(pipe.transformer.block.norm_q.weight, original)
+    assert network_pdd.install(pipe, make_net(heads, strength=0.5), heads, qwen21_lora.PDD, ['transformer']) is True
+    assert torch.allclose(pipe.transformer.block.norm_q.weight, original + 0.5 * (2.0 - original))
+    network_pdd.restore(pipe)
+    assert torch.equal(pipe.transformer.block.norm_q.weight, original)
+
+
+def test_install_refuses_misshapen_replacement():
+    pipe = StubQwenPipe()
+    original_head = pipe.transformer.proj_out
+    heads = qwen_heads()
+    heads.replaced['block.norm_q.weight'] = torch.ones(16)
+    assert network_pdd.install(pipe, make_net(heads), heads, qwen21_lora.PDD, ['transformer']) is False
+    assert pipe.transformer.proj_out is original_head and not hasattr(pipe, 'sdnext_pdd')
+
+
+def test_one_head_per_step_on_a_block1_grid():
+    pipe = StubQwenPipe()
+    heads = qwen_heads()
+    assert network_pdd.install(pipe, make_net(heads), heads, qwen21_lora.PDD, ['transformer']) is True
+    x = torch.randn(3, HIDDEN)
+    for index in range(4):
+        pipe.scheduler._step_index = index # pylint: disable=protected-access
+        expected = torch.nn.functional.linear(x, heads.heads['proj_out'][0][index])
+        assert torch.allclose(pipe.transformer.proj_out(x), expected, atol=1e-6), f'step {index} did not select its own head'
+    network_pdd.restore(pipe)
+
+
+def test_pin_hands_the_exact_grid():
+    pipe = StubQwenPipe()
+    try:
+        pipe.num_timesteps = 4
+    except AttributeError:
+        pass
+    else:
+        raise AssertionError('the stub accepts num_timesteps assignment; it does not model the diffusers property')
+    heads = qwen_heads()
+    assert network_pdd.install(pipe, make_net(heads), heads, qwen21_lora.PDD, ['transformer']) is True
+    p = types.SimpleNamespace(steps=40, task_args={}, extra_generation_params={})
+    assert network_pdd.pin(p, pipe) == 4 and p.steps == 4 and p.task_args['num_inference_steps'] == 4
+    assert pipe.num_timesteps == 40, 'the pipeline counts its own timesteps'
+    assert p.task_args['sigmas'] == QWEN_SIGMAS[:-1]
+    pipe.scheduler.set_timesteps(sigmas=p.task_args['sigmas'], mu=1.31) # the pipeline passes a resolution-dependent mu
+    grid = torch.tensor(QWEN_SIGMAS, dtype=torch.float64)
+    assert torch.allclose(pipe.scheduler.sigmas.double(), grid, atol=1e-6), f'sigmas={pipe.scheduler.sigmas.tolist()}'
+    unpinned = diffusers.FlowMatchEulerDiscreteScheduler(**QWEN_SCHEDULER)
+    unpinned.set_timesteps(sigmas=p.task_args['sigmas'], mu=1.31)
+    assert not torch.allclose(unpinned.sigmas.double(), grid, atol=1e-3), 'the unpinned scheduler also lands on the grid; the check does not discriminate'
+    network_pdd.restore(pipe)
+
+
+# ============================================================
 # Main
 # ============================================================
 
@@ -382,6 +530,10 @@ def main():
         run_test(cat, fn)
     cat = category('lifecycle')
     for fn in (test_install_and_restore_round_trip, test_install_refuses_shape_mismatch, test_install_needs_an_owner, test_reconcile_follows_loaded_set, test_pin_overrides_steps_and_shift):
+        run_test(cat, fn)
+    cat = category('grid')
+    for fn in (test_detect_grid_from_sigmas, test_detect_rejects_bad_sigmas, test_load_collects_replaced_parameters, test_try_load_reads_the_sidecar_config,
+               test_install_replaces_and_restores_parameters, test_install_refuses_misshapen_replacement, test_one_head_per_step_on_a_block1_grid, test_pin_hands_the_exact_grid):
         run_test(cat, fn)
     failed = sum(r['failed'] for r in results.values())
     passed = sum(r['passed'] for r in results.values())

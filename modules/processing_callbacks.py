@@ -97,6 +97,7 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
     if shared.state.sampling_steps == 0 and getattr(pipe, 'num_timesteps', 0) > 0:
         shared.state.sampling_steps = pipe.num_timesteps
     shared.state.step()
+    shared.state.timestep = timestep
     attention_context.tick(step + 1)
     if shared.state.interrupted or shared.state.skipped:
         raise AssertionError('Interrupted...')
@@ -197,7 +198,7 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
             if latents.ndim == 3:
                 b, seq_len, packed_ch = latents.shape
                 vae_scale = getattr(pipe, 'vae_scale_factor', 8)
-                patch = getattr(pipe, 'patch_size', 2)
+                patch = getattr(pipe, 'patch_size', None) or 2
                 grid_h = getattr(p, 'height', 1024) // (vae_scale * patch)
                 grid_w = getattr(p, 'width', 1024) // (vae_scale * patch)
                 if grid_h * grid_w != seq_len:  # fallback to square assumption
@@ -220,6 +221,9 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
         if shared.state.current_latent is not None and shared.state.current_latent.ndim == 5:
             _b, _c, t, _h, _w = shared.state.current_latent.shape
             shared.state.current_latent = shared.state.current_latent[:, :, t // 2, :, :]
+        if shared.state.current_noise_pred is not None and shared.state.current_noise_pred.ndim == 5:
+            _b, _c, t, _h, _w = shared.state.current_noise_pred.shape
+            shared.state.current_noise_pred = shared.state.current_noise_pred[:, :, t // 2, :, :]
 
         if hasattr(pipe, "scheduler") and hasattr(pipe.scheduler, "sigmas") and hasattr(pipe.scheduler, "step_index") and pipe.scheduler.step_index is not None:
             try:
@@ -249,6 +253,11 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
         # errors.display(e, 'Callback')
     if shared.cmd_opts.profile and shared.profiler is not None:
         shared.profiler.step()
+
+    if shared.opts.live_preview_force and not shared.state.api:
+        from modules.sd_samplers_common import samples_decode
+        image = samples_decode(shared.state.current_latent)
+        shared.state.assign_current_image(image)
 
     t2 = time.time()
     timer.process.add('sync', t1 - t0)

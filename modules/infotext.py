@@ -123,6 +123,8 @@ mapping = [
     ('Sampler beta end', 'schedulers_beta_end'),
     ('Sampler range', 'schedulers_timesteps_range'),
     ('Sampler shift', 'schedulers_shift'),
+    ('Sampler base seq', 'schedulers_base_image_seq_len'),
+    ('Sampler max seq', 'schedulers_max_image_seq_len'),
     ('Sampler dynamic shift', 'schedulers_dynamic_shift'),
     # Token Merging
     ('Mask weight', 'inpainting_mask_weight'),

@@ -1,6 +1,7 @@
 import re
+import types
 import inspect
-from typing import Any, Optional
+from typing import Any, Optional, Union, get_args, get_origin
 from collections.abc import Callable
 from pydantic import BaseModel, Field, create_model
 from pydantic import VERSION
@@ -512,6 +513,14 @@ class ReqLatentHistory(BaseModel):
 class ResPreprocess(BaseModel):
     info: str = Field(title="Preprocess info", description="Response string from preprocessing task.")
 
+class ReqWatermark(BaseModel):
+    image: str = Field(title="Image", description="Base64-encoded image to apply or retrieve watermark")
+    wm_text: str | None = Field(default=None, title="Watermark Text", description="Text to use for the watermark")
+    wm_image: str | None = Field(default=None, title="Watermark Image", description="Base64-encoded image to use as the watermark")
+    position: str = Field(default="none", title="Position", description="Position of the watermark on the image")
+    fmt: str = Field(default="PNG", title="Format", description="Output image format for the watermarked image")
+
+
 fields = {}
 for key, metadata in shared.opts.data_labels.items():
     value = shared.opts.data.get(key) or shared.opts.data_labels[key].default
@@ -599,6 +608,7 @@ class ItemAutocompleteRemote(BaseModel):
 
 def create_model_from_signature(func: Callable, model_name: str, base_model: type[BaseModel] = BaseModel, additional_fields: list | None = None, exclude_fields: list[str] | None = None) -> type[BaseModel]:
     from PIL import Image
+    from modules.control import unit
 
     if exclude_fields is None:
         exclude_fields = []
@@ -618,13 +628,20 @@ def create_model_from_signature(func: Callable, model_name: str, base_model: typ
     defaults = (...,) * non_default_args + defaults
     kw_defaults = kwonlydefaults or {}
     keyword_only_params = {param: (annotations.get(param, Any), kw_defaults.get(param, ...)) for param in kwonlyargs}
+
+    def request_type(annotation): # images and control units reach the api as strings
+        if annotation in (Image.Image, unit.Unit):
+            return str
+        origin = get_origin(annotation)
+        if origin in (Union, types.UnionType):
+            return Union[tuple(request_type(a) for a in get_args(annotation))]
+        if origin is list:
+            item_args = tuple(request_type(a) for a in get_args(annotation))
+            return types.GenericAlias(list, item_args) if item_args else list
+        return annotation
+
     for k, v in annotations.items():
-        if v == list[Image.Image]:
-            annotations[k] = list[str]
-        elif v == Image.Image:
-            annotations[k] = str
-        elif str(v) == 'typing.List[modules.control.unit.Unit]':
-            annotations[k] = list[str]
+        annotations[k] = request_type(v)
     model_fields = {param: (annotations.get(param, Any), default) for param, default in zip(args, defaults, strict=False)}
 
     for fld in additional_fields:

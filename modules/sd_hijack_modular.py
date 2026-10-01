@@ -21,13 +21,17 @@ def modular_step(components: diffusers.modular_pipelines.ModularPipeline, state:
     if 'latents' in keys and state.latents.ndim > 1:
         torch_sync()
         shared.state.step()
-        if hasattr(components, 'custom_unpack_latents'):
+        if getattr(components, 'custom_unpack_latents', None) is not None:
             shared.state.current_latent = components.custom_unpack_latents(state.latents, components, state)
         else:
             shared.state.current_latent = state.latents
         lora_stack.on_step(shared.state.sampling_step)
         if debug:
             log.trace(f'Modular step: step={shared.state.sampling_step} latent={list(state.latents.shape)}')
+        if shared.opts.live_preview_force and not shared.state.api:
+            from modules.sd_samplers_common import samples_decode
+            image = samples_decode(shared.state.current_latent)
+            shared.state.assign_current_image(image)
     if shared.state.interrupted or shared.state.skipped:
         raise AssertionError('Interrupted...')
     if shared.state.paused:

@@ -295,6 +295,7 @@ def create_settings(cmd_opts):
         "torch_expandable_segments": OptionInfo(False, "Expandable segments"),
         "torch_sync": OptionInfo(True, "Force synchronize"),
         "triton_skip_autotune": OptionInfo(False, "Skip Triton autotune", gr.Checkbox),
+        "triton_skip_autotune_te": OptionInfo(False, "Skip Triton autotune for TE", gr.Checkbox),
         "cudnn_enabled": OptionInfo("default", "cuDNN enabled", gr.Radio, {"choices": ["default", "true", "false"]}),
         "cudnn_benchmark": OptionInfo(devices.backend != "rocm", "cuDNN full-depth benchmark"),
         "cudnn_benchmark_limit": OptionInfo(10, "cuDNN benchmark limit", gr.Slider, {"minimum": 0, "maximum": 100, "step": 1}),
@@ -545,9 +546,8 @@ def create_settings(cmd_opts):
         "gradio_skip_video": OptionInfo(False, "Do not display video output in UI"),
 
         "image_sep_watermark": OptionInfo("<h2>Watermarking</h2>", "", gr.HTML),
-        "image_watermark_enabled": OptionInfo(False, "Include invisible watermark"),
         "image_watermark": OptionInfo('', "Invisible watermark string"),
-        "image_watermark_position": OptionInfo('none', 'Image watermark position', gr.Dropdown, {"choices": ["none", "top/left", "top/right", "bottom/left", "bottom/right", "center", "random"]}),
+        "image_watermark_position": OptionInfo('none', 'Image watermark position', gr.Dropdown, {"choices": ["none", "top/left", "top/center", "top/right", "bottom/left", "bottom/center", "bottom/right", "center", "random"]}),
         "image_watermark_image": OptionInfo('', "Image watermark file"),
     }))
 
@@ -620,7 +620,6 @@ def create_settings(cmd_opts):
         "font_size": OptionInfo(14, "Font size", gr.Slider, {"minimum": 8, "maximum": 32, "step": 1}),
         "gpu_monitor": OptionInfo(3000, "GPU monitor interval", gr.Slider, {"minimum": 100, "maximum": 60000, "step": 100}),
         "aspect_ratios": OptionInfo("1:1, 4:3, 3:2, 16:9, 16:10, 21:9, 2:3, 3:4, 9:16, 10:16, 9:21", "Allowed aspect ratios"),
-        "compact_view": OptionInfo(False, "Compact view"),
         "ui_columns": OptionInfo(4, "Gallery view columns", gr.Slider, {"minimum": 1, "maximum": 8, "step": 1}),
 
         'uiux_separator_appearance': OptionInfo("<h2>Appearance</h2>", "", gr.HTML),
@@ -652,13 +651,13 @@ def create_settings(cmd_opts):
     # --- Live Previews ---
     options_templates.update(options_section(('live-preview', "Live Previews"), {
         "show_progress_every_n_steps": OptionInfo(1, "Live preview display period", gr.Slider, {"minimum": 0, "maximum": 20, "step": 1, "visible": False}),
-        "show_progress_type": OptionInfo("TAESD", "Live preview method", gr.Dropdown, {"choices": ["None", "Simple", "Approximate", "TAESD", "Full"]}),
+        "show_progress_type": OptionInfo("Tiny", "Live preview method", gr.Dropdown, {"choices": ["None", "Micro", "Tiny", "Full"]}),
         "live_preview_refresh_period": OptionInfo(500, "Progress update period", gr.Slider, {"minimum": 0, "maximum": 5000, "step": 25}),
-        "taesd_variant": OptionInfo(shared_items.sd_taesd_items()[0], "TAESD variant", gr.Dropdown, {"choices": shared_items.sd_taesd_items()}),
-        "taesd_layers": OptionInfo(3, "TAESD decode layers", gr.Slider, {"minimum": 1, "maximum": 3, "step": 1}),
-        "taesd_frames": OptionInfo(4, "TAESD video frames", gr.Slider, {"minimum": -1, "maximum": 32, "step": 1, "visible": False}),
+        "live_preview_force": OptionInfo(False, "Force live previews on each step"),
         "live_preview_require_focus": OptionInfo(True, "Pause live previews when tab is not focused"),
         "live_preview_downscale": OptionInfo(True, "Downscale high resolution live previews"),
+        "taesd_layers": OptionInfo(3, "Tiny: decode layers", gr.Slider, {"minimum": 1, "maximum": 3, "step": 1}),
+        "taesd_frames": OptionInfo(4, "Tiny: video frames", gr.Slider, {"minimum": -1, "maximum": 32, "step": 1, "visible": False}),
 
         "notification_audio_enable": OptionInfo(False, "Play a notification upon completion"),
         "notification_audio_path": OptionInfo("ui/assets/notification.mp3","Path to notification sound", component_args=hide_dirs, folder=True),
@@ -709,6 +708,7 @@ def create_settings(cmd_opts):
         "civitai_save_subfolder_enabled": OptionInfo(False, 'CivitAI save to subfolders', gr.Checkbox, {"visible": False}),
         "civitai_save_subfolder": OptionInfo('{{BASEMODEL}}', 'CivitAI subfolder template', gr.Textbox, {"visible": False}),
         "civitai_discard_hash_mismatch": OptionInfo(True, 'CivitAI discard downloads with hash mismatch', gr.Checkbox, {"visible": False}),
+        "civitai_save_precision": OptionInfo(True, 'CivitAI add precision to file names', gr.Checkbox),
     }))
 
     # --- Extra Networks ---
@@ -857,6 +857,8 @@ def create_settings(cmd_opts):
                 "schedulers_shift": OptionInfo(3, "Sampler shift", gr.Slider, {"minimum": 0.1, "maximum": 10, "step": 0.1, "visible": False}),
                 "schedulers_fallback": OptionInfo(True, "Sampler fallback on invalid", gr.Checkbox, {"visible": False}),
                 "schedulers_dynamic_shift": OptionInfo(False, "Sampler dynamic shift", gr.Checkbox, {"visible": False}),
+                "schedulers_base_image_seq_len": OptionInfo(0, "Sampler base seq", gr.Slider, {"minimum": 0, "maximum": 1024, "step": 16, "visible": False}),
+                "schedulers_max_image_seq_len": OptionInfo(0, "Sampler max seq", gr.Slider, {"minimum": 0, "maximum": 16384, "step": 16, "visible": False}),
                 "schedulers_sigma_adjust": OptionInfo(1.0, "Sigma adjust", gr.Slider, {"minimum": 0.5, "maximum": 1.5, "step": 0.01, "visible": False}),
                 "schedulers_sigma_adjust_min": OptionInfo(0.2, "Sigma adjust start", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.01, "visible": False}),
                 "schedulers_sigma_adjust_max": OptionInfo(0.8, "Sigma adjust end", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.01, "visible": False}),

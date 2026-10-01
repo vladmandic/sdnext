@@ -1,5 +1,6 @@
 import math
 import json
+import contextlib
 import subprocess as sp
 from enum import IntFlag
 
@@ -68,7 +69,9 @@ class ThrottleStatus(IntFlag):
 
 def get_rocm_smi():
     try:
-        rocm_smi_data = json.loads(sp.check_output(("rocm-smi", "-a", "--json")))
+        with contextlib.nullcontext():
+            json_data = sp.check_output(("rocm-smi", "-a", "--json"))
+        rocm_smi_data = json.loads(json_data)
         driver_version = rocm_smi_data.pop("system", {"Driver version": "unknown"}).get("Driver version")
 
         devices = []

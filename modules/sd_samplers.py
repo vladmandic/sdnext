@@ -173,7 +173,7 @@ def create_sampler(name, model, scheduler_overrides=None):
         clean_config = {k: v for k, v in sampler.sampler.config.items() if not k.startswith('_') and v is not None and v is not False}
         cls = sampler.sampler.__class__.__name__
     name = sampler.name if sampler is not None and sampler.sampler is not None else 'Default'
-    log.debug(f'Sampler: "{name}" class={cls} config={clean_config}')
+    log.debug(f'Sampler: "{name}" cls={cls} config={clean_config}')
     return sampler.sampler
 
 

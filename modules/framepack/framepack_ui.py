@@ -54,11 +54,11 @@ def create_ui(prompt, negative, styles, _overrides, script_inputs, mp4_fps, mp4_
                 with gr.Row():
                     system_prompt = gr.Textbox(label="FP system prompt", elem_id="framepack_system_prompt", lines=6, placeholder="Optional system prompt for the model", interactive=True)
                 with gr.Row():
-                    receipe = gr.Textbox(label="FP model receipe", elem_id="framepack_model_receipe", lines=6, placeholder="Model receipe", interactive=True)
+                    receipe = gr.Textbox(label="FP model receipe", elem_id="framepack_model_receipe", lines=6, placeholder="Model receipe", interactive=True, visible=False)
                 with gr.Row():
-                    receipe_get = gr.Button(value="Get receipe", elem_id="framepack_btn_get_model", interactive=True)
-                    receipe_set = gr.Button(value="Set receipe", elem_id="framepack_btn_set_model", interactive=True)
-                    receipe_reset = gr.Button(value="Reset receipe", elem_id="framepack_btn_reset_model", interactive=True)
+                    receipe_get = gr.Button(value="Get receipe", elem_id="framepack_btn_get_model", interactive=True, visible=False)
+                    receipe_set = gr.Button(value="Set receipe", elem_id="framepack_btn_set_model", interactive=True, visible=False)
+                    receipe_reset = gr.Button(value="Reset receipe", elem_id="framepack_btn_reset_model", interactive=True, visible=False)
                 use_teacache = gr.Checkbox(label='FP enable TeaCache', value=True)
                 optimized_prompt = gr.Checkbox(label='FP use optimized system prompt', value=True)
                 use_cfgzero = gr.Checkbox(label='FP enable CFGZero', value=False)

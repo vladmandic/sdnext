@@ -2,8 +2,6 @@
 
 ## Short-term
 
-- Control tab verify overrides handling, @vladmandic
-- LTX: Implement LTX2DFRPipeline
 - Video: unify execution path for ui and api
 - Torch: update ipex, rocm to torch==2.14
 
@@ -13,27 +11,24 @@
 
 ## Features
 
-### Assigned
+### Roadmap
 
-- Object clear remover for Kanvas: [Object clear](https://huggingface.co/jixin0101/ObjectClear), @vladmandic
 - OpenAI API interface for image generation, @vladmandic
 - Lightweight scheduler/queue manager, @vladmandic
 - Integrate natural language image search: [ImageDB](https://github.com/vladmandic/imagedb), @vladmandic
 - Support cloud providers, @CalamitousFelicitousness
 - Benchmark tool productize: @CalamitousFelicitousness
-
-### Roadmap
-
-- Automated testing and integrate models repo
-- Video upscaling: LTX-Upscaler
-- Video upscaling: [MiniMax-Upscaler](https://huggingface.co/LBH-123-AI/Minimax_h3_latent_Upscaler)
-- Video capabilities to processing tab, add RIFE, upscaling (once available)
-- Distraction-free UI mode with prompt-only, chat-based interface
-- Video models: support finetunes
+- Automated testing and integrate models repo, @CalamitousFelicitousness
+- Video: support finetunes
+- Video: use Networks/Reference instead of custom, @vladmandic
+- Video: implement LTX2DFRPipeline
+- Video: upscaling LTX-Upscaler
+- Video: upscaling [MiniMax-Upscaler](https://huggingface.co/LBH-123-AI/Minimax_h3_latent_Upscaler)
+- Video: capabilities to processing tab, add RIFE, upscaling (once available)
+- UI distraction-free mode with prompt-only, chat-based interface
+- UI Lite vs Expert mode, @vladmandic
+- Remove obsolete code:  `olive-ai`, @vladmandic
 - Incorporate [prompting guides](https://github.com/CalamitousFelicitousness/ai-prompting-guides)
-- Video models: use Networks/Reference instead of custom
-- UI Lite vs Expert mode
-- Remove obsolete code:  `olive-ai`
 
 ### OnHold
 

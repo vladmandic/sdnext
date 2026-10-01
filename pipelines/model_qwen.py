@@ -90,11 +90,14 @@ def load_qwen(checkpoint_info, diffusers_load_config=None):
     pipe.task_args = {
         'output_type': 'np',
     }
+    pipe.patch_size = 2 # latents pack into 2x2 patches and the pipeline floors sizes to vae_scale_factor * 2
     if 'Layered' in repo_id:
         pipe.task_args['use_en_prompt'] = True
         pipe.task_args['cfg_normalize'] = False
         pipe.task_args['layers'] = shared.opts.model_qwen_layers
         pipe.task_args['resolution'] = 640
+    if cls_name == diffusers.QwenImageEditPlusPipeline: # the single-image edit pipeline has one image slot in its prompt template
+        pipe.max_condition_images = 4 # Qwen-Image-Edit typically uses 4 condition images
 
     generic.load_vae_override(pipe, diffusers_load_config)
 

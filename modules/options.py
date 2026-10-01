@@ -22,7 +22,7 @@ def options_section(section_identifier: tuple[str, str], options_dict: dict[str,
 
 class OptionInfo:
     def __init__(
-            self,
+            self, # pylint: disable=unused-argument
             default: Any = None,
             label="",
             component: type[Component] | type[DropdownEditable] | None = None,
@@ -35,8 +35,8 @@ class OptionInfo:
             comment_before='',
             comment_after='',
             category_id=None, # pylint: disable=unused-argument
-            *args, # pylint: disable=unused-argument
-            **kwargs, # pylint: disable=unused-argument
+            *args,
+            **kwargs,
         ): # pylint: disable=keyword-arg-before-vararg
         self.default = default
         self.label = label

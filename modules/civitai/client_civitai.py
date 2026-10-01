@@ -179,16 +179,21 @@ class CivitaiClient:
             log.error(f'CivitAI get model parse error: id={model_id} {e}')
             return None
 
-    def get_version(self, version_id: int, *, token: str | None = None) -> CivitVersion | None:
+    def fetch_version(self, version_id: int, *, token: str | None = None) -> tuple[CivitVersion | None, str, int]:
+        """Version plus the failure reason and HTTP status when it cannot be read."""
         r = self._get(f'/model-versions/{version_id}', token=token)
         if r.status_code != 200:
-            log.error(f'CivitAI get version: id={version_id} code={r.status_code} message="{response_message(r)}"')
-            return None
+            message = response_message(r)
+            log.error(f'CivitAI get version: id={version_id} code={r.status_code} message="{message}"')
+            return None, f'HTTP {r.status_code} {message}'.rstrip(), r.status_code
         try:
-            return CivitVersion.parse_obj(r.json())
+            return CivitVersion.parse_obj(r.json()), '', 200
         except Exception as e:
             log.error(f'CivitAI get version parse error: id={version_id} {e}')
-            return None
+            return None, f'parse error: {e}', 502
+
+    def get_version(self, version_id: int, *, token: str | None = None) -> CivitVersion | None:
+        return self.fetch_version(version_id, token=token)[0]
 
     def get_version_by_hash(self, hash_str: str, *, token: str | None = None) -> CivitVersion | None:
         r = self._get(f'/model-versions/by-hash/{hash_str}', token=token)
