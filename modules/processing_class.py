@@ -795,11 +795,11 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
             return
         if not isinstance(self.init_images, list):
             self.init_images = [self.init_images]
-        max_condition_images = sd_models.get_max_condition_images()
+        condition_set = sd_models.takes_condition_set()
         for img in self.init_images:
             if img is None:
                 continue
-            if max_condition_images > 0 and len(processed_images) > 0: # resize, mask and color correction belong to the first image, the rest of the condition set passes as given
+            if condition_set and len(processed_images) > 0: # resize, mask and color correction belong to the first image, the rest of the condition set passes as given
                 processed_images.append(img)
                 continue
             self.init_img_hash = getattr(self, 'init_img_hash', hashlib.sha256(img.tobytes()).hexdigest()[0:8]) # pylint: disable=attribute-defined-outside-init

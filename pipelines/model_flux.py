@@ -63,6 +63,8 @@ def load_flux(checkpoint_info, diffusers_load_config=None):
     )
 
     generic.load_vae_override(pipe, diffusers_load_config)
+    if cls_name == diffusers.FluxKontextPipeline:
+        pipe.max_condition_images = 1 # one condition image per prompt
 
     if os.environ.get('SD_REMOTE_T5', None) is not None:
         from modules import sd_te_remote

@@ -114,13 +114,13 @@ GoogleNanoBananaPipeline = type('GoogleNanoBananaPipeline', (), {'__call__': lam
 Case = namedtuple('Case', 'name cls registrations declared target mode ran_before')
 CASES = [ # registrations and declarations as pipelines/model_*.py apply them; ran_before is the verdict before edit mode
     Case('Qwen-Image 2.1', D.QwenImage21Pipeline, {'qwen-image-21': (D.QwenImage21Pipeline, D.QwenImage21Pipeline, D.QwenImage21Pipeline)}, 10, 'QwenImage21Pipeline', 'edit', False),
-    Case('Qwen-Image-Edit', D.QwenImageEditPipeline, {'qwen-image': (D.QwenImageEditPipeline, D.QwenImageEditPipeline, D.QwenImageEditPipeline)}, None, 'QwenImageEditPipeline', None, False),
+    Case('Qwen-Image-Edit', D.QwenImageEditPipeline, {'qwen-image': (D.QwenImageEditPipeline, D.QwenImageEditPipeline, D.QwenImageEditPipeline)}, 1, 'QwenImageEditPipeline', 'edit', False),
     Case('Qwen-Image-Edit Plus', D.QwenImageEditPlusPipeline, {'qwen-image': (D.QwenImageEditPlusPipeline, D.QwenImageEditPlusPipeline, D.QwenImageEditPlusPipeline)}, 4, 'QwenImageEditPlusPipeline', 'edit', False),
     Case('Qwen-Image', D.QwenImagePipeline, {'qwen-image': (D.QwenImagePipeline, D.QwenImageImg2ImgPipeline, D.QwenImageInpaintPipeline)}, None, 'QwenImageInpaintPipeline', 'inpaint', True),
     Case('Qwen-Image Layered', D.QwenImageLayeredPipeline, {'qwen-layered': (D.QwenImageLayeredPipeline, D.QwenImageLayeredPipeline, D.QwenImageLayeredPipeline)}, None, 'QwenImageLayeredPipeline', None, False),
     Case('FLUX.2 dev', D.Flux2Pipeline, {'flux2': (D.Flux2Pipeline, D.Flux2Pipeline, D.Flux2Pipeline)}, 10, 'Flux2Pipeline', 'edit', False),
     Case('FLUX.2 Klein', D.Flux2KleinPipeline, {'flux2klein': (D.Flux2KleinPipeline, D.Flux2KleinPipeline, D.Flux2KleinPipeline)}, 4, 'Flux2KleinPipeline', 'edit', False),
-    Case('FLUX.1 Kontext', D.FluxKontextPipeline, {'flux1kontext': (D.FluxKontextPipeline, D.FluxKontextPipeline, D.FluxKontextInpaintPipeline)}, None, 'FluxKontextPipeline', None, False),
+    Case('FLUX.1 Kontext', D.FluxKontextPipeline, {'flux1kontext': (D.FluxKontextPipeline, D.FluxKontextPipeline, D.FluxKontextInpaintPipeline)}, 1, 'FluxKontextPipeline', 'edit', False),
     Case('FLUX.1', D.FluxPipeline, {}, None, 'FluxInpaintPipeline', 'inpaint', True),
     Case('JoyImage Edit Plus', D.JoyImageEditPlusPipeline, {'joy-image-edit': (D.JoyImageEditPlusPipeline, D.JoyImageEditPlusPipeline, None)}, 4, 'JoyImageEditPlusPipeline', 'edit', False),
     Case('GLM-Image', D.GlmImagePipeline, {}, 10, 'GlmImagePipeline', 'edit', False),

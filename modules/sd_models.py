@@ -1210,10 +1210,15 @@ def get_task_class(pipe: diffusers.DiffusionPipeline, task_type: DiffusersTaskTy
 
 
 def get_max_condition_images(pipe: diffusers.DiffusionPipeline | None = None) -> int:
-    """Images the pipeline conditions on as one set shared by every prompt; 0 when an image list means one image per sample."""
+    """Condition images the pipeline takes per prompt, 0 when undeclared; any declaration means the request sets the output size."""
     if pipe is None:
         pipe = shared.sd_model
     return int(getattr(pipe, 'max_condition_images', 0) or 0)
+
+
+def takes_condition_set(pipe: diffusers.DiffusionPipeline | None = None) -> bool:
+    """True when an image list is one set of condition images shared by every prompt, not one image per sample."""
+    return get_max_condition_images(pipe) > 1
 
 
 def switch_pipe(cls: type[diffusers.DiffusionPipeline] | str, pipeline: diffusers.DiffusionPipeline | None = None, force = False, args: dict | None = None):
