@@ -35,7 +35,7 @@ def validate_sampler_name(name):
     raise HTTPException(status_code=404, detail="Sampler not found")
 
 
-def decode_base64_to_image(encoding, quiet=False):
+def decode_base64_to_image(encoding, quiet=False, keep_alpha=False):
     if encoding is None:
         return None
     if isinstance(encoding, str) and encoding.startswith("upload:"):
@@ -49,7 +49,7 @@ def decode_base64_to_image(encoding, quiet=False):
         decoded = base64.b64decode(encoding)
         data = io.BytesIO(decoded)
         image = Image.open(data)
-        image = image.convert('RGB')
+        image = image.convert('RGBA') if keep_alpha else image.convert('RGB')
         return image
     except Exception as e:
         log.warning(f'API cannot decode image: {e}')
@@ -120,10 +120,13 @@ def upscaler_to_index(name: str):
 def save_image(image, fn, ext):
     # actual save
     parameters = image.info.get('parameters', None)
-    image_format = Image.registered_extensions()[f'.{ext}']
+    image_format = Image.registered_extensions()[f'.{ext.lower()}']
     if image_format == 'PNG':
         pnginfo_data = PngImagePlugin.PngInfo()
+        binary_keys = {'icc_profile', 'exif'} # written via dedicated PNG chunks, not as text metadata
         for k, v in image.info.items():
+            if k in binary_keys:
+                continue
             pnginfo_data.add_text(k, str(v))
         image.save(fn, format=image_format, quality=shared.opts.jpeg_quality, pnginfo=pnginfo_data)
     elif image_format == 'JPEG':

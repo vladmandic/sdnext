@@ -1,22 +1,22 @@
 # Change Log for SD.Next
 
-## Update for 2026-09-30
+## Update for 2026-10-01
 
-### Highlights for 2026-09-30
+### Highlights for 2026-10-01
 
 *What's New*? This release brings:
 - Few new models: **Qwen-Image 2.1**, **Bria Fibo 1.5** and **ObjectClear**
-- **DLSS5** reimagined for much higher performance and full cross-platform support
+- **DLSS5** reimagined for much higher performance and full cross-platform and cross-gpu support
 - New live-preview method using **MicroDecoder**
 - Better handling of multi-image reference editing
-- Compute updates for ROCm, OpenVINO, and XPU
-- Massive updates to UI tooltips/hints: over 1,000 new entries and revised existing ones
+- Compute updates for *ROCm, OpenVINO, and XPU*
+- Massive updates to UI tooltips/hints: *over 1,000 new entries and revised existing ones*
 
 Plus quite a few other improvements and inevitable bug-fixes, see full changelog below for details...
 
 [Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-09-30
+### Details for 2026-10-01
 
 - **Models**
   - [Qwen-Image 2.1](https://huggingface.co/Qwen/Qwen-Image-2.1) in *base*, *sdnq-4bit* and *sdnq-8bit* variants  
@@ -48,6 +48,7 @@ Plus quite a few other improvements and inevitable bug-fixes, see full changelog
   - can be used via *generate -> extras* or as a separate *process* workflow
   - additional gpu-acceleration for cuda is included, but skipped on non-cuda devices
   - no installation needed, just enable and thats it!
+  - cli usage in `modules/dlss/cli-dlss.py`  
 - **Preview**
   - full refactor: refactored *taesd*, added *micro-decoder*, removed *simple* and *approximate* methods
   - new [MicroDecoder](https://huggingface.co/vladmandic/MicroDecoder) vae implementation  
@@ -58,14 +59,17 @@ Plus quite a few other improvements and inevitable bug-fixes, see full changelog
     instead of relying on polling and low-priority updates, forces preview calculation on each step  
   - previews now work on batched generations
 - **Other**
-  - edit-models: simplify usage of multi-image reference editing  
+  - **edit-models**: simplify usage of multi-image reference editing  
     automatically handle: flux.2, glm-image, nano-banana, joy-image-edit, qwen-image-edit
-  - processors: `DWPose`, `RTMW`, `RTMO`: image processor updates, thanks @kirtasshh  
+  - **processors**: `DWPose`, `RTMW`, `RTMO`: image processor updates, thanks @kirtasshh  
     refactored to use `ONNX` instead of obsolete `mmpose` lib and with additional configurable settings  
-  - lora: extend support for more model types
-  - scheduler: expose base and max image sequence lengths  
+  - **lora**: extend support for more model types
+  - **scheduler**: expose base and max image sequence lengths  
     recommended to change when target resolution is significantly different from the base resolution  
-  - detailer: add option to skip specific classes using `[SKIP=name]` in the detailer prompt, thanks @kirtasshh
+  - **detailer**: add option to skip specific classes using `[SKIP=name]` in the detailer prompt, thanks @kirtasshh
+  - **watermarking**: updated code for both image(visible) and text(invisible) watermarking  
+    new api endpoint: `/sdapi/v1/watermark` with `POST` and `GET` methods  
+    new cli example: `cli/api-watermark.py`  
 - **UI**
   - massive improvement to built-in tooltips/hints  
     over 1,000 new entries, now at zero missing ui controls or settings  

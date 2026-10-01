@@ -469,10 +469,15 @@ def post_watermark(req: models.ReqWatermark):
         wm_text=req.wm_text,
         wm_image=req.wm_image,
         position=req.position,
-        fmt=req.fmt
+        fmt=req.fmt,
+        quiet=True,
     )
 
 def get_watermark(req: models.ReqWatermark):
     """Retrieve the watermark from an image."""
     from modules.image import watermark
-    return watermark.get_watermark(req.image)
+    return watermark.get_watermark(
+        image=req.image,
+        wm_text=req.wm_text,
+        quiet=True,
+    )

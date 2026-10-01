@@ -3,12 +3,16 @@ import os
 import json
 import shutil
 import subprocess
-import xmltodict
 from rich import print # pylint: disable=redefined-builtin
 from util import log, Map
 
 
 def get_nvidia_smi(output='dict'):
+    try:
+        import xmltodict
+    except ImportError:
+        log.error("xmltodict module not found")
+        return None
     smi = shutil.which('nvidia-smi')
     if smi is None:
         log.error("nvidia-smi not found")
