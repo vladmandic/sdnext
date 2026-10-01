@@ -27,6 +27,7 @@
   - test: update `--test` workflow
   - paths: improve handling of allowed paths and add settings option to extend them
   - reference: update missing reference thumbnails
+  - hires: no output-size warning or infotext entry for the image the hires pass upscales itself
 
 ## Update for 2026-10-01
 
