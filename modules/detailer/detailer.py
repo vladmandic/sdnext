@@ -259,13 +259,13 @@ class Detailer():
         prompt_only_skip = stripped_prompt != prompt and stripped_prompt.strip() == ''
         negative_only_skip = stripped_negative != negative and stripped_negative.strip() == ''
         prompt, negative = stripped_prompt, stripped_negative
+        edit_warnings = [] # logged once per job, at the first detection processed
         if (mode == 'edit') and not getattr(p, 'detailer_strength_warned', False):
             from modules.processing_args import get_params
             if 'strength' not in get_params(detail_model): # the pipeline redraws each crop in full
-                log.warning(f'Detailer: model="{detail_model.__class__.__name__}" strength=ignored')
+                edit_warnings.append(f'Detailer: model="{detail_model.__class__.__name__}" strength=ignored')
                 if len(prompt) == 0 or prompt_only_skip:
-                    log.warning(f'Detailer prompt: empty, main prompt used: model="{detail_model.__class__.__name__}" redraws each detection from the prompt')
-            p.detailer_strength_warned = True
+                    edit_warnings.append(f'Detailer prompt: empty, main prompt used: model="{detail_model.__class__.__name__}" redraws each detection from the prompt')
         if len(prompt) == 0 or prompt_only_skip:
             prompt = orig_prompt
         else:
@@ -432,6 +432,10 @@ class Detailer():
                     time.sleep(0.1)
                 if item.mask is None:
                     continue
+                if len(edit_warnings) > 0 and not getattr(p, 'detailer_strength_warned', False):
+                    for message in edit_warnings:
+                        log.warning(message)
+                    p.detailer_strength_warned = True
 
                 shared.sd_model.fail_on_switch_error = True
                 pc.keep_prompts = True
