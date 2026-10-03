@@ -30,6 +30,7 @@
   - reference: update missing reference thumbnails
   - hires: no output-size warning or infotext entry for the image the hires pass upscales itself
   - control: no output-size warning or infotext entry when the processed input sets the size
+  - triton: skipping autotune runs the first config the kernel's own pruning keeps, so sdnq int8 attention compiles with skip enabled
 
 ## Update for 2026-10-01
 
