@@ -750,7 +750,7 @@ def install_rocm():
             if device is not None and device.therock is not None:
                 check_python(supported_minors=[11, 12, 13], reason='ROCm-Windows: python==3.11/3.12/3.13 required')
                 # Use device-specific index for torch/torchvision, with root index as fallback for torchaudio and other packages
-                torch_command = os.environ.get('TORCH_COMMAND', f'"torch[device-{device.therock}]" "torchvision[device-{device.therock}]" "torchaudio"  --index-url https://stable.repo.amd.com/rocm/whl-next/')
+                torch_command = os.environ.get('TORCH_COMMAND', f'"torch[device-{device.therock}]==2.12.0+rocm10.0.0" "torchvision[device-{device.therock}]==0.27.0+rocm10.0.0" "torchaudio==2.11.0+rocm10.0.0"  --index-url https://stable.repo.amd.com/rocm/whl-next/')
             elif isinstance(rocm.environment, rocm.PythonPackageEnvironment):
                 check_python(supported_minors=[11, 12, 13], reason='ROCm-Windows: python==3.11/3.12/3.13 required')
                 torch_command = os.environ.get('TORCH_COMMAND', 'torch torchvision torchaudio --index-url https://stable.repo.amd.com/rocm/whl-next/')
