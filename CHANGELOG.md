@@ -21,6 +21,7 @@
   - zluda should only be used on older amd gpus not supported by rocm/windows  
 - **Compute**
   - sdnq: support double-quant, including `nvfp4`
+  - text encoder: *skip torch compile for TE* option runs encoder calls without torch.compile, so a new prompt length or image size does not trigger a recompile, see *settings -> compute settings*
 - **Fixes**
   - schedulers: update init signature for new configuration options
   - rocm: remove incompatible env flags

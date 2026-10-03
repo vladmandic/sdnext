@@ -298,6 +298,7 @@ def create_settings(cmd_opts):
         "torch_sync": OptionInfo(True, "Force synchronize"),
         "triton_skip_autotune": OptionInfo(False, "Skip Triton autotune", gr.Checkbox),
         "triton_skip_autotune_te": OptionInfo(False, "Skip Triton autotune for TE", gr.Checkbox),
+        "torch_skip_compile_te": OptionInfo(False, "Skip Torch compile for TE", gr.Checkbox),
         "cudnn_enabled": OptionInfo("default", "cuDNN enabled", gr.Radio, {"choices": ["default", "true", "false"]}),
         "cudnn_benchmark": OptionInfo(devices.backend != "rocm", "cuDNN full-depth benchmark"),
         "cudnn_benchmark_limit": OptionInfo(10, "cuDNN benchmark limit", gr.Slider, {"minimum": 0, "maximum": 100, "step": 1}),
