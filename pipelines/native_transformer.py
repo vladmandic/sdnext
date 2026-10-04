@@ -839,7 +839,7 @@ def build_component_prequantized(
     from accelerate import init_empty_weights
     from accelerate.utils import set_module_tensor_to_device
     from diffusers.utils import get_module_from_name
-    from sdnq.common import dtype_dict, check_torch_compile
+    from sdnq.common import sdnq_keys, dtype_dict, check_torch_compile
     from sdnq.kernel_wrappers import is_fp8_compile_supported
     from sdnq.quantizer import SDNQConfig, SDNQQuantizer
     from sdnq.dequantizer import SDNQDequantizer
@@ -946,9 +946,9 @@ def build_component_prequantized(
         )
         wrapped = get_sdnq_wrapper_class(linear, dequant_forward)
         wrapped.scale = torch.nn.Parameter(torch.empty((1, 1), dtype=torch.float32, device="meta"), requires_grad=False)
-        wrapped.zero_point = None
-        wrapped.svd_up = None
-        wrapped.svd_down = None
+        for key in sdnq_keys:
+            if key not in {"weight", "scale"}:
+                setattr(wrapped, key, None)
         setattr(parent, child, wrapped)
 
     target_device = (
