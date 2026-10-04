@@ -13,11 +13,12 @@ def load_instaflow(checkpoint_info, diffusers_load_config=None):
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, allow_quant=False)
     log.debug(f'Load model: type=InstaFlow repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
-    if repo_id is None or repo_id.lower() == 'none':
-        return None
 
     pipeline = diffusers.utils.get_class_from_dynamic_module('instaflow_one_step', module_file='pipeline.py')
     generic.set_pipeline('InstaFlow', pipeline)
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
+
     load_config = {**diffusers_load_config, **load_args}
     sd_model = pipeline.from_pretrained(checkpoint_info.path, cache_dir=shared.opts.diffusers_dir, **load_config)
     devices.torch_gc(force=True, reason='load')

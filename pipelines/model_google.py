@@ -169,6 +169,7 @@ def load_nanobanana(checkpoint_info, diffusers_load_config=None): # pylint: disa
     from modules import sd_models
     repo_id = sd_models.path_to_repo(checkpoint_info)
     if repo_id is None or repo_id.lower() == 'none':
+        log.debug(f'Load model: type=GoogleGemini model="{repo_id}"')
         return None
     pipe = GoogleNanoBananaPipeline(model_name = repo_id)
     return pipe

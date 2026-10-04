@@ -19,6 +19,9 @@ def load_vibe(checkpoint_info, diffusers_load_config=None):
     diffusers.VIBESanaEditingPipeline = VIBESanaEditingPipeline
     diffusers.VIBESanaEditingModel = VIBESanaEditingModel
     generic.set_pipeline('VIBE', VIBESanaEditingPipeline)
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
+
     sys.modules['vibe.transformer.vibe_sana_editing'] = diffusers # monkey patch since hf model_index.json points to custom class path
 
     from pipelines.vibe import VIBE_SPEC
@@ -36,8 +39,6 @@ def load_vibe(checkpoint_info, diffusers_load_config=None):
         allow_quant=False,
         allow_shared=False,
     )
-    if repo_id is None or repo_id.lower() == 'none':
-        return None
 
     processor = transformers.Qwen3VLProcessor.from_pretrained(
         repo_id,

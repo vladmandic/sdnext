@@ -66,9 +66,6 @@ def load_anima(checkpoint_info, diffusers_load_config=None):
     load_args.pop('cache_dir', None)
     log.debug(f'Load model: type=Anima repo="{repo_id}" file="{local_file}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
-    if repo_id is None or repo_id.lower() == 'none':
-        return None
-
     import sys
     from pipelines.anima import modeling_llm_adapter
     sys.modules['modeling_llm_adapter'] = modeling_llm_adapter
@@ -79,6 +76,9 @@ def load_anima(checkpoint_info, diffusers_load_config=None):
     diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["anima"] = AnimaImageToImagePipeline
     diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING["anima"] = AnimaInpaintPipeline
     generic.set_pipeline('Anima', AnimaTextToImagePipeline)
+
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
 
     # UNET dropdown or single-file checkpoint may bundle transformer and llm_adapter
     transformer, llm_adapter = init_transformer_component(repo_id, diffusers_load_config, modeling_llm_adapter.AnimaLLMAdapter, local_file=local_file)

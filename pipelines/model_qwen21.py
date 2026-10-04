@@ -10,8 +10,7 @@ def load_qwen21(checkpoint_info, diffusers_load_config=None):
         diffusers_load_config = {}
     repo_id = sd_models.path_to_repo(checkpoint_info)
     sd_models.hf_auth_check(checkpoint_info)
-    load_args, _ = model_quant.get_dit_args(diffusers_load_config, module='Model')
-    log.debug(f'Load model: type=Qwen21 repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
+    log.debug(f'Load model: type=Qwen21 repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={diffusers_load_config}')
 
     from pipelines.qwen import QWEN21_SPEC
     cls = diffusers.QwenImage21Pipeline
@@ -21,6 +20,7 @@ def load_qwen21(checkpoint_info, diffusers_load_config=None):
 
     if repo_id is None or repo_id.lower() == 'none':
         return None
+    load_args, _ = model_quant.get_dit_args(diffusers_load_config, module='Model')
 
     # img_in reads 64 latent channels, below the int8 GEMM minimum K; modulation feeds every block, so its error compounds; the rest are the small embedding and output projections
     transformer = generic.load_transformer(

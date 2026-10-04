@@ -5,6 +5,7 @@
 - sdnq: support double-quant, including `nvfp4`
 - schedulers: update init signature for new configuration options
 - rocm: remove incompatible env flags
+- test: update `--test` workflow
 
 ## Update for 2026-10-01
 

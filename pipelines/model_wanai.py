@@ -51,12 +51,8 @@ def load_wan(checkpoint_info, diffusers_load_config=None):
     else:
         transformer = generic.load_transformer(repo_id, cls_name=transformer_cls, load_config=diffusers_load_config, subfolder='transformer')
         transformer_2 = None
-    if repo_id is None or repo_id.lower() == 'none':
-        return None
 
-    text_encoder = init_text_encoder(repo_id, diffusers_load_config)
-
-    load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, module='Model')
+    log.debug(f'Load model: type=WanAI model="{checkpoint_info.name}" repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={diffusers_load_config} stage="{shared.opts.model_wan_stage}" boundary={boundary_ratio}')
 
     if 'Wan2.2-I2V' in repo_id:
         pipe_cls = diffusers.WanImageToVideoPipeline
@@ -71,7 +67,13 @@ def load_wan(checkpoint_info, diffusers_load_config=None):
         pipe_cls = diffusers.WanPipeline
         diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["wanai"] = diffusers.WanPipeline
         diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["wanai"] = WanImagePipeline
-    log.debug(f'Load model: type=WanAI model="{checkpoint_info.name}" repo="{repo_id}" cls={pipe_cls.__name__} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args} stage="{shared.opts.model_wan_stage}" boundary={boundary_ratio}')
+
+    generic.set_pipeline('WanAI', pipe_cls)
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
+
+    text_encoder = init_text_encoder(repo_id, diffusers_load_config)
+    load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, module='Model')
     wan_args = {
         'transformer': transformer,
         'transformer_2': transformer_2,
