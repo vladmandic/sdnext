@@ -176,10 +176,13 @@ def register_api(api): # register api
         # Build list of resolved output paths with labels
         folders = []
         if base_samples:
-            folders.append(make_folder(base_samples, os.path.basename(base_samples.rstrip('/\\'))))
-        if base_grids and base_grids != base_samples:
-            folders.append(make_folder(base_grids, os.path.basename(base_grids.rstrip('/\\'))))
+            base_samples = base_samples.rstrip('/\\')
+            folders.append(make_folder(resolve_output_path(base_samples), "Folders"))
+        if base_grids:
+            base_grids = base_grids.rstrip('/\\')
+            folders.append(make_folder(resolve_output_path(base_grids), "Folders"))
         # Use the specific folder setting values as labels (e.g., "outputs/text" -> "outputs/text")
+        folders.append(make_folder(reference_dir, "Reference"))
         folders.append(make_folder(resolve_output_path(base_samples, shared.opts.outdir_txt2img_samples), shared.opts.outdir_txt2img_samples))
         folders.append(make_folder(resolve_output_path(base_samples, shared.opts.outdir_img2img_samples), shared.opts.outdir_img2img_samples))
         folders.append(make_folder(resolve_output_path(base_samples, shared.opts.outdir_control_samples), shared.opts.outdir_control_samples))
@@ -190,6 +193,7 @@ def register_api(api): # register api
         folders.append(make_folder(resolve_output_path(base_grids, shared.opts.outdir_txt2img_grids), shared.opts.outdir_txt2img_grids))
         folders.append(make_folder(resolve_output_path(base_grids, shared.opts.outdir_img2img_grids), shared.opts.outdir_img2img_grids))
         folders.append(make_folder(resolve_output_path(base_grids, shared.opts.outdir_control_grids), shared.opts.outdir_control_grids))
+
         # Custom browser folders and reference dir
         for f in shared.opts.browser_folders.split(','):
             f = f.strip()
@@ -204,9 +208,11 @@ def register_api(api): # register api
             if path and path not in seen_paths and os.path.isdir(path):
                 seen_paths.add(path)
                 unique_folders.append(f)
-                if shared.demo is not None and path not in shared.demo.allowed_paths:
+                if (shared.demo is not None) and (path not in shared.demo.allowed_paths):
                     debug(f'Browser folders allow: {path}')
                     shared.demo.allowed_paths.append(path)
+        if os.environ.get('SD_PATH_DEBUG', None):
+            log.trace(f'Path allowed: why=gallery allowed={shared.demo.allowed_paths}')
         debug(f'Browser folders: {unique_folders}')
         return unique_folders
 
@@ -275,3 +281,5 @@ def register_api(api): # register api
         except Exception as e:
             debug(f'WS error: {e}')
         manager.disconnect(ws)
+
+    get_folders() # initialize all folders

@@ -2,10 +2,29 @@
 
 ## Update for 2026-10-04
 
-- sdnq: support double-quant, including `nvfp4`
-- schedulers: update init signature for new configuration options
-- rocm: remove incompatible env flags
-- test: update `--test` workflow
+- **Torch**  
+  update all torch versions to best known options:  
+  - **cuda**: `torch==2.14.1+cu132`
+  - **rocm/linux**: `torch==2.14.1+rocm7.14`
+  - **rocm/windows**: `torch==2.12.0+rocm10.0.0`
+  - **xpu**: `torch==2.14.1+xpu`
+  - **openvino**: `torch==2.11.0+cpu` with `openvino==2026.4.1`
+  - **zluda**: `torch==2.7.1+cu118`
+ 
+  notes:
+  - if you want to manually install `torch`, sdnext will not interfere/change it  
+  - sdnext only updates `torch` if its not already installed  
+    for best experience use `--reinstall` flags to force updates  
+  - if you want to try cutting-edge versions of torch  
+    use the `--use-nightly` flag  
+  - zluda should only be used on older amd gpus not supported by rocm/windows  
+- **Compute**
+  - sdnq: support double-quant, including `nvfp4`
+- **Fixes**
+  - schedulers: update init signature for new configuration options
+  - rocm: remove incompatible env flags
+  - test: update `--test` workflow
+  - paths: improve handling of allowed paths and add settings option to extend them
 
 ## Update for 2026-10-01
 

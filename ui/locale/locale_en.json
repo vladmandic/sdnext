@@ -1181,7 +1181,7 @@
     {"id": "video_params_generic", "label": "Models", "localized": "", "hint": "Download, convert or merge your models and manage models metadata", "ui": "video"},
     {"id": "", "label": "Models & Networks", "localized": "", "hint": "View lists of all available models and networks"},
     {"id": "", "label": "Models List", "localized": "", "hint": "Table listing all discovered local model checkpoints, paths, and architectures"},
-    {"id": "", "label": "Models Paths", "localized": "", "hint": "Configure directory locations for models, networks, and upscalers", "ui": "settings_system-paths"},
+    {"id": "", "label": "Models root folder", "localized": "", "hint": "Configure directory locations for models, networks, and upscalers", "ui": "settings_system-paths"},
     {"id": "", "label": "Modern", "localized": "", "hint": "ModernUI responsive theme with dynamic pane layouts", "ui": "settings_ui"},
     {"id": "", "label": "ModernUI", "localized": "", "hint": "Modern responsive user interface theme for SD.Next"},
     {"id": "", "label": "Modular Pipelines", "localized": "", "hint": "Modular Diffusers pipeline architecture settings", "ui": "settings_model_options"},
