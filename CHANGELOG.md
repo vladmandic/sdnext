@@ -12,9 +12,9 @@
   - **zluda**: `torch==2.7.1+cu118`
  
   notes:
-  - if you want to manually install `torch`, sdnext will not interfere/change it  
   - sdnext only updates `torch` if its not already installed  
-    for best experience use `--reinstall` flags to force updates  
+    for best experience use `--reinstall` flags to force updates or delete `venv` folder  
+  - if you want to manually install `torch`, sdnext will not interfere/change it  
   - if you want to try cutting-edge versions of torch  
     use the `--use-nightly` flag  
   - zluda should only be used on older amd gpus not supported by rocm/windows  
@@ -25,6 +25,7 @@
   - rocm: remove incompatible env flags
   - test: update `--test` workflow
   - paths: improve handling of allowed paths and add settings option to extend them
+  - reference: update missing reference thumbnails
 
 ## Update for 2026-10-01
 
