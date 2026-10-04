@@ -925,7 +925,11 @@ def build_component_prequantized(
             original_shape=layer_shape,
             original_stride=(linear.in_features, 1),
             quantized_weight_shape=torch.Size((linear.out_features, linear.in_features // NVFP4_GROUP_SIZE, NVFP4_GROUP_SIZE)) if is_nvfp4 else layer_shape,
+            quantized_scale_shape=None,
+            quantized_zero_point_shape=None,
             weights_dtype=weights_dtype,
+            scale_dtype=None,
+            zero_point_dtype=None,
             quantized_matmul_dtype=matmul_dtype,
             hadamard_group_size=hadamard_group_size,
             group_size=NVFP4_GROUP_SIZE if is_nvfp4 else -1,
@@ -937,6 +941,7 @@ def build_component_prequantized(
             use_stochastic_rounding=False,
             use_hadamard=use_hadamard,
             use_codebook=False,
+            use_codebook_scale=False,
             layer_class_name="Linear",
         )
         wrapped = get_sdnq_wrapper_class(linear, dequant_forward)

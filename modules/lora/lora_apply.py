@@ -39,18 +39,12 @@ def network_backup_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Gr
             else:
                 self.network_weights_backup = weight.clone().to(devices.cpu)
                 if hasattr(self, "sdnq_dequantizer"):
+                    from sdnq.common import sdnq_keys
+                    for key in sdnq_keys:
+                        tensor = getattr(self, key, None)
+                        if tensor is not None:
+                            setattr(self, "sdnq_" + key + "_backup", tensor.clone().to(devices.cpu))
                     self.sdnq_dequantizer_backup = self.sdnq_dequantizer
-                    self.sdnq_scale_backup = self.scale.clone().to(devices.cpu)
-                    if self.zero_point is not None:
-                        self.sdnq_zero_point_backup = self.zero_point.clone().to(devices.cpu)
-                    else:
-                        self.sdnq_zero_point_backup = None
-                    if self.svd_up is not None:
-                        self.sdnq_svd_up_backup = self.svd_up.clone().to(devices.cpu)
-                        self.sdnq_svd_down_backup = self.svd_down.clone().to(devices.cpu)
-                    else:
-                        self.sdnq_svd_up_backup = None
-                        self.sdnq_svd_down_backup = None
 
         if bias_backup is None:
             if getattr(self, 'bias', None) is not None:
@@ -87,23 +81,21 @@ def network_calc_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Grou
         try:
             t0 = time.time()
             if hasattr(self, "sdnq_dequantizer_backup"):
-                weight = self.sdnq_dequantizer_backup(
-                    self.weight.to(devices.device),
-                    self.sdnq_scale_backup.to(devices.device),
-                    self.sdnq_zero_point_backup.to(devices.device) if self.sdnq_zero_point_backup is not None else None,
-                    self.sdnq_svd_up_backup.to(devices.device) if self.sdnq_svd_up_backup is not None else None,
-                    self.sdnq_svd_down_backup.to(devices.device) if self.sdnq_svd_down_backup is not None else None,
-                    skip_quantized_matmul=self.sdnq_dequantizer_backup.use_quantized_matmul
-                )
+                from sdnq.common import sdnq_keys
+                sdnq_params = {}
+                for key in sdnq_keys:
+                    tensor = getattr(self, "sdnq_" + key + "_backup", None)
+                    if tensor is not None:
+                        sdnq_params[key] = tensor.to(devices.device)
+                sdnq_params["weight"] = self.weight.to(devices.device)
+                weight = self.sdnq_dequantizer_backup(**sdnq_params, skip_quantized_matmul=self.sdnq_dequantizer_backup.use_quantized_matmul)
             elif hasattr(self, "sdnq_dequantizer"):
-                weight = self.sdnq_dequantizer(
-                    self.weight.to(devices.device),
-                    self.scale.to(devices.device),
-                    self.zero_point.to(devices.device) if self.zero_point is not None else None,
-                    self.svd_up.to(devices.device) if self.svd_up is not None else None,
-                    self.svd_down.to(devices.device) if self.svd_down is not None else None,
-                    skip_quantized_matmul=self.sdnq_dequantizer.use_quantized_matmul
-                )
+                from sdnq.utils import get_sdnq_params
+                sdnq_params = get_sdnq_params(self)
+                for key, value in sdnq_params.items():
+                    if value is not None:
+                        sdnq_params[key] = value.to(devices.device)
+                weight = self.sdnq_dequantizer(**sdnq_params, skip_quantized_matmul=self.sdnq_dequantizer.use_quantized_matmul)
             else:
                 weight = self.weight.to(devices.device) # must perform calc on gpu due to performance
             updown, ex_bias = module.calc_updown(weight)
@@ -187,40 +179,43 @@ def network_add_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Group
     if not bias and hasattr(self, "sdnq_dequantizer"):
         try:
             from sdnq import SDNQConfig, sdnq_quantize_layer
+            from sdnq.common import sdnq_keys
             if hasattr(self, "sdnq_dequantizer_backup"):
-                use_svd = bool(self.sdnq_svd_up_backup is not None)
-                dequantize_fp32 = bool(self.sdnq_scale_backup.dtype == torch.float32)
+                sdnq_params = {}
+                for key in sdnq_keys:
+                    tensor = getattr(self, "sdnq_" + key + "_backup", None)
+                    if tensor is not None:
+                        sdnq_params[key] = tensor.to(devices.device)
+                sdnq_params["weight"] = model_weights.to(devices.device)
                 sdnq_dequantizer = self.sdnq_dequantizer_backup
-                dequant_weight = self.sdnq_dequantizer_backup(
-                    model_weights.to(devices.device),
-                    self.sdnq_scale_backup.to(devices.device),
-                    self.sdnq_zero_point_backup.to(devices.device) if self.sdnq_zero_point_backup is not None else None,
-                    self.sdnq_svd_up_backup.to(devices.device) if use_svd else None,
-                    self.sdnq_svd_down_backup.to(devices.device) if use_svd else None,
-                    skip_quantized_matmul=self.sdnq_dequantizer_backup.use_quantized_matmul,
-                    dtype=torch.float32,
-                )
             else:
-                use_svd = bool(self.svd_up is not None)
-                dequantize_fp32 = bool(self.scale.dtype == torch.float32)
+                from sdnq.utils import get_sdnq_params
+                sdnq_params = get_sdnq_params(self)
+                sdnq_params['weight'] = model_weights.to(devices.device)
+                for key, value in sdnq_params.items():
+                    if value is not None:
+                        sdnq_params[key] = value.to(devices.device)
                 sdnq_dequantizer = self.sdnq_dequantizer
-                dequant_weight = self.sdnq_dequantizer(
-                    model_weights.to(devices.device),
-                    self.scale.to(devices.device),
-                    self.zero_point.to(devices.device) if self.zero_point is not None else None,
-                    self.svd_up.to(devices.device) if use_svd else None,
-                    self.svd_down.to(devices.device) if use_svd else None,
-                    skip_quantized_matmul=self.sdnq_dequantizer.use_quantized_matmul,
-                    dtype=torch.float32,
-                )
 
+            use_svd = bool(sdnq_params.get('svd_up') is not None)
+            dequantize_fp32 = bool(
+                sdnq_params.get('scale').dtype == torch.float32
+                or (sdnq_params.get('scale_2') is not None and sdnq_params.get('scale_2').dtype == torch.float32)
+            )
+
+            dequant_weight = sdnq_dequantizer(**sdnq_params, skip_quantized_matmul=sdnq_dequantizer.use_quantized_matmul, dtype=torch.float32)
             new_weight = dequant_weight.to(devices.device, dtype=torch.float32) + lora_weights.to(devices.device, dtype=torch.float32)
+            for key in sdnq_keys:
+                setattr(self, key, None)
+            self.sdnq_dequantizer = None
             self.weight = torch.nn.Parameter(new_weight, requires_grad=False)
-            self.sdnq_dequantizer = self.scale = self.zero_point = self.svd_up = self.svd_down = None
+
             self = sdnq_quantize_layer(
                 self,
                 SDNQConfig(
                     weights_dtype=sdnq_dequantizer.weights_dtype,
+                    scale_dtype=sdnq_dequantizer.scale_dtype,
+                    zero_point_dtype=sdnq_dequantizer.zero_point_dtype,
                     quantized_matmul_dtype=sdnq_dequantizer.quantized_matmul_dtype,
                     group_size=sdnq_dequantizer.group_size,
                     hadamard_group_size=sdnq_dequantizer.hadamard_group_size,
@@ -230,6 +225,7 @@ def network_add_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Group
                     use_svd=use_svd,
                     use_hadamard=sdnq_dequantizer.use_hadamard,
                     use_codebook=sdnq_dequantizer.use_codebook,
+                    use_codebook_scale=sdnq_dequantizer.use_codebook_scale,
                     dequantize_fp32=dequantize_fp32,
                     svd_steps=shared.opts.sdnq_svd_steps,
                     codebook_steps=shared.opts.sdnq_codebook_steps,
@@ -310,18 +306,13 @@ def network_apply_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Gro
         else:
             assign_weight(self, weights_backup, device)
             if hasattr(self, "sdnq_dequantizer_backup"):
+                from sdnq.common import sdnq_keys
                 self.sdnq_dequantizer = self.sdnq_dequantizer_backup
-                self.scale = torch.nn.Parameter(self.sdnq_scale_backup.to(device), requires_grad=False)
-                if self.sdnq_zero_point_backup is not None:
-                    self.zero_point = torch.nn.Parameter(self.sdnq_zero_point_backup.to(device), requires_grad=False)
-                else:
-                    self.zero_point = None
-                if self.sdnq_svd_up_backup is not None:
-                    self.svd_up = torch.nn.Parameter(self.sdnq_svd_up_backup.to(device), requires_grad=False)
-                    self.svd_down = torch.nn.Parameter(self.sdnq_svd_down_backup.to(device), requires_grad=False)
-                else:
-                    self.svd_up, self.svd_down = None, None
-                # del self.sdnq_dequantizer_backup, self.sdnq_scale_backup, self.sdnq_zero_point_backup, self.sdnq_svd_up_backup, self.sdnq_svd_down_backup
+                for key in sdnq_keys:
+                    tensor = getattr(self, "sdnq_" + key + "_backup", None)
+                    if tensor is not None:
+                        setattr(self, key, torch.nn.Parameter(tensor.to(device), requires_grad=False))
+                        #delattr(self, "sdnq_" + key + "_backup")
 
     if bias_backup is not None and not isinstance(bias_backup, bool):
         if ex_bias is not None:
