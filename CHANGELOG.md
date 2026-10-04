@@ -10,6 +10,7 @@
   - **xpu**: `torch==2.14.1+xpu`
   - **openvino**: `torch==2.11.0+cpu` with `openvino==2026.4.1`
   - **zluda**: `torch==2.7.1+cu118` with `zluda==3.9.5`
+  - **mps**: `torch==2.14.1`
  
   notes:
   - sdnext only updates `torch` if its not already installed  
