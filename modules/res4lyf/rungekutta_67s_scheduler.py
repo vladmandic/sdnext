@@ -44,6 +44,8 @@ class RungeKutta67Scheduler(SchedulerMixin, ConfigMixin):
         timestep_type: str = "discrete",
         rescale_betas_zero_snr: bool = False,
         final_sigmas_type: str = "zero",
+        base_image_seq_len: int = 256,
+        max_image_seq_len: int = 4096,
     ):
         if trained_betas is not None:
             self.betas = torch.tensor(trained_betas, dtype=torch.float32)

@@ -96,7 +96,9 @@ class FlowUniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
             rescale_betas_zero_snr: bool = False,
             timestep_spacing: str = "linspace",
             steps_offset: int = 0,
-            final_sigmas_type: Optional[str] = "zero",  # "zero", "sigma_min"
+            final_sigmas_type: Optional[str] = "zero",  # "zero", "sigma_min",
+            base_image_seq_len: int = 256,
+            max_image_seq_len: int = 4096,
     ):
 
         if solver_type not in ["bh1", "bh2"]:

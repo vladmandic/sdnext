@@ -128,6 +128,8 @@ class ERSDEScheduler(SchedulerMixin, ConfigMixin):
         use_dynamic_shifting: bool = False,
         base_shift: float = 0.5,
         max_shift: float = 1.15,
+        base_image_seq_len: int = 256,
+        max_image_seq_len: int = 4096,
     ):
         if solver_order not in (1, 2, 3):
             raise ValueError(f"solver_order must be 1, 2, or 3, got {solver_order}")

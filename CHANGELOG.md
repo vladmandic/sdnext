@@ -1,5 +1,11 @@
 # Change Log for SD.Next
 
+## Update for 2026-10-04
+
+- sdnq: support double-quant, including `nvfp4`
+- schedulers: update init signature for new configuration options
+- rocm: remove incompatible env flags
+
 ## Update for 2026-10-01
 
 ### Highlights for 2026-10-01
