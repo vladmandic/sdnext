@@ -9,19 +9,16 @@ from modules.logger import log
 from modules.json_helpers import readfile, writefile
 from modules.shared import opts
 
-from scripts.rocm.rocm_vars import ROCM_ENV_VARS  # pylint: disable=no-name-in-module
-from scripts.rocm import rocm_profiles  # pylint: disable=no-name-in-module
-from scripts.rocm import rocm_log  # pylint: disable=no-name-in-module
+from scripts.rocm.rocm_vars import ROCM_ENV_VARS, MIOPEN_LOGGING_VARS  # pylint: disable=no-name-in-module
+if sys.platform == "win32":
+    from scripts.rocm import rocm_log_win32 as rocm_log  # pylint: disable=no-name-in-module
+else:
+    from scripts.rocm import rocm_log  # pylint: disable=no-name-in-module
 
 
 CONFIG = Path(os.path.abspath(os.path.join('data', 'rocm.json')))
 
 _cache: Optional[Dict[str, str]] = None  # loaded once, invalidated on save
-
-# Metadata key written into rocm.json to record which architecture profile is active.
-# Not an environment variable - always skipped during env application but preserved in the
-# saved config so that arch-safety enforcement is consistent across restarts.
-_ARCH_KEY = "_rocm_arch"
 
 # Vars that must never appear in the process environment.
 #
@@ -30,10 +27,6 @@ _ARCH_KEY = "_rocm_arch"
 #   MIOPEN_CONVOLUTION_ATTRIB_FP16_ALT_IMPL        - API-level alias: same BF16-exponent effect
 #   MIOPEN_DEBUG_AMD_MP_BD_WINOGRAD_EXPEREMENTAL_FP16_TRANSFORM - unstable experimental FP16 path
 #   MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_PK_ATOMIC_ADD_FP16     - changes FP16 WrW atomic accumulation
-#
-# SOLVER_DISABLED_BY_DEFAULT: every solver known to be incompatible with this runtime
-#   (FP32-only, training-only WrW/BWD, fixed-geometry mismatches, XDLOPS/CDNA-only, arch-specific).
-#   Actively unsetting these ensures no inherited shell value can re-enable them.
 _DTYPE_UNSAFE = {
     "MIOPEN_DEBUG_CONVOLUTION_ATTRIB_FP16_ALT_IMPL",
     "MIOPEN_CONVOLUTION_ATTRIB_FP16_ALT_IMPL",
@@ -42,11 +35,6 @@ _DTYPE_UNSAFE = {
 }
 # _UNSET_VARS: hard-blocked vars that are DELETED from the process env and never written,
 # regardless of saved config. Limited to dtype-corrupting vars only.
-# IMPORTANT: SOLVER_DISABLED_BY_DEFAULT is intentionally NOT included here.
-#   When a solver var is absent (unset) MIOpen still calls IsApplicable() on every
-#   conv-find - wasted probing overhead. When a var is explicitly "0" MIOpen skips
-#   IsApplicable() immediately. Solver defaults flow through the config loop as "0"
-#   (their ROCM_ENV_VARS default is "0") so they are explicitly set to "0" in the env.
 _UNSET_VARS = _DTYPE_UNSAFE
 
 # Additional environment vars that must be removed from the process before MIOpen loads.
@@ -204,6 +192,25 @@ def _dropdown_choices(options):
     return options
 
 
+def _set_miopen_logging(config: Dict[str, str], enabled: bool) -> None:
+    config["MIOPEN_LOG_LEVEL"] = "5" if enabled else "0"
+    config["MIOPEN_DEBUG_ENABLE"] = "1" if enabled else "0"
+
+
+def _normalize_miopen_logging(config: Dict[str, str]) -> bool:
+    """Keep both MIOpen logging variables in sync; DEBUG_ENABLE is authoritative."""
+    enabled = str(config.get("MIOPEN_DEBUG_ENABLE", ROCM_ENV_VARS["MIOPEN_DEBUG_ENABLE"]["default"])) == "1"
+    previous = (config.get("MIOPEN_LOG_LEVEL"), config.get("MIOPEN_DEBUG_ENABLE"))
+    _set_miopen_logging(config, enabled)
+    return previous != (config["MIOPEN_LOG_LEVEL"], config["MIOPEN_DEBUG_ENABLE"])
+
+
+def _apply_miopen_logging_env(config: Dict[str, str]) -> None:
+    _normalize_miopen_logging(config)
+    for name in MIOPEN_LOGGING_VARS:
+        os.environ[name] = config[name]
+
+
 # --- config I/O ---
 
 def load_config() -> Dict[str, str]:
@@ -215,14 +222,17 @@ def load_config() -> Dict[str, str]:
             _cache = data if data else {k: v["default"] for k, v in ROCM_ENV_VARS.items()}
             # Purge unsafe vars from a stale saved config and re-persist only if the file existed.
             # When running without a saved config (first run / after Delete), load_config() must
-            # never create the file - that only happens via save_config() on Apply or Apply Profile.
-            dirty = {k for k in _cache if k in _UNSET_VARS or (k != _ARCH_KEY and k not in ROCM_ENV_VARS)}
+            # never create the file - that only happens via save_config() on Apply.
+            dirty = {k for k in _cache if k in _UNSET_VARS or k not in ROCM_ENV_VARS}
             if dirty:
                 _cache = {k: v for k, v in _cache.items() if k not in dirty}
+            logging_changed = _normalize_miopen_logging(_cache)
+            if dirty or logging_changed:
                 writefile(_cache, str(CONFIG))
-                log.debug(f'ROCm: config={str(CONFIG)} purged={len(dirty)} stale/unsafe')
+                log.debug(f'ROCm: config={str(CONFIG)} purged={len(dirty)} stale/unsafe miopen_logging_normalized={logging_changed}')
         else:
             _cache = {k: v["default"] for k, v in ROCM_ENV_VARS.items()}
+            _normalize_miopen_logging(_cache)
         log.debug(f'ROCm: load config={str(CONFIG)} items={len(_cache)}')
     return _cache
 
@@ -230,27 +240,18 @@ def load_config() -> Dict[str, str]:
 def save_config(config: Dict[str, str]) -> None:
     global _cache  # pylint: disable=global-statement
     sanitized = {k: v for k, v in config.items() if k not in _UNSET_VARS}
-    # Enforce arch-incompatible solvers to "0" before writing.
-    # Prevents malformed edits (UI or JSON hand-edit) from persisting incompatible "1" values.
-    arch = sanitized.get(_ARCH_KEY, "")
-    unavailable = rocm_profiles.UNAVAILABLE.get(arch, set())
-    for var in unavailable:
-        if var in sanitized and sanitized[var] != "0":
-            sanitized[var] = "0"
-            log.debug(f'ROCm: var={var} arch={arch} clamped arch-incompatible')
+    _normalize_miopen_logging(sanitized)
     writefile(sanitized, str(CONFIG))
     _cache = sanitized
 
 
 def apply_env(config: Optional[Dict[str, str]] = None) -> None:
-    if config is None:
-        config = load_config()
+    config = dict(config if config is not None else load_config())
+    _normalize_miopen_logging(config)
     for var in _UNSET_VARS | _EXTRA_CLEAR_VARS:
         if var in os.environ:
             del os.environ[var]
     for var, value in config.items():
-        if var == _ARCH_KEY:
-            continue
         if var in _UNSET_VARS:
             continue
         if var not in ROCM_ENV_VARS:
@@ -262,14 +263,6 @@ def apply_env(config: Optional[Dict[str, str]] = None) -> None:
         if expanded == "":
             continue
         os.environ[var] = expanded
-    # Arch safety net: hard-force all hardware-incompatible vars to "0" in the env.
-    # This runs *after* the config loop so it overrides any stale "1" that survived in the JSON.
-    # Source of truth: rocm_profiles.UNAVAILABLE[arch] - vars with no supporting hardware.
-    arch = config.get(_ARCH_KEY, "")
-    unavailable = rocm_profiles.UNAVAILABLE.get(arch, set())
-    if unavailable:
-        for var in unavailable:
-            os.environ[var] = "0"
 
 
 def start_miopen_logging() -> None:
@@ -282,18 +275,11 @@ def stop_miopen_logging() -> None:
     rocm_log.stop_miopen_logging()
 
 
-def apply_all(names: list, values: list) -> None:
+def apply_all(names: list, values: list, miopen_logging: Optional[bool] = None) -> None:
     config = load_config().copy()
-    arch = config.get(_ARCH_KEY, "")
-    unavailable = rocm_profiles.UNAVAILABLE.get(arch, set())
     for name, value in zip(names, values):
         if name not in ROCM_ENV_VARS:
             log.warning(f'ROCm apply_all: unknown variable={name}')
-            continue
-        # Arch safety net: silently clamp incompatible solvers back to "0".
-        # The UI may send the current checkbox state even for greyed-out vars.
-        if name in unavailable:
-            config[name] = "0"
             continue
         meta = ROCM_ENV_VARS[name]
         if meta["widget"] == "checkbox":
@@ -311,19 +297,25 @@ def apply_all(names: list, values: list) -> None:
             if meta.get("options"):
                 value = _dropdown_stored(str(value), meta["options"])
             config[name] = _collapse_venv(str(value))
+    if miopen_logging is not None:
+        _set_miopen_logging(config, miopen_logging)
+    save_config(config)
+    apply_env(config)
+
+
+def set_miopen_logging(enabled: bool) -> None:
+    """Persist and apply both MIOpen logging environment variables together."""
+    config = load_config().copy()
+    _set_miopen_logging(config, enabled)
     save_config(config)
     apply_env(config)
 
 
 def reset_defaults() -> None:
     defaults = {k: v["default"] for k, v in ROCM_ENV_VARS.items()}
-    # Preserve the active arch key so safety nets survive a defaults reset.
-    arch = load_config().get(_ARCH_KEY, "")
-    if arch:
-        defaults[_ARCH_KEY] = arch
     save_config(defaults)
     apply_env(defaults)
-    log.info(f'ROCm reset_defaults: config reset to defaults arch={arch or "(none)"}')
+    log.info('ROCm reset_defaults: config reset to defaults')
 
 
 def clear_env() -> None:
@@ -367,20 +359,6 @@ def delete_config() -> None:
         log.info(f'ROCm delete_config: wiped MIOpen user DB at {miopen_db}')
     else:
         log.debug(f'ROCm delete_config: MIOpen user DB not found at {miopen_db} — nothing to wipe')
-
-
-def apply_profile(name: str) -> None:
-    """Merge an architecture profile on top of the current config, then save and apply."""
-    profile = rocm_profiles.PROFILES.get(name)
-    if profile is None:
-        log.warning(f'ROCm apply_profile: unknown profile={name}')
-        return
-    config = load_config().copy()
-    config.update(profile)
-    config[_ARCH_KEY] = name  # stamp the active arch so safety nets survive restarts
-    save_config(config)
-    apply_env(config)
-    log.info(f'ROCm apply_profile: profile={name} overrides={len(profile)}')
 
 
 def _hip_version_from_file(db_path: Path) -> str:
@@ -462,7 +440,7 @@ def info() -> dict:
 
     # --- ROCm / HIP package versions ---
     rocm_pkgs = {}
-    for pkg in ("rocm", "rocm-sdk-core", "rocm-sdk-devel"):
+    for pkg in ("rocm",):
         v = _pkg_version(pkg)
         if v != "n/a":
             rocm_pkgs[pkg] = v
@@ -553,6 +531,8 @@ if _is_rocm_runtime():
     try:
         if CONFIG.exists():
             apply_env()
+        else:
+            _apply_miopen_logging_env(load_config())
         rocm_log.start_miopen_logging()
     except Exception as _e:
         log.debug(f"[rocm_mgr] Warning: failed to apply env at import: {_e}")
