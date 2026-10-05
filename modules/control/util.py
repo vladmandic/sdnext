@@ -97,9 +97,8 @@ def resize_image(input_image, resolution):
 
 
 def torch_gc():
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
-        torch.cuda.ipc_collect()
+    from modules import devices # pylint: disable=import-outside-toplevel
+    devices.torch_gc(force=True, reason='control')
 
 
 def ade_palette():
