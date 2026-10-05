@@ -34,6 +34,7 @@
   - hires: no output-size warning or infotext entry for the image the hires pass upscales itself
   - control: no output-size warning or infotext entry when the processed input sets the size
   - triton: skipping autotune runs the first config the kernel's own pruning keeps
+  - gc: aux models use correct gc method, thanks @li-lizhe
 
 ## Update for 2026-10-01
 

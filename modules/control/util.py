@@ -3,7 +3,6 @@ import sys
 import random
 import cv2
 import numpy as np
-import torch
 
 
 annotator_ckpts_path = os.path.join(os.path.dirname(__file__), 'ckpts')
