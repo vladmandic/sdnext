@@ -11,7 +11,10 @@ from modules.shared import opts
 
 from scripts.rocm.rocm_vars import ROCM_ENV_VARS  # pylint: disable=no-name-in-module
 from scripts.rocm import rocm_profiles  # pylint: disable=no-name-in-module
-from scripts.rocm import rocm_log  # pylint: disable=no-name-in-module
+if sys.platform == "win32":
+    from scripts.rocm import rocm_log_win32 as rocm_log  # pylint: disable=no-name-in-module
+else:
+    from scripts.rocm import rocm_log  # pylint: disable=no-name-in-module
 
 
 CONFIG = Path(os.path.abspath(os.path.join('data', 'rocm.json')))
