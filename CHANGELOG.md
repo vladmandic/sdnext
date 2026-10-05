@@ -24,6 +24,7 @@
   - sdnq: set commit-locked on `master` branch and latest on `dev` branch  
   - compile: option *skip torch compile for TE* so a new prompt length or image size does not trigger a recompile  
     see *settings -> compute settings*  
+  - rocm: updated *rocm advanced config* script, thanks @resonantsky
 - **Fixes**
   - schedulers: update init signature for new configuration options
   - rocm: remove incompatible env flags

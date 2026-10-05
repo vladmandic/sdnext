@@ -392,7 +392,7 @@ def git(arg: str, folder: str | None= None, ignore: bool = False, optional: bool
 
 
 # reattach as needed as head can get detached
-def branch(folder=None, commit=None):
+def branch(folder=None):
     t_start = time.time()
     if not os.path.exists(os.path.join(folder or os.curdir, '.git')):
         return None
@@ -577,9 +577,10 @@ def register_sdnq():
     sdnq_ver = version.get('sdnq', 'unknown')
     sdnq_commit = sdnq_ver.split('@')[1] if '@' in sdnq_ver else 'unknown'
     core_branch = version.get('branch', 'unknown')
-    locked = core_branch in ['master', 'main']
+    locked = core_branch in ['master', 'main', 'dev']
     if locked and (sdnq_commit not in sdnq_target):
         git('checkout ' + sdnq_target, folder='extensions-builtin/sdnq', ignore=True, optional=True)
+        sdnq_commit = run('git', 'rev-parse HEAD', check=True, cwd='extensions-builtin/sdnq')[0].stdout.strip()[:8]
     os.environ.setdefault('SDNQ_LOGGER_NAME', 'sd')
     if not args.use_openvino:
         os.environ.setdefault('SDNQ_USE_OPENVINO_MM', '0')
@@ -1507,15 +1508,15 @@ def get_version(force=False):
             pass
 
         try:
-            ver = run('git', 'log --pretty=format:"%h %ad" -1 --date=short', check=True)[0].stdout or '  '
+            ver = run('git', 'log --pretty=format:"%h %ad" -1 --date=short', check=True)[0].stdout.strip() or '  '
             commit, updated = ver.split(' ')
             version['commit'], version['updated'] = commit, updated
         except Exception as e:
             log.warning(f'Version: where=commit {e}')
 
         try:
-            origin = run('git', 'remote get-url origin', check=True)[0].stdout
-            branch_name = run('git', 'rev-parse --abbrev-ref HEAD', check=True)[0].stdout
+            origin = run('git', 'remote get-url origin', check=True)[0].stdout.strip()
+            branch_name = run('git', 'rev-parse --abbrev-ref HEAD', check=True)[0].stdout.strip()
             # normalize ssh remotes (git@host:owner/repo) and ssh-protocol remotes
             # (ssh://git@host/owner/repo) to the canonical https form so downstream
             # url parsers don't have to special-case each remote shape
@@ -1534,8 +1535,8 @@ def get_version(force=False):
 
         try:
             if os.path.exists('extensions-builtin/sdnext-modernui'):
-                branch_ui = run('git', 'rev-parse --abbrev-ref HEAD', check=True, cwd='extensions-builtin/sdnext-modernui')[0].stdout
-                commit_ui = run('git', 'rev-parse HEAD', check=True, cwd='extensions-builtin/sdnext-modernui')[0].stdout
+                branch_ui = run('git', 'rev-parse --abbrev-ref HEAD', check=True, cwd='extensions-builtin/sdnext-modernui')[0].stdout.strip()
+                commit_ui = run('git', 'rev-parse HEAD', check=True, cwd='extensions-builtin/sdnext-modernui')[0].stdout.strip()
                 version['ui'] = ('dev' if 'dev' in branch_ui else 'main') + '@' + commit_ui[:8]
             else:
                 version['ui'] = 'unavailable'
@@ -1547,8 +1548,8 @@ def get_version(force=False):
             if os.environ.get('SD_KANVAS_DISABLE', None) is not None:
                 version['kanvas'] = 'disabled'
             elif os.path.exists('extensions-builtin/sdnext-kanvas'):
-                branch_kanvas = run('git', 'rev-parse --abbrev-ref HEAD', check=True, cwd='extensions-builtin/sdnext-kanvas')[0].stdout
-                commit_kanvas = run('git', 'rev-parse HEAD', check=True, cwd='extensions-builtin/sdnext-kanvas')[0].stdout
+                branch_kanvas = run('git', 'rev-parse --abbrev-ref HEAD', check=True, cwd='extensions-builtin/sdnext-kanvas')[0].stdout.strip()
+                commit_kanvas = run('git', 'rev-parse HEAD', check=True, cwd='extensions-builtin/sdnext-kanvas')[0].stdout.strip()
                 version['kanvas'] = ('dev' if 'dev' in branch_kanvas else 'main') + '@' + commit_kanvas[:8]
             else:
                 version['kanvas'] = 'unavailable'
@@ -1558,8 +1559,8 @@ def get_version(force=False):
 
         try:
             if os.path.exists('extensions-builtin/sdnq'):
-                branch_sdnq = run('git', 'rev-parse --abbrev-ref HEAD', check=True, cwd='extensions-builtin/sdnq')[0].stdout
-                commit_sdnq = run('git', 'rev-parse HEAD', check=True, cwd='extensions-builtin/sdnq')[0].stdout
+                branch_sdnq = run('git', 'rev-parse --abbrev-ref HEAD', check=True, cwd='extensions-builtin/sdnq')[0].stdout.strip()
+                commit_sdnq = run('git', 'rev-parse HEAD', check=True, cwd='extensions-builtin/sdnq')[0].stdout.strip()
                 version['sdnq'] = ('dev' if 'dev' in branch_sdnq else 'main') + '@' + commit_sdnq[:8]
             else:
                 version['sdnq'] = 'unavailable'
@@ -1683,7 +1684,7 @@ def check_version(reset=True): # pylint: disable=unused-argument
     check_kanvas(ver)
     commit = git('rev-parse HEAD')
     global git_commit # pylint: disable=global-statement
-    git_commit = commit[:7]
+    git_commit = commit[:8]
     if args.quick:
         return
     try:
@@ -1795,7 +1796,7 @@ def get_state():
         def _get_commit(item):
             ext, ext_dir = item
             try:
-                return ext, run('git', 'rev-parse HEAD', cwd=ext_dir)[0].stdout
+                return ext, run('git', 'rev-parse HEAD', cwd=ext_dir)[0].stdout.strip()
             except Exception:
                 return ext, ''
 

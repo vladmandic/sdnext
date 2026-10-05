@@ -6,9 +6,8 @@ import re
 import sys
 import threading
 import time
-
-from modules.logger import log
 from tqdm import tqdm
+from modules.logger import log
 
 
 _ALGORITHM_PATTERN = re.compile(r"FW Chosen Algorithm:\s*([^,\s]+)")
