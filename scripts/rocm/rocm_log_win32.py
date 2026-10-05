@@ -8,6 +8,7 @@ import threading
 import time
 
 from modules.logger import log
+from tqdm import tqdm
 
 
 _ALGORITHM_PATTERN = re.compile(r"FW Chosen Algorithm:\s*([^,\s]+)")
@@ -30,7 +31,8 @@ def _process_line(line, saved_stderr):
         return
     match = _CHOSEN_PATTERN.search(text)
     if match:
-        log.info(f'MIOpen: algorithm={match.group(1)} time={float(match.group(2)):.3f}')
+        with tqdm.external_write_mode():
+            log.info(f'MIOpen: algorithm={match.group(1)} time={float(match.group(2)):.3f}')
 
 
 class MIOpenLogRedirect:
