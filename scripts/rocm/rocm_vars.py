@@ -112,7 +112,7 @@ GENERAL_VARS: Dict[str, Dict[str, Any]] = {
         "options": None,
         "restart_required": False,
     },
-    
+
     # --> OUTCOMMENTED SECTION REMOVED FROM ACTIVE ROCm CONFIGURATION REGISTRY; KEPT FOR REFERENCE <--
 
     #"ROCBLAS_DEVICE_MEMORY_SIZE": {
