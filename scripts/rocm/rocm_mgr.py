@@ -9,7 +9,7 @@ from modules.logger import log
 from modules.json_helpers import readfile, writefile
 from modules.shared import opts
 
-from scripts.rocm.rocm_vars import ROCM_ENV_VARS  # pylint: disable=no-name-in-module
+from scripts.rocm.rocm_vars import ROCM_ENV_VARS, MIOPEN_LOGGING_VARS  # pylint: disable=no-name-in-module
 from scripts.rocm import rocm_profiles  # pylint: disable=no-name-in-module
 if sys.platform == "win32":
     from scripts.rocm import rocm_log_win32 as rocm_log  # pylint: disable=no-name-in-module
@@ -207,6 +207,25 @@ def _dropdown_choices(options):
     return options
 
 
+def _set_miopen_logging(config: Dict[str, str], enabled: bool) -> None:
+    config["MIOPEN_LOG_LEVEL"] = "5" if enabled else "0"
+    config["MIOPEN_DEBUG_ENABLE"] = "1" if enabled else "0"
+
+
+def _normalize_miopen_logging(config: Dict[str, str]) -> bool:
+    """Keep both MIOpen logging variables in sync; DEBUG_ENABLE is authoritative."""
+    enabled = str(config.get("MIOPEN_DEBUG_ENABLE", ROCM_ENV_VARS["MIOPEN_DEBUG_ENABLE"]["default"])) == "1"
+    previous = (config.get("MIOPEN_LOG_LEVEL"), config.get("MIOPEN_DEBUG_ENABLE"))
+    _set_miopen_logging(config, enabled)
+    return previous != (config["MIOPEN_LOG_LEVEL"], config["MIOPEN_DEBUG_ENABLE"])
+
+
+def _apply_miopen_logging_env(config: Dict[str, str]) -> None:
+    _normalize_miopen_logging(config)
+    for name in MIOPEN_LOGGING_VARS:
+        os.environ[name] = config[name]
+
+
 # --- config I/O ---
 
 def load_config() -> Dict[str, str]:
@@ -222,10 +241,13 @@ def load_config() -> Dict[str, str]:
             dirty = {k for k in _cache if k in _UNSET_VARS or (k != _ARCH_KEY and k not in ROCM_ENV_VARS)}
             if dirty:
                 _cache = {k: v for k, v in _cache.items() if k not in dirty}
+            logging_changed = _normalize_miopen_logging(_cache)
+            if dirty or logging_changed:
                 writefile(_cache, str(CONFIG))
-                log.debug(f'ROCm: config={str(CONFIG)} purged={len(dirty)} stale/unsafe')
+                log.debug(f'ROCm: config={str(CONFIG)} purged={len(dirty)} stale/unsafe miopen_logging_normalized={logging_changed}')
         else:
             _cache = {k: v["default"] for k, v in ROCM_ENV_VARS.items()}
+            _normalize_miopen_logging(_cache)
         log.debug(f'ROCm: load config={str(CONFIG)} items={len(_cache)}')
     return _cache
 
@@ -233,6 +255,7 @@ def load_config() -> Dict[str, str]:
 def save_config(config: Dict[str, str]) -> None:
     global _cache  # pylint: disable=global-statement
     sanitized = {k: v for k, v in config.items() if k not in _UNSET_VARS}
+    _normalize_miopen_logging(sanitized)
     # Enforce arch-incompatible solvers to "0" before writing.
     # Prevents malformed edits (UI or JSON hand-edit) from persisting incompatible "1" values.
     arch = sanitized.get(_ARCH_KEY, "")
@@ -246,8 +269,8 @@ def save_config(config: Dict[str, str]) -> None:
 
 
 def apply_env(config: Optional[Dict[str, str]] = None) -> None:
-    if config is None:
-        config = load_config()
+    config = dict(config if config is not None else load_config())
+    _normalize_miopen_logging(config)
     for var in _UNSET_VARS | _EXTRA_CLEAR_VARS:
         if var in os.environ:
             del os.environ[var]
@@ -285,7 +308,7 @@ def stop_miopen_logging() -> None:
     rocm_log.stop_miopen_logging()
 
 
-def apply_all(names: list, values: list) -> None:
+def apply_all(names: list, values: list, miopen_logging: Optional[bool] = None) -> None:
     config = load_config().copy()
     arch = config.get(_ARCH_KEY, "")
     unavailable = rocm_profiles.UNAVAILABLE.get(arch, set())
@@ -314,6 +337,16 @@ def apply_all(names: list, values: list) -> None:
             if meta.get("options"):
                 value = _dropdown_stored(str(value), meta["options"])
             config[name] = _collapse_venv(str(value))
+    if miopen_logging is not None:
+        _set_miopen_logging(config, miopen_logging)
+    save_config(config)
+    apply_env(config)
+
+
+def set_miopen_logging(enabled: bool) -> None:
+    """Persist and apply both MIOpen logging environment variables together."""
+    config = load_config().copy()
+    _set_miopen_logging(config, enabled)
     save_config(config)
     apply_env(config)
 
@@ -465,7 +498,7 @@ def info() -> dict:
 
     # --- ROCm / HIP package versions ---
     rocm_pkgs = {}
-    for pkg in ("rocm", "rocm-sdk-core", "rocm-sdk-devel"):
+    for pkg in ("rocm",):
         v = _pkg_version(pkg)
         if v != "n/a":
             rocm_pkgs[pkg] = v
@@ -556,6 +589,8 @@ if _is_rocm_runtime():
     try:
         if CONFIG.exists():
             apply_env()
+        else:
+            _apply_miopen_logging_env(load_config())
         rocm_log.start_miopen_logging()
     except Exception as _e:
         log.debug(f"[rocm_mgr] Warning: failed to apply env at import: {_e}")
