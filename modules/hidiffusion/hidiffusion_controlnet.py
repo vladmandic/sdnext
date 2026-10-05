@@ -8,6 +8,7 @@ from diffusers.utils.torch_utils import is_compiled_module
 from diffusers.pipelines.controlnet.multicontrolnet import MultiControlNetModel
 from diffusers.models import ControlNetModel
 from diffusers.models.unets.unet_2d_condition import UNet2DConditionOutput
+from modules import devices
 
 
 controlnet_apply_steps_rate = 0.6
@@ -769,7 +770,7 @@ def make_diffusers_sdxl_contrtolnet_ppl(block_class):
             if hasattr(self, "final_offload_hook") and self.final_offload_hook is not None:
                 self.unet.to("cpu")
                 self.controlnet.to("cpu")
-                torch.cuda.empty_cache()
+                devices.torch_gc(force=True, reason='hidiffusion')
 
             if output_type != "latent":
                 # make sure the VAE is in float32 mode, as it overflows in float16

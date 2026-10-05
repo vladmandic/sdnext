@@ -41,6 +41,7 @@ from diffusers.utils import (
 )
 from diffusers.utils.torch_utils import is_compiled_module, is_torch_version, randn_tensor
 from diffusers.pipelines.stable_diffusion.safety_checker import StableDiffusionSafetyChecker
+from modules import devices
 from modules.control.units.xs_model import ControlNetXSModel
 
 
@@ -1860,7 +1861,7 @@ class StableDiffusionControlNetXSPipeline(
         if hasattr(self, "final_offload_hook") and self.final_offload_hook is not None:
             self.unet.to("cpu")
             self.controlnet.to("cpu")
-            torch.cuda.empty_cache()
+            devices.torch_gc(force=True, reason='controlnet-xs')
 
         if output_type != "latent":
             image = self.vae.decode(latents / self.vae.config.scaling_factor, return_dict=False, generator=generator)[
