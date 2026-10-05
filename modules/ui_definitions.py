@@ -298,6 +298,7 @@ def create_settings(cmd_opts):
         "torch_sync": OptionInfo(True, "Force synchronize"),
         "triton_skip_autotune": OptionInfo(False, "Skip Triton autotune", gr.Checkbox),
         "triton_skip_autotune_te": OptionInfo(False, "Skip Triton autotune for TE", gr.Checkbox),
+        "torch_skip_compile_te": OptionInfo(False, "Skip Torch compile for TE", gr.Checkbox),
         "cudnn_enabled": OptionInfo("default", "cuDNN enabled", gr.Radio, {"choices": ["default", "true", "false"]}),
         "cudnn_benchmark": OptionInfo(devices.backend != "rocm", "cuDNN full-depth benchmark"),
         "cudnn_benchmark_limit": OptionInfo(10, "cuDNN benchmark limit", gr.Slider, {"minimum": 0, "maximum": 100, "step": 1}),
@@ -476,9 +477,9 @@ def create_settings(cmd_opts):
 
     # --- System Paths ---
     options_templates.update(options_section(('system-paths', "System Paths"), {
-        "models_paths_sep_options": OptionInfo("<h2>Models Paths</h2>", "", gr.HTML),
+        "models_paths_sep_options": OptionInfo("<h2>Models root folder</h2>", "", gr.HTML),
         "models_dir": OptionInfo('models', "Root model folder", folder=True),
-        "model_paths_sep_options": OptionInfo("<h2>Paths for specific models</h2>", "", gr.HTML),
+        "model_paths_sep_options": OptionInfo("<h2>Folders for specific models</h2>", "", gr.HTML),
         "ckpt_dir": OptionInfo(os.path.join(paths.models_path, 'Stable-diffusion'), "Folder with stable diffusion models", folder=True),
         "diffusers_dir": OptionInfo(os.path.join(paths.models_path, 'Diffusers'), "Folder with Huggingface models", folder=True),
         "hfcache_dir": OptionInfo(default_hfcache_dir, "Folder for Huggingface cache", folder=True),
@@ -500,6 +501,10 @@ def create_settings(cmd_opts):
         "scunet_models_path": OptionInfo(os.path.join(paths.models_path, 'SCUNet'), "Folder with SCUNet models", folder=True),
         "swinir_models_path": OptionInfo(os.path.join(paths.models_path, 'SwinIR'), "Folder with SwinIR models", folder=True),
         "clip_models_path": OptionInfo(os.path.join(paths.models_path, 'CLIP'), "Folder with CLIP models", folder=True),
+
+        "allowed_paths_sep_options": OptionInfo("<h2>Allowed folders</h2>", "", gr.HTML),
+        "allowed_paths": OptionInfo('', "Additional folders with access permissions", folder=True),
+
         "other_paths_sep_options": OptionInfo("<h2>Cache folders</h2>", "", gr.HTML),
         "clean_temp_dir_at_start": OptionInfo(True, "Cleanup temporary folder on startup"),
         "temp_dir": OptionInfo("", "Directory for temporary files; leave empty for default", folder=True),

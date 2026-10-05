@@ -839,7 +839,7 @@ def build_component_prequantized(
     from accelerate import init_empty_weights
     from accelerate.utils import set_module_tensor_to_device
     from diffusers.utils import get_module_from_name
-    from sdnq.common import dtype_dict, check_torch_compile
+    from sdnq.common import sdnq_keys, dtype_dict, check_torch_compile
     from sdnq.kernel_wrappers import is_fp8_compile_supported
     from sdnq.quantizer import SDNQConfig, SDNQQuantizer
     from sdnq.dequantizer import SDNQDequantizer
@@ -925,7 +925,11 @@ def build_component_prequantized(
             original_shape=layer_shape,
             original_stride=(linear.in_features, 1),
             quantized_weight_shape=torch.Size((linear.out_features, linear.in_features // NVFP4_GROUP_SIZE, NVFP4_GROUP_SIZE)) if is_nvfp4 else layer_shape,
+            quantized_scale_shape=None,
+            quantized_zero_point_shape=None,
             weights_dtype=weights_dtype,
+            scale_dtype=None,
+            zero_point_dtype=None,
             quantized_matmul_dtype=matmul_dtype,
             hadamard_group_size=hadamard_group_size,
             group_size=NVFP4_GROUP_SIZE if is_nvfp4 else -1,
@@ -937,13 +941,14 @@ def build_component_prequantized(
             use_stochastic_rounding=False,
             use_hadamard=use_hadamard,
             use_codebook=False,
+            use_codebook_scale=False,
             layer_class_name="Linear",
         )
         wrapped = get_sdnq_wrapper_class(linear, dequant_forward)
         wrapped.scale = torch.nn.Parameter(torch.empty((1, 1), dtype=torch.float32, device="meta"), requires_grad=False)
-        wrapped.zero_point = None
-        wrapped.svd_up = None
-        wrapped.svd_down = None
+        for key in sdnq_keys:
+            if key not in {"weight", "scale"}:
+                setattr(wrapped, key, None)
         setattr(parent, child, wrapped)
 
     target_device = (

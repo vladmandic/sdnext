@@ -176,7 +176,7 @@ def run_hook(orig):
             skip_autotune_te = shared.opts.triton_skip_autotune_te and shared.state.job.lower().startswith('te')
             skip_autotune = (os.environ.get('SD_SKIP_AUTOTUNE', None) is not None) or shared.opts.triton_skip_autotune or skip_autotune_te
             if needs_benchmark and skip_autotune:
-                self.cache[key] = self.configs[0] # pre-seed the cache so orig() takes its cache-hit path and skips the sweep
+                self.cache[key] = self.prune_configs(kwargs)[0] # pre-seed the cache so orig() takes its cache-hit path and skips the sweep; pruning drops configs the kernel cannot run for these args
                 needs_benchmark = False
             if needs_benchmark:
                 try:

@@ -677,7 +677,7 @@ def install_cuda():
     if args.use_nightly:
         cmd = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu132 --extra-index-url https://download.pytorch.org/whl/nightly/cu130')
     else:
-        cmd = os.environ.get('TORCH_COMMAND', 'torch==2.14.0+cu132 torchvision==0.29.0+cu132 --index-url https://download.pytorch.org/whl/cu132')
+        cmd = os.environ.get('TORCH_COMMAND', 'torch==2.14.1+cu132 torchvision==0.29.1+cu132 --index-url https://download.pytorch.org/whl/cu132')
     return cmd
 
 
@@ -765,16 +765,16 @@ def install_rocm():
             torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm10.0')
         else:
             if (rocm.version is None) or (rocm_major > 7): # assume the latest if version check fails
-                torch_command = os.environ.get('TORCH_COMMAND', '2.14.0+rocm7.14 torchvision --index-url https://download.pytorch.org/whl/rocm7.14')
+                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.14.1+rocm7.14 torchvision==0.29.1+rocm7.14 --index-url https://download.pytorch.org/whl/rocm7.14')
             else:
                 match rocm_major:
                     case 7:
                         if rocm_minor >= 2: # latest supported rocm 7.x
-                            torch_command = os.environ.get('TORCH_COMMAND', '2.14.0+rocm7.14 torchvision --index-url https://download.pytorch.org/whl/rocm7.14')
+                            torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.14.1+rocm7.14 torchvision==0.29.1+rocm7.14 --index-url https://download.pytorch.org/whl/rocm7.14')
                         else:
                             match rocm_minor:
                                 case 2:
-                                    torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.13.0+rocm7.2 torchvision==0.28.0+rocm7.2 --index-url https://download.pytorch.org/whl/rocm7.2')
+                                    torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.14.1+rocm7.2 torchvision==0.29.1+rocm7.2 --index-url https://download.pytorch.org/whl/rocm7.2')
                                 case 1:
                                     torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.13.0+rocm7.1 torchvision==0.28.0+rocm7.1 --index-url https://download.pytorch.org/whl/rocm7.1')
                                 case _:
@@ -817,7 +817,7 @@ def install_ipex():
     if args.use_nightly:
         torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --extra-index-url https://download.pytorch.org/whl/nightly/xpu')
     else:
-        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.14.0+xpu torchvision==0.29.0+xpu --extra-index-url https://download.pytorch.org/whl/xpu')
+        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.14.1+xpu torchvision==0.29.1+xpu --extra-index-url https://download.pytorch.org/whl/xpu')
 
     ts('ipex', t_start)
     return torch_command
@@ -830,10 +830,10 @@ def install_openvino():
     if sys.platform == 'darwin':
         torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.11.0 torchvision==0.26.0')
     else:
-        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.14.0+cpu torchvision==0.29.0 --index-url https://download.pytorch.org/whl/cpu')
+        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.11.0+cpu torchvision==0.26.0 --index-url https://download.pytorch.org/whl/cpu')
 
     if not (args.skip_all or args.skip_requirements):
-        install(os.environ.get('OPENVINO_COMMAND', 'openvino==2026.4.0'), 'openvino')
+        install(os.environ.get('OPENVINO_COMMAND', 'openvino==2026.4.1'), 'openvino')
     ts('openvino', t_start)
     return torch_command
 
@@ -1431,7 +1431,6 @@ def set_environment():
     os.environ.setdefault('TOKENIZERS_PARALLELISM', '0')
     os.environ.setdefault('TORCH_CUDNN_V8_API_ENABLED', '1')
     os.environ.setdefault('TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD', '1')
-    os.environ.setdefault('TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL', '1')
     os.environ.setdefault('MIOPEN_FIND_MODE', '2')
     os.environ.setdefault('UR_L0_ENABLE_RELAXED_ALLOCATION_LIMITS', '1')
     os.environ.setdefault('USE_TORCH', '1')

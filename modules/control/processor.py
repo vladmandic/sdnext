@@ -104,6 +104,7 @@ def preprocess_image(
     if input_image is not None:
         p.width = input_image.width
         p.height = input_image.height
+        p.size_from_input = True # width and height now hold the input size, not the request
         debug_log(f'Control: input image={input_image}')
 
     # run masking

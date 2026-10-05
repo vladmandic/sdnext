@@ -1,5 +1,7 @@
 import os
 import time
+import contextlib
+import torch
 from modules import shared, errors, timer, sd_models
 from modules.logger import log
 from modules.attention import context as attention_context
@@ -51,6 +53,13 @@ class PromptCache:
 prompt_cache = PromptCache()
 
 
+def encode_stance():
+    # sdnq compiles its helpers for static shapes, so a compiled encode recompiles for every new prompt length or image size and runs no faster once warm
+    if not shared.opts.torch_skip_compile_te or 'TE' in shared.opts.cuda_compile or not hasattr(torch.compiler, 'set_stance'): # an encoder compiled through compile model keeps its compile
+        return contextlib.nullcontext()
+    return torch.compiler.set_stance('force_eager')
+
+
 def hijack_encode_prompt(*args, **kwargs):
     jobid = shared.state.begin('TE Encode')
     t0 = time.time()
@@ -85,7 +94,7 @@ def hijack_encode_prompt(*args, **kwargs):
                 log.debug(f'Encode: prompt={prompt} hijack=True')
             else:
                 log.debug(f'Encode: prompt="{prompt}" hijack=True')
-            with attention_context.role('te'):
+            with attention_context.role('te'), encode_stance():
                 if hasattr(shared.sd_model, 'orig_encode_prompt'):
                     res = shared.sd_model.orig_encode_prompt(*args_copy, **kwargs)
                 else:

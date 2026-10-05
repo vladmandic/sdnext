@@ -13,6 +13,7 @@ from modules.logger import log
 
 _upload_store_getter = None
 MAX_B64_BYTES = 256 * 1024 * 1024 # base64 expands ~4/3 and the response is built in memory; larger artifacts are fetched by path instead
+debug = os.environ.get('SD_PATH_DEBUG', None) is not None
 
 
 def register_upload_store(getter_fn):
@@ -204,15 +205,20 @@ def validate_path(fn: str, allowed_dirs: list[str] | None = None, allowed_folder
     decoded = unquote(fn).replace('%3A', ':')
     sanitized = sanitize_filename(decoded)
     resolved = Path(sanitized).resolve()
-    # log.trace(f'API validate: fn="{fn}" sanitized="{sanitized}" resolved="{resolved}" parents={resolved.parents} allowed={allowed}')
     if not any(folder in resolved.parents for folder in allowed):
+        if debug:
+            log.error(f'API validate allowed: fn="{fn}" sanitized="{sanitized}" resolved="{resolved}" parents={resolved.parents} allowed={allowed}')
         raise HTTPException(status_code=403, detail=f"file not allowed: {resolved}")
     if resolved.is_dir():
         if allowed_folder:
             return str(resolved)
+        if debug:
+            log.error(f'API validate folder: fn="{fn}" sanitized="{sanitized}" resolved="{resolved}" parents={resolved.parents} allowed={allowed}')
         raise HTTPException(status_code=403, detail=f"directory not allowed: {resolved}")
     if not resolved.is_file():
         if allowed_file:
             return str(resolved)
+        if debug:
+            log.error(f'API validate file:: fn="{fn}" sanitized="{sanitized}" resolved="{resolved}" parents={resolved.parents} allowed={allowed}')
         raise HTTPException(status_code=404, detail=f"file not found: {resolved}")
     return str(resolved)
