@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-10-04
+## Update for 2026-10-05
 
 - **Torch**  
   update all torch versions to best known options:  
@@ -21,7 +21,9 @@
   - zluda should only be used on older amd gpus not supported by rocm/windows  
 - **Compute**
   - sdnq: support double-quant, including `nvfp4`
-  - text encoder: *skip torch compile for TE* option runs encoder calls without torch.compile, so a new prompt length or image size does not trigger a recompile, see *settings -> compute settings*
+  - sdnq: set commit-locked on `master` branch and latest on `dev` branch  
+  - compile: option *skip torch compile for TE* so a new prompt length or image size does not trigger a recompile  
+    see *settings -> compute settings*  
 - **Fixes**
   - schedulers: update init signature for new configuration options
   - rocm: remove incompatible env flags
@@ -30,7 +32,7 @@
   - reference: update missing reference thumbnails
   - hires: no output-size warning or infotext entry for the image the hires pass upscales itself
   - control: no output-size warning or infotext entry when the processed input sets the size
-  - triton: skipping autotune runs the first config the kernel's own pruning keeps, so sdnq int8 attention compiles with skip enabled
+  - triton: skipping autotune runs the first config the kernel's own pruning keeps
 
 ## Update for 2026-10-01
 
