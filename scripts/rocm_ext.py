@@ -18,7 +18,7 @@ class ROCmScript(scripts_manager.Script):
         if not shared.cmd_opts.use_rocm and not installer.torch_info.get('type') == 'rocm':  # skip ui creation if not rocm
             return []
 
-        from scripts.rocm import rocm_mgr, rocm_vars, rocm_profiles  # pylint: disable=no-name-in-module
+        from scripts.rocm import rocm_mgr, rocm_vars  # pylint: disable=no-name-in-module
 
         config = rocm_mgr.load_config()
         var_names = []
@@ -54,10 +54,8 @@ class ROCmScript(scripts_manager.Script):
                 row(fname, finfo)
             return f"<table style='width:100%;border-collapse:collapse'>{''.join(rows)}</table>"
 
-        def _build_style(unavailable, hipblaslt_disabled=False):
+        def _build_style(hipblaslt_disabled=False):
             rules = []
-            for v in (unavailable or []):
-                rules.append(f"#rocm_var_{v.lower()} label {{ text-decoration: line-through; opacity: 0.5; }}")
             if hipblaslt_disabled:
                 for v in rocm_vars.HIPBLASLT_VARS:
                     rules.append(f"#rocm_var_{v.lower()} {{ opacity: 0.45; pointer-events: none; }}")
@@ -71,9 +69,7 @@ class ROCmScript(scripts_manager.Script):
                 btn_clear  = gr.Button("Clear Run Vars", elem_id="rocm_btn_clear",  size="sm")
                 btn_delete = gr.Button("Delete UserDb",  variant="stop",    elem_id="rocm_btn_delete", size="sm")
             _init_gemm = config.get("MIOPEN_GEMM_ENFORCE_BACKEND", "1")
-            _init_arch = config.get(rocm_mgr._ARCH_KEY, "")
-            _init_unavailable = rocm_profiles.UNAVAILABLE.get(_init_arch, set()) if _init_arch else set()
-            style_out = gr.HTML(_build_style(_init_unavailable, _init_gemm == "1"))
+            style_out = gr.HTML(_build_style(_init_gemm == "1"))
             info_out = gr.HTML(value=_info_html, elem_id="rocm_info_table")
 
             # General vars (dropdowns, textboxes, checkboxes)
@@ -92,17 +88,6 @@ class ROCmScript(scripts_manager.Script):
                     comp = _make_component(name, meta, config)
                     var_names.append(name)
                     components.append(comp)
-
-            # Solver groups (all checkboxes, grouped by section)
-            # for group_name, varlist in rocm_vars.SOLVER_GROUPS:
-            #    with gr.Group():
-            #        gr.HTML(f"<h3>{group_name}</h3><hr>")
-            #        for name in varlist:
-            #            meta = rocm_vars.ROCM_ENV_VARS[name]
-            #            comp = _make_component(name, meta, config)
-            #            var_names.append(name)
-            #            components.append(comp)
-            # gr.HTML("<br><center><div style='margin:0 Auto'><a href='https://rocm.docs.amd.com/projects/MIOpen/en/develop/reference/env_variables.html' target='_blank'>&#128196; MIOpen Environment Variables Reference</a></div></center><br>")
 
         def _autosave_field(name, value):
             meta = rocm_vars.ROCM_ENV_VARS[name]
@@ -139,9 +124,7 @@ class ROCmScript(scripts_manager.Script):
                 cfg[var] = vals.get(stored, cfg.get(var, ""))
             rocm_mgr.save_config(cfg)
             rocm_mgr.apply_env(cfg)
-            arch = cfg.get(rocm_mgr._ARCH_KEY, "")
-            unavailable = rocm_profiles.UNAVAILABLE.get(arch, set())
-            result = [gr.update(value=_build_style(unavailable, stored == "1"))]
+            result = [gr.update(value=_build_style(stored == "1"))]
             for pname in var_names:
                 if pname in _GEMM_COMPANIONS:
                     meta = rocm_vars.ROCM_ENV_VARS[pname]
@@ -157,11 +140,9 @@ class ROCmScript(scripts_manager.Script):
         def apply_fn(*values):
             rocm_mgr.apply_all(var_names, list(values[:-1]), miopen_logging=values[-1] == "Enabled")
             saved = rocm_mgr.load_config()
-            arch = saved.get(rocm_mgr._ARCH_KEY, "")
-            unavailable = rocm_profiles.UNAVAILABLE.get(arch, set())
             gemm_val = saved.get("MIOPEN_GEMM_ENFORCE_BACKEND", "1")
             logging_value = "Enabled" if saved.get("MIOPEN_DEBUG_ENABLE", "0") == "1" else "Disabled"
-            result = [gr.update(value=_build_style(unavailable, gemm_val == "1"))]
+            result = [gr.update(value=_build_style(gemm_val == "1"))]
             for name in var_names:
                 meta = rocm_vars.ROCM_ENV_VARS[name]
                 val = saved.get(name, meta["default"])
@@ -177,11 +158,9 @@ class ROCmScript(scripts_manager.Script):
         def reset_fn():
             rocm_mgr.reset_defaults()
             updated = rocm_mgr.load_config()
-            arch = updated.get(rocm_mgr._ARCH_KEY, "")
-            unavailable = rocm_profiles.UNAVAILABLE.get(arch, set())
             gemm_val = updated.get("MIOPEN_GEMM_ENFORCE_BACKEND", "1")
             logging_value = "Enabled" if updated.get("MIOPEN_DEBUG_ENABLE", "0") == "1" else "Disabled"
-            result = [gr.update(value=_build_style(unavailable, gemm_val == "1"))]
+            result = [gr.update(value=_build_style(gemm_val == "1"))]
             for name in var_names:
                 meta = rocm_vars.ROCM_ENV_VARS[name]
                 val = updated.get(name, meta["default"])
@@ -198,7 +177,7 @@ class ROCmScript(scripts_manager.Script):
             rocm_mgr.clear_env()
             cfg = rocm_mgr.load_config()
             gemm_val = cfg.get("MIOPEN_GEMM_ENFORCE_BACKEND", "1")
-            result = [gr.update(value=_build_style(None, gemm_val == "1"))]
+            result = [gr.update(value=_build_style(gemm_val == "1"))]
             for name in var_names:
                 meta = rocm_vars.ROCM_ENV_VARS[name]
                 if meta["widget"] == "checkbox":
@@ -213,7 +192,7 @@ class ROCmScript(scripts_manager.Script):
         def delete_fn():
             rocm_mgr.delete_config()
             gemm_default = rocm_vars.ROCM_ENV_VARS.get("MIOPEN_GEMM_ENFORCE_BACKEND", {}).get("default", "1")
-            result = [gr.update(value=_build_style(None, gemm_default == "1"))]
+            result = [gr.update(value=_build_style(gemm_default == "1"))]
             for name in var_names:
                 meta = rocm_vars.ROCM_ENV_VARS[name]
                 if meta["widget"] == "checkbox":
