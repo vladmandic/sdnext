@@ -1,5 +1,57 @@
 # Change Log for SD.Next
 
+## Update for 2026-10-06
+
+### Highlights for 2026-10-06
+
+Service release which brings several updates and fixes, but most importantly verified and locked down *torch/compute* configurations for all supported GPUs and platforms.
+For optimal experience, either perform a fresh install or delete the `venv` folder so all required libs are clean-installed.
+
+See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) below for full details.
+
+[Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
+
+### Details for 2026-10-06
+
+- **Torch**  
+  update all torch versions to best known options:  
+  - **cuda**: `torch==2.14.1+cu132`
+  - **rocm/linux**: `torch==2.14.1+rocm7.14`
+  - **rocm/windows**: `torch==2.12.0+rocm10.0.0`
+  - **xpu**: `torch==2.14.1+xpu`
+  - **openvino**: `torch==2.11.0+cpu` with `openvino==2026.4.1`
+  - **zluda**: `torch==2.7.1+cu118` with `zluda==3.9.5`
+  - **mps**: `torch==2.14.1`
+ 
+  notes:
+  - sdnext only updates `torch` if its not already installed  
+    for best experience use `--reinstall` flags to force updates or delete `venv` folder  
+  - if you want to manually install `torch`, sdnext will not interfere/change it  
+  - if you want to try cutting-edge versions of torch  
+    use the `--use-nightly` flag  
+  - zluda should only be used on older amd gpus not supported by rocm/windows  
+- **Compute**
+  - sdnq: support double-quant, including `nvfp4`
+  - sdnq: set commit-locked on `master` branch and latest on `dev` branch  
+  - compile: option *skip torch compile for TE* so a new prompt length or image size does not trigger a recompile  
+    see *settings -> compute settings*  
+  - rocm: updated *rocm advanced config* script, thanks @resonantsky
+- **Fixes**
+  - schedulers: update init signature for new configuration options
+  - rocm: remove incompatible env flags
+  - test: update `--test` workflow
+  - paths: improve handling of allowed paths and add settings option to extend them
+  - reference: update missing reference thumbnails
+  - hires: no output-size warning or infotext entry for the image the hires pass upscales itself
+  - control: no output-size warning or infotext entry when the processed input sets the size
+  - triton: skipping autotune runs the first config the kernel's own pruning keeps
+  - gc: aux models use correct gc method, thanks @li-lizhe
+  - control: controlnet with a separate init image uses the unit's processed image
+  - control: controlnet with *init image same as control* uses the unit's processed image
+  - control: multiple units on controlnet-union
+  - control: t2i-adapter, controlnet-xs and controllite model lists follow the loaded model type
+  - control: live preview and interrupt for sd and sdxl controlnet without an init image
+
 ## Update for 2026-10-01
 
 ### Highlights for 2026-10-01

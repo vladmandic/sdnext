@@ -2,6 +2,7 @@ import os
 import time
 import torch
 import numpy as np
+from PIL import Image
 from modules import shared, devices, processing_correction, timer, prompt_parser_diffusers
 from modules.logger import log
 from modules.attention import context as attention_context
@@ -83,7 +84,7 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
             time.sleep(0.1)
 
     image = kwargs.get('image', None)
-    if image is not None:
+    if isinstance(image, Image.Image): # decoded preview; controlnet pipelines pass control tensors as image
         shared.state.current_image = image
         shared.state.current_latent = None
         shared.state.step() # increase step

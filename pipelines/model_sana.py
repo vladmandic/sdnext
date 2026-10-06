@@ -38,6 +38,7 @@ def load_sana(checkpoint_info, kwargs=None):
     kwargs.pop('torch_dtype', None)
 
     # set variant since hf repos are a mess
+    log.debug(f'Load model: type=Sana repo="{repo_id}" args={list(kwargs)}')
     if repo_id is None or repo_id.lower() == 'none':
         return None
     if not repo_id.endswith('_diffusers'):
@@ -54,7 +55,6 @@ def load_sana(checkpoint_info, kwargs=None):
         kwargs['variant'] = 'fp16'
 
     kwargs = init_quants(kwargs, repo_id, cache_dir=shared.opts.hfcache_dir)
-    log.debug(f'Load model: type=Sana repo="{repo_id}" args={list(kwargs)}')
 
     if devices.dtype == torch.bfloat16 or devices.dtype == torch.float32:
         kwargs['torch_dtype'] = devices.dtype

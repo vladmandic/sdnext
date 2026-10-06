@@ -188,7 +188,7 @@ def task_specific_kwargs(p, model):
             'output_type': 'pil',
         }
 
-    if (len(getattr(p, 'init_images', [])) > 0) and (None not in requested_size) and ('Size source' not in p.extra_generation_params):
+    if (len(getattr(p, 'init_images', [])) > 0) and (None not in requested_size) and (not p.is_hr_pass) and (not getattr(p, 'size_from_input', False)) and ('Size source' not in p.extra_generation_params): # the hires pass upscales its image itself, control sizes from its processed input
         output_size = (task_args.get('width', width), task_args.get('height', height)) # a call without a size runs at the image size
         if any(abs(o - r) >= vae_scale_factor for o, r in zip(output_size, requested_size)): # beyond alignment, so nothing fitted the image to the request
             log.warning(f'Size: source=image requested={requested_size[0]}x{requested_size[1]} image={output_size[0]}x{output_size[1]}')

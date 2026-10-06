@@ -101,6 +101,8 @@ def load_cascade_combined(checkpoint_info, diffusers_load_config=None):
 
     repo_id = sd_models.path_to_repo(checkpoint_info)
     sd_models.hf_auth_check(checkpoint_info)
+    log.debug(f'Load model: type=StableCascade repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={diffusers_load_config}')
+
     if repo_id is None or repo_id.lower() == 'none':
         return None
 
@@ -167,7 +169,6 @@ def load_cascade_combined(checkpoint_info, diffusers_load_config=None):
     )
 
     devices.torch_gc(force=True, reason='load')
-    log.debug(f'StableCascade combined: {sd_model.__class__.__name__}')
     return sd_model
 
 

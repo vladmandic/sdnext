@@ -104,6 +104,7 @@ def preprocess_image(
     if input_image is not None:
         p.width = input_image.width
         p.height = input_image.height
+        p.size_from_input = True # width and height now hold the input size, not the request
         debug_log(f'Control: input image={input_image}')
 
     # run masking
@@ -210,6 +211,7 @@ def preprocess_image(
                 p.task_args['strength'] = p.denoising_strength
             p.init_images = None
         elif input_type == 1: # Init image same as control
+            control_images = p.init_images
             p.init_images = [p.override or input_image] * max(1, len(active_model))
             if 'inpaint_image' in possible: # flex
                 p.task_args['inpaint_image'] = p.init_images[0] if isinstance(p.init_images, list) else p.init_images
@@ -217,8 +219,8 @@ def preprocess_image(
                 p.task_args['control_image'] = p.init_images[0] if isinstance(p.init_images, list) else p.init_images
                 p.task_args['width'] = p.width
                 p.task_args['height'] = p.height
-            elif 'control_image' in possible:
-                p.task_args['control_image'] = p.init_images # switch image and control_image
+            else: # img2img and inpaint classes take control_image
+                p.task_args['control_image'] = control_images # switch image and control_image
             if 'control_mode' in possible:
                 p.task_args['control_mode'] = getattr(p, 'control_mode', None)
             if 'strength' in possible:
@@ -233,17 +235,13 @@ def preprocess_image(
                 p.task_args['control_image'] = p.init_images[0] if isinstance(p.init_images, list) else p.init_images
                 p.task_args['width'] = p.width
                 p.task_args['height'] = p.height
-            elif 'control_image' in possible:
+            else: # img2img and inpaint classes take control_image
                 p.task_args['control_image'] = p.init_images # switch image and control_image
             if 'control_mode' in possible:
                 p.task_args['control_mode'] = getattr(p, 'control_mode', None)
             if 'strength' in possible:
                 p.task_args['strength'] = p.denoising_strength
             p.init_images = [init_image] * len(active_model)
-        if hasattr(shared.sd_model, 'controlnet') and 'control_image' in p.task_args and len(p.task_args['control_image']) > 1 and (shared.sd_model.__class__.__name__ == 'StableDiffusionXLControlNetUnionPipeline'): # special case for controlnet-union
-            p.task_args['control_image'] = [[x] for x in p.task_args['control_image']]
-            control_mode = p.task_args.get('control_mode') or []
-            p.task_args['control_mode'] = [[x] for x in control_mode]
 
     # determine txt2img, img2img, inpaint pipeline
     if unit_type == 'reference' and has_models: # special case

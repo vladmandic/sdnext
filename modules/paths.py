@@ -45,7 +45,7 @@ sd_configs_path = os.path.join(script_path, "configs")
 sd_default_config = os.path.join(sd_configs_path, "v1-inference.yaml")
 sd_model_file = cli.ckpt or os.path.join(script_path, 'model.safetensors') # not used
 default_sd_model_file = sd_model_file # not used
-debug = log.trace if os.environ.get('SD_PATH_DEBUG', None) is not None else lambda *args, **kwargs: None
+debug = log.debug if os.environ.get('SD_PATH_DEBUG', None) is not None else lambda *args, **kwargs: None
 debug('Trace: PATH')
 paths = {}
 
@@ -65,16 +65,15 @@ def create_path(folder):
         log.error(f'Create failed: folder="{folder}" {e}')
 
 
-def resolve_output_path(base_path: str, specific_path: str) -> str:
+def resolve_output_path(base_path: str, specific_path: str | None = None) -> str:
     """
     Resolve output path by combining base and specific paths.
-
     - If specific_path is absolute, return it directly (base is ignored)
     - If base_path is set and specific_path is relative, join them
     - If base_path is empty/None, return specific_path as-is
     """
     if not specific_path:
-        return base_path or ''
+        return os.path.normpath(base_path)
     if os.path.isabs(specific_path):
         return specific_path
     if base_path:
@@ -123,29 +122,16 @@ def create_paths(opts):
     create_path(fix_path('onnx_temp_dir'))
     create_path(fix_path('outdir_samples'))
     create_path(fix_path('outdir_grids'))
-    # per-type output dirs resolve against data_path via fix_path(), so create them bare
-    # only when no base folder is set; with a base configured, the resolved base+specific
-    # paths below are the real targets and the bare versions would just litter data_path
-    base_samples = opts.data.get('outdir_samples', '')
-    base_grids = opts.data.get('outdir_grids', '')
-    if not base_samples:
-        create_path(fix_path('outdir_txt2img_samples'))
-        create_path(fix_path('outdir_img2img_samples'))
-        create_path(fix_path('outdir_control_samples'))
-        create_path(fix_path('outdir_extras_samples'))
-        create_path(fix_path('outdir_init_images'))
-        create_path(fix_path('outdir_save'))
-        create_path(fix_path('outdir_video'))
-    if not base_grids:
-        create_path(fix_path('outdir_txt2img_grids'))
-        create_path(fix_path('outdir_img2img_grids'))
-        create_path(fix_path('outdir_control_grids'))
     create_path(fix_path('styles_dir'))
     create_path(fix_path('yolo_dir'))
     create_path(fix_path('wildcards_dir'))
     create_path(fix_path('autocomplete_dir'))
 
-    # Create resolved output paths (base + specific)
+    # per-type output dirs resolve against data_path via fix_path(), so create them bare
+    # only when no base folder is set; with a base configured, the resolved base+specific
+    # paths below are the real targets and the bare versions would just litter data_path
+    base_samples = opts.data.get('outdir_samples', '').rstrip('/\\')
+    base_grids = opts.data.get('outdir_grids', '').rstrip('/\\')
     if base_samples:
         create_path(resolve_output_path(base_samples, opts.data.get('outdir_txt2img_samples', '')))
         create_path(resolve_output_path(base_samples, opts.data.get('outdir_img2img_samples', '')))
@@ -154,10 +140,22 @@ def create_paths(opts):
         create_path(resolve_output_path(base_samples, opts.data.get('outdir_save', '')))
         create_path(resolve_output_path(base_samples, opts.data.get('outdir_video', '')))
         create_path(resolve_output_path(base_samples, opts.data.get('outdir_init_images', '')))
+    else:
+        create_path(fix_path('outdir_txt2img_samples'))
+        create_path(fix_path('outdir_img2img_samples'))
+        create_path(fix_path('outdir_control_samples'))
+        create_path(fix_path('outdir_extras_samples'))
+        create_path(fix_path('outdir_init_images'))
+        create_path(fix_path('outdir_save'))
+        create_path(fix_path('outdir_video'))
     if base_grids:
         create_path(resolve_output_path(base_grids, opts.data.get('outdir_txt2img_grids', '')))
         create_path(resolve_output_path(base_grids, opts.data.get('outdir_img2img_grids', '')))
         create_path(resolve_output_path(base_grids, opts.data.get('outdir_control_grids', '')))
+    else:
+        create_path(fix_path('outdir_txt2img_grids'))
+        create_path(fix_path('outdir_img2img_grids'))
+        create_path(fix_path('outdir_control_grids'))
 
 
 class Prioritize:

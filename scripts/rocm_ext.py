@@ -18,7 +18,7 @@ class ROCmScript(scripts_manager.Script):
         if not shared.cmd_opts.use_rocm and not installer.torch_info.get('type') == 'rocm':  # skip ui creation if not rocm
             return []
 
-        from scripts.rocm import rocm_mgr, rocm_vars, rocm_profiles  # pylint: disable=no-name-in-module
+        from scripts.rocm import rocm_mgr, rocm_vars  # pylint: disable=no-name-in-module
 
         config = rocm_mgr.load_config()
         var_names = []
@@ -54,10 +54,8 @@ class ROCmScript(scripts_manager.Script):
                 row(fname, finfo)
             return f"<table style='width:100%;border-collapse:collapse'>{''.join(rows)}</table>"
 
-        def _build_style(unavailable, hipblaslt_disabled=False):
+        def _build_style(hipblaslt_disabled=False):
             rules = []
-            for v in (unavailable or []):
-                rules.append(f"#rocm_var_{v.lower()} label {{ text-decoration: line-through; opacity: 0.5; }}")
             if hipblaslt_disabled:
                 for v in rocm_vars.HIPBLASLT_VARS:
                     rules.append(f"#rocm_var_{v.lower()} {{ opacity: 0.45; pointer-events: none; }}")
@@ -65,37 +63,31 @@ class ROCmScript(scripts_manager.Script):
 
         with gr.Accordion('ROCm: Advanced Config', open=False, elem_id='rocm_config'):
             with gr.Row():
-                gr.HTML("<p><u>Advanced configuration for ROCm users.</u></p><br><p>This script aims to take the guesswork out of configuring MIOpen and rocBLAS on Windows ROCm, but also to expose the functioning switches of MIOpen for advanced configurations.</p><br><p>For best performance ensure that cuDNN and PyTorch tunable ops are set to <b><i>default</i></b> in Backend Settings.</p><br><p>This script was written with the intent to support ROCm Windows users, it should however, function identically for Linux users.</p><br>")
-            with gr.Row():
                 btn_info   = gr.Button("Refresh Info",   variant="primary", elem_id="rocm_btn_info",   size="sm")
                 btn_apply  = gr.Button("Apply",          variant="primary", elem_id="rocm_btn_apply",  size="sm")
                 btn_reset  = gr.Button("Defaults",       elem_id="rocm_btn_reset",  size="sm")
                 btn_clear  = gr.Button("Clear Run Vars", elem_id="rocm_btn_clear",  size="sm")
                 btn_delete = gr.Button("Delete UserDb",  variant="stop",    elem_id="rocm_btn_delete", size="sm")
             _init_gemm = config.get("MIOPEN_GEMM_ENFORCE_BACKEND", "1")
-            _init_arch = config.get(rocm_mgr._ARCH_KEY, "")
-            _init_unavailable = rocm_profiles.UNAVAILABLE.get(_init_arch, set()) if _init_arch else set()
-            style_out = gr.HTML(_build_style(_init_unavailable, _init_gemm == "1"))
+            style_out = gr.HTML(_build_style(_init_gemm == "1"))
             info_out = gr.HTML(value=_info_html, elem_id="rocm_info_table")
 
             # General vars (dropdowns, textboxes, checkboxes)
             with gr.Group():
                 gr.HTML("<br><h3>MIOpen Settings</h3><hr>")
+                miopen_logging = "Enabled" if config.get("MIOPEN_DEBUG_ENABLE", "0") == "1" else "Disabled"
+                miopen_logging_comp = gr.Dropdown(
+                    label="MIOpen logging",
+                    choices=["Disabled", "Enabled"],
+                    value=miopen_logging,
+                    elem_id="rocm_miopen_logging",
+                )
                 for name, meta in rocm_vars.GENERAL_VARS.items():
+                    if name in rocm_vars.MIOPEN_LOGGING_VARS:
+                        continue
                     comp = _make_component(name, meta, config)
                     var_names.append(name)
                     components.append(comp)
-
-            # Solver groups (all checkboxes, grouped by section)
-            # for group_name, varlist in rocm_vars.SOLVER_GROUPS:
-            #    with gr.Group():
-            #        gr.HTML(f"<h3>{group_name}</h3><hr>")
-            #        for name in varlist:
-            #            meta = rocm_vars.ROCM_ENV_VARS[name]
-            #            comp = _make_component(name, meta, config)
-            #            var_names.append(name)
-            #            components.append(comp)
-            # gr.HTML("<br><center><div style='margin:0 Auto'><a href='https://rocm.docs.amd.com/projects/MIOpen/en/develop/reference/env_variables.html' target='_blank'>&#128196; MIOpen Environment Variables Reference</a></div></center><br>")
 
         def _autosave_field(name, value):
             meta = rocm_vars.ROCM_ENV_VARS[name]
@@ -109,6 +101,13 @@ class ROCmScript(scripts_manager.Script):
             meta = rocm_vars.ROCM_ENV_VARS[name]
             if meta["widget"] == "dropdown" and name != "MIOPEN_GEMM_ENFORCE_BACKEND":
                 comp.change(fn=lambda v, n=name: _autosave_field(n, v), inputs=[comp], outputs=[], show_progress='hidden')
+
+        miopen_logging_comp.change(
+            fn=lambda value: rocm_mgr.set_miopen_logging(value == "Enabled"),
+            inputs=[miopen_logging_comp],
+            outputs=[],
+            show_progress='hidden',
+        )
 
         _GEMM_COMPANIONS = {
             "PYTORCH_ROCM_USE_ROCBLAS":           {"1": "1", "5": "0"},
@@ -125,9 +124,7 @@ class ROCmScript(scripts_manager.Script):
                 cfg[var] = vals.get(stored, cfg.get(var, ""))
             rocm_mgr.save_config(cfg)
             rocm_mgr.apply_env(cfg)
-            arch = cfg.get(rocm_mgr._ARCH_KEY, "")
-            unavailable = rocm_profiles.UNAVAILABLE.get(arch, set())
-            result = [gr.update(value=_build_style(unavailable, stored == "1"))]
+            result = [gr.update(value=_build_style(stored == "1"))]
             for pname in var_names:
                 if pname in _GEMM_COMPANIONS:
                     meta = rocm_vars.ROCM_ENV_VARS[pname]
@@ -141,12 +138,11 @@ class ROCmScript(scripts_manager.Script):
         gemm_comp.change(fn=gemm_changed, inputs=[gemm_comp], outputs=[style_out] + components, show_progress='hidden')
 
         def apply_fn(*values):
-            rocm_mgr.apply_all(var_names, list(values))
+            rocm_mgr.apply_all(var_names, list(values[:-1]), miopen_logging=values[-1] == "Enabled")
             saved = rocm_mgr.load_config()
-            arch = saved.get(rocm_mgr._ARCH_KEY, "")
-            unavailable = rocm_profiles.UNAVAILABLE.get(arch, set())
             gemm_val = saved.get("MIOPEN_GEMM_ENFORCE_BACKEND", "1")
-            result = [gr.update(value=_build_style(unavailable, gemm_val == "1"))]
+            logging_value = "Enabled" if saved.get("MIOPEN_DEBUG_ENABLE", "0") == "1" else "Disabled"
+            result = [gr.update(value=_build_style(gemm_val == "1"))]
             for name in var_names:
                 meta = rocm_vars.ROCM_ENV_VARS[name]
                 val = saved.get(name, meta["default"])
@@ -156,15 +152,15 @@ class ROCmScript(scripts_manager.Script):
                     result.append(gr.update(value=rocm_mgr._dropdown_display(val, meta["options"])))
                 else:
                     result.append(gr.update(value=rocm_mgr._expand_venv(val)))
+            result.append(gr.update(value=logging_value))
             return result
 
         def reset_fn():
             rocm_mgr.reset_defaults()
             updated = rocm_mgr.load_config()
-            arch = updated.get(rocm_mgr._ARCH_KEY, "")
-            unavailable = rocm_profiles.UNAVAILABLE.get(arch, set())
             gemm_val = updated.get("MIOPEN_GEMM_ENFORCE_BACKEND", "1")
-            result = [gr.update(value=_build_style(unavailable, gemm_val == "1"))]
+            logging_value = "Enabled" if updated.get("MIOPEN_DEBUG_ENABLE", "0") == "1" else "Disabled"
+            result = [gr.update(value=_build_style(gemm_val == "1"))]
             for name in var_names:
                 meta = rocm_vars.ROCM_ENV_VARS[name]
                 val = updated.get(name, meta["default"])
@@ -174,13 +170,14 @@ class ROCmScript(scripts_manager.Script):
                     result.append(gr.update(value=rocm_mgr._dropdown_display(val, meta["options"])))
                 else:
                     result.append(gr.update(value=rocm_mgr._expand_venv(val)))
+            result.append(gr.update(value=logging_value))
             return result
 
         def clear_fn():
             rocm_mgr.clear_env()
             cfg = rocm_mgr.load_config()
             gemm_val = cfg.get("MIOPEN_GEMM_ENFORCE_BACKEND", "1")
-            result = [gr.update(value=_build_style(None, gemm_val == "1"))]
+            result = [gr.update(value=_build_style(gemm_val == "1"))]
             for name in var_names:
                 meta = rocm_vars.ROCM_ENV_VARS[name]
                 if meta["widget"] == "checkbox":
@@ -189,12 +186,13 @@ class ROCmScript(scripts_manager.Script):
                     result.append(gr.update(value=rocm_mgr._dropdown_display(meta["default"], meta["options"])))
                 else:
                     result.append(gr.update(value=""))
+            result.append(gr.update(value="Disabled"))
             return result
 
         def delete_fn():
             rocm_mgr.delete_config()
             gemm_default = rocm_vars.ROCM_ENV_VARS.get("MIOPEN_GEMM_ENFORCE_BACKEND", {}).get("default", "1")
-            result = [gr.update(value=_build_style(None, gemm_default == "1"))]
+            result = [gr.update(value=_build_style(gemm_default == "1"))]
             for name in var_names:
                 meta = rocm_vars.ROCM_ENV_VARS[name]
                 if meta["widget"] == "checkbox":
@@ -203,12 +201,13 @@ class ROCmScript(scripts_manager.Script):
                     result.append(gr.update(value=rocm_mgr._dropdown_display(meta["default"], meta["options"])))
                 else:
                     result.append(gr.update(value=""))
+            result.append(gr.update(value="Disabled"))
             return result
 
         btn_info.click(fn=_info_html, inputs=[], outputs=[info_out], show_progress='hidden')
-        btn_apply.click(fn=apply_fn, inputs=components, outputs=[style_out] + components, show_progress='hidden')
-        btn_reset.click(fn=reset_fn, inputs=[], outputs=[style_out] + components, show_progress='hidden')
-        btn_clear.click(fn=clear_fn, inputs=[], outputs=[style_out] + components, show_progress='hidden')
-        btn_delete.click(fn=delete_fn, inputs=[], outputs=[style_out] + components, show_progress='hidden')
+        btn_apply.click(fn=apply_fn, inputs=components + [miopen_logging_comp], outputs=[style_out] + components + [miopen_logging_comp], show_progress='hidden')
+        btn_reset.click(fn=reset_fn, inputs=[], outputs=[style_out] + components + [miopen_logging_comp], show_progress='hidden')
+        btn_clear.click(fn=clear_fn, inputs=[], outputs=[style_out] + components + [miopen_logging_comp], show_progress='hidden')
+        btn_delete.click(fn=delete_fn, inputs=[], outputs=[style_out] + components + [miopen_logging_comp], show_progress='hidden')
 
-        return components
+        return components + [miopen_logging_comp]

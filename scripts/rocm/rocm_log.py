@@ -6,7 +6,7 @@ import re
 import sys
 import threading
 import time
-
+from tqdm import tqdm
 from modules.logger import log
 
 
@@ -30,7 +30,8 @@ def _process_line(line, saved_stderr):
         return
     match = _CHOSEN_PATTERN.search(text)
     if match:
-        log.info(f'MIOpen: algorithm={match.group(1)} time={float(match.group(2)):.3f}')
+        with tqdm.external_write_mode():
+            log.info(f'MIOpen: algorithm={match.group(1)} time={float(match.group(2)):.3f}')
 
 
 class MIOpenLogRedirect:

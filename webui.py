@@ -323,6 +323,14 @@ def mount_subpath(app):
     log.info(f'Mounted: subpath="{shared.opts.subpath}"')
 
 
+def resolve_paths(allowed_paths):
+    folders = [modules.paths.resolve_output_path(f) for f in allowed_paths]
+    folders = [f for f in folders if os.path.isdir(f)]
+    folders = sorted(set(folders)) # remove duplicates
+    log.debug(f'Paths: {folders}')
+    return folders
+
+
 def start_server(
     blocks,
     server_name: str | None = None, # pylint: disable=redefined-outer-name
@@ -356,6 +364,23 @@ def start_server(
     else:
         path_to_local_server = f"http://{url_host_name}:{server_port}/"
     return server_name, server_port, path_to_local_server, app, server
+
+def get_paths():
+    allowed_paths = [os.path.dirname(__file__)]
+    if shared.cmd_opts.data_dir is not None and os.path.isdir(shared.cmd_opts.data_dir):
+        allowed_paths.append(shared.cmd_opts.data_dir)
+    if shared.cmd_opts.models_dir is not None and os.path.isdir(shared.cmd_opts.models_dir):
+        allowed_paths.append(shared.cmd_opts.models_dir)
+    if shared.cmd_opts.allowed_paths is not None:
+        allowed_paths += [p for p in shared.cmd_opts.allowed_paths if os.path.isdir(p)]
+    if os.environ.get('SD_PATH_DEBUG', None):
+        log.trace(f'Path allowed: why=args allowed={shared.demo.allowed_paths}')
+    if shared.opts.allowed_paths:
+        folders = [f.strip() for f in shared.opts.allowed_paths.split(',') if f.strip()]
+        allowed_paths = [f for f in folders if os.path.isdir(f)]
+    if os.environ.get('SD_PATH_DEBUG', None):
+        log.trace(f'Path allowed: why=opts allowed={shared.demo.allowed_paths}')
+    return allowed_paths
 
 
 def start_ui():
@@ -396,14 +421,8 @@ def start_ui():
 
     global local_url # pylint: disable=global-statement
     stdout = io.StringIO()
-    allowed_paths = [os.path.dirname(__file__)]
-    if shared.cmd_opts.data_dir is not None and os.path.isdir(shared.cmd_opts.data_dir):
-        allowed_paths.append(shared.cmd_opts.data_dir)
-    if shared.cmd_opts.models_dir is not None and os.path.isdir(shared.cmd_opts.models_dir):
-        allowed_paths.append(shared.cmd_opts.models_dir)
-    if shared.cmd_opts.allowed_paths is not None:
-        allowed_paths += [p for p in shared.cmd_opts.allowed_paths if os.path.isdir(p)]
-    log.info(f'Server: name={server_name} port={shared.cmd_opts.port} paths={allowed_paths} ssl={shared.cmd_opts.tls_keyfile}:{shared.cmd_opts.tls_certfile} auth={len(auth_pairs)}')
+
+    log.info(f'Server: name={server_name} port={shared.cmd_opts.port} ssl={shared.cmd_opts.tls_keyfile}:{shared.cmd_opts.tls_certfile} auth={len(auth_pairs)}')
     with contextlib.redirect_stdout(stdout):
         import gradio.networking
         gradio.networking.start_server = start_server
@@ -421,7 +440,7 @@ def start_ui():
             show_api=False,
             quiet=True,
             favicon_path='ui/assets/favicon.svg',
-            allowed_paths=allowed_paths,
+            allowed_paths=get_paths(),
             app_kwargs=fastapi_args,
             _frontend=True and shared.cmd_opts.share,
         )
@@ -490,6 +509,7 @@ def webui(restart=False, _exit=False, profiler=None):
 
     load_model()
     mount_subpath(app)
+    shared.demo.allowed_paths = resolve_paths(shared.demo.allowed_paths)
     shared.opts.save()
 
     if shared.cmd_opts.profile:
