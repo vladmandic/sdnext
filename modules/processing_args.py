@@ -90,19 +90,12 @@ def task_specific_kwargs(p, model):
         }
         if model_cls == 'FluxImg2ImgPipeline' or model_cls == 'FluxKontextPipeline': # needs explicit width/height
             if torch.is_tensor(p.init_images[0]):
-                p.width = p.init_images[0].shape[-1] * vae_scale_factor
-                p.height = p.init_images[0].shape[-2] * vae_scale_factor
+                latent_scale = sd_vae.get_vae_scale_factor(model, patch=False) # pixels per latent
+                p.width = p.init_images[0].shape[-1] * latent_scale
+                p.height = p.init_images[0].shape[-2] * latent_scale
             else:
                 p.width = width
                 p.height = height
-            if model_cls == 'FluxKontextPipeline':
-                aspect_ratio = p.width / p.height
-                max_area = max(p.width, p.height)**2
-                p.width = round((max_area * aspect_ratio) ** 0.5)
-                p.height = round((max_area / aspect_ratio) ** 0.5)
-                p.width = p.width // vae_scale_factor * vae_scale_factor
-                p.height = p.height // vae_scale_factor * vae_scale_factor
-                task_args['max_area'] = max_area
             task_args['width'], task_args['height'] = p.width, p.height
         elif model_cls == 'OmniGenPipeline' or model_cls == 'OmniGen2Pipeline':
             p.width = width
@@ -158,7 +151,7 @@ def task_specific_kwargs(p, model):
     if (model_cls in can_i2i) and (len(getattr(p, 'init_images', [])) > 0):
         task_args['image'] = p.init_images
     if (sd_models.get_max_condition_images(model) > 0) and (len(getattr(p, 'init_images', [])) > 0): # otherwise set_pipeline_args sizes the call from the first condition image
-        task_args['width'], task_args['height'] = p.width, p.height
+        task_args['width'], task_args['height'] = width, height
 
     if ('QwenImageLayeredPipeline' in model_cls) and (task_args.get('image', None) is not None):
         image_items = task_args['image']

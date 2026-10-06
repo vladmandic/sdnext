@@ -12,10 +12,12 @@ Covers:
 - POST /sdapi/v1/img2img: batch size above the image count, image list not padded
 - POST /sdapi/v1/img2img: more images than declared, no output
 - POST /sdapi/v1/control: two inputs, one output
+- POST /sdapi/v1/control: hires and detailer together, with and without a detailer prompt
 
 Requires a running SD.Next instance with a multi-image model loaded (Qwen-Image 2.1).
 With --log pointing at the server's sdnext.log, each case also checks the Base log
-line for the number of images and the size the pipeline received.
+line for the number of images and the size the pipeline received, and the hires and
+detailer case checks the Hires and Detail calls and the warnings they log.
 
 Usage:
     python test/test-condition-images-api.py --url http://127.0.0.1:7860 [--log sdnext.log] [--multiple 32] [--max-images 10] [--steps 4]
@@ -33,6 +35,7 @@ import urllib3
 from PIL import Image
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+FACE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'models', 'Reference', 'ponyRealism_V23.jpg')
 
 
 def encode(image):
@@ -178,6 +181,69 @@ class ConditionImagesAPITest:
             return
         self.check_generation('control two inputs', result, 1, (1344, 768), 2)
 
+    def call_lines(self, lines, kind):
+        """Image count and call size of every log line for one pipeline call kind (Base, Hires, Detail)."""
+        calls = []
+        for line in lines:
+            match = re.search(rf' {kind}: pipeline=.*?set=(\{{.*?\'parser\')', line)
+            if match is None:
+                continue
+            width = re.search(r"'width': (\d+)", match.group(1))
+            height = re.search(r"'height': (\d+)", match.group(1))
+            calls.append({'images': match.group(1).count('<PIL.Image.Image'), 'size': (int(width.group(1)), int(height.group(1))) if width and height else None})
+        return calls
+
+    def test_hires_detailer(self):
+        print('=== control: hires and detailer together ===', flush=True)
+        if not os.path.exists(FACE):
+            self.skip('hires and detailer', f'face image missing: {FACE}')
+            return
+        steps = max(self.steps, 8) # the detector needs a recognisable face in the hires output
+        for label, detailer_prompt in (('own detailer prompt', 'sharp detailed face, keep the identity'), ('empty detailer prompt', '')):
+            payload = {
+                'prompt': 'Make the lighting warmer. Keep everything else the same.', # a photographic result keeps the face detectable
+                'inputs': [encode(Image.open(FACE).convert('RGB'))],
+                'input_type': 1,
+                'skip_processing': True,
+                'width_before': 1024,
+                'height_before': 1024,
+                'steps': steps,
+                'seed': 42,
+                'save_images': False,
+                'enable_hr': True,
+                'hr_upscaler': 'Resize Lanczos',
+                'hr_scale': 1.25,
+                'hr_force': True,
+                'hr_resize_mode': 1,
+                'hr_second_pass_steps': steps,
+                'hr_denoising_strength': 0.5,
+                'detailer_enabled': True,
+                'detailer_models': ['face-yolo8n'],
+                'detailer_prompt': detailer_prompt,
+                'detailer_steps': steps,
+                'detailer_strength': 0.4,
+                'detailer_resolution': 1024,
+            }
+            status, images, lines, elapsed = self.post('/sdapi/v1/control', payload)
+            size = (self.aligned(1280), self.aligned(1280))
+            self.record(status == 200 and len(images) == 1, f'{label}: 1 output', f'http={status} outputs={len(images)} time={elapsed:.1f}s')
+            if images:
+                self.record(images[0].size == size, f'{label}: output at the hires size {size[0]}x{size[1]}', f'size={images[0].size}')
+            if not self.log_file:
+                continue
+            hires, detail = self.call_lines(lines, 'Hires'), self.call_lines(lines, 'Detail')
+            self.record(len(hires) == 1 and hires[0]['images'] == 1 and hires[0]['size'] == size, f'{label}: hires pass runs once at {size[0]}x{size[1]} on the upscaled image', f'calls={hires}')
+            self.record(len(detail) >= 1 and all(d['images'] == 1 and d['size'] == (1024, 1024) for d in detail), f'{label}: detailer runs on each detection as a crop edit at 1024x1024', f'calls={detail}')
+            warnings = {
+                'hires strength': [line for line in lines if 'Hires: model=' in line and 'strength=ignored' in line],
+                'detailer strength': [line for line in lines if 'Detailer: model=' in line and 'strength=ignored' in line],
+                'empty detailer prompt': [line for line in lines if 'Detailer prompt: empty, main prompt used' in line],
+            }
+            expected = {'hires strength': 1, 'detailer strength': 1, 'empty detailer prompt': 0 if detailer_prompt else 1}
+            self.record(all(len(warnings[k]) == v for k, v in expected.items()), f'{label}: each warning once where it applies', ' '.join(f'{k}={len(v)}' for k, v in warnings.items()))
+            errors = [line for line in lines if ' ERROR ' in line]
+            self.record(not errors, f'{label}: no errors logged', errors[0][:160] if errors else '')
+
     def run(self):
         model = requests.get(f'{self.base_url}/sdapi/v1/options', timeout=60, verify=False).json().get('sd_model_checkpoint')
         print(f'model: {model}', flush=True)
@@ -186,6 +252,7 @@ class ConditionImagesAPITest:
         self.test_batch()
         self.test_over_cap()
         self.test_control()
+        self.test_hires_detailer()
         print('=== results ===', flush=True)
         print(f'  passed={self.passed} failed={self.failed} skipped={self.skipped}', flush=True)
         return self.failed == 0

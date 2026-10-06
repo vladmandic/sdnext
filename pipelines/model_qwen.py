@@ -96,8 +96,10 @@ def load_qwen(checkpoint_info, diffusers_load_config=None):
         pipe.task_args['cfg_normalize'] = False
         pipe.task_args['layers'] = shared.opts.model_qwen_layers
         pipe.task_args['resolution'] = 640
-    if cls_name == diffusers.QwenImageEditPlusPipeline: # the single-image edit pipeline has one image slot in its prompt template
+    if cls_name == diffusers.QwenImageEditPlusPipeline:
         pipe.max_condition_images = 4 # Qwen-Image-Edit typically uses 4 condition images
+    elif cls_name == diffusers.QwenImageEditPipeline:
+        pipe.max_condition_images = 1 # one image slot in its prompt template
 
     generic.load_vae_override(pipe, diffusers_load_config)
 

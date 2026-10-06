@@ -28,6 +28,34 @@ def activate_networks(p, network_data):
     p.disable_extra_networks = disabled
 
 
+def get_mode(model=None) -> str | None:
+    """How the detailer runs on a model: 'inpaint' through its inpaint pipeline, 'custom' as loaded, 'edit' with each crop as the condition image, None when it cannot run."""
+    if model is None:
+        model = shared.sd_model
+    if model is None:
+        return None
+    if sd_models.get_class_task(sd_models.get_task_class(model, sd_models.DiffusersTaskType.INPAINTING)) == sd_models.DiffusersTaskType.INPAINTING:
+        return 'inpaint'
+    if model.__class__.__name__ in sd_models.pipe_switch_task_exclude:
+        return 'custom'
+    if sd_models.get_max_condition_images(model) > 0:
+        return 'edit'
+    return None
+
+
+def is_compatible(model=None) -> bool:
+    return get_mode(model) is not None
+
+
+def get_detail_model(p):
+    """Pipeline the detail pass runs on: the base model behind an active control wrapper, else the loaded model."""
+    if getattr(p, 'is_control', False):
+        from modules.control import run
+        if run.original_pipeline is not None:
+            return run.original_pipeline
+    return shared.sd_model
+
+
 class Detailer():
     def __init__(self):
         super().__init__()
@@ -192,10 +220,13 @@ class Detailer():
         if np_image is None or p.detailer_active >= p.batch_size * p.n_iter:
             return np_image
 
-        shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.INPAINTING)
-        if (sd_models.get_diffusers_task(shared.sd_model) != sd_models.DiffusersTaskType.INPAINTING) and (shared.sd_model.__class__.__name__ not in sd_models.pipe_switch_task_exclude):
-            log.error(f'Detailer: model="{shared.sd_model.__class__.__name__}" not compatible')
-            return np_image
+        detail_model = get_detail_model(p)
+        mode = get_mode(detail_model)
+        if mode != 'edit':
+            shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.INPAINTING)
+            if (sd_models.get_diffusers_task(shared.sd_model) != sd_models.DiffusersTaskType.INPAINTING) and (shared.sd_model.__class__.__name__ not in sd_models.pipe_switch_task_exclude):
+                log.error(f'Detailer: model="{shared.sd_model.__class__.__name__}" not compatible')
+                return np_image
 
         models = []
         if len(shared.opts.detailer_args) > 0:
@@ -228,6 +259,13 @@ class Detailer():
         prompt_only_skip = stripped_prompt != prompt and stripped_prompt.strip() == ''
         negative_only_skip = stripped_negative != negative and stripped_negative.strip() == ''
         prompt, negative = stripped_prompt, stripped_negative
+        edit_warnings = [] # logged once per job, at the first detection processed
+        if (mode == 'edit') and not getattr(p, 'detailer_strength_warned', False):
+            from modules.processing_args import get_params
+            if 'strength' not in get_params(detail_model): # the pipeline redraws each crop in full
+                edit_warnings.append(f'Detailer: model="{detail_model.__class__.__name__}" strength=ignored')
+                if len(prompt) == 0 or prompt_only_skip:
+                    edit_warnings.append(f'Detailer prompt: empty, main prompt used: model="{detail_model.__class__.__name__}" redraws each detection from the prompt')
         if len(prompt) == 0 or prompt_only_skip:
             prompt = orig_prompt
         else:
@@ -394,6 +432,10 @@ class Detailer():
                     time.sleep(0.1)
                 if item.mask is None:
                     continue
+                if len(edit_warnings) > 0 and not getattr(p, 'detailer_strength_warned', False):
+                    for message in edit_warnings:
+                        log.warning(message)
+                    p.detailer_strength_warned = True
 
                 shared.sd_model.fail_on_switch_error = True
                 pc.keep_prompts = True
@@ -421,7 +463,14 @@ class Detailer():
 
                 # process
                 jobid = shared.state.begin('Detailer')
-                pp = processing.process_images_inner(pc)
+                pipe = shared.sd_model
+                if mode == 'edit':
+                    pipe.no_task_switch = True # the crop is the condition image, the mask applies on paste
+                try:
+                    pp = processing.process_images_inner(pc)
+                finally:
+                    if (mode == 'edit') and hasattr(pipe, 'no_task_switch'): # one-shot flag, a leftover would skip the next task switch
+                        del pipe.no_task_switch
                 shared.sd_model.fail_on_switch_error = False
                 shared.state.end(jobid)
 

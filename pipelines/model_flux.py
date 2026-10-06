@@ -63,6 +63,9 @@ def load_flux(checkpoint_info, diffusers_load_config=None):
     )
 
     generic.load_vae_override(pipe, diffusers_load_config)
+    if cls_name == diffusers.FluxKontextPipeline:
+        pipe.patch_size = 2 # latents pack into 2x2 patches and the pipeline floors sizes to vae_scale_factor * 2
+        pipe.max_condition_images = 1 # one condition image per prompt
 
     if os.environ.get('SD_REMOTE_T5', None) is not None:
         from modules import sd_te_remote

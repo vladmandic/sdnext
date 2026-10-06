@@ -1156,40 +1156,69 @@ class DiffusersTaskType(Enum):
     MODULAR = 5
 
 
-def get_diffusers_task(pipe: diffusers.DiffusionPipeline) -> DiffusersTaskType:
-    cls = pipe.__class__.__name__
-    if cls in i2i_pipes: # special case
+def get_class_task(cls: type) -> DiffusersTaskType:
+    name = cls.__name__
+    if name in i2i_pipes: # special case
         return DiffusersTaskType.IMAGE_2_IMAGE
-    elif 'ImageToVideo' in cls or cls in ['LTXConditionPipeline', 'StableVideoDiffusionPipeline']: # i2v pipelines
+    elif 'ImageToVideo' in name or name in ['LTXConditionPipeline', 'StableVideoDiffusionPipeline']: # i2v pipelines
         return DiffusersTaskType.IMAGE_2_IMAGE
-    elif 'Instruct' in cls:
+    elif 'Instruct' in name:
         return DiffusersTaskType.INSTRUCT
-    elif 'Modular' in cls:
+    elif 'Modular' in name:
         return DiffusersTaskType.MODULAR
-    elif pipe.__class__ in diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING.values():
+    elif cls in diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING.values():
         return DiffusersTaskType.IMAGE_2_IMAGE
-    elif pipe.__class__ in diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING.values():
+    elif cls in diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING.values():
         return DiffusersTaskType.INPAINTING
     else:
         return DiffusersTaskType.TEXT_2_IMAGE
 
 
-def pipe_serves_task(pipe: diffusers.DiffusionPipeline, task_type: DiffusersTaskType) -> bool:
-    """True when the pipeline class is registered for the task in the diffusers auto-pipeline tables."""
+def get_diffusers_task(pipe: diffusers.DiffusionPipeline) -> DiffusersTaskType:
+    return get_class_task(pipe.__class__)
+
+
+def get_task_mapping(task_type: DiffusersTaskType):
     mappings = {
         DiffusersTaskType.TEXT_2_IMAGE: diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING,
         DiffusersTaskType.IMAGE_2_IMAGE: diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING,
         DiffusersTaskType.INPAINTING: diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING,
     }
-    mapping = mappings.get(task_type)
+    return mappings.get(task_type)
+
+
+def pipe_serves_task(pipe: diffusers.DiffusionPipeline, task_type: DiffusersTaskType) -> bool:
+    """True when the pipeline class is registered for the task in the diffusers auto-pipeline tables."""
+    mapping = get_task_mapping(task_type)
     return mapping is not None and pipe.__class__ in mapping.values()
 
 
+def get_task_class(pipe: diffusers.DiffusionPipeline, task_type: DiffusersTaskType) -> type:
+    """Class set_diffuser_pipe leaves the pipeline in for the task, by its decision order and without switching."""
+    cls = pipe.__class__
+    name = cls.__name__
+    if get_class_task(cls) in (task_type, DiffusersTaskType.MODULAR) or pipe_serves_task(pipe, task_type):
+        return cls
+    if (name in pipe_switch_task_exclude) or ('Video' in name) or ('Onnx' in name):
+        return cls
+    mapping = get_task_mapping(task_type)
+    if mapping is None:
+        return cls
+    if task_type in (DiffusersTaskType.IMAGE_2_IMAGE, DiffusersTaskType.INPAINTING): # set_diffuser_pipe resets these to their parent first
+        name = {'StableDiffusionPAGPipeline': 'StableDiffusionPipeline', 'StableDiffusionXLPAGPipeline': 'StableDiffusionXLPipeline'}.get(name, name)
+    return diffusers.pipelines.auto_pipeline._get_task_class(mapping, name, throw_error_if_not_exist=False) or cls # pylint: disable=protected-access
+
+
 def get_max_condition_images(pipe: diffusers.DiffusionPipeline | None = None) -> int:
-    """Images the pipeline conditions on as one set shared by every prompt; 0 when an image list means one image per sample."""
+    """Condition images the pipeline takes per prompt, 0 when undeclared; any declaration means the request sets the output size."""
     if pipe is None:
         pipe = shared.sd_model
     return int(getattr(pipe, 'max_condition_images', 0) or 0)
+
+
+def takes_condition_set(pipe: diffusers.DiffusionPipeline | None = None) -> bool:
+    """True when an image list is one set of condition images shared by every prompt, not one image per sample."""
+    return get_max_condition_images(pipe) > 1
 
 
 def switch_pipe(cls: type[diffusers.DiffusionPipeline] | str, pipeline: diffusers.DiffusionPipeline | None = None, force = False, args: dict | None = None):

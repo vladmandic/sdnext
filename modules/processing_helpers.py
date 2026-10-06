@@ -402,9 +402,14 @@ def resize_init_images(p):
             tgt_height = vae_scale_factor * math.ceil(p.init_images[0].height / vae_scale_factor)
             if sd_models.get_max_condition_images() > 0: # the pipeline resamples condition images, the request sets the output size
                 vae_scale_factor = sd_vae.get_vae_scale_factor()
-                tgt_width = vae_scale_factor * (int(p.width) // vae_scale_factor)
-                tgt_height = vae_scale_factor * (int(p.height) // vae_scale_factor)
-                p.width, p.height = tgt_width, tgt_height
+                if p.is_hr_pass and p.hr_resize_mode > 0 and (p.hr_upscaler != 'None' or p.hr_resize_mode == 5): # a resized hires pass outputs the size that decode and previews read
+                    tgt_width = vae_scale_factor * (int(max(p.width, p.hr_upscale_to_x)) // vae_scale_factor)
+                    tgt_height = vae_scale_factor * (int(max(p.height, p.hr_upscale_to_y)) // vae_scale_factor)
+                    p.hr_upscale_to_x, p.hr_upscale_to_y = tgt_width, tgt_height
+                else:
+                    tgt_width = vae_scale_factor * (int(p.width) // vae_scale_factor)
+                    tgt_height = vae_scale_factor * (int(p.height) // vae_scale_factor)
+                    p.width, p.height = tgt_width, tgt_height
             elif p.init_images[0].size != (tgt_width, tgt_height):
                 log.debug(f'Resizing init images: original={p.init_images[0].width}x{p.init_images[0].height} target={tgt_width}x{tgt_height}')
                 p.init_images = [images.resize_image(1, image, tgt_width, tgt_height, upscaler_name=None) for image in p.init_images]
