@@ -87,7 +87,7 @@ def set_pipe(p, has_models, unit_type, selected_models, active_model, active_str
         p.task_args['adapter_conditioning_scale'] = control_conditioning
         instance = t2iadapter.AdapterPipeline(selected_models, shared.sd_model)
         pipe = instance.pipeline
-        if inits is not None:
+        if has_inputs(inits):
             log.warning('Control: T2I-Adapter does not support separate init image')
     elif unit_type == 'controlnet' and has_models:
         p.extra_generation_params["Control type"] = 'ControlNet'
@@ -110,14 +110,14 @@ def set_pipe(p, has_models, unit_type, selected_models, active_model, active_str
         p.control_guidance_end = control_guidance_end
         instance = xs.ControlNetXSPipeline(selected_models, shared.sd_model)
         pipe = instance.pipeline
-        if inits is not None:
+        if has_inputs(inits):
             log.warning('Control: ControlNet-XS does not support separate init image')
     elif unit_type == 'lite' and has_models:
         p.extra_generation_params["Control type"] = 'ControlLLLite'
         p.controlnet_conditioning_scale = control_conditioning
         instance = lite.ControlLLitePipeline(shared.sd_model)
         pipe = instance.pipeline
-        if inits is not None:
+        if has_inputs(inits):
             log.warning('Control: ControlLLLite does not support separate init image')
     elif unit_type == 'reference' and has_models:
         p.extra_generation_params["Control type"] = 'Reference'
@@ -129,8 +129,8 @@ def set_pipe(p, has_models, unit_type, selected_models, active_model, active_str
         p.task_args['style_fidelity'] = p.fidelity
         instance = reference.ReferencePipeline(shared.sd_model)
         pipe = instance.pipeline
-        if inits is not None:
-            log.warning('Control: ControlNet-XS does not support separate init image')
+        if has_inputs(inits):
+            log.warning('Control: Reference does not support separate init image')
     else: # run in txt2img/img2img mode
         if len(active_strength) > 0:
             p.strength = active_strength[0]
