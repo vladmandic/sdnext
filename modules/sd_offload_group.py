@@ -125,7 +125,8 @@ def apply_group_offload_component(module, module_name: str, main: bool) -> bool:
     if cfg['use_stream'] and not cfg['low_cpu_mem_usage']:
         size_gb, _params = get_module_size(module)
         pin_ok = getattr(module, 'sdnext_group_offload_pin', None)
-        if pin_ok is None: # decide once per module: a granted pin moves the weights into locked memory, so re-reading available on the next apply would see it lower by the pinned size and revoke its own grant
+        decide = pin_ok is None
+        if decide: # decide once per module: a granted pin moves the weights into locked memory, so re-reading available on the next apply would see it lower by the pinned size and revoke its own grant
             from modules import memstats
             avail_gb = memstats.ram_stats().get('avail', 0)
             reserve_gb = max(8.0, 0.25 * shared.cpu_memory) # pinned pages cannot be reclaimed or swapped, so a quarter of the machine, floored at 8 GB, stays pageable for the process and page cache
@@ -141,7 +142,8 @@ def apply_group_offload_component(module, module_name: str, main: bool) -> bool:
             cfg['record_stream'] = False
             cfg['offload_type'] = 'block_level'
             cfg['num_blocks_per_group'] = max(4, int(shared.opts.group_offload_blocks))
-            log.warning(f'Offload: type=group module={module_name} size={size_gb:.3f} limit={getattr(module, "sdnext_group_offload_pin_limit", 0):.3f} pin=denied type=block_level blocks={cfg["num_blocks_per_group"]} expect ~{size_gb:.0f} GB transferred per step')
+            if decide: # every pipeline class switch re-applies the hooks
+                log.warning(f'Offload: type=group module={module_name} size={size_gb:.3f} limit={getattr(module, "sdnext_group_offload_pin_limit", 0):.3f} pin=denied type=block_level blocks={cfg["num_blocks_per_group"]} expect ~{size_gb:.0f} GB transferred per step')
     sig = f'{devices.device}:{main}:' + ':'.join(str(v) for v in cfg.values())
     if getattr(module, 'sdnext_group_offload_sig', None) == sig:
         return False
