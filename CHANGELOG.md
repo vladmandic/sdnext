@@ -39,6 +39,7 @@
   - control: controlnet with *init image same as control* uses the unit's processed image
   - control: multiple units on controlnet-union
   - control: t2i-adapter, controlnet-xs and controllite model lists follow the loaded model type
+  - control: live preview and interrupt for sd and sdxl controlnet without an init image
 
 ## Update for 2026-10-01
 
