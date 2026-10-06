@@ -1,6 +1,17 @@
 # Change Log for SD.Next
 
-## Update for 2026-10-05
+## Update for 2026-10-06
+
+### Highlights for 2026-10-06
+
+Service release which brings several updates and fixes, but most importantly verified and locked down *torch/compute* configurations for all supported GPUs and platforms.
+For optimal experience, either perform a fresh install or delete the `venv` folder so all required libs are clean-installed.
+
+See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) below for full details.
+
+[Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
+
+### Details for 2026-10-06
 
 - **Torch**  
   update all torch versions to best known options:  
