@@ -2,6 +2,13 @@
 
 ## Update for 2026-10-06
 
+- **Edit**  
+  *edit* models work differently than more traditional *i2i/inpaint* models as they use indirect reference image(s)  
+  **hires** and **detailer** now set condition-image on edit models thus unlocking advanced workflows  
+  supported: *Qwen-Image 2.1, Qwen-Image-Edit and Edit Plus, FLUX.2, FLUX.1 Kontext, GLM-Image, JoyImage Edit Plus*  
+
+## Update for 2026-10-06
+
 ### Highlights for 2026-10-06
 
 Service release which brings several updates and fixes, but most importantly verified and locked down *torch/compute* configurations for all supported GPUs and platforms.
