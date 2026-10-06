@@ -36,6 +36,7 @@
   - triton: skipping autotune runs the first config the kernel's own pruning keeps
   - gc: aux models use correct gc method, thanks @li-lizhe
   - control: controlnet with a separate init image uses the unit's processed image
+  - control: controlnet with *init image same as control* uses the unit's processed image
 
 ## Update for 2026-10-01
 

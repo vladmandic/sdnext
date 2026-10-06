@@ -211,6 +211,7 @@ def preprocess_image(
                 p.task_args['strength'] = p.denoising_strength
             p.init_images = None
         elif input_type == 1: # Init image same as control
+            control_images = p.init_images
             p.init_images = [p.override or input_image] * max(1, len(active_model))
             if 'inpaint_image' in possible: # flex
                 p.task_args['inpaint_image'] = p.init_images[0] if isinstance(p.init_images, list) else p.init_images
@@ -218,8 +219,8 @@ def preprocess_image(
                 p.task_args['control_image'] = p.init_images[0] if isinstance(p.init_images, list) else p.init_images
                 p.task_args['width'] = p.width
                 p.task_args['height'] = p.height
-            elif 'control_image' in possible:
-                p.task_args['control_image'] = p.init_images # switch image and control_image
+            else: # img2img and inpaint classes take control_image
+                p.task_args['control_image'] = control_images # switch image and control_image
             if 'control_mode' in possible:
                 p.task_args['control_mode'] = getattr(p, 'control_mode', None)
             if 'strength' in possible:
