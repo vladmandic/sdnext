@@ -40,6 +40,7 @@ predefined_sdxl = {
 }
 
 models = {}
+models_type = None # sd_model_type the cached list was built for
 all_models = {}
 all_models.update(predefined_sd15)
 all_models.update(predefined_sdxl)
@@ -49,10 +50,11 @@ load_lock = threading.Lock()
 
 def list_models(refresh=False):
     import modules.shared
-    global models # pylint: disable=global-statement
-    if not refresh and len(models) > 0:
+    global models, models_type # pylint: disable=global-statement
+    if not refresh and len(models) > 0 and models_type == modules.shared.sd_model_type:
         return models
     models = {}
+    models_type = modules.shared.sd_model_type
     if modules.shared.sd_model_type == 'none':
         models = ['None']
     elif modules.shared.sd_model_type == 'sdxl':

@@ -20,6 +20,7 @@ predefined_sdxl = {
     'Depth': 'UmerHA/ConrolNetXS-SDXL-depth',
 }
 models = {}
+models_type = None # sd_model_type the cached list was built for
 all_models = {}
 all_models.update(predefined_sd15)
 all_models.update(predefined_sdxl)
@@ -40,11 +41,12 @@ def find_models():
 
 
 def list_models(refresh=False):
-    global models # pylint: disable=global-statement
+    global models, models_type # pylint: disable=global-statement
     import modules.shared
-    if not refresh and len(models) > 0:
+    if not refresh and len(models) > 0 and models_type == modules.shared.sd_model_type:
         return models
     models = {}
+    models_type = modules.shared.sd_model_type
     if modules.shared.sd_model_type == 'none':
         models = ['None']
     elif modules.shared.sd_model_type == 'sdxl':
