@@ -234,7 +234,7 @@ def preprocess_image(
                 p.task_args['control_image'] = p.init_images[0] if isinstance(p.init_images, list) else p.init_images
                 p.task_args['width'] = p.width
                 p.task_args['height'] = p.height
-            elif 'control_image' in possible:
+            else: # img2img and inpaint classes take control_image
                 p.task_args['control_image'] = p.init_images # switch image and control_image
             if 'control_mode' in possible:
                 p.task_args['control_mode'] = getattr(p, 'control_mode', None)
