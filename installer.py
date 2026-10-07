@@ -727,7 +727,7 @@ def install_rocm():
 
     if sys.platform == "win32" and (not args.use_zluda) and (device is not None) and (device.therock is not None) and not installed("rocm"):
         check_python(supported_minors=[11, 12, 13], reason='ROCm-Windows: python==3.11/3.12/3.13 required')
-        install("rocm[devel]==10.0.0 --index-url https://stable.repo.amd.com/rocm/whl-next/")
+        install("rocm[devel,libraries]==10.0.0 --index-url https://stable.repo.amd.com/rocm/whl-next/")
         rocm.refresh()
 
     msg = f'ROCm: version={rocm.version}'
