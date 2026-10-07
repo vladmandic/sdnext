@@ -11,6 +11,12 @@
     "preview": "gemini-3.1-flash-image.jpg",
     "date": "2026 February"
   },
+  "Nano Banana 2.1": {
+    "path": "gemini-nano-banana-2.1",
+    "desc": "Nano Banana 2.1 is based on Gemini 3.6 Flash. The knowledge cutoff date for Gemini 3.6 Flash is March 2026",
+    "preview": "gemini-nano-banana-2.1.jpg",
+    "date": "2026 October"
+  },
   "Nano Banana Pro": {
     "path": "gemini-3-pro-image",
     "desc": "Nano Banana Pro is a sophisticated reasoning-driven engine for professional-grade image editing and generation, offering studio-quality precision and advanced creative control. Nano Banana Pro is best for complex graphic design, high-fidelity product mockups, and factual data visualizations that require accurate text rendering and real-world grounding via Google Search. (Knowledge cutoff January 2025)",
