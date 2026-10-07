@@ -160,7 +160,7 @@ def unapply(pipe, unload: bool = False): # pylint: disable=arguments-differ
     stripped = group_offload_strip(pipe)
     try:
         if hasattr(pipe, 'set_ip_adapter_scale'):
-            pipe.set_ip_adapter_scale(0)
+            pipe.set_ip_adapter_scale(0.0 if len(adapters_loaded) == 1 else [0.0] * len(adapters_loaded)) # a scalar is rejected once several adapters are loaded
             if unload:
                 log.debug('IP adapter unload')
                 pipe.unload_ip_adapter()
@@ -170,12 +170,12 @@ def unapply(pipe, unload: bool = False): # pylint: disable=arguments-differ
             module = pipe.transformer
         else:
             module = None
-        if module is not None and hasattr(module, 'config') and module.config.encoder_hid_dim_type == 'ip_image_proj':
-            pipe.unet.encoder_hid_proj = None
-            pipe.config.encoder_hid_dim_type = None
-            pipe.unet.set_default_attn_processor()
-    except Exception:
-        pass
+        if module is not None and getattr(getattr(module, 'config', None), 'encoder_hid_dim_type', None) == 'ip_image_proj':
+            module.encoder_hid_proj = None
+            module.config.encoder_hid_dim_type = None # the forward demands image_embeds while this is set
+            module.set_default_attn_processor()
+    except Exception as e:
+        log.error(f'IP adapter unapply: {e}')
     if stripped:
         sd_models.set_diffuser_offload(pipe, op='model')
 

@@ -62,6 +62,7 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
   - control: live preview and interrupt for sd and sdxl controlnet without an init image
   - offload: group offload logs a denied pin once per component
   - ipadapter: loading and unloading adapters under group offload
+  - ipadapter: jobs without an adapter after an adapter job
 
 ## Update for 2026-10-01
 
