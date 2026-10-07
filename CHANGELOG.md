@@ -1,7 +1,9 @@
 # Change Log for SD.Next
 
-## Update for 2026-10-06
+## Update for 2026-10-07
 
+- **Models**
+  [Google Nano Banana 2.1](https://deepmind.google/models/model-cards/nano-banana-2-1/
 - **Edit**  
   *edit* models work differently than more traditional *i2i/inpaint* models as they use indirect reference image(s)  
   **hires** and **detailer** now set condition-image on edit models thus unlocking advanced workflows  
