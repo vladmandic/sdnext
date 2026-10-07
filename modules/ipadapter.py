@@ -147,9 +147,17 @@ def crop_images(images, crops):
     return images
 
 
+def group_offload_strip(pipe) -> bool:
+    # group offload hooks carry a parameter map from apply time; remove them before the denoiser gains or loses parameters
+    from modules.sd_offload_group import remove_group_offload_component
+    module = pipe.unet if getattr(pipe, 'unet', None) is not None else getattr(pipe, 'transformer', None)
+    return module is not None and remove_group_offload_component(module)
+
+
 def unapply(pipe, unload: bool = False): # pylint: disable=arguments-differ
     if len(adapters_loaded) == 0:
         return
+    stripped = group_offload_strip(pipe)
     try:
         if hasattr(pipe, 'set_ip_adapter_scale'):
             pipe.set_ip_adapter_scale(0)
@@ -168,6 +176,8 @@ def unapply(pipe, unload: bool = False): # pylint: disable=arguments-differ
             pipe.unet.set_default_attn_processor()
     except Exception:
         pass
+    if stripped:
+        sd_models.set_diffuser_offload(pipe, op='model')
 
 
 def load_image_encoder(pipe: DiffusionPipeline, adapter_names: list[str]):
@@ -356,6 +366,7 @@ def apply(pipe, p: processing.StableDiffusionProcessing, adapter_names=None, ada
         return False
 
     # main code
+    stripped = False
     try:
         t0 = time.time()
         repos = [adapter.get('repo', None) for adapter in adapters if adapter.get('repo', 'none') != 'none']
@@ -373,6 +384,7 @@ def apply(pipe, p: processing.StableDiffusionProcessing, adapter_names=None, ada
             kwargs['revision'] = revisions[0]
         if shared.opts.offline_mode:
             kwargs["local_files_only"] = True
+        stripped = group_offload_strip(pipe)
         pipe.load_ip_adapter(repos, **kwargs)
         adapters_loaded = names
         if hasattr(p, 'ip_adapter_layers'):
@@ -405,4 +417,7 @@ def apply(pipe, p: processing.StableDiffusionProcessing, adapter_names=None, ada
     except Exception as e:
         log.error(f'IP adapter load: adapters={adapter_names} repo={repos} folders={subfolders} names={names} {e}')
         errors.display(e, 'IP adapter: type=adapter')
+    finally:
+        if stripped:
+            sd_models.set_diffuser_offload(pipe, op='model')
     return True

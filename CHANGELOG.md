@@ -61,6 +61,7 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
   - control: t2i-adapter, controlnet-xs and controllite model lists follow the loaded model type
   - control: live preview and interrupt for sd and sdxl controlnet without an init image
   - offload: group offload logs a denied pin once per component
+  - ipadapter: loading and unloading adapters under group offload
 
 ## Update for 2026-10-01
 
