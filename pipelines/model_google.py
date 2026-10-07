@@ -1,9 +1,13 @@
 import io
 import os
 import time
+import re
 from PIL import Image
 from modules.logger import log
 
+def is_gemini3_plus(model_name: str) -> bool:
+    m = re.search(r'gemini-(\d+)', model_name)
+    return (m is not None and int(m.group(1)) >= 3) or 'nano-banana-2' in model_name
 
 image_size_buckets = {
     '1K': 1024*1024,
@@ -42,7 +46,7 @@ class GoogleNanoBananaPipeline():
     def __init__(self, model_name: str):
         self.skip_processing = True
         self.model = model_name
-        self.max_condition_images = 14 if 'gemini-3' in model_name else 10 # gemini 3 mixes up to 14 reference images, older models have no documented limit
+        self.max_condition_images = 14 if is_gemini3_plus(model_name) else 10 # gemini 3 mixes up to 14 reference images, older models have no documented limit
         self.client = None
         self.config = None
         google_requirements()
@@ -120,7 +124,7 @@ class GoogleNanoBananaPipeline():
             self.client = genai.Client(**args)
 
         image_size, aspect_ratio = get_size_buckets(width, height)
-        if 'gemini-3' in self.model:
+        if is_gemini3_plus(self.model):
             image_config=genai.types.ImageConfig(aspect_ratio=aspect_ratio, image_size=image_size)
         else:
             image_config=genai.types.ImageConfig(aspect_ratio=aspect_ratio)
