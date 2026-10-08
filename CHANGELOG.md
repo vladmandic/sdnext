@@ -1,11 +1,18 @@
 # Change Log for SD.Next
 
-## Update for 2026-10-06
+## Update for 2026-10-08
 
-- **Edit**  
+- **Models**
+  [Google Nano Banana 2.1](https://deepmind.google/models/model-cards/nano-banana-2-1/
+- **Edit Models**  
   *edit* models work differently than more traditional *i2i/inpaint* models as they use indirect reference image(s)  
   **hires** and **detailer** now set condition-image on edit models thus unlocking advanced workflows  
   supported: *Qwen-Image 2.1, Qwen-Image-Edit and Edit Plus, FLUX.2, FLUX.1 Kontext, GLM-Image, JoyImage Edit Plus*  
+- **Fixes**
+  - offload: group offload logs a denied pin once per component
+  - ipadapter: loading and unloading adapters under group offload
+  - ipadapter: jobs without an adapter after an adapter job
+  - lora: reset loaded networks if refiner prompt is used
 
 ## Update for 2026-10-06
 

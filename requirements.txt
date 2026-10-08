@@ -32,7 +32,7 @@ tqdm==4.70.1
 accelerate==1.15.0
 einops==0.8.2
 huggingface_hub==1.33.0
-hf_xet==1.6.0
+hf_xet==1.7.0
 pandas==2.3.1
 protobuf==7.36.1
 pytorch_lightning==2.6.6
