@@ -212,7 +212,7 @@ class Api:
             self.add_auth(host=request.client.host, user=credentials.username if credentials else None, method="none")
             return True
         if (credentials is not None) and (credentials.username in self.credentials):
-            if compare_digest(credentials.password, self.credentials[credentials.username]): # client user + encoded password
+            if compare_digest(credentials.password.encode('utf-8'), self.credentials[credentials.username].encode('utf-8')): # client user + encoded password; str compare_digest rejects non-ascii
                 self.add_auth(host=request.client.host, user=credentials.username if credentials else None, method="digest")
                 return True
             if hasattr(self.app, 'tokens') and (self.app.tokens is not None): # client sends token as password
