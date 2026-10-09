@@ -324,9 +324,7 @@ def sampler_ui_defaults(name):
         return values
 
     defaults = dict(sd_samplers_diffusers.config.get('All', {}))
-    for key, value in model_defaults.items():
-        if key in defaults:
-            defaults[key] = value
+    defaults.update(model_defaults)
     defaults.update(sd_samplers_diffusers.config.get(name, {}))
     defaults.update(sampler.options)
     values['schedulers_timesteps'] = saved_timesteps or str(defaults.get('num_train_timesteps', default_timesteps))
@@ -523,6 +521,7 @@ def create_sampler_options(tabname):
         values = sampler_ui_defaults(name)
         if values is None:
             return [gr.update() for _ in ui_fields]
+        values['schedulers_sigma'] = 'default'
         shared.opts.data.update({key: value for key, value in values.items() if key != 'schedulers_timesteps'})
         save_with_debounce()
         values['sampler_presets'] = 'None'
@@ -538,7 +537,7 @@ def create_sampler_options(tabname):
 
     sampler_dropdown = _sampler_dropdowns.get(tabname)
     if sampler_dropdown is not None:
-        sampler_dropdown.input(fn=set_sampler_defaults, inputs=[sampler_dropdown], outputs=[field[1] for field in ui_fields])
+        sampler_dropdown.change(fn=set_sampler_defaults, inputs=[sampler_dropdown], outputs=[field[1] for field in ui_fields])
 
     sampler_sigma.input(fn=set_sampler_sigma, inputs=[sampler_sigma], outputs=[])
     sampler_spacing.input(fn=set_sampler_spacing, inputs=[sampler_spacing], outputs=[])
