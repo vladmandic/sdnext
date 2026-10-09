@@ -16,6 +16,7 @@
   - installer: server restart when the venv is not activated
   - api: error log omits the request query
   - api: errors logged on regular endpoints, not on quiet ones
+  - server: `--auth` values masked in the startup log and `/sdapi/v1/cmd-flags`
 
 ## Update for 2026-10-06
 

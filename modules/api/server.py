@@ -107,7 +107,8 @@ def post_restart(background_tasks: BackgroundTasks):
     return Response(status_code=204)
 
 def get_cmd_flags():
-    return vars(shared.cmd_opts)
+    from installer import mask_dict
+    return mask_dict(vars(shared.cmd_opts))
 
 def get_history(req: models.ReqHistory = Depends()):
     if req.id is not None and ((isinstance(req.id, str) and len(req.id) > 0) or isinstance(req.id, int)):
