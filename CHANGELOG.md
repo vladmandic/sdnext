@@ -14,6 +14,7 @@
   - ipadapter: jobs without an adapter after an adapter job
   - lora: reset loaded networks if refiner prompt is used
   - installer: server restart when the venv is not activated
+  - api: error log omits the request query
 
 ## Update for 2026-10-06
 
