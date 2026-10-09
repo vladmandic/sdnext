@@ -348,7 +348,7 @@ def main():
             if uv is not None and uv.wants_restart:
                 clean_server()
                 log.info('Server restarting...')
-                os.execv(sys.executable, ['python'] + sys.argv)
+                installer.restart(sys.argv)
             else:
                 log.info('Exiting...')
                 from modules import errors

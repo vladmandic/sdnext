@@ -436,7 +436,8 @@ def branch(folder=None):
 def restart(argv: list | None = None):
     argv = argv if isinstance(argv, list) else sys.argv
     log.critical('Restarting process...')
-    os.execv(sys.executable, ['python'] + argv)
+    executable = 'python' if sys.platform == 'win32' else sys.executable # posix python locates its venv from argv[0]; windows execv does not quote a path with spaces
+    os.execv(sys.executable, [executable] + argv)
 
 
 # update git repository

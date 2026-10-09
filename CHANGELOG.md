@@ -13,6 +13,7 @@
   - ipadapter: loading and unloading adapters under group offload
   - ipadapter: jobs without an adapter after an adapter job
   - lora: reset loaded networks if refiner prompt is used
+  - installer: server restart when the venv is not activated
 
 ## Update for 2026-10-06
 
