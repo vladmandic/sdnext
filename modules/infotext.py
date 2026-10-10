@@ -14,7 +14,7 @@ re_lora = re.compile("<lora:([^:]+):")
 
 
 def quote(text):
-    if ',' not in str(text) and '\n' not in str(text) and ':' not in str(text):
+    if ',' not in str(text) and '\n' not in str(text) and ':' not in str(text) and not str(text).lstrip().startswith('"'): # parse() reads a leading quote as an opening one
         return text
     return json.dumps(text, ensure_ascii=False)
 

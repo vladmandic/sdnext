@@ -22,6 +22,7 @@
   - infotext: quoted values with escaped quotes, and a parser stall on unterminated ones
   - infotext: parser stall on long runs of words or spaces without a colon
   - infotext: parse error on values with superscript or circled digits
+  - infotext: a value starting with a double quote no longer swallows the next parameter
 
 ## Update for 2026-10-06
 
