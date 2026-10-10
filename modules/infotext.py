@@ -75,7 +75,7 @@ def parse(infotext):
     for key, val in params.copy().items():
         val = unquote(val).strip(" ,\n").replace('\\\n', '')
         size = re_size.match(val)
-        if val.replace('.', '', 1).isdigit():
+        if val.replace('.', '', 1).isdecimal(): # isdigit also accepts superscripts that int() rejects
             params[key] = float(val) if '.' in val else int(val)
         elif val == "True":
             params[key] = True
