@@ -5,7 +5,7 @@ import unicodedata
 import uuid
 import string
 import hashlib
-import datetime
+import datetime as dt
 from pathlib import Path
 from modules import shared, errors
 from modules.logger import log
@@ -32,7 +32,7 @@ class FilenameGenerator:
         'iter_number': lambda self: self.iter_number,
         'num': lambda self: NOTHING if self.p.n_iter == 1 and self.p.batch_size == 1 else self.p.iteration * self.p.batch_size + self.p.batch_index + 1,
         'generation_number': lambda self: NOTHING if self.p.n_iter == 1 and self.p.batch_size == 1 else self.p.iteration * self.p.batch_size + self.p.batch_index + 1,
-        'date': lambda self: datetime.datetime.now().strftime('%Y-%m-%d'),
+        'date': lambda self: dt.datetime.now().strftime('%Y-%m-%d'),
         'datetime': lambda self, *args: self.datetime(*args),  # accepts formats: [datetime], [datetime<Format>], [datetime<Format><Time Zone>]
         'hasprompt': lambda self, *args: self.hasprompt(*args),  # accepts formats:[hasprompt<prompt1|default><prompt2>..]
         'hash': lambda self: self.image_hash() if self.image is not None else '',
@@ -174,7 +174,7 @@ class FilenameGenerator:
 
     def datetime(self, *args):
         import pytz
-        time_datetime = datetime.datetime.now()
+        time_datetime = dt.datetime.now()
         time_format = args[0] if len(args) > 0 and args[0] != "" else self.default_time_format
         try:
             time_zone = pytz.timezone(args[1]) if len(args) > 1 else None
