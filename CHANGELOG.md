@@ -13,6 +13,12 @@
   - ipadapter: loading and unloading adapters under group offload
   - ipadapter: jobs without an adapter after an adapter job
   - lora: reset loaded networks if refiner prompt is used
+  - installer: server restart when the venv is not activated
+  - api: error log omits the request query
+  - api: errors logged on regular endpoints, not on quiet ones
+  - server: `--auth` values masked in the startup log and `/sdapi/v1/cmd-flags`
+  - api: `--cors-origins` entries separated by a comma and a space
+  - api: auth check for users with a non-ascii password
 
 ## Update for 2026-10-06
 

@@ -1,7 +1,7 @@
 import os
 import sys
 import queue
-import datetime
+import datetime as dt
 import threading
 import piexif.helper
 from PIL import Image, PngImagePlugin
@@ -133,7 +133,7 @@ def atomically_save_image():
             if not isinstance(entries, list):
                 entries = []
             idx = len(entries)
-            entry = { 'id': idx, 'filename': filename, 'time': datetime.datetime.now().isoformat(), 'info': exifinfo }
+            entry = { 'id': idx, 'filename': filename, 'time': dt.datetime.now().isoformat(), 'info': exifinfo }
             entries.append(entry)
             writefile(entries, fn, mode='w', silent=True)
             log.info(f'Save: json="{fn}" records={len(entries)}')

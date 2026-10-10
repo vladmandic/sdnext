@@ -409,13 +409,13 @@ def start_ui():
     if len(gradio_auth_creds) > 0:
         log.info(f'Authentication enabled: users={len(list(gradio_auth_creds))}')
     auth_pairs = []
-    for cred in gradio_auth_creds:
+    for i, cred in enumerate(gradio_auth_creds):
         if ':' not in cred:
-            log.warning(f'Ignoring malformed auth entry: "{cred}"')
+            log.warning(f'Ignoring malformed auth entry: index={i} no separator')
             continue
         user, password = cred.split(':', 1)
         if len(user) == 0 or len(password) == 0:
-            log.warning(f'Ignoring malformed auth entry: "{cred}"')
+            log.warning(f'Ignoring malformed auth entry: index={i} user="{user}"')
             continue
         auth_pairs.append((user, password))
 

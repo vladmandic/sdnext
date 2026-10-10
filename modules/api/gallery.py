@@ -156,7 +156,7 @@ def register_api(api): # register api
                 username, password = payload.split(':', 1)
             except Exception:
                 return False
-            if username in api.credentials and compare_digest(password, api.credentials[username]):
+            if username in api.credentials and compare_digest(password.encode('utf-8'), api.credentials[username].encode('utf-8')):
                 return True
             if hasattr(api.app, 'tokens') and (api.app.tokens is not None) and (password in api.app.tokens):
                 return True
