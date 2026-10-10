@@ -19,6 +19,7 @@
   - server: `--auth` values masked in the startup log and `/sdapi/v1/cmd-flags`
   - api: `--cors-origins` entries separated by a comma and a space
   - api: auth check for users with a non-ascii password
+  - infotext: quoted values with escaped quotes, and a parser stall on unterminated ones
 
 ## Update for 2026-10-06
 

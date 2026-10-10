@@ -9,7 +9,7 @@ if os.environ.get('SD_PASTE_DEBUG', None) is not None:
 else:
     debug = lambda *args, **kwargs: None # pylint: disable=unnecessary-lambda-assignment
 re_size = re.compile(r"^(\d+)x(\d+)$") # int x int
-re_param = re.compile(r'\s*([\w ]+):\s*("(?:\\"[^,]|\\"|\\|[^\"])+"|[^,]*)(?:,|$)') # multi-word: value
+re_param = re.compile(r'\s*([\w ]+):\s*("(?:[^"\\]|\\.)+"|[^,]*)(?:,|$)', re.DOTALL) # multi-word: value; quoted value alternatives must not overlap or backtracking goes exponential
 re_lora = re.compile("<lora:([^:]+):")
 
 
