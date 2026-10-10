@@ -20,6 +20,7 @@
   - api: `--cors-origins` entries separated by a comma and a space
   - api: auth check for users with a non-ascii password
   - infotext: quoted values with escaped quotes, and a parser stall on unterminated ones
+  - infotext: parser stall on long runs of words or spaces without a colon
 
 ## Update for 2026-10-06
 
