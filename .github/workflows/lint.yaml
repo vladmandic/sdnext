@@ -16,6 +16,8 @@ jobs:
     steps:
       - name: checkout-code
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: install-uv
         run: curl -LsSf https://astral.sh/uv/install.sh | sh
