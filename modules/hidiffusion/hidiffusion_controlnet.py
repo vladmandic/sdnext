@@ -5,7 +5,7 @@ from diffusers.utils import USE_PEFT_BACKEND, scale_lora_layers, unscale_lora_la
 from diffusers.pipelines.stable_diffusion_xl.pipeline_output import StableDiffusionXLPipelineOutput
 from diffusers.image_processor import PipelineImageInput
 from diffusers.utils.torch_utils import is_compiled_module
-from diffusers.pipelines.controlnet.multicontrolnet import MultiControlNetModel
+from diffusers.models.controlnets.multicontrolnet import MultiControlNetModel
 from diffusers.models import ControlNetModel
 from diffusers.models.unets.unet_2d_condition import UNet2DConditionOutput
 from modules import devices
