@@ -39,6 +39,7 @@
   - api: folders allowed for one file request no longer stay allowed for later requests
   - api: rate limit and log costs match the exact path or the route template, not other routes' prefixes
   - video: no error logged after framepack upscale or seedvr interpolation
+  - framepack: a run after an interrupted job no longer ends at once without output
 
 ## Update for 2026-10-06
 
