@@ -3,7 +3,8 @@
 ## Update for 2026-10-11
 
 - **Models**  
-  - [Google Nano Banana 2.1](https://deepmind.google/models/model-cards/nano-banana-2-1/
+  - [Google Nano Banana 2.1](https://deepmind.google/models/model-cards/nano-banana-2-1)
+  - [Qwen Image 2.1 Turbo](https://huggingface.co/Qwen/Qwen-Image-2.1-Turbo) in *base* and *sdnq-uint4* variants
 - **Scheduler**  
   new native *task scheduler* and *queue management*  
   see [scheduler documentation](https://vladmandic.github.io/sdnext-docs/Scheduler/)  
