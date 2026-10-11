@@ -352,7 +352,8 @@ def save_video(
             pixels = pixels.permute(1, 2, 0, 3, 4)
             pixels = pixels * 2.0 - 1.0
             timer.process.ts('interpolate', t_interpolate)
-            p.video_interpolated = True
+            if p is not None:
+                p.video_interpolated = True
     except Exception as e:
         log.error(f'Video interpolate: {e}')
         errors.display(e, 'video')
@@ -362,7 +363,8 @@ def save_video(
             t_upscale = time.time()
             pixels = upscale_video(pixels, scale=upscale_scale, upscaler_name=upscale_upscaler)
             timer.process.ts('upscale', t_upscale)
-            p.video_upscaled = True
+            if p is not None:
+                p.video_upscaled = True
     except Exception as e:
         log.error(f'Video upscale: {e}')
         errors.display(e, 'video')
