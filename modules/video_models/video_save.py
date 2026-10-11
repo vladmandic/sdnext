@@ -192,6 +192,16 @@ def parse_options(options):
     return parsed_options
 
 
+extra_option_keys = {'tune', 'maxrate', 'minrate', 'bufsize', 'g', 'bf', 'cq', 'lossless'} # rate and quality keys beyond the codec defaults
+
+
+def rejected_options(options) -> list[str]:
+    # options reach the encoder as-is, and keys such as stats or x264-params write files at any path
+    from modules.video_models.video_codecs import codecs_config
+    allowed = extra_option_keys | {key for codec in codecs_config.values() for key in parse_options(codec['options'])}
+    return sorted(set(parse_options(options)) - allowed)
+
+
 def atomic_save_video(
     filename: str,
     tensor: torch.Tensor,
@@ -299,6 +309,10 @@ def save_video(
     output_video = None
     if not re.fullmatch(r'[A-Za-z0-9]+', mp4_ext or ''): # the extension is appended to the output path
         log.error(f'Video: ext="{mp4_ext}" invalid')
+        return 0, output_video, None
+    rejected = rejected_options(mp4_opt)
+    if rejected:
+        log.error(f'Video: options={rejected} not allowed')
         return 0, output_video, None
 
     if binary is not None:
