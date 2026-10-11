@@ -382,6 +382,14 @@ function submit_video_wrapper(...args) {
   if (btn) btn.click();
 }
 
+function submit_video_schedule_wrapper(...args) {
+  const currentTabElement = gradioApp().getElementById('video_current_tab')?.querySelector('input, textarea') as HTMLInputElement | HTMLTextAreaElement | null;
+  const currentTab = currentTabElement?.value || 'video';
+  const btn = gradioApp().getElementById(`${currentTab}_schedule_btn`);
+  log('submitVideoSchedule', { type: currentTab, found: !!btn });
+  if (btn) btn.click();
+}
+
 function submit_postprocessing(...args) {
   const id = randomId();
   log('SubmitProcess', id);
@@ -858,6 +866,7 @@ window.submit_postprocessing = submit_postprocessing;
 window.submit = submit_txt2img; // compatibility alias
 window.submit_txt2img = submit_txt2img;
 window.submit_video = submit_video;
+window.submit_video_schedule_wrapper = submit_video_schedule_wrapper;
 window.submit_video_wrapper = submit_video_wrapper;
 window.switch_to_txt2img = switch_to_txt2img;
 window.switch_to_img2img_tab = switch_to_img2img_tab;

@@ -3,8 +3,9 @@
 import datetime
 import json
 from typing import Any, Literal
+import mimetypes
 
-from fastapi import HTTPException, Query, Response
+from fastapi import File, Form, HTTPException, Query, Response, UploadFile
 from pydantic import BaseModel, Field
 
 from modules import scheduler
@@ -14,7 +15,7 @@ TaskStatus = Literal['scheduled', 'running', 'paused', 'completed', 'failed']
 
 
 class ParametersUpdate(BaseModel):
-    parameters: dict[str, Any] = Field(description='Named Control generation parameters to update')
+    parameters: dict[str, Any] = Field(description='Named generation parameters to update')
 
 
 class RescheduleRequest(BaseModel):
@@ -74,6 +75,33 @@ def _has_image_reference(value, image_index):
     return False
 
 
+def _has_media_reference(value, media_index):
+    if isinstance(value, list):
+        return any(_has_media_reference(item, media_index) for item in value)
+    if isinstance(value, dict):
+        if value.get('__sd_scheduler_type__') in ('image', 'file', 'blob'):
+            return value.get('id') == media_index
+        return any(_has_media_reference(item, media_index) for item in value.values())
+    return False
+
+
+def _media_type_for_reference(value, image_index):
+    if isinstance(value, list):
+        for item in value:
+            media_type = _media_type_for_reference(item, image_index)
+            if media_type:
+                return media_type
+    elif isinstance(value, dict):
+        marker = value.get('__sd_scheduler_type__')
+        if marker in ('image', 'file', 'blob') and value.get('id') == image_index:
+            return value.get('media_type') or ('image/png' if marker == 'image' else 'application/octet-stream')
+        for item in value.values():
+            media_type = _media_type_for_reference(item, image_index)
+            if media_type:
+                return media_type
+    return None
+
+
 def get_task_image(task_id: int, image_index: int):
     task = scheduler.get_task(task_id)
     if task is None or image_index < 0 or not _has_image_reference(task['parameters'], image_index):
@@ -82,6 +110,17 @@ def get_task_image(task_id: int, image_index: int):
     if image is None:
         raise HTTPException(status_code=404, detail='Scheduler input image not found')
     return Response(content=image, media_type='image/png')
+
+
+def get_task_media(task_id: int, media_index: int):
+    task = scheduler.get_task(task_id)
+    if task is None or media_index < 0 or not _has_media_reference(task['parameters'], media_index):
+        raise HTTPException(status_code=404, detail='Scheduler input media not found')
+    media = scheduler.get_task_image(task_id, media_index)
+    if media is None:
+        raise HTTPException(status_code=404, detail='Scheduler input media not found')
+    media_type = _media_type_for_reference(task['parameters'], media_index)
+    return Response(content=media, media_type=media_type or mimetypes.guess_type('media')[0] or 'application/octet-stream')
 
 
 def get_scheduler_status():
@@ -100,6 +139,29 @@ def update_task_parameters(task_id: int, request: ParametersUpdate):
     if scheduler.get_task(task_id) is None:
         raise HTTPException(status_code=404, detail=f'Scheduler task {task_id} not found')
     if not scheduler.update_task_parameters(task_id, request.parameters):
+        raise HTTPException(status_code=409, detail=f'Scheduler task {task_id} parameters cannot be updated')
+    return scheduler.get_task(task_id)
+
+
+async def update_task_parameters_media(
+    task_id: int,
+    parameters: str = Form(...),
+    media_ids: str = Form(...),
+    media: list[UploadFile] = File(...),
+):
+    try:
+        parameter_updates = json.loads(parameters)
+        media_indexes = json.loads(media_ids)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=422, detail=f'Invalid scheduler update JSON: {exc}') from exc
+    if not isinstance(parameter_updates, dict) or not isinstance(media_indexes, list) or len(media_indexes) != len(media):
+        raise HTTPException(status_code=422, detail='Parameters and media IDs must be valid matching collections')
+    if any(type(index) is not int or index < 0 for index in media_indexes) or len(set(media_indexes)) != len(media_indexes):
+        raise HTTPException(status_code=422, detail='Media IDs must be unique non-negative integers')
+    if scheduler.get_task(task_id) is None:
+        raise HTTPException(status_code=404, detail=f'Scheduler task {task_id} not found')
+    replacements = {index: await upload.read() for index, upload in zip(media_indexes, media)}
+    if not scheduler.update_task_parameters_with_media(task_id, parameter_updates, media_replacements=replacements):
         raise HTTPException(status_code=409, detail=f'Scheduler task {task_id} parameters cannot be updated')
     return scheduler.get_task(task_id)
 
@@ -177,9 +239,11 @@ def register_api(api):
     api.add_api_route('/sdapi/v1/scheduler/tasks', list_tasks, methods=['GET'], response_model=list[dict], tags=['Scheduler'])
     api.add_api_route('/sdapi/v1/scheduler/tasks/{task_id}', get_task, methods=['GET'], response_model=dict, tags=['Scheduler'])
     api.add_api_route('/sdapi/v1/scheduler/tasks/{task_id}/images/{image_index}', get_task_image, methods=['GET'], tags=['Scheduler'])
+    api.add_api_route('/sdapi/v1/scheduler/tasks/{task_id}/media/{media_index}', get_task_media, methods=['GET'], tags=['Scheduler'])
     api.add_api_route('/sdapi/v1/scheduler/tasks/{task_id}', delete_task, methods=['DELETE'], response_model=dict, tags=['Scheduler'])
     api.add_api_route('/sdapi/v1/scheduler/tasks/{task_id}/execute', execute_task, methods=['POST'], status_code=202, response_model=dict, tags=['Scheduler'])
     api.add_api_route('/sdapi/v1/scheduler/tasks/{task_id}/parameters', update_task_parameters, methods=['PATCH'], response_model=dict, tags=['Scheduler'])
+    api.add_api_route('/sdapi/v1/scheduler/tasks/{task_id}/parameters/media', update_task_parameters_media, methods=['PATCH'], response_model=dict, tags=['Scheduler'])
     api.add_api_route('/sdapi/v1/scheduler/tasks/{task_id}/pause', pause_task, methods=['POST'], response_model=dict, tags=['Scheduler'])
     api.add_api_route('/sdapi/v1/scheduler/tasks/{task_id}/resume', resume_task, methods=['POST'], response_model=dict, tags=['Scheduler'])
     api.add_api_route('/sdapi/v1/scheduler/tasks/{task_id}/reschedule', reschedule_task, methods=['POST'], response_model=dict, tags=['Scheduler'])

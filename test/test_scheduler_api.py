@@ -1,7 +1,10 @@
+import asyncio
+import io
 import unittest
 from unittest.mock import patch
 
 from fastapi import HTTPException
+from starlette.datastructures import UploadFile
 
 from modules.api import scheduler as scheduler_api
 
@@ -20,7 +23,7 @@ class TestSchedulerApiRegistration(unittest.TestCase):
         scheduler_api.register_api(api)
         registered = {(path, method) for path, _endpoint, options in api.routes for method in options['methods']}
 
-        self.assertEqual(len(api.routes), 15)
+        self.assertEqual(len(api.routes), 17)
         self.assertTrue(all(path.startswith('/sdapi/v1/scheduler') for path, _endpoint, _options in api.routes))
         self.assertIn(('/sdapi/v1/scheduler', 'GET'), registered)
         self.assertIn(('/sdapi/v1/scheduler/tasks', 'GET'), registered)
@@ -28,6 +31,8 @@ class TestSchedulerApiRegistration(unittest.TestCase):
         self.assertIn(('/sdapi/v1/scheduler/tasks/{task_id}/move', 'POST'), registered)
         self.assertIn(('/sdapi/v1/scheduler/state', 'POST'), registered)
         self.assertIn(('/sdapi/v1/scheduler/tasks/{task_id}/images/{image_index}', 'GET'), registered)
+        self.assertIn(('/sdapi/v1/scheduler/tasks/{task_id}/media/{media_index}', 'GET'), registered)
+        self.assertIn(('/sdapi/v1/scheduler/tasks/{task_id}/parameters/media', 'PATCH'), registered)
         self.assertFalse(any(path == '/sdapi/v1/scheduler/tasks' and method == 'POST' for path, method in registered))
         self.assertFalse(any(path.endswith('/results') for path, _endpoint, _options in api.routes))
 
@@ -52,6 +57,30 @@ class TestSchedulerApiRegistration(unittest.TestCase):
             with self.assertRaises(HTTPException) as caught:
                 scheduler_api.get_task_image(5, -1)
             self.assertEqual(caught.exception.status_code, 404)
+
+    def test_input_media_endpoint_uses_stored_mime_type(self):
+        task = {
+            'parameters': {
+                'video': {
+                    'arguments': {
+                        'condition_video': {'__sd_scheduler_type__': 'file', 'id': 2, 'media_type': 'video/mp4'},
+                    },
+                },
+            },
+        }
+        with patch.object(scheduler_api.scheduler, 'get_task', return_value=task), patch.object(scheduler_api.scheduler, 'get_task_image', return_value=b'mp4-bytes'):
+            response = scheduler_api.get_task_media(5, 2)
+        self.assertEqual(response.body, b'mp4-bytes')
+        self.assertEqual(response.media_type, 'video/mp4')
+
+    def test_multipart_parameter_update_forwards_media_replacements(self):
+        task = {'id': 5}
+        upload = UploadFile(filename='replacement.mp4', file=io.BytesIO(b'video-bytes'))
+        with patch.object(scheduler_api.scheduler, 'get_task', return_value=task), \
+                patch.object(scheduler_api.scheduler, 'update_task_parameters_with_media', return_value=True) as update:
+            result = asyncio.run(scheduler_api.update_task_parameters_media(5, '{"prompt":"edited"}', '[3]', [upload]))
+        self.assertEqual(result, task)
+        update.assert_called_once_with(5, {'prompt': 'edited'}, media_replacements={3: b'video-bytes'})
 
     def test_execute_endpoint_requests_immediate_task_execution(self):
         with patch.object(scheduler_api.scheduler, 'get_task', return_value={'id': 12}), \

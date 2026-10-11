@@ -64,6 +64,7 @@ declare global {
     submit_postprocessing?: (...args: unknown[]) => unknown[]; // ui/ui.ts
     submit_txt2img?: (...args: unknown[]) => unknown[]; // ui/ui.ts
     submit_video?: (...args: unknown[]) => unknown[]; // ui/ui.ts
+    submit_video_schedule_wrapper?: (...args: unknown[]) => void; // ui/ui.ts
     submit_video_wrapper?: (...args: unknown[]) => void; // ui/ui.ts
     currentImageResolutionimg2img?: (...args: unknown[]) => unknown[]; // ui/ui.ts
     currentImageResolutioncontrol?: (...args: unknown[]) => unknown[]; // ui/ui.ts

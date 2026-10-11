@@ -146,6 +146,13 @@ class TestSchedulerDatabase(unittest.TestCase):
         self.assertEqual(task['process_stats'], {})
         self.assertEqual(task['infotexts'], [])
 
+    def test_task_mode_is_persisted_and_validated(self):
+        task_id = scheduler_db.create_task({'video': {'surface': 'video'}}, mode='video', db_path=self.db_path)
+
+        self.assertEqual(scheduler_db.get_task(task_id, db_path=self.db_path)['mode'], 'video')
+        with self.assertRaisesRegex(ValueError, 'Invalid scheduler task mode'):
+            scheduler_db.create_task({}, mode='invalid', db_path=self.db_path)
+
     def test_diagnostics_reports_database_health_and_task_statistics(self):
         scheduler_db.create_task({'prompt': 'test'}, [b'image-bytes'], db_path=self.db_path)
 
@@ -224,6 +231,7 @@ class TestSchedulerDatabase(unittest.TestCase):
         tasks = scheduler_db.list_tasks(db_path=self.db_path)
         self.assertEqual([task['id'] for task in tasks], [1, 2])
         self.assertEqual([task['queue_position'] for task in tasks], [0, 1])
+        self.assertEqual([task['mode'] for task in tasks], ['control', 'control'])
         self.assertEqual([task['scheduled_by_user'] for task in tasks], [1, 0])
         self.assertTrue(all('execute_now' not in task for task in tasks))
 

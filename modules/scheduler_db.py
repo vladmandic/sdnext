@@ -18,6 +18,7 @@ _initialized_paths = set()
 _initialization_failures = {}
 _init_lock = threading.Lock()
 _configured_db_path = None
+_task_modes = {'txt2img', 'img2img', 'control', 'video'}
 
 
 def _timestamp(value=None):
@@ -113,6 +114,7 @@ def _initialize_schema(connection):
             started_at TEXT,
             completed_at TEXT,
             status TEXT NOT NULL CHECK (status IN ('scheduled', 'running', 'paused', 'completed', 'failed')),
+            mode TEXT NOT NULL DEFAULT 'control' CHECK (mode IN ('txt2img', 'img2img', 'control', 'video')),
             queue_position INTEGER NOT NULL DEFAULT 0,
             scheduled_by_user INTEGER NOT NULL DEFAULT 0,
             execute_now INTEGER NOT NULL DEFAULT 0,
@@ -153,6 +155,8 @@ def _initialize_schema(connection):
                 connection.execute('UPDATE tasks SET scheduled_by_user = 1 WHERE id = ?', (row['id'],))
     if 'retry_at' not in columns:
         connection.execute('ALTER TABLE tasks ADD COLUMN retry_at TEXT')
+    if 'mode' not in columns:
+        connection.execute("ALTER TABLE tasks ADD COLUMN mode TEXT NOT NULL DEFAULT 'control' CHECK (mode IN ('txt2img', 'img2img', 'control', 'video'))")
     if 'execute_now' not in columns:
         connection.execute('ALTER TABLE tasks ADD COLUMN execute_now INTEGER NOT NULL DEFAULT 0')
     if 'process_stats' not in columns:
@@ -160,7 +164,7 @@ def _initialize_schema(connection):
     if 'infotexts' not in columns:
         connection.execute("ALTER TABLE tasks ADD COLUMN infotexts TEXT NOT NULL DEFAULT '[]'")
     connection.execute('CREATE INDEX IF NOT EXISTS tasks_queue_idx ON tasks(status, queue_position, id)')
-    connection.execute('PRAGMA user_version = 4')
+    connection.execute('PRAGMA user_version = 5')
 
 
 def initialize(db_path=None):
@@ -198,7 +202,7 @@ def diagnostics(db_path=None):
     path = os.path.abspath(_db_path(db_path))
     required_tables = {'tasks', 'task_images', 'scheduler_meta'}
     required_columns = {
-        'tasks': {'id', 'status', 'parameters', 'results', 'process_stats', 'infotexts'},
+        'tasks': {'id', 'status', 'mode', 'parameters', 'results', 'process_stats', 'infotexts'},
         'task_images': {'task_id', 'position', 'data'},
         'scheduler_meta': {'key', 'value'},
     }
@@ -265,8 +269,10 @@ def _task(row):
     return task
 
 
-def create_task(parameters, image_blobs=None, scheduled_at=None, max_attempts=3, db_path=None):
+def create_task(parameters, image_blobs=None, scheduled_at=None, max_attempts=3, db_path=None, mode='control'):
     initialize(db_path)
+    if mode not in _task_modes:
+        raise ValueError(f'Invalid scheduler task mode: {mode}')
     now = _timestamp()
     due = _timestamp(scheduled_at) if scheduled_at is not None else now
     images = image_blobs or []
@@ -274,8 +280,8 @@ def create_task(parameters, image_blobs=None, scheduled_at=None, max_attempts=3,
         connection.execute('BEGIN IMMEDIATE')
         position = connection.execute('SELECT COALESCE(MAX(queue_position), -1) + 1 FROM tasks').fetchone()[0]
         cursor = connection.execute(
-            'INSERT INTO tasks(created_at, scheduled_at, status, queue_position, scheduled_by_user, parameters, max_attempts) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            (now, due, 'scheduled', position, int(scheduled_at is not None), json.dumps(parameters, separators=(',', ':')), max_attempts),
+            'INSERT INTO tasks(created_at, scheduled_at, status, mode, queue_position, scheduled_by_user, parameters, max_attempts) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            (now, due, 'scheduled', mode, position, int(scheduled_at is not None), json.dumps(parameters, separators=(',', ':')), max_attempts),
         )
         task_id = cursor.lastrowid
         connection.executemany(

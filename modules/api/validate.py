@@ -48,6 +48,13 @@ log_exclude_suffix = ['.css', '.js', '.ico', '.svg']
 log_exclude_prefix = ['/assets']
 
 
+def get_cost(costs, api):
+    if api in costs:
+        return costs[api]
+    endpoint = min((endpoint for endpoint in costs if endpoint.startswith(api)), key=len, default=None)
+    return costs.get(endpoint, 1)
+
+
 class Limiter():
     def __init__(self, limit, subpath=None, debug=False):
         import limits
@@ -73,7 +80,7 @@ class Limiter():
     def check_request(self, client: str, api: str, quiet: bool = False):
         if self.request_limit <= 0:
             return True
-        cost = request_cost.get(api, 1)
+        cost = get_cost(request_cost, api)
         if cost < 0:
             return False
         status = self.request_strategy.hit(self.request_limiter, client, api, cost=cost)
@@ -92,7 +99,7 @@ class Limiter():
             return False
         if any(api.startswith(s) for s in log_exclude_prefix):
             return False
-        cost = log_cost.get(api, 1)
+        cost = get_cost(log_cost, api)
         if cost < 0:
             return False
         status = self.log_strategy.hit(self.log_limiter, client, api, cost=cost)

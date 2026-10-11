@@ -1,5 +1,7 @@
 import sys
 import datetime
+import os
+import tempfile
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
@@ -26,6 +28,54 @@ class TestSchedulerSerialization(unittest.TestCase):
         self.assertEqual(decoded['inputs'][0].size, (3, 2))
         self.assertEqual(decoded['inputs'][0].getpixel((0, 0)), (10, 20, 30))
 
+    def test_video_file_inputs_round_trip_from_temporary_paths(self):
+        with tempfile.TemporaryDirectory() as source_dir, tempfile.TemporaryDirectory() as task_dir:
+            source_path = os.path.join(source_dir, 'condition.mp4')
+            with open(source_path, 'wb') as source:
+                source.write(b'video-bytes')
+            blobs = []
+
+            encoded = _encode_value({'condition_video': source_path}, blobs)
+            restored = _decode_value(encoded, blobs, media_dir=task_dir)
+
+            self.assertEqual(restored['condition_video'], os.path.join(task_dir, '0-condition.mp4'))
+            with open(restored['condition_video'], 'rb') as restored_file:
+                self.assertEqual(restored_file.read(), b'video-bytes')
+            self.assertEqual(encoded['condition_video']['media_type'], 'video/mp4')
+
+    def test_enqueue_video_request_captures_handler_arguments_and_media(self):
+        from modules import scheduler_db
+
+        def handler(task_id, _ui_state, model, condition_video):
+            return task_id, model, condition_video
+
+        options = SimpleNamespace(
+            sd_model_checkpoint='checkpoint',
+            sd_model_refiner='None',
+            sd_unet='Default',
+            sd_unet_secondary='Default',
+            sd_vae='Automatic',
+            sd_text_encoder='Default',
+        )
+        shared = SimpleNamespace(sd_loaded=False, opts=options)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            media_path = os.path.join(temp_dir, 'condition.mp4')
+            with open(media_path, 'wb') as media:
+                media.write(b'video-bytes')
+            with patch.object(sys.modules['modules'], 'shared', shared, create=True), \
+                    patch.dict(sys.modules, {'modules.shared': shared}), \
+                    patch.object(scheduler, '_video_handler', return_value=handler), \
+                    patch.object(scheduler_db, 'create_task', return_value=23) as create_task:
+                response = scheduler.enqueue_video_request('ltx', 'client-id', 'ui-state', 'LTX model', media_path)
+
+        self.assertEqual(response, [None, 'Queued scheduler task 23'])
+        parameters = create_task.call_args.args[0]
+        self.assertEqual(parameters['video']['surface'], 'ltx')
+        self.assertEqual(parameters['video']['arguments']['model'], 'LTX model')
+        self.assertEqual(parameters['video']['arguments']['condition_video']['media_type'], 'video/mp4')
+        self.assertEqual(create_task.call_args.kwargs['image_blobs'], [b'video-bytes'])
+        self.assertEqual(create_task.call_args.kwargs['mode'], 'video')
+
     def test_control_unit_round_trip_excludes_runtime_objects(self):
         with patch.object(sys, 'argv', [sys.argv[0]]):
             from modules.control.unit import Unit
@@ -49,9 +99,9 @@ class TestSchedulerSerialization(unittest.TestCase):
             (SimpleNamespace(sd_checkpoint_info=SimpleNamespace(name='Display Name'), sd_model_checkpoint='model/path'), 'Display Name'),
             (SimpleNamespace(sd_checkpoint_info=SimpleNamespace(name=''), sd_model_checkpoint='model/path'), 'model/path'),
         ):
-            parameters = {'control': {}}
+            parameters = {'control': {'units': []}}
             options = self.model_options()
-            shared = SimpleNamespace(sd_model=model, opts=options)
+            shared = SimpleNamespace(sd_loaded=True, sd_model=model, opts=options)
             with self.subTest(expected=expected), \
                     patch.object(sys.modules['modules'], 'shared', shared, create=True), \
                     patch.dict(sys.modules, {'modules.shared': shared}), \
@@ -62,15 +112,31 @@ class TestSchedulerSerialization(unittest.TestCase):
             self.assertNotIn('model_options', parameters)
             for key, value in vars(options).items():
                 self.assertEqual(parameters[key], value)
-            create_task.assert_called_once_with(parameters, image_blobs=[])
+            create_task.assert_called_once_with(parameters, image_blobs=[], mode='control')
+
+    def test_capture_model_options_does_not_access_unloaded_model(self):
+        class UnloadedShared(SimpleNamespace):
+            @property
+            def sd_model(self):
+                raise AssertionError('sd_model accessed while sd_loaded is false')
+
+        options = self.model_options()
+        shared = UnloadedShared(sd_loaded=False, opts=options)
+        parameters = {}
+        with patch.object(sys.modules['modules'], 'shared', shared, create=True), \
+                patch.dict(sys.modules, {'modules.shared': shared}):
+            scheduler._capture_model_options(parameters)
+
+        self.assertEqual(parameters['model'], options.sd_model_checkpoint)
 
     def test_task_model_options_restore_after_execution_error(self):
         original = self.model_options()
+        original.samples_save = True
         shared = SimpleNamespace(opts=original)
         task_options = {key: f'task-{key}' for key in scheduler._model_option_keys}
 
         def fail_during_execution(_task):
-            self.assertEqual(vars(original), task_options)
+            self.assertEqual({key: getattr(original, key) for key in task_options}, task_options)
             raise RuntimeError('task failed')
 
         with patch.object(sys.modules['modules'], 'shared', shared, create=True), \
@@ -79,7 +145,8 @@ class TestSchedulerSerialization(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, 'task failed'):
                 scheduler._run_task({'parameters': task_options})
         execute.assert_called_once()
-        self.assertEqual(vars(original), {key: f'original-{key}' for key in scheduler._model_option_keys})
+        self.assertEqual({key: getattr(original, key) for key in scheduler._model_option_keys}, {key: f'original-{key}' for key in scheduler._model_option_keys})
+        self.assertTrue(original.samples_save)
 
     def test_execute_task_persists_process_stats_and_infotexts(self):
         from modules import timer
@@ -103,6 +170,70 @@ class TestSchedulerSerialization(unittest.TestCase):
             process_stats=stats,
             infotexts=['prompt: test, steps: 20'],
         )
+
+    def test_execute_video_task_consumes_generator_and_persists_video_path(self):
+        from modules import timer
+
+        def ltx_handler(task_id, prompt):
+            self.assertEqual(task_id, 'task(scheduler-19)')
+            self.assertEqual(prompt, 'video prompt')
+            yield '/tmp/output.mp4', 'Video | File /tmp/output.mp4'
+
+        task = {
+            'id': 19,
+            'mode': 'video',
+            'image_blobs': [],
+            'parameters': {
+                'video': {
+                    'surface': 'ltx',
+                    'arguments': {'task_id': 'client-task', 'prompt': 'video prompt'},
+                },
+            },
+        }
+        stats = {'total': 12.5}
+        with patch.object(scheduler, '_video_handler', return_value=ltx_handler), \
+                patch.object(timer.process, 'dct', return_value=stats), \
+                patch.object(scheduler.scheduler_db, 'update_results', return_value=True) as update_results:
+            scheduler._execute_task(task)
+
+        update_results.assert_called_once_with(
+            19,
+            ['/tmp/output.mp4'],
+            process_stats=stats,
+            infotexts=['Video | File /tmp/output.mp4'],
+        )
+
+    def test_execute_framepack_task_preserves_streamed_result_path(self):
+        from modules import timer
+
+        def framepack_handler(task_id, prompt):
+            self.assertEqual(task_id, 'task(scheduler-20)')
+            self.assertEqual(prompt, 'framepack prompt')
+            yield '/tmp/framepack.mp4', None, 'saved'
+            yield {'__type__': 'update'}, {'__type__': 'update'}, 'Generate finished'
+
+        task = {
+            'id': 20,
+            'mode': 'video',
+            'image_blobs': [],
+            'parameters': {
+                'video': {
+                    'surface': 'framepack',
+                    'arguments': {'task_id': 'client-task', 'prompt': 'framepack prompt'},
+                },
+            },
+        }
+        with patch.object(scheduler, '_video_handler', return_value=framepack_handler), \
+                patch.object(timer.process, 'dct', return_value={}), \
+                patch.object(scheduler.scheduler_db, 'update_results', return_value=True) as update_results:
+            scheduler._execute_task(task)
+
+        update_results.assert_called_once_with(20, ['/tmp/framepack.mp4'], process_stats={}, infotexts=['Generate finished'])
+
+    def test_video_error_detection_uses_status_fields_only(self):
+        self.assertIsNone(scheduler._video_result_error('video', ([], None, '{"prompt":"not found"}', '', '')))
+        self.assertEqual(scheduler._video_result_error('video', (None, 'Model not loaded', '', '', '')), 'Model not loaded')
+        self.assertIsNone(scheduler._video_result_error('minimax', (None, 'Generate finished')))
 
     def test_update_task_parameters_accepts_control_and_model_fields(self):
         task = {
@@ -140,6 +271,26 @@ class TestSchedulerSerialization(unittest.TestCase):
             self.assertFalse(scheduler.update_task_parameters(12, {'steps': True}))
             self.assertFalse(scheduler.update_task_parameters(12, {'sd_model_checkpoint': 42}))
             self.assertFalse(scheduler.update_task_parameters(12, {'unknown': 'value'}))
+
+    def test_update_video_parameters_and_media_atomically(self):
+        media = {'__sd_scheduler_type__': 'file', 'id': 0, 'filename': 'condition.mp4', 'media_type': 'video/mp4'}
+        task = {
+            'mode': 'video',
+            'parameters': {'video': {'surface': 'ltx', 'arguments': {'prompt': 'old', 'model': 'old-model', 'condition_video': media}}, 'model': 'old-model'},
+            'image_blobs': [b'old-media'],
+        }
+        with patch.object(scheduler.scheduler_db, 'get_task', return_value=task) as get_task, \
+                patch.object(scheduler.scheduler_db, 'update_parameters', return_value=True) as update:
+            self.assertTrue(scheduler.update_task_parameters_with_media(
+                15,
+                {'prompt': 'new', 'model': 'new-model'},
+                media_replacements={0: b'new-media'},
+            ))
+
+        get_task.assert_called_once_with(15, include_images=True, db_path=None)
+        self.assertEqual(task['parameters']['video']['arguments']['prompt'], 'new')
+        self.assertEqual(task['parameters']['model'], 'new-model')
+        update.assert_called_once_with(15, task['parameters'], db_path=None, image_blobs=[b'new-media'])
 
 
 class TestSchedulerPolicy(unittest.TestCase):
@@ -207,6 +358,37 @@ class TestSchedulerPolicy(unittest.TestCase):
             self.assertTrue(scheduler.run_once())
         claim.assert_called_once_with(force_only=True)
         run_task.assert_called_once_with({'id': 12, 'attempts': 1, 'image_blobs': []})
+
+    def test_run_once_locks_standard_video_replay(self):
+        from modules import call_queue
+
+        task = {
+            'id': 13,
+            'attempts': 1,
+            'mode': 'video',
+            'parameters': {'video': {'surface': 'video'}},
+        }
+        lock_state = {'held': False}
+
+        class QueueLock:
+            def __enter__(self):
+                lock_state['held'] = True
+
+            def __exit__(self, _exc_type, _exc_value, _traceback):
+                lock_state['held'] = False
+
+        def execute(_task):
+            self.assertTrue(lock_state['held'])
+
+        with patch.object(scheduler, 'scheduler_enabled', return_value=False), \
+                patch.object(call_queue, 'is_locked', return_value=False), \
+                patch.object(call_queue, 'get_lock', return_value=QueueLock()) as get_lock, \
+                patch.object(scheduler.scheduler_db, 'claim_next_task', return_value=task), \
+                patch.object(scheduler.scheduler_db, 'get_task', return_value={'image_blobs': []}), \
+                patch.object(scheduler, '_run_task', side_effect=execute):
+            self.assertTrue(scheduler.run_once())
+
+        get_lock.assert_called_once_with()
 
     def test_worker_start_initializes_database_before_starting_thread(self):
         worker = unittest.mock.Mock()

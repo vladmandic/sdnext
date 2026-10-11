@@ -19,7 +19,7 @@ def create_ui():
             id_part="video",
             negative_visible=True,
             reprocess_visible=False,
-            schedule_visible=False,
+            schedule_visible=True,
         )
         prompt_image = gr.File(label="", elem_id="video_prompt_image", file_count="single", type="binary", visible=False)
         prompt_image.change(fn=images.image_data, inputs=[prompt_image], outputs=[prompt, prompt_image])
@@ -95,10 +95,11 @@ def create_ui():
         bindings = generation_parameters_copypaste.ParamBinding(paste_button=paste, tabname="video", source_text_component=prompt, source_image_component=None)
         generation_parameters_copypaste.register_paste_params_button(bindings)
 
-        current_tab = gr.Textbox(visible=False, value='video')
+        current_tab = gr.Textbox(visible=False, value='video', elem_id='video_current_tab')
         video_core_tab.select(fn=lambda: 'video', inputs=[], outputs=[current_tab])
         minimax_tab.select(fn=lambda: 'minimax', inputs=[], outputs=[current_tab])
         ltx_tab.select(fn=lambda: 'ltx', inputs=[], outputs=[current_tab])
         framepack_tab.select(fn=lambda: 'framepack', inputs=[], outputs=[current_tab])
 
         generate_btn.click(fn=None, _js='submit_video_wrapper', inputs=[current_tab], outputs=[])
+        _schedule.click(fn=None, _js='submit_video_schedule_wrapper', inputs=[current_tab], outputs=[])

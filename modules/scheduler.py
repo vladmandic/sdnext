@@ -4,7 +4,9 @@ import atexit
 import datetime
 import inspect
 import io
+import mimetypes
 import os
+import tempfile
 import threading
 from contextlib import contextmanager
 
@@ -20,9 +22,42 @@ _worker_poll_interval = 1.0
 _model_option_keys = ('sd_model_checkpoint', 'sd_model_refiner', 'sd_unet', 'sd_unet_secondary', 'sd_vae', 'sd_text_encoder')
 debug = os.environ.get('SD_SCHEDULER_DEBUG', None) is not None
 debug_log = log.trace if debug else lambda *args, **kwargs: None
+_video_media_fields = {'condition_video', 'condition_files', 'reference_media'}
 
 
-def _encode_value(value, image_blobs):
+def _file_details(value):
+    if isinstance(value, dict):
+        path = value.get('path') or value.get('name')
+        filename = value.get('orig_name') or value.get('filename') or value.get('name')
+        media_type = value.get('mime_type') or value.get('media_type')
+    elif isinstance(value, (str, os.PathLike)):
+        path = value
+        filename = value
+        media_type = None
+    else:
+        path = getattr(value, 'path', None) or getattr(value, 'name', None)
+        filename = getattr(value, 'orig_name', None) or getattr(value, 'filename', None) or getattr(value, 'name', None)
+        media_type = getattr(value, 'mime_type', None) or getattr(value, 'media_type', None)
+    if not isinstance(path, (str, os.PathLike)) or not os.path.isfile(path):
+        return None
+    filename = os.path.basename(os.fspath(filename or path))
+    media_type = media_type or mimetypes.guess_type(filename)[0] or 'application/octet-stream'
+    return os.fspath(path), filename, media_type
+
+
+def _encode_file(value, image_blobs):
+    details = _file_details(value)
+    if details is None:
+        return None
+    path, filename, media_type = details
+    with open(path, 'rb') as source:
+        data = source.read()
+    media_id = len(image_blobs)
+    image_blobs.append(data)
+    return {'__sd_scheduler_type__': 'file', 'id': media_id, 'filename': filename, 'media_type': media_type}
+
+
+def _encode_value(value, image_blobs, field=None):
     from PIL import Image
 
     if isinstance(value, Image.Image):
@@ -31,6 +66,10 @@ def _encode_value(value, image_blobs):
         image_id = len(image_blobs)
         image_blobs.append(stream.getvalue())
         return {'__sd_scheduler_type__': 'image', 'id': image_id}
+    if field in _video_media_fields:
+        encoded_file = _encode_file(value, image_blobs)
+        if encoded_file is not None:
+            return encoded_file
     if isinstance(value, (bytes, bytearray, memoryview)):
         image_id = len(image_blobs)
         image_blobs.append(bytes(value))
@@ -40,9 +79,9 @@ def _encode_value(value, image_blobs):
     if isinstance(value, os.PathLike):
         return os.fspath(value)
     if isinstance(value, dict):
-        return {str(key): _encode_value(item, image_blobs) for key, item in value.items()}
+        return {str(key): _encode_value(item, image_blobs, field=str(key)) for key, item in value.items()}
     if isinstance(value, (list, tuple)):
-        return [_encode_value(item, image_blobs) for item in value]
+        return [_encode_value(item, image_blobs, field=field) for item in value]
     if value.__class__.__module__ == 'modules.control.unit' and value.__class__.__name__ == 'Unit':
         names = ('index', 'enabled', 'strength', 'type', 'start', 'end', 'mode', 'model_name', 'process_name', 'factor', 'guess', 'attention', 'fidelity', 'query_weight', 'adain_weight', 'process_params', 'tile')
         fields = {name: _encode_value(getattr(value, name, None), image_blobs) for name in names}
@@ -51,9 +90,9 @@ def _encode_value(value, image_blobs):
     raise TypeError(f'Unsupported scheduler parameter type: {type(value).__name__}')
 
 
-def _decode_value(value, image_blobs):
+def _decode_value(value, image_blobs, media_dir=None):
     if isinstance(value, list):
-        return [_decode_value(item, image_blobs) for item in value]
+        return [_decode_value(item, image_blobs, media_dir=media_dir) for item in value]
     if isinstance(value, dict):
         marker = value.get('__sd_scheduler_type__')
         if marker == 'image':
@@ -61,9 +100,18 @@ def _decode_value(value, image_blobs):
             return Image.open(io.BytesIO(image_blobs[value['id']])).copy()
         if marker == 'blob':
             return image_blobs[value['id']]
+        if marker == 'file':
+            data = image_blobs[value['id']]
+            if media_dir is None:
+                return data
+            filename = os.path.basename(value.get('filename') or f'media-{value["id"]}')
+            path = os.path.join(media_dir, f'{value["id"]}-{filename}')
+            with open(path, 'wb') as target:
+                target.write(data)
+            return path
         if marker == 'unit':
             from modules.control import unit
-            fields = {key: _decode_value(item, image_blobs) for key, item in value['fields'].items()}
+            fields = {key: _decode_value(item, image_blobs, media_dir=media_dir) for key, item in value['fields'].items()}
             instance = unit.Unit(
                 index=fields.get('index'),
                 enabled=fields.get('enabled'),
@@ -79,39 +127,104 @@ def _decode_value(value, image_blobs):
             if instance.process is not None:
                 instance.process.override = instance.override
             return instance
-        return {key: _decode_value(item, image_blobs) for key, item in value.items()}
+        return {key: _decode_value(item, image_blobs, media_dir=media_dir) for key, item in value.items()}
     return value
+
+
+def _video_handler(surface):
+    if surface == 'video':
+        from modules.video_models.video_run import generate
+        return generate
+    if surface == 'minimax':
+        from modules.minimax.minimax_video import generate
+        return generate
+    if surface == 'ltx':
+        from modules.ltx.ltx_process import run_ltx
+        return run_ltx
+    if surface == 'framepack':
+        from modules.framepack.framepack_wrappers import run_framepack
+        return run_framepack
+    raise ValueError(f'Unsupported scheduler Video surface: {surface}')
+
+
+def _bound_arguments(function, args, kwargs):
+    bound = inspect.signature(function).bind_partial(*args, **kwargs)
+    bound.apply_defaults()
+    return dict(bound.arguments)
 
 
 def _capture_request(args, kwargs):
     from modules.control.run import control_run
 
-    bound = inspect.signature(control_run).bind_partial(*args, **kwargs)
-    bound.apply_defaults()
+    named = _bound_arguments(control_run, args, kwargs)
     blobs = []
-    parameters = {'control': _encode_value(dict(bound.arguments), blobs)}
+    parameters = {'control': _encode_value(named, blobs)}
     return parameters, blobs
+
+
+def _contains_image(value):
+    if isinstance(value, list):
+        return any(_contains_image(item) for item in value)
+    if isinstance(value, dict):
+        if value.get('__sd_scheduler_type__') == 'image':
+            return True
+        return any(_contains_image(item) for item in value.values())
+    return False
+
+
+def _task_mode(entry_point, named):
+    if entry_point == 'video':
+        return 'video'
+    if named.get('units') is not None:
+        return 'control'
+    return 'img2img' if _contains_image(named) else 'txt2img'
+
+
+def _capture_model_options(parameters):
+    from modules import shared
+    if shared.sd_loaded:
+        model = shared.sd_model
+        checkpoint_info = getattr(model, 'sd_checkpoint_info', None)
+        parameters['model'] = (getattr(checkpoint_info, 'name', None) or getattr(model, 'sd_model_checkpoint', None)) if model is not None else None
+    else:
+        parameters['model'] = shared.opts.sd_model_checkpoint
+    for key in _model_option_keys:
+        parameters[key] = getattr(shared.opts, key)
 
 
 def enqueue_control_request(*args, **kwargs):
     try:
         parameters, image_blobs = _capture_request(args, kwargs)
-        from modules import shared
-        if shared.sd_loaded:
-            model = shared.sd_model
-            checkpoint_info = getattr(model, 'sd_checkpoint_info', None)
-            parameters['model'] = (getattr(checkpoint_info, 'name', None) or getattr(model, 'sd_model_checkpoint', None)) if model is not None else None
-        else:
-            parameters['model'] = shared.opts.sd_model_checkpoint
-        for key in _model_option_keys:
-            parameters[key] = getattr(shared.opts, key)
-        task_id = scheduler_db.create_task(parameters, image_blobs=image_blobs)
+        _capture_model_options(parameters)
+        mode = _task_mode('control', parameters['control'])
+        task_id = scheduler_db.create_task(parameters, image_blobs=image_blobs, mode=mode)
     except Exception as exc:
         log.error(f'Scheduler: unable to record Control task: {exc}')
         return _queued_response(None, str(exc))
     log.info(f'Scheduler: queued task=Control id={task_id}')
     debug_log(f'Scheduler: captured task id={task_id} fields={len(parameters["control"])} images={len(image_blobs)}')
     return _queued_response(task_id)
+
+
+def enqueue_video_request(surface, *args, **kwargs):
+    try:
+        handler = _video_handler(surface)
+        named = _bound_arguments(handler, args, kwargs)
+        image_blobs = []
+        encoded = _encode_value(named, image_blobs)
+        parameters = {'video': {'surface': surface, 'arguments': encoded}}
+        model_name = named.get('model') or named.get('variant')
+        if model_name:
+            parameters['model'] = str(model_name)
+        _capture_model_options(parameters)
+        parameters['model'] = str(model_name or parameters['model'])
+        task_id = scheduler_db.create_task(parameters, image_blobs=image_blobs, mode=_task_mode('video', named))
+        log.info(f'Scheduler: queued task=Video surface={surface} id={task_id}')
+        debug_log(f'Scheduler: captured video task id={task_id} surface={surface} fields={len(named)} media={len(image_blobs)}')
+        return _video_queued_response(task_id, surface)
+    except Exception as exc:
+        log.error(f'Scheduler: unable to record Video task surface={surface}: {exc}')
+        return _video_queued_response(None, surface, str(exc))
 
 
 def _queued_response(task_id, error=None):
@@ -121,6 +234,13 @@ def _queued_response(task_id, error=None):
         yield (None, None, message, None)
 
     return response()
+
+
+def _video_queued_response(task_id, surface, error=None):
+    output_count, message_index = {'video': (5, 4), 'minimax': (2, 1), 'ltx': (2, 1), 'framepack': (3, 2)}.get(surface, (5, 4))
+    values = [None] * output_count
+    values[message_index] = f'Queued scheduler task {task_id}' if task_id is not None else f'Scheduler error: {error}'
+    return values
 
 
 def _result_paths(result):
@@ -135,6 +255,67 @@ def _result_paths(result):
     if len(result) > 3 and isinstance(result[3], str) and result[3]:
         paths.append(result[3])
     return list(dict.fromkeys(paths))
+
+
+def _call_arguments(function, named):
+    args = []
+    kwargs = {}
+    for parameter in inspect.signature(function).parameters.values():
+        if parameter.kind in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD):
+            if parameter.name in named:
+                args.append(named[parameter.name])
+        elif parameter.kind == inspect.Parameter.VAR_POSITIONAL:
+            args.extend(named.get(parameter.name, ()))
+        elif parameter.kind == inspect.Parameter.KEYWORD_ONLY and parameter.name in named:
+            kwargs[parameter.name] = named[parameter.name]
+        elif parameter.kind == inspect.Parameter.VAR_KEYWORD:
+            kwargs.update(named.get(parameter.name, {}))
+    return args, kwargs
+
+
+def _consume_generator(result):
+    if not inspect.isgenerator(result):
+        return result, []
+    latest = None
+    yielded = []
+    while True:
+        try:
+            latest = next(result)
+            yielded.append(latest)
+        except StopIteration as stop:
+            return stop.value if stop.value is not None else latest, yielded
+
+
+def _video_result_paths(surface, result):
+    paths = []
+    if surface == 'video' and isinstance(result, tuple):
+        images = result[0] if result and isinstance(result[0], list) else []
+        for image in images:
+            filename = getattr(image, 'already_saved_as', None)
+            if filename:
+                paths.append(os.fspath(filename))
+        video_path = result[1] if len(result) > 1 else None
+        if isinstance(video_path, str) and video_path:
+            paths.append(video_path)
+    elif isinstance(result, tuple) and result and isinstance(result[0], str) and result[0]:
+        paths.append(result[0])
+    return list(dict.fromkeys(paths))
+
+
+def _video_result_error(surface, result):
+    if result is None:
+        return 'Video handler returned no result'
+    if isinstance(result, (list, tuple)):
+        status_index = {'video': 4, 'minimax': 1, 'ltx': 1, 'framepack': 2}.get(surface, len(result) - 1)
+        values = [result[status_index]] if status_index < len(result) else []
+        if surface in ('video', 'minimax') and result and result[0] is None and len(result) > 1:
+            values.append(result[1])
+    else:
+        values = [result]
+    for value in values:
+        if isinstance(value, str) and any(marker in value.lower() for marker in ('error:', 'not loaded', 'not selected', 'not found', 'no frames', 'no output', 'not installed', 'load failed')):
+            return value
+    return None
 
 
 @contextmanager
@@ -160,6 +341,13 @@ def _run_task(task):
 
 
 def _execute_task(task):
+    if task.get('mode', 'control') == 'video':
+        _execute_video_task(task)
+        return
+    _execute_control_task(task)
+
+
+def _execute_control_task(task):
     blobs = task['image_blobs']
     parameters = task['parameters']
     from modules.control.run import control_run
@@ -199,6 +387,35 @@ def _execute_task(task):
     log.info(f'Scheduler: completed task id={task["id"]}')
 
 
+def _execute_video_task(task):
+    from modules import timer
+
+    video_request = task['parameters']['video']
+    surface = video_request['surface']
+    handler = _video_handler(surface)
+    with tempfile.TemporaryDirectory(prefix=f'sdnext-scheduler-{task["id"]}-') as media_dir:
+        named = _decode_value(video_request['arguments'], task['image_blobs'], media_dir=media_dir)
+        named['task_id'] = f'task(scheduler-{task["id"]})'
+        args, kwargs = _call_arguments(handler, named)
+        timer.process.reset()
+        result = handler(*args, **kwargs)
+        result, yielded = _consume_generator(result)
+        error = _video_result_error(surface, result)
+        if error:
+            raise RuntimeError(error)
+        paths = _video_result_paths(surface, result)
+        if surface == 'framepack':
+            for output in yielded:
+                paths.extend(_video_result_paths(surface, output))
+            paths = list(dict.fromkeys(paths))
+        summary = []
+        if isinstance(result, tuple):
+            summary = [value for value in result if isinstance(value, str) and value and value not in paths]
+        if not scheduler_db.update_results(task['id'], paths, process_stats=timer.process.dct(), infotexts=summary[-1:]):
+            raise RuntimeError(f'Scheduler task {task["id"]} result could not be stored')
+    log.info(f'Scheduler: completed Video task id={task["id"]} surface={surface}')
+
+
 def run_once():
     from modules import call_queue
     if call_queue.is_locked():
@@ -209,8 +426,16 @@ def run_once():
     log.debug(f'Scheduler: claimed task id={task["id"]} attempt={task["attempts"]}')
     try:
         task['image_blobs'] = scheduler_db.get_task(task['id'], include_images=True)['image_blobs']
-        with call_queue.get_lock():
-            _run_task(task)
+        if task.get('mode', 'control') == 'video':
+            surface = task.get('parameters', {}).get('video', {}).get('surface')
+            if surface == 'video':
+                with call_queue.get_lock():
+                    _run_task(task)
+            else:
+                _run_task(task)
+        else:
+            with call_queue.get_lock():
+                _run_task(task)
     except Exception as exc:
         delay = min(3600, 60 * (2 ** max(0, task['attempts'] - 1)))
         scheduler_db.retry_or_fail(task['id'], exc, retry_delay=delay)
@@ -380,32 +605,91 @@ def get_status():
 
 
 def update_task_parameters(task_id, parameters, db_path=None):
-    task = scheduler_db.get_task(task_id, db_path=db_path)
+    return update_task_parameters_with_media(task_id, parameters, media_replacements=None, db_path=db_path)
+
+
+def _contains_media_marker(value):
+    if isinstance(value, list):
+        return any(_contains_media_marker(item) for item in value)
+    if isinstance(value, dict):
+        if value.get('__sd_scheduler_type__') in ('image', 'file', 'blob'):
+            return True
+        return any(_contains_media_marker(item) for item in value.values())
+    return False
+
+
+def update_task_parameters_with_media(task_id, parameters, media_replacements=None, db_path=None):
+    task = scheduler_db.get_task(task_id, include_images=media_replacements is not None, db_path=db_path)
     if task is None or not isinstance(parameters, dict):
         return False
     named = task['parameters'].get('control')
-    if not isinstance(named, dict):
-        return False
-    immutable = {'state', 'scheduler', 'units', 'inputs', 'inits', 'mask', 'input_script_args', 'override_script_args'}
-    control_updates = {key: value for key, value in parameters.items() if key in named}
-    model_updates = {key: value for key, value in parameters.items() if key in _model_option_keys}
-    if len(control_updates) + len(model_updates) != len(parameters):
-        return False
-    if any(key in immutable for key in control_updates):
-        return False
-    if any(not isinstance(value, str) for value in model_updates.values()):
-        return False
-    string_fields = {'prompt', 'negative_prompt'}
-    integer_fields = {'steps', 'width_before', 'height_before'}
-    if any(not isinstance(value, str) for key, value in control_updates.items() if key in string_fields):
-        return False
-    if any(type(value) is not int for key, value in control_updates.items() if key in integer_fields):
-        return False
-    named.update(control_updates)
+    if isinstance(named, dict):
+        immutable = {'state', 'scheduler', 'units', 'inputs', 'inits', 'mask', 'input_script_args', 'override_script_args'}
+        scoped = named
+        model_updates = {key: value for key, value in parameters.items() if key in _model_option_keys}
+        updates = {key: value for key, value in parameters.items() if key in named}
+        if len(updates) + len(model_updates) != len(parameters) or any(key in immutable for key in updates):
+            return False
+        if any(not isinstance(value, str) for value in model_updates.values()):
+            return False
+        string_fields = {'prompt', 'negative_prompt'}
+        integer_fields = {'steps', 'width_before', 'height_before'}
+        if any(not isinstance(value, str) for key, value in updates.items() if key in string_fields):
+            return False
+        if any(type(value) is not int for key, value in updates.items() if key in integer_fields):
+            return False
+    else:
+        video = task['parameters'].get('video')
+        if task.get('mode') != 'video' or not isinstance(video, dict) or not isinstance(video.get('arguments'), dict):
+            return False
+        scoped = video['arguments']
+        model_updates = {key: value for key, value in parameters.items() if key in _model_option_keys}
+        updates = {key: value for key, value in parameters.items() if key in scoped}
+        if len(updates) + len(model_updates) != len(parameters):
+            return False
+        if any(key in ('task_id', '_ui_state') or _contains_media_marker(scoped[key]) for key in updates):
+            return False
+        if any(type(value) is not type(scoped[key]) for key, value in updates.items() if scoped[key] is not None):
+            return False
+        if any(not isinstance(value, str) for value in model_updates.values()):
+            return False
+
+    replacements = media_replacements or {}
+    if replacements:
+        if not isinstance(replacements, dict) or any(type(index) is not int or not isinstance(blob, bytes) for index, blob in replacements.items()):
+            return False
+        media_ids = set()
+
+        def collect_media_ids(value):
+            if isinstance(value, list):
+                for item in value:
+                    collect_media_ids(item)
+            elif isinstance(value, dict):
+                marker = value.get('__sd_scheduler_type__')
+                if marker in ('image', 'file', 'blob'):
+                    media_ids.add(value.get('id'))
+                else:
+                    for item in value.values():
+                        collect_media_ids(item)
+
+        collect_media_ids(task['parameters'])
+        if not set(replacements).issubset(media_ids):
+            return False
+        for index, blob in replacements.items():
+            if index < 0 or index >= len(task['image_blobs']):
+                return False
+            task['image_blobs'][index] = blob
+
+    scoped.update(updates)
     task['parameters'].update(model_updates)
-    updated = scheduler_db.update_parameters(task_id, task['parameters'], db_path=db_path)
+    if task.get('mode') == 'video' and 'model' in updates:
+        task['parameters']['model'] = str(updates['model'])
+    update_kwargs = {'db_path': db_path}
+    if media_replacements is not None:
+        update_kwargs['image_blobs'] = task['image_blobs']
+    updated = scheduler_db.update_parameters(task_id, task['parameters'], **update_kwargs)
     if updated:
-        log.info(f'Scheduler: updated task parameters id={task_id} fields={list(parameters.keys())}')
+        log.info(f'Scheduler: updated task parameters id={task_id} fields={list(parameters.keys())} media={len(replacements)}')
     return updated
 
 
