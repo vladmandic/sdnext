@@ -495,6 +495,7 @@ def create_settings(cmd_opts):
         "embeddings_dir": OptionInfo(os.path.join(paths.models_path, 'embeddings'), "Folder with textual inversion embeddings", folder=True),
         "control_dir": OptionInfo(os.path.join(paths.models_path, 'control'), "Folder with Control models", folder=True),
         "yolo_dir": OptionInfo(os.path.join(paths.models_path, 'yolo'), "Folder with Yolo models", folder=True),
+        "scheduler_dir": OptionInfo(os.path.join(paths.models_path, 'scheduler'), "Folder for scheduler database", folder=True),
         "esrgan_models_path": OptionInfo(os.path.join(paths.models_path, 'ESRGAN'), "Folder with ESRGAN models", folder=True),
         "bsrgan_models_path": OptionInfo(os.path.join(paths.models_path, 'BSRGAN'), "Folder with BSRGAN models", folder=True),
         "realesrgan_models_path": OptionInfo(os.path.join(paths.models_path, 'RealESRGAN'), "Folder with RealESRGAN models", folder=True),
@@ -653,6 +654,13 @@ def create_settings(cmd_opts):
         "return_grid": OptionInfo(True, "Show grid in results"),
         "send_seed": OptionInfo(True, "Send seed when sending prompt or image to other interface", gr.Checkbox, {"visible": False}),
         "send_size": OptionInfo(False, "Send size when sending prompt or image to another interface", gr.Checkbox, {"visible": False}),
+    }))
+
+    # --- Scheduler ---
+    options_templates.update(options_section(('scheduler', "Scheduler"), {
+        "scheduler_state": OptionInfo("Auto", "Scheduler state", gr.Dropdown, {"choices": ["Active", "Paused", "Auto"], "visible": False}),
+        "scheduler_start": OptionInfo("10:00", "Scheduler start time", gr.Textbox, {"visible": False}),
+        "scheduler_end": OptionInfo("18:00", "Scheduler end time", gr.Textbox, {"visible": False}),
     }))
 
     # --- Live Previews ---

@@ -239,6 +239,7 @@ function galleryClickEventHandler(event) {
     showModal(event);
   }
 }
+window.galleryClickEventHandler = galleryClickEventHandler;
 
 async function bindImageViewer() {
   // Each tab has its own gradio-gallery

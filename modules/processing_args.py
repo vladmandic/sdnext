@@ -208,6 +208,10 @@ def get_defaults(model, kwargs):
     remove = ['return_dict', 'output_type', 'num_images_per_prompt', 'callback', 'callback_on_step_end_tensor_inputs']
     default_cfg = 0
     try:
+        model_name = model.sd_checkpoint_info.name or model.sd_model_checkpoint
+    except Exception:
+        model_name = "unknown"
+    try:
         defaults = {}
         if hasattr(model, 'blocks') and hasattr(model.blocks, 'inputs'):
             for input_param in model.blocks.inputs:
@@ -225,12 +229,11 @@ def get_defaults(model, kwargs):
 
         defaults = {k: v for k, v in defaults.items() if k not in kwargs} # only log defaults that are not already set by kwargs
         defaults = {k: v for k, v in defaults.items() if k not in remove} # remove common args that are not useful to log
-        log.debug(f'Pipeline: cls={model.__class__.__name__} defaults={defaults}')
+        log.debug(f'Pipeline: cls={model.__class__.__name__} model="{model_name}" defaults={defaults}')
         default_cfg = defaults.get('guidance_scale', 0)
     except Exception as e:
         log.error(f'Pipeline defaults: {e}')
     try:
-        model_name = model.sd_checkpoint_info.name or model.sd_model_checkpoint
         is_turbo = getattr(getattr(model, 'config', None), 'is_distilled', False) or 'turbo' in model_name.lower()
         if is_turbo and default_cfg > 1:
             log.warning(f'Pipeline: cls={model.__class__.__name__} model="{model_name}" type=turbo default guidance={default_cfg}')

@@ -317,6 +317,23 @@ function submit_control(...args) {
   return res;
 }
 
+function submit_scheduler(...args) {
+  log('submitScheduler');
+  const id = randomId();
+  const res = create_submit_args(args);
+  res[0] = id;
+  res[1] = window.submit_state;
+
+  const tabs = Array.from<any>(gradioApp().querySelectorAll('#control-tabs > .tab-nav > button'));
+  const tabIdx = tabs.findIndex((btn) => btn.classList.contains('selected'));
+  const tabNames = ['ControlNet', 'T2I Adapter', 'XS', 'Lite', 'Reference'];
+  const selectedTab = tabNames[tabIdx] || 'ControlNet';
+  res[2] = selectedTab.toLowerCase();
+  res[3] = 'scheduled';
+  window.submit_state = '';
+  return res;
+}
+
 function submit_video(...args) {
   clearGallery('video');
   const id = randomId();
@@ -832,6 +849,7 @@ window.selected_gallery_index = selected_gallery_index;
 window.selected_gallery_files = selected_gallery_files;
 window.send_to_kanvas = send_to_kanvas;
 window.submit_control = submit_control;
+window.submit_scheduler = submit_scheduler;
 window.submit_framepack = submit_framepack;
 window.submit_img2img = submit_img2img;
 window.submit_ltx = submit_ltx;

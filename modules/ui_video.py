@@ -14,11 +14,12 @@ def create_ui():
     scripts_manager.scripts_video.initialize_scripts(is_img2img=False, is_control=False, is_video=True)
 
     with gr.Blocks(analytics_enabled=False) as _video_interface:
-        prompt, styles, negative, generate_btn, _reprocess, paste, networks_button, _token_counter, _token_button, _token_counter_negative, _token_button_negative = ui_sections.create_toprow(
+        prompt, styles, negative, generate_btn, _reprocess, paste, networks_button, _token_counter, _token_button, _token_counter_negative, _token_button_negative, _schedule = ui_sections.create_toprow(
             is_img2img=False,
             id_part="video",
             negative_visible=True,
             reprocess_visible=False,
+            schedule_visible=False,
         )
         prompt_image = gr.File(label="", elem_id="video_prompt_image", file_count="single", type="binary", visible=False)
         prompt_image.change(fn=images.image_data, inputs=[prompt_image], outputs=[prompt, prompt_image])

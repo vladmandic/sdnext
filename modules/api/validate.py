@@ -13,6 +13,8 @@ request_cost = {
     "/sdapi/v1/video": 5,
     "/sdapi/v1/browser/thumb": 0,
     "/sdapi/v1/network/thumb": 0,
+    "/sdapi/v1/scheduler": 0,
+    "/sdapi/v1/scheduler/tasks": 0,
 }
 log_cost = {
     "/.well-known/appspecific/com.chrome.devtools.json": -1,
@@ -31,6 +33,8 @@ log_cost = {
     "/sdapi/v1/version": -1,
     "/sdapi/v1/browser/thumb": -1,
     "/sdapi/v1/network/thumb": -1,
+    "/sdapi/v1/scheduler": -1,
+    "/sdapi/v1/scheduler/tasks": -1,
     "/file": -1,
     "/info": -1,
     "/icon": -1,

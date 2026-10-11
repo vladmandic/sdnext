@@ -169,6 +169,9 @@ class Api:
         from modules.rembg import rembg_api
         rembg_api.register_api(self)
 
+        from modules.api import scheduler as scheduler_api
+        scheduler_api.register_api(self)
+
         # hide trailing-slash duplicates from OpenAPI schema
         from fastapi.routing import APIRoute
         route_paths = {r.path for r in self.app.routes if hasattr(r, 'path')}
