@@ -30,8 +30,8 @@ def dirname(path_: str, r: int = 1) -> str:
     return path_
 
 
-def spawn(command: str | list[str], cwd: os.PathLike = '.') -> str:
-    process = subprocess.run(command, cwd=cwd, shell=True, check=False, capture_output=True, text=True)
+def spawn(command: str | list[str], cwd: os.PathLike = '.', env: dict[str, str] | None = None) -> str:
+    process = subprocess.run(command, cwd=cwd, shell=True, check=False, capture_output=True, text=True, env=env)
     return process.stdout
 
 
@@ -54,6 +54,7 @@ class ROCmEnvironment(Environment):
 # rocm-sdk package is installed
 class PythonPackageEnvironment(Environment):
     hip: ctypes.CDLL
+    path: str
 
     def __init__(self, rocm_sdk_module: ModuleType):
         spec = rocm_sdk_module._dist_info.ALL_PACKAGES['core'].get_py_package() # pylint: disable=protected-access
@@ -62,6 +63,7 @@ class PythonPackageEnvironment(Environment):
         candidates = glob.glob(pattern)
         if len(candidates) == 0:
             raise FileNotFoundError("Could not find amdhip64 in rocm-sdk package")
+        self.path = os.path.dirname(candidates[0])
         self.hip = ctypes.CDLL(candidates[0])
 
 
@@ -270,7 +272,13 @@ if sys.platform == "win32":
             name = f.name
             f.write(CODE_AMDGPU_ARCH)
             f.flush()
-        out = spawn([sys.executable, name])
+        # newer drivers ship amdhip64 that depends on sdk dlls such as rocm_kpack.dll
+        env = os.environ.copy()
+        if isinstance(environment, PythonPackageEnvironment):
+            env["PATH"] = environment.path + os.pathsep + env.get("PATH", "")
+        elif isinstance(environment, ROCmEnvironment):
+            env["PATH"] = os.path.join(environment.path, "bin") + os.pathsep + env.get("PATH", "")
+        out = spawn([sys.executable, name], env=env)
         os.unlink(name)
         out = out.strip()
         if out == "":
