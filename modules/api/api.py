@@ -172,6 +172,10 @@ class Api:
         from modules.api import scheduler as scheduler_api
         scheduler_api.register_api(self)
 
+        # framepack api
+        from modules.framepack import framepack_api
+        framepack_api.register_api(self)
+
         # hide trailing-slash duplicates from OpenAPI schema
         from fastapi.routing import APIRoute
         route_paths = {r.path for r in self.app.routes if hasattr(r, 'path')}
