@@ -298,6 +298,10 @@ importers:
         version: 6.0.3
 
   extensions-builtin/sdnext-modernui:
+    dependencies:
+      ag-grid-community:
+        specifier: ^36.2.0
+        version: 36.2.0
     devDependencies:
       '@eslint/compat':
         specifier: ^2.1.1
@@ -320,9 +324,6 @@ importers:
       '@vladmandic/build':
         specifier: ^0.10.3
         version: 0.10.3(eslint-import-resolver-typescript@4.4.5)(supports-color@7.2.0)
-      ag-grid-community:
-        specifier: ^36.2.0
-        version: 36.2.0
       esbuild:
         specifier: ^0.28.2
         version: 0.28.2
