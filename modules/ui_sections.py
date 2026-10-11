@@ -419,11 +419,6 @@ def create_sampler_options(tabname):
         shared.opts.schedulers_prediction_type = sampler_prediction
         save_with_debounce()
 
-    def set_sampler_beta(sampler_beta):
-        log.debug(f'Sampler set options: beta={sampler_beta}')
-        shared.opts.schedulers_beta_schedule = sampler_beta
-        save_with_debounce()
-
     def set_sampler_shift(sampler_shift, sampler_base_shift, sampler_max_shift):
         log.debug(f'Sampler set options: shift={sampler_shift} base={sampler_base_shift} max={sampler_max_shift}')
         shared.opts.schedulers_shift = sampler_shift
@@ -524,11 +519,13 @@ def create_sampler_options(tabname):
                     'schedulers_rescale_betas',
                 )
             })
+            shared.opts.schedulers_beta_schedule = values['schedulers_beta_schedule']
         else:
             values = sampler_ui_defaults(name)
             if values is None:
                 return [gr.update() for _ in ui_fields]
             values['schedulers_sigma'] = 'default'
+            shared.opts.schedulers_beta_schedule = 'default'
         values['sampler_presets'] = 'None'
         values['sampler_options'] = [
             label for key, label in (
@@ -548,7 +545,6 @@ def create_sampler_options(tabname):
     sampler_spacing.input(fn=set_sampler_spacing, inputs=[sampler_spacing], outputs=[])
     sampler_presets.input(fn=set_sampler_preset, inputs=[sampler_presets], outputs=[sampler_timesteps])
     sampler_timesteps.input(fn=set_sampler_timesteps, inputs=[sampler_timesteps], outputs=[])
-    sampler_beta.input(fn=set_sampler_beta, inputs=[sampler_beta], outputs=[])
     sampler_prediction.input(fn=set_sampler_prediction, inputs=[sampler_prediction], outputs=[])
     sampler_order.input(fn=set_sampler_order, inputs=[sampler_order], outputs=[])
     sampler_shift.input(fn=set_sampler_shift, inputs=[sampler_shift, sampler_base_shift, sampler_max_shift], outputs=[])
