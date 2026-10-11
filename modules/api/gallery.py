@@ -226,7 +226,7 @@ def register_api(api): # register api
             else:
                 return JSONResponse(content=get_image_thumbnail(fn, exif))
         except Exception as e:
-            log.error(f'Gallery: {file} {e}')
+            log.error(f'Gallery: file="{file}" {e}')
             content = { 'error': str(e) }
             return JSONResponse(content=content)
 

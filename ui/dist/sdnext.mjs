@@ -11571,6 +11571,21 @@ function submit_control(...args) {
   window.submit_state = "";
   return res;
 }
+function submit_scheduler(...args) {
+  log("submitScheduler");
+  const id = randomId();
+  const res = create_submit_args(args);
+  res[0] = id;
+  res[1] = window.submit_state;
+  const tabs = Array.from(gradioApp().querySelectorAll("#control-tabs > .tab-nav > button"));
+  const tabIdx = tabs.findIndex((btn) => btn.classList.contains("selected"));
+  const tabNames = ["ControlNet", "T2I Adapter", "XS", "Lite", "Reference"];
+  const selectedTab = tabNames[tabIdx] || "ControlNet";
+  res[2] = selectedTab.toLowerCase();
+  res[3] = "scheduled";
+  window.submit_state = "";
+  return res;
+}
 function submit_video(...args) {
   clearGallery("video");
   const id = randomId();
@@ -11612,6 +11627,13 @@ function submit_video_wrapper(...args) {
   id = id.replace("video-selector-", "");
   const btn = gradioApp().getElementById(`${id}_generate_btn`);
   log("submitVideoWrapper", { type: id, found: !!btn });
+  if (btn) btn.click();
+}
+function submit_video_schedule_wrapper(...args) {
+  const currentTabElement = gradioApp().getElementById("video_current_tab")?.querySelector("input, textarea");
+  const currentTab = currentTabElement?.value || "video";
+  const btn = gradioApp().getElementById(`${currentTab}_schedule_btn`);
+  log("submitVideoSchedule", { type: currentTab, found: !!btn });
   if (btn) btn.click();
 }
 function submit_postprocessing(...args) {
@@ -11919,6 +11941,7 @@ window.selected_gallery_index = selected_gallery_index;
 window.selected_gallery_files = selected_gallery_files;
 window.send_to_kanvas = send_to_kanvas;
 window.submit_control = submit_control;
+window.submit_scheduler = submit_scheduler;
 window.submit_framepack = submit_framepack;
 window.submit_img2img = submit_img2img;
 window.submit_ltx = submit_ltx;
@@ -11927,6 +11950,7 @@ window.submit_postprocessing = submit_postprocessing;
 window.submit = submit_txt2img;
 window.submit_txt2img = submit_txt2img;
 window.submit_video = submit_video;
+window.submit_video_schedule_wrapper = submit_video_schedule_wrapper;
 window.submit_video_wrapper = submit_video_wrapper;
 window.switch_to_txt2img = switch_to_txt2img;
 window.switch_to_img2img_tab = switch_to_img2img_tab;
@@ -12590,6 +12614,7 @@ var ConnectionMonitorState = class _ConnectionMonitorState {
     return name.replace(/\s*\[.*\]\s*$/, "").split(/[\\/]/).pop().trim() || "unknown model";
   }
   static setData({ online, data }) {
+    window.serverOnline = online;
     if (online !== this.online) {
       this.online = online;
       this.ts = /* @__PURE__ */ new Date();
@@ -14646,6 +14671,7 @@ function galleryClickEventHandler(event2) {
     showModal(event2);
   }
 }
+window.galleryClickEventHandler = galleryClickEventHandler;
 async function bindImageViewer() {
   const galleryPreviews = gradioApp().querySelectorAll(".gradio-gallery > div.preview");
   for (const galleryPreview of galleryPreviews) {
