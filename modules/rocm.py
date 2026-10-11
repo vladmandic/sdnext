@@ -275,9 +275,9 @@ if sys.platform == "win32":
         # newer drivers ship amdhip64 that depends on sdk dlls such as rocm_kpack.dll
         env = os.environ.copy()
         if isinstance(environment, PythonPackageEnvironment):
-            env["PATH"] = environment.path + os.pathsep + env.get("PATH", "")
+            env["PATH"] = os.path.join(environment.path, env.get("PATH", ""))
         elif isinstance(environment, ROCmEnvironment):
-            env["PATH"] = os.path.join(environment.path, "bin") + os.pathsep + env.get("PATH", "")
+            env["PATH"] = os.path.join(environment.path, "bin", env.get("PATH", ""))
         out = spawn([sys.executable, name], env=env)
         os.unlink(name)
         out = out.strip()

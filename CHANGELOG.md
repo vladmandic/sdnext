@@ -1,13 +1,16 @@
 # Change Log for SD.Next
 
-## Update for 2026-10-08
+## Update for 2026-10-11
 
-- **Models**
-  [Google Nano Banana 2.1](https://deepmind.google/models/model-cards/nano-banana-2-1/
+- **Models**  
+  - [Google Nano Banana 2.1](https://deepmind.google/models/model-cards/nano-banana-2-1/
+- **Scheduler**  
+  new native *task scheduler* and *queue management*  
+  see [scheduler documentation](https://vladmandic.github.io/sdnext-docs/Scheduler/)  
 - **Edit Models**  
   *edit* models work differently than more traditional *i2i/inpaint* models as they use indirect reference image(s)  
   **hires** and **detailer** now set condition-image on edit models thus unlocking advanced workflows  
-  supported: *Qwen-Image 2.1, Qwen-Image-Edit and Edit Plus, FLUX.2, FLUX.1 Kontext, GLM-Image, JoyImage Edit Plus*  
+  supported models: *Qwen-Image 2.1, Qwen-Image-Edit and Edit Plus, FLUX.2, FLUX.1 Kontext, GLM-Image, JoyImage Edit Plus*  
 - **Fixes**
   - offload: group offload logs a denied pin once per component
   - ipadapter: loading and unloading adapters under group offload
@@ -23,6 +26,8 @@
   - infotext: parser stall on long runs of words or spaces without a colon
   - infotext: parse error on values with superscript or circled digits
   - infotext: a value starting with a double quote no longer swallows the next parameter
+  - rocm: arch detection with newer windows drivers, thanks @crashingalexsan
+  - samplers: update ui when sampler settings change, thanks @resonantsky
 
 ## Update for 2026-10-06
 
