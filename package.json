@@ -65,6 +65,7 @@
     "@typescript-eslint/eslint-plugin": "^8.71.1",
     "@typescript-eslint/parser": "^8.71.1",
     "@vladmandic/build": "^0.10.3",
+    "ag-grid-community": "^36.2.0",
     "argparse": "^2.0.1",
     "debug": "^4.4.3",
     "esbuild": "^0.28.2",
