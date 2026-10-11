@@ -37,6 +37,7 @@
   - video: reject output extensions other than letters and digits
   - video: accept only rate and quality codec options
   - api: folders allowed for one file request no longer stay allowed for later requests
+  - api: rate limit and log costs match the exact path or the route template, not other routes' prefixes
 
 ## Update for 2026-10-06
 
