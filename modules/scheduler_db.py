@@ -1,6 +1,6 @@
 """SQLite persistence for scheduled generation tasks."""
 
-import datetime
+import datetime as dt
 import json
 import os
 import sqlite3
@@ -23,17 +23,17 @@ _task_modes = {'txt2img', 'img2img', 'control', 'video'}
 
 def _timestamp(value=None):
     if value is None:
-        value = datetime.datetime.now(datetime.timezone.utc)
-    if isinstance(value, datetime.datetime):
+        value = dt.datetime.now(dt.timezone.utc)
+    if isinstance(value, dt.datetime):
         if value.tzinfo is None:
-            value = value.replace(tzinfo=datetime.timezone.utc)
-        return value.astimezone(datetime.timezone.utc).isoformat(timespec='seconds')
+            value = value.replace(tzinfo=dt.timezone.utc)
+        return value.astimezone(dt.timezone.utc).isoformat(timespec='seconds')
     if isinstance(value, str):
         try:
-            parsed = datetime.datetime.fromisoformat(value.replace('Z', '+00:00'))
+            parsed = dt.datetime.fromisoformat(value.replace('Z', '+00:00'))
             if parsed.tzinfo is None:
-                parsed = parsed.replace(tzinfo=datetime.timezone.utc)
-            return parsed.astimezone(datetime.timezone.utc).isoformat(timespec='seconds')
+                parsed = parsed.replace(tzinfo=dt.timezone.utc)
+            return parsed.astimezone(dt.timezone.utc).isoformat(timespec='seconds')
         except ValueError:
             pass
     return str(value)
@@ -135,11 +135,6 @@ def _initialize_schema(connection):
             data BLOB NOT NULL,
             PRIMARY KEY (task_id, position)
         );
-        CREATE TABLE IF NOT EXISTS scheduler_meta (
-            key TEXT PRIMARY KEY,
-            value TEXT NOT NULL
-        );
-        INSERT OR IGNORE INTO scheduler_meta(key, value) VALUES ('paused', 'false');
     ''')
     columns = {row['name'] for row in connection.execute('PRAGMA table_info(tasks)')}
     if 'queue_position' not in columns:
@@ -164,7 +159,7 @@ def _initialize_schema(connection):
     if 'infotexts' not in columns:
         connection.execute("ALTER TABLE tasks ADD COLUMN infotexts TEXT NOT NULL DEFAULT '[]'")
     connection.execute('CREATE INDEX IF NOT EXISTS tasks_queue_idx ON tasks(status, queue_position, id)')
-    connection.execute('PRAGMA user_version = 5')
+    connection.execute('PRAGMA user_version = 1')
 
 
 def initialize(db_path=None):
@@ -200,11 +195,10 @@ def initialize(db_path=None):
 def diagnostics(db_path=None):
     initialize(db_path)
     path = os.path.abspath(_db_path(db_path))
-    required_tables = {'tasks', 'task_images', 'scheduler_meta'}
+    required_tables = {'tasks', 'task_images'}
     required_columns = {
         'tasks': {'id', 'status', 'mode', 'parameters', 'results', 'process_stats', 'infotexts'},
         'task_images': {'task_id', 'position', 'data'},
-        'scheduler_meta': {'key', 'value'},
     }
     with _connection(path) as connection:
         integrity = [row[0] for row in connection.execute('PRAGMA integrity_check')]
@@ -435,7 +429,7 @@ def retry_or_fail(task_id, error, retry_delay=60, db_path=None):
         if row is None:
             return False
         if row['attempts'] < row['max_attempts']:
-            due = _timestamp(datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=retry_delay))
+            due = _timestamp(dt.datetime.now(dt.timezone.utc) + dt.timedelta(seconds=retry_delay))
             connection.execute(
                 "UPDATE tasks SET status = 'scheduled', retry_at = ?, last_error = ? WHERE id = ?",
                 (due, str(error), task_id),
@@ -540,17 +534,3 @@ def prune_tasks(before, db_path=None):
     with _connection(db_path) as connection:
         cursor = connection.execute("DELETE FROM tasks WHERE created_at < ? AND status != 'running'", (_timestamp(before),))
         return cursor.rowcount
-
-
-def is_paused(db_path=None):
-    initialize(db_path)
-    with _connection(db_path) as connection:
-        row = connection.execute("SELECT value FROM scheduler_meta WHERE key = 'paused'").fetchone()
-        return row is not None and row['value'] == 'true'
-
-
-def set_paused(paused, db_path=None):
-    initialize(db_path)
-    value = 'true' if paused else 'false'
-    with _connection(db_path) as connection:
-        connection.execute("INSERT OR REPLACE INTO scheduler_meta(key, value) VALUES ('paused', ?)", (value,))

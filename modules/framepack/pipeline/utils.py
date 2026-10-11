@@ -2,7 +2,7 @@ import os
 import json
 import random
 import glob
-import datetime
+import datetime as dt
 import torch
 import einops
 import cv2
@@ -533,7 +533,7 @@ def group_files_by_folder(all_files):
 
 
 def generate_timestamp():
-    now = datetime.datetime.now()
+    now = dt.datetime.now()
     timestamp = now.strftime('%y%m%d_%H%M%S')
     milliseconds = f"{int(now.microsecond / 1000):03d}"
     random_number = random.randint(0, 9999)

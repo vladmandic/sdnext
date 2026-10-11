@@ -1,7 +1,8 @@
 """Scheduler task management API routes."""
 
-import datetime
+import datetime as dt
 import json
+import os
 from typing import Any, Literal
 import mimetypes
 
@@ -19,7 +20,7 @@ class ParametersUpdate(BaseModel):
 
 
 class RescheduleRequest(BaseModel):
-    scheduled_at: datetime.datetime
+    scheduled_at: dt.datetime
 
 
 class MoveTaskRequest(BaseModel):
@@ -34,13 +35,13 @@ class SchedulerSettingsRequest(BaseModel):
 
 
 class PruneRequest(BaseModel):
-    before: datetime.datetime
+    before: dt.datetime
 
 
 def list_tasks(
     status: TaskStatus | None = None,
-    start: datetime.datetime | None = None,
-    end: datetime.datetime | None = None,
+    start: dt.datetime | None = None,
+    end: dt.datetime | None = None,
     parameters: str | None = None,
     limit: int = Query(default=100, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
@@ -160,8 +161,21 @@ async def update_task_parameters_media(
         raise HTTPException(status_code=422, detail='Media IDs must be unique non-negative integers')
     if scheduler.get_task(task_id) is None:
         raise HTTPException(status_code=404, detail=f'Scheduler task {task_id} not found')
-    replacements = {index: await upload.read() for index, upload in zip(media_indexes, media)}
-    if not scheduler.update_task_parameters_with_media(task_id, parameter_updates, media_replacements=replacements):
+    replacements = {}
+    metadata = {}
+    for index, upload in zip(media_indexes, media):
+        filename = os.path.basename((upload.filename or f'media-{index}').replace('\\', '/')) or f'media-{index}'
+        media_type = (upload.content_type or '').split(';', maxsplit=1)[0].strip().lower()
+        if not media_type or media_type == 'application/octet-stream':
+            media_type = mimetypes.guess_type(filename)[0] or 'application/octet-stream'
+        replacements[index] = await upload.read()
+        metadata[index] = {'filename': filename, 'media_type': media_type}
+    if not scheduler.update_task_parameters_with_media(
+            task_id,
+            parameter_updates,
+            media_replacements=replacements,
+            media_metadata=metadata,
+    ):
         raise HTTPException(status_code=409, detail=f'Scheduler task {task_id} parameters cannot be updated')
     return scheduler.get_task(task_id)
 

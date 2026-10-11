@@ -6,7 +6,7 @@ check progress of last job and shutdown system if timeout reached
 
 import os
 import time
-import datetime
+import datetime as dt
 import logging
 import urllib3
 import requests
@@ -59,8 +59,8 @@ while True:
         if job_timestamp is None:
             log.warning(f'sdnext monitoring cannot get last job info: {status}')
         else:
-            job_timestamp = datetime.datetime.strptime(job_timestamp, "%Y%m%d%H%M%S") if job_timestamp != '0' else datetime.datetime.now()
-            elapsed = datetime.datetime.now() - job_timestamp
+            job_timestamp = dt.datetime.strptime(job_timestamp, "%Y%m%d%H%M%S") if job_timestamp != '0' else dt.datetime.now()
+            elapsed = dt.datetime.now() - job_timestamp
             timeout = round(opts.timeout - elapsed.total_seconds())
             log.info(f'sdnext: id={task_id} last="{job_timestamp}" elapsed={elapsed} timeout={timeout} progress={job_progress} eta={eta_relative} step={sampling_step}/{sampling_steps} job="{job}"')
             if timeout < 0:

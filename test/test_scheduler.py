@@ -1,5 +1,5 @@
 import sys
-import datetime
+import datetime as dt
 import os
 import tempfile
 from types import SimpleNamespace
@@ -302,7 +302,7 @@ class TestSchedulerPolicy(unittest.TestCase):
     def test_auto_window_boundaries_and_overnight_window(self):
         options = SimpleNamespace(scheduler_state='Auto', scheduler_start='10:00', scheduler_end='18:00')
         with self.patch_options(options):
-            now = datetime.datetime.now().astimezone()
+            now = dt.datetime.now().astimezone()
             at_start = now.replace(hour=10, minute=0, second=0, microsecond=0)
             at_end = now.replace(hour=18, minute=0, second=0, microsecond=0)
             self.assertTrue(scheduler.scheduler_enabled(at_start))

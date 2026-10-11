@@ -3,7 +3,7 @@ import re
 import sys
 import uuid
 import time
-import datetime
+import datetime as dt
 from modules.logger import log
 from modules.errors import display
 
@@ -215,7 +215,7 @@ class State:
         self.job_count = 1 # cannot be less than 1 on new job
         self.batch_no = 0
         self.batch_count = 0
-        self.job_timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+        self.job_timestamp = dt.datetime.now().strftime("%Y%m%d%H%M%S")
         self.timestep = 0
         self._sampling_step = 0
         self.sampling_steps = 0

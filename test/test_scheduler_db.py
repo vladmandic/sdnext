@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 import os
 import pathlib
 import sqlite3
@@ -180,7 +180,7 @@ class TestSchedulerDatabase(unittest.TestCase):
         self.assertEqual(stats['json_errors'][0]['field'], 'parameters')
 
     def test_fifo_reorder_and_scheduled_head_blocking(self):
-        future = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
+        future = dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=1)
         first = scheduler_db.create_task({'prompt': 'future'}, scheduled_at=future, db_path=self.db_path)
         second = scheduler_db.create_task({'prompt': 'second'}, db_path=self.db_path)
         third = scheduler_db.create_task({'prompt': 'third'}, db_path=self.db_path)
@@ -198,7 +198,7 @@ class TestSchedulerDatabase(unittest.TestCase):
         self.assertEqual([task['id'] for task in scheduler_db.list_tasks(db_path=self.db_path)], [first, second, third])
 
     def test_existing_database_migrates_fifo_and_schedule_markers(self):
-        future = (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)).replace(microsecond=0).isoformat()
+        future = (dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=1)).replace(microsecond=0).isoformat()
         connection = scheduler_db.connect(self.db_path)
         try:
             connection.executescript('''
@@ -222,7 +222,7 @@ class TestSchedulerDatabase(unittest.TestCase):
             )
             connection.execute(
                 "INSERT INTO tasks(created_at, scheduled_at, status, parameters) VALUES (?, ?, 'scheduled', '{}')",
-                ('2026-01-02T00:00:00+00:00', (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=1)).replace(microsecond=0).isoformat(),),
+                ('2026-01-02T00:00:00+00:00', (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=1)).replace(microsecond=0).isoformat(),),
             )
         finally:
             connection.close()
@@ -236,7 +236,7 @@ class TestSchedulerDatabase(unittest.TestCase):
         self.assertTrue(all('execute_now' not in task for task in tasks))
 
     def test_immediate_queue_preempts_future_and_paused_tasks(self):
-        future = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
+        future = dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=1)
         scheduled = scheduler_db.create_task({'prompt': 'future'}, scheduled_at=future, db_path=self.db_path)
         manual = scheduler_db.create_task({'prompt': 'manual'}, db_path=self.db_path)
         trailing = scheduler_db.create_task({'prompt': 'trailing'}, db_path=self.db_path)
@@ -269,7 +269,7 @@ class TestSchedulerDatabase(unittest.TestCase):
             [b'input-image'],
             db_path=self.db_path,
         )
-        old_time = datetime.datetime(2024, 1, 1, tzinfo=datetime.timezone.utc).isoformat()
+        old_time = dt.datetime(2024, 1, 1, tzinfo=dt.timezone.utc).isoformat()
         connection = scheduler_db.connect(self.db_path)
         try:
             connection.execute('UPDATE tasks SET created_at = ? WHERE id = ?', (old_time, first))
@@ -288,18 +288,15 @@ class TestSchedulerDatabase(unittest.TestCase):
         self.assertEqual(scheduler_db.prune_tasks('2025-01-01T00:00:00+00:00', db_path=self.db_path), 1)
         self.assertIsNone(scheduler_db.get_task(first, db_path=self.db_path))
 
-    def test_global_pause_and_retry_limit(self):
+    def test_retry_limit(self):
         task_id = scheduler_db.create_task({'prompt': 'retry'}, max_attempts=1, db_path=self.db_path)
 
-        self.assertFalse(scheduler_db.is_paused(db_path=self.db_path))
-        scheduler_db.set_paused(True, db_path=self.db_path)
-        self.assertTrue(scheduler_db.is_paused(db_path=self.db_path))
         self.assertEqual(scheduler_db.claim_next_task(db_path=self.db_path)['id'], task_id)
         self.assertTrue(scheduler_db.retry_or_fail(task_id, 'generation failed', db_path=self.db_path))
         task = scheduler_db.get_task(task_id, db_path=self.db_path)
         self.assertEqual(task['status'], 'failed')
         self.assertEqual(task['last_error'], 'generation failed')
-        self.assertTrue(scheduler_db.reschedule_task(task_id, datetime.datetime.now(datetime.timezone.utc), db_path=self.db_path))
+        self.assertTrue(scheduler_db.reschedule_task(task_id, dt.datetime.now(dt.timezone.utc), db_path=self.db_path))
         task = scheduler_db.get_task(task_id, db_path=self.db_path)
         self.assertEqual(task['status'], 'scheduled')
         self.assertEqual(task['attempts'], 0)

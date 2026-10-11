@@ -187,13 +187,12 @@ class ReqCaptionTagger(BaseModel):
     show_scores: bool = Field(default=False, title="Show Scores", description="Include confidence scores with tags.")
 
 
-class ReqCaptionVLM(BaseModel):
+class ReqCaptionVLMBase(BaseModel):
     """Vision-Language Model request for the dispatch endpoint.
 
     Flexible image understanding using modern VLMs (Qwen, Gemma, Florence, Moondream, etc.).
     Best for: Detailed descriptions, question answering, object detection, OCR.
     """
-    backend: Literal["vlm"] = Field(..., description="Backend selector. Use 'vlm' for Vision-Language Model captioning.")
     image: str = Field(default="", title="Image", description="Image to caption. Must be a Base64 encoded string.")
     model: str = Field(default="Alibaba Qwen 2.5 VL 3B", title="Model", description="VLM model to use. See GET /sdapi/v1/vqa/models for full list.")
     question: str = Field(default="describe the image", title="Question/Task", description="Task to perform: 'Short Caption', 'Normal Caption', 'Long Caption', 'Use Prompt' (custom text via prompt field). Model-specific tasks available via GET /sdapi/v1/vqa/prompts.")
@@ -212,7 +211,11 @@ class ReqCaptionVLM(BaseModel):
     keep_prefill: bool | None = Field(default=None, title="Keep Prefill", description="Keep prefill text in final output.")
 
 
-class ReqCaptionAnalyze(ReqCaptionVLM):
+class ReqCaptionVLM(ReqCaptionVLMBase):
+    backend: Literal["vlm"] = Field(..., description="Backend selector. Use 'vlm' for Vision-Language Model captioning.")
+
+
+class ReqCaptionAnalyze(ReqCaptionVLMBase):
     backend: Literal["analyze"] = Field(..., description="Backend selector. Use 'analyze' for detailed image analysis using VLM.")
 
 
