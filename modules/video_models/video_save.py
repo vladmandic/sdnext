@@ -1,5 +1,6 @@
 from fractions import Fraction
 import os
+import re
 import time
 import cv2
 import numpy as np
@@ -296,6 +297,9 @@ def save_video(
     if metadata is None:
         metadata = {}
     output_video = None
+    if not re.fullmatch(r'[A-Za-z0-9]+', mp4_ext or ''): # the extension is appended to the output path
+        log.error(f'Video: ext="{mp4_ext}" invalid')
+        return 0, output_video, None
 
     if binary is not None:
         output_filename = get_video_filename(p)

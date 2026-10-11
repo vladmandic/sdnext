@@ -34,6 +34,7 @@
   - infotext: a value starting with a double quote no longer swallows the next parameter
   - rocm: arch detection with newer windows drivers, thanks @crashingalexsan
   - samplers: update ui when sampler settings change, thanks @resonantsky
+  - video: reject output extensions other than letters and digits
 
 ## Update for 2026-10-06
 
