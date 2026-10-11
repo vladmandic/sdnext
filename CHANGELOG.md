@@ -19,6 +19,10 @@
   - server: `--auth` values masked in the startup log and `/sdapi/v1/cmd-flags`
   - api: `--cors-origins` entries separated by a comma and a space
   - api: auth check for users with a non-ascii password
+  - infotext: quoted values with escaped quotes, and a parser stall on unterminated ones
+  - infotext: parser stall on long runs of words or spaces without a colon
+  - infotext: parse error on values with superscript or circled digits
+  - infotext: a value starting with a double quote no longer swallows the next parameter
 
 ## Update for 2026-10-06
 
