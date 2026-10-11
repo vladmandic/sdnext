@@ -516,6 +516,15 @@ def create_sampler_options(tabname):
                 for field in ui_fields
                 if field[0] not in {'sampler_presets', 'sampler_options'}
             }
+            values.update({
+                key: saved_defaults.get(key, shared.opts.get_default(key))
+                for key in (
+                    'schedulers_use_loworder',
+                    'schedulers_use_thresholding',
+                    'schedulers_dynamic_shift',
+                    'schedulers_rescale_betas',
+                )
+            })
         else:
             values = sampler_ui_defaults(name)
             if values is None:
