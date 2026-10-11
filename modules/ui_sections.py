@@ -306,20 +306,18 @@ def sampler_ui_defaults(name):
         'schedulers_rescale_betas',
     }
     values = {key: shared.opts.get_default(key) for key in option_keys}
-    saved_timesteps = shared.opts.schedulers_timesteps or ''
     model = shared.sd_model if shared.sd_loaded else None
     scheduler = getattr(model, 'default_scheduler', None) if model is not None else None
     scheduler = scheduler or (getattr(model, 'scheduler', None) if model is not None else None)
     model_config = getattr(scheduler, 'config', None)
     model_defaults = dict(model_config.items()) if model_config is not None and hasattr(model_config, 'items') else {}
-    default_timesteps = str(model_defaults.get('num_train_timesteps', shared.opts.schedulers_timesteps_range or 1000))
-    values['schedulers_timesteps'] = saved_timesteps or default_timesteps
 
     defaults = dict(sd_samplers_diffusers.config.get('All', {}))
     defaults.update(model_defaults)
     defaults.update(sd_samplers_diffusers.config.get(name, {}))
     defaults.update(sampler.options)
-    values['schedulers_timesteps'] = saved_timesteps or str(defaults.get('num_train_timesteps', default_timesteps))
+    if 'num_train_timesteps' in defaults:
+        values['schedulers_timesteps'] = str(defaults['num_train_timesteps'])
     if 'prediction_type' in defaults and 'Flow' in name and name not in sd_samplers_diffusers.flow_exclude:
         defaults['prediction_type'] = 'flow_prediction'
     if 'SGM' in name:
@@ -378,9 +376,10 @@ def create_sampler_options(tabname):
     sampler_dropdown = _sampler_dropdowns.get(tabname)
     selected_sampler = getattr(sampler_dropdown, 'value', 'Default')
     sampler_defaults = sampler_ui_defaults(selected_sampler)
-    timesteps_value = saved_defaults.get('schedulers_timesteps', shared.opts.get_default('schedulers_timesteps'))
-    if selected_sampler != 'Default' and not timesteps_value and sampler_defaults is not None:
-        timesteps_value = sampler_defaults['schedulers_timesteps']
+    if selected_sampler == 'Default':
+        timesteps_value = saved_defaults.get('schedulers_timesteps', shared.opts.get_default('schedulers_timesteps'))
+    else:
+        timesteps_value = sampler_defaults['schedulers_timesteps'] if sampler_defaults is not None else shared.opts.get_default('schedulers_timesteps')
 
     def set_sampler_options(sampler_options):
         shared.opts.data['schedulers_dynamic_shift'] = 'dynamic' in sampler_options
@@ -539,7 +538,6 @@ def create_sampler_options(tabname):
                 ('schedulers_rescale_betas', 'rescale'),
             ) if values[key]
         ]
-        shared.opts.data.update({key: value for key, value in values.items() if key != 'schedulers_timesteps'})
         return [gr.update(value=values[field[0]]) for field in ui_fields]
 
     sampler_dropdown = _sampler_dropdowns.get(tabname)
