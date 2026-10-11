@@ -36,6 +36,7 @@
   - samplers: update ui when sampler settings change, thanks @resonantsky
   - video: reject output extensions other than letters and digits
   - video: accept only rate and quality codec options
+  - api: folders allowed for one file request no longer stay allowed for later requests
 
 ## Update for 2026-10-06
 

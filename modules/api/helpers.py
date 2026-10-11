@@ -1,6 +1,7 @@
 import io
 import os
 import base64
+from functools import lru_cache
 from pathlib import Path
 from urllib.parse import unquote
 from PIL import Image, PngImagePlugin
@@ -14,7 +15,6 @@ from modules.logger import log
 _upload_store_getter = None
 MAX_B64_BYTES = 256 * 1024 * 1024 # base64 expands ~4/3 and the response is built in memory; larger artifacts are fetched by path instead
 debug = os.environ.get('SD_PATH_DEBUG', None) is not None
-allowed_paths = []
 
 
 def register_upload_store(getter_fn):
@@ -194,35 +194,37 @@ def sanitize_filename(filename):
     return fn
 
 
+@lru_cache(maxsize=16)
+def allowed_folders(folders: tuple[str, ...]) -> tuple[Path, ...]:
+    return tuple({Path(folder).absolute() for folder in folders} | {Path(folder).resolve() for folder in folders}) # resolved forms match files reached through symlinks
+
+
 def validate_path(fn: str, allowed_dirs: list[str] | None = None, allowed_folder: bool = False, allowed_file: bool = False):
     if shared.demo is None:
         raise HTTPException(status_code=503, detail="server not ready")
     if not fn.strip():
         raise HTTPException(status_code=400, detail="file path is required")
 
-    global allowed_paths # pylint: disable=global-statement
-    if not allowed_paths:
-        allowed_paths = [Path(folder).absolute() for folder in shared.demo.allowed_paths] + [Path(folder).resolve() for folder in shared.demo.allowed_paths]
-        allowed_paths = list(set(allowed_paths))
+    allowed = allowed_folders(tuple(shared.demo.allowed_paths))
     if allowed_dirs is not None:
-        allowed_paths.extend([Path(folder).absolute() for folder in allowed_dirs])
+        allowed += allowed_folders(tuple(allowed_dirs))
     decoded = unquote(fn).replace('%3A', ':')
     sanitized = sanitize_filename(decoded)
     resolved = Path(sanitized).resolve()
-    if not any(folder in resolved.parents for folder in allowed_paths):
+    if not any(folder in resolved.parents for folder in allowed):
         if debug:
-            log.error(f'API validate allowed: fn="{fn}" sanitized="{sanitized}" resolved="{resolved}" parents={resolved.parents} allowed={allowed_paths}')
+            log.error(f'API validate allowed: fn="{fn}" sanitized="{sanitized}" resolved="{resolved}" parents={resolved.parents} allowed={allowed}')
         raise HTTPException(status_code=403, detail=f"file not allowed: {resolved}")
     if resolved.is_dir():
         if allowed_folder:
             return str(resolved)
         if debug:
-            log.error(f'API validate folder: fn="{fn}" sanitized="{sanitized}" resolved="{resolved}" parents={resolved.parents} allowed={allowed_paths}')
+            log.error(f'API validate folder: fn="{fn}" sanitized="{sanitized}" resolved="{resolved}" parents={resolved.parents} allowed={allowed}')
         raise HTTPException(status_code=403, detail=f"directory not allowed: {resolved}")
     if not resolved.is_file():
         if allowed_file:
             return str(resolved)
         if debug:
-            log.error(f'API validate file:: fn="{fn}" sanitized="{sanitized}" resolved="{resolved}" parents={resolved.parents} allowed={allowed_paths}')
+            log.error(f'API validate file:: fn="{fn}" sanitized="{sanitized}" resolved="{resolved}" parents={resolved.parents} allowed={allowed}')
         raise HTTPException(status_code=404, detail=f"file not found: {resolved}")
     return str(resolved)
