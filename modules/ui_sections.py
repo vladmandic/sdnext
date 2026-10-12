@@ -441,6 +441,11 @@ def create_sampler_options(tabname):
         shared.opts.schedulers_max_image_seq_len = max_image_seq_len
         save_with_debounce()
 
+    def set_sampler_beta(sampler_beta):
+        log.debug(f'Sampler set options: beta={sampler_beta}')
+        shared.opts.schedulers_beta_schedule = sampler_beta
+        save_with_debounce()
+
     def set_sigma_adjust(val, start, end):
         log.debug(f'Sampler set options: sigma={val} min={start} max={end}')
         shared.opts.schedulers_sigma_adjust = val
@@ -448,17 +453,12 @@ def create_sampler_options(tabname):
         shared.opts.schedulers_sigma_adjust_max = end
         save_with_debounce()
 
-    # 'linear', 'scaled_linear', 'squaredcos_cap_v2'
     def set_sampler_preset(preset):
         if preset == 'AYS SD15':
-            timesteps = '999,850,736,645,545,455,343,233,124,24'
-        elif preset == 'AYS SDXL':
-            timesteps = '999,845,730,587,443,310,193,116,53,13'
-        else:
-            timesteps = ''
-        shared.opts.schedulers_timesteps = timesteps
-        save_with_debounce()
-        return timesteps
+            return '999,850,736,645,545,455,343,233,124,24'
+        if preset == 'AYS SDXL':
+            return '999,845,730,587,443,310,193,116,53,13'
+        return ''
 
     with gr.Row(elem_classes=['flex-break']):
         sampler_sigma = gr.Dropdown(label='Sigma method', elem_id=f"{tabname}_sampler_sigma", choices=['default', 'karras', 'betas', 'exponential', 'lambdas', 'flowmatch'], value=shared.opts.schedulers_sigma, type='value')
@@ -555,6 +555,7 @@ def create_sampler_options(tabname):
     sampler_presets.input(fn=set_sampler_preset, inputs=[sampler_presets], outputs=[sampler_timesteps])
     sampler_timesteps.input(fn=set_sampler_timesteps, inputs=[sampler_timesteps], outputs=[])
     sampler_prediction.input(fn=set_sampler_prediction, inputs=[sampler_prediction], outputs=[])
+    sampler_beta.input(fn=set_sampler_beta, inputs=[sampler_beta], outputs=[])
     sampler_order.input(fn=set_sampler_order, inputs=[sampler_order], outputs=[])
     sampler_shift.input(fn=set_sampler_shift, inputs=[sampler_shift, sampler_base_shift, sampler_max_shift], outputs=[])
     sampler_base_shift.input(fn=set_sampler_shift, inputs=[sampler_shift, sampler_base_shift, sampler_max_shift], outputs=[])
