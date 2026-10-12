@@ -19,6 +19,7 @@
   *note*: depending on benchmark settings/depth, it may take a very long time to complete  
 - **Fixes**
   - offload: group offload logs a denied pin once per component
+  - offload: balanced offload warns when a module exceeds the gpu limit and part of it runs from cpu
   - ipadapter: loading and unloading adapters under group offload
   - ipadapter: jobs without an adapter after an adapter job
   - lora: reset loaded networks if refiner prompt is used
