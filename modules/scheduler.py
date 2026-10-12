@@ -19,6 +19,7 @@ _worker_start_failed = False
 _worker_stop = threading.Event()
 _worker_lock = threading.Lock()
 _worker_poll_interval = 1.0
+_worker_idle_interval = 5.0
 _model_option_keys = ('sd_model_checkpoint', 'sd_model_refiner', 'sd_unet', 'sd_unet_secondary', 'sd_vae', 'sd_text_encoder')
 debug = os.environ.get('SD_SCHEDULER_DEBUG', None) is not None
 debug_log = log.trace if debug else lambda *args, **kwargs: None
@@ -468,6 +469,11 @@ def run_once():
     return True
 
 
+def _worker_wait_interval():
+    from modules import call_queue
+    return _worker_poll_interval if call_queue.is_locked() else _worker_idle_interval
+
+
 def _worker_loop():
     if hasattr(os, 'setpriority') and hasattr(os, 'PRIO_PROCESS') and hasattr(threading, 'get_native_id'):
         try:
@@ -479,12 +485,17 @@ def _worker_loop():
         except OSError as exc:
             debug_log(f'Scheduler: thread priority adjustment unavailable: {exc}')
     while not _worker_stop.is_set():
+        scheduler_db.change_event.clear()
         try:
             did_work = run_once()
         except Exception as exc:
             log.error(f'Scheduler: worker error: {exc}')
-            did_work = False
-        _worker_stop.wait(0.1 if did_work else _worker_poll_interval)
+            _worker_stop.wait(_worker_poll_interval)
+            continue
+        if did_work:
+            _worker_stop.wait(0.1)
+        else:
+            scheduler_db.change_event.wait(_worker_wait_interval())
 
 
 def start_worker(diag: bool = False):
@@ -505,8 +516,9 @@ def start_worker(diag: bool = False):
             return None
         if diag:
             try:
-                stats = scheduler_db.diagnostics()
-                log.info(f'Scheduler: database diagnostics {stats}')
+                stats, opts = scheduler_db.diagnostics()
+                log.info(f'Scheduler compile options: {opts}')
+                log.info(f'Scheduler database diagnostics: {stats}')
                 if not stats['ok']:
                     log.error('Scheduler: database diagnostics found integrity or schema issues')
             except Exception as exc:
@@ -520,6 +532,7 @@ def start_worker(diag: bool = False):
 
 def stop_worker(timeout=5):
     _worker_stop.set()
+    scheduler_db.change_event.set()
     if _worker is not None and _worker.is_alive() and threading.current_thread() is not _worker:
         _worker.join(timeout=max(0, timeout))
 

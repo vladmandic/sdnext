@@ -192,14 +192,10 @@ mem_mon = modules.memmon.MemUsageMonitor("MemMon", devices.device)
 history = history.History()
 log.debug('Quantization: registered=SDNQ')
 
-from modules import scheduler
-scheduler.start_worker(cmd_opts.test)
-
 try:
     log.info(f'Device: {print_dict(devices.get_gpu_info())}')
 except Exception as ex:
     log.error(f'Device: {ex}')
-
 
 def restart_server(restart=True):
     if demo is None:

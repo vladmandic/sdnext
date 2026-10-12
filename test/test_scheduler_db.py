@@ -19,6 +19,30 @@ class TestSchedulerDatabase(unittest.TestCase):
         self.db_path = pathlib.Path(self.temp_dir) / 'scheduler.db'
         self.addCleanup(scheduler_db.configure, None)
 
+    def test_connection_signals_database_changes(self):
+        class FakeConnection:
+            total_changes = 0
+
+            def commit(self):
+                pass
+
+            def rollback(self):
+                pass
+
+            def close(self):
+                pass
+
+        connection = FakeConnection()
+        scheduler_db.change_event.clear()
+        try:
+            with patch.object(scheduler_db, 'connect', return_value=connection), \
+                    patch.object(scheduler_db.log, 'trace', create=True):
+                with scheduler_db._connection():
+                    connection.total_changes += 1
+            self.assertTrue(scheduler_db.change_event.is_set())
+        finally:
+            scheduler_db.change_event.clear()
+
     def test_configured_database_directory_and_overrides(self):
         scheduler_dir = pathlib.Path(self.temp_dir) / 'custom'
         scheduler_db.configure(scheduler_dir)
@@ -196,6 +220,20 @@ class TestSchedulerDatabase(unittest.TestCase):
         self.assertEqual(scheduler_db.get_task(second, db_path=self.db_path)['scheduled_by_user'], 0)
         self.assertTrue(scheduler_db.queue_task(third, db_path=self.db_path))
         self.assertEqual([task['id'] for task in scheduler_db.list_tasks(db_path=self.db_path)], [first, second, third])
+
+    def test_empty_claim_skips_write_transaction(self):
+        scheduler_db.initialize(self.db_path)
+        statements = []
+        connect = scheduler_db.connect
+
+        def traced_connect(db_path=None, timeout=5):
+            connection = connect(db_path, timeout=timeout)
+            connection.set_trace_callback(statements.append)
+            return connection
+
+        with patch.object(scheduler_db, 'connect', side_effect=traced_connect):
+            self.assertIsNone(scheduler_db.claim_next_task(db_path=self.db_path))
+        self.assertFalse(any(statement.upper().startswith('BEGIN IMMEDIATE') for statement in statements))
 
     def test_existing_database_migrates_fifo_and_schedule_markers(self):
         future = (dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=1)).replace(microsecond=0).isoformat()

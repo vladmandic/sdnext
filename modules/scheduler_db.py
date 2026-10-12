@@ -18,7 +18,9 @@ _initialized_paths = set()
 _initialization_failures = {}
 _init_lock = threading.Lock()
 _configured_db_path = None
+change_event = threading.Event()
 _task_modes = {'txt2img', 'img2img', 'control', 'video'}
+debug = os.environ.get('SD_SCHEDULER_DEBUG', None) is not None
 
 
 def _timestamp(value=None):
@@ -70,7 +72,7 @@ def configure(directory=None):
     _configured_db_path = os.path.join(directory, 'scheduler.db')
 
 
-def connect(db_path=None, timeout=30):
+def connect(db_path=None, timeout=5):
     path = _db_path(db_path)
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     if os.name == 'nt':
@@ -79,13 +81,16 @@ def connect(db_path=None, timeout=30):
         uri = f'file:{quote(os.path.abspath(path), safe="/")}?vfs=unix-dotfile'
         connection = sqlite3.connect(uri, uri=True, timeout=timeout, isolation_level=None)
     connection.row_factory = sqlite3.Row
-    connection.execute('PRAGMA foreign_keys = ON')
     return connection
 
 
 @contextmanager
-def _connection(db_path=None, timeout=30):
+def _connection(db_path=None, timeout=5):
+    if debug:
+        fn = f'{sys._getframe(3).f_code.co_name}:{sys._getframe(2).f_code.co_name}' # pylint: disable=protected-access
+        log.trace(f'DB: {fn}')
     connection = connect(db_path, timeout=timeout)
+    changes = connection.total_changes
     try:
         yield connection
         connection.commit()
@@ -93,19 +98,22 @@ def _connection(db_path=None, timeout=30):
         connection.rollback()
         raise
     finally:
+        changed = connection.total_changes > changes
         connection.close()
+        if changed:
+            change_event.set()
 
 
-def _ensure_rollback_journal(connection):
-    mode = connection.execute('PRAGMA journal_mode').fetchone()[0]
-    if str(mode).lower() == 'delete':
-        return
-    mode = connection.execute('PRAGMA journal_mode = DELETE').fetchone()[0]
-    if str(mode).lower() != 'delete':
-        raise sqlite3.OperationalError(f'Could not enable SQLite rollback journal: {mode}')
+def _get_sqlite_stat1(connection):
+    connection.execute('PRAGMA optimize')
+    cursor = connection.cursor()
+    cursor.execute("ANALYZE;")
+    stat = cursor.execute("SELECT stat FROM sqlite_stat1 WHERE tbl = 'tasks';").fetchone()
+    return list(stat)
 
 
 def _initialize_schema(connection):
+    t0 = time.time()
     connection.executescript('''
         CREATE TABLE IF NOT EXISTS tasks (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -136,30 +144,21 @@ def _initialize_schema(connection):
             PRIMARY KEY (task_id, position)
         );
     ''')
-    columns = {row['name'] for row in connection.execute('PRAGMA table_info(tasks)')}
-    if 'queue_position' not in columns:
-        connection.execute('ALTER TABLE tasks ADD COLUMN queue_position INTEGER NOT NULL DEFAULT 0')
-        for position, row in enumerate(connection.execute('SELECT id FROM tasks ORDER BY id')):
-            connection.execute('UPDATE tasks SET queue_position = ? WHERE id = ?', (position, row['id']))
-    if 'scheduled_by_user' not in columns:
-        connection.execute('ALTER TABLE tasks ADD COLUMN scheduled_by_user INTEGER NOT NULL DEFAULT 0')
-        now = _timestamp()
-        rows = connection.execute("SELECT id, status, scheduled_at FROM tasks WHERE status IN ('scheduled', 'paused')")
-        for row in rows:
-            if row['scheduled_at'] > now:
-                connection.execute('UPDATE tasks SET scheduled_by_user = 1 WHERE id = ?', (row['id'],))
-    if 'retry_at' not in columns:
-        connection.execute('ALTER TABLE tasks ADD COLUMN retry_at TEXT')
-    if 'mode' not in columns:
-        connection.execute("ALTER TABLE tasks ADD COLUMN mode TEXT NOT NULL DEFAULT 'control' CHECK (mode IN ('txt2img', 'img2img', 'control', 'video'))")
-    if 'execute_now' not in columns:
-        connection.execute('ALTER TABLE tasks ADD COLUMN execute_now INTEGER NOT NULL DEFAULT 0')
-    if 'process_stats' not in columns:
-        connection.execute("ALTER TABLE tasks ADD COLUMN process_stats TEXT NOT NULL DEFAULT '{}'")
-    if 'infotexts' not in columns:
-        connection.execute("ALTER TABLE tasks ADD COLUMN infotexts TEXT NOT NULL DEFAULT '[]'")
+    index_list = connection.execute("PRAGMA index_list('tasks')").fetchall()
+    exists = any(index[1] == 'tasks_queue_idx' for index in index_list)
     connection.execute('CREATE INDEX IF NOT EXISTS tasks_queue_idx ON tasks(status, queue_position, id)')
     connection.execute('PRAGMA user_version = 1')
+    connection.execute('PRAGMA foreign_keys = ON')
+    connection.execute('PRAGMA auto_vacuum = 1')
+    journal = connection.execute('PRAGMA journal_mode = TRUNCATE').fetchone()[0]
+    db = connection.execute('PRAGMA database_list').fetchone()
+    user_ver = connection.execute('PRAGMA user_version').fetchone()[0]
+    schema_ver = connection.execute('PRAGMA schema_version').fetchone()[0]
+    pg_count = connection.execute('PRAGMA page_count').fetchone()[0]
+    pg_size = connection.execute('PRAGMA page_size').fetchone()[0]
+    stat = _get_sqlite_stat1(connection)
+    t1 = time.perf_counter()
+    log.info(f'Scheduler: db={db[1]} path="{db[2]}" schema={schema_ver} user={user_ver} size={pg_count*pg_size} journal={journal} stat={stat} mode={"open" if exists else "create"} time={t1 - t0:.3f}')
 
 
 def initialize(db_path=None):
@@ -175,7 +174,6 @@ def initialize(db_path=None):
             for attempt in range(10):
                 try:
                     with _connection(path, timeout=1) as connection:
-                        _ensure_rollback_journal(connection)
                         _initialize_schema(connection)
                     break
                 except sqlite3.OperationalError as exc:
@@ -189,7 +187,6 @@ def initialize(db_path=None):
             raise
     t1 = time.perf_counter()
     timer.startup.add('scheduler', t1 - t0)
-    log.info(f'Scheduler: db="{path}" time={t1 - t0:.3f}')
 
 
 def diagnostics(db_path=None):
@@ -241,6 +238,8 @@ def diagnostics(db_path=None):
             'journal_mode': connection.execute('PRAGMA journal_mode').fetchone()[0],
             'user_version': connection.execute('PRAGMA user_version').fetchone()[0],
         }
+        compile_options = connection.execute('PRAGMA compile_options').fetchall()
+        opts = [opt[0] for opt in compile_options]
     stats['ok'] = (
         stats['integrity'] == ['ok']
         and not stats['foreign_key_errors']
@@ -248,7 +247,7 @@ def diagnostics(db_path=None):
         and not stats['missing_columns']
         and not stats['json_errors']
     )
-    return stats
+    return stats, opts
 
 
 def _task(row):
@@ -396,21 +395,32 @@ def claim_next_task(db_path=None, force_only=False):
     initialize(db_path)
     now = _timestamp()
     with _connection(db_path) as connection:
-        connection.execute('BEGIN IMMEDIATE')
         query = "SELECT id, status, scheduled_at, scheduled_by_user, retry_at, execute_now FROM tasks WHERE status IN ('scheduled', 'paused')"
         if force_only:
             query += ' AND execute_now = 1'
         query += ' ORDER BY queue_position, id LIMIT 1'
-        row = connection.execute(query).fetchone()
-        if row is None:
-            return None
-        if not row['execute_now']:
+
+        def is_ready(row):
+            if row is None:
+                return False
+            if row['execute_now']:
+                return True
             if row['status'] == 'paused':
-                return None
+                return False
             if row['scheduled_by_user'] and row['scheduled_at'] > now:
-                return None
+                return False
             if row['retry_at'] is not None and row['retry_at'] > now:
-                return None
+                return False
+            return True
+
+        row = connection.execute(query).fetchone()
+        if not is_ready(row):
+            return None
+
+        connection.execute('BEGIN IMMEDIATE')
+        row = connection.execute(query).fetchone()
+        if not is_ready(row):
+            return None
         task_id = row['id']
         cursor = connection.execute(
             "UPDATE tasks SET status = 'running', started_at = ?, attempts = attempts + 1, retry_at = NULL, execute_now = 0 WHERE id = ? AND status = 'scheduled'",

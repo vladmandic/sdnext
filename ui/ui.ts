@@ -264,6 +264,20 @@ function getCaptionActiveTab(...args) {
   return res;
 }
 
+function setHeader(text: string) {
+  const headers = gradioApp().querySelectorAll('.header-text');
+  headers.forEach((header) => {
+    header.style.transition = 'none';
+    header.style.color = 'var(--sd-muted-color)';
+    header.textContent = text;
+    setTimeout(() => {
+      header.style.transition = 'color 1s';
+      header.style.color = 'transparent';
+      setTimeout(() => { header.textContent = ''; }, 1000);
+    }, 1000);
+  });
+}
+
 function showSubmitButtons(tabname, show) {}
 
 function clearGallery(tabname) {
@@ -275,9 +289,10 @@ function clearGallery(tabname) {
 }
 
 export function submit_txt2img(...args) {
-  log('submitTxt');
-  clearGallery('txt2img');
   const id = randomId();
+  log('submitTxt', id);
+  setHeader(`Txt2Img: ${id}`);
+  clearGallery('txt2img');
   requestProgress(id, null, gradioApp().getElementById('txt2img_gallery'));
   const res = create_submit_args(args);
   res[0] = id;
@@ -287,9 +302,10 @@ export function submit_txt2img(...args) {
 }
 
 function submit_img2img(...args) {
-  log('submitImg');
-  clearGallery('img2img');
   const id = randomId();
+  log('submitImg', id);
+  setHeader(`Img2Img: ${id}`);
+  clearGallery('img2img');
   requestProgress(id, null, gradioApp().getElementById('img2img_gallery'));
   const res = create_submit_args(args);
   res[0] = id;
@@ -300,9 +316,10 @@ function submit_img2img(...args) {
 }
 
 function submit_control(...args) {
-  log('submitControl');
-  clearGallery('control');
   const id = randomId();
+  log('submitControl', id);
+  setHeader(`Generate: ${id}`);
+  clearGallery('control');
   requestProgress(id, null, gradioApp().getElementById('control_gallery'));
   const res = create_submit_args(args);
   res[0] = id;
@@ -318,8 +335,9 @@ function submit_control(...args) {
 }
 
 function submit_scheduler(...args) {
-  log('submitScheduler');
   const id = randomId();
+  log('submitScheduler', id);
+  setHeader(`Scheduler: ${id}`);
   const res = create_submit_args(args);
   res[0] = id;
   res[1] = window.submit_state;
@@ -335,9 +353,10 @@ function submit_scheduler(...args) {
 }
 
 function submit_video(...args) {
-  clearGallery('video');
   const id = randomId();
   log('submitVideo', id);
+  setHeader(`Video: ${id}`);
+  clearGallery('video');
   requestProgress(id, null, gradioApp().getElementById('video_gallery'));
   const res = create_submit_args(args);
   res[0] = id;
@@ -349,6 +368,7 @@ function submit_video(...args) {
 function submit_framepack(...args) {
   const id = randomId();
   log('submitFramepack', id);
+  setHeader(`Video Framepack: ${id}`);
   requestProgress(id, null, null);
   window.submit_state = '';
   args[0] = id;
@@ -358,6 +378,7 @@ function submit_framepack(...args) {
 function submit_ltx(...args) {
   const id = randomId();
   log('submitFramepack', id);
+  setHeader(`Video LTX: ${id}`);
   requestProgress(id, null, gradioApp().getElementById('ltx_output_video'));
   window.submit_state = '';
   args[0] = id;
@@ -367,6 +388,7 @@ function submit_ltx(...args) {
 function submit_minimax(...args) {
   const id = randomId();
   log('submitMiniMax', id);
+  setHeader(`Video MiniMax: ${id}`);
   requestProgress(id, null, gradioApp().getElementById('minimax_output_video'));
   window.submit_state = '';
   args[0] = id;
@@ -393,6 +415,7 @@ function submit_video_schedule_wrapper(...args) {
 function submit_postprocessing(...args) {
   const id = randomId();
   log('SubmitProcess', id);
+  setHeader(`Process: ${id}`);
   clearGallery('extras');
   requestProgress(id, null, null);
   window.submit_state = '';

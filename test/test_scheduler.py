@@ -299,6 +299,14 @@ class TestSchedulerPolicy(unittest.TestCase):
             from modules import shared
         return patch.object(shared, 'opts', options)
 
+    def test_worker_wait_interval_keeps_busy_queue_polling_fast(self):
+        call_queue = SimpleNamespace(is_locked=lambda: True)
+
+        with patch.dict(sys.modules, {'modules.call_queue': call_queue}):
+            self.assertEqual(scheduler._worker_wait_interval(), 1.0)
+            call_queue.is_locked = lambda: False
+            self.assertEqual(scheduler._worker_wait_interval(), 5.0)
+
     def test_auto_window_boundaries_and_overnight_window(self):
         options = SimpleNamespace(scheduler_state='Auto', scheduler_start='10:00', scheduler_end='18:00')
         with self.patch_options(options):

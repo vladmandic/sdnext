@@ -49,6 +49,7 @@ import modules.ui_extra_networks
 import modules.textual_inversion
 import modules.script_callbacks
 import modules.api.middleware
+import modules.scheduler
 
 
 if not modules.loader.initialized:
@@ -508,6 +509,7 @@ def webui(restart=False, _exit=False, profiler=None):
     modules.script_callbacks.after_ui_callback()
 
     load_model()
+    modules.scheduler.start_worker(shared.cmd_opts.test)
     mount_subpath(app)
     shared.demo.allowed_paths = resolve_paths(shared.demo.allowed_paths)
     shared.opts.save()
