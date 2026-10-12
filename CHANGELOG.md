@@ -21,6 +21,7 @@
   - offload: group offload logs a denied pin once per component
   - offload: balanced offload warns when a module exceeds the gpu limit and part of it runs from cpu
   - anima: load repos in the diffusers modular layout, such as `circlestone-labs/Anima-Base-v1.0-Diffusers`
+  - color correction: histogram method returns rgb instead of rgba
   - ipadapter: loading and unloading adapters under group offload
   - ipadapter: jobs without an adapter after an adapter job
   - lora: reset loaded networks if refiner prompt is used

@@ -60,7 +60,7 @@ def _apply_histogram(correction, original_image):
     np_output = cv2.cvtColor(np_match, cv2.COLOR_LAB2RGB)
     image = Image.fromarray(np_output.astype("uint8"))
     image = blendLayers(image, original_image, BlendType.LUMINOSITY)
-    return image
+    return image.convert('RGB') # blendLayers returns rgba
 
 
 def _apply_wavelet(correction, original_image):
