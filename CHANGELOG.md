@@ -6,12 +6,17 @@
   - [Google Nano Banana 2.1](https://deepmind.google/models/model-cards/nano-banana-2-1)
   - [Qwen Image 2.1 Turbo](https://huggingface.co/Qwen/Qwen-Image-2.1-Turbo) in *base* and *sdnq-uint4* variants
 - **Scheduler**  
-  new native *task scheduler* and *queue management*  
+  new native *Task Scheduler* and *Queue Management*  
   see [scheduler documentation](https://vladmandic.github.io/sdnext-docs/Scheduler/)  
 - **Edit Models**  
   *edit* models work differently than more traditional *i2i/inpaint* models as they use indirect reference image(s)  
   **hires** and **detailer** now set condition-image on edit models thus unlocking advanced workflows  
   supported models: *Qwen-Image 2.1, Qwen-Image-Edit and Edit Plus, FLUX.2, FLUX.1 Kontext, GLM-Image, JoyImage Edit Plus*  
+- **Benchmark**  
+  in-depth benchmarking of quantization and attention parameters  
+  provides clear recommendations based on benchmark results  
+  available via UI: *System -> Benchmark* or CLI: `cli/sdnq-attention-benchmark.py`  
+  *note*: depending on benchmark settings/depth, it may take a very long time to complete  
 - **Fixes**
   - offload: group offload logs a denied pin once per component
   - ipadapter: loading and unloading adapters under group offload

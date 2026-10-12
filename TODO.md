@@ -3,7 +3,6 @@
 ## Short-term
 
 - Video: unify execution path for ui and api
-- Torch: update ipex, rocm to torch==2.14
 
 ## Issues
 
@@ -14,10 +13,8 @@
 ### Roadmap
 
 - OpenAI API interface for image generation, @vladmandic
-- Lightweight scheduler/queue manager, @vladmandic
 - Integrate natural language image search: [ImageDB](https://github.com/vladmandic/imagedb), @vladmandic
 - Support cloud providers, @CalamitousFelicitousness
-- Benchmark tool productize: @CalamitousFelicitousness
 - Automated testing and integrate models repo, @CalamitousFelicitousness
 - Video: support finetunes
 - Video: use Networks/Reference instead of custom, @vladmandic
