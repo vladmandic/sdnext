@@ -109,7 +109,9 @@ def _get_sqlite_stat1(connection):
     cursor = connection.cursor()
     cursor.execute("ANALYZE;")
     stat = cursor.execute("SELECT stat FROM sqlite_stat1 WHERE tbl = 'tasks';").fetchone()
-    return list(stat)
+    if stat:
+        return list(stat)
+    return ['empty']
 
 
 def _fail_on_restart(connection):
@@ -399,7 +401,7 @@ def claim_next_task(db_path=None, force_only=False):
     initialize(db_path)
     now = _timestamp()
     with _connection(db_path) as connection:
-        query = "SELECT id, status, scheduled_at, scheduled_by_user, retry_at, execute_now FROM tasks WHERE status IN ('scheduled', 'paused')"
+        query = "SELECT id, status, scheduled_at, scheduled_by_user, retry_at, execute_now FROM tasks WHERE status = 'scheduled'"
         if force_only:
             query += ' AND execute_now = 1'
         query += ' ORDER BY queue_position, id LIMIT 1'
@@ -409,8 +411,6 @@ def claim_next_task(db_path=None, force_only=False):
                 return False
             if row['execute_now']:
                 return True
-            if row['status'] == 'paused':
-                return False
             if row['scheduled_by_user'] and row['scheduled_at'] > now:
                 return False
             if row['retry_at'] is not None and row['retry_at'] > now:

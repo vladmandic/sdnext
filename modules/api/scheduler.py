@@ -6,7 +6,7 @@ import os
 from typing import Any, Literal
 import mimetypes
 
-from fastapi import File, Form, HTTPException, Query, Response, UploadFile
+from fastapi import Depends, File, Form, HTTPException, Query, Response, UploadFile
 from pydantic import BaseModel, Field
 
 from modules import scheduler
@@ -36,6 +36,15 @@ class SchedulerSettingsRequest(BaseModel):
 
 class PruneRequest(BaseModel):
     before: dt.datetime
+
+
+def _require_scheduler_available():
+    if scheduler._worker_start_failed: # pylint: disable=protected-access
+        raise HTTPException(status_code=503, detail='Scheduler is disabled')
+
+
+def _add_scheduler_route(api, path, endpoint, **kwargs):
+    api.add_api_route(path, endpoint, dependencies=[Depends(_require_scheduler_available)], **kwargs)
 
 
 def list_tasks(
@@ -249,20 +258,20 @@ def prune_tasks(request: PruneRequest):
 
 
 def register_api(api):
-    api.add_api_route('/sdapi/v1/scheduler', get_scheduler_status, methods=['GET'], response_model=dict, tags=['Scheduler'])
-    api.add_api_route('/sdapi/v1/scheduler/tasks', list_tasks, methods=['GET'], response_model=list[dict], tags=['Scheduler'])
-    api.add_api_route('/sdapi/v1/scheduler/tasks/{task_id}', get_task, methods=['GET'], response_model=dict, tags=['Scheduler'])
-    api.add_api_route('/sdapi/v1/scheduler/tasks/{task_id}/images/{image_index}', get_task_image, methods=['GET'], tags=['Scheduler'])
-    api.add_api_route('/sdapi/v1/scheduler/tasks/{task_id}/media/{media_index}', get_task_media, methods=['GET'], tags=['Scheduler'])
-    api.add_api_route('/sdapi/v1/scheduler/tasks/{task_id}', delete_task, methods=['DELETE'], response_model=dict, tags=['Scheduler'])
-    api.add_api_route('/sdapi/v1/scheduler/tasks/{task_id}/execute', execute_task, methods=['POST'], status_code=202, response_model=dict, tags=['Scheduler'])
-    api.add_api_route('/sdapi/v1/scheduler/tasks/{task_id}/parameters', update_task_parameters, methods=['PATCH'], response_model=dict, tags=['Scheduler'])
-    api.add_api_route('/sdapi/v1/scheduler/tasks/{task_id}/parameters/media', update_task_parameters_media, methods=['PATCH'], response_model=dict, tags=['Scheduler'])
-    api.add_api_route('/sdapi/v1/scheduler/tasks/{task_id}/pause', pause_task, methods=['POST'], response_model=dict, tags=['Scheduler'])
-    api.add_api_route('/sdapi/v1/scheduler/tasks/{task_id}/resume', resume_task, methods=['POST'], response_model=dict, tags=['Scheduler'])
-    api.add_api_route('/sdapi/v1/scheduler/tasks/{task_id}/reschedule', reschedule_task, methods=['POST'], response_model=dict, tags=['Scheduler'])
-    api.add_api_route('/sdapi/v1/scheduler/tasks/{task_id}/move', move_task, methods=['POST'], response_model=dict, tags=['Scheduler'])
-    api.add_api_route('/sdapi/v1/scheduler/pause', pause_scheduler, methods=['POST'], response_model=dict, tags=['Scheduler'])
-    api.add_api_route('/sdapi/v1/scheduler/resume', resume_scheduler, methods=['POST'], response_model=dict, tags=['Scheduler'])
-    api.add_api_route('/sdapi/v1/scheduler/state', update_scheduler_settings, methods=['POST'], response_model=dict, tags=['Scheduler'])
-    api.add_api_route('/sdapi/v1/scheduler/prune', prune_tasks, methods=['POST'], response_model=dict, tags=['Scheduler'])
+    _add_scheduler_route(api, '/sdapi/v1/scheduler', get_scheduler_status, methods=['GET'], response_model=dict, tags=['Scheduler'])
+    _add_scheduler_route(api, '/sdapi/v1/scheduler/tasks', list_tasks, methods=['GET'], response_model=list[dict], tags=['Scheduler'])
+    _add_scheduler_route(api, '/sdapi/v1/scheduler/tasks/{task_id}', get_task, methods=['GET'], response_model=dict, tags=['Scheduler'])
+    _add_scheduler_route(api, '/sdapi/v1/scheduler/tasks/{task_id}/images/{image_index}', get_task_image, methods=['GET'], tags=['Scheduler'])
+    _add_scheduler_route(api, '/sdapi/v1/scheduler/tasks/{task_id}/media/{media_index}', get_task_media, methods=['GET'], tags=['Scheduler'])
+    _add_scheduler_route(api, '/sdapi/v1/scheduler/tasks/{task_id}', delete_task, methods=['DELETE'], response_model=dict, tags=['Scheduler'])
+    _add_scheduler_route(api, '/sdapi/v1/scheduler/tasks/{task_id}/execute', execute_task, methods=['POST'], status_code=202, response_model=dict, tags=['Scheduler'])
+    _add_scheduler_route(api, '/sdapi/v1/scheduler/tasks/{task_id}/parameters', update_task_parameters, methods=['PATCH'], response_model=dict, tags=['Scheduler'])
+    _add_scheduler_route(api, '/sdapi/v1/scheduler/tasks/{task_id}/parameters/media', update_task_parameters_media, methods=['PATCH'], response_model=dict, tags=['Scheduler'])
+    _add_scheduler_route(api, '/sdapi/v1/scheduler/tasks/{task_id}/pause', pause_task, methods=['POST'], response_model=dict, tags=['Scheduler'])
+    _add_scheduler_route(api, '/sdapi/v1/scheduler/tasks/{task_id}/resume', resume_task, methods=['POST'], response_model=dict, tags=['Scheduler'])
+    _add_scheduler_route(api, '/sdapi/v1/scheduler/tasks/{task_id}/reschedule', reschedule_task, methods=['POST'], response_model=dict, tags=['Scheduler'])
+    _add_scheduler_route(api, '/sdapi/v1/scheduler/tasks/{task_id}/move', move_task, methods=['POST'], response_model=dict, tags=['Scheduler'])
+    _add_scheduler_route(api, '/sdapi/v1/scheduler/pause', pause_scheduler, methods=['POST'], response_model=dict, tags=['Scheduler'])
+    _add_scheduler_route(api, '/sdapi/v1/scheduler/resume', resume_scheduler, methods=['POST'], response_model=dict, tags=['Scheduler'])
+    _add_scheduler_route(api, '/sdapi/v1/scheduler/state', update_scheduler_settings, methods=['POST'], response_model=dict, tags=['Scheduler'])
+    _add_scheduler_route(api, '/sdapi/v1/scheduler/prune', prune_tasks, methods=['POST'], response_model=dict, tags=['Scheduler'])

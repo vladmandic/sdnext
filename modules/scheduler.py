@@ -20,10 +20,12 @@ _worker_stop = threading.Event()
 _worker_lock = threading.Lock()
 _worker_poll_interval = 1.0
 _worker_idle_interval = 5.0
+_task_max_attempts = 3
+_task_retry_delay = 3
 _model_option_keys = ('sd_model_checkpoint', 'sd_model_refiner', 'sd_unet', 'sd_unet_secondary', 'sd_vae', 'sd_text_encoder')
+_file_media_fields = {'condition_video', 'condition_files', 'reference_media', 'inputs', 'inits'}
 debug = os.environ.get('SD_SCHEDULER_DEBUG', None) is not None
 debug_log = log.trace if debug else lambda *args, **kwargs: None
-_file_media_fields = {'condition_video', 'condition_files', 'reference_media', 'inputs', 'inits'}
 
 
 def _file_details(value):
@@ -217,7 +219,7 @@ def enqueue_control_request(*args, **kwargs):
         parameters, image_blobs = _capture_request(args, kwargs)
         _capture_model_options(parameters)
         mode = _task_mode('control', parameters['control'])
-        task_id = scheduler_db.create_task(parameters, image_blobs=image_blobs, mode=mode)
+        task_id = scheduler_db.create_task(parameters, image_blobs=image_blobs, max_attempts=_task_max_attempts, mode=mode)
     except Exception as exc:
         log.error(f'Scheduler: unable to record Control task: {exc}')
         return _queued_response(None, str(exc))
@@ -238,7 +240,7 @@ def enqueue_video_request(surface, *args, **kwargs):
             parameters['model'] = str(model_name)
         _capture_model_options(parameters)
         parameters['model'] = str(model_name or parameters['model'])
-        task_id = scheduler_db.create_task(parameters, image_blobs=image_blobs, mode=_task_mode('video', named))
+        task_id = scheduler_db.create_task(parameters, image_blobs=image_blobs, max_attempts=_task_max_attempts, mode=_task_mode('video', named))
         log.info(f'Scheduler: queued task=Video surface={surface} id={task_id}')
         debug_log(f'Scheduler: captured video task id={task_id} surface={surface} fields={len(named)} media={len(image_blobs)}')
         return _video_queued_response(task_id, surface)
@@ -461,8 +463,7 @@ def run_once():
         else:
             _run_task(task, lock=True)
     except Exception as exc:
-        delay = min(3600, 60 * (2 ** max(0, task['attempts'] - 1)))
-        scheduler_db.retry_or_fail(task['id'], exc, retry_delay=delay)
+        scheduler_db.retry_or_fail(task['id'], exc, retry_delay=_task_retry_delay)
         log.error(f'Scheduler: task failed id={task["id"]} attempt={task["attempts"]}: {exc}')
     return True
 
@@ -508,9 +509,11 @@ def start_worker(diag: bool = False):
         scheduler_db.configure(shared.opts.scheduler_dir)
         try:
             scheduler_db.initialize()
-        except Exception as exc:
+        except Exception as e:
             _worker_start_failed = True
-            log.error(f'Scheduler: database initialization failed; scheduler disabled until restart: {exc}')
+            log.error('Scheduler disabled: database initialization failed')
+            from modules.errors import display
+            display(e, 'Scheduler')
             return None
         if diag:
             try:

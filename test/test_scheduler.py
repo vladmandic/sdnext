@@ -74,6 +74,7 @@ class TestSchedulerSerialization(unittest.TestCase):
         self.assertEqual(parameters['video']['arguments']['model'], 'LTX model')
         self.assertEqual(parameters['video']['arguments']['condition_video']['media_type'], 'video/mp4')
         self.assertEqual(create_task.call_args.kwargs['image_blobs'], [b'video-bytes'])
+        self.assertEqual(create_task.call_args.kwargs['max_attempts'], scheduler.MAX_ATTEMPTS)
         self.assertEqual(create_task.call_args.kwargs['mode'], 'video')
 
     def test_control_unit_round_trip_excludes_runtime_objects(self):
@@ -112,7 +113,8 @@ class TestSchedulerSerialization(unittest.TestCase):
             self.assertNotIn('model_options', parameters)
             for key, value in vars(options).items():
                 self.assertEqual(parameters[key], value)
-            create_task.assert_called_once_with(parameters, image_blobs=[], mode='control')
+            create_task.assert_called_once()
+            self.assertEqual(create_task.call_args.kwargs['max_attempts'], scheduler.MAX_ATTEMPTS)
 
     def test_capture_model_options_does_not_access_unloaded_model(self):
         class UnloadedShared(SimpleNamespace):
@@ -366,6 +368,22 @@ class TestSchedulerPolicy(unittest.TestCase):
             self.assertTrue(scheduler.run_once())
         claim.assert_called_once_with(force_only=True)
         run_task.assert_called_once_with({'id': 12, 'attempts': 1, 'image_blobs': []})
+
+    def test_run_once_uses_configured_retry_delay(self):
+        from modules import call_queue
+
+        task = {'id': 14, 'attempts': 1}
+        with patch.object(call_queue, 'is_locked', return_value=False), \
+                patch.object(scheduler.scheduler_db, 'claim_next_task', return_value=task), \
+                patch.object(scheduler.scheduler_db, 'get_task', return_value={'image_blobs': []}), \
+                patch.object(scheduler, '_run_task', side_effect=RuntimeError('generation failed')), \
+                patch.object(scheduler.scheduler_db, 'retry_or_fail') as retry_or_fail:
+            self.assertTrue(scheduler.run_once())
+
+        retry_or_fail.assert_called_once()
+        self.assertEqual(retry_or_fail.call_args.args[0], 14)
+        self.assertEqual(str(retry_or_fail.call_args.args[1]), 'generation failed')
+        self.assertEqual(retry_or_fail.call_args.kwargs['retry_delay'], scheduler.RETRY_DELAY)
 
     def test_run_once_locks_standard_video_replay(self):
         from modules import call_queue

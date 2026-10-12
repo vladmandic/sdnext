@@ -221,6 +221,16 @@ class TestSchedulerDatabase(unittest.TestCase):
         self.assertTrue(scheduler_db.queue_task(third, db_path=self.db_path))
         self.assertEqual([task['id'] for task in scheduler_db.list_tasks(db_path=self.db_path)], [first, second, third])
 
+    def test_claim_skips_paused_queue_head(self):
+        paused = scheduler_db.create_task({'prompt': 'paused'}, db_path=self.db_path)
+        next_task = scheduler_db.create_task({'prompt': 'next'}, db_path=self.db_path)
+        self.assertTrue(scheduler_db.pause_task(paused, db_path=self.db_path))
+
+        claimed = scheduler_db.claim_next_task(db_path=self.db_path)
+
+        self.assertEqual(claimed['id'], next_task)
+        self.assertEqual(scheduler_db.get_task(paused, db_path=self.db_path)['status'], 'paused')
+
     def test_empty_claim_skips_write_transaction(self):
         scheduler_db.initialize(self.db_path)
         statements = []

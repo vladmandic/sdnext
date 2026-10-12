@@ -18,6 +18,21 @@ class FakeApi:
 
 
 class TestSchedulerApiRegistration(unittest.TestCase):
+    def test_routes_are_disabled_when_scheduler_worker_start_failed(self):
+        api = FakeApi()
+        scheduler_api.register_api(api)
+
+        for _path, _endpoint, options in api.routes:
+            self.assertTrue(any(
+                dependency.dependency is scheduler_api._require_scheduler_available
+                for dependency in options['dependencies']
+            ))
+
+        with patch.object(scheduler_api.scheduler, '_worker_start_failed', True):
+            with self.assertRaises(HTTPException) as caught:
+                scheduler_api._require_scheduler_available()
+        self.assertEqual(caught.exception.status_code, 503)
+
     def test_management_routes_are_registered_without_submission_or_result_write(self):
         api = FakeApi()
         scheduler_api.register_api(api)
