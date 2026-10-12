@@ -392,10 +392,12 @@ def create_sampler_options(tabname):
     def set_sampler_fallback(fallback):
         log.debug(f'Sampler set options: fallback={fallback}')
         shared.opts.schedulers_fallback = fallback
+        save_with_debounce()
 
     def set_sampler_timesteps(timesteps):
         log.debug(f'Sampler set options: timesteps={timesteps}')
         shared.opts.schedulers_timesteps = timesteps
+        save_with_debounce()
 
     def set_sampler_spacing(spacing):
         log.debug(f'Sampler set options: spacing={spacing}')
@@ -542,8 +544,8 @@ def create_sampler_options(tabname):
 
     sampler_sigma.input(fn=set_sampler_sigma, inputs=[sampler_sigma], outputs=[])
     sampler_spacing.input(fn=set_sampler_spacing, inputs=[sampler_spacing], outputs=[])
-    sampler_presets.input(fn=set_sampler_preset, inputs=[sampler_presets], outputs=[sampler_timesteps])
-    sampler_timesteps.input(fn=set_sampler_timesteps, inputs=[sampler_timesteps], outputs=[])
+    sampler_presets.change(fn=set_sampler_preset, inputs=[sampler_presets], outputs=[sampler_timesteps])
+    sampler_timesteps.change(fn=set_sampler_timesteps, inputs=[sampler_timesteps], outputs=[])
     sampler_prediction.input(fn=set_sampler_prediction, inputs=[sampler_prediction], outputs=[])
     sampler_beta.input(fn=set_sampler_beta, inputs=[sampler_beta], outputs=[])
     sampler_order.input(fn=set_sampler_order, inputs=[sampler_order], outputs=[])
