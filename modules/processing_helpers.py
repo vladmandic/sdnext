@@ -71,16 +71,20 @@ def _apply_wavelet(correction, original_image):
         ref = torch.nn.functional.interpolate(ref, size=gen.shape[2:], mode='bilinear', align_corners=False)
     kernel = torch.tensor([[1, 2, 1], [2, 4, 2], [1, 2, 1]], dtype=torch.float32).unsqueeze(0).unsqueeze(0) / 16.0
     kernel = kernel.expand(3, -1, -1, -1)
+
+    def blur(image: torch.Tensor, radius: int) -> torch.Tensor: # dilated by 2**level, as in the StableSR wavelet color fix
+        return torch.nn.functional.conv2d(torch.nn.functional.pad(image, (radius, radius, radius, radius), mode='replicate'), kernel, dilation=radius, groups=3)
+
     log.debug(f"Applying color correction: method=wavelet levels=5 image={original_image}")
     gen_highs = []
     current = gen
-    for _ in range(5):
-        low = torch.nn.functional.conv2d(current, kernel, padding=1, groups=3)
+    for level in range(5):
+        low = blur(current, 2 ** level)
         gen_highs.append(current - low)
         current = low
     ref_low = ref
-    for _ in range(5):
-        ref_low = torch.nn.functional.conv2d(ref_low, kernel, padding=1, groups=3)
+    for level in range(5):
+        ref_low = blur(ref_low, 2 ** level)
     result = ref_low
     for high in reversed(gen_highs):
         result = result + high
