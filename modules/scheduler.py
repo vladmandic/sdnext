@@ -8,7 +8,7 @@ import mimetypes
 import os
 import tempfile
 import threading
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 
 from modules import scheduler_db
 from modules.logger import log
@@ -341,23 +341,26 @@ def _video_result_error(surface, result):
 @contextmanager
 def _temporary_model_options(parameters):
     from modules import shared
-    values = {key: getattr(shared.opts, key) for key in _model_option_keys}
+    values = {key: shared.opts.get(key) for key in _model_option_keys}
     _samples_save = shared.opts.samples_save
     try:
         if isinstance(parameters, dict):
             for key in _model_option_keys:
                 if key in parameters:
-                    setattr(shared.opts, key, parameters[key])
+                    shared.opts.set(key, parameters[key])
         yield
     finally:
         shared.opts.samples_save = _samples_save
         for key, value in values.items():
-            setattr(shared.opts, key, value)
+            shared.opts.set(key, value)
 
 
-def _run_task(task):
+def _run_task(task, lock):
+    from modules import call_queue
     with _temporary_model_options(task['parameters']):
-        _execute_task(task)
+        ctx = call_queue.get_lock() if lock else nullcontext()
+        with ctx:
+            _execute_task(task)
 
 
 def _execute_task(task):
@@ -454,14 +457,9 @@ def run_once():
         task['image_blobs'] = scheduler_db.get_task(task['id'], include_images=True)['image_blobs']
         if task.get('mode', 'control') == 'video':
             surface = task.get('parameters', {}).get('video', {}).get('surface')
-            if surface == 'video':
-                with call_queue.get_lock():
-                    _run_task(task)
-            else:
-                _run_task(task)
+            _run_task(task, lock=surface == 'video') # ltx/framepack/minimax acquire their own lock
         else:
-            with call_queue.get_lock():
-                _run_task(task)
+            _run_task(task, lock=True)
     except Exception as exc:
         delay = min(3600, 60 * (2 ** max(0, task['attempts'] - 1)))
         scheduler_db.retry_or_fail(task['id'], exc, retry_delay=delay)
@@ -540,7 +538,7 @@ def stop_worker(timeout=5):
 def queue_existing_task(task_id, immediate=False):
     queued = scheduler_db.queue_task(task_id, immediate=immediate)
     if queued:
-        action = 'requested immediate execution for' if immediate else 'queued existing task'
+        action = 'execution=immediate' if immediate else 'execution=queued'
         log.info(f'Scheduler: {action} id={task_id}')
     return queued
 
@@ -548,18 +546,18 @@ def queue_existing_task(task_id, immediate=False):
 def move_task(task_id, target_id, position='before'):
     moved = scheduler_db.move_task(task_id, target_id, position)
     if moved:
-        log.info(f'Scheduler: moved task id={task_id} {position} task_id={target_id}')
+        log.info(f'Scheduler move: task id={task_id} position={position} target={target_id}')
     return moved
 
 
 def pause_all():
     set_scheduler_state('Paused')
-    log.info('Scheduler: paused globally')
+    log.info('Scheduler: pause')
 
 
 def resume_all():
     set_scheduler_state('Active')
-    log.info('Scheduler: resumed globally')
+    log.info('Scheduler: resume')
 
 
 def scheduler_enabled(now=None):
@@ -599,31 +597,31 @@ def set_scheduler_state(state=None, start=None, end=None):
         shared.opts.set(key, value)
     if updates:
         shared.opts.save()
-        log.info(f'Scheduler: updated settings {updates}')
+        log.info(f'Scheduler state: {updates}')
     return get_status()
 
 
 def list_tasks(**kwargs):
     tasks = scheduler_db.list_tasks(**kwargs)
-    debug_log(f'Scheduler: listed tasks count={len(tasks)} status={kwargs.get("status")}')
+    debug_log(f'Scheduler list: count={len(tasks)} status={kwargs.get("status")}')
     return tasks
 
 
 def search_tasks(**kwargs):
     tasks = scheduler_db.search_tasks(**kwargs)
-    debug_log(f'Scheduler: searched tasks count={len(tasks)} filters={list(kwargs.keys())}')
+    debug_log(f'Scheduler search: count={len(tasks)} filters={list(kwargs.keys())}')
     return tasks
 
 
 def get_task(task_id, **kwargs):
     task = scheduler_db.get_task(task_id, **kwargs)
-    debug_log(f'Scheduler: fetched task id={task_id} found={task is not None}')
+    debug_log(f'Scheduler fetch: id={task_id} found={task is not None}')
     return task
 
 
 def get_task_image(task_id, image_index):
     image = scheduler_db.get_task_image(task_id, image_index)
-    debug_log(f'Scheduler: fetched input image task_id={task_id} index={image_index} found={image is not None}')
+    debug_log(f'Scheduler fetch image: task_id={task_id} index={image_index} found={image is not None}')
     return image
 
 
@@ -638,7 +636,7 @@ def get_status():
         'paused': state == 'Paused',
         'worker_running': _worker is not None and _worker.is_alive(),
     }
-    debug_log(f'Scheduler: status state={state} window_open={status["window_open"]} worker_running={status["worker_running"]}')
+    debug_log(f'Scheduler status: state={state} window_open={status["window_open"]} worker_running={status["worker_running"]}')
     return status
 
 
@@ -753,39 +751,39 @@ def update_task_parameters_with_media(task_id, parameters, media_replacements=No
         update_kwargs['image_blobs'] = task['image_blobs']
     updated = scheduler_db.update_parameters(task_id, task['parameters'], **update_kwargs)
     if updated:
-        log.info(f'Scheduler: updated task parameters id={task_id} fields={list(parameters.keys())} media={len(replacements)}')
+        log.info(f'Scheduler update: id={task_id} fields={list(parameters.keys())} media={len(replacements)}')
     return updated
 
 
 def delete_task(task_id):
     deleted = scheduler_db.delete_task(task_id)
     if deleted:
-        log.info(f'Scheduler: deleted task id={task_id}')
+        log.info(f'Scheduler delete: id={task_id}')
     return deleted
 
 
 def prune_tasks(before):
     count = scheduler_db.prune_tasks(before)
-    log.info(f'Scheduler: pruned tasks count={count} before={before}')
+    log.info(f'Scheduler prune: count={count} before={before}')
     return count
 
 
 def pause_task(task_id):
     paused = scheduler_db.pause_task(task_id)
     if paused:
-        log.info(f'Scheduler: paused task id={task_id}')
+        log.info(f'Scheduler pause: id={task_id}')
     return paused
 
 
 def resume_task(task_id, scheduled_at=None):
     resumed = scheduler_db.resume_task(task_id, scheduled_at=scheduled_at)
     if resumed:
-        log.info(f'Scheduler: resumed task id={task_id} scheduled_at={scheduled_at}')
+        log.info(f'Scheduler resume: id={task_id} scheduled_at={scheduled_at}')
     return resumed
 
 
 def reschedule_task(task_id, scheduled_at):
     rescheduled = scheduler_db.reschedule_task(task_id, scheduled_at)
     if rescheduled:
-        log.info(f'Scheduler: rescheduled task id={task_id} scheduled_at={scheduled_at}')
+        log.info(f'Scheduler reschedule: id={task_id} scheduled_at={scheduled_at}')
     return rescheduled

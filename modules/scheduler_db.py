@@ -112,7 +112,10 @@ def _get_sqlite_stat1(connection):
     return list(stat)
 
 
-def _initialize_schema(connection):
+def _fail_on_restart(connection):
+    connection.execute("UPDATE tasks SET status = 'failed' WHERE status NOT IN ('scheduled', 'paused', 'completed', 'failed')")
+
+def _initialize_db(connection):
     t0 = time.time()
     connection.executescript('''
         CREATE TABLE IF NOT EXISTS tasks (
@@ -157,6 +160,7 @@ def _initialize_schema(connection):
     pg_count = connection.execute('PRAGMA page_count').fetchone()[0]
     pg_size = connection.execute('PRAGMA page_size').fetchone()[0]
     stat = _get_sqlite_stat1(connection)
+    _fail_on_restart(connection)
     t1 = time.perf_counter()
     log.info(f'Scheduler: db={db[1]} path="{db[2]}" schema={schema_ver} user={user_ver} size={pg_count*pg_size} journal={journal} stat={stat} mode={"open" if exists else "create"} time={t1 - t0:.3f}')
 
@@ -174,7 +178,7 @@ def initialize(db_path=None):
             for attempt in range(10):
                 try:
                     with _connection(path, timeout=1) as connection:
-                        _initialize_schema(connection)
+                        _initialize_db(connection)
                     break
                 except sqlite3.OperationalError as exc:
                     log.warning(f'Scheduler: attempt={attempt} {str(exc)}')

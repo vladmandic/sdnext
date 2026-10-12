@@ -18,7 +18,7 @@ def load_lumina(checkpoint_info, diffusers_load_config=None):
     if repo_id is None or repo_id.lower() == 'none':
         return None
 
-    pipe = diffusers.LuminaText2ImgPipeline.from_pretrained(
+    pipe = diffusers.LuminaPipeline.from_pretrained(
         repo_id,
         cache_dir = shared.opts.diffusers_dir,
         **load_config,
