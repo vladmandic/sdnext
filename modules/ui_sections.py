@@ -10,15 +10,7 @@ _save_timer = None
 _save_lock = threading.Lock()
 
 
-def create_toprow(
-        is_img2img: bool = False,
-        id_part: str | None = None,
-        generate_visible: bool = True,
-        negative_visible: bool = True,
-        reprocess_visible: bool = True,
-        schedule_visible: bool = True,
-    ):
-
+def create_toprow(is_img2img: bool = False, id_part: str | None = None, generate_visible: bool = True, negative_visible: bool = True, reprocess_visible: bool = True):
     def apply_styles(prompt, prompt_neg, styles):
         prompt = shared.prompt_styles.apply_styles_to_prompt(prompt, styles, wildcards=not shared.opts.extra_networks_apply_unparsed)
         prompt_neg = shared.prompt_styles.apply_negative_styles_to_prompt(prompt_neg, styles, wildcards=not shared.opts.extra_networks_apply_unparsed)
@@ -49,7 +41,6 @@ def create_toprow(
             with gr.Row(elem_id=f"{id_part}_generate_box"):
                 reprocess = []
                 submit = gr.Button('Generate', elem_id=f"{id_part}_generate", variant='primary', visible=generate_visible)
-                schedule = gr.Button('Schedule', elem_id=f"{id_part}_schedule", variant='primary', visible=schedule_visible)
                 if reprocess_visible:
                     reprocess.append(gr.Button('Reprocess', elem_id=f"{id_part}_reprocess", variant='primary', visible=True))
                     reprocess.append(gr.Button('Reprocess decode', elem_id=f"{id_part}_reprocess_decode", variant='primary', visible=False))
@@ -81,7 +72,7 @@ def create_toprow(
                 styles_btn_select.click(_js="applyStyles", fn=parse_style, inputs=[styles], outputs=[styles], show_progress='hidden')
                 styles_btn_apply.click(fn=apply_styles, inputs=[prompt, negative_prompt, styles], outputs=[prompt, negative_prompt, styles], show_progress='hidden')
                 styles_btn_save.click(fn=lambda: None, _js='() => quickSaveStyle()', inputs=[], outputs=[], show_progress='hidden')
-    return prompt, styles, negative_prompt, submit, reprocess, button_paste, button_extra, token_counter, token_button, negative_token_counter, negative_token_button, schedule
+    return prompt, styles, negative_prompt, submit, reprocess, button_paste, button_extra, token_counter, token_button, negative_token_counter, negative_token_button
 
 
 def create_resolution_inputs(tab, default_width=1024, default_height=1024, step=8):
@@ -401,12 +392,10 @@ def create_sampler_options(tabname):
     def set_sampler_fallback(fallback):
         log.debug(f'Sampler set options: fallback={fallback}')
         shared.opts.schedulers_fallback = fallback
-        save_with_debounce()
 
     def set_sampler_timesteps(timesteps):
         log.debug(f'Sampler set options: timesteps={timesteps}')
         shared.opts.schedulers_timesteps = timesteps
-        save_with_debounce()
 
     def set_sampler_spacing(spacing):
         log.debug(f'Sampler set options: spacing={spacing}')
@@ -426,6 +415,11 @@ def create_sampler_options(tabname):
     def set_sampler_prediction(sampler_prediction):
         log.debug(f'Sampler set options: prediction={sampler_prediction}')
         shared.opts.schedulers_prediction_type = sampler_prediction
+        save_with_debounce()
+
+    def set_sampler_beta(sampler_beta):
+        log.debug(f'Sampler set options: beta={sampler_beta}')
+        shared.opts.schedulers_beta_schedule = sampler_beta
         save_with_debounce()
 
     def set_sampler_shift(sampler_shift, sampler_base_shift, sampler_max_shift):
@@ -451,14 +445,10 @@ def create_sampler_options(tabname):
     # 'linear', 'scaled_linear', 'squaredcos_cap_v2'
     def set_sampler_preset(preset):
         if preset == 'AYS SD15':
-            timesteps = '999,850,736,645,545,455,343,233,124,24'
-        elif preset == 'AYS SDXL':
-            timesteps = '999,845,730,587,443,310,193,116,53,13'
-        else:
-            timesteps = ''
-        shared.opts.schedulers_timesteps = timesteps
-        save_with_debounce()
-        return timesteps
+            return '999,850,736,645,545,455,343,233,124,24'
+        if preset == 'AYS SDXL':
+            return '999,845,730,587,443,310,193,116,53,13'
+        return ''
 
     with gr.Row(elem_classes=['flex-break']):
         sampler_sigma = gr.Dropdown(label='Sigma method', elem_id=f"{tabname}_sampler_sigma", choices=['default', 'karras', 'betas', 'exponential', 'lambdas', 'flowmatch'], value=shared.opts.schedulers_sigma, type='value')
@@ -555,6 +545,7 @@ def create_sampler_options(tabname):
     sampler_presets.input(fn=set_sampler_preset, inputs=[sampler_presets], outputs=[sampler_timesteps])
     sampler_timesteps.input(fn=set_sampler_timesteps, inputs=[sampler_timesteps], outputs=[])
     sampler_prediction.input(fn=set_sampler_prediction, inputs=[sampler_prediction], outputs=[])
+    sampler_beta.input(fn=set_sampler_beta, inputs=[sampler_beta], outputs=[])
     sampler_order.input(fn=set_sampler_order, inputs=[sampler_order], outputs=[])
     sampler_shift.input(fn=set_sampler_shift, inputs=[sampler_shift, sampler_base_shift, sampler_max_shift], outputs=[])
     sampler_base_shift.input(fn=set_sampler_shift, inputs=[sampler_shift, sampler_base_shift, sampler_max_shift], outputs=[])
