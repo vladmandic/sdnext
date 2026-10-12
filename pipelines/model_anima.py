@@ -15,6 +15,37 @@ def _import_from_file(module_name, file_path):
     return mod
 
 
+# diffusers AnimaTextConditioner config keys that AnimaLLMAdapter names differently; the weights are identical
+TEXT_CONDITIONER_KEYS = {'num_attention_heads': 'num_heads', 'use_self_attention': 'use_self_attn', 'target_vocab_size': 'vocab_size'}
+
+
+def is_modular_layout(path: str | None) -> bool:
+    """True for a diffusers modular repo folder, which has modular_model_index.json and no model_index.json."""
+    return path is not None and os.path.isdir(path) and os.path.isfile(os.path.join(path, 'modular_model_index.json')) and not os.path.isfile(os.path.join(path, 'model_index.json'))
+
+
+def load_text_conditioner(repo_id: str, adapter_cls):
+    """Load the text_conditioner of a diffusers modular Anima repo as an AnimaLLMAdapter."""
+    config = adapter_cls.load_config(repo_id, subfolder='text_conditioner', cache_dir=shared.opts.hfcache_dir)
+    if config.get('use_layer_norm', False) or config.get('min_sequence_length', 512) != 512:
+        raise ValueError(f'text_conditioner use_layer_norm={config.get("use_layer_norm")} min_sequence_length={config.get("min_sequence_length")} not supported')
+    renamed = {new: config[old] for old, new in TEXT_CONDITIONER_KEYS.items() if old in config}
+    return adapter_cls.from_pretrained(repo_id, subfolder='text_conditioner', cache_dir=shared.opts.hfcache_dir, torch_dtype=devices.dtype, **renamed)
+
+
+def build_modular_pipeline(cls, repo_id: str, load_args: dict, **components):
+    """Assemble the pipeline from a modular repo, which has no model_index.json for from_pretrained to read."""
+    pipe = cls(
+        tokenizer=transformers.Qwen2Tokenizer.from_pretrained(repo_id, subfolder='tokenizer', cache_dir=shared.opts.diffusers_dir),
+        t5_tokenizer=transformers.T5Tokenizer.from_pretrained(repo_id, subfolder='t5_tokenizer', cache_dir=shared.opts.diffusers_dir),
+        vae=diffusers.AutoencoderKLWan.from_pretrained(repo_id, subfolder='vae', cache_dir=shared.opts.diffusers_dir, **load_args),
+        scheduler=diffusers.FlowMatchEulerDiscreteScheduler.from_pretrained(repo_id, subfolder='scheduler', cache_dir=shared.opts.diffusers_dir),
+        **components,
+    )
+    pipe.register_to_config(_name_or_path=repo_id)
+    return pipe
+
+
 def init_transformer_component(repo_id, diffusers_load_config, adapter_cls, local_file=None):
     """Load (transformer, llm_adapter_or_none).
 
@@ -62,9 +93,10 @@ def load_anima(checkpoint_info, diffusers_load_config=None):
         local_file = repo_id
         repo_id = transformers_map['AnimaTextToImagePipeline']
 
+    modular = local_file is None and is_modular_layout(checkpoint_info.path)
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, allow_quant=False)
     load_args.pop('cache_dir', None)
-    log.debug(f'Load model: type=Anima repo="{repo_id}" file="{local_file}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
+    log.debug(f'Load model: type=Anima repo="{repo_id}" file="{local_file}" modular={modular} config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
     import sys
     from pipelines.anima import modeling_llm_adapter
@@ -94,12 +126,15 @@ def load_anima(checkpoint_info, diffusers_load_config=None):
     if llm_adapter is None:
         shared.state.begin('Load adapter')
         try:
-            llm_adapter = modeling_llm_adapter.AnimaLLMAdapter.from_pretrained(
-                repo_id,
-                subfolder="llm_adapter",
-                cache_dir=shared.opts.hfcache_dir,
-                torch_dtype=devices.dtype,
-            )
+            if modular:
+                llm_adapter = load_text_conditioner(repo_id, modeling_llm_adapter.AnimaLLMAdapter)
+            else:
+                llm_adapter = modeling_llm_adapter.AnimaLLMAdapter.from_pretrained(
+                    repo_id,
+                    subfolder="llm_adapter",
+                    cache_dir=shared.opts.hfcache_dir,
+                    torch_dtype=devices.dtype,
+                )
         except Exception as e:
             log.error(f'Load model: type=Anima adapter: {e}')
             return None
@@ -107,15 +142,18 @@ def load_anima(checkpoint_info, diffusers_load_config=None):
             shared.state.end()
 
     # assemble pipeline
-    pipe = AnimaTextToImagePipeline.from_pretrained(
-        repo_id,
-        transformer=transformer,
-        text_encoder=text_encoder,
-        llm_adapter=llm_adapter,
-        cache_dir=shared.opts.diffusers_dir,
-        trust_remote_code=True,
-        **load_args,
-    )
+    if modular:
+        pipe = build_modular_pipeline(AnimaTextToImagePipeline, repo_id, load_args, transformer=transformer, text_encoder=text_encoder, llm_adapter=llm_adapter)
+    else:
+        pipe = AnimaTextToImagePipeline.from_pretrained(
+            repo_id,
+            transformer=transformer,
+            text_encoder=text_encoder,
+            llm_adapter=llm_adapter,
+            cache_dir=shared.opts.diffusers_dir,
+            trust_remote_code=True,
+            **load_args,
+        )
 
     generic.load_vae_override(pipe, diffusers_load_config)
 
