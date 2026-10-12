@@ -107,6 +107,10 @@ def _apply_adain(correction, original_image):
 def apply_color_correction(correction, original_image, method='histogram'):
     methods = {'histogram': _apply_histogram, 'wavelet': _apply_wavelet, 'adain': _apply_adain}
     fn = methods.get(method, _apply_histogram)
+    if original_image.mode == 'RGBA': # correct the color channels only, alpha stays as generated
+        image = fn(correction, original_image.convert('RGB'))
+        image.putalpha(original_image.getchannel('A'))
+        return image
     return fn(correction, original_image)
 
 
