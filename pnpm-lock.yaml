@@ -248,17 +248,17 @@ importers:
   extensions-builtin/sdnext-kanvas:
     dependencies:
       konva:
-        specifier: ^10.3.0
+        specifier: ^10.7.1
         version: 10.7.1
     devDependencies:
       '@eslint/compat':
-        specifier: ^2.1.0
+        specifier: ^2.1.1
         version: 2.1.1(eslint@9.39.5(supports-color@7.2.0))
       '@eslint/css':
-        specifier: ^1.2.0
+        specifier: ^1.4.0
         version: 1.4.0
       '@eslint/js':
-        specifier: ^9.39.4
+        specifier: ^9.39.5
         version: 9.39.5
       '@eslint/json':
         specifier: ^1.2.0
@@ -267,7 +267,7 @@ importers:
         specifier: ^0.60.0
         version: 0.60.0(eslint@9.39.5(supports-color@7.2.0))
       '@types/node':
-        specifier: ^25.9.0
+        specifier: ^25.9.9
         version: 25.9.9
       '@vladmandic/build':
         specifier: ^0.10.3
@@ -276,22 +276,22 @@ importers:
         specifier: ^0.28.2
         version: 0.28.2
       eslint:
-        specifier: ^9.39.4
+        specifier: ^9.39.5
         version: 9.39.5(supports-color@7.2.0)
       eslint-config-airbnb-extended:
-        specifier: ^3.1.0
+        specifier: ^3.3.0
         version: 3.3.0(@typescript-eslint/parser@8.71.1(eslint@9.39.5(supports-color@7.2.0))(supports-color@7.2.0)(typescript@6.0.3))(@typescript-eslint/utils@8.71.1(eslint@9.39.5(supports-color@7.2.0))(supports-color@7.2.0)(typescript@6.0.3))(eslint-import-resolver-node@0.3.10(supports-color@7.2.0))(eslint@9.39.5(supports-color@7.2.0))(supports-color@7.2.0)(typescript@6.0.3)
       eslint-plugin-promise:
         specifier: ^7.3.0
         version: 7.3.0(eslint@9.39.5(supports-color@7.2.0))
       globals:
-        specifier: ^17.6.0
+        specifier: ^17.13.0
         version: 17.13.0
       tslib:
         specifier: ^2.8.1
         version: 2.8.1
       typedoc:
-        specifier: ^0.28.19
+        specifier: ^0.28.20
         version: 0.28.20(typescript@6.0.3)
       typescript:
         specifier: ^6.0.3
@@ -2914,8 +2914,8 @@ packages:
     peerDependencies:
       zod: ^3.25.0 || ^4.0.0
 
-  zod@4.6.5:
-    resolution: {integrity: sha512-v5l/aFXZQeai4awLbOpSoHecE9UiMrnfx75tEXLjNonXVARxQ5mOeipTjROUchszUNCqnE+hqAMujRsRHsut2Q==}
+  zod@4.6.6:
+    resolution: {integrity: sha512-4UmzQUF5fxvfcYHlbjBmejU+w+hbDnWFx4aS8kBx7nPBHcO2SqPbpAG8snbdg+Xse4pRefR98hgjFgIMCI/UhA==}
 
   zwitch@2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
@@ -4519,8 +4519,8 @@ snapshots:
       '@babel/parser': 7.29.9
       eslint: 9.39.5(supports-color@7.2.0)
       hermes-parser: 0.25.1
-      zod: 4.6.5
-      zod-validation-error: 4.0.2(zod@4.6.5)
+      zod: 4.6.6
+      zod-validation-error: 4.0.2(zod@4.6.6)
     transitivePeerDependencies:
       - supports-color
 
@@ -6149,10 +6149,10 @@ snapshots:
 
   yocto-queue@0.1.0: {}
 
-  zod-validation-error@4.0.2(zod@4.6.5):
+  zod-validation-error@4.0.2(zod@4.6.6):
     dependencies:
-      zod: 4.6.5
+      zod: 4.6.6
 
-  zod@4.6.5: {}
+  zod@4.6.6: {}
 
   zwitch@2.0.4: {}
