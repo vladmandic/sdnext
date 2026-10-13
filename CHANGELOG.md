@@ -1,13 +1,14 @@
 # Change Log for SD.Next
 
-## Update for 2026-10-11
+## Update for 2026-10-12
 
 - **Models**  
   - [Google Nano Banana 2.1](https://deepmind.google/models/model-cards/nano-banana-2-1)
   - [Qwen Image 2.1 Turbo](https://huggingface.co/Qwen/Qwen-Image-2.1-Turbo) in *base* and *sdnq-uint4* variants
 - **Scheduler**  
   new native *Task Scheduler* and *Queue Management*  
-  see [scheduler documentation](https://vladmandic.github.io/sdnext-docs/Scheduler/)  
+  add any image or video task to the scheduler and execute it in q queue or at a specific time  
+  see [scheduler documentation](https://vladmandic.github.io/sdnext-docs/Scheduler/) for details  
 - **Edit Models**  
   *edit* models work differently than more traditional *i2i/inpaint* models as they use indirect reference image(s)  
   **hires** and **detailer** now set condition-image on edit models thus unlocking advanced workflows  
@@ -18,36 +19,37 @@
   available via UI: *System -> Benchmark* or CLI: `cli/sdnq-attention-benchmark.py`  
   *note*: depending on benchmark settings/depth, it may take a very long time to complete  
 - **Fixes**
-  - offload: group offload logs a denied pin once per component
-  - offload: balanced offload warns when a module exceeds the gpu limit and part of it runs from cpu
-  - anima: load repos in the diffusers modular layout, such as `circlestone-labs/Anima-Base-v1.0-Diffusers`
-  - color correction: histogram method returns rgb instead of rgba
-  - color correction: keep transparency of rgba outputs, wavelet and adain no longer fail on them
-  - color correction: wavelet method keeps the generated image and matches only its colors
-  - color correction: transparent outputs are matched on their visible pixels, so the hidden background no longer shifts the subject's colors
-  - server: create the `data` folder in a new `--data-dir`, so the metadata cache saves
-  - ipadapter: loading and unloading adapters under group offload
-  - ipadapter: jobs without an adapter after an adapter job
-  - lora: reset loaded networks if refiner prompt is used
-  - installer: server restart when the venv is not activated
-  - api: error log omits the request query
-  - api: errors logged on regular endpoints, not on quiet ones
-  - server: `--auth` values masked in the startup log and `/sdapi/v1/cmd-flags`
+  - anima: load repos in the diffusers modular layout
   - api: `--cors-origins` entries separated by a comma and a space
   - api: auth check for users with a non-ascii password
-  - infotext: quoted values with escaped quotes, and a parser stall on unterminated ones
-  - infotext: parser stall on long runs of words or spaces without a colon
-  - infotext: parse error on values with superscript or circled digits
-  - infotext: a value starting with a double quote no longer swallows the next parameter
-  - rocm: arch detection with newer windows drivers, thanks @crashingalexsan
-  - samplers: update ui when sampler settings change, thanks @resonantsky
-  - video: reject output extensions other than letters and digits
-  - video: accept only rate and quality codec options
+  - api: error log omits the request query
+  - api: errors logged on regular endpoints, not on quiet ones
   - api: folders allowed for one file request no longer stay allowed for later requests
   - api: rate limit and log costs match the exact path or the route template, not other routes' prefixes
-  - video: no error logged after framepack upscale or seedvr interpolation
+  - api: register `/sdapi/v1/framepack` with video upscale options
+  - color correction: histogram method returns rgb instead of rgba
+  - color correction: keep transparency of rgba outputs, wavelet and adain no longer fail on them
+  - color correction: transparent outputs are matched on their visible pixels
+  - color correction: wavelet method keeps the generated image and matches only its colors
   - framepack: a run after an interrupted job no longer ends at once without output
-  - api: register `/sdapi/v1/framepack` with video upscale options, 499 on interrupt and 500 when no video was written
+  - infotext: a value starting with a double quote no longer swallows the next parameter
+  - infotext: parse error on values with superscript or circled digits
+  - infotext: parser stall on long runs of words or spaces without a colon
+  - infotext: quoted values with escaped quotes, and a parser stall on unterminated ones
+  - installer: server restart when the venv is not activated
+  - ipadapter: jobs without an adapter after an adapter job
+  - ipadapter: loading and unloading adapters under group offload
+  - lora: reset loaded networks if refiner prompt is used
+  - offload: balanced offload warns when a module exceeds the gpu limit and part of it runs from cpu
+  - offload: group offload logs a denied pin once per component
+  - rocm: arch detection with newer windows drivers, thanks @crashingalexsan
+  - samplers: update ui when sampler settings change, thanks @resonantsky
+  - server: `--auth` values masked in the startup log and `/sdapi/v1/cmd-flags`
+  - server: create the `data` folder in a new `--data-dir`, so the metadata cache saves
+  - ui: update dev packages and rebuild
+  - video: accept only rate and quality codec options
+  - video: no error logged after framepack upscale or seedvr interpolation
+  - video: reject output extensions other than letters and digits
 
 ## Update for 2026-10-06
 

@@ -203,6 +203,30 @@ class TestSchedulerDatabase(unittest.TestCase):
         self.assertEqual(stats['json_errors'][0]['task_id'], task_id)
         self.assertEqual(stats['json_errors'][0]['field'], 'parameters')
 
+    def test_prune_compacts_and_analyzes_after_deleting_tasks(self):
+        task_id = scheduler_db.create_task({'prompt': 'old'}, db_path=self.db_path)
+        with scheduler_db._connection(self.db_path) as connection:
+            connection.execute("UPDATE tasks SET created_at = '2020-01-01T00:00:00+00:00' WHERE id = ?", (task_id,))
+
+        statements = []
+        connect = scheduler_db.connect
+
+        def traced_connect(db_path=None, timeout=5):
+            connection = connect(db_path, timeout)
+            connection.set_trace_callback(statements.append)
+            return connection
+
+        with patch.object(scheduler_db, 'connect', side_effect=traced_connect):
+            deleted = scheduler_db.prune_tasks('2021-01-01T00:00:00+00:00', db_path=self.db_path)
+
+        self.assertEqual(deleted, 1)
+        statements = [statement.strip().upper() for statement in statements]
+        delete_index = next(index for index, statement in enumerate(statements) if statement.startswith('DELETE FROM TASKS'))
+        vacuum_index = statements.index('VACUUM')
+        analyze_index = statements.index('ANALYZE;')
+        self.assertLess(delete_index, vacuum_index)
+        self.assertLess(vacuum_index, analyze_index)
+
     def test_fifo_reorder_and_scheduled_head_blocking(self):
         future = dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=1)
         first = scheduler_db.create_task({'prompt': 'future'}, scheduled_at=future, db_path=self.db_path)
@@ -349,6 +373,20 @@ class TestSchedulerDatabase(unittest.TestCase):
         self.assertEqual(task['status'], 'scheduled')
         self.assertEqual(task['attempts'], 0)
         self.assertIsNone(task['last_error'])
+
+    def test_manual_execution_remains_force_eligible_after_retry(self):
+        task_id = scheduler_db.create_task({'prompt': 'manual retry'}, db_path=self.db_path)
+        self.assertTrue(scheduler_db.queue_task(task_id, immediate=True, db_path=self.db_path))
+
+        first_attempt = scheduler_db.claim_next_task(force_only=True, db_path=self.db_path)
+        self.assertEqual(first_attempt['id'], task_id)
+        self.assertTrue(scheduler_db.retry_or_fail(task_id, 'generation failed', retry_delay=0, db_path=self.db_path))
+
+        second_attempt = scheduler_db.claim_next_task(force_only=True, db_path=self.db_path)
+        self.assertEqual(second_attempt['id'], task_id)
+        self.assertEqual(second_attempt['attempts'], 2)
+        self.assertTrue(scheduler_db.update_results(task_id, [], db_path=self.db_path))
+        self.assertIsNone(scheduler_db.claim_next_task(force_only=True, db_path=self.db_path))
 
 
 if __name__ == '__main__':

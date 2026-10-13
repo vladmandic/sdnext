@@ -85,7 +85,7 @@
     {"id": "scheduler-mode-auto", "label": "", "localized": "", "hint": "Run tasks only during the configured active time window.", "ui": "scheduler"},
     {"id": "scheduler-refresh", "label": "", "localized": "", "hint": "Reload the task list and scheduler status.", "ui": "scheduler"},
     {"id": "scheduler-load-more", "label": "", "localized": "", "hint": "Load the next page of scheduled tasks.", "ui": "scheduler"},
-    {"id": "scheduler-prune", "label": "", "localized": "", "hint": "Delete tasks older than the selected time.", "ui": "scheduler"},
+    {"id": "scheduler-prune", "label": "", "localized": "", "hint": "Delete tasks older than the selected time and compact and optimize database.", "ui": "scheduler"},
     {"id": "scheduler-parameters-save", "label": "", "localized": "", "hint": "Save the selected task's edited parameters.", "ui": "scheduler"},
     {"id": "sett_reload_sd_model", "label": "", "localized": "", "hint": "Reload active base model checkpoint", "ui": "settings"},
     {"id": "sett_unload_sd_model", "label": "", "localized": "", "hint": "Unload currently loaded base model from GPU VRAM", "ui": "settings"},

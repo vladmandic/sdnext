@@ -385,7 +385,7 @@ def update_results(task_id, results, db_path=None, process_stats=None, infotexts
     initialize(db_path)
     with _connection(db_path) as connection:
         cursor = connection.execute(
-            "UPDATE tasks SET results = ?, process_stats = ?, infotexts = ?, status = 'completed', completed_at = ?, last_error = NULL WHERE id = ? AND status = 'running'",
+            "UPDATE tasks SET results = ?, process_stats = ?, infotexts = ?, status = 'completed', completed_at = ?, last_error = NULL, execute_now = 0 WHERE id = ? AND status = 'running'",
             (
                 json.dumps(results, separators=(',', ':')),
                 json.dumps(process_stats or {}, separators=(',', ':')),
@@ -427,7 +427,7 @@ def claim_next_task(db_path=None, force_only=False):
             return None
         task_id = row['id']
         cursor = connection.execute(
-            "UPDATE tasks SET status = 'running', started_at = ?, attempts = attempts + 1, retry_at = NULL, execute_now = 0 WHERE id = ? AND status = 'scheduled'",
+            "UPDATE tasks SET status = 'running', started_at = ?, attempts = attempts + 1, retry_at = NULL WHERE id = ? AND status = 'scheduled'",
             (now, task_id),
         )
         if cursor.rowcount == 0:
@@ -450,7 +450,7 @@ def retry_or_fail(task_id, error, retry_delay=60, db_path=None):
             )
         else:
             connection.execute(
-                "UPDATE tasks SET status = 'failed', completed_at = ?, retry_at = NULL, last_error = ? WHERE id = ?",
+                "UPDATE tasks SET status = 'failed', completed_at = ?, retry_at = NULL, last_error = ?, execute_now = 0 WHERE id = ?",
                 (_timestamp(), str(error), task_id),
             )
         return True
@@ -547,4 +547,6 @@ def prune_tasks(before, db_path=None):
     initialize(db_path)
     with _connection(db_path) as connection:
         cursor = connection.execute("DELETE FROM tasks WHERE created_at < ? AND status != 'running'", (_timestamp(before),))
+        connection.execute('VACUUM')
+        _get_sqlite_stat1(connection)
         return cursor.rowcount
