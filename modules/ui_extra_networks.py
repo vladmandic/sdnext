@@ -207,6 +207,14 @@ class ExtraNetworksPage:
                 filename = ref
             else:
                 filename = 'ui/assets/missing.png'
+        if os.path.isabs(filename):
+            working_dir = os.path.abspath(os.getcwd())
+            absolute_filename = os.path.abspath(filename)
+            try:
+                if os.path.commonpath((working_dir, absolute_filename)) == working_dir:
+                    filename = os.path.relpath(absolute_filename, working_dir)
+            except ValueError:
+                pass
         quoted_filename = urllib.parse.quote(filename.replace('\\', '/'))
         preview = f"{shared.opts.subpath}/sdapi/v1/network/thumb?filename={quoted_filename}"
         return preview
