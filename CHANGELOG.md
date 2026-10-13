@@ -24,6 +24,7 @@
   - color correction: histogram method returns rgb instead of rgba
   - color correction: keep transparency of rgba outputs, wavelet and adain no longer fail on them
   - color correction: wavelet method keeps the generated image and matches only its colors
+  - color correction: transparent outputs are matched on their visible pixels, so the hidden background no longer shifts the subject's colors
   - server: create the `data` folder in a new `--data-dir`, so the metadata cache saves
   - ipadapter: loading and unloading adapters under group offload
   - ipadapter: jobs without an adapter after an adapter job

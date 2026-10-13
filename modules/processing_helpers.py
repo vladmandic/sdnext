@@ -46,24 +46,31 @@ def setup_color_correction(image):
     return ColorCorrectionRef(lab, image.copy())
 
 
-def _apply_histogram(correction, original_image):
+def _apply_histogram(correction, original_image: Image.Image, visible: np.ndarray | None = None) -> Image.Image:
     from installer import install
-    install('scikit-image', quiet=True)
     install('blendmodes', quiet=True)
-    from skimage import exposure
     from blendmodes.blend import blendLayers, BlendType
     lab = correction.lab if isinstance(correction, ColorCorrectionRef) else correction
     log.debug(f"Applying color correction: method=histogram correction={lab.shape} image={original_image}")
     np_image = np.asarray(original_image)
     np_recolor = cv2.cvtColor(np_image, cv2.COLOR_RGB2LAB)
-    np_match = exposure.match_histograms(np_recolor, lab, channel_axis=2)
+    ref_visible = None if visible is None else np.asarray(Image.fromarray(visible).resize((lab.shape[1], lab.shape[0]), Image.Resampling.NEAREST))
+    np_match = np.empty_like(np_recolor)
+    for channel in range(3): # cumulative histogram match as skimage match_histograms, counting visible pixels only
+        source = np_recolor[..., channel]
+        template = lab[..., channel]
+        source_counts = np.bincount(source.ravel() if visible is None else source[visible], minlength=256)
+        template_counts = np.bincount(template.ravel() if ref_visible is None else template[ref_visible], minlength=256)
+        template_values = np.nonzero(template_counts)[0]
+        lut = np.interp(np.cumsum(source_counts) / source_counts.sum(), np.cumsum(template_counts[template_values]) / template_counts.sum(), template_values)
+        np_match[..., channel] = lut[source]
     np_output = cv2.cvtColor(np_match, cv2.COLOR_LAB2RGB)
     image = Image.fromarray(np_output.astype("uint8"))
     image = blendLayers(image, original_image, BlendType.LUMINOSITY)
     return image.convert('RGB') # blendLayers returns rgba
 
 
-def _apply_wavelet(correction, original_image):
+def _apply_wavelet(correction, original_image: Image.Image, visible: np.ndarray | None = None) -> Image.Image:
     ref_pil = correction.image if isinstance(correction, ColorCorrectionRef) else original_image
     ref = torch.from_numpy(np.asarray(ref_pil).astype(np.float32) / 255.0).permute(2, 0, 1).unsqueeze(0)
     gen = torch.from_numpy(np.asarray(original_image).astype(np.float32) / 255.0).permute(2, 0, 1).unsqueeze(0)
@@ -71,38 +78,46 @@ def _apply_wavelet(correction, original_image):
         ref = torch.nn.functional.interpolate(ref, size=gen.shape[2:], mode='bilinear', align_corners=False)
     kernel = torch.tensor([[1, 2, 1], [2, 4, 2], [1, 2, 1]], dtype=torch.float32).unsqueeze(0).unsqueeze(0) / 16.0
     kernel = kernel.expand(3, -1, -1, -1)
+    weight = None if visible is None else torch.from_numpy(visible).to(torch.float32)[None, None].expand(-1, 3, -1, -1)
 
     def blur(image: torch.Tensor, radius: int) -> torch.Tensor: # dilated by 2**level, as in the StableSR wavelet color fix
         return torch.nn.functional.conv2d(torch.nn.functional.pad(image, (radius, radius, radius, radius), mode='replicate'), kernel, dilation=radius, groups=3)
 
+    def lows(image: torch.Tensor) -> list[torch.Tensor]: # with a mask, each band is normalized by the blurred mask so hidden pixels do not contribute
+        bands = []
+        num, den = (image, None) if weight is None else (image * weight, weight)
+        for level in range(5):
+            num = blur(num, 2 ** level)
+            if den is not None:
+                den = blur(den, 2 ** level)
+            bands.append(num if den is None else num / den.clamp_min(1e-12)) # den is 0 only out of reach of every visible pixel, where num is 0 too
+        return bands
+
     log.debug(f"Applying color correction: method=wavelet levels=5 image={original_image}")
-    gen_highs = []
-    current = gen
-    for level in range(5):
-        low = blur(current, 2 ** level)
-        gen_highs.append(current - low)
-        current = low
-    ref_low = ref
-    for level in range(5):
-        ref_low = blur(ref_low, 2 ** level)
-    result = ref_low
+    gen_lows = lows(gen)
+    gen_highs = [(gen if level == 0 else gen_lows[level - 1]) - low for level, low in enumerate(gen_lows)]
+    result = lows(ref)[-1]
     for high in reversed(gen_highs):
         result = result + high
     result = result.clamp(0, 1).squeeze(0).permute(1, 2, 0).numpy()
     return Image.fromarray((result * 255).astype(np.uint8))
 
 
-def _apply_adain(correction, original_image):
+def _apply_adain(correction, original_image: Image.Image, visible: np.ndarray | None = None) -> Image.Image:
     ref_pil = correction.image if isinstance(correction, ColorCorrectionRef) else original_image
     ref = torch.from_numpy(np.asarray(ref_pil).astype(np.float32) / 255.0).permute(2, 0, 1).unsqueeze(0)
     gen = torch.from_numpy(np.asarray(original_image).astype(np.float32) / 255.0).permute(2, 0, 1).unsqueeze(0)
     if ref.shape[2:] != gen.shape[2:]:
         ref = torch.nn.functional.interpolate(ref, size=gen.shape[2:], mode='bilinear', align_corners=False)
     log.debug(f"Applying color correction: method=adain image={original_image}")
-    ref_mean = ref.mean(dim=(2, 3), keepdim=True)
-    ref_std = ref.std(dim=(2, 3), keepdim=True) + 1e-6
-    gen_mean = gen.mean(dim=(2, 3), keepdim=True)
-    gen_std = gen.std(dim=(2, 3), keepdim=True) + 1e-6
+    mask = None if visible is None else torch.from_numpy(visible)
+
+    def stats(image: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        pixels = image if mask is None else image[..., mask].unsqueeze(-1)
+        return pixels.mean(dim=(2, 3), keepdim=True), pixels.std(dim=(2, 3), keepdim=True) + 1e-6
+
+    ref_mean, ref_std = stats(ref)
+    gen_mean, gen_std = stats(gen)
     result = (gen - gen_mean) / gen_std * ref_std + ref_mean
     result = result.clamp(0, 1).squeeze(0).permute(1, 2, 0).numpy()
     return Image.fromarray((result * 255).astype(np.uint8))
@@ -111,9 +126,14 @@ def _apply_adain(correction, original_image):
 def apply_color_correction(correction, original_image, method='histogram'):
     methods = {'histogram': _apply_histogram, 'wavelet': _apply_wavelet, 'adain': _apply_adain}
     fn = methods.get(method, _apply_histogram)
-    if original_image.mode == 'RGBA': # correct the color channels only, alpha stays as generated
-        image = fn(correction, original_image.convert('RGB'))
-        image.putalpha(original_image.getchannel('A'))
+    if original_image.mode == 'RGBA': # statistics from visible pixels only, the correction applies to all and alpha stays as generated
+        alpha = original_image.getchannel('A')
+        visible = np.asarray(alpha) >= 128 # opaque as in image.util.collapse_alpha
+        if np.count_nonzero(visible) < 2:
+            log.warning(f"Color correction: method={method} skipped visible={np.count_nonzero(visible)} image={original_image}")
+            return original_image
+        image = fn(correction, original_image.convert('RGB'), visible)
+        image.putalpha(alpha)
         return image
     return fn(correction, original_image)
 
