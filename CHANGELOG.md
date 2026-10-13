@@ -31,6 +31,9 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
   *note*: depending on benchmark settings/depth, it may take a very long time to complete  
 - **UI**  
   massive performance improvements to load times and responsiveness  
+  - parallel template loading
+  - html custom hash for improved caching and performance
+  - js split bundle
 - **Fixes**
   - anima: load repos in the diffusers modular layout
   - api: `--cors-origins` entries separated by a comma and a space
