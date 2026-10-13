@@ -6,6 +6,7 @@ import { registerDragDrop, setTheme, setFontSize, updateInput } from './ui';
 import { timer } from './timers';
 
 let settingsInitialized = false;
+let settingsCallbacksInitialized = false;
 let opts_metadata = {};
 const opts_tabs = {};
 
@@ -54,7 +55,9 @@ async function updateOpts(json_string) {
     }
   }
 
+  const optsSetAt = performance.now();
   window.opts = new_opts;
+  const metadataStart = performance.now();
   Object.entries(opts_metadata as Record<string, any>).forEach(([opt, meta]: [string, any]) => {
     if (!opts_tabs[meta.tab_name]) opts_tabs[meta.tab_name] = {};
     if (!opts_tabs[meta.tab_name].unsaved_keys) opts_tabs[meta.tab_name].unsaved_keys = new Set();
@@ -63,7 +66,14 @@ async function updateOpts(json_string) {
     else opts_tabs[meta.tab_name].saved_keys.add(opt);
   });
   const t2 = performance.now();
-  log('updateOpts', { settings: Object.keys(new_opts).length, callbacks: Math.round(t2 - t1), apply: Math.round(t1 - t0) });
+  log('updateOpts', {
+    settings: Object.keys(new_opts).length,
+    callbacks: Math.round(optsSetAt - t1),
+    apply: Math.round(t1 - t0),
+    optsSetMs: Math.round(optsSetAt - t0),
+    uiuxSeparator: Object.hasOwn(new_opts, 'uiux_separator_appearance'),
+    metadata: Math.round(t2 - metadataStart),
+  });
   timer('updateOpts', t2 - t0);
 }
 
@@ -124,19 +134,24 @@ function markIfModified(setting_name, value) {
 window.markIfModified = markIfModified;
 
 function updateAllOpts() {
-  if (Object.keys(opts).length !== 0) return false;
   const json_elem = gradioApp().getElementById('settings_json');
   log('updateAllOpts', !!json_elem);
   if (!json_elem) return false;
   json_elem.parentElement.style.display = 'none';
-  const textarea = json_elem.querySelector('textarea');
-  const jsdata = textarea.value;
-  updateOpts(jsdata);
+  if (Object.keys(opts).length === 0) {
+    const textarea = json_elem.querySelector('textarea');
+    updateOpts(textarea.value);
+  }
   return true;
 }
 
+export function loadInitialOpts(): boolean {
+  return updateAllOpts();
+}
+
 async function onAfterUiUpdateCallback() {
-  if (!updateAllOpts()) return;
+  if (settingsCallbacksInitialized || !updateAllOpts()) return;
+  settingsCallbacksInitialized = true;
   const json_elem = gradioApp().getElementById('settings_json');
   const textarea = json_elem.querySelector('textarea');
   executeCallbacks(optionsChangedCallbacks);

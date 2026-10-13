@@ -39,6 +39,8 @@ log_cost = {
     "/sdapi/v1/scheduler/tasks": -1,
     "/sdapi/v1/scheduler/tasks/{task_id}/images/{image_index}": -1,
     "/sdapi/v1/scheduler/tasks/{task_id}/media/{media_index}": -1,
+    "/js": -1,
+    "/html/templates/{file}": -1,
     "/file": -1,
     "/info": -1,
     "/icon": -1,

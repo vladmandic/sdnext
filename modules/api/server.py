@@ -1,10 +1,13 @@
+import hashlib
+import json
 import os
 import time
+from pathlib import Path
 from fastapi import Request, Depends, BackgroundTasks, Response
 from fastapi.exceptions import HTTPException
 from fastapi.responses import FileResponse
 import installer
-from modules import shared
+from modules import paths as sd_paths, shared
 from modules.logger import log
 from modules.api import models, helpers
 
@@ -39,6 +42,54 @@ def get_js(request: Request):
         media_type = 'application/octet-stream'
     return FileResponse(file, media_type=media_type)
 
+def modernui_html_root() -> Path:
+    return (Path(sd_paths.script_path) / "extensions-builtin" / "sdnext-modernui" / "html").resolve()
+
+def etag_matches(request: Request, etag: str) -> bool:
+    return any(tag.strip() in {"*", etag} for tag in request.headers.get("if-none-match", "").split(","))
+
+def get_html_manifest(request: Request):
+    started = time.perf_counter()
+    html_root = modernui_html_root()
+    template_root = html_root / "templates"
+    if not template_root.is_dir():
+        raise HTTPException(status_code=404, detail="HTML templates not found")
+
+    manifest = {}
+    templates = {}
+    for file_path in sorted(template_root.rglob("*.html")):
+        path = file_path.relative_to(html_root).as_posix()
+        template = file_path.read_bytes()
+        manifest[path] = hashlib.sha256(template).hexdigest()
+        templates[path] = template.decode("utf-8")
+    content = json.dumps({"manifest": manifest, "templates": templates}, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    etag = f'"{hashlib.sha256(content).hexdigest()}"'
+    headers = {"Cache-Control": "no-cache", "ETag": etag, "Server-Timing": f"manifest;dur={(time.perf_counter() - started) * 1000:.2f}"}
+    if etag_matches(request, etag):
+        return Response(status_code=304, headers=headers)
+    return Response(content=content, media_type="application/json", headers=headers)
+
+def get_html(path: str, request: Request):
+    started = time.perf_counter()
+    html_root = modernui_html_root()
+    try:
+        file_path = (html_root / path).resolve(strict=True)
+        file_path.relative_to(html_root)
+    except (OSError, RuntimeError, ValueError) as exc:
+        raise HTTPException(status_code=404, detail="HTML file not found") from exc
+    if file_path.suffix.lower() != ".html" or not file_path.is_file():
+        raise HTTPException(status_code=404, detail="HTML file not found")
+
+    content = file_path.read_bytes()
+    digest = hashlib.sha256(content).hexdigest()
+    etag = f'"{digest}"'
+    version_matches = request.query_params.get("v") == digest
+    cache_control = "public, max-age=31536000, immutable" if version_matches else "no-cache"
+    headers = {"Cache-Control": cache_control, "ETag": etag, "Server-Timing": f"html;dur={(time.perf_counter() - started) * 1000:.2f}"}
+    if not version_matches and etag_matches(request, etag):
+        return Response(status_code=304, headers=headers)
+    return Response(content=content, media_type="text/html", headers=headers)
+
 def get_version():
     return installer.get_version()
 
@@ -47,8 +98,7 @@ def get_icon():
     return FileResponse(icon_path, media_type="image/png")
 
 def get_manifest():
-    from modules import paths
-    manifest_path = os.path.join(paths.script_path, "ui", "manifest", "manifest.json")
+    manifest_path = os.path.join(sd_paths.script_path, "ui", "manifest", "manifest.json")
     log.debug(f"API manifest={manifest_path}")
     return FileResponse(manifest_path, media_type="application/json")
 

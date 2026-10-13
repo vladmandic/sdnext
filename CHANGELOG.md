@@ -1,6 +1,17 @@
 # Change Log for SD.Next
 
-## Update for 2026-10-12
+## Update for 2026-10-13
+
+### Highlights for 2026-10-13
+
+Couple of major new features: native **Task Scheduler** and **Queue Management**, better handling of **Edit Models**, improved **UI Performance**, and enhanced in-depth **Benchmarking** capabilities.  
+Plus quite a lot of other smaller improvements and bug fixes.  
+
+See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) below for full details.
+
+[Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
+
+### Details for 2026-10-13
 
 - **Models**  
   - [Google Nano Banana 2.1](https://deepmind.google/models/model-cards/nano-banana-2-1)
@@ -18,6 +29,8 @@
   provides clear recommendations based on benchmark results  
   available via UI: *System -> Benchmark* or CLI: `cli/sdnq-attention-benchmark.py`  
   *note*: depending on benchmark settings/depth, it may take a very long time to complete  
+- **UI**  
+  massive performance improvements to load times and responsiveness  
 - **Fixes**
   - anima: load repos in the diffusers modular layout
   - api: `--cors-origins` entries separated by a comma and a space

@@ -238,10 +238,17 @@ const engine = {
     toRemove.forEach((n) => this.indices.delete(n));
     await Promise.all(toLoad.map(async (name) => {
       try {
+        const requestStart = performance.now();
         const resp = await authFetch(`${window.api}/autocomplete/${name}`);
+        const headersAt = performance.now();
         if (!resp?.ok) throw new Error(`${resp?.status}`);
-        const data = await resp.json();
-        this.indices.set(name, new TagIndex(data));
+        const text = await resp.text();
+        const bodyAt = performance.now();
+        const data = JSON.parse(text);
+        const jsonAt = performance.now();
+        const index = new TagIndex(data);
+        const indexAt = performance.now();
+        this.indices.set(name, index);
         // Extract category colors from first loaded file
         if (data.categories) {
           Object.entries(data.categories).forEach(([id, cat]) => {
@@ -251,7 +258,15 @@ const engine = {
           });
         }
         const t1 = performance.now();
-        log('autoComplete', { loaded: name, tags: data.tags?.length || 0, time: Math.round(t1 - t0) });
+        log('autoComplete', {
+          loaded: name,
+          tags: data.tags?.length || 0,
+          time: Math.round(t1 - t0),
+          fetch: Math.round(headersAt - requestStart),
+          body: Math.round(bodyAt - headersAt),
+          json: Math.round(jsonAt - bodyAt),
+          index: Math.round(indexAt - jsonAt),
+        });
         timer(`autocompleteLoad:${name}`, t1 - t0);
       } catch (e) {
         log('autoComplete', { failed: name, error: e });

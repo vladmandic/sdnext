@@ -9892,15 +9892,25 @@ window.xhrPost = xhrPost;
 var user;
 var token;
 var baseURL;
+var tokenPromise;
 async function getToken() {
   if (token === void 0 || user === void 0) {
-    const res = await fetch(`${window.subpath}/token`);
-    if (res.ok) {
-      const data = await res.json();
-      user = data.user;
-      token = data.token;
-      log("getToken", { user });
-      initLoggerAuth(user, token);
+    if (!tokenPromise) {
+      tokenPromise = (async () => {
+        const res = await fetch(`${window.subpath}/token`);
+        if (res.ok) {
+          const data = await res.json();
+          user = data.user;
+          token = data.token;
+          log("getToken", { user });
+          initLoggerAuth(user, token);
+        }
+      })();
+    }
+    try {
+      await tokenPromise;
+    } finally {
+      tokenPromise = void 0;
     }
   }
   return { user, token };
@@ -12377,6 +12387,7 @@ async function initLogMonitor() {
 
 // ui/settings.ts
 var settingsInitialized = false;
+var settingsCallbacksInitialized = false;
 var opts_metadata = {};
 var opts_tabs = {};
 function getSettingsTabs() {
@@ -12418,7 +12429,9 @@ async function updateOpts(json_string) {
       if (t4 - t3 > 100) debug("AppyOptSlow", key, `time=${Math.round(t4 - t3)}`);
     }
   }
+  const optsSetAt = performance.now();
   window.opts = new_opts;
+  const metadataStart = performance.now();
   Object.entries(opts_metadata).forEach(([opt, meta]) => {
     if (!opts_tabs[meta.tab_name]) opts_tabs[meta.tab_name] = {};
     if (!opts_tabs[meta.tab_name].unsaved_keys) opts_tabs[meta.tab_name].unsaved_keys = /* @__PURE__ */ new Set();
@@ -12427,7 +12440,14 @@ async function updateOpts(json_string) {
     else opts_tabs[meta.tab_name].saved_keys.add(opt);
   });
   const t2 = performance.now();
-  log("updateOpts", { settings: Object.keys(new_opts).length, callbacks: Math.round(t2 - t1), apply: Math.round(t1 - t0) });
+  log("updateOpts", {
+    settings: Object.keys(new_opts).length,
+    callbacks: Math.round(optsSetAt - t1),
+    apply: Math.round(t1 - t0),
+    optsSetMs: Math.round(optsSetAt - t0),
+    uiuxSeparator: Object.hasOwn(new_opts, "uiux_separator_appearance"),
+    metadata: Math.round(t2 - metadataStart)
+  });
   timer("updateOpts", t2 - t0);
 }
 function showAllSettings() {
@@ -12478,18 +12498,22 @@ ${unsaved.size} default values`;
 }
 window.markIfModified = markIfModified;
 function updateAllOpts() {
-  if (Object.keys(opts).length !== 0) return false;
   const json_elem = gradioApp().getElementById("settings_json");
   log("updateAllOpts", !!json_elem);
   if (!json_elem) return false;
   json_elem.parentElement.style.display = "none";
-  const textarea = json_elem.querySelector("textarea");
-  const jsdata = textarea.value;
-  updateOpts(jsdata);
+  if (Object.keys(opts).length === 0) {
+    const textarea = json_elem.querySelector("textarea");
+    updateOpts(textarea.value);
+  }
   return true;
 }
+function loadInitialOpts() {
+  return updateAllOpts();
+}
 async function onAfterUiUpdateCallback() {
-  if (!updateAllOpts()) return;
+  if (settingsCallbacksInitialized || !updateAllOpts()) return;
+  settingsCallbacksInitialized = true;
   const json_elem = gradioApp().getElementById("settings_json");
   const textarea = json_elem.querySelector("textarea");
   executeCallbacks(optionsChangedCallbacks);
@@ -15105,10 +15129,17 @@ var engine = {
     toRemove.forEach((n) => this.indices.delete(n));
     await Promise.all(toLoad.map(async (name) => {
       try {
+        const requestStart = performance.now();
         const resp = await authFetch(`${window.api}/autocomplete/${name}`);
+        const headersAt = performance.now();
         if (!resp?.ok) throw new Error(`${resp?.status}`);
-        const data = await resp.json();
-        this.indices.set(name, new TagIndex(data));
+        const text = await resp.text();
+        const bodyAt = performance.now();
+        const data = JSON.parse(text);
+        const jsonAt = performance.now();
+        const index = new TagIndex(data);
+        const indexAt = performance.now();
+        this.indices.set(name, index);
         if (data.categories) {
           Object.entries(data.categories).forEach(([id, cat]) => {
             const category = cat;
@@ -15117,7 +15148,15 @@ var engine = {
           });
         }
         const t1 = performance.now();
-        log("autoComplete", { loaded: name, tags: data.tags?.length || 0, time: Math.round(t1 - t0) });
+        log("autoComplete", {
+          loaded: name,
+          tags: data.tags?.length || 0,
+          time: Math.round(t1 - t0),
+          fetch: Math.round(headersAt - requestStart),
+          body: Math.round(bodyAt - headersAt),
+          json: Math.round(jsonAt - bodyAt),
+          index: Math.round(indexAt - jsonAt)
+        });
         timer(`autocompleteLoad:${name}`, t1 - t0);
       } catch (e) {
         log("autoComplete", { failed: name, error: e });
@@ -16271,16 +16310,38 @@ var optsReady = false;
 var initialized = false;
 async function waitForOpts() {
   const t0 = performance.now();
-  let t1 = performance.now();
+  let t1 = t0;
+  let polls = 0;
+  let optsFirstSeen = null;
+  let uiuxSeparatorFirstSeen = null;
+  let pollDelayTotal = 0;
+  let pollDelayMax = 0;
+  const diagnostics = () => ({
+    elapsed: Math.round(t1 - t0),
+    polls,
+    optsFirstSeen: optsFirstSeen === null ? null : Math.round(optsFirstSeen),
+    uiuxSeparatorFirstSeen: uiuxSeparatorFirstSeen === null ? null : Math.round(uiuxSeparatorFirstSeen),
+    pollDelayAverage: polls > 0 ? Math.round(pollDelayTotal / polls) : 0,
+    pollDelayMax: Math.round(pollDelayMax)
+  });
   while (true) {
     if (t1 - t0 > 6e4) {
-      log("waitForOpts timeout");
+      log("waitForOpts timeout", diagnostics());
       break;
     }
     if (window.opts && Object.keys(window.opts).length > 0) {
-      optsReady = window.opts.theme_type === "Modern" ? "uiux_separator_appearance" in window.opts : true;
+      if (optsFirstSeen === null) {
+        optsFirstSeen = t1 - t0;
+        timer("waitForOpts:options", optsFirstSeen);
+      }
+      const hasUiuxSeparator = "uiux_separator_appearance" in window.opts;
+      if (hasUiuxSeparator && uiuxSeparatorFirstSeen === null) {
+        uiuxSeparatorFirstSeen = t1 - t0;
+        timer("waitForOpts:uiux-separator", uiuxSeparatorFirstSeen);
+      }
+      optsReady = window.opts.theme_type === "Modern" ? hasUiuxSeparator : true;
       if (optsReady) {
-        log("waitForOpts", Math.round(t1 - t0));
+        log("waitForOpts", diagnostics());
         timer("waitForOpts", t1 - t0);
         break;
       }
@@ -16288,8 +16349,13 @@ async function waitForOpts() {
     if (t1 - t0 > 15e3) {
       log("waitForOpts delayed", Math.round(t1 - t0));
     }
-    await sleep(100);
+    const sleepStart = performance.now();
+    await sleep(50);
     t1 = performance.now();
+    const pollDelay = t1 - sleepStart;
+    pollDelayTotal += pollDelay;
+    pollDelayMax = Math.max(pollDelayMax, pollDelay);
+    polls++;
   }
 }
 async function postStartup() {
@@ -16313,6 +16379,7 @@ async function initStartup() {
   timer("initGradio", t0 - appStartTime);
   log("initUi");
   if (window.setupLogger) await window.setupLogger();
+  log("loadInitialOpts", { loaded: loadInitialOpts() });
   startupPromises.push(initModels());
   startupPromises.push(getUIDefaults());
   startupPromises.push(initPromptChecker());
@@ -16333,13 +16400,13 @@ async function initStartup() {
   startupPromises.push(Promise.resolve(initLogMonitor()));
   startupPromises.push(Promise.resolve(setRefreshInterval()));
   startupPromises.push(Promise.resolve(setupExtraNetworks()));
-  startupPromises.push(Promise.resolve(initAutocomplete()));
   startupPromises.push(Promise.resolve(monitorConnection()));
   startupPromises.push(Promise.resolve(showNetworks()));
   startupPromises.push(Promise.resolve(setHints()));
   startupPromises.push(Promise.resolve(applyStyles()));
   startupPromises.push(Promise.resolve(initIndexDB()));
   startupPromises.push(Promise.resolve(initTableSorter()));
+  startupPromises.push(Promise.resolve(initAutocomplete()));
   if (window.opts.theme_type !== "Modern") addLegacyNotice();
   const t1 = performance.now();
   log("initStartup", Math.round(1e3 * (t1 - t0) / 1e6));

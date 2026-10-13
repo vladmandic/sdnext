@@ -41,8 +41,10 @@ class Api:
         self.img2imgapi = self.generate.post_img2img
 
     def register(self):
-        # fetch js/css
+        # fetch js/css/html
         self.add_api_route("/js", server.get_js, methods=["GET"], auth=False, tags=["Base"])
+        self.add_api_route("/html", server.get_html_manifest, methods=["GET"], auth=False, tags=["Base"])
+        self.add_api_route("/html/{path:path}", server.get_html, methods=["GET"], auth=False, tags=["Base"])
         self.add_api_route("/manifest", server.get_manifest, methods=["GET"], auth=False, tags=["Base"])
         self.add_api_route("/icon", server.get_icon, methods=["GET"], auth=False, tags=["Base"])
 
