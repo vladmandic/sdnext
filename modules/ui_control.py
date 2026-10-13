@@ -95,10 +95,15 @@ def get_units(*values):
 
 
 def generate_click_generator(job_id: str, state: str, active_tab: str, scheduler: str, *args): # pylint: disable=inconsistent-return-statements
+    from modules.control.run import generate
+    if scheduler == 'scheduled':
+        for results in generate(state, scheduler, units, helpers.input_source, helpers.input_init, helpers.input_mask, active_tab, True, *args):
+            yield return_controls(results)
+        return
+
     while helpers.busy:
         debug(f'Control: tab="{active_tab}" job={job_id} busy')
         time.sleep(0.1)
-    from modules.control.run import generate
     debug(f'Control: tab="{active_tab}" job={job_id} scheduled="{scheduler}" args={args}')
     progress.add_task_to_queue(job_id)
     with call_queue.get_lock():
@@ -125,10 +130,16 @@ def generate_click_generator(job_id: str, state: str, active_tab: str, scheduler
 
 
 def generate_click(job_id: str, state: str, active_tab: str, scheduler: str, *args):
+    from modules.control.run import generate
+    if scheduler == 'scheduled': # just add to quueue without locking
+        results = None
+        for result in generate(state, scheduler, units, helpers.input_source, helpers.input_init, helpers.input_mask, active_tab, True, *args):
+            results = result
+        return return_controls(results)
+
     while helpers.busy:
         debug(f'Control: tab="{active_tab}" job={job_id} busy')
         time.sleep(0.1)
-    from modules.control.run import generate
     debug(f'Control: tab="{active_tab}" job={job_id} scheduled="{scheduler}" args={args}')
     progress.add_task_to_queue(job_id)
     with call_queue.get_lock():

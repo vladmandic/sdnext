@@ -14,7 +14,7 @@ from modules.scheduler import _decode_value, _encode_value
 
 class TestSchedulerSerialization(unittest.TestCase):
     def model_options(self, **overrides):
-        values = {key: f'original-{key}' for key in scheduler._model_option_keys}
+        values = {key: f'original-{key}' for key in scheduler._model_option_keys} # pylint: disable=protected-access
         values.update(overrides)
         return SimpleNamespace(**values)
 
@@ -74,7 +74,7 @@ class TestSchedulerSerialization(unittest.TestCase):
         self.assertEqual(parameters['video']['arguments']['model'], 'LTX model')
         self.assertEqual(parameters['video']['arguments']['condition_video']['media_type'], 'video/mp4')
         self.assertEqual(create_task.call_args.kwargs['image_blobs'], [b'video-bytes'])
-        self.assertEqual(create_task.call_args.kwargs['max_attempts'], scheduler.MAX_ATTEMPTS)
+        self.assertEqual(create_task.call_args.kwargs['max_attempts'], scheduler._task_max_attempts) # pylint: disable=protected-access
         self.assertEqual(create_task.call_args.kwargs['mode'], 'video')
 
     def test_control_unit_round_trip_excludes_runtime_objects(self):
@@ -114,7 +114,26 @@ class TestSchedulerSerialization(unittest.TestCase):
             for key, value in vars(options).items():
                 self.assertEqual(parameters[key], value)
             create_task.assert_called_once()
-            self.assertEqual(create_task.call_args.kwargs['max_attempts'], scheduler.MAX_ATTEMPTS)
+            self.assertEqual(create_task.call_args.kwargs['max_attempts'], scheduler._task_max_attempts) # pylint: disable=protected-access
+
+    def test_control_schedule_submit_bypasses_generation_lock(self):
+        from modules import ui_control
+
+        for submit in (ui_control.generate_click, ui_control.generate_click_generator):
+            with self.subTest(submit=submit.__name__), \
+                    patch.object(ui_control.helpers, 'busy', True), \
+                    patch.object(ui_control.call_queue, 'get_lock', side_effect=AssertionError('generation lock acquired')), \
+                    patch('modules.control.run.generate', return_value=iter([(None, None, 'Queued task', None)])) as generate:
+                result = submit('job', 'state', 'tab', 'scheduled')
+                if submit is ui_control.generate_click_generator:
+                    result = list(result)
+
+            expected = [None, None, [], 'Queued task', '']
+            if submit is ui_control.generate_click_generator:
+                self.assertEqual(result, [expected])
+            else:
+                self.assertEqual(result, expected)
+            generate.assert_called_once()
 
     def test_capture_model_options_does_not_access_unloaded_model(self):
         class UnloadedShared(SimpleNamespace):
@@ -127,7 +146,7 @@ class TestSchedulerSerialization(unittest.TestCase):
         parameters = {}
         with patch.object(sys.modules['modules'], 'shared', shared, create=True), \
                 patch.dict(sys.modules, {'modules.shared': shared}):
-            scheduler._capture_model_options(parameters)
+            scheduler._capture_model_options(parameters) # pylint: disable=protected-access
 
         self.assertEqual(parameters['model'], options.sd_model_checkpoint)
 
@@ -135,7 +154,7 @@ class TestSchedulerSerialization(unittest.TestCase):
         original = self.model_options()
         original.samples_save = True
         shared = SimpleNamespace(opts=original)
-        task_options = {key: f'task-{key}' for key in scheduler._model_option_keys}
+        task_options = {key: f'task-{key}' for key in scheduler._model_option_keys} # pylint: disable=protected-access
 
         def fail_during_execution(_task):
             self.assertEqual({key: getattr(original, key) for key in task_options}, task_options)
@@ -145,9 +164,9 @@ class TestSchedulerSerialization(unittest.TestCase):
                 patch.dict(sys.modules, {'modules.shared': shared}), \
                 patch.object(scheduler, '_execute_task', side_effect=fail_during_execution) as execute:
             with self.assertRaisesRegex(RuntimeError, 'task failed'):
-                scheduler._run_task({'parameters': task_options})
+                scheduler._run_task({'parameters': task_options}) # pylint: disable=protected-access
         execute.assert_called_once()
-        self.assertEqual({key: getattr(original, key) for key in scheduler._model_option_keys}, {key: f'original-{key}' for key in scheduler._model_option_keys})
+        self.assertEqual({key: getattr(original, key) for key in scheduler._model_option_keys}, {key: f'original-{key}' for key in scheduler._model_option_keys}) # pylint: disable=protected-access
         self.assertTrue(original.samples_save)
 
     def test_execute_task_persists_process_stats_and_infotexts(self):
@@ -164,7 +183,7 @@ class TestSchedulerSerialization(unittest.TestCase):
                 patch.object(scheduler, '_decode_value', return_value={}), \
                 patch.object(timer.process, 'dct', return_value=stats), \
                 patch.object(scheduler.scheduler_db, 'update_results', return_value=True) as update_results:
-            scheduler._execute_task(task)
+            scheduler._execute_task(task) # pylint: disable=protected-access
 
         update_results.assert_called_once_with(
             7,
@@ -196,7 +215,7 @@ class TestSchedulerSerialization(unittest.TestCase):
         with patch.object(scheduler, '_video_handler', return_value=ltx_handler), \
                 patch.object(timer.process, 'dct', return_value=stats), \
                 patch.object(scheduler.scheduler_db, 'update_results', return_value=True) as update_results:
-            scheduler._execute_task(task)
+            scheduler._execute_task(task) # pylint: disable=protected-access
 
         update_results.assert_called_once_with(
             19,
@@ -228,14 +247,14 @@ class TestSchedulerSerialization(unittest.TestCase):
         with patch.object(scheduler, '_video_handler', return_value=framepack_handler), \
                 patch.object(timer.process, 'dct', return_value={}), \
                 patch.object(scheduler.scheduler_db, 'update_results', return_value=True) as update_results:
-            scheduler._execute_task(task)
+            scheduler._execute_task(task) # pylint: disable=protected-access
 
         update_results.assert_called_once_with(20, ['/tmp/framepack.mp4'], process_stats={}, infotexts=['Generate finished'])
 
     def test_video_error_detection_uses_status_fields_only(self):
-        self.assertIsNone(scheduler._video_result_error('video', ([], None, '{"prompt":"not found"}', '', '')))
-        self.assertEqual(scheduler._video_result_error('video', (None, 'Model not loaded', '', '', '')), 'Model not loaded')
-        self.assertIsNone(scheduler._video_result_error('minimax', (None, 'Generate finished')))
+        self.assertIsNone(scheduler._video_result_error('video', ([], None, '{"prompt":"not found"}', '', ''))) # pylint: disable=protected-access
+        self.assertEqual(scheduler._video_result_error('video', (None, 'Model not loaded', '', '', '')), 'Model not loaded') # pylint: disable=protected-access
+        self.assertIsNone(scheduler._video_result_error('minimax', (None, 'Generate finished'))) # pylint: disable=protected-access
 
     def test_update_task_parameters_accepts_control_and_model_fields(self):
         task = {
@@ -264,7 +283,7 @@ class TestSchedulerSerialization(unittest.TestCase):
                 patch.object(scheduler.scheduler_db, 'update_parameters', return_value=True) as update:
             self.assertTrue(scheduler.update_task_parameters(12, updates))
         self.assertEqual(task['parameters']['control'], {key: value for key, value in updates.items() if key in task['parameters']['control']})
-        self.assertEqual({key: task['parameters'][key] for key in scheduler._model_option_keys if key in updates}, {key: value for key, value in updates.items() if key not in task['parameters']['control']})
+        self.assertEqual({key: task['parameters'][key] for key in scheduler._model_option_keys if key in updates}, {key: value for key, value in updates.items() if key not in task['parameters']['control']})  # pylint: disable=protected-access
         update.assert_called_once_with(12, task['parameters'], db_path=None)
 
     def test_update_task_parameters_rejects_invalid_common_values(self):
@@ -305,9 +324,9 @@ class TestSchedulerPolicy(unittest.TestCase):
         call_queue = SimpleNamespace(is_locked=lambda: True)
 
         with patch.dict(sys.modules, {'modules.call_queue': call_queue}):
-            self.assertEqual(scheduler._worker_wait_interval(), 1.0)
+            self.assertEqual(scheduler._worker_wait_interval(), 1.0) # pylint: disable=protected-access
             call_queue.is_locked = lambda: False
-            self.assertEqual(scheduler._worker_wait_interval(), 5.0)
+            self.assertEqual(scheduler._worker_wait_interval(), 5.0) # pylint: disable=protected-access
 
     def test_auto_window_boundaries_and_overnight_window(self):
         options = SimpleNamespace(scheduler_state='Auto', scheduler_start='10:00', scheduler_end='18:00')
@@ -383,7 +402,7 @@ class TestSchedulerPolicy(unittest.TestCase):
         retry_or_fail.assert_called_once()
         self.assertEqual(retry_or_fail.call_args.args[0], 14)
         self.assertEqual(str(retry_or_fail.call_args.args[1]), 'generation failed')
-        self.assertEqual(retry_or_fail.call_args.kwargs['retry_delay'], scheduler.RETRY_DELAY)
+        self.assertEqual(retry_or_fail.call_args.kwargs['retry_delay'], scheduler._task_retry_delay) # pylint: disable=protected-access
 
     def test_run_once_locks_standard_video_replay(self):
         from modules import call_queue
