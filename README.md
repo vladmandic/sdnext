@@ -1,9 +1,9 @@
 <div align="center">
 <img src="https://github.com/vladmandic/sdnext/raw/dev/ui/assets/logo-transparent.png" width=200 alt="SD.Next: AI art generator logo">
 
-# SD.Next: All-in-one WebUI
+# SD.Next
 
-SD.Next is a state-of-the-art, open-source server application and web interface (WebUI) for AI image and video generation, built on Stable Diffusion and supporting dozens of advanced models. Create, refine, caption, upscale and process images and videos with a modern, cross-platform application — perfect for artists, researchers, and AI enthusiasts.
+SD.Next is a state-of-the-art open-source web interface for generating and editing images and video with a wide range of diffusion models. Run it on a variety of NVIDIA, AMD, Intel, Apple Silicon, or CPU setups.
 
 [![Stars](https://img.shields.io/github/stars/vladmandic/sdnext?style=for-the-badge&color=%237DD3FC)](https://ossinsight.io/analyze/vladmandic/sdnext#overview)
 [![Forks](https://img.shields.io/github/forks/vladmandic/sdnext?style=for-the-badge&color=%2360A5FA)](https://github.com/vladmandic/sdnext/forks)
@@ -26,68 +26,58 @@ SD.Next is a state-of-the-art, open-source server application and web interface 
 </div>
 <br>
 
-## Table of contents
+## Quick links
 
+- [Install](https://vladmandic.github.io/sdnext-docs/Installation/)
 - [Documentation](https://vladmandic.github.io/sdnext-docs/)
-- [Why SD.Next?](#why-sdnext)
-- [Screenshots](#screenshots)
+- [Troubleshooting](https://vladmandic.github.io/sdnext-docs/Troubleshooting/)
 - [Supported Workflows](#supported-workflows)
 - [Supported AI Models](#supported-ai-models)
 - [Supported Platforms & Hardware](#supported-platforms-and-hardware)
 - [Getting started](#getting-started)
-- [Community and Support](#community-and-support)
-- [Credits](#credits)
-- [Development and Contributing](#development-and-contributing)
+- [Community](#community-and-support)
+- [Contributing](#development-and-contributing)
 
-## Why SD.Next?
+## What you can do
 
-SD.Next is feature-rich open-source AI art generation platform with a focus on performance, flexibility, and user experience.
+- **Generate and edit:** Create **images** or **videos** from text or images; *edit, inpaint, outpaint, refine, detail*
+- **Guide generation:** Use LoRA, ControlNet, IP-Adapters, and Prompt enhancement
+- **Enhance and process:** Caption, Tag, Upscale, Interpolate, Colorize, and adjust images
+- **Work with models:** Browse [supported models](https://vladmandic.github.io/sdnext-docs/Model-Support/), auto-download from the reference list, or add your own; added models are detected automatically
+- **Tune for your hardware:** Use [SDNQ quantization and attention](https://github.com/Disty0/sdnq) and CPU/GPU offloading to manage memory
+- **Make it yours:** Choose from multiple [themes](https://vladmandic.github.io/sdnext-docs/Themes/) and interface [languages](https://vladmandic.github.io/sdnext-docs/Dev-Locale), on **desktop** or **mobile**
+- **Stay current:** The built-in installer manages dependencies and updates
 
-In addition to supporting all popular [workflows](#supported-workflows), a wide range of [platforms](#supported-platforms-and-hardware) and [models](#supported-ai-models), SD.Next includes many features not found in other WebUIs, such as:
-
-- Support for many [Diffusion models](https://vladmandic.github.io/sdnext-docs/Model-Support/)!  
-- **Automatic model download**: simply select a model from the list of reference models and it will be downloaded and ready to use  
-  Or download and add your own models and they will be automatically detected and available in the UI  
-- **Quantization**: State-of-the-Art model [SDNQ](https://github.com/Disty0/sdnq) engine
-  Use pre-quantized or run with quantization on-the-fly for up to 4x VRAM reduction with no or minimal quality and performance impact  
-- **Offload**: Dynamically balance CPU and GPU memory to run larger models on limited hardware
-- **Caption and Enhance**: with 25+ built-in **LLM** and **VLM** models, **OpenCLiP** models, **Tagger** with **WaifuDiffusion** and **DeepDanbooru** models  
-- **Image Processing**: full image correction and color-grading suite of tools
-- **Task Scheduling**: Efficiently manage and prioritize multiple tasks to optimize resource usage and workflow.
-- [Multi-platform](https://vladmandic.github.io/sdnext-docs/Platforms/)!  
-  Platform specific auto-detection and tuning performed on install  
-- Fully **Localized** to ~15 languages and with support for many [UI themes](https://vladmandic.github.io/sdnext-docs/Themes/)!
-- **Desktop** and **mobile** interfaces
-- Built in **installer** with automatic updates and dependency management  
+See [supported workflows](#supported-workflows) and [platform guides](https://vladmandic.github.io/sdnext-docs/Platforms/) for more details.
 
 ## Screenshots & Video
 
 [![SD.Next Screenshot Video](https://github.com/user-attachments/assets/97536dca-3d0d-4fcd-80ba-7cdd4dad47b1)](https://github.com/user-attachments/assets/3cdf8066-e708-40e1-8dae-79de88b8022b)
 [![SD.Next Screenshot Blank](https://github.com/user-attachments/assets/bb70177a-6a09-43e7-8de6-b8d4ae8c8f46)](https://github.com/user-attachments/assets/bb70177a-6a09-43e7-8de6-b8d4ae8c8f46)
 [![SD.Next Screenshot Edit](https://github.com/user-attachments/assets/ed1e37cb-3e0b-43f2-9c24-79cc0c36542f)](https://github.com/user-attachments/assets/ed1e37cb-3e0b-43f2-9c24-79cc0c36542f)
+[![SD.Next Screenshot Kanvas](https://github.com/user-attachments/assets/8eaa9c25-96bd-4569-8b9c-63ffdddecb1b)](https://github.com/user-attachments/assets/8eaa9c25-96bd-4569-8b9c-63ffdddecb1b)
 [![SD.Next Screenshot Gallery](https://github.com/user-attachments/assets/404493ca-069f-45db-bd9a-f35533965ca1)](https://github.com/user-attachments/assets/404493ca-069f-45db-bd9a-f35533965ca1)
-[![SD.Next Screenshot Scheduler](https://github.com/user-attachments/assets/70721d26-aea5-4128-ba0a-046095108e70)](https://github.com/user-attachments/assets/70721d26-aea5-4128-ba0a-046095108e70)
 [![SD.Next Screenshot DLSS](https://github.com/user-attachments/assets/b9f0a103-7099-4ae3-9928-ea3ae1204325)](https://github.com/user-attachments/assets/b9f0a103-7099-4ae3-9928-ea3ae1204325)
+[![SD.Next Screenshot Scheduler](https://github.com/user-attachments/assets/70721d26-aea5-4128-ba0a-046095108e70)](https://github.com/user-attachments/assets/70721d26-aea5-4128-ba0a-046095108e70)
 
 <br>
 
 ## Supported Workflows
 
-- Generate with *Text-to-Image*, *Image-to-Image*, *Text-to-Video*, *Image-to-Video*, etc.
-- Edit with *Detailer*, **HiRes/Refine**, *Image-Edit*, *Inpainting*, *Outpainting*, etc.
-- Enhance guidance with *LoRA*, *ControlNet*, *IPAdapters*, *Prompt Enhance*, etc.
-- Process with *Caption*, *Tag*, *Upscale*, *Interpolate*, *Colorize*, *Filter*, etc.
-- Schedule or queue tasks for future execution
-- and many more with support for custom scripts and extensions
+- **Generate:** Text-to-image, image-to-image, text-to-video, and image-to-video.
+- **Edit:** Image editing, inpainting, outpainting, detailer, and hires/refine.
+- **Guide:** LoRA, ControlNet, IP-Adapters, and prompt enhancement.
+- **Process:** Captioning, tagging, upscaling, interpolation, colorization, and filters.
+- **Queue:** Schedule tasks or add them to the queue.
+- Extend workflows with custom scripts and extensions.
 
 ## Supported AI Models
 
-SD.Next supports broad range of models and its frequently updated with latest models  
-For full list, see [supported models](https://vladmandic.github.io/sdnext-docs/Model-Support/) and [model specs](https://vladmandic.github.io/sdnext-docs/Models/)  
+SD.Next supports a broad and regularly updated range of models. See the [supported models](https://vladmandic.github.io/sdnext-docs/Model-Support/) and [model specifications](https://vladmandic.github.io/sdnext-docs/Models/).
 
 ## Supported Platforms and Hardware
 
-SD.Next is designed to run on a wide range of hardware and platforms, with optimizations for various GPU architectures with acceleration and support for CPU-only execution. Supported platforms include:
+SD.Next supports a range of hardware, with GPU acceleration and CPU-only execution. Supported platforms include:
 
 - *nVidia* GPUs using **CUDA** libraries on both *Windows and Linux*  
 - *AMD* GPUs using **ROCm** libraries on both *Linux and Windows*
@@ -100,39 +90,49 @@ Plus **Docker** container recipes for: [CUDA, ROCm, Intel IPEX and OpenVINO](htt
 
 ## Getting started
 
-- Get started with **SD.Next** by following the [installation instructions](https://vladmandic.github.io/sdnext-docs/Installation/)  
-- For more details, check out [advanced installation](https://vladmandic.github.io/sdnext-docs/Advanced-Install/) guide  
-- List and explanation of [command line arguments](https://vladmandic.github.io/sdnext-docs/CLI-Arguments/)  
-- Install walkthrough [video](https://www.youtube.com/watch?v=nWTnTyFTuAs)  
+Follow the [installation guide](https://vladmandic.github.io/sdnext-docs/Installation/) for prerequisites and platform-specific setup. For advanced options, see [advanced installation](https://vladmandic.github.io/sdnext-docs/Advanced-Install/) and [command-line arguments](https://vladmandic.github.io/sdnext-docs/CLI-Arguments/). There is also an [installation walkthrough](https://www.youtube.com/watch?v=nWTnTyFTuAs).
 
 > [!TIP]
-> And for platform specific information, check out  
-> [WSL](https://vladmandic.github.io/sdnext-docs/WSL/) | [Intel Arc](https://vladmandic.github.io/sdnext-docs/Intel-ARC/) | [DirectML](https://vladmandic.github.io/sdnext-docs/DirectML/) | [OpenVINO](https://vladmandic.github.io/sdnext-docs/OpenVINO/) | [ONNX & Olive](https://vladmandic.github.io/sdnext-docs/ONNX-Runtime/) | [ZLUDA](https://vladmandic.github.io/sdnext-docs/ZLUDA/) | [AMD ROCm](https://vladmandic.github.io/sdnext-docs/AMD-ROCm/) | [MacOS](https://vladmandic.github.io/sdnext-docs/MacOS-Python/) | [nVidia](https://vladmandic.github.io/sdnext-docs/nVidia/) | [Docker](https://vladmandic.github.io/sdnext-docs/Docker/)
+> For platform-specific instructions, see:  
+> [nVidia CUDA](https://vladmandic.github.io/sdnext-docs/nVidia/) | [AMD ROCm](https://vladmandic.github.io/sdnext-docs/AMD-ROCm/) | [Intel Arc XPU](https://vladmandic.github.io/sdnext-docs/Intel-ARC/) | [OpenVINO](https://vladmandic.github.io/sdnext-docs/OpenVINO/) | [ZLUDA](https://vladmandic.github.io/sdnext-docs/ZLUDA/) | [MacOS](https://vladmandic.github.io/sdnext-docs/MacOS-Python/) | [WSL](https://vladmandic.github.io/sdnext-docs/WSL/) | [Docker](https://vladmandic.github.io/sdnext-docs/Docker/)
 
-### Quick Start
+### Quick start
 
-```shell
+> [!NOTE]
+> First launch may take time while dependencies are installed  
+> If you run into issues, see [troubleshooting](https://vladmandic.github.io/sdnext-docs/Troubleshooting/) and [debugging](https://vladmandic.github.io/sdnext-docs/Debug/).
+
+**Linux or macOS**
+
+```bash
 git clone https://github.com/vladmandic/sdnext
 cd sdnext
-./webui.sh # Linux/Mac
-webui.bat  # Windows
-webui.ps1  # PowerShell
+./webui.sh
 ```
 
-> [!WARNING]
-> If you run into issues, check out [troubleshooting](https://vladmandic.github.io/sdnext-docs/Troubleshooting/) and [debugging](https://vladmandic.github.io/sdnext-docs/Debug/) guides  
+**Windows Command Prompt**
+
+```bat
+git clone https://github.com/vladmandic/sdnext
+cd sdnext
+webui.bat (for Windows Command Prompt)
+webui.ps1 (for Windows PowerShell)
+```
+
+**Windows All-in-One UI**
+
+Download the latest `exe` from [SD.Next Launcher Releases](https://github.com/vladmandic/sdnext-launcher/releases) - And run it!  
+> [!TIP]
+> The All-in-One UI includes all necessary tools, so you don't need to install anything separately.
 
 ## Community and Support
 
-If you're unsure how to use a feature, best place to start is [Docs](https://vladmandic.github.io/sdnext-docs/) and if its not there,  
-check [ChangeLog](https://vladmandic.github.io/sdnext-docs/CHANGELOG/) for when feature was first introduced as it will always have a short note on how to use it  
-
-And for any question, reach out on [Discord](https://discord.gg/VjvR2tabEX) or open an [issue](https://github.com/vladmandic/sdnext/issues) or [discussion](https://github.com/vladmandic/sdnext/discussions)  
+Start with the [documentation](https://vladmandic.github.io/sdnext-docs/). For feature history and release notes, see the [changelog](https://vladmandic.github.io/sdnext-docs/CHANGELOG/). Ask questions on [Discord](https://discord.gg/VjvR2tabEX) or [GitHub Discussions](https://github.com/vladmandic/sdnext/discussions); report bugs through [GitHub Issues](https://github.com/vladmandic/sdnext/issues).
 
 ### Credits
 
-Main credit goes to [Automatic1111 WebUI](https://github.com/AUTOMATIC1111/stable-diffusion-webui) for the original codebase  
+SD.Next builds on the original codebase from [AUTOMATIC1111's Stable Diffusion WebUI](https://github.com/AUTOMATIC1111/stable-diffusion-webui).
 
 ### Development and Contributing
 
-Please see [Dev Home](https://vladmandic.github.io/sdnext-docs/Dev-Home/) for details on how to contribute to this project  
+See [Dev Home](https://vladmandic.github.io/sdnext-docs/Dev-Home/) for development and contribution guidelines.
