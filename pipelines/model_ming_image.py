@@ -9,19 +9,6 @@ class MingImageModularPipeline(ModularPipeline):
     pass
 
 
-def before_prompt_encode(prompt):
-    if isinstance(prompt, list):
-        prompt = prompt[0] if len(prompt) > 0 else ''
-    try:
-        json_data = json.loads(prompt)
-        json_str = json.dumps(json_data)
-        return json_str
-    except Exception: # not a json
-        log.warning(f'MingImage: prompt="{prompt}" is not a valid JSON')
-    json_str = '{ instructions: "' + prompt + '" }'
-    return json_str
-
-
 def load_ming_image(checkpoint_info, diffusers_load_config=None):
     if diffusers_load_config is None:
         diffusers_load_config = {}
@@ -65,7 +52,6 @@ def load_ming_image(checkpoint_info, diffusers_load_config=None):
     )
     pipe = blocks.init_pipeline()
     pipe.__class__ = MingImageModularPipeline
-    log.critical(quant_args)
     pipe.load_components(
         dtype=dtype,
         cache_dir=shared.opts.diffusers_dir,
@@ -81,7 +67,6 @@ def load_ming_image(checkpoint_info, diffusers_load_config=None):
         raise RuntimeError(f'Ming-Image components failed to load: {missing}')
     pipe.task_args = {'output_type': 'np'}
     pipe.sd_checkpoint_info = checkpoint_info
-    pipe.before_prompt_encode = before_prompt_encode
     modular_load.apply_progress_bar_config(pipe._blocks) # pylint: disable=protected-access
     sd_hijack_modular.install_state_hook(pipe)
     sd_hijack_modular.register_callbacks(pipe)

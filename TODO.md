@@ -46,10 +46,6 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 
 ### Image
 
-- [nVidia Cosmos-Predict-2.5](https://huggingface.co/nvidia/Cosmos-Predict2.5-2B) (in diffusers)
-- [nVidia Cosmos-Transfer-2.5](https://huggingface.co/nvidia/Cosmos-Transfer2.5-2B) (in diffusers)
-- [Tencent HY-WU](https://huggingface.co/tencent/HY-WU) (transformers-compatible)
-
 ### Video
 
 - [ByteDance Lance](https://github.com/bytedance/Lance)

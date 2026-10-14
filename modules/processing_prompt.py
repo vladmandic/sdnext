@@ -120,9 +120,11 @@ def set_prompt(p: StableDiffusionProcessing,
 
     if not hasattr(shared.sd_model, 'orig_encode_prompt'):
         if isinstance(prompts, list):
-            log.debug(f'Encode: prompt={prompts} negative={negative_prompts} embedder={prompt_parser_diffusers.embedder is not None} attention={prompt_attention}')
+            length = sum(len(p) for p in prompts if isinstance(p, str))
+            log.debug(f'Encode: length={length} prompt={prompts} negative={negative_prompts} embedder={prompt_parser_diffusers.embedder is not None} attention={prompt_attention}')
         else:
-            log.debug(f'Encode: prompt="{prompts}" negative="{negative_prompts}" embedder={prompt_parser_diffusers.embedder is not None} attention={prompt_attention}')
+            length = len(prompts) if isinstance(prompts, str) else 0
+            log.debug(f'Encode: length={length} prompt="{prompts}" negative="{negative_prompts}" embedder={prompt_parser_diffusers.embedder is not None} attention={prompt_attention}')
 
     prompts, negative_prompts, prompts_2, negative_prompts_2 = fix_prompt_batch(p, prompts, negative_prompts, prompts_2, negative_prompts_2)
     prompts, negative_prompts, prompts_2, negative_prompts_2 = fix_prompt_model(cls, prompts, negative_prompts, prompts_2, negative_prompts_2)
