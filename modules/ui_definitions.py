@@ -666,7 +666,7 @@ def create_settings(cmd_opts):
     # --- Live Previews ---
     options_templates.update(options_section(('live-preview', "Live Previews"), {
         "show_progress_every_n_steps": OptionInfo(1, "Live preview display period", gr.Slider, {"minimum": 0, "maximum": 20, "step": 1, "visible": False}),
-        "show_progress_type": OptionInfo("Tiny", "Live preview method", gr.Dropdown, {"choices": ["None", "Micro", "Tiny", "Full"]}),
+        "show_progress_type": OptionInfo("Micro", "Live preview method", gr.Dropdown, {"choices": ["None", "Micro", "Tiny", "Full"]}),
         "live_preview_refresh_period": OptionInfo(500, "Progress update period", gr.Slider, {"minimum": 0, "maximum": 5000, "step": 25}),
         "live_preview_force": OptionInfo(False, "Force live previews on each step"),
         "live_preview_require_focus": OptionInfo(True, "Pause live previews when tab is not focused"),

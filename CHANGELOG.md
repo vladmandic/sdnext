@@ -34,6 +34,7 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
   - parallel template loading
   - html custom hash for improved caching and performance
   - js split bundle
+  - microvae is now default for live previews
 - **Fixes**
   - anima: load repos in the diffusers modular layout
   - api: `--cors-origins` entries separated by a comma and a space
