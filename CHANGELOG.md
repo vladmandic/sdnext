@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2026-10-13
+## Update for 2026-10-14
 
-### Highlights for 2026-10-13
+### Highlights for 2026-10-14
 
 Couple of major new features: native **Task Scheduler** and **Queue Management**, better handling of **Edit Models**, improved **UI Performance**, and enhanced in-depth **Benchmarking** capabilities.  
 Plus quite a lot of other smaller improvements and bug fixes.  
@@ -11,7 +11,7 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
 
 [Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-10-13
+### Details for 2026-10-14
 
 - **Models**  
   - [Google Nano Banana 2.1](https://deepmind.google/models/model-cards/nano-banana-2-1)
@@ -56,6 +56,7 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
   - ipadapter: jobs without an adapter after an adapter job
   - ipadapter: loading and unloading adapters under group offload
   - lora: reset loaded networks if refiner prompt is used
+  - mps: fix torch gc issue, thanks @diesse
   - offload: balanced offload warns when a module exceeds the gpu limit and part of it runs from cpu
   - offload: group offload logs a denied pin once per component
   - rocm: arch detection with newer windows drivers, thanks @crashingalexsan
