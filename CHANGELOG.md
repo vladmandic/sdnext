@@ -4,8 +4,9 @@
 
 ### Highlights for 2026-10-14
 
-Couple of major new features: native **Task Scheduler** and **Queue Management**, better handling of **Edit Models**, improved **UI Performance**, and enhanced in-depth **Benchmarking** capabilities.  
-Plus quite a lot of other smaller improvements and bug fixes.  
+This time leading with major new features: native **Task Scheduler** and **Queue Management**, better handling of **Edit Models**, improved **UI Performance**, and enhanced in-depth **Benchmarking** capabilities  
+But also adding few new models: *Qwen Image 2.1 Turbo*, *Ming-Image Design 0.1*, *Google Nano Banana 2.1*  
+Plus quite a lot of other smaller improvements and bug fixes  
 
 See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) below for full details.
 
@@ -18,7 +19,7 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
   - [Google Nano Banana 2.1](https://deepmind.google/models/model-cards/nano-banana-2-1)
   - [Ming-Image Design 0.1](https://huggingface.co/OzzyGT/ming_image_0_1_design_diffusers)  
     Ming-Image is text-to-image model for UI, infographic and poster design built as a 6B-parameter flow-matching transformer with 16B-parameter custom text encoder  
-    *Note*: this is design-focused model; works best with structured JSON prompts  
+    *Note*: normal image generation works, but this is design-focused model and works best with structured prompts (json or clear-text)  
 - **Scheduler**  
   new native *Task Scheduler* and *Queue Management*  
   add any image or video task to the scheduler and execute it in q queue or at a specific time  
