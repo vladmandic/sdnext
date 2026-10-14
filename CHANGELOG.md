@@ -51,6 +51,7 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
   - color correction: keep transparency of rgba outputs, wavelet and adain no longer fail on them
   - color correction: transparent outputs are matched on their visible pixels
   - color correction: wavelet method keeps the generated image and matches only its colors
+  - enso: disable if not specified in startup
   - framepack: a run after an interrupted job no longer ends at once without output
   - infotext: a value starting with a double quote no longer swallows the next parameter
   - infotext: parse error on values with superscript or circled digits
