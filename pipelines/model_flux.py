@@ -67,6 +67,9 @@ def load_flux(checkpoint_info, diffusers_load_config=None):
     if cls_name == diffusers.FluxKontextPipeline:
         pipe.patch_size = 2 # latents pack into 2x2 patches and the pipeline floors sizes to vae_scale_factor * 2
         pipe.max_condition_images = 1 # one condition image per prompt
+        from diffusers.pipelines.flux.pipeline_flux_kontext import PREFERRED_KONTEXT_RESOLUTIONS
+        sizes = [[w, h] for w, h in PREFERRED_KONTEXT_RESOLUTIONS]
+        pipe.condition_image_rule = {'rule': {'kind': 'buckets', 'sizes': sizes, 'fit': 'stretch', 'ratio': 'w/h', 'aspect_multiple': pipe.image_processor.config.vae_scale_factor}} # aspect of the sides floored by get_default_height_width
 
     if os.environ.get('SD_REMOTE_T5', None) is not None:
         from modules import sd_te_remote

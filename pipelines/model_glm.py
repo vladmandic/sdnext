@@ -140,6 +140,7 @@ def load_glm_image(checkpoint_info, diffusers_load_config=None):
     }
     pipe.patch_size = pipe.transformer.config.patch_size # the pipeline floors sizes to vae_scale_factor * patch_size
     pipe.max_condition_images = 10 # multi-image edit with no documented limit
+    pipe.condition_image_rule = {'rule': {'kind': 'floor', 'multiple': pipe.vae_scale_factor * pipe.patch_size}} # the VAE takes each picture at its own size
 
     del transformer, text_encoder, vision_language_encoder
     sd_hijack_te.init_hijack(pipe)

@@ -47,6 +47,7 @@ class GoogleNanoBananaPipeline():
         self.skip_processing = True
         self.model = model_name
         self.max_condition_images = 14 if is_gemini3_plus(model_name) else 10 # gemini 3 mixes up to 14 reference images, older models have no documented limit
+        self.condition_image_rule = {'rule': None} # sent as JPEG at the given size
         self.client = None
         self.config = None
         google_requirements()

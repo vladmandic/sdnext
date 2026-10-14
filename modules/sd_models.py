@@ -1227,6 +1227,13 @@ def get_max_condition_images(pipe: diffusers.DiffusionPipeline | None = None) ->
     return int(getattr(pipe, 'max_condition_images', 0) or 0)
 
 
+def get_condition_image_rule(pipe: diffusers.DiffusionPipeline | None = None) -> dict:
+    """Size the pipeline resamples each condition image to, as data; rule None when it declares none."""
+    if pipe is None:
+        pipe = shared.sd_model
+    return getattr(pipe, 'condition_image_rule', None) or {'rule': None}
+
+
 def takes_condition_set(pipe: diffusers.DiffusionPipeline | None = None) -> bool:
     """True when an image list is one set of condition images shared by every prompt, not one image per sample."""
     return get_max_condition_images(pipe) > 1
@@ -1375,6 +1382,7 @@ def copy_diffuser_options(new_pipe, orig_pipe):
     new_pipe.restore_pipeline = getattr(orig_pipe, 'restore_pipeline', None)
     new_pipe.max_condition_images = getattr(orig_pipe, 'max_condition_images', None)
     new_pipe.single_prompt = getattr(orig_pipe, 'single_prompt', None)
+    new_pipe.condition_image_rule = getattr(orig_pipe, 'condition_image_rule', None)
     new_pipe.patch_size = getattr(orig_pipe, 'patch_size', None)
     new_pipe.custom_unpack_latents = getattr(orig_pipe, 'custom_unpack_latents', None)
     # a1111 compatibility item
@@ -1409,6 +1417,7 @@ def backup_pipe_components(pipe):
         'patch_size': getattr(pipe, "patch_size", None),
         'max_condition_images': getattr(pipe, "max_condition_images", None),
         'single_prompt': getattr(pipe, "single_prompt", None),
+        'condition_image_rule': getattr(pipe, "condition_image_rule", None),
         'hijack_prompt': hasattr(pipe, "orig_encode_prompt"),
         'hijack_vae': hasattr(pipe, "vae") and hasattr(pipe.vae, "orig_decode")
     }
@@ -1442,6 +1451,8 @@ def restore_pipe_components(pipe, components):
         pipe.max_condition_images = components['max_condition_images']
     if components['single_prompt'] is not None:
         pipe.single_prompt = components['single_prompt']
+    if components['condition_image_rule'] is not None:
+        pipe.condition_image_rule = components['condition_image_rule']
     if components['hijack_prompt']:
         sd_hijack_te.init_hijack(pipe)
     if components['hijack_vae']:

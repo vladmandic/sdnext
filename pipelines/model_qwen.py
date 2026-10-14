@@ -96,10 +96,13 @@ def load_qwen(checkpoint_info, diffusers_load_config=None):
         pipe.task_args['cfg_normalize'] = False
         pipe.task_args['layers'] = shared.opts.model_qwen_layers
         pipe.task_args['resolution'] = 640
+    edit_rule = {'rule': {'kind': 'area', 'area': 1024 * 1024, 'multiple': 32, 'round': 'nearest'}, 'output_area': 1024 * 1024} # calculate_dimensions for the VAE copy
     if cls_name == diffusers.QwenImageEditPlusPipeline:
         pipe.max_condition_images = 4 # Qwen-Image-Edit typically uses 4 condition images
+        pipe.condition_image_rule = edit_rule # its vision encoder copy is 384 * 384 of the same picture
     elif cls_name == diffusers.QwenImageEditPipeline:
         pipe.max_condition_images = 1 # one image slot in its prompt template
+        pipe.condition_image_rule = edit_rule
 
     generic.load_vae_override(pipe, diffusers_load_config)
 

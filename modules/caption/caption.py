@@ -4,6 +4,11 @@ from modules import shared
 from modules.logger import log
 
 
+def get_image_rule() -> dict:
+    """Largest size any captioner resamples a picture to, as data: Qwen-family processors cap at max_pixels, the rest thumbnail to 768 or less."""
+    return {'rule': {'kind': 'cap', 'area': 1024 * 1024}}
+
+
 def caption(image):
     if isinstance(image, list):
         image = image[0] if len(image) > 0 else None

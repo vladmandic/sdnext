@@ -265,6 +265,27 @@ def load_feature_extractor(pipe):
     return True
 
 
+def get_image_encoder_rule(pipe: DiffusionPipeline | None = None, crop: bool = False) -> dict:
+    """Size the image encoder resamples each adapter picture to, as data; rule None when the full picture is used."""
+    if pipe is None:
+        pipe = shared.sd_model
+    if crop or not hasattr(pipe, 'load_ip_adapter'): # crop_images cuts the face from the full picture
+        return {'rule': None}
+    extractor = getattr(pipe, 'feature_extractor', None)
+    if extractor is None: # what load_feature_extractor builds
+        if shared.sd_model_type == 'sd3':
+            return {'rule': {'kind': 'exact', 'width': 384, 'height': 384}} # SIGLIP_ID preprocessor size
+        extractor = transformers.CLIPImageProcessor()
+    size = getattr(extractor, 'size', None) or {}
+    if not getattr(extractor, 'do_resize', True):
+        return {'rule': None}
+    if size.get('shortest_edge'):
+        return {'rule': {'kind': 'shortest', 'side': int(size.get('shortest_edge'))}}
+    if size.get('height') and size.get('width'):
+        return {'rule': {'kind': 'exact', 'width': int(size.get('width')), 'height': int(size.get('height'))}}
+    return {'rule': None}
+
+
 def parse_params(p: processing.StableDiffusionProcessing, adapters: list, adapter_scales: list[float], adapter_crops: list[bool], adapter_starts: list[float], adapter_ends: list[float], adapter_images: list):
     if hasattr(p, 'ip_adapter_scales'):
         adapter_scales = p.ip_adapter_scales

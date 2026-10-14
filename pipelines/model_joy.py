@@ -49,6 +49,9 @@ def load_joyedit(checkpoint_info, diffusers_load_config=None):
     }
     if 'plus' in repo_id.lower():
         pipe.max_condition_images = 4 # JoyImageEditPlus typically uses 4 condition images
+        from diffusers.pipelines.joyimage.image_processor import BUCKETS
+        sizes = [[w, h] for h, w in BUCKETS[pipe.image_processor.config.basesize]] # the table is (h, w)
+        pipe.condition_image_rule = {'rule': {'kind': 'buckets', 'sizes': sizes, 'fit': 'cover', 'ratio': 'h/w', 'aspect_multiple': 1}} # find_best_bucket on the raw sides, then resize_center_crop
 
     diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING['joy-image-edit'] = model_cls
     diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING['joy-image-edit'] = model_cls

@@ -47,6 +47,7 @@ def load_qwen21(checkpoint_info, diffusers_load_config=None):
     generic.load_vae_override(pipe, diffusers_load_config)
     pipe.patch_size = 2 # latents pack into 2x2 patches and the pipeline floors sizes to vae_scale_factor * 2
     pipe.max_condition_images = 10 # reference images per edit, per the model card
+    pipe.condition_image_rule = {'rule': {'kind': 'area', 'area': 1024 * 1024, 'multiple': 32, 'round': 'nearest'}, 'output_area': 1024 * 1024} # output_resolution default; one resize feeds the vision encoder and the VAE
 
     del transformer
     del text_encoder
