@@ -48,32 +48,26 @@ In addition to supporting all popular [workflows](#supported-workflows), a wide 
 - Support for many [Diffusion models](https://vladmandic.github.io/sdnext-docs/Model-Support/)!  
 - **Automatic model download**: simply select a model from the list of reference models and it will be downloaded and ready to use  
   Or download and add your own models and they will be automatically detected and available in the UI  
-- **SDNQ**: State-of-the-Art model quantization engine
+- **Quantization**: State-of-the-Art model [SDNQ](https://github.com/Disty0/sdnq) engine
   Use pre-quantized or run with quantization on-the-fly for up to 4x VRAM reduction with no or minimal quality and performance impact  
-- **Balanced Offload**: Dynamically balance CPU and GPU memory to run larger models on limited hardware
-- **Caption and Enhance** with 25+ built-in **LLM** and **VLM** models, **OpenCLiP** models, **Tagger** with **WaifuDiffusion** and **DeepDanbooru** models  
-- **Image Processing** with full image correction color-grading suite of tools  
+- **Offload**: Dynamically balance CPU and GPU memory to run larger models on limited hardware
+- **Caption and Enhance**: with 25+ built-in **LLM** and **VLM** models, **OpenCLiP** models, **Tagger** with **WaifuDiffusion** and **DeepDanbooru** models  
+- **Image Processing**: full image correction and color-grading suite of tools
+- **Task Scheduling**: Efficiently manage and prioritize multiple tasks to optimize resource usage and workflow.
 - [Multi-platform](https://vladmandic.github.io/sdnext-docs/Platforms/)!  
   Platform specific auto-detection and tuning performed on install  
 - Fully **Localized** to ~15 languages and with support for many [UI themes](https://vladmandic.github.io/sdnext-docs/Themes/)!
 - **Desktop** and **mobile** interfaces
 - Built in **installer** with automatic updates and dependency management  
 
-## Screenshots
+## Screenshots & Video
 
-<div align="right">Desktop interface</div>
-
-<div align="center">
-<img src="https://github.com/vladmandic/sdnext/raw/dev/ui/assets/screenshot-robot.jpg" alt="SD.Next: AI art generator desktop interface screenshot" width="90%">
-</div>
-
-<div align="right">Mobile interface</div>
-
-<div align="center">
-<img src="https://github.com/user-attachments/assets/ced9fe0c-d2c2-46d1-94a7-8f9f2307ce38" alt="SD.Next: AI art generator mobile interface screenshot" width="35%">
-</div>
-
-<br>
+[![SD.Next Screenshot Video](https://github.com/user-attachments/assets/97536dca-3d0d-4fcd-80ba-7cdd4dad47b1)](https://github.com/user-attachments/assets/3cdf8066-e708-40e1-8dae-79de88b8022b)
+[![SD.Next Screenshot Blank](https://github.com/user-attachments/assets/bb70177a-6a09-43e7-8de6-b8d4ae8c8f46)](https://github.com/user-attachments/assets/bb70177a-6a09-43e7-8de6-b8d4ae8c8f46)
+[![SD.Next Screenshot Edit](https://github.com/user-attachments/assets/ed1e37cb-3e0b-43f2-9c24-79cc0c36542f)](https://github.com/user-attachments/assets/ed1e37cb-3e0b-43f2-9c24-79cc0c36542f)
+[![SD.Next Screenshot Gallery](https://github.com/user-attachments/assets/404493ca-069f-45db-bd9a-f35533965ca1)](https://github.com/user-attachments/assets/404493ca-069f-45db-bd9a-f35533965ca1)
+[![SD.Next Screenshot Scheduler](https://github.com/user-attachments/assets/70721d26-aea5-4128-ba0a-046095108e70)](https://github.com/user-attachments/assets/70721d26-aea5-4128-ba0a-046095108e70)
+[![SD.Next Screenshot DLSS](https://github.com/user-attachments/assets/b9f0a103-7099-4ae3-9928-ea3ae1204325)](https://github.com/user-attachments/assets/b9f0a103-7099-4ae3-9928-ea3ae1204325)
 
 <br>
 
@@ -83,6 +77,7 @@ In addition to supporting all popular [workflows](#supported-workflows), a wide 
 - Edit with *Detailer*, **HiRes/Refine**, *Image-Edit*, *Inpainting*, *Outpainting*, etc.
 - Enhance guidance with *LoRA*, *ControlNet*, *IPAdapters*, *Prompt Enhance*, etc.
 - Process with *Caption*, *Tag*, *Upscale*, *Interpolate*, *Colorize*, *Filter*, etc.
+- Schedule or queue tasks for future execution
 - and many more with support for custom scripts and extensions
 
 ## Supported AI Models
@@ -96,12 +91,10 @@ SD.Next is designed to run on a wide range of hardware and platforms, with optim
 
 - *nVidia* GPUs using **CUDA** libraries on both *Windows and Linux*  
 - *AMD* GPUs using **ROCm** libraries on both *Linux and Windows*
-- *AMD* GPUs on Windows using **ZLUDA** libraries  
+- *AMD* GPUs on Windows using **ZLUDA** libraries 
 - *Intel Arc* GPUs using **OneAPI** with *IPEX XPU* libraries on both *Windows and Linux*  
 - Any *CPU/GPU* or device compatible with **OpenVINO** libraries on both *Windows and Linux*  
-- Any GPU compatible with *DirectX* on *Windows* using **DirectML** libraries  
 - *Apple M1/M2* on *OSX* using built-in support in Torch with **MPS** optimizations  
-- *ONNX/Olive*  
 
 Plus **Docker** container recipes for: [CUDA, ROCm, Intel IPEX and OpenVINO](https://vladmandic.github.io/sdnext-docs/Docker/)
 
