@@ -14,8 +14,11 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
 ### Details for 2026-10-14
 
 - **Models**  
-  - [Google Nano Banana 2.1](https://deepmind.google/models/model-cards/nano-banana-2-1)
   - [Qwen Image 2.1 Turbo](https://huggingface.co/Qwen/Qwen-Image-2.1-Turbo) in *base* and *sdnq-uint4* variants
+  - [Google Nano Banana 2.1](https://deepmind.google/models/model-cards/nano-banana-2-1)
+  - [Ming-Image Design 0.1](https://huggingface.co/OzzyGT/ming_image_0_1_design_diffusers)  
+    Ming-Image is text-to-image model for UI, infographic and poster design built as a 6B-parameter flow-matching transformer with 16B-parameter custom text encoder  
+    *Note*: this is design-focused model; works best with structured JSON prompts  
 - **Scheduler**  
   new native *Task Scheduler* and *Queue Management*  
   add any image or video task to the scheduler and execute it in q queue or at a specific time  
@@ -86,7 +89,7 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
   update all torch versions to best known options:  
   - **cuda**: `torch==2.14.1+cu132`
   - **rocm/linux**: `torch==2.14.1+rocm7.14`
-  - **rocm/windows**: `torch==2.12.0+rocm10.0.0`
+  - **rocm/windows**: `torch==2.13.0+rocm10.0.0`
   - **xpu**: `torch==2.14.1+xpu`
   - **openvino**: `torch==2.11.0+cpu` with `openvino==2026.4.1`
   - **zluda**: `torch==2.7.1+cu118` with `zluda==3.9.5`

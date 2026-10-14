@@ -29,7 +29,6 @@
 
 ### OnHold
 
-- [nVidia-VFX](https://pypi.org/project/nvidia-vfx/): not compatible with latest nVidia drivers
 - [QuantFunc](https://huggingface.co/QuantFunc/Klein-9B-Series): once its released as sdk
 - LoRA add OMI format support for SD35/FLUX.1
 - Remote Text-Encoder support, sidelined for the moment

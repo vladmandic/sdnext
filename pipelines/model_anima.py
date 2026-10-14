@@ -24,7 +24,7 @@ def is_modular_layout(path: str | None) -> bool:
     return path is not None and os.path.isdir(path) and os.path.isfile(os.path.join(path, 'modular_model_index.json')) and not os.path.isfile(os.path.join(path, 'model_index.json'))
 
 
-def load_text_conditioner(repo_id: str, adapter_cls):
+def _load_text_conditioner(repo_id: str, adapter_cls):
     """Load the text_conditioner of a diffusers modular Anima repo as an AnimaLLMAdapter."""
     config = adapter_cls.load_config(repo_id, subfolder='text_conditioner', cache_dir=shared.opts.hfcache_dir)
     if config.get('use_layer_norm', False) or config.get('min_sequence_length', 512) != 512:
@@ -89,7 +89,7 @@ def load_anima(checkpoint_info, diffusers_load_config=None):
 
     # single-file checkpoint: transformer (and bundled llm_adapter) from the file, everything else from the base repo
     local_file = None
-    if repo_id is not None and os.path.isfile(repo_id) and repo_id.lower().endswith('.safetensors'):
+    if (repo_id is not None) and os.path.isfile(repo_id) and repo_id.lower().endswith('.safetensors'):
         local_file = repo_id
         repo_id = transformers_map['AnimaTextToImagePipeline']
 
@@ -127,7 +127,7 @@ def load_anima(checkpoint_info, diffusers_load_config=None):
         shared.state.begin('Load adapter')
         try:
             if modular:
-                llm_adapter = load_text_conditioner(repo_id, modeling_llm_adapter.AnimaLLMAdapter)
+                llm_adapter = _load_text_conditioner(repo_id, modeling_llm_adapter.AnimaLLMAdapter)
             else:
                 llm_adapter = modeling_llm_adapter.AnimaLLMAdapter.from_pretrained(
                     repo_id,

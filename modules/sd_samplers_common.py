@@ -90,9 +90,9 @@ def single_sample_to_image(sample, approximation=None):
                 else:
                     # x_sample = torch.nan_to_num(x_sample, nan=0.0, posinf=1, neginf=0) # let it fail instead
                     if (x_sample.ndim == 4) and (x_sample.shape[0] == 1 or x_sample.shape[0] > 4):
-                        image = collapse_alpha(convert.to_pil(x_sample[0]))
+                        image = collapse_alpha(convert.to_pil(x_sample[0], quiet=True))
                     else:
-                        image = collapse_alpha(convert.to_pil_batch(x_sample))
+                        image = collapse_alpha(convert.to_pil_batch(x_sample, quiet=True))
         except Exception as e:
             warn_once('exception', e)
             image = get_missing_img(str(e))
