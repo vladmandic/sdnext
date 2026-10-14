@@ -30,7 +30,7 @@ class Torch(dict):
 # target commit hashes for specific packages
 diffusers_target = '85c9fa4caee33d1c5b473395784471d2d7957c1b' # diffusers commit hash == 0.41.0.dev0 == 09-29-2026
 transformers_target = 'b70d02fc724d04c916832ca4ead03ff05e8fb1ee' # transformers commit hash == 5.13.0.dev0 == 07-03-2026
-sdnq_target = '8aa3dace09237873bbb0ed8ca89e6a81a754da85' # sdnq commit hash == 0.2.7.dev == 10-05-2026
+sdnq_target = '8aa3dace09237873bbb0ed8ca89e6a81a754da85' # sdnq commit hash == 0.2.8 == 10-10-2026
 
 git_commit = "unknown"
 diffusers_commit = "unknown"
@@ -599,7 +599,7 @@ def register_sdnq():
     sdnq_ver = version.get('sdnq', 'unknown')
     sdnq_commit = sdnq_ver.split('@')[1] if '@' in sdnq_ver else 'unknown'
     core_branch = version.get('branch', 'unknown')
-    locked = core_branch in ['master', 'main', 'dev']
+    locked = core_branch in ['master', 'main']
     if locked and (sdnq_commit not in sdnq_target):
         git('checkout ' + sdnq_target, folder='extensions-builtin/sdnq', ignore=True, optional=True)
         sdnq_commit = run('git', 'rev-parse HEAD', check=True, cwd='extensions-builtin/sdnq')[0].stdout.strip()[:8]

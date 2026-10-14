@@ -11733,6 +11733,13 @@ function recalculate_prompts_control(...args) {
   recalculatePromptTokens("control_neg_prompt");
   return Array.from(arguments);
 }
+function recalculate_prompts_video(...args) {
+  for (const promptId of ["video_prompt", "video_neg_prompt"]) {
+    const textarea = gradioApp().querySelector(`#${promptId} > label > textarea`);
+    if (textarea instanceof HTMLTextAreaElement) textarea.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+  return Array.from(arguments);
+}
 function registerDragDrop() {
   const qs = gradioApp().getElementById("quicksettings");
   if (!qs) return;
@@ -12000,6 +12007,7 @@ window.recalculate_prompts_txt2img = recalculate_prompts_txt2img;
 window.recalculate_prompts_img2img = recalculate_prompts_img2img;
 window.recalculate_prompts_inpaint = recalculate_prompts_inpaint;
 window.recalculate_prompts_control = recalculate_prompts_control;
+window.recalculate_prompts_video = recalculate_prompts_video;
 window.selectCheckpoint = selectCheckpoint;
 window.selectVAE = selectVAE;
 window.selectUNet = selectUNet;
