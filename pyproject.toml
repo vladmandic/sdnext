@@ -425,6 +425,7 @@ invalid-argument-type = "ignore"
 invalid-assignment = "ignore"
 invalid-attribute-access = "ignore"
 invalid-method-override = "ignore"
+invalid-mutable-override = "ignore"
 invalid-parameter-default = "ignore"
 missing-argument = "ignore"
 no-matching-overload = "ignore"
@@ -439,7 +440,7 @@ unsupported-operator = "ignore"
 unused-type-ignore-comment = "ignore"
 
 [tool.codespell]
-skip = "./venv, ./.git, __pycache__, ./tmp, ./extensions-builtin, ./configs, ./models, ./outputs, *.txt, *.json, *.yaml, *.map, *.mjs, *.log"
+skip = "./venv, ./.git, __pycache__, ./tmp, ./extensions-builtin, ./extensions, ./configs, ./models, ./outputs, *.txt, *.json, *.yaml, *.map, *.mjs, *.log"
 ignore-words-list = [
   "te", "nd", "TE", "padd", "inpt", "thw", "thre", "tipe", "ACI", "Foto", "CNA", "LAMA", "lama", "LaMa", "SOM", "COO", "trU", "PatchIn", "AllTime",
   "youre", "thats", "dont", "whats", "havent", "isnt", "doesnt", "cant", "theres", "receipe", "splitted", "spacial", "patchs",

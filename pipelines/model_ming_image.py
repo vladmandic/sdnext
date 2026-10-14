@@ -1,11 +1,10 @@
-import json
 from diffusers.modular_pipelines import ModularPipeline, ModularPipelineBlocks
 from modules import devices, model_quant, sd_models, shared, sd_hijack_vae, sd_hijack_te
 from modules.logger import log
 from pipelines import generic
 
 
-class MingImageModularPipeline(ModularPipeline):
+class MingImageModularPipeline(ModularPipeline): # empty pipeline so it has its own class
     pass
 
 
