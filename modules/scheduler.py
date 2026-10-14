@@ -215,6 +215,8 @@ def _capture_model_options(parameters):
 
 
 def enqueue_control_request(*args, **kwargs):
+    if scheduler_stopped():
+        return _queued_response(None, 'Scheduler is stopped')
     try:
         parameters, image_blobs = _capture_request(args, kwargs)
         _capture_model_options(parameters)
@@ -229,6 +231,8 @@ def enqueue_control_request(*args, **kwargs):
 
 
 def enqueue_video_request(surface, *args, **kwargs):
+    if scheduler_stopped():
+        return _video_queued_response(None, surface, 'Scheduler is stopped')
     try:
         handler = _video_handler(surface)
         named = _bound_arguments(handler, args, kwargs)
@@ -502,6 +506,9 @@ def start_worker(diag: bool = False):
     global _worker, _worker_start_failed # pylint: disable=global-statement
     from modules import shared
     with _worker_lock:
+        if scheduler_stopped():
+            log.debug('Scheduler stopped: worker initialization skipped')
+            return None
         if _worker_start_failed:
             return None
         if _worker is not None and _worker.is_alive():
@@ -582,11 +589,16 @@ def scheduler_enabled(now=None):
     return local_time >= start or local_time < end
 
 
+def scheduler_stopped():
+    from modules import shared
+    return getattr(shared.opts, 'scheduler_state', None) == 'Stopped'
+
+
 def set_scheduler_state(state=None, start=None, end=None):
     from modules import shared
     updates = {}
     if state is not None:
-        if state not in ('Active', 'Paused', 'Auto'):
+        if state not in ('Active', 'Paused', 'Auto', 'Stopped'):
             raise ValueError(f'Invalid scheduler state: {state}')
         updates['scheduler_state'] = state
     for key, value in (('scheduler_start', start), ('scheduler_end', end)):
@@ -601,6 +613,8 @@ def set_scheduler_state(state=None, start=None, end=None):
     if updates:
         shared.opts.save()
         log.info(f'Scheduler state: {updates}')
+        if updates.get('scheduler_state') == 'Stopped':
+            stop_worker()
     return get_status()
 
 

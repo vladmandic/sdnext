@@ -77,6 +77,15 @@ class TestSchedulerSerialization(unittest.TestCase):
         self.assertEqual(create_task.call_args.kwargs['max_attempts'], scheduler._task_max_attempts) # pylint: disable=protected-access
         self.assertEqual(create_task.call_args.kwargs['mode'], 'video')
 
+    def test_enqueue_requests_do_not_load_database_when_stopped(self):
+        with patch.object(scheduler, 'scheduler_stopped', return_value=True), \
+                patch.object(scheduler.scheduler_db, 'create_task') as create_task:
+            control_response = scheduler.enqueue_control_request()
+            video_response = scheduler.enqueue_video_request('ltx')
+        self.assertEqual(list(control_response), [(None, None, 'Scheduler error: Scheduler is stopped', None)])
+        self.assertEqual(video_response, [None, 'Scheduler error: Scheduler is stopped'])
+        create_task.assert_not_called()
+
     def test_control_unit_round_trip_excludes_runtime_objects(self):
         with patch.object(sys, 'argv', [sys.argv[0]]):
             from modules.control.unit import Unit
@@ -451,6 +460,19 @@ class TestSchedulerPolicy(unittest.TestCase):
         self.assertEqual(events, ['configure', 'initialize', 'start'])
         initialize.assert_called_once_with()
         worker.start.assert_called_once_with()
+
+    def test_worker_start_skips_database_when_stopped(self):
+        shared = SimpleNamespace(opts=SimpleNamespace(scheduler_state='Stopped', scheduler_dir='models/scheduler'))
+        with patch.dict(sys.modules, {'modules.shared': shared}), \
+                patch.object(sys.modules['modules'], 'shared', shared, create=True), \
+                patch.object(scheduler, '_worker', None), \
+                patch.object(scheduler.scheduler_db, 'configure') as configure, \
+                patch.object(scheduler.scheduler_db, 'initialize') as initialize, \
+                patch.object(scheduler.threading, 'Thread') as thread:
+            self.assertIsNone(scheduler.start_worker())
+        configure.assert_not_called()
+        initialize.assert_not_called()
+        thread.assert_not_called()
 
     def test_worker_start_runs_diagnostics_before_starting_thread(self):
         worker = unittest.mock.Mock()

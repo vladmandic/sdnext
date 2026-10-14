@@ -29,7 +29,7 @@ class MoveTaskRequest(BaseModel):
 
 
 class SchedulerSettingsRequest(BaseModel):
-    state: Literal['Active', 'Paused', 'Auto'] | None = None
+    state: Literal['Active', 'Paused', 'Auto', 'Stopped'] | None = None
     start: str | None = None
     end: str | None = None
 
@@ -39,7 +39,7 @@ class PruneRequest(BaseModel):
 
 
 def _require_scheduler_available():
-    if scheduler._worker_start_failed: # pylint: disable=protected-access
+    if scheduler._worker_start_failed or scheduler.scheduler_stopped(): # pylint: disable=protected-access
         raise HTTPException(status_code=503, detail='Scheduler is disabled')
 
 
@@ -247,7 +247,10 @@ def update_scheduler_settings(request: SchedulerSettingsRequest):
     if request.state is None and request.start is None and request.end is None:
         raise HTTPException(status_code=422, detail='At least one scheduler setting is required')
     try:
-        return scheduler.set_scheduler_state(request.state, request.start, request.end)
+        scheduler.set_scheduler_state(request.state, request.start, request.end)
+        if request.state is not None and request.state != 'Stopped':
+            scheduler.start_worker()
+        return scheduler.get_status()
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
@@ -258,7 +261,7 @@ def prune_tasks(request: PruneRequest):
 
 
 def register_api(api):
-    _add_scheduler_route(api, '/sdapi/v1/scheduler', get_scheduler_status, methods=['GET'], response_model=dict, tags=['Scheduler'])
+    api.add_api_route('/sdapi/v1/scheduler', get_scheduler_status, methods=['GET'], response_model=dict, tags=['Scheduler'])
     _add_scheduler_route(api, '/sdapi/v1/scheduler/tasks', list_tasks, methods=['GET'], response_model=list[dict], tags=['Scheduler'])
     _add_scheduler_route(api, '/sdapi/v1/scheduler/tasks/{task_id}', get_task, methods=['GET'], response_model=dict, tags=['Scheduler'])
     _add_scheduler_route(api, '/sdapi/v1/scheduler/tasks/{task_id}/images/{image_index}', get_task_image, methods=['GET'], tags=['Scheduler'])
@@ -273,5 +276,5 @@ def register_api(api):
     _add_scheduler_route(api, '/sdapi/v1/scheduler/tasks/{task_id}/move', move_task, methods=['POST'], response_model=dict, tags=['Scheduler'])
     _add_scheduler_route(api, '/sdapi/v1/scheduler/pause', pause_scheduler, methods=['POST'], response_model=dict, tags=['Scheduler'])
     _add_scheduler_route(api, '/sdapi/v1/scheduler/resume', resume_scheduler, methods=['POST'], response_model=dict, tags=['Scheduler'])
-    _add_scheduler_route(api, '/sdapi/v1/scheduler/state', update_scheduler_settings, methods=['POST'], response_model=dict, tags=['Scheduler'])
+    api.add_api_route('/sdapi/v1/scheduler/state', update_scheduler_settings, methods=['POST'], response_model=dict, tags=['Scheduler'])
     _add_scheduler_route(api, '/sdapi/v1/scheduler/prune', prune_tasks, methods=['POST'], response_model=dict, tags=['Scheduler'])

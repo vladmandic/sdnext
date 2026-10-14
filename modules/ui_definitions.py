@@ -658,7 +658,7 @@ def create_settings(cmd_opts):
 
     # --- Scheduler ---
     options_templates.update(options_section(('scheduler', "Scheduler"), {
-        "scheduler_state": OptionInfo("Paused", "Scheduler state", gr.Dropdown, {"choices": ["Active", "Paused", "Auto"], "visible": False}),
+        "scheduler_state": OptionInfo("Paused", "Scheduler state", gr.Dropdown, {"choices": ["Active", "Paused", "Auto", "Stopped"], "visible": False}),
         "scheduler_start": OptionInfo("09:00", "Scheduler start time", gr.Textbox, {"visible": False}),
         "scheduler_end": OptionInfo("18:00", "Scheduler end time", gr.Textbox, {"visible": False}),
     }))

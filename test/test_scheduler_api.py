@@ -21,16 +21,30 @@ class TestSchedulerApiRegistration(unittest.TestCase):
     def test_routes_are_disabled_when_scheduler_worker_start_failed(self):
         api = FakeApi()
         scheduler_api.register_api(api)
+        availability_check = next(
+            dependency.dependency
+            for path, _endpoint, options in api.routes
+            if path == '/sdapi/v1/scheduler/tasks'
+            for dependency in options['dependencies']
+        )
 
         for _path, _endpoint, options in api.routes:
+            if _endpoint in (scheduler_api.get_scheduler_status, scheduler_api.update_scheduler_settings):
+                continue
             self.assertTrue(any(
-                dependency.dependency is scheduler_api._require_scheduler_available
+                dependency.dependency is availability_check
                 for dependency in options['dependencies']
             ))
 
         with patch.object(scheduler_api.scheduler, '_worker_start_failed', True):
             with self.assertRaises(HTTPException) as caught:
-                scheduler_api._require_scheduler_available()
+                availability_check()
+        self.assertEqual(caught.exception.status_code, 503)
+
+        with patch.object(scheduler_api.scheduler, '_worker_start_failed', False), \
+            patch.object(scheduler_api.scheduler, 'scheduler_stopped', return_value=True):
+            with self.assertRaises(HTTPException) as caught:
+                availability_check()
         self.assertEqual(caught.exception.status_code, 503)
 
     def test_management_routes_are_registered_without_submission_or_result_write(self):
@@ -106,10 +120,13 @@ class TestSchedulerApiRegistration(unittest.TestCase):
 
     def test_scheduler_state_endpoint_persists_requested_mode_and_window(self):
         expected = {'state': 'Auto', 'start': '21:00', 'end': '06:00'}
-        with patch.object(scheduler_api.scheduler, 'set_scheduler_state', return_value=expected) as set_state:
+        with patch.object(scheduler_api.scheduler, 'set_scheduler_state') as set_state, \
+                patch.object(scheduler_api.scheduler, 'get_status', return_value=expected), \
+                patch.object(scheduler_api.scheduler, 'start_worker') as start_worker:
             result = scheduler_api.update_scheduler_settings(scheduler_api.SchedulerSettingsRequest(**expected))
         self.assertEqual(result, expected)
         set_state.assert_called_once_with('Auto', '21:00', '06:00')
+        start_worker.assert_called_once_with()
 
         with patch.object(scheduler_api.scheduler, 'set_scheduler_state', side_effect=ValueError('Invalid time')):
             with self.assertRaises(HTTPException) as caught:
