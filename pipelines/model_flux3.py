@@ -41,5 +41,6 @@ def load_flux3(checkpoint_info, diffusers_load_config=None):
     pipe.sd_checkpoint_info = checkpoint_info
     pipe.patch_size = 2 # latents pack into 2x2 patches, so sizes are multiples of vae_scale_factor * 2
     pipe.max_condition_images = 10 # references keep their own resolution, the request sets the output size
+    pipe.single_prompt = True # the text encoder step takes one prompt per call, the batch comes from num_images_per_prompt
     devices.torch_gc(force=True, reason='load')
     return pipe

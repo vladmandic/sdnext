@@ -1229,6 +1229,13 @@ def takes_condition_set(pipe: diffusers.DiffusionPipeline | None = None) -> bool
     return get_max_condition_images(pipe) > 1
 
 
+def takes_single_prompt(pipe: diffusers.DiffusionPipeline | None = None) -> bool:
+    """True when the pipeline encodes one prompt per call and batches through num_images_per_prompt."""
+    if pipe is None:
+        pipe = shared.sd_model
+    return bool(getattr(pipe, 'single_prompt', False))
+
+
 def switch_pipe(cls: type[diffusers.DiffusionPipeline] | str, pipeline: diffusers.DiffusionPipeline | None = None, force = False, args: dict | None = None):
     """
     args:
@@ -1364,6 +1371,7 @@ def copy_diffuser_options(new_pipe, orig_pipe):
     new_pipe.mask_processor = getattr(orig_pipe, 'mask_processor', None)
     new_pipe.restore_pipeline = getattr(orig_pipe, 'restore_pipeline', None)
     new_pipe.max_condition_images = getattr(orig_pipe, 'max_condition_images', None)
+    new_pipe.single_prompt = getattr(orig_pipe, 'single_prompt', None)
     new_pipe.patch_size = getattr(orig_pipe, 'patch_size', None)
     new_pipe.custom_unpack_latents = getattr(orig_pipe, 'custom_unpack_latents', None)
     # a1111 compatibility item
@@ -1397,6 +1405,7 @@ def backup_pipe_components(pipe):
         'task_args': getattr(pipe, "task_args", None),
         'patch_size': getattr(pipe, "patch_size", None),
         'max_condition_images': getattr(pipe, "max_condition_images", None),
+        'single_prompt': getattr(pipe, "single_prompt", None),
         'hijack_prompt': hasattr(pipe, "orig_encode_prompt"),
         'hijack_vae': hasattr(pipe, "vae") and hasattr(pipe.vae, "orig_decode")
     }
@@ -1428,6 +1437,8 @@ def restore_pipe_components(pipe, components):
         pipe.patch_size = components['patch_size']
     if components['max_condition_images'] is not None:
         pipe.max_condition_images = components['max_condition_images']
+    if components['single_prompt'] is not None:
+        pipe.single_prompt = components['single_prompt']
     if components['hijack_prompt']:
         sd_hijack_te.init_hijack(pipe)
     if components['hijack_vae']:
