@@ -41,6 +41,7 @@ pipelines = {
     'FLUX': getattr(diffusers, 'FluxPipeline', None),
     'FLUX2Klein': getattr(diffusers, 'Flux2KleinPipeline', None),
     'FLUX2': getattr(diffusers, 'Flux2Pipeline', None),
+    'FLUX3': getattr(diffusers, 'Flux3ModularPipeline', None),
     'GLMImage': getattr(diffusers, 'GlmImagePipeline', None),
     'HiDream': getattr(diffusers, 'HiDreamImagePipeline', None),
     'HunyuanDiT': getattr(diffusers, 'HunyuanDiTPipeline', None),

@@ -377,6 +377,16 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:l
         args.pop('negative_prompt', None) # guidance-distilled, no negative prompt
         if isinstance(args.get('generator', None), list) and len(args['generator']) > 0:
             args['generator'] = args['generator'][0] # >1-element list breaks the audio noise draw
+    if 'Flux3' in model.__class__.__name__:
+        if isinstance(args.get('prompt', None), list) and len(args['prompt']) > 1 and 'num_images_per_prompt' in possible: # the text encoder step takes one prompt per call
+            args['num_images_per_prompt'] = len(args['prompt'])
+        for key in ('prompt', 'negative_prompt'):
+            if isinstance(args.get(key, None), list):
+                if len(set(args[key])) > 1:
+                    log.warning(f'Pipeline: cls={model.__class__.__name__} {key} differs within the batch, every image gets the first: batch={len(args[key])}')
+                args[key] = args[key][0] if len(args[key]) > 0 else ''
+        if not args.get('negative_prompt', None):
+            args.pop('negative_prompt', None) # an empty negative is omitted, the base text encoder warns about one it will not use
 
     # set callbacks
     if 'prior_callback_steps' in possible:  # Wuerstchen / Cascade

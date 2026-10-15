@@ -31,6 +31,8 @@ version_map = {
     "Flux2": "Flux 2",
     "Flux2Klein": "Flux 2 Klein",
     "Flux2KleinKV": "Flux 2 Klein",
+    "Flux3": "Flux 3 Klein",
+    "Flux3Distilled": "Flux 3 Klein",
     "MiniMaxH3": "MiniMax H3",
     "MiniMax_H3": "MiniMax H3",
     "ZImageTurbo": "Z-Image",

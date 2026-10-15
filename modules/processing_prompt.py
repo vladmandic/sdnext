@@ -94,7 +94,7 @@ def set_prompt(p: StableDiffusionProcessing,
     if (prompt_attention != 'fixed') and ('Onnx' not in cls) and ('prompt' not in p.task_args) and (
         ('StableDiffusion' in cls) or
         ('StableCascade' in cls) or
-        ('Flux' in cls and 'Flux2' not in cls)
+        ('Flux' in cls and 'Flux2' not in cls and 'Flux3' not in cls)
         # or ('Chroma' in cls)
         # or ('HiDreamImagePipeline' in cls)
     ):
