@@ -16,14 +16,19 @@ def load_flux3(checkpoint_info, diffusers_load_config=None):
     offline_args = {'local_files_only': True} if shared.opts.offline_mode else {}
     log.debug(f'Load model: type=Flux3 repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype}')
 
-    transformer = generic.load_transformer(repo_id, cls_name=diffusers.Flux3Transformer2DModel, load_config=diffusers_load_config)
+    from pipelines.flux3 import FLUX3_SPEC
+    transformer = generic.load_transformer(repo_id, cls_name=diffusers.Flux3Transformer2DModel, load_config=diffusers_load_config, native_spec=FLUX3_SPEC)
     if transformer is None:
         return None
-    # the step-distilled checkpoints are flow maps: their pipeline passes the transformer the timestep each step jumps to
-    repo_cls = diffusers.Flux3DistilledModularPipeline if getattr(transformer.config, 'flow_map', False) else diffusers.Flux3ModularPipeline
+    # the step-distilled checkpoints are flow maps: their blocks tree passes the transformer the timestep each step jumps to, and the transformer rejects the other tree
+    if getattr(transformer.config, 'flow_map', False):
+        repo_cls, blocks = diffusers.Flux3DistilledModularPipeline, diffusers.Flux3DistilledAutoBlocks()
+    else:
+        repo_cls, blocks = diffusers.Flux3ModularPipeline, diffusers.Flux3AutoBlocks()
     pipe = load_modular_pipe(
         repo_cls,
         repo_id,
+        blocks=blocks,
         offline_args=offline_args,
         base=True,
         load_config=diffusers_load_config,

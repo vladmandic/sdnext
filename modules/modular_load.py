@@ -106,6 +106,7 @@ def load_modular_pipe(repo_cls,
                       base: bool = False,
                       load_config: dict | None = None,
                       loaded: dict | None = None,
+                      blocks=None,
                      ):
     if repo_cls is None or isinstance(repo_cls, str):
         log.error(f'Load modular: repo="{repo}" cls="{repo_cls}" pipeline class not found: diffusers too old')
@@ -114,13 +115,22 @@ def load_modular_pipe(repo_cls,
     cache_dir = shared.opts.diffusers_dir if base else shared.opts.hfcache_dir # base models live in the diffusers folder so the model scan lists them; video-only models stay out of the dropdown
     try:
         t0 = time.time()
-        log.debug(f'Load modular: repo="{repo}" cls={repo_cls.__name__} workflow={workflow} base={base}')
-        pipe = repo_cls.from_pretrained(
-            repo,
-            revision=revision,
-            cache_dir=cache_dir,
-            **offline_args,
-        )
+        log.debug(f'Load modular: repo="{repo}" cls={repo_cls.__name__} blocks={blocks.__class__.__name__ if blocks is not None else None} workflow={workflow} base={base}')
+        if blocks is not None: # a caller-chosen blocks tree, for a checkpoint whose transformer wants a different tree than the repo index names
+            pipe = repo_cls(
+                blocks=blocks,
+                pretrained_model_name_or_path=repo,
+                revision=revision,
+                cache_dir=cache_dir,
+                **offline_args,
+            )
+        else:
+            pipe = repo_cls.from_pretrained(
+                repo,
+                revision=revision,
+                cache_dir=cache_dir,
+                **offline_args,
+            )
         # the workflow restricts the component fetch only: passing it to from_pretrained instead would prune the blocks tree to one task and disable runtime dispatch between them
         preloaded = preload_components(pipe, workflow, load_config=load_config, loaded=loaded)
         if preloaded:
