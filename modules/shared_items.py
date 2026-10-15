@@ -93,6 +93,7 @@ pipelines = {
     'Boogu': None,
     'SeFi': None,
     'MageFlow': None,
+    'MingImage': None,
 }
 logging.getLogger("diffusers").setLevel(logging_level)
 logging.getLogger("diffusers.modular_pipelines").setLevel(logging_level)

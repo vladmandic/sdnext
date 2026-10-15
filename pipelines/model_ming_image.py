@@ -1,10 +1,10 @@
-from diffusers.modular_pipelines import ModularPipeline, ModularPipelineBlocks
+import diffusers
 from modules import devices, model_quant, sd_models, shared, sd_hijack_vae, sd_hijack_te
 from modules.logger import log
 from pipelines import generic
 
 
-class MingImageModularPipeline(ModularPipeline): # empty pipeline so it has its own class
+class MingImageModularPipeline(diffusers.ModularPipeline): # empty pipeline so it has its own class
     pass
 
 
@@ -41,7 +41,7 @@ def load_ming_image(checkpoint_info, diffusers_load_config=None):
     log.debug(f'Load model: type=MingImage repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={dtype} quant_model={model_quant.get_quant_type(model_quant_args)} quant_te={model_quant.get_quant_type(te_quant_args)} args={load_args}')
     sd_models.warn_group_offload(min_vram=20)
 
-    blocks = ModularPipelineBlocks.from_pretrained(
+    blocks = diffusers.ModularPipelineBlocks.from_pretrained(
         'OzzyGT/ming_image_custom_blocks',
         trust_remote_code=True,
         components_repo=repo_id,

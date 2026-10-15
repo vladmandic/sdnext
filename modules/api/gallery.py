@@ -195,22 +195,29 @@ def register_api(api): # register api
         folders.append(make_folder(resolve_output_path(base_grids, shared.opts.outdir_control_grids), shared.opts.outdir_control_grids))
 
         # Custom browser folders and reference dir
+        custom_folder_paths = set()
         for f in shared.opts.browser_folders.split(','):
             f = f.strip()
             if f:
                 folders.append(make_folder(f))
+                custom_folder_paths.add(f)
         folders.append(make_folder(reference_dir, 'Reference'))
         # Filter empty and duplicates (by path)
-        seen_paths = set()
+        seen_paths = {}
         unique_folders = []
         for f in folders:
             path = f["path"].strip()
-            if path and path not in seen_paths and os.path.isdir(path):
-                seen_paths.add(path)
-                unique_folders.append(f)
-                if (shared.demo is not None) and (path not in shared.demo.allowed_paths):
-                    debug(f'Browser folders allow: {path}')
-                    shared.demo.allowed_paths.append(path)
+            if not path or not os.path.isdir(path):
+                continue
+            if path in seen_paths:
+                if path in custom_folder_paths:
+                    unique_folders[seen_paths[path]] = f
+                continue
+            seen_paths[path] = len(unique_folders)
+            unique_folders.append(f)
+            if (shared.demo is not None) and (path not in shared.demo.allowed_paths):
+                debug(f'Browser folders allow: {path}')
+                shared.demo.allowed_paths.append(path)
         if os.environ.get('SD_PATH_DEBUG', None):
             log.trace(f'Path allowed: why=gallery allowed={shared.demo.allowed_paths}')
         debug(f'Browser folders: {unique_folders}')
