@@ -129,6 +129,12 @@ shared_te_map = {
         'target_repo': 'Qwen/Qwen3-VL-8B-Instruct',
     },
 
+    'Qwen3-VL 4B Conditional FLUX.3': { # byte-identical to the base instruct checkpoint
+        'cls': transformers.Qwen3VLForConditionalGeneration,
+        'identifier': ['flux-3', 'flux3', 'flux_3'],
+        'target_repo': 'Qwen/Qwen3-VL-4B-Instruct',
+    },
+
     'Qwen3-VL 2B Conditional': {
         'cls': transformers.Qwen3VLForConditionalGeneration,
         'target_repo': 'SeFi-Image/SeFi-Image-1B-Base',
