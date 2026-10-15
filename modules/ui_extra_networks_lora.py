@@ -80,6 +80,7 @@ class ExtraNetworksPageLora(ui_extra_networks.ExtraNetworksPage):
     _VERSION_DISPLAY = {
         'f1': 'Flux 1', 'flux.1 d': 'Flux 1',
         'f2': 'Flux 2',
+        'f3': 'Flux 3',
         'sd1': 'SD 1.5',
         'sd2': 'SD 2',
         'sd3': 'SD 3',
