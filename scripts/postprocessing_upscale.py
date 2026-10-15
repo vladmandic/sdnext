@@ -70,6 +70,8 @@ class ScriptPostprocessingUpscale(scripts_postprocessing.ScriptPostprocessing):
     def process(self, pp: scripts_postprocessing.PostprocessedImage, upscale_mode=1, upscale_by=2.0, upscale_to_width=None, upscale_to_height=None, upscale_crop=False, upscaler_1_name=None, upscaler_2_name=None, upscaler_2_visibility=0.0): # pylint: disable=arguments-differ
         if upscaler_1_name == "None":
             upscaler_1_name = None
+        if not upscaler_1_name:
+            return
         upscaler1 = next(iter([x for x in shared.sd_upscalers if x.name == upscaler_1_name]), None)
         if not upscaler1:
             from modules.modelloader import load_upscalers # refresh loadable upscalers if not found

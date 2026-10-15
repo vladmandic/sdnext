@@ -5,17 +5,17 @@
   ],
   "ESRGAN": [
         ["4x GAN", "https://github.com/cszn/KAIR/releases/download/v1.0/ESRGAN.pth"],
-        ["4x Ultrasharp", "https://huggingface.co/vladmandic/sdnext-upscalers/resolve/main/ESRGAN-UltraSharp-4x.pth"],
-        ["4x Valar", "https://huggingface.co/vladmandic/sdnext-upscalers/resolve/main/ESRGAN-Valar-4x.pth"],
-        ["4x Box", "https://huggingface.co/vladmandic/sdnext-upscalers/resolve/main/ESRGAN-Box-4x.pth"],
-        ["4x BigFace V3", "https://huggingface.co/vladmandic/sdnext-upscalers/resolve/main/ESRGAN-BigFace-v3-4x.pth"],
-        ["4x Remacri", "https://huggingface.co/vladmandic/sdnext-upscalers/resolve/main/ESRGAN-Remacri-4x.pth"],
-        ["4x NMKD Siax", "https://huggingface.co/vladmandic/sdnext-upscalers/resolve/main/ESRGAN-NMKD-Siax-4x.pth"],
-        ["4x NMKD Superscale", "https://huggingface.co/vladmandic/sdnext-upscalers/resolve/main/ESRGAN-NMKD-Superscale-4x.pth"],
-        ["4x NMKD YandereNeoXL", "https://huggingface.co/vladmandic/sdnext-upscalers/resolve/main/ESRGAN-NMKD-YandereNeoXL-4x.pth"],
+        ["4x Ultrasharp", "https://huggingface.co/SD-Next/Upscalers/resolve/main/ESRGAN-UltraSharp-4x.pth"],
+        ["4x Valar", "https://huggingface.co/SD-Next/Upscalers/resolve/main/ESRGAN-Valar-4x.pth"],
+        ["4x Box", "https://huggingface.co/SD-Next/Upscalers/resolve/main/ESRGAN-Box-4x.pth"],
+        ["4x BigFace V3", "https://huggingface.co/SD-Next/Upscalers/resolve/main/ESRGAN-BigFace-v3-4x.pth"],
+        ["4x Remacri", "https://huggingface.co/SD-Next/Upscalers/resolve/main/ESRGAN-Remacri-4x.pth"],
+        ["4x NMKD Siax", "https://huggingface.co/SD-Next/Upscalers/resolve/main/ESRGAN-NMKD-Siax-4x.pth"],
+        ["4x NMKD Superscale", "https://huggingface.co/SD-Next/Upscalers/resolve/main/ESRGAN-NMKD-Superscale-4x.pth"],
+        ["4x NMKD YandereNeoXL", "https://huggingface.co/SD-Next/Upscalers/resolve/main/ESRGAN-NMKD-YandereNeoXL-4x.pth"],
         ["8x NMKD Faces", "https://huggingface.co/Zabin/Resizers/resolve/main/8x_NMKD-Faces_160000_G.pth"],
-        ["8x Superscale", "https://huggingface.co/vladmandic/sdnext-upscalers/resolve/main/ESRGAN-NMKD-Superscale-8x.pth"],
-        ["8x HugePaint", "https://huggingface.co/vladmandic/sdnext-upscalers/resolve/main/ESRGAN-HugePaint-8x.pth"]
+        ["8x Superscale", "https://huggingface.co/SD-Next/Upscalers/resolve/main/ESRGAN-NMKD-Superscale-8x.pth"],
+        ["8x HugePaint", "https://huggingface.co/SD-Next/Upscalers/resolve/main/ESRGAN-HugePaint-8x.pth"]
   ],
   "RealESRGAN": [
         ["4x General V3", "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesr-general-x4v3.pth"],

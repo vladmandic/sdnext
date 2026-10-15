@@ -59,7 +59,7 @@ class NudeDetector:
 
         global session # pylint: disable=global-statement
         self.model_path = model or hf.hf_hub_download(
-            repo_id='vladmandic/nudenet',
+            repo_id='SD-Next/NudeNet',
             filename='nudenet.onnx',
             cache_dir=shared.opts.hfcache_dir,
         )
