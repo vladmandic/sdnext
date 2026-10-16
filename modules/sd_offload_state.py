@@ -28,6 +28,7 @@ no_split_module_classes = [
     "WanTransformerBlock",
     "MiniMaxH3TransformerBlock", "MiniMaxH3TokenRefinerBlock",
     "Flux3ModeTransformerBlock", "Flux3SingleTransformerBlock",
+    "MOSSImageBlock", "MOSSImageTextBlock",
 ]
 
 accelerate_dtype_byte_size = None # monkey-patch accelerate.utils.modeling.dtype_byte_size

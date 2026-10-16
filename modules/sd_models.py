@@ -605,6 +605,10 @@ def load_diffuser_force(detected_model_type: str, checkpoint_info: CheckpointInf
             from pipelines.model_ernie import load_ernie_image
             sd_model = load_ernie_image(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
+        elif model_type in ['MOSSImage']:
+            from pipelines.model_moss import load_moss_image
+            sd_model = load_moss_image(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
         elif model_type in ['MingImage']:
             from pipelines.model_ming_image import load_ming_image
             sd_model = load_ming_image(checkpoint_info, diffusers_load_config)

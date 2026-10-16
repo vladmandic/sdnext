@@ -28,6 +28,7 @@ version_map = {
     "Krea2": "Krea 2",
     "AnimaTextTo": "Anima",
     "Ideogram4": "Ideogram 4",
+    "MOSSImage": "MOSS-Image",
     "Flux2": "Flux 2",
     "Flux2Klein": "Flux 2 Klein",
     "Flux2KleinKV": "Flux 2 Klein",

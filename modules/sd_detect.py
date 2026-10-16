@@ -155,6 +155,8 @@ def guess_by_name(fn, current_guess):
         new_guess = 'PRX'
     elif 'gemini-' in fn.lower() and ('image' in fn.lower() or 'nano-banana' in fn.lower()):
         new_guess = 'NanoBanana'
+    elif 'moss-image' in fn.lower() or 'moss_image' in fn.lower():
+        new_guess = 'MOSSImage'
     elif 'ming-image' in fn.lower() or 'ming_image' in fn.lower():
         new_guess = 'MingImage'
     elif 'ernie-image' in fn.lower():

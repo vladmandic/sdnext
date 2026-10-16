@@ -107,6 +107,8 @@ def get_model_type(pipe):
         model_type = 'qwen21'
     elif 'Qwen' in name:
         model_type = 'qwen'
+    elif 'MOSSImage' in name:
+        model_type = 'mossimage'
     elif 'MingImage' in name:
         model_type = 'mingimage'
     elif 'ErnieImage' in name or 'ERNIE-Image' in name:
