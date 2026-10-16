@@ -1038,5 +1038,21 @@
     "extras": "sampler: Default, cfg_scale: 3.5, steps: 50",
     "size": 20.34,
     "date": "2026 October"
+  },
+  "OpenMOSS MOSS-Image SFT": {
+    "path": "SD-Next/MOSS-Image-SFT",
+    "preview": "SD-Next--MOSS-Image-SFT.jpg",
+    "desc": "MOSS-Image-SFT is the supervised fine-tune of MOSS-Image-Base from OpenMOSS: a 5 billion parameter single-stream DiT with the Qwen3.5-9B text encoder and the FLUX.2 VAE. Renders Chinese and English text, and takes natural language, tag sequences or JSON layouts that place text and objects by bounding box. Apache 2.0 license.",
+    "extras": "sampler: Default, cfg_scale: 3.0, steps: 50",
+    "size": 27.22,
+    "date": "2026 October"
+  },
+  "OpenMOSS MOSS-Image Base": {
+    "path": "SD-Next/MOSS-Image-Base",
+    "preview": "SD-Next--MOSS-Image-Base.jpg",
+    "desc": "MOSS-Image-Base is the base checkpoint of MOSS-Image from OpenMOSS, released without post-training for LoRA training and research: a 5 billion parameter single-stream DiT with the Qwen3.5-9B text encoder and the FLUX.2 VAE. Renders Chinese and English text and takes JSON layout prompts. Apache 2.0 license.",
+    "extras": "sampler: Default, cfg_scale: 3.0, steps: 50",
+    "size": 27.22,
+    "date": "2026 October"
   }
 }
