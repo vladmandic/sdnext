@@ -315,6 +315,19 @@ def test_flux3_packing_matches_the_mapped_forward():
     assert sorted(layouts) == [80, 4096, 9216, 13392], sorted(layouts)
     assert layouts[13392].describe() == 'text:80 image:9216 cond:4096', layouts[13392].describe()
     assert layouts[4096].sparsifiable_tokens() == 0 and layouts[9216].sparsifiable_tokens() == 9216
+    # the experiment override remaps a declared kind for every stream that carries it
+    assert layout_mod.parse_kind_overrides('cond=image, text=text') == {'cond': 'image', 'text': 'text'}
+    assert layout_mod.parse_kind_overrides(None) == {}
+    previous = dict(layout_mod.KIND_OVERRIDES)
+    try:
+        layout_mod.KIND_OVERRIDES.clear()
+        layout_mod.KIND_OVERRIDES['cond'] = 'image'
+        layouts = layout_mod.layouts_from_kwargs(kwargs, 'Flux3Transformer2DModel')
+        assert layouts[13392].describe() == 'text:80 image:9216 image:4096', layouts[13392].describe()
+        assert layouts[4096].sparsifiable_tokens() == 4096
+    finally:
+        layout_mod.KIND_OVERRIDES.clear()
+        layout_mod.KIND_OVERRIDES.update(previous)
     return True
 
 

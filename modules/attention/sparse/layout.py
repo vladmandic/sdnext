@@ -1,11 +1,25 @@
 """What each token in a packed sequence is, so the selector knows what it may sparsify."""
 from dataclasses import dataclass
+import os
 import torch
 
 
 # only the bulk modalities are sparsifiable; everything else is pinned dense, and an unrecognized kind pins too
 SPARSIFIABLE = frozenset({'video', 'image'})
 DROPPED = frozenset({'pad'})
+
+
+def parse_kind_overrides(raw: str | None) -> dict[str, str]:
+    """SD_SPARSE_KINDS=cond=image,... remaps declared kinds for an experiment, such as sparsifying reference images."""
+    overrides = {}
+    for entry in (raw or '').split(','):
+        kind, _, replacement = entry.strip().partition('=')
+        if kind and replacement:
+            overrides[kind] = replacement
+    return overrides
+
+
+KIND_OVERRIDES = parse_kind_overrides(os.environ.get('SD_SPARSE_KINDS', None))
 
 
 @dataclass(frozen=True)
@@ -122,7 +136,7 @@ def stream_length(kwargs: dict, stream: Stream) -> int:
 def layouts_from_packing(kwargs: dict, packing: Packing, source: str = 'packing') -> dict[int, TokenLayout]:
     """One layout per attention group, keyed by its sequence length; a stream the call omits has no tokens."""
     lengths = {stream.name: stream_length(kwargs, stream) for stream in packing.streams}
-    kinds = {stream.name: stream.kind for stream in packing.streams}
+    kinds = {stream.name: KIND_OVERRIDES.get(stream.kind, stream.kind) for stream in packing.streams}
     layouts: dict[int, TokenLayout] = {}
     for group in packing.groups:
         layout = layout_from_segments([(kinds[name], lengths[name]) for name in group], source=source)
