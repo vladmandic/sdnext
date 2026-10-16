@@ -744,12 +744,15 @@ def merge_tiles(tiles, h_chunks, w_chunks, chunk_size=64):
 
 
 class AuraSR:
-    def __init__(self, config: dict[str, Any], device: str = "cuda"):
-        self.upsampler = UnetUpsampler(**config).to(device)
+    def __init__(self, config: dict[str, Any], device: str | None = None):
+        # device is optional so hosts without cuda can load the model and place it afterwards
+        self.upsampler = UnetUpsampler(**config)
+        if device is not None:
+            self.upsampler = self.upsampler.to(device)
         self.input_image_size = config["input_image_size"]
 
     @classmethod
-    def from_pretrained(cls, model_id: str = "fal-ai/AuraSR", use_safetensors: bool = True):
+    def from_pretrained(cls, model_id: str = "fal-ai/AuraSR", use_safetensors: bool = True, device: str | None = None):
         import json
         import torch
         from pathlib import Path
@@ -782,7 +785,7 @@ class AuraSR:
             hf_model_path = Path(snapshot_download(model_id))
             config = json.loads((hf_model_path / "config.json").read_text())
 
-        model = cls(config)
+        model = cls(config, device=device)
 
         if use_safetensors:
             try:
