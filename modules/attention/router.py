@@ -109,7 +109,8 @@ def build_sparse_stage(plan: Plan):
     from modules.attention.sparse import stage as sparse_stage
     try:
         options = sparse_stage.read_options()
-    except Exception:
+    except Exception as e: # an unreadable value, such as a null written over the api, must not turn the feature off quietly
+        log.error(f'Attention: sparse options unreadable, attention stays dense: {e}')
         return None
     if not options.enabled:
         return None
