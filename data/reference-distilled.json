@@ -285,7 +285,7 @@
   },
   "Qwen-Image-2.1 Turbo": {
     "path": "Qwen/Qwen-Image-2.1-Turbo",
-    "preview": "Qwen--Qwen-Image-2.1.jpg",
+    "preview": "Qwen--Qwen-Image-2.1-Turbo.jpg",
     "desc": "Qwen-Image-2.1 is a unified text-to-image and image editing model with a 7B single-stream transformer and Qwen3-VL text encoder, native transparent RGBA output and up to 10 reference images for editing",
     "size": 30.86,
     "date": "2026 October"
