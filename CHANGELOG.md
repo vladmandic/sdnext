@@ -1,28 +1,28 @@
 # Change Log for SD.Next
 
-## Update for 2026-10-16
+## Update for 2026-10-17
 
-### Highlights for 2026-10-16
+### Highlights for 2026-10-17
 
-This time leading with major new features: native **Task Scheduler** and **Queue Management**, better handling of **Edit Models**, improved **UI Performance**, and enhanced in-depth **Benchmarking** capabilities  
-And adding few new models: *BFL Flux.3 Klein*, *Qwen-Image 2.1 Turbo*, *Ming-Image Design 0.1*, *Google Nano-Banana 2.1*  
-Plus quite a lot of other smaller improvements and bug fixes  
+Leading with major new features: native **Task Scheduler** and **Queue Management**, improved handling and usability of **Edit Models**, improved **UI Performance**, and enhanced in-depth **Benchmarking** capabilities  
+Plus adding few new models: *BFL Flux.3 Klein*, *Qwen-Image 2.1 Turbo*, *Ming-Image Design 0.1*, *Google Nano-Banana 2.1*  
+And quite a lot of other smaller improvements and bug fixes  
 
 See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) below for full details
 
 [Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-10-16
+### Details for 2026-10-17
 
 - **Models**  
+  - [Ming-Image Design 0.1](https://huggingface.co/OzzyGT/ming_image_0_1_design_diffusers)  
+    Ming-Image is as a 6B-parameter flow-matching transformer with 16B-parameter custom text encoder  
+    workflows: t2i model for genel use, optimized for ui, infographic and poster design  
   - [Black Forest Labs FLUX.3 Klein](https://huggingface.co/black-forest-labs/flux-3-image-klein-base) im *base* and *turbo* variants
     Flux.3 is a 5.6B parameter flow-matching transformer with Qwen3-VL-4B text-encoder with  
     workflows: t2i and image editing  
-  - [Ming-Image Design 0.1](https://huggingface.co/OzzyGT/ming_image_0_1_design_diffusers)  
-  - Ming-Image is as a 6B-parameter flow-matching transformer with 16B-parameter custom text encoder  
-    workflows: t2i model for genel use, optimized for ui, infographic and poster design  
   - [Qwen Image 2.1 Turbo](https://huggingface.co/Qwen/Qwen-Image-2.1-Turbo) in *base* and *sdnq-uint4* variants  
-  - [Google Nano Banana 2.1](https://deepmind.google/models/model-cards/nano-banana-2-1)
+  - [Google Nano Banana 2.1](https://deepmind.google/models/model-cards/nano-banana-2-1) *cloud* model  
 - **Scheduler**  
   new native *Task Scheduler* and *Queue Management*  
   add any image or video task to the scheduler and execute it in q queue or at a specific time  
@@ -80,6 +80,7 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
   - server: `--auth` values masked in the startup log and `/sdapi/v1/cmd-flags`
   - server: create the `data` folder in a new `--data-dir`, so the metadata cache saves
   - ui: update dev packages and rebuild
+  - upscaler: fix aurasr for non-cuda devices, thanks @li-lizhe
   - video: accept only rate and quality codec options
   - video: no error logged after framepack upscale or seedvr interpolation
   - video: reject output extensions other than letters and digits
