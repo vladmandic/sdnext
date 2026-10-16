@@ -25,7 +25,9 @@ def get_shared(cls, repo_id, subfolder=None, variant=None, shared_id: str | None
             identifiers = []
         identifiers = [identifier.lower() for identifier in identifiers if identifier is not None]
         shared_id = shared_id or repo_id.lower()
-        if item['cls'] == cls and (not identifiers or any(identifier in shared_id for identifier in identifiers)):
+        item_cls = item['cls']
+        same_cls = item_cls == cls or (isinstance(item_cls, str) and item_cls == getattr(cls, '__name__', None))
+        if same_cls and (not identifiers or any(identifier in shared_id for identifier in identifiers)):
             if item.get('config_class', None) is not None and item.get('config_path', None) is not None:
                 with open(item['config_path'], encoding='utf8') as f:
                     args['config'] = item['config_class'](**json.load(f))
