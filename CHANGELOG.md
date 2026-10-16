@@ -1,18 +1,18 @@
 # Change Log for SD.Next
 
-## Update for 2026-10-15
+## Update for 2026-10-16
 
-### Highlights for 2026-10-15
+### Highlights for 2026-10-16
 
 This time leading with major new features: native **Task Scheduler** and **Queue Management**, better handling of **Edit Models**, improved **UI Performance**, and enhanced in-depth **Benchmarking** capabilities  
-But also adding few new models: *Qwen Image 2.1 Turbo*, *Ming-Image Design 0.1*, *Google Nano Banana 2.1*  
+And adding few new models: *BFL Flux.3 Klein*, *Qwen-Image 2.1 Turbo*, *Ming-Image Design 0.1*, *Google Nano-Banana 2.1*  
 Plus quite a lot of other smaller improvements and bug fixes  
 
-See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) below for full details.
+See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) below for full details
 
 [Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-10-15
+### Details for 2026-10-16
 
 - **Models**  
   - [Black Forest Labs FLUX.3 Klein](https://huggingface.co/black-forest-labs/flux-3-image-klein-base) im *base* and *turbo* variants
@@ -44,7 +44,7 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
   - microvae is now default for live previews
 - **Internal**
   - switch hosted models from private repo to <https://huggingface.co/SD-Next>
-  - update `sdnq=0.28.0`
+  - update `sdnq=0.29.0`
 - **Fixes**
   - anima: load repos in the diffusers modular layout
   - api: `--cors-origins` entries separated by a comma and a space
@@ -75,6 +75,7 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
   - offload: balanced offload warns when a module exceeds the gpu limit and part of it runs from cpu
   - offload: group offload logs a denied pin once per component
   - rocm: arch detection with newer windows drivers, thanks @crashingalexsan
+  - sdnq: better handle compute dtype
   - samplers: update ui when sampler settings change, thanks @resonantsky
   - server: `--auth` values masked in the startup log and `/sdapi/v1/cmd-flags`
   - server: create the `data` folder in a new `--data-dir`, so the metadata cache saves

@@ -16,6 +16,7 @@ import diffusers
 from diffusers.loaders.single_file_utils import convert_flux3_transformer_checkpoint_to_diffusers
 
 from pipelines.native_transformer import TransformerSpec
+from pipelines.flux3.flux3_latents import unpack_latents
 
 
 FLOW_MAP_KEYS = ('ref_time_in.in_layer.weight', 'target_timestep_embedder.linear_1.weight') # BFL and diffusers naming
