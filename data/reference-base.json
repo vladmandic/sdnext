@@ -763,14 +763,6 @@
     "size": 27.28,
     "date": "2025 December"
   },
-  "Black Forest Labs FLUX 3 Image Klein Base": {
-    "path": "SD-Next/flux-3-image-klein-base",
-    "preview": "SD-Next--flux-3-image-klein-base.jpg",
-    "desc": "FLUX 3 Image Klein Base is the undistilled 5.6 billion parameter checkpoint of FLUX 3 Image Klein, built for fine-tuning, LoRA training and research. Samples with classifier-free guidance at 50 steps. Supports text-to-image and editing with up to 10 reference images, with Qwen3-VL-4B-Instruct as the text encoder. FLUX Kommunity license.",
-    "extras": "sampler: Default, cfg_scale: 3.5, steps: 50",
-    "size": 20.34,
-    "date": "2026 October"
-  },
   "Black Forest Labs FLUX.2 Klein Base 4B": {
     "path": "black-forest-labs/FLUX.2-klein-base-4B",
     "preview": "black-forest-labs--FLUX.2-klein-base-4B.jpg",
@@ -1037,6 +1029,14 @@
     "variant": "bf16",
     "extras": "sampler: Default, steps: 12, width: 2048, height: 2048",
     "size": 41.4,
+    "date": "2026 October"
+  },
+  "Black Forest Labs FLUX.3 Klein Base": {
+    "path": "SD-Next/flux-3-image-klein-base",
+    "preview": "SD-Next--flux-3-image-klein-base.jpg",
+    "desc": "FLUX 3 Image Klein Base is the undistilled 5.6 billion parameter checkpoint of FLUX 3 Image Klein, built for fine-tuning, LoRA training and research. Samples with classifier-free guidance at 50 steps. Supports text-to-image and editing with up to 10 reference images, with Qwen3-VL-4B-Instruct as the text encoder. FLUX Kommunity license.",
+    "extras": "sampler: Default, cfg_scale: 3.5, steps: 50",
+    "size": 20.34,
     "date": "2026 October"
   }
 }

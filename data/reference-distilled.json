@@ -143,14 +143,6 @@
     "size": 22.47,
     "date": "2025 November"
   },
-  "Black Forest Labs FLUX 3 Image Klein": {
-    "path": "SD-Next/flux-3-image-klein",
-    "preview": "SD-Next--flux-3-image-klein.jpg",
-    "desc": "FLUX 3 Image Klein is a 5.6 billion parameter step-distilled model for text-to-image generation and image editing. Text-to-image, single-reference edits and multi-reference compositions with up to 10 reference images run through the same model, with Qwen3-VL-4B-Instruct as the text encoder. Bounding boxes in the prompt place elements on a 0 to 1000 grid. FLUX Kommunity license.",
-    "extras": "sampler: Default, cfg_scale: 1.0, steps: 16",
-    "size": 20.34,
-    "date": "2026 October"
-  },
   "Black Forest Labs FLUX.2 Klein 4B": {
     "path": "black-forest-labs/FLUX.2-klein-4B",
     "preview": "black-forest-labs--FLUX.2-klein-4B.jpg",
@@ -288,6 +280,14 @@
     "preview": "Qwen--Qwen-Image-2.1-Turbo.jpg",
     "desc": "Qwen-Image-2.1 is a unified text-to-image and image editing model with a 7B single-stream transformer and Qwen3-VL text encoder, native transparent RGBA output and up to 10 reference images for editing",
     "size": 30.86,
+    "date": "2026 October"
+  },
+  "Black Forest Labs FLUX.3 Klein Turbo": {
+    "path": "SD-Next/flux-3-image-klein",
+    "preview": "SD-Next--flux-3-image-klein.jpg",
+    "desc": "FLUX 3 Image Klein is a 5.6 billion parameter step-distilled model for text-to-image generation and image editing. Text-to-image, single-reference edits and multi-reference compositions with up to 10 reference images run through the same model, with Qwen3-VL-4B-Instruct as the text encoder. Bounding boxes in the prompt place elements on a 0 to 1000 grid. FLUX Kommunity license.",
+    "extras": "sampler: Default, cfg_scale: 1.0, steps: 16",
+    "size": 20.34,
     "date": "2026 October"
   }
 }

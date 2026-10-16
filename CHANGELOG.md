@@ -15,11 +15,14 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
 ### Details for 2026-10-15
 
 - **Models**  
-  - [Qwen Image 2.1 Turbo](https://huggingface.co/Qwen/Qwen-Image-2.1-Turbo) in *base* and *sdnq-uint4* variants
-  - [Google Nano Banana 2.1](https://deepmind.google/models/model-cards/nano-banana-2-1)
+  - [Black Forest Labs FLUX.3 Klein](https://huggingface.co/black-forest-labs/flux-3-image-klein-base) im *base* and *turbo* variants
+    Flux.3 is a 5.6B parameter flow-matching transformer with Qwen3-VL-4B text-encoder with  
+    workflows: t2i and image editing  
   - [Ming-Image Design 0.1](https://huggingface.co/OzzyGT/ming_image_0_1_design_diffusers)  
-    Ming-Image is text-to-image model for UI, infographic and poster design built as a 6B-parameter flow-matching transformer with 16B-parameter custom text encoder  
-    *Note*: normal image generation works, but this is design-focused model and works best with structured prompts (json or clear-text)  
+  - Ming-Image is as a 6B-parameter flow-matching transformer with 16B-parameter custom text encoder  
+    workflows: t2i model for genel use, optimized for ui, infographic and poster design  
+  - [Qwen Image 2.1 Turbo](https://huggingface.co/Qwen/Qwen-Image-2.1-Turbo) in *base* and *sdnq-uint4* variants  
+  - [Google Nano Banana 2.1](https://deepmind.google/models/model-cards/nano-banana-2-1)
 - **Scheduler**  
   new native *Task Scheduler* and *Queue Management*  
   add any image or video task to the scheduler and execute it in q queue or at a specific time  
