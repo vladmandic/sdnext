@@ -31,6 +31,9 @@ class TokenLayout:
     def sparsifiable_tokens(self) -> int:
         return sum(s.end - s.start for s in self.spans if s.kind in SPARSIFIABLE)
 
+    def describe(self) -> str:
+        return ' '.join(f'{s.kind}:{s.end - s.start}' for s in self.spans)
+
     def token_flags(self, device) -> tuple[torch.Tensor, torch.Tensor]:
         """Per token: may this be sparsified, and is it padding."""
         sparse = torch.zeros(self.length, dtype=torch.bool, device=device)
@@ -71,28 +74,73 @@ def layout_from_index_kwargs(kwargs: dict, length: int | None = None) -> TokenLa
     return TokenLayout(spans=tuple(spans), length=length if length is not None else spans[-1].end, source='indices')
 
 
-# how an architecture orders its joint sequence, which the call itself does not reveal. Verified against the
-# diffusers transformers that take txt_ids and img_ids; HiDream packs image first and is deliberately absent, so
-# it falls back rather than being pinned backwards. An unlisted class publishes nothing.
-JOINT_TEXT_FIRST = frozenset({
-    'FluxTransformer2DModel', 'Flux2Transformer2DModel', 'ChromaTransformer2DModel', 'BriaTransformer2DModel',
-    'BriaFiboTransformer2DModel', 'LongCatImageTransformer2DModel', 'OvisImageTransformer2DModel',
-})
+@dataclass(frozen=True)
+class Stream:
+    """One stream a transformer packs: its layout kind, and the kwarg whose second to last dimension is its length."""
+    name: str
+    kind: str
+    kwarg: str
 
 
-def layout_from_stream_ids(kwargs: dict, cls_name: str | None) -> TokenLayout | None:
-    """Read the stream lengths off the rotary id tensors a joint transformer is given by name."""
-    if cls_name not in JOINT_TEXT_FIRST:
-        return None
-    text, image = kwargs.get('txt_ids'), kwargs.get('img_ids')
-    if not torch.is_tensor(text) or not torch.is_tensor(image) or text.dim() < 2 or image.dim() < 2:
-        return None
-    return layout_from_segments((('text', text.shape[-2]), ('image', image.shape[-2])), source='stream-ids')
+@dataclass(frozen=True)
+class Packing:
+    """How a transformer packs attention: its streams, and the stream order of every group of blocks that attends over a sequence."""
+    streams: tuple[Stream, ...]
+    groups: tuple[tuple[str, ...], ...]
 
 
-def layout_from_kwargs(kwargs: dict, cls_name: str | None = None) -> TokenLayout | None:
-    """Whatever the denoiser says about its own packing, by whichever convention it uses."""
-    return layout_from_index_kwargs(kwargs or {}) or layout_from_stream_ids(kwargs or {}, cls_name)
+TEXT_IDS = Stream('text', 'text', 'txt_ids')
+IMAGE_IDS = Stream('image', 'image', 'img_ids')
+JOINT_TEXT_FIRST = Packing(streams=(TEXT_IDS, IMAGE_IDS), groups=(('text', 'image'),))
+
+# the call reveals each stream's length, never the packing order, so the order is declared per class and verified
+# against the forward. HiDream packs image first and is deliberately absent until its packing is mapped; an unlisted
+# class publishes nothing and falls back rather than pinning the wrong half dense.
+PACKINGS: dict[str, Packing] = {
+    'FluxTransformer2DModel': JOINT_TEXT_FIRST,
+    'Flux2Transformer2DModel': JOINT_TEXT_FIRST,
+    'ChromaTransformer2DModel': JOINT_TEXT_FIRST,
+    'BriaTransformer2DModel': JOINT_TEXT_FIRST,
+    'BriaFiboTransformer2DModel': JOINT_TEXT_FIRST,
+    'LongCatImageTransformer2DModel': JOINT_TEXT_FIRST,
+    'OvisImageTransformer2DModel': JOINT_TEXT_FIRST,
+}
+
+
+def stream_length(kwargs: dict, stream: Stream) -> int:
+    """Tokens the call carries for a stream, zero when the kwarg is absent."""
+    value = kwargs.get(stream.kwarg)
+    if not torch.is_tensor(value) or value.dim() < 2:
+        return 0
+    return int(value.shape[-2])
+
+
+def layouts_from_packing(kwargs: dict, packing: Packing, source: str = 'packing') -> dict[int, TokenLayout]:
+    """One layout per attention group, keyed by its sequence length; a stream the call omits has no tokens."""
+    lengths = {stream.name: stream_length(kwargs, stream) for stream in packing.streams}
+    kinds = {stream.name: stream.kind for stream in packing.streams}
+    layouts: dict[int, TokenLayout] = {}
+    for group in packing.groups:
+        layout = layout_from_segments([(kinds[name], lengths[name]) for name in group], source=source)
+        if layout.length == 0:
+            continue
+        held = layouts.get(layout.length)
+        # two groups of equal length cannot be told apart at the call, so the one that keeps more tokens dense serves both
+        if held is None or layout.sparsifiable_tokens() < held.sparsifiable_tokens():
+            layouts[layout.length] = layout
+    return layouts
+
+
+def layouts_from_kwargs(kwargs: dict, cls_name: str | None = None) -> dict[int, TokenLayout]:
+    """Whatever the denoiser says about its own packing, by whichever convention it uses, keyed by sequence length."""
+    kwargs = kwargs or {}
+    indexed = layout_from_index_kwargs(kwargs)
+    if indexed is not None:
+        return {indexed.length: indexed}
+    packing = PACKINGS.get(cls_name) if cls_name else None
+    if packing is None:
+        return {}
+    return layouts_from_packing(kwargs, packing)
 
 
 def layout_from_segments(segments, length: int | None = None, source: str = 'segments') -> TokenLayout:

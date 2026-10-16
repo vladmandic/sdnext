@@ -10,7 +10,8 @@ Covers:
 - the dense short circuit, and the force flag that suppresses it for tests
 - determinism of the selection for identical inputs
 - layout reading: the *_indices form a pipeline passes by name, with a non-final video run
-  relabelled as conditioning, and the segment form a transformer knows at its packing site
+  relabelled as conditioning, the packing declared per transformer class with one layout per
+  attention group, and the segment form a transformer knows at its packing site
 - pins and drops derived from a layout: pinned columns, dropped padding, pinned boundary tiles
 - the flex consumer: a full-keep selection through flex_attention reproduces dense sdpa, and a
   selection with dropped tiles reproduces sdpa given the same tiles masked out
@@ -258,20 +259,46 @@ def test_segments_from_live_splits_interior_padding():
     return True
 
 
-def test_layout_from_stream_ids_reads_the_joint_convention():
+def test_layouts_from_packing_read_the_joint_convention():
     from modules.attention.sparse import layout as layout_mod
     flat = (torch.zeros(512, 3, device=device), torch.zeros(4096, 3, device=device)) # flux1 passes 2d ids
     batched = (torch.zeros(1, 512, 4, device=device), torch.zeros(1, 4096, 4, device=device)) # flux2 passes 3d
     for text, image in (flat, batched):
-        token_layout = layout_mod.layout_from_stream_ids({'txt_ids': text, 'img_ids': image}, 'FluxTransformer2DModel')
-        assert token_layout is not None and token_layout.length == 4608, token_layout
+        layouts = layout_mod.layouts_from_kwargs({'txt_ids': text, 'img_ids': image}, 'FluxTransformer2DModel')
+        assert list(layouts) == [4608], layouts
+        token_layout = layouts[4608]
         assert [(s.kind, s.start, s.end) for s in token_layout.spans] == [('text', 0, 512), ('image', 512, 4608)], token_layout.spans
-    # an architecture whose packing order is not verified publishes nothing rather than pinning the wrong half dense
-    assert layout_mod.layout_from_stream_ids({'txt_ids': flat[0], 'img_ids': flat[1]}, 'HiDreamImageTransformer2DModel') is None
-    assert layout_mod.layout_from_stream_ids({'txt_ids': flat[0], 'img_ids': flat[1]}, None) is None
-    assert layout_mod.layout_from_stream_ids({}, 'FluxTransformer2DModel') is None
+        assert token_layout.source == 'packing', token_layout.source
+    # an architecture whose packing order is not declared publishes nothing rather than pinning the wrong half dense
+    assert layout_mod.layouts_from_kwargs({'txt_ids': flat[0], 'img_ids': flat[1]}, 'HiDreamImageTransformer2DModel') == {}
+    assert layout_mod.layouts_from_kwargs({'txt_ids': flat[0], 'img_ids': flat[1]}, None) == {}
+    assert layout_mod.layouts_from_kwargs({}, 'FluxTransformer2DModel') == {}
     indices = {'video_indices': torch.arange(0, 64, device=device), 'txt_ids': flat[0], 'img_ids': flat[1]}
-    assert layout_mod.layout_from_kwargs(indices, 'FluxTransformer2DModel').source == 'indices', 'the index form wins when both are present'
+    assert layout_mod.layouts_from_kwargs(indices, 'FluxTransformer2DModel')[64].source == 'indices', 'the index form wins when both are present'
+    return True
+
+
+def test_layouts_from_packing_cover_every_attention_group():
+    from modules.attention.sparse import layout as layout_mod
+    # a transformer whose per-mode blocks attend over one stream each before its joint blocks attend over all of them
+    packing = layout_mod.Packing(
+        streams=(layout_mod.Stream('text', 'text', 'txt_ids'), layout_mod.Stream('image', 'image', 'img_ids'), layout_mod.Stream('cond', 'cond', 'cond_ids')),
+        groups=(('text',), ('image',), ('cond',), ('text', 'image', 'cond')),
+    )
+    text, image = torch.zeros(240, 4, device=device), torch.zeros(9216, 4, device=device)
+    layouts = layout_mod.layouts_from_packing({'txt_ids': text, 'img_ids': image}, packing)
+    assert sorted(layouts) == [240, 9216, 9456], sorted(layouts) # the absent stream has no tokens and its group is not published
+    assert layouts[9216].kinds() == ('image',) and layouts[9216].sparsifiable_tokens() == 9216
+    assert [(s.kind, s.start, s.end) for s in layouts[9456].spans] == [('text', 0, 240), ('image', 240, 9456)], layouts[9456].spans
+    cond = torch.zeros(4096, 4, device=device)
+    layouts = layout_mod.layouts_from_packing({'txt_ids': text, 'img_ids': image, 'cond_ids': cond}, packing)
+    assert sorted(layouts) == [240, 4096, 9216, 13552], sorted(layouts)
+    assert layouts[4096].kinds() == ('cond',) and layouts[4096].sparsifiable_tokens() == 0
+    assert layouts[13552].kinds() == ('text', 'image', 'cond') and layouts[13552].sparsifiable_tokens() == 9216
+    # two groups of one length cannot be told apart at the call, so the one that keeps more tokens dense serves both
+    layouts = layout_mod.layouts_from_packing({'txt_ids': text, 'img_ids': image, 'cond_ids': image}, packing)
+    assert sorted(layouts) == [240, 9216, 18672], sorted(layouts)
+    assert layouts[9216].kinds() == ('cond',), layouts[9216].kinds()
     return True
 
 
@@ -302,8 +329,8 @@ def test_layout_hook_publishes_from_the_denoiser_kwargs():
         assert getattr(second, 'sdnext_layout_hook', None) is not None, 'every denoiser slot is hooked, not just the first'
         ctx.set_layout(None)
         denoiser(hidden_states=torch.zeros(1, 4096, 4, device=device), txt_ids=torch.zeros(512, 3, device=device), img_ids=torch.zeros(4096, 3, device=device))
-        published = ctx.current.layout
-        assert published is not None and published.length == 4608 and published.source == 'stream-ids', published
+        published = ctx.current.layouts.get(4608)
+        assert published is not None and published.source == 'packing', ctx.current.layouts
     finally:
         shared.opts.data['sparse_attention_enabled'] = previous
         ctx.set_layout(None)
@@ -511,8 +538,8 @@ def test_published_segments_reach_the_stage():
 
     def checks():
         layout_mod.publish_segments((('text', 256), ('image', 1536), ('pad', 256)), source='test')
-        published = ctx.current.layout
-        assert published.length == 2048 and published.source == 'test', published
+        published = ctx.current.layouts.get(2048)
+        assert published is not None and published.source == 'test', ctx.current.layouts
         assert published.kinds() == ('text', 'image', 'pad'), published.kinds()
         selection = stage(q, k, v, None, False)
         keep, block_kv = selection.keep, selection.block_kv
@@ -557,6 +584,27 @@ def test_stage_uses_a_published_layout_and_falls_back_without_one():
     return with_context(checks)
 
 
+def test_stage_resolves_the_layout_by_sequence_length():
+    from modules.attention.sparse import stage as stage_mod
+    from modules.attention import context as ctx
+    stage = stage_mod.make_stage(stage_options(budget=0.20))
+    joint = qkv(heads=2, seq=2048)
+    alone = qkv(heads=2, seq=1536)
+
+    def checks():
+        ctx.set_layouts({
+            2048: sparse.layout_from_segments([('text', 512), ('image', 1536)]),
+            1536: sparse.layout_from_segments([('image', 1536)]),
+        })
+        pinned = stage(*joint, None, False)
+        assert bool(pinned.keep[..., 0:8].all()), 'the joint sequence pins its text columns'
+        loose = stage(*alone, None, False)
+        assert not bool(loose.keep[..., 0:8].all()), 'the single stream sequence has nothing to pin'
+        assert loose.density() < pinned.density(), (loose.density(), pinned.density())
+        return True
+    return with_context(checks)
+
+
 def run_all():
     log.warning(f'=== selector (device={device}) ===')
     cat = category('selector')
@@ -582,7 +630,8 @@ def run_all():
         test_block_pins_pin_a_boundary_tile,
         test_block_pins_are_cached_per_geometry,
         test_segments_from_live_splits_interior_padding,
-        test_layout_from_stream_ids_reads_the_joint_convention,
+        test_layouts_from_packing_read_the_joint_convention,
+        test_layouts_from_packing_cover_every_attention_group,
         test_layout_hook_publishes_from_the_denoiser_kwargs,
     ]:
         run_test(cat, fn)
@@ -611,6 +660,7 @@ def run_all():
         test_stage_follows_the_step_schedule,
         test_published_segments_reach_the_stage,
         test_stage_uses_a_published_layout_and_falls_back_without_one,
+        test_stage_resolves_the_layout_by_sequence_length,
     ]:
         run_test(cat, fn)
 
