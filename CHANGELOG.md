@@ -71,12 +71,12 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
   - ipadapter: loading and unloading adapters under group offload
   - lora: reset loaded networks if refiner prompt is used
   - mps: fix torch gc issue, thanks @diesse
-  - rocm: disable HSA_XNACK on unsupported architectures, thanks @resonantsky
   - offload: balanced offload warns when a module exceeds the gpu limit and part of it runs from cpu
   - offload: group offload logs a denied pin once per component
   - rocm: arch detection with newer windows drivers, thanks @crashingalexsan
-  - sdnq: better handle compute dtype
+  - rocm: disable HSA_XNACK on unsupported architectures, thanks @resonantsky
   - samplers: update ui when sampler settings change, thanks @resonantsky
+  - sdnq: better handle compute dtype
   - server: `--auth` values masked in the startup log and `/sdapi/v1/cmd-flags`
   - server: create the `data` folder in a new `--data-dir`, so the metadata cache saves
   - ui: update dev packages and rebuild
