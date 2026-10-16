@@ -302,6 +302,22 @@ def test_layouts_from_packing_cover_every_attention_group():
     return True
 
 
+def test_flux3_packing_matches_the_mapped_forward():
+    from modules.attention.sparse import layout as layout_mod
+    # the kwargs the modular denoiser passes Flux3Transformer2DModel, as the attention map recorded them at 1536x1536
+    kwargs = {'hidden_states': torch.zeros(1, 9216, 128, device=device), 'img_ids': torch.zeros(9216, 4, device=device), 'encoder_hidden_states': torch.zeros(1, 80, 32, device=device), 'txt_ids': torch.zeros(80, 4, device=device)}
+    layouts = layout_mod.layouts_from_kwargs(kwargs, 'Flux3Transformer2DModel')
+    assert sorted(layouts) == [80, 9216, 9296], sorted(layouts)
+    assert layouts[9296].describe() == 'text:80 image:9216', layouts[9296].describe()
+    kwargs['image_cond_hidden_states'] = torch.zeros(1, 4096, 128, device=device)
+    kwargs['image_cond_ids'] = torch.zeros(4096, 4, device=device)
+    layouts = layout_mod.layouts_from_kwargs(kwargs, 'Flux3Transformer2DModel')
+    assert sorted(layouts) == [80, 4096, 9216, 13392], sorted(layouts)
+    assert layouts[13392].describe() == 'text:80 image:9216 cond:4096', layouts[13392].describe()
+    assert layouts[4096].sparsifiable_tokens() == 0 and layouts[9216].sparsifiable_tokens() == 9216
+    return True
+
+
 def test_layout_hook_publishes_from_the_denoiser_kwargs():
     from modules.attention import context as ctx
 
@@ -632,6 +648,7 @@ def run_all():
         test_segments_from_live_splits_interior_padding,
         test_layouts_from_packing_read_the_joint_convention,
         test_layouts_from_packing_cover_every_attention_group,
+        test_flux3_packing_matches_the_mapped_forward,
         test_layout_hook_publishes_from_the_denoiser_kwargs,
     ]:
         run_test(cat, fn)

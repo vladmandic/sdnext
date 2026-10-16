@@ -91,7 +91,10 @@ class Packing:
 
 TEXT_IDS = Stream('text', 'text', 'txt_ids')
 IMAGE_IDS = Stream('image', 'image', 'img_ids')
+COND_IDS = Stream('cond', 'cond', 'image_cond_ids')
 JOINT_TEXT_FIRST = Packing(streams=(TEXT_IDS, IMAGE_IDS), groups=(('text', 'image'),))
+# per-mode blocks over each stream alone, then joint blocks over text, image and the reference images
+MODES_THEN_JOINT = Packing(streams=(TEXT_IDS, IMAGE_IDS, COND_IDS), groups=(('text',), ('image',), ('cond',), ('text', 'image', 'cond')))
 
 # the call reveals each stream's length, never the packing order, so the order is declared per class and verified
 # against the forward. HiDream packs image first and is deliberately absent until its packing is mapped; an unlisted
@@ -99,6 +102,7 @@ JOINT_TEXT_FIRST = Packing(streams=(TEXT_IDS, IMAGE_IDS), groups=(('text', 'imag
 PACKINGS: dict[str, Packing] = {
     'FluxTransformer2DModel': JOINT_TEXT_FIRST,
     'Flux2Transformer2DModel': JOINT_TEXT_FIRST,
+    'Flux3Transformer2DModel': MODES_THEN_JOINT,
     'ChromaTransformer2DModel': JOINT_TEXT_FIRST,
     'BriaTransformer2DModel': JOINT_TEXT_FIRST,
     'BriaFiboTransformer2DModel': JOINT_TEXT_FIRST,
