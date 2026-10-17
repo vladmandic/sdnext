@@ -34,7 +34,7 @@ def insert_query_tokens(input_ids: torch.Tensor, attention_mask: torch.Tensor, t
         masks.append(mask[:text_len] + [1] * len(block) + mask[text_len:])
         query_masks.append([0] * (text_len + 1) + [1] * num_query + [0] * (1 + len(ids) - text_len))
 
-    to_tensor = lambda x: torch.tensor(x, dtype=input_ids.dtype, device=input_ids.device)  # noqa: E731
+    to_tensor = lambda x: torch.tensor(x, dtype=input_ids.dtype, device=input_ids.device)
     return to_tensor(rows), to_tensor(masks), to_tensor(query_masks).bool()
 
 

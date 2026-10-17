@@ -665,7 +665,6 @@ class MageFlowPipeline(DiffusionPipeline):
         return MageFlowPipelineOutput(images=image)
 
     def _unpack_latents(self, latents, height, width, vae_scale_factor):
-        # Based on input args, caluclate latent_h, latent_w, and num_channels_latents
         latent_h = height // vae_scale_factor
         latent_w = width // vae_scale_factor
         num_channels_latents = latents.shape[-1]

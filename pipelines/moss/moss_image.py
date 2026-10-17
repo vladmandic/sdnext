@@ -225,7 +225,7 @@ class MOSSImageFlowMatchScheduler(FlowMatchEulerDiscreteScheduler):
         lower = (upper - 1).clamp(min=0)
         nearest = torch.where((sigmas - training[lower]).abs() <= (training[upper] - sigmas).abs(), lower, upper)
         sigmas = torch.unique_consecutive(training[nearest])
-        self._shift = 1.0 # sigmas are already shifted and snapped
+        self._shift = 1.0 # pylint: disable=attribute-defined-outside-init
         super().set_timesteps(device=device, sigmas=sigmas.tolist())
 
 

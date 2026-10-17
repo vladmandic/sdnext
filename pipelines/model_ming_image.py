@@ -41,8 +41,8 @@ def load_ming_image(checkpoint_info, diffusers_load_config=None):
     missing = missing_components(pipe, workflow=None)
     if missing:
         raise RuntimeError(f'Ming-Image components failed to load: {missing}')
-    pipe.task_args = {'output_type': 'np'}
-    pipe.sd_checkpoint_info = checkpoint_info
+    pipe.task_args = {'output_type': 'np'} # pylint: disable=attribute-defined-outside-init
+    pipe.sd_checkpoint_info = checkpoint_info # pylint: disable=attribute-defined-outside-init
     sd_hijack_te.init_hijack(pipe)
     sd_hijack_vae.init_hijack(pipe)
 
