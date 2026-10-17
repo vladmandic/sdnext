@@ -51,8 +51,7 @@ def network_backup_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Gr
                 if fuse:
                     self.network_bias_backup = True
                 else:
-                    bias_backup = self.bias.clone()
-                    bias_backup = bias_backup.to(devices.cpu)
+                    self.network_bias_backup = self.bias.clone().to(devices.cpu)
 
         if getattr(self, 'network_weights_backup', None) is not None:
             backup_size += self.network_weights_backup.numel() * self.network_weights_backup.element_size() if isinstance(self.network_weights_backup, torch.Tensor) else 0
