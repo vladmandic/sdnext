@@ -21,7 +21,7 @@ class MOSSImageRMSNorm(nn.Module):
         self.weight = nn.Parameter(torch.ones(dim))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        y = x.float() * torch.rsqrt(x.float().square().mean(-1, keepdim=True) + 1e-6)
+        y = x.to(dtype=torch.float32) * torch.rsqrt(x.to(dtype=torch.float32).square().mean(-1, keepdim=True) + 1e-6)
         return y.to(x.dtype) * self.weight
 
 
@@ -41,7 +41,7 @@ def rotate(x: torch.Tensor, rope: torch.Tensor) -> torch.Tensor:
     sin = torch.cat((sin, sin), -1).unsqueeze(-2)
     cos = torch.cat((cos, cos), -1).unsqueeze(-2)
     a, b = x.chunk(2, -1)
-    return x * cos + torch.cat((-b, a), -1) * sin
+    return torch.addcmul(x * cos, torch.cat((-b, a), -1), sin)
 
 
 def attention(q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, rope: torch.Tensor, heads: int) -> torch.Tensor:
@@ -79,7 +79,7 @@ class MOSSImageTextProjection(nn.Module):
         self.blocks = nn.ModuleList([MOSSImageTextBlock(dim, ffn_dim, heads) for _ in range(2)])
 
     def forward(self, x: torch.Tensor, rope: torch.Tensor) -> torch.Tensor:
-        x = self.proj(x.to(self.proj.weight.dtype))
+        x = self.proj(x)
         for block in self.blocks:
             x = block(x, rope)
         return x
@@ -98,16 +98,15 @@ class MOSSImageBlock(nn.Module):
     def forward(self, x: torch.Tensor, rope: torch.Tensor, modulation: torch.Tensor, skip: bool = False) -> torch.Tensor:
         if skip: # the call still runs, so offload hooks see every block in order
             return x
+        dtype = x.dtype
         shift_a, scale_a, gate_a, shift_f, scale_f, gate_f = modulation.unbind(1)
-        y = self.norm1(x) * (1 + scale_a[:, None]) + shift_a[:, None]
-        dtype = self.proj['q'].weight.dtype
-        y = y.to(dtype)
+        y = torch.addcmul(shift_a.unsqueeze(1), self.norm1(x), (1 + scale_a.unsqueeze(1))).to(dtype=dtype)
         q = self.q_norm(self.proj['q'](y).unflatten(-1, (self.heads, -1))).flatten(2)
         k = self.k_norm(self.proj['k'](y).unflatten(-1, (self.heads, -1))).flatten(2)
-        x = x + self.proj['o'](attention(q, k, self.proj['v'](y), rope, self.heads)) * gate_a[:, None]
-        y = self.norm2(x) * (1 + scale_f[:, None]) + shift_f[:, None]
-        hidden, gate = self.proj['ffn_up_gate'](y.to(dtype)).chunk(2, -1)
-        return x + self.proj['ffn_down'](situ(hidden, gate)) * gate_f[:, None]
+        x = torch.addcmul(x, self.proj['o'](attention(q, k, self.proj['v'](y), rope, self.heads)), gate_a.unsqueeze(1))
+        y = torch.addcmul(shift_f.unsqueeze(1), self.norm2(x), (1 + scale_f.unsqueeze(1))).to(dtype=dtype)
+        hidden, gate = self.proj['ffn_up_gate'](y).chunk(2, -1)
+        return torch.addcmul(x, self.proj['ffn_down'](situ(hidden, gate)), gate_f.unsqueeze(1))
 
 
 class MOSSImageRoPE(nn.Module):
@@ -135,7 +134,7 @@ class MOSSImageRoPE(nn.Module):
         if self.bands.dtype != torch.float32 or self.bands.device.type == 'meta': # accelerate can install tensors past the load hooks
             self.register_buffer('bands', self.default_bands(device))
         h, w = torch.meshgrid(torch.arange(height, device=device), torch.arange(width, device=device), indexing='ij')
-        image = torch.stack((torch.zeros_like(h), torch.full_like(h, text_length), h, w), -1).flatten(0, 1).float()
+        image = torch.stack((torch.zeros_like(h), torch.full_like(h, text_length), h, w), -1).flatten(0, 1).to(dtype=torch.float32)
         image[:, 2] -= (height - 1) / 2
         image[:, 3] -= (width - 1) / 2
         text = torch.zeros(text_length, 4, device=device, dtype=torch.float32)
@@ -164,6 +163,7 @@ class MOSSImageTransformer(ModelMixin, ConfigMixin):
         self.video_head_modulation = nn.Linear(dim, 2 * dim)
 
     def forward(self, hidden_states: torch.Tensor, timestep, encoder_hidden_states: torch.Tensor, encoder_attention_mask: torch.Tensor | None = None, return_dict: bool = True, skip_layers=None):
+        dtype = self.dtype
         skip_layers = validate_skip_layers(skip_layers, len(self.layers))
         if hidden_states.ndim != 4 or hidden_states.shape[1] != self.config['latent_channels']:
             raise ValueError('hidden_states must be [B, latent_channels, H, W].')
@@ -178,28 +178,27 @@ class MOSSImageTransformer(ModelMixin, ConfigMixin):
         times = torch.as_tensor(timestep, device=hidden_states.device, dtype=torch.float32).reshape(-1).expand(batch)
         half = self.config['freq_dim'] // 2 # the sinusoid is computed in float64 and fed to the mlp in float32, as in training
         freq = 10000 ** (-torch.arange(half, device=times.device, dtype=torch.float64) / half)
-        phase = times.double()[:, None] * freq
-        embedding = torch.cat((phase.cos(), phase.sin()), -1).float()
-        time = self.time_embedding(embedding.to(self.time_embedding[0].weight.dtype)).float()
-        mod = self.shared_block_modulation(time.to(self.shared_block_modulation.weight.dtype)).view(batch, 6, -1)
-        head = self.video_head_modulation(time.to(self.video_head_modulation.weight.dtype)).view(batch, 2, -1)
+        phase = times.to(dtype=torch.float64).unsqueeze(1) * freq
+        embedding = torch.cat((phase.cos(), phase.sin()), -1).to(dtype=dtype)
+        time = self.time_embedding(embedding)
+        mod = self.shared_block_modulation(time).view(batch, 6, -1)
+        head = self.video_head_modulation(time).view(batch, 2, -1)
         from modules.attention.sparse import layout as sparse_layout # delayed, this module is also importable without the webui
         outputs = []
         for index in range(batch):
             context = encoder_hidden_states[index:index + 1, mask[index].bool()]
             if context.shape[1] == 0:
                 raise ValueError('Each sample needs at least one valid text token.')
-            video = hidden_states[index:index + 1].flatten(2).transpose(1, 2)
-            video = self.video_embedder(video.to(self.video_embedder.weight.dtype).contiguous())
-            rope = self.rope(height, width, context.shape[1], hidden_states.device).to(video.dtype)
+            video = self.video_embedder(hidden_states[index:index + 1].flatten(2).transpose(1, 2).to(dtype=dtype, memory_format=torch.contiguous_format))
+            rope = self.rope(height, width, context.shape[1], hidden_states.device).to(dtype=dtype)
             text = self.text_embedder(context, rope[:, height * width:])
             sparse_layout.publish_segments([('image', height * width), ('text', context.shape[1])], source='moss') # image first, each sample at its own text length
             x = torch.cat((video, text), 1)
             for layer_index, layer in enumerate(self.layers):
                 x = layer(x, rope, mod[index:index + 1], skip=layer_index in skip_layers)
-            x = self.final_norm_video(x[:, :height * width].to(self.final_norm_video.weight.dtype))
-            x = x * (1 + head[index:index + 1, 1, None]) + head[index:index + 1, 0, None]
-            x = self.final_linear_video(x.to(self.final_linear_video.weight.dtype))
+            x = self.final_norm_video(x[:, :height * width])
+            x = torch.addcmul(head[index:index + 1, 0, None], x, (1 + head[index:index + 1, 1, None]))
+            x = self.final_linear_video(x)
             outputs.append(x.transpose(1, 2).reshape(1, -1, height, width))
         sample = torch.cat(outputs)
         return Transformer2DModelOutput(sample=sample) if return_dict else (sample,)
@@ -283,7 +282,10 @@ class MOSSImagePipeline(DiffusionPipeline):
         bn = self.vae.bn
         mean = bn.running_mean.view(1, -1, 1, 1).to(device=latents.device, dtype=torch.float32)
         std = torch.sqrt(bn.running_var.view(1, -1, 1, 1).to(device=latents.device, dtype=torch.float32) + self.vae.config.batch_norm_eps)
-        z = latents.float() * std + (mean if offset else 0)
+        if offset:
+            z = torch.addcmul(mean, latents.to(dtype=torch.float32), std)
+        else:
+            z = latents.to(dtype=torch.float32) * std
         b, c, h, w = z.shape
         return z.reshape(b, c // 4, 2, 2, h, w).permute(0, 1, 4, 2, 5, 3).reshape(b, c // 4, 2 * h, 2 * w)
 
@@ -380,17 +382,17 @@ class MOSSImagePipeline(DiffusionPipeline):
                 skip_active = slg_start <= step_index / self._num_timesteps < slg_stop
                 do_cfg = negative is not None and self._guidance_scale > 1.0 # the step callback can end guidance early
                 # guidance combines fp32 predictions even when the transformer runs in bf16
-                noise_pred = self.transformer(latents, timestep, positive, positive_mask).sample.float()
+                noise_pred = self.transformer(latents, timestep, positive, positive_mask).sample.to(dtype=torch.float32)
                 conditional = noise_pred
                 if do_cfg:
                     skip_kwargs = {'skip_layers': uncond_skip_layers} if uncond_skip_layers and skip_active else {}
-                    uncond = self.transformer(latents, timestep, negative, negative_mask, **skip_kwargs).sample.float()
-                    noise_pred = uncond + self._guidance_scale * (noise_pred - uncond)
+                    uncond = self.transformer(latents, timestep, negative, negative_mask, **skip_kwargs).sample.to(dtype=torch.float32)
+                    noise_pred = torch.lerp(uncond, noise_pred, self._guidance_scale)
                 if slg_layers and slg_scale > 0 and skip_active:
-                    skipped = self.transformer(latents, timestep, positive, positive_mask, skip_layers=slg_layers).sample.float()
+                    skipped = self.transformer(latents, timestep, positive, positive_mask, skip_layers=slg_layers).sample.to(dtype=torch.float32)
                     if not do_cfg:
                         noise_pred = skipped
-                    noise_pred = noise_pred + slg_scale * (conditional - skipped)
+                    noise_pred = torch.add(noise_pred, (conditional - skipped), alpha=slg_scale)
                 latents = self.scheduler.step(noise_pred, timestep, latents, return_dict=False)[0]
                 if callback_on_step_end is not None:
                     callback_kwargs = {k: locals()[k] for k in callback_on_step_end_tensor_inputs}
