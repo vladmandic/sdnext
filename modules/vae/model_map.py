@@ -7,8 +7,10 @@ vae_map = {
     'wan21': ['wanai', 'qwen', 'chrono', 'cosmos', 'anima', 'fibo', 'joy', 'krea2', 'mingimage', 'nucleusimage'],
     'minimaxh3': ['minimaxh3'],
     'qwen21': ['qwen21'],
-    # No shared MicroDecoder family; model-specific TAESD fallbacks still apply.
-    None: ['allegrovideo', 'cogvideo', 'hunyuanimage', 'hunyuanimage3', 'hunyuanvideo', 'hunyuanvideo15', 'kandinsky', 'kandinsky3', 'kandinsky5video', 'ltxvideo', 'luminadimoo', 'mageflow', 'meissonic', 'mochivideo', 'nanobanana', 'nextstep', 'o1', 'prx', 'prxpixel', 'sana', 'sc', 'svd', 'veo3', 'x-omni', 'zetachroma']
+    'dcae': ['sana'],
+    'mage': ['mageflow'],
+    'hy': ['hunyuanimage'],
+    None: ['allegrovideo', 'cogvideo', 'hunyuanimage3', 'hunyuanvideo', 'hunyuanvideo15', 'kandinsky', 'kandinsky3', 'kandinsky5video', 'ltxvideo', 'luminadimoo', 'meissonic', 'mochivideo', 'nanobanana', 'nextstep', 'o1', 'prx', 'prxpixel', 'sc', 'svd', 'veo3', 'x-omni', 'zetachroma'],
 }
 
 def get_vae_type():

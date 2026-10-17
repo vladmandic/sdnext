@@ -314,6 +314,14 @@ class HelpFormatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawDescript
     pass
 
 
+def resolve_vae_class(vae_name):
+    if ":" not in vae_name:
+        return getattr(importlib.import_module("diffusers"), vae_name)
+    module_name, class_name = vae_name.rsplit(":", 1)
+    module_name = module_name.removesuffix(".py").replace("/", ".").replace("\\", ".")
+    return getattr(importlib.import_module(module_name), class_name)
+
+
 def train():
     print('MicroDecoder Train')
     epilog = """
@@ -333,7 +341,7 @@ Metrics Legend:
     parser.add_argument("--max", type=int, default=500, help="Maximum number of dataset images to encode")
     parser.add_argument("--resolution", type=int, default=512, help="Target training image resolution")
     parser.add_argument("--crop", choices=["center", "random"], default="center", help="Cropping mode when resizing non-square images")
-    parser.add_argument("--vae", type=str, required=True, help="Diffusers VAE class name")
+    parser.add_argument("--vae", type=str, required=True, help="Diffusers VAE class name or module.py:ClassName")
     parser.add_argument("--repo", type=str, required=True, help="HuggingFace model repository path")
     parser.add_argument("--subfolder", type=str, default="vae", help="Subfolder containing VAE weights")
     parser.add_argument("--dim", type=int, default=256, help="Hidden dimension channel capacity")
@@ -350,8 +358,7 @@ Metrics Legend:
     print('Args:', args)
     device = args.device
 
-    diffusers_module = importlib.import_module("diffusers")
-    vae_cls = getattr(diffusers_module, args.vae)
+    vae_cls = resolve_vae_class(args.vae)
     dtype = torch.bfloat16 if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else torch.float32
     print(f'Base VAE: cls={vae_cls} repo="{args.repo}" subfolder="{args.subfolder}"')
     vae_model = vae_cls.from_pretrained(args.repo, subfolder=args.subfolder, torch_dtype=dtype).to(device)

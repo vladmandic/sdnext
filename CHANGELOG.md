@@ -46,7 +46,11 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
   - parallel template loading
   - html custom hash for improved caching and performance
   - js split bundle
-  - microvae is now default for live previews
+- **MicroDecoder**
+  - [microdecoder](https://huggingface.co/SD-Next/MicroDecoder) is now *default* for live previews
+  - additional trained model type families
+  - extended mapping of base model types to microdecoder family
+  - allow training of custom vae classes
 - **Internal**
   - switch hosted models from private repo to <https://huggingface.co/SD-Next>
   - update `sdnq=0.29.0`
