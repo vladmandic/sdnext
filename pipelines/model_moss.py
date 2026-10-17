@@ -21,7 +21,7 @@ def load_moss_image(checkpoint_info, diffusers_load_config=None):
 
     check_linear_attention_kernels('Qwen3_5Model') # before the transformer load, so an unsupported setup fails fast
     # the repo's model_index names classes from its remote-code file, so the pipeline is assembled here instead of through from_pretrained
-    transformer = generic.load_transformer(repo_id, cls_name=MOSSImageTransformer, load_config=diffusers_load_config, modules_to_not_convert=['video_embedder', 'text_embedder.proj', 'time_embedding', 'shared_block_modulation', 'video_head_modulation', 'final_linear_video'])
+    transformer = generic.load_transformer(repo_id, cls_name=MOSSImageTransformer, load_config=diffusers_load_config, modules_to_not_convert=['video_embedder', '.text_embedder.proj', 'time_embedding', 'shared_block_modulation', 'video_head_modulation', 'final_linear_video'])
     text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.Qwen3_5Model, load_config=diffusers_load_config)
     pipe = MOSSImagePipeline(
         transformer=transformer,
