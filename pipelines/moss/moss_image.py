@@ -395,7 +395,8 @@ class MOSSImagePipeline(DiffusionPipeline):
                     noise_pred = torch.add(noise_pred, (conditional - skipped), alpha=slg_scale)
                 latents = self.scheduler.step(noise_pred, timestep, latents, return_dict=False)[0]
                 if callback_on_step_end is not None:
-                    callback_kwargs = {k: locals()[k] for k in callback_on_step_end_tensor_inputs}
+                    callback_locals = locals()
+                    callback_kwargs = {k: callback_locals[k] for k in callback_on_step_end_tensor_inputs}
                     callback_outputs = callback_on_step_end(self, step_index, timestep, callback_kwargs)
                     latents = callback_outputs.pop('latents', latents)
                 progress_bar.update()
