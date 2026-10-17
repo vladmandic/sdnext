@@ -24,6 +24,7 @@ def load_flux3(checkpoint_info, diffusers_load_config=None):
         repo_cls, blocks = diffusers.Flux3DistilledModularPipeline, diffusers.Flux3DistilledAutoBlocks()
     else:
         repo_cls, blocks = diffusers.Flux3ModularPipeline, diffusers.Flux3AutoBlocks()
+    blocks.sub_blocks.pop("prompt_upsampler") # do not load 9b upsampler by default
     offline_args = {'local_files_only': True} if shared.opts.offline_mode else {}
     pipe = load_modular_pipe(
         repo_cls,
