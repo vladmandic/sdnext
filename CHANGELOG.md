@@ -2,6 +2,11 @@
 
 ## Update for 2026-10-18
 
+- **Fixes**
+  - mageflow: load single-file transformers, including low-rank modulation checkpoints (MageTrail 0.3+)
+
+## Update for 2026-10-18
+
 ### Highlights for 2026-10-18
 
 Leading with major new features: native **Task Scheduler** and **Queue Management**, improved handling and usability of **Edit Models**, improved **UI Performance**, and enhanced in-depth **Benchmarking** capabilities  
