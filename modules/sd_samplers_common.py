@@ -110,7 +110,9 @@ def samples_to_image_grid(samples, approximation=None):
 
 
 def samples_decode(samples, approximation=None):
-    if samples.ndim == 5:
+    if samples is None:
+        return get_missing_img('no latents')
+    elif samples.ndim == 5:
         return single_sample_to_image(samples, approximation) # video latent
     elif samples.ndim == 4: # batch of images
         return samples_to_image_grid(samples, approximation) # handle batch

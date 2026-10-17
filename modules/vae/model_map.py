@@ -1,3 +1,6 @@
+from modules.logger import log
+
+last_vae = None
 vae_map = {
     'sd': ['sd', 'sdxs'],
     'sdxl': ['sdxl', 'ldm', 'pixartalpha', 'pixartsigma', 'hunyuandit', 'omnigen', 'auraflow', 'bria', 'kolors', 'lumina'],
@@ -14,10 +17,14 @@ vae_map = {
 }
 
 def get_vae_type():
+    global last_vae # pylint: disable=global-statement
     from modules import shared
     if not shared.sd_loaded:
         return None
     for k, v in vae_map.items():
         if shared.sd_model_type in v:
+            if last_vae != k:
+                log.debug(f'Decode: model={shared.sd_model_type} vae={k}')
+                last_vae = k
             return k
     return None

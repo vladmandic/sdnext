@@ -149,7 +149,7 @@ def get_model_type(pipe):
         model_type = 'sdxs'
     elif 'SeFi' in name:
         model_type = 'sefi'
-    elif 'Mage-Flow' in name:
+    elif 'MageFlow' in name:
         model_type = 'mageflow'
     elif 'ObjectClear' in name:
         model_type = 'sdxl'
