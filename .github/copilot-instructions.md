@@ -77,7 +77,7 @@ Use these repo-local skills for recurring SD.Next model integration work:
 
 - `port-model`  
   File: `.github/skills/port-model/SKILL.md`  
-  Use when adding a new model family, porting a standalone script into a Diffusers pipeline, or wiring an upstream Diffusers model into SD.Next.
+  Use when adding a new model family, porting a standalone script into a Diffusers pipeline, or wiring an upstream Diffusers model into SD.Next, including conditional flow-sampler and VAE-family registry updates.
 
 - `port-pipeline`  
   File: `.github/skills/port-pipeline/SKILL.md`  

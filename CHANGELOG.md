@@ -17,8 +17,13 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
 - **Models**  
   - [Ming-Image Design 0.1](https://huggingface.co/OzzyGT/ming_image_0_1_design_diffusers)  
     Ming-Image is as a 6B-parameter flow-matching transformer with 16B-parameter custom text encoder  
-    workflows: t2i model for genel use, optimized for ui, infographic and poster design  
-  - [Black Forest Labs FLUX.3 Klein](https://huggingface.co/black-forest-labs/flux-3-image-klein-base) im *base* and *turbo* variants
+    workflows: t2i model for general use, optimized for ui, infographic and poster design  
+    *note*: prompt using natural language, tag sequences or JSON layouts  
+  - [OpenMOSS MOSS-Image](https://huggingface.co/OpenMOSS-Team/MOSS-Image-Base) in *base* and *sft* (fine-tuned) variants  
+    MOSS-Image is a 5B parameter single-stream DiT with the Qwen3.5-9B text encoder  
+    workflows: t2i  
+    *note*: prompt using natural language, tag sequences or JSON layouts  
+  - [Black Forest Labs FLUX.3 Klein](https://huggingface.co/black-forest-labs/flux-3-image-klein-base) in *base* and *turbo* variants
     Flux.3 is a 5.6B parameter flow-matching transformer with Qwen3-VL-4B text-encoder with  
     workflows: t2i and image editing  
   - [Qwen Image 2.1 Turbo](https://huggingface.co/Qwen/Qwen-Image-2.1-Turbo) in *base* and *sdnq-uint4* variants  
@@ -45,6 +50,7 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
 - **Internal**
   - switch hosted models from private repo to <https://huggingface.co/SD-Next>
   - update `sdnq=0.29.0`
+  - sparse attention updates
 - **Fixes**
   - anima: load repos in the diffusers modular layout
   - api: `--cors-origins` entries separated by a comma and a space
@@ -71,6 +77,7 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
   - ipadapter: loading and unloading adapters under group offload
   - lora: reset loaded networks if refiner prompt is used
   - mps: fix torch gc issue, thanks @diesse
+  - networks: improve model title and type detection
   - offload: balanced offload warns when a module exceeds the gpu limit and part of it runs from cpu
   - offload: group offload logs a denied pin once per component
   - rocm: arch detection with newer windows drivers, thanks @crashingalexsan

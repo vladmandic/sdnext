@@ -420,6 +420,16 @@ class ExtraNetworksPage:
     def allowed_directories_for_previews(self):
         return []
 
+    def get_title(self, item):
+        remove_suffix = ['.safetensors', '.ckpt', 'diffusers']
+        basename = os.path.basename(item["name"])
+        for suffix in remove_suffix:
+            if basename.endswith(suffix):
+                basename = basename[: -len(suffix)]
+                break
+        title = basename.replace('_', ' ').strip()
+        return title
+
     def create_html(self, item, tabname: str):
         def random_bright_color():
             r = random.randint(100, 255)
@@ -440,7 +450,7 @@ class ExtraNetworksPage:
                 # "tabname": tabname,
                 "page": self.name,
                 "name": html.escape(item.get('name', ''), quote=True),
-                "title": os.path.basename(item["name"].replace('_', ' ')),
+                "title": self.get_title(item),
                 "filename": html.escape(item.get('filename', ''), quote=True),
                 "short": os.path.splitext(os.path.basename(item.get('filename', '')))[0],
                 "tags": tags,
@@ -588,6 +598,9 @@ class ExtraNetworksPage:
             if not data and os.path.exists(fn):
                 data = shared.readfile(fn, silent=True, as_type="dict")
             fn = os.path.join(path, 'model_index.json')
+            if not data and os.path.exists(fn):
+                data = shared.readfile(fn, silent=True, as_type="dict")
+            fn = os.path.join(path, 'modular_model_index.json')
             if not data and os.path.exists(fn):
                 data = shared.readfile(fn, silent=True, as_type="dict")
             t1 = time.time()

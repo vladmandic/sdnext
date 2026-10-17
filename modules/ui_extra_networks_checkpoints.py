@@ -22,6 +22,7 @@ version_map = {
     "SD-v21": "SD 2.1",
     "StableDiffusion3": "SD 3",
     "StableDiffusionXL": "SD XL",
+    "Ming": "Ming-Image",
     "WanToVideo": "Wan",
     "WanVACE": "Wan",
     "Glm": "GLM-Image",
@@ -34,6 +35,7 @@ version_map = {
     "Flux2KleinKV": "Flux 2 Klein",
     "Flux3": "Flux 3 Klein",
     "Flux3Distilled": "Flux 3 Klein",
+    "Flux-3": "Flux 3 Klein",
     "MiniMaxH3": "MiniMax H3",
     "MiniMax_H3": "MiniMax H3",
     "ZImageTurbo": "Z-Image",
@@ -176,6 +178,11 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
                 if key.lower() in record['name'].lower():
                     version = version_map[key]
                     break
+        if shared.cmd_opts.test:
+            if version:
+                log.debug(f'Local model: name="{checkpoint.name}" version="{version}"')
+            else:
+                log.warning(f'Local model: name="{checkpoint.name}" version="{version}"')
         return version
 
     def create_item(self, name):
