@@ -321,7 +321,15 @@
     "path": "OzzyGT/Qwen_Image_2_1_Turbo_sdnq_dynamic_4bit",
     "preview": "Qwen--Qwen-Image-2.1-Turbo.jpg",
     "desc": "Quantization of Qwen-Image-2.1-Turbo using SDNQ: dynamic 4-bit uint.",
-    "size": 30.86,
+    "size": 10.72,
+    "date": "2026 October"
+  },
+  "inclusionAI Ming-Image-0.1-Design sdnq-uint4": {
+    "path": "SD-Next/Ming-Image-0.1-sdnq-uint4",
+    "preview": "OzzyGT--ming_image_0_1_design_diffusers.jpg",
+    "desc": "Quantization of inclusionAI Ming-Image-0.1-Design using SDNQ: dynamic/hadamard 4-bit uint.",
+    "extras": "sampler: Default, steps: 12, width: 2048, height: 2048",
+    "size": 13.56,
     "date": "2026 October"
   }
 }

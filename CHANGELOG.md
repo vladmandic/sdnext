@@ -15,7 +15,7 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
 ### Details for 2026-10-17
 
 - **Models**  
-  - [Ming-Image Design 0.1](https://huggingface.co/OzzyGT/ming_image_0_1_design_diffusers)  
+  - [inclusionAI Ming-Image Design 0.1](https://huggingface.co/OzzyGT/ming_image_0_1_design_diffusers) in *base* and *sdnq-uint4* variants  
     Ming-Image is as a 6B-parameter flow-matching transformer with 16B-parameter custom text encoder  
     workflows: t2i model for general use, optimized for ui, infographic and poster design  
     *note*: prompt using natural language, tag sequences or JSON layouts  

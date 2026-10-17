@@ -38,7 +38,7 @@ def is_modular(obj) -> bool:
     return 'Modular' in cls.__name__
 
 
-def preload_components(pipe, workflow: str | None, load_config: dict | None = None, loaded: dict | None = None) -> dict:
+def preload_components(pipe, workflow: str | None, load_config: dict | None = None, loaded: dict | None = None, trust_remote_code: bool = True) -> dict:
     """Load the denoiser and text encoder through the shared loaders rather than the pipeline's own.
 
     `load_components` fetches every component into the pipeline's cache directory with no
@@ -69,13 +69,17 @@ def preload_components(pipe, workflow: str | None, load_config: dict | None = No
         subfolder = getattr(spec, 'subfolder', None) or name
         component = None
         if origin.startswith('diffusers') and ('Transformer' in cls_name or 'UNet' in cls_name):
-            component = generic.load_transformer(repo, cls_name=cls, load_config=load_config, subfolder=subfolder, trust_remote_code=True)
+            component = generic.load_transformer(repo, cls_name=cls, load_config=load_config, subfolder=subfolder, trust_remote_code=trust_remote_code)
+        elif origin.startswith('pipelines.ming') and ('transformer' in name):
+            component = generic.load_transformer(repo, cls_name=cls, load_config=load_config, subfolder=subfolder, trust_remote_code=trust_remote_code)
         elif origin.startswith('transformers') and ('text_encoder' in name):
             # shared substitution is on: the map matches class plus a substring of the repo name, so its entries have to run narrow before broad
             component = generic.load_text_encoder(repo, cls_name=cls, load_config=load_config, subfolder=subfolder)
+        elif origin.startswith('pipelines.ming') and ('text_encoder' in name):
+            component = generic.load_text_encoder(repo, cls_name=cls, load_config=load_config, subfolder=subfolder, trust_remote_code=trust_remote_code, allow_shared=False)
         if ('transformer' in name) and (component is None):
             # fallback for component with remote-code as it does not have resolvable cls
-            component = generic.load_transformer(repo, cls_name=None, load_config=load_config, subfolder=subfolder, trust_remote_code=True)
+            component = generic.load_transformer(repo, cls_name=None, load_config=load_config, subfolder=subfolder, trust_remote_code=trust_remote_code)
         if component is not None:
             loaded[name] = component
     return loaded
@@ -107,6 +111,8 @@ def load_modular_pipe(repo_cls,
                       load_config: dict | None = None,
                       loaded: dict | None = None,
                       blocks=None,
+                      trust_remote_code: bool = True,
+                      load_repo_config: bool = True,
                      ):
     if repo_cls is None or isinstance(repo_cls, str):
         log.error(f'Load modular: repo="{repo}" cls="{repo_cls}" pipeline class not found: diffusers too old')
@@ -117,11 +123,13 @@ def load_modular_pipe(repo_cls,
         t0 = time.time()
         log.debug(f'Load modular: repo="{repo}" cls={repo_cls.__name__} blocks={blocks.__class__.__name__ if blocks is not None else None} workflow={workflow} base={base}')
         if blocks is not None: # a caller-chosen blocks tree, for a checkpoint whose transformer wants a different tree than the repo index names
+            config_args = {} if load_repo_config else {'modular_config_dict': {}}
             pipe = repo_cls(
                 blocks=blocks,
                 pretrained_model_name_or_path=repo,
                 revision=revision,
                 cache_dir=cache_dir,
+                **config_args,
                 **offline_args,
             )
         else:
@@ -132,7 +140,7 @@ def load_modular_pipe(repo_cls,
                 **offline_args,
             )
         # the workflow restricts the component fetch only: passing it to from_pretrained instead would prune the blocks tree to one task and disable runtime dispatch between them
-        preloaded = preload_components(pipe, workflow, load_config=load_config, loaded=loaded)
+        preloaded = preload_components(pipe, workflow, load_config=load_config, loaded=loaded, trust_remote_code=trust_remote_code)
         if preloaded:
             pipe.update_components(**preloaded) # registered before the rest, which load_components then skips
             log.debug(f'Load modular: cls={pipe.__class__.__name__} preloaded={list(preloaded)}')
@@ -140,7 +148,7 @@ def load_modular_pipe(repo_cls,
             workflow=workflow,
             dtype=devices.dtype,
             cache_dir=cache_dir,
-            trust_remote_code=True,
+            trust_remote_code=trust_remote_code,
             **offline_args,
         )
         loaded = [name for name, component in pipe.components.items() if component is not None]

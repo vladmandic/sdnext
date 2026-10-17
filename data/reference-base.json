@@ -1022,7 +1022,7 @@
     "size": 22.47,
     "date": "2026 September"
   },
-  "OzzyGT Ming-Image-0.1-Design": {
+  "inclusionAI Ming-Image-0.1-Design": {
     "path": "OzzyGT/ming_image_0_1_design_diffusers",
     "preview": "OzzyGT--ming_image_0_1_design_diffusers.jpg",
     "desc": "Ming-Image-0.1-Design is a text-to-image model for UI, infographic and poster design, using a custom Ming text encoder and connector with a flow-matching transformer and an RGBA VAE for transparent output.",
