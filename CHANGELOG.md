@@ -1,18 +1,18 @@
 # Change Log for SD.Next
 
-## Update for 2026-10-17
+## Update for 2026-10-18
 
-### Highlights for 2026-10-17
+### Highlights for 2026-10-18
 
 Leading with major new features: native **Task Scheduler** and **Queue Management**, improved handling and usability of **Edit Models**, improved **UI Performance**, and enhanced in-depth **Benchmarking** capabilities  
-Plus adding few new models: *BFL Flux.3 Klein*, *Qwen-Image 2.1 Turbo*, *Ming-Image Design 0.1*, *Google Nano-Banana 2.1*  
+Plus adding few new models: *BFL Flux.3 Klein*, *Ming-Image Design 0.1*, *MOSS-Image*, *Qwen-Image 2.1 Turbo*, *Google Nano-Banana 2.1*  
 And quite a lot of other smaller improvements and bug fixes  
 
 See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) below for full details
 
 [Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-10-17
+### Details for 2026-10-18
 
 - **Models**  
   - [inclusionAI Ming-Image Design 0.1](https://huggingface.co/OzzyGT/ming_image_0_1_design_diffusers) in *base* and *sdnq-uint4* variants  
@@ -23,7 +23,7 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
     MOSS-Image is a 5B parameter single-stream DiT with the Qwen3.5-9B text encoder  
     workflows: t2i  
     *note*: prompt using natural language, tag sequences or JSON layouts  
-  - [Black Forest Labs FLUX.3 Klein](https://huggingface.co/black-forest-labs/flux-3-image-klein-base) in *base* and *turbo* variants
+  - [Black Forest Labs FLUX.3 Klein](https://huggingface.co/black-forest-labs/flux-3-image-klein-base) in *base*, *turbo* and *sdnq-uint4*variants  
     Flux.3 is a 5.6B parameter flow-matching transformer with Qwen3-VL-4B text-encoder with  
     workflows: t2i and image editing  
   - [Qwen Image 2.1 Turbo](https://huggingface.co/Qwen/Qwen-Image-2.1-Turbo) in *base* and *sdnq-uint4* variants  
@@ -72,6 +72,7 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
   - enso: disable if not specified in startup
   - framepack: a run after an interrupted job no longer ends at once without output
   - gallery: correctly name custom folders
+  - inpaint: do not skip preprocessing when mask is not empty
   - infotext: a value starting with a double quote no longer swallows the next parameter
   - infotext: parse error on values with superscript or circled digits
   - infotext: parser stall on long runs of words or spaces without a colon
@@ -84,6 +85,7 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
   - networks: improve model title and type detection
   - offload: balanced offload warns when a module exceeds the gpu limit and part of it runs from cpu
   - offload: group offload logs a denied pin once per component
+  - preview: race condition when handing over final vs last preview image
   - rocm: arch detection with newer windows drivers, thanks @crashingalexsan
   - rocm: disable HSA_XNACK on unsupported architectures, thanks @resonantsky
   - samplers: update ui when sampler settings change, thanks @resonantsky

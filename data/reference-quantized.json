@@ -331,5 +331,13 @@
     "extras": "sampler: Default, steps: 12, width: 2048, height: 2048",
     "size": 13.56,
     "date": "2026 October"
+  },
+  "Black Forest Labs FLUX.3 Klein Turbo sdnq-uint4": {
+    "path": "OzzyGT/Flux_3_Image_Klein_sdnq_dynamic_4bit",
+    "preview": "SD-Next--flux-3-image-klein-base.jpg",
+    "desc": "Quantization of Black Forest Labs FLUX.3 Klein Turbo using SDNQ: dynamic 4-bit uint",
+    "extras": "sampler: Default, cfg_scale: 3.5, steps: 50",
+    "size": 20.34,
+    "date": "2026 October"
   }
 }

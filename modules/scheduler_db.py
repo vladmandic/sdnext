@@ -183,7 +183,7 @@ def initialize(db_path=None):
                         _initialize_db(connection)
                     break
                 except sqlite3.OperationalError as exc:
-                    log.warning(f'Scheduler: attempt={attempt} {str(exc)}')
+                    log.warning(f'Scheduler: attempt={attempt} path="{path}" {str(exc)}')
                     if 'locked' not in str(exc).lower() or attempt == 9:
                         raise
                     time.sleep(0.1)

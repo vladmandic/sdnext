@@ -761,12 +761,9 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                         continue
                     index += 1
 
-                    if getattr(pipe, 'skip_processing', False) or getattr(p, 'skip_processing', False):
+                    if (getattr(pipe, 'skip_processing', False) or getattr(p, 'skip_processing', False)) and mask is None:
                         p.init_images = inputs
                         p.extra_generation_params['Process'] = False
-                        if mask is not None: # the mask is applied by preprocessing only
-                            log.warning('Control: process=skip mask=ignored')
-                            p.extra_generation_params['Mask'] = 'ignored'
                     else:
                         processed_image, blended_image = preprocess_image(p,
                                                                           pipe,

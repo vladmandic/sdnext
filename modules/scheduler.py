@@ -781,7 +781,7 @@ def delete_task(task_id):
 
 def prune_tasks(before):
     count = scheduler_db.prune_tasks(before)
-    log.info(f'Scheduler prune: count={count} before={before}')
+    log.info(f'Scheduler prune: count={count} before="{before}"')
     return count
 
 
@@ -795,12 +795,12 @@ def pause_task(task_id):
 def resume_task(task_id, scheduled_at=None):
     resumed = scheduler_db.resume_task(task_id, scheduled_at=scheduled_at)
     if resumed:
-        log.info(f'Scheduler resume: id={task_id} scheduled_at={scheduled_at}')
+        log.info(f'Scheduler resume: id={task_id} scheduled_at="{scheduled_at}"')
     return resumed
 
 
 def reschedule_task(task_id, scheduled_at):
     rescheduled = scheduler_db.reschedule_task(task_id, scheduled_at)
     if rescheduled:
-        log.info(f'Scheduler reschedule: id={task_id} scheduled_at={scheduled_at}')
+        log.info(f'Scheduler reschedule: id={task_id} scheduled_at="{scheduled_at}"')
     return rescheduled

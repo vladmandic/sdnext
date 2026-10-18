@@ -11172,6 +11172,7 @@ function requestProgress(id_task = "undefined", progressEl = null, galleryEl = n
   let dateStart = Date.now();
   let prevProgress = null;
   const parentGallery = galleryEl ? galleryEl.parentNode : null;
+  const initialGalleryImages = Array.from(galleryEl?.querySelectorAll("img") || []).map((image) => image.src);
   let livePreview;
   let img;
   const initLivePreview = () => {
@@ -11210,9 +11211,10 @@ function requestProgress(id_task = "undefined", progressEl = null, galleryEl = n
     try {
       if (parentGallery && livePreview) {
         if (useImage) {
-          const previewImg = gradioApp().querySelector("#livePreviewImage");
-          const galleryImg = galleryEl.querySelector("img");
-          if (previewImg?.src && galleryImg) galleryImg.src = previewImg.src;
+          const galleryImages = Array.from(galleryEl?.querySelectorAll("img") || []);
+          const galleryUnchanged = galleryImages.length === initialGalleryImages.length && galleryImages.every((image, index) => image.src === initialGalleryImages[index]);
+          const galleryImg = galleryImages[0];
+          if (galleryUnchanged && img?.src && galleryImg) galleryImg.src = img.src;
         }
         parentGallery.removeChild(livePreview);
       }
@@ -11245,12 +11247,12 @@ function requestProgress(id_task = "undefined", progressEl = null, galleryEl = n
     }
     if (elapsedFromStart > progressTimeout && !res.queued && res.progress === prevProgress) {
       debug("progress", { end: res, reason: "progressTimeout" });
-      if (!res.paused) removeLivePreview(false);
+      if (!res.paused) removeLivePreview();
       return;
     }
     if (elapsedFromStart > startTimeout && !res.queued && !res.active) {
       debug("progress", { end: res, reason: "startTimeout" });
-      if (!res.paused) removeLivePreview(false);
+      if (!res.paused) removeLivePreview();
       return;
     }
     if (res.progress !== prevProgress) {
@@ -11271,7 +11273,7 @@ function requestProgress(id_task = "undefined", progressEl = null, galleryEl = n
   };
   const onProgressErrorHandler = (err) => {
     error("progress", { error: err });
-    removeLivePreview(false);
+    removeLivePreview();
   };
   const startLivePreview = (taskId, id_live_preview) => {
     const hidden = document.hidden || !previewVisible();
