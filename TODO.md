@@ -1,12 +1,8 @@
 # TODO
 
-## Short-term
-
-- Video: unify execution path for ui and api
-
 ## Issues
 
-- [Inpaint](https://discord.com/channels/1101998836328697867/1130536562422186044/1506850651035144322), @vladmandic
+None
 
 ## Features
 
@@ -16,6 +12,7 @@
 - Integrate natural language image search: [ImageDB](https://github.com/vladmandic/imagedb), @vladmandic
 - Support cloud providers, @CalamitousFelicitousness
 - Automated testing and integrate models repo, @CalamitousFelicitousness
+- Video: unify execution path for ui and api
 - Video: support finetunes
 - Video: use Networks/Reference instead of custom, @vladmandic
 - Video: implement LTX2DFRPipeline
@@ -42,9 +39,9 @@
 
 ## New models / Pipelines
 
-TODO: Investigate which models are diffusers-compatible and prioritize!
-
 ### Image
+
+None
 
 ### Video
 
