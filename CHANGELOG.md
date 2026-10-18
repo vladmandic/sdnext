@@ -6,6 +6,7 @@
   - lora: bias deltas no longer refused when the model is quantized or native fuse is off
   - mageflow: load single-file transformers, including low-rank modulation checkpoints (MageTrail 0.3+)
   - offload: group offload keeps text encoder layers whole, so qwen3.5 encoders run with causal-conv1d installed
+  - offload: group offload recognizes vae encode and decode entry points with current diffusers, so vaes load on demand instead of staying on gpu
 
 ## Update for 2026-10-18
 

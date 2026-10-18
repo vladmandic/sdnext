@@ -1,5 +1,6 @@
 import time
 import types
+import functools
 import itertools
 import torch
 import accelerate.hooks
@@ -237,12 +238,19 @@ def group_offload_role(module_name: str, module) -> str:
     return 'aux'
 
 
+@functools.cache
+def entry_bridge_code():
+    """Code object every apply_forward_hook wrapper shares; functools.wraps copies the method's name onto the wrapper, never its code."""
+    from diffusers.utils.accelerate_utils import apply_forward_hook
+    return apply_forward_hook(lambda self: None).__code__
+
+
 def has_entry_bridge(module) -> bool:
     """Entry points decorated with diffusers' apply_forward_hook fire _hf_hook.pre_forward,
     which is what carries the on-demand onload for encode and decode calls that bypass forward."""
     for name in ('decode', 'encode', 'orig_decode', 'orig_encode'): # sd_hijack_vae keeps the decorated entry points under orig_
         fn = getattr(module, name, None)
-        if fn is not None and getattr(fn, '__qualname__', '').startswith('apply_forward_hook'):
+        if fn is not None and getattr(fn, '__code__', None) is entry_bridge_code():
             return True
     return False
 
