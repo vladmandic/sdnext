@@ -82,6 +82,44 @@ def keep_loaded_tensors(module) -> int:
     return count
 
 
+def no_split_units(module: torch.nn.Module) -> list[tuple[str, torch.nn.Module]]:
+    """Outermost submodules whose class the model lists in transformers `_no_split_modules`."""
+    classes = set()
+    for sub in module.modules():
+        classes.update(getattr(sub, '_no_split_modules', None) or [])
+    units = []
+    for name, sub in module.named_modules():
+        if name and type(sub).__name__ in classes and not any(name.startswith(f'{outer}.') for outer, _unit in units):
+            units.append((name, sub))
+    return units
+
+
+def group_no_split_units(module: torch.nn.Module) -> int:
+    """Leaf groups split the units a transformers model declares no-split, and unit code may read a child's weight
+    without calling the child. Regroup each unit to onload whole on its own forward; leaves outside the units keep
+    their groups. Returns the number of units regrouped."""
+    from diffusers.hooks.group_offloading import _GROUP_OFFLOADING, _LAYER_EXECUTION_TRACKER, _LAZY_PREFETCH_GROUP_OFFLOADING, GroupOffloadingHook, LazyPrefetchGroupOffloadingHook, ModuleGroup
+    from diffusers.hooks.hooks import HookRegistry
+    count = 0
+    for name, unit in no_split_units(module):
+        hooks = [sub._diffusers_hook.get_hook(_GROUP_OFFLOADING) for sub in unit.modules() if getattr(sub, '_diffusers_hook', None) is not None] # pylint: disable=protected-access
+        config = next((hook.config for hook in hooks if hook is not None), None)
+        if config is None:
+            continue
+        registry = HookRegistry.check_if_exists_or_initialize(unit)
+        registry.remove_hook(_GROUP_OFFLOADING, recurse=True)
+        group = ModuleGroup(modules=[unit], offload_device=config.offload_device, onload_device=config.onload_device, offload_leader=unit, onload_leader=unit,
+                            non_blocking=config.non_blocking, stream=config.stream, record_stream=config.record_stream, low_cpu_mem_usage=config.low_cpu_mem_usage, group_id=name)
+        registry.register_hook(GroupOffloadingHook(group, config=config), _GROUP_OFFLOADING)
+        count += 1
+    root = HookRegistry.check_if_exists_or_initialize(module)
+    if count and root.get_hook(_LAZY_PREFETCH_GROUP_OFFLOADING) is not None: # the stream prefetch tracer registered on the leaf groups at apply time
+        root.remove_hook(_LAZY_PREFETCH_GROUP_OFFLOADING, recurse=False)
+        root.remove_hook(_LAYER_EXECUTION_TRACKER, recurse=True)
+        root.register_hook(LazyPrefetchGroupOffloadingHook(), _LAZY_PREFETCH_GROUP_OFFLOADING)
+    return count
+
+
 def remove_group_offload_component(module) -> bool:
     if getattr(module, 'sdnext_group_offload_sig', None) is None:
         module = getattr(module, 'model', None) # wrapper components carry the hooks on the inner model
@@ -120,6 +158,7 @@ def apply_group_offload_component(module, module_name: str, main: bool) -> bool:
     """Apply group offload to one component. Re-application with unchanged settings is a no-op:
     the hooks silently keep their original config when re-applied and raise before the first
     forward, so a changed config must remove the old hooks first."""
+    import transformers
     from diffusers.hooks import apply_group_offloading
     cfg = group_offload_config(main)
     if cfg['use_stream'] and not cfg['low_cpu_mem_usage']:
@@ -158,6 +197,8 @@ def apply_group_offload_component(module, module_name: str, main: bool) -> bool:
     s.debug_move(f'Offload: type=group op=apply type={shared.opts.group_offload_type} module={module_name} pin={cfg["use_stream"] and not cfg["low_cpu_mem_usage"]}') # before the apply: pinning large components takes a while and would otherwise run silently
     module.sdnext_group_offload_sig = 'partial' # a raise below leaves hooks that only a non-empty signature will remove
     apply_group_offloading(module, onload_device=devices.device, offload_device=devices.cpu, **cfg)
+    if cfg['offload_type'] == 'leaf_level' and isinstance(module, transformers.PreTrainedModel):
+        s.debug_move(f'Offload: type=group op=units module={module_name} units={group_no_split_units(module)}')
     if not cfg['use_stream']:
         s.debug_move(f'Offload: type=group op=keep module={module_name} groups={keep_loaded_tensors(module)}')
     module.sdnext_group_offload_sig = sig
