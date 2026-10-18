@@ -195,7 +195,7 @@ def apply_group_offload_component(module, module_name: str, main: bool) -> bool:
     module.sdnext_ondemand = False # group placement replaces any on-demand hook
     remove_group_offload_component(module)
     module.requires_grad_(False)
-    s.debug_move(f'Offload: type=group op=apply type={shared.opts.group_offload_type} module={module_name} pin={cfg["use_stream"] and not cfg["low_cpu_mem_usage"]}') # before the apply: pinning large components takes a while and would otherwise run silently
+    s.debug_move(f'Offload: type=group op=apply type={cfg["offload_type"]} module={module_name} pin={cfg["use_stream"] and not cfg["low_cpu_mem_usage"]}') # before the apply: pinning large components takes a while and would otherwise run silently
     module.sdnext_group_offload_sig = 'partial' # a raise below leaves hooks that only a non-empty signature will remove
     apply_group_offloading(module, onload_device=devices.device, offload_device=devices.cpu, **cfg)
     if cfg['offload_type'] == 'leaf_level' and isinstance(module, transformers.PreTrainedModel):
