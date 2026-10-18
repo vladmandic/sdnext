@@ -1,6 +1,7 @@
 import io
 import os
 import base64
+from functools import lru_cache
 from pathlib import Path
 from urllib.parse import unquote
 from PIL import Image, PngImagePlugin
@@ -193,15 +194,20 @@ def sanitize_filename(filename):
     return fn
 
 
+@lru_cache(maxsize=16)
+def allowed_folders(folders: tuple[str, ...]) -> tuple[Path, ...]:
+    return tuple({Path(folder).absolute() for folder in folders} | {Path(folder).resolve() for folder in folders}) # resolved forms match files reached through symlinks
+
+
 def validate_path(fn: str, allowed_dirs: list[str] | None = None, allowed_folder: bool = False, allowed_file: bool = False):
     if shared.demo is None:
         raise HTTPException(status_code=503, detail="server not ready")
     if not fn.strip():
         raise HTTPException(status_code=400, detail="file path is required")
 
-    allowed = [Path(folder).absolute() for folder in shared.demo.allowed_paths]
+    allowed = allowed_folders(tuple(shared.demo.allowed_paths))
     if allowed_dirs is not None:
-        allowed.extend([Path(folder).absolute() for folder in allowed_dirs])
+        allowed += allowed_folders(tuple(allowed_dirs))
     decoded = unquote(fn).replace('%3A', ':')
     sanitized = sanitize_filename(decoded)
     resolved = Path(sanitized).resolve()

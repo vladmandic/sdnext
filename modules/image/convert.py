@@ -23,7 +23,7 @@ def to_tensor(image: Image.Image | np.ndarray):
     return tensor.to(torch.float32)
 
 
-def to_pil(tensor: torch.Tensor | np.ndarray):
+def to_pil(tensor: torch.Tensor | np.ndarray, quiet=False):
     """Float CHW/HWC or BCHW/BHWC tensor [0,1] -> PIL Image. Pure torch, no torchvision."""
     if isinstance(tensor, torch.Tensor):
         tensor = tensor.detach().cpu()
@@ -54,11 +54,12 @@ def to_pil(tensor: torch.Tensor | np.ndarray):
     except Exception as e:
         image = Image.new('RGB', (tensor.shape[-1], tensor.shape[-2]), color=(152, 32, 48))
         fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
-        log.error(f'Convert: source={type(tensor)} target={image} fn={fn} {e}')
+        if not quiet:
+            log.error(f'Convert: source={type(tensor)} target={image} fn={fn} {e}')
     return image
 
 
-def to_pil_batch(tensor: torch.Tensor | np.ndarray):
+def to_pil_batch(tensor: torch.Tensor | np.ndarray, quiet=False):
     """Float CHW/HWC or BCHW/BHWC tensor [0,1] -> PIL Image. Stacks batch horizontally. Pure torch, no torchvision."""
     if isinstance(tensor, torch.Tensor):
         tensor = tensor.detach().cpu()
@@ -89,7 +90,8 @@ def to_pil_batch(tensor: torch.Tensor | np.ndarray):
     except Exception as e:
         image = Image.new('RGB', (tensor.shape[-1], tensor.shape[-2]), color=(152, 32, 48))
         fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
-        log.error(f'Convert: source={type(tensor)} target={image} fn={fn} {e}')
+        if not quiet:
+            log.error(f'Convert: source={type(tensor)} target={image} fn={fn} {e}')
     return image
 
 

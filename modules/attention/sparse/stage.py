@@ -61,13 +61,17 @@ def match_exclusion(model_key, arch, exclude: tuple) -> str:
 
 
 def resolve_layout(seq: int, reported: set) -> layout_mod.TokenLayout:
-    """The published layout when there is one, otherwise sparsify the whole sequence and say so once."""
-    published = context.current.layout
-    if isinstance(published, layout_mod.TokenLayout) and published.length == seq:
-        return published
+    """The layout published at this length when there is one, otherwise sparsify the whole sequence; either is said once per shape."""
+    published = context.current.layouts
+    hit = published.get(seq)
+    if isinstance(hit, layout_mod.TokenLayout):
+        if hit.key() not in reported:
+            reported.add(hit.key())
+            log.info(f'Sparse attention: token layout source={hit.source} tokens={seq} spans={hit.describe()}')
+        return hit
     if seq not in reported:
         reported.add(seq)
-        detail = 'none published' if published is None else f'published length {getattr(published, "length", None)} does not match {seq}'
+        detail = 'none published' if not published else f'published lengths {sorted(published)} do not include {seq}'
         log.info(f'Sparse attention: no token layout ({detail}), sparsifying the whole sequence at tokens={seq}')
     return layout_mod.layout_from_prefix(seq, 0)
 

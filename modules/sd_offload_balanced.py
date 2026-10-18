@@ -103,6 +103,11 @@ class OffloadHook(accelerate.hooks.ModelHook):
                                                               verbose=s.verbose,
                                                               clean_result=False,
                                                              )
+                spilled = [key for key, device in device_map.items() if device in ('cpu', 'disk')]
+                if len(spilled) > 0:
+                    sizes = accelerate.utils.modeling.compute_module_sizes(module)
+                    spilled_size = sum(sizes.get(key, 0) for key in spilled) / 1024**3
+                    log.warning(f'Offload: type=balanced op=dispatch module={getattr(module, "module_name", module.__class__.__name__)} size={sizes[""] / 1024**3:.3f} limit={self.gpu / 1024**3:.3f} cpu={spilled_size:.3f} parts={len(spilled)} exceeds gpu limit')
             offload_dir = getattr(module, "offload_dir", os.path.join(shared.opts.accelerate_offload_path, module.__class__.__name__))
             if s.debug:
                 log.trace(f'Offload: type=balanced op=dispatch map={device_map}')

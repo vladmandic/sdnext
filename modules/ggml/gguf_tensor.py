@@ -36,14 +36,14 @@ def apply_to_quantized_tensor(func, args, kwargs):
         raise ValueError("Operation changed the dtype of GGMLTensor unexpectedly.")
 
     return GGMLTensor(
-        new_data, ggml_tensor._ggml_quantization_type, ggml_tensor.tensor_shape, ggml_tensor.compute_dtype
+        new_data, ggml_tensor._ggml_quantization_type, ggml_tensor.tensor_shape, ggml_tensor.compute_dtype # pylint: disable=protected-access
     )
 
 
 GGML_TENSOR_OP_TABLE = {
     # Ops to run on the quantized tensor.
     torch.ops.aten.detach.default: apply_to_quantized_tensor,  # pyright: ignore
-    torch.ops.aten._to_copy.default: apply_to_quantized_tensor,  # pyright: ignore
+    torch.ops.aten._to_copy.default: apply_to_quantized_tensor,  # pylint: disable=protected-access # pyright: ignore
     # Ops to run on dequantized tensors.
     torch.ops.aten.t.default: dequantize_and_run,  # pyright: ignore
     torch.ops.aten.addmm.default: dequantize_and_run,  # pyright: ignore
@@ -78,7 +78,7 @@ class GGMLTensor(torch.Tensor):
             storage_offset=data.storage_offset(),
         )
 
-    def __init__(
+    def __init__(  # pylint: disable=super-init-not-called
         self,
         data: torch.Tensor,
         ggml_quantization_type: gguf.GGMLQuantizationType,
@@ -140,7 +140,7 @@ class GGMLTensor(torch.Tensor):
             return torch.from_numpy(new).to(self.quantized_data.device, dtype=self.compute_dtype)
 
     @classmethod
-    def __torch_dispatch__(cls, func, types, args, kwargs):
+    def __torch_dispatch__(cls, func, types, args, kwargs): # pylint: disable=unused-argument
         # We will likely hit cases here in the future where a new op is encountered that is not yet supported.
         # The new op simply needs to be added to the GGML_TENSOR_OP_TABLE.
         if func in GGML_TENSOR_OP_TABLE:

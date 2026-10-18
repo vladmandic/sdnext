@@ -195,6 +195,9 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
                 current_noise_pred = current_noise_pred.view(b, h_patches, w_patches, channels, 2, 2)
                 current_noise_pred = current_noise_pred.permute(0, 3, 1, 4, 2, 5).reshape(b, channels, h_patches * 2, w_patches * 2)
             shared.state.current_noise_pred = current_noise_pred
+        elif callable(getattr(pipe, 'unpack_latents', None)) and latents.ndim == 4: # the pipeline maps its own latents into the vae latent space
+            shared.state.current_latent = pipe.unpack_latents(latents)
+            shared.state.current_noise_pred = pipe.unpack_latents(current_noise_pred, offset=False) if current_noise_pred is not None else None
         elif 'Ideogram4' in pipe.__class__.__name__:  # packed normalized [B, seq, 128] -> Flux.2 latent space for TAE FLUX.2
             if latents.ndim == 3:
                 b, seq_len, packed_ch = latents.shape

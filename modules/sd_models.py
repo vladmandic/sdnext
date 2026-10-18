@@ -449,6 +449,10 @@ def load_diffuser_force(detected_model_type: str, checkpoint_info: CheckpointInf
             from pipelines.model_flux2_klein import load_flux2_klein
             sd_model = load_flux2_klein(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
+        elif model_type in ['FLUX3']:
+            from pipelines.model_flux3 import load_flux3
+            sd_model = load_flux3(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
         elif model_type in ['FLEX']:
             from pipelines.model_flex import load_flex
             sd_model = load_flex(checkpoint_info, diffusers_load_config)
@@ -573,10 +577,6 @@ def load_diffuser_force(detected_model_type: str, checkpoint_info: CheckpointInf
             from pipelines.model_kandinsky import load_kandinsky5
             sd_model = load_kandinsky5(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
-        elif model_type in ['NextStep']:
-            from pipelines.model_nextstep import load_nextstep
-            sd_model = load_nextstep(checkpoint_info, diffusers_load_config) # pylint: disable=assignment-from-none
-            allow_post_quant = False
         elif model_type in ['HunyuanImage']:
             from pipelines.model_hyimage import load_hyimage
             sd_model = load_hyimage(checkpoint_info, diffusers_load_config) # pylint: disable=assignment-from-none
@@ -604,6 +604,14 @@ def load_diffuser_force(detected_model_type: str, checkpoint_info: CheckpointInf
         elif model_type in ['ERNIEImage']:
             from pipelines.model_ernie import load_ernie_image
             sd_model = load_ernie_image(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
+        elif model_type in ['MOSSImage']:
+            from pipelines.model_moss import load_moss_image
+            sd_model = load_moss_image(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
+        elif model_type in ['MingImage']:
+            from pipelines.model_ming_image import load_ming_image
+            sd_model = load_ming_image(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
         elif model_type in ['NucleusImage']:
             from pipelines.model_nucleus import load_nucleus
@@ -1156,40 +1164,76 @@ class DiffusersTaskType(Enum):
     MODULAR = 5
 
 
-def get_diffusers_task(pipe: diffusers.DiffusionPipeline) -> DiffusersTaskType:
-    cls = pipe.__class__.__name__
-    if cls in i2i_pipes: # special case
+def get_class_task(cls: type) -> DiffusersTaskType:
+    name = cls.__name__
+    if name in i2i_pipes: # special case
         return DiffusersTaskType.IMAGE_2_IMAGE
-    elif 'ImageToVideo' in cls or cls in ['LTXConditionPipeline', 'StableVideoDiffusionPipeline']: # i2v pipelines
+    elif 'ImageToVideo' in name or name in ['LTXConditionPipeline', 'StableVideoDiffusionPipeline']: # i2v pipelines
         return DiffusersTaskType.IMAGE_2_IMAGE
-    elif 'Instruct' in cls:
+    elif 'Instruct' in name:
         return DiffusersTaskType.INSTRUCT
-    elif 'Modular' in cls:
+    elif 'Modular' in name:
         return DiffusersTaskType.MODULAR
-    elif pipe.__class__ in diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING.values():
+    elif cls in diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING.values():
         return DiffusersTaskType.IMAGE_2_IMAGE
-    elif pipe.__class__ in diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING.values():
+    elif cls in diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING.values():
         return DiffusersTaskType.INPAINTING
     else:
         return DiffusersTaskType.TEXT_2_IMAGE
 
 
-def pipe_serves_task(pipe: diffusers.DiffusionPipeline, task_type: DiffusersTaskType) -> bool:
-    """True when the pipeline class is registered for the task in the diffusers auto-pipeline tables."""
+def get_diffusers_task(pipe: diffusers.DiffusionPipeline) -> DiffusersTaskType:
+    return get_class_task(pipe.__class__)
+
+
+def get_task_mapping(task_type: DiffusersTaskType):
     mappings = {
         DiffusersTaskType.TEXT_2_IMAGE: diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING,
         DiffusersTaskType.IMAGE_2_IMAGE: diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING,
         DiffusersTaskType.INPAINTING: diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING,
     }
-    mapping = mappings.get(task_type)
+    return mappings.get(task_type)
+
+
+def pipe_serves_task(pipe: diffusers.DiffusionPipeline, task_type: DiffusersTaskType) -> bool:
+    """True when the pipeline class is registered for the task in the diffusers auto-pipeline tables."""
+    mapping = get_task_mapping(task_type)
     return mapping is not None and pipe.__class__ in mapping.values()
 
 
+def get_task_class(pipe: diffusers.DiffusionPipeline, task_type: DiffusersTaskType) -> type:
+    """Class set_diffuser_pipe leaves the pipeline in for the task, by its decision order and without switching."""
+    cls = pipe.__class__
+    name = cls.__name__
+    if get_class_task(cls) in (task_type, DiffusersTaskType.MODULAR) or pipe_serves_task(pipe, task_type):
+        return cls
+    if (name in pipe_switch_task_exclude) or ('Video' in name) or ('Onnx' in name):
+        return cls
+    mapping = get_task_mapping(task_type)
+    if mapping is None:
+        return cls
+    if task_type in (DiffusersTaskType.IMAGE_2_IMAGE, DiffusersTaskType.INPAINTING): # set_diffuser_pipe resets these to their parent first
+        name = {'StableDiffusionPAGPipeline': 'StableDiffusionPipeline', 'StableDiffusionXLPAGPipeline': 'StableDiffusionXLPipeline'}.get(name, name)
+    return diffusers.pipelines.auto_pipeline._get_task_class(mapping, name, throw_error_if_not_exist=False) or cls # pylint: disable=protected-access
+
+
 def get_max_condition_images(pipe: diffusers.DiffusionPipeline | None = None) -> int:
-    """Images the pipeline conditions on as one set shared by every prompt; 0 when an image list means one image per sample."""
+    """Condition images the pipeline takes per prompt, 0 when undeclared; any declaration means the request sets the output size."""
     if pipe is None:
         pipe = shared.sd_model
     return int(getattr(pipe, 'max_condition_images', 0) or 0)
+
+
+def takes_condition_set(pipe: diffusers.DiffusionPipeline | None = None) -> bool:
+    """True when an image list is one set of condition images shared by every prompt, not one image per sample."""
+    return get_max_condition_images(pipe) > 1
+
+
+def takes_single_prompt(pipe: diffusers.DiffusionPipeline | None = None) -> bool:
+    """True when the pipeline encodes one prompt per call and batches through num_images_per_prompt."""
+    if pipe is None:
+        pipe = shared.sd_model
+    return bool(getattr(pipe, 'single_prompt', False))
 
 
 def switch_pipe(cls: type[diffusers.DiffusionPipeline] | str, pipeline: diffusers.DiffusionPipeline | None = None, force = False, args: dict | None = None):
@@ -1327,6 +1371,7 @@ def copy_diffuser_options(new_pipe, orig_pipe):
     new_pipe.mask_processor = getattr(orig_pipe, 'mask_processor', None)
     new_pipe.restore_pipeline = getattr(orig_pipe, 'restore_pipeline', None)
     new_pipe.max_condition_images = getattr(orig_pipe, 'max_condition_images', None)
+    new_pipe.single_prompt = getattr(orig_pipe, 'single_prompt', None)
     new_pipe.patch_size = getattr(orig_pipe, 'patch_size', None)
     new_pipe.custom_unpack_latents = getattr(orig_pipe, 'custom_unpack_latents', None)
     # a1111 compatibility item
@@ -1360,6 +1405,7 @@ def backup_pipe_components(pipe):
         'task_args': getattr(pipe, "task_args", None),
         'patch_size': getattr(pipe, "patch_size", None),
         'max_condition_images': getattr(pipe, "max_condition_images", None),
+        'single_prompt': getattr(pipe, "single_prompt", None),
         'hijack_prompt': hasattr(pipe, "orig_encode_prompt"),
         'hijack_vae': hasattr(pipe, "vae") and hasattr(pipe.vae, "orig_decode")
     }
@@ -1391,6 +1437,8 @@ def restore_pipe_components(pipe, components):
         pipe.patch_size = components['patch_size']
     if components['max_condition_images'] is not None:
         pipe.max_condition_images = components['max_condition_images']
+    if components['single_prompt'] is not None:
+        pipe.single_prompt = components['single_prompt']
     if components['hijack_prompt']:
         sd_hijack_te.init_hijack(pipe)
     if components['hijack_vae']:

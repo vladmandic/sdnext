@@ -23,6 +23,7 @@ declare global {
     // state objects
     api: string; // ui/startup.ts
     subpath: string; // ui/startup.ts
+    serverOnline: boolean; // ui/monitor.ts
     initStartup?: () => void; // ui/startup.ts
     opts: Record<string, any>; // ui/ui.ts
     localization?: Record<string, any>; // ui/ui.ts
@@ -36,6 +37,7 @@ declare global {
     updateInput?: (target: EventTarget) => void; // ui/ui.ts
     notifyKanvasResize?: (width: number, height: number) => void; // ui/ui.ts
     cycleImageFit?: () => void; // ui/imageViewer.ts
+    galleryClickEventHandler?: (event: MouseEvent) => void; // ui/imageViewer.ts
     clip_gallery_urls?: (gallery: { data: string }[]) => void; // ui/ui.ts
     extract_image_from_gallery?: (gallery: { data?: string }[]) => ({ data?: string } | null)[]; // ui/ui.ts
     extensions_apply?: (_extensionsDisabledList: unknown, _extensionsUpdateList: unknown, disableAll: unknown) => [string, string, unknown]; // ui/extensions.ts
@@ -54,6 +56,7 @@ declare global {
     send_to_kanvas?: (gallery: { data?: string }[]) => void; // ui/ui.ts
     submit?: (...args: unknown[]) => unknown[]; // ui/ui.ts
     submit_control?: (...args: unknown[]) => unknown[]; // ui/ui.ts
+    submit_scheduler?: (...args: unknown[]) => unknown[]; // ui/ui.ts
     submit_framepack?: (...args: unknown[]) => unknown[]; // ui/ui.ts
     submit_img2img?: (...args: unknown[]) => unknown[]; // ui/ui.ts
     submit_ltx?: (...args: unknown[]) => unknown[]; // ui/ui.ts
@@ -61,6 +64,7 @@ declare global {
     submit_postprocessing?: (...args: unknown[]) => unknown[]; // ui/ui.ts
     submit_txt2img?: (...args: unknown[]) => unknown[]; // ui/ui.ts
     submit_video?: (...args: unknown[]) => unknown[]; // ui/ui.ts
+    submit_video_schedule_wrapper?: (...args: unknown[]) => void; // ui/ui.ts
     submit_video_wrapper?: (...args: unknown[]) => void; // ui/ui.ts
     currentImageResolutionimg2img?: (...args: unknown[]) => unknown[]; // ui/ui.ts
     currentImageResolutioncontrol?: (...args: unknown[]) => unknown[]; // ui/ui.ts
@@ -78,6 +82,7 @@ declare global {
     recalculate_prompts_img2img?: (...args: unknown[]) => unknown[]; // ui/ui.ts
     recalculate_prompts_inpaint?: (...args: unknown[]) => unknown[]; // ui/ui.ts
     recalculate_prompts_control?: (...args: unknown[]) => unknown[]; // ui/ui.ts
+    recalculate_prompts_video?: (...args: unknown[]) => unknown[]; // ui/ui.ts
     consumeDesiredCheckpointName?: (...args: unknown[]) => unknown[]; // ui/ui.ts
     create_submit_args?: (args: unknown[]) => unknown[]; // ui/ui.ts
     selectCheckpoint?: (name: string) => void; // ui/ui.ts

@@ -35,6 +35,7 @@ export class ConnectionMonitorState {
   }
 
   static setData({ online, data }: { online: boolean; data: VersionInfo }) {
+    window.serverOnline = online;
     if (online !== this.online) {
       this.online = online;
       this.ts = new Date();

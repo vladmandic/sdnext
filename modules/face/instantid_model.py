@@ -26,7 +26,7 @@ import torch.nn as nn
 from diffusers import StableDiffusionXLControlNetPipeline
 from diffusers.image_processor import PipelineImageInput
 from diffusers.models import ControlNetModel
-from diffusers.pipelines.controlnet.multicontrolnet import MultiControlNetModel
+from diffusers.models.controlnets.multicontrolnet import MultiControlNetModel
 from diffusers.pipelines.stable_diffusion_xl.pipeline_output import StableDiffusionXLPipelineOutput
 from diffusers.utils import (
     deprecate,

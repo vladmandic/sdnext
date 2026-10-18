@@ -1,5 +1,103 @@
 # Change Log for SD.Next
 
+## Update for 2026-10-18
+
+### Highlights for 2026-10-18
+
+Leading with major new features: native **Task Scheduler** and **Queue Management**, improved handling and usability of **Edit Models**, improved **UI Performance**, and enhanced in-depth **Benchmarking** capabilities  
+Plus adding few new models: *BFL Flux.3 Klein*, *Ming-Image Design 0.1*, *MOSS-Image*, *Qwen-Image 2.1 Turbo*, *Google Nano-Banana 2.1*  
+And quite a lot of other smaller improvements and bug fixes  
+
+See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) below for full details
+
+[Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
+
+### Details for 2026-10-18
+
+- **Models**  
+  - [inclusionAI Ming-Image Design 0.1](https://huggingface.co/OzzyGT/ming_image_0_1_design_diffusers) in *base* and *sdnq-uint4* variants  
+    Ming-Image is as a 6B-parameter flow-matching transformer with 16B-parameter custom text encoder  
+    workflows: t2i model for general use, optimized for ui, infographic and poster design  
+    *note*: prompt using natural language, tag sequences or JSON layouts  
+  - [OpenMOSS MOSS-Image](https://huggingface.co/OpenMOSS-Team/MOSS-Image-Base) in *base* and *sft* (fine-tuned) variants  
+    MOSS-Image is a 5B parameter single-stream DiT with the Qwen3.5-9B text encoder  
+    workflows: t2i  
+    *note*: prompt using natural language, tag sequences or JSON layouts  
+  - [Black Forest Labs FLUX.3 Klein](https://huggingface.co/black-forest-labs/flux-3-image-klein-base) in *base*, *turbo* and *sdnq-uint4*variants  
+    Flux.3 is a 5.6B parameter flow-matching transformer with Qwen3-VL-4B text-encoder with  
+    workflows: t2i and image editing  
+  - [Qwen Image 2.1 Turbo](https://huggingface.co/Qwen/Qwen-Image-2.1-Turbo) in *base* and *sdnq-uint4* variants  
+  - [Google Nano Banana 2.1](https://deepmind.google/models/model-cards/nano-banana-2-1) *cloud* model  
+- **Scheduler**  
+  new native *Task Scheduler* and *Queue Management*  
+  add any image or video task to the scheduler and execute it in q queue or at a specific time  
+  see [scheduler documentation](https://vladmandic.github.io/sdnext-docs/Scheduler/) for details  
+- **Edit Models**  
+  *edit* models work differently than more traditional *i2i/inpaint* models as they use indirect reference image(s)  
+  **hires** and **detailer** now set condition-image on edit models thus unlocking advanced workflows  
+  supported models: *Qwen-Image 2.1, Qwen-Image-Edit and Edit Plus, FLUX.2, FLUX.1 Kontext, GLM-Image, JoyImage Edit Plus*  
+- **Benchmark**  
+  in-depth benchmarking of quantization and attention parameters  
+  provides clear recommendations based on benchmark results  
+  available via UI: *System -> Benchmark* or CLI: `cli/sdnq-attention-benchmark.py`  
+  *note*: depending on benchmark settings/depth, it may take a very long time to complete  
+- **UI**  
+  massive performance improvements to load times and responsiveness  
+  - parallel template loading
+  - html custom hash for improved caching and performance
+  - js split bundle
+- **MicroDecoder**
+  - [microdecoder](https://huggingface.co/SD-Next/MicroDecoder) is now *default* for live previews
+  - additional trained model type families
+  - extended mapping of base model types to microdecoder family
+  - allow training of custom vae classes
+- **Internal**
+  - switch hosted models from private repo to <https://huggingface.co/SD-Next>
+  - update `sdnq=0.29.0`
+  - sparse attention updates
+- **Fixes**
+  - anima: load repos in the diffusers modular layout
+  - api: `--cors-origins` entries separated by a comma and a space
+  - api: auth check for users with a non-ascii password
+  - api: error log omits the request query
+  - api: errors logged on regular endpoints, not on quiet ones
+  - api: folders allowed for one file request no longer stay allowed for later requests
+  - api: rate limit and log costs match the exact path or the route template, not other routes' prefixes
+  - api: register `/sdapi/v1/framepack` with video upscale options
+  - color correction: histogram method returns rgb instead of rgba
+  - color correction: keep transparency of rgba outputs, wavelet and adain no longer fail on them
+  - color correction: transparent outputs are matched on their visible pixels
+  - color correction: wavelet method keeps the generated image and matches only its colors
+  - dlss: do not run detailer twice if enabled
+  - enso: disable if not specified in startup
+  - framepack: a run after an interrupted job no longer ends at once without output
+  - gallery: correctly name custom folders
+  - inpaint: do not skip preprocessing when mask is not empty
+  - infotext: a value starting with a double quote no longer swallows the next parameter
+  - infotext: parse error on values with superscript or circled digits
+  - infotext: parser stall on long runs of words or spaces without a colon
+  - infotext: quoted values with escaped quotes, and a parser stall on unterminated ones
+  - installer: server restart when the venv is not activated
+  - ipadapter: jobs without an adapter after an adapter job
+  - ipadapter: loading and unloading adapters under group offload
+  - lora: reset loaded networks if refiner prompt is used
+  - mps: fix torch gc issue, thanks @diesse
+  - networks: improve model title and type detection
+  - offload: balanced offload warns when a module exceeds the gpu limit and part of it runs from cpu
+  - offload: group offload logs a denied pin once per component
+  - preview: race condition when handing over final vs last preview image
+  - rocm: arch detection with newer windows drivers, thanks @crashingalexsan
+  - rocm: disable HSA_XNACK on unsupported architectures, thanks @resonantsky
+  - samplers: update ui when sampler settings change, thanks @resonantsky
+  - sdnq: better handle compute dtype
+  - server: `--auth` values masked in the startup log and `/sdapi/v1/cmd-flags`
+  - server: create the `data` folder in a new `--data-dir`, so the metadata cache saves
+  - ui: update dev packages and rebuild
+  - upscaler: fix aurasr for non-cuda devices, thanks @li-lizhe
+  - video: accept only rate and quality codec options
+  - video: no error logged after framepack upscale or seedvr interpolation
+  - video: reject output extensions other than letters and digits
+
 ## Update for 2026-10-06
 
 ### Highlights for 2026-10-06
@@ -17,7 +115,7 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
   update all torch versions to best known options:  
   - **cuda**: `torch==2.14.1+cu132`
   - **rocm/linux**: `torch==2.14.1+rocm7.14`
-  - **rocm/windows**: `torch==2.12.0+rocm10.0.0`
+  - **rocm/windows**: `torch==2.13.0+rocm10.0.0`
   - **xpu**: `torch==2.14.1+xpu`
   - **openvino**: `torch==2.11.0+cpu` with `openvino==2026.4.1`
   - **zluda**: `torch==2.7.1+cu118` with `zluda==3.9.5`

@@ -22,6 +22,7 @@ repos:
   - id: check-toml
   - id: check-xml
   - id: check-yaml
+    exclude: ^pnpm-lock\.yaml$
   - id: debug-statements
   - id: detect-private-key
   - id: end-of-file-fixer

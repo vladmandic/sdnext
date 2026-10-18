@@ -1,7 +1,7 @@
 import os
 import gradio as gr
 from modules import timer, shared, paths, theme, sd_models, modelloader, generation_parameters_copypaste, call_queue, script_callbacks
-from modules import ui_common, ui_loadsave, ui_history, ui_storage, ui_components, ui_symbols
+from modules import ui_common, ui_loadsave, ui_history, ui_storage, ui_benchmark, ui_components, ui_symbols
 from modules.logger import log
 
 
@@ -306,6 +306,10 @@ def create_ui(disabled_tabs=None):
         if 'storage' not in disabled_tabs:
             with gr.TabItem("Storage", id="system_storage", elem_id="tab_storage"):
                 ui_storage.create_ui()
+
+        if 'benchmark' not in disabled_tabs:
+            with gr.TabItem("Benchmark", id="system_benchmark", elem_id="tab_benchmark"):
+                ui_benchmark.create_ui()
 
         if 'monitor' not in disabled_tabs:
             with gr.TabItem("GPU Monitor", id="system_gpu", elem_id="tab_gpu"):

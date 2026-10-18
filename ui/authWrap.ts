@@ -8,16 +8,26 @@ interface TokenResponse {
 let user: string | undefined;
 let token: string | undefined;
 let baseURL: string | undefined;
+let tokenPromise: Promise<void> | undefined;
 
 export async function getToken(): Promise<{ user: string | undefined; token: string | undefined }> {
   if (token === undefined || user === undefined) {
-    const res = await fetch(`${window.subpath}/token`);
-    if (res.ok) {
-      const data = (await res.json()) as TokenResponse;
-      user = data.user;
-      token = data.token;
-      log('getToken', { user });
-      initLoggerAuth(user, token);
+    if (!tokenPromise) {
+      tokenPromise = (async () => {
+        const res = await fetch(`${window.subpath}/token`);
+        if (res.ok) {
+          const data = (await res.json()) as TokenResponse;
+          user = data.user;
+          token = data.token;
+          log('getToken', { user });
+          initLoggerAuth(user, token);
+        }
+      })();
+    }
+    try {
+      await tokenPromise;
+    } finally {
+      tokenPromise = undefined;
     }
   }
   return { user, token };

@@ -150,8 +150,10 @@ def select_input(input_mode, init_type, input_video, input_batch, input_folder, 
         selected_input = None
 
     size = [gr.update(), gr.update()]
-    if selected_input is None:
+    if selected_input is None or (isinstance(selected_input, list) and not selected_input):
         input_source = None
+        input_mask = None
+        input_init = [init_image] if init_type == 2 and init_image is not None else None
         return [gr.Tabs.update(), ''] + size
 
     busy = True

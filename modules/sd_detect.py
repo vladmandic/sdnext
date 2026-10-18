@@ -94,6 +94,8 @@ def guess_by_name(fn, current_guess):
         new_guess = 'ZetaChroma'
     elif 'chroma' in fn.lower() and 'xl' not in fn.lower():
         new_guess = 'Chroma'
+    elif 'flux-3' in fn.lower() or 'flux3' in fn.lower() or 'flux_3' in fn.lower():
+        new_guess = 'FLUX3'
     elif ('flux.2' in fn.lower() or 'f2' in fn.lower()) and 'klein' in fn.lower():
         new_guess = 'FLUX2Klein'
     elif 'flux.2' in fn.lower():
@@ -151,8 +153,12 @@ def guess_by_name(fn, current_guess):
         new_guess = 'PRXPixel'
     elif 'prx-' in fn.lower():
         new_guess = 'PRX'
-    elif 'gemini-' in fn.lower() and 'image' in fn.lower():
+    elif 'gemini-' in fn.lower() and ('image' in fn.lower() or 'nano-banana' in fn.lower()):
         new_guess = 'NanoBanana'
+    elif 'moss-image' in fn.lower() or 'moss_image' in fn.lower():
+        new_guess = 'MOSSImage'
+    elif 'ming-image' in fn.lower() or 'ming_image' in fn.lower():
+        new_guess = 'MingImage'
     elif 'ernie-image' in fn.lower():
         new_guess = 'ERNIEImage'
     elif 'nucleus-image' in fn.lower() or 'nucleusmoe-image' in fn.lower():

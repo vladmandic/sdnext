@@ -62,8 +62,8 @@ def get_custom_args():
         current = getattr(args, arg)
         if current != default:
             custom[arg] = getattr(args, arg)
-    log.info(f'Command line args: {sys.argv[1:]}')
-    log.info(f'Command line parsed: {installer.print_dict(custom)}')
+    log.info(f'Command line args: {installer.mask_args(sys.argv[1:], args)}')
+    log.info(f'Command line parsed: {installer.print_dict(installer.mask_dict(custom))}')
     if os.environ.get('SD_ENV_DEBUG', None) is not None:
         env = os.environ.copy()
         if 'PATH' in env:
@@ -255,7 +255,7 @@ def main():
     log.info(f'Platform: {installer.print_dict(installer.get_platform())}')
     installer.check_version()
     installer.check_venv()
-    log.info(f'Args: {sys.argv[1:]}')
+    log.info(f'Args: {installer.mask_args(sys.argv[1:], args)}')
     if not args.skip_env:
         installer.set_environment()
     if args.uv and shutil.which('uv') is None:
@@ -348,7 +348,7 @@ def main():
             if uv is not None and uv.wants_restart:
                 clean_server()
                 log.info('Server restarting...')
-                os.execv(sys.executable, ['python'] + sys.argv)
+                installer.restart(sys.argv)
             else:
                 log.info('Exiting...')
                 from modules import errors

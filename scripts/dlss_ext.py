@@ -121,7 +121,12 @@ class DLSSScript(scripts_manager.Script):
         if _pp is not None and hasattr(_pp, 'images') and _pp.images is not None:
             pp = _pp
             orig_infos = pp.infotexts if hasattr(pp, 'infotexts') else []
-            out_images, out_infos = processing.process_samples(p, pp.images)
+            detailer_enabled = p.detailer_enabled
+            p.detailer_enabled = False
+            try:
+                out_images, out_infos = processing.process_samples(p, pp.images)
+            finally:
+                p.detailer_enabled = detailer_enabled
             pp.images = out_images
             pp.infotexts = out_infos
             if hasattr(pp, 'originals') and pp.originals is not None and len(pp.originals) > 0:

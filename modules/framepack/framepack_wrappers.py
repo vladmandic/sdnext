@@ -136,76 +136,79 @@ def run_framepack(task_id, _ui_state, init_image, end_image, start_weight, end_w
     progress.add_task_to_queue(task_id)
     with call_queue.get_lock():
         progress.start_task(task_id)
+        videojob = shared.state.begin('Video', task_id=task_id)
+        try:
+            yield from load_model(variant)
+            if shared.sd_model_type != 'hunyuanvideo':
+                progress.finish_task(task_id)
+                yield gr.update(), gr.update(), 'Model load failed'
+                return
 
-        yield from load_model(variant)
-        if shared.sd_model_type != 'hunyuanvideo':
+            yield gr.update(), gr.update(), 'Generate starting...'
+            from modules.framepack.pipeline.thread_utils import AsyncStream, async_run
+            framepack_worker.stream = AsyncStream()
+
+            if seed is None or seed == '' or seed == -1:
+                random.seed()
+                seed = random.randrange(4294967294)
+            seed = int(seed)
+            torch.manual_seed(seed)
+            num_sections = len(framepack_worker.get_latent_paddings(mp4_fps, mp4_interpolate, latent_ws, duration, variant))
+            num_frames = (latent_ws * 4 - 3) * num_sections + 1
+            log.info(f'FramePack start: mode={mode} variant="{variant}" frames={num_frames} sections={num_sections} resolution={resolution} seed={seed} duration={duration} teacache={use_teacache} thres={shared.opts.teacache_thresh} cfgzero={use_cfgzero}')
+            log.info(f'FramePack params: steps={steps} start={start_weight} end={end_weight} vision={vision_weight} scale={cfg_scale} distilled={cfg_distilled} rescale={cfg_rescale} shift={shift}')
+            init_image = prepare_image(init_image, resolution)
+            if end_image is not None:
+                end_image = prepare_image(end_image, resolution)
+            w, h, _c = init_image.shape
+            p = processing.StableDiffusionProcessingVideo(
+                sd_model=shared.sd_model,
+                prompt=prompt,
+                negative_prompt=negative_prompt,
+                styles=styles,
+                steps=steps,
+                seed=seed,
+                width=w,
+                height=h,
+            )
+            p.ops.append('video')
+            prompts = prepare_prompts(p, init_image, prompt, section_prompt, num_sections, vlm_enhance, vlm_model, vlm_system_prompt)
+
+            async_run(
+                framepack_worker.worker,
+                init_image, end_image,
+                start_weight, end_weight, vision_weight,
+                prompts, p.negative_prompt, system_prompt, optimized_prompt, vlm_enhance,
+                seed,
+                duration,
+                latent_ws,
+                p.steps,
+                cfg_scale, cfg_distilled, cfg_rescale,
+                shift,
+                use_teacache, use_cfgzero, use_preview,
+                mp4_fps, mp4_codec, mp4_sf, mp4_video, mp4_frames, mp4_thumb, mp4_opt, mp4_ext, mp4_interpolate,
+                mp4_scale, mp4_upscaler,
+                vae_type, variant,
+            )
+
+            output_filename = None
+            while True:
+                flag, data = framepack_worker.stream.output_queue.next()
+                if flag == 'file':
+                    output_filename = data
+                    yield output_filename, gr.update(), gr.update()
+                if flag == 'progress':
+                    preview, text = data
+                    summary = timer.process.summary(min_time=0.25, total=False).replace('=', ' ')
+                    memory = shared.mem_mon.summary()
+                    stats = f"<div class='performance'><p>{summary} {memory}</p></div>"
+                    yield gr.update(), gr.update(value=preview), f'{text} {stats}'
+                if flag == 'end':
+                    yield output_filename, gr.update(value=None), gr.update()
+                    break
+
             progress.finish_task(task_id)
-            yield gr.update(), gr.update(), 'Model load failed'
-            return
-
-        yield gr.update(), gr.update(), 'Generate starting...'
-        from modules.framepack.pipeline.thread_utils import AsyncStream, async_run
-        framepack_worker.stream = AsyncStream()
-
-        if seed is None or seed == '' or seed == -1:
-            random.seed()
-            seed = random.randrange(4294967294)
-        seed = int(seed)
-        torch.manual_seed(seed)
-        num_sections = len(framepack_worker.get_latent_paddings(mp4_fps, mp4_interpolate, latent_ws, duration, variant))
-        num_frames = (latent_ws * 4 - 3) * num_sections + 1
-        log.info(f'FramePack start: mode={mode} variant="{variant}" frames={num_frames} sections={num_sections} resolution={resolution} seed={seed} duration={duration} teacache={use_teacache} thres={shared.opts.teacache_thresh} cfgzero={use_cfgzero}')
-        log.info(f'FramePack params: steps={steps} start={start_weight} end={end_weight} vision={vision_weight} scale={cfg_scale} distilled={cfg_distilled} rescale={cfg_rescale} shift={shift}')
-        init_image = prepare_image(init_image, resolution)
-        if end_image is not None:
-            end_image = prepare_image(end_image, resolution)
-        w, h, _c = init_image.shape
-        p = processing.StableDiffusionProcessingVideo(
-            sd_model=shared.sd_model,
-            prompt=prompt,
-            negative_prompt=negative_prompt,
-            styles=styles,
-            steps=steps,
-            seed=seed,
-            width=w,
-            height=h,
-        )
-        p.ops.append('video')
-        prompts = prepare_prompts(p, init_image, prompt, section_prompt, num_sections, vlm_enhance, vlm_model, vlm_system_prompt)
-
-        async_run(
-            framepack_worker.worker,
-            init_image, end_image,
-            start_weight, end_weight, vision_weight,
-            prompts, p.negative_prompt, system_prompt, optimized_prompt, vlm_enhance,
-            seed,
-            duration,
-            latent_ws,
-            p.steps,
-            cfg_scale, cfg_distilled, cfg_rescale,
-            shift,
-            use_teacache, use_cfgzero, use_preview,
-            mp4_fps, mp4_codec, mp4_sf, mp4_video, mp4_frames, mp4_thumb, mp4_opt, mp4_ext, mp4_interpolate,
-            mp4_scale, mp4_upscaler,
-            vae_type, variant,
-        )
-
-        output_filename = None
-        while True:
-            flag, data = framepack_worker.stream.output_queue.next()
-            if flag == 'file':
-                output_filename = data
-                yield output_filename, gr.update(), gr.update()
-            if flag == 'progress':
-                preview, text = data
-                summary = timer.process.summary(min_time=0.25, total=False).replace('=', ' ')
-                memory = shared.mem_mon.summary()
-                stats = f"<div class='performance'><p>{summary} {memory}</p></div>"
-                yield gr.update(), gr.update(value=preview), f'{text} {stats}'
-            if flag == 'end':
-                yield output_filename, gr.update(value=None), gr.update()
-                break
-
-        progress.finish_task(task_id)
+        finally:
+            shared.state.end(videojob)
     yield gr.update(), gr.update(), 'Generate finished'
     return

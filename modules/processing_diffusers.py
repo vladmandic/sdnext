@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+from contextlib import contextmanager
 import os
 import time
 import numpy as np
@@ -19,6 +20,58 @@ modular_debug = os.environ.get('SD_MODULAR_DEBUG', None) is not None
 output_type = 'np' if os.environ.get('SD_VAE_DEFAULT', None) is not None else 'latent'
 last_p = None
 orig_pipeline = shared.sd_model
+
+
+@contextmanager
+def sample_scope(p: processing.StableDiffusionProcessing, index: int | list[int] | None):
+    """Narrows the batch state that set_pipeline_args reads to one sample or a run of samples: seeds, the generator list and prompt padding."""
+    if index is None:
+        yield
+        return
+    indices = [index] if isinstance(index, int) else list(index)
+    seeds, generator, keep_prompts = p.seeds, getattr(p, 'generator', None), hasattr(p, 'keep_prompts')
+    p.seeds = [seeds[i] for i in indices]
+    if isinstance(generator, list):
+        p.generator = [generator[i] for i in indices]
+    p.keep_prompts = True
+    try:
+        yield
+    finally:
+        p.seeds = seeds
+        if isinstance(generator, list):
+            p.generator = generator
+        if not keep_prompts:
+            del p.keep_prompts
+
+
+def join_outputs(outputs: list):
+    """One output from several single-sample pipeline calls."""
+    images = []
+    for result in outputs:
+        batch = getattr(result, 'images', None)
+        if batch is None:
+            batch = getattr(result, 'image', None) # a modular state keeps its input under image and its output under images
+        if batch is None:
+            raise ValueError(f'Processing: join outputs: cls={result.__class__.__name__} no images')
+        images.append(batch)
+    if all(torch.is_tensor(i) for i in images):
+        return SimpleNamespace(images=torch.cat(images, dim=0))
+    if all(isinstance(i, np.ndarray) for i in images):
+        return SimpleNamespace(images=np.concatenate(images, axis=0))
+    return SimpleNamespace(images=[image for batch in images for image in batch])
+
+
+def prompt_runs(prompts: list, negative_prompts: list) -> list:
+    """Split a batch into runs of identical prompt pairs, as (indices, prompts, negative_prompts) triples in batch order."""
+    runs = []
+    for i, (prompt, negative) in enumerate(zip(prompts, negative_prompts)):
+        if runs and runs[-1][1][-1] == prompt and runs[-1][2][-1] == negative:
+            runs[-1][0].append(i)
+            runs[-1][1].append(prompt)
+            runs[-1][2].append(negative)
+        else:
+            runs.append(([i], [prompt], [negative]))
+    return runs
 
 
 def restore_state(p: processing.StableDiffusionProcessing):
@@ -144,42 +197,55 @@ def process_base(p: processing.StableDiffusionProcessing):
         desc = 'Detail'
     p.prompts, p.network_data = extra_networks.parse_prompts(p.prompts, p.network_data)
     extra_networks.activate(p) # networks must patch weights before prompt encode so te loras affect embeds
-    base_args = set_pipeline_args(
-        p=p,
-        model=shared.sd_model,
-        prompts=p.prompts,
-        negative_prompts=p.negative_prompts,
-        prompts_2=[p.refiner_prompt] if len(p.refiner_prompt) > 0 else p.prompts,
-        negative_prompts_2=[p.refiner_negative] if len(p.refiner_negative) > 0 else p.negative_prompts,
-        num_inference_steps=calculate_base_steps(p, use_refiner_start=use_refiner_start, use_denoise_start=use_denoise_start),
-        eta=sched_eta,
-        guidance_scale=p.cfg_scale if p.cfg_scale is not None and p.cfg_scale > -1 else None,
-        guidance_rescale=p.cfg_rescale if p.cfg_rescale is not None and p.cfg_rescale > -1 else None,
-        true_cfg_scale=p.cfg_true if p.cfg_true is not None and p.cfg_true > -1 else None,
-        denoising_start=0 if use_refiner_start else p.refiner_start if use_denoise_start else None,
-        denoising_end=p.refiner_start if use_refiner_start else 1 if use_denoise_start else None,
-        num_frames=getattr(p, 'frames', 1),
-        output_type=output_type,
-        clip_skip=p.clip_skip,
-        prompt_attention=getattr(p, 'prompt_attention', None),
-        desc=desc,
-    )
-    base_steps = base_args.get('prior_num_inference_steps', None) or p.steps or base_args.get('num_inference_steps', None)
-    shared.state.update(get_job_name(p, shared.sd_model), base_steps, 1)
+    calls = [(None, p.prompts, p.negative_prompts)]
+    if sd_models.takes_single_prompt(shared.sd_model) and len(p.prompts) > 1:
+        runs = prompt_runs(p.prompts, p.negative_prompts)
+        if len(runs) > 1: # one call per run of identical prompts, the batch within a run comes from num_images_per_prompt
+            calls = runs
+            log.debug(f'Pipeline: cls={shared.sd_model.__class__.__name__} batch={len(p.prompts)} calls={len(calls)} prompts differ')
     if sched_eta is not None and sched_eta > 0 and sched_eta < 1:
         p.extra_generation_params["Sampler Eta"] = sched_eta
+    base_args = {}
     output = None
+    outputs = []
     if debug:
         modelstats.analyze()
     try:
         t0 = time.time()
-        if hasattr(shared.sd_model, 'tgate') and getattr(p, 'gate_step', -1) > 0:
-            base_args['gate_step'] = p.gate_step
-            output = shared.sd_model.tgate(**base_args) # pylint: disable=not-callable
-        else:
-            taskid = shared.state.begin('Inference')
-            output = shared.sd_model(**base_args)
-            shared.state.end(taskid)
+        for indices, call_prompts, call_negative_prompts in calls:
+            with sample_scope(p, indices):
+                base_args = set_pipeline_args(
+                    p=p,
+                    model=shared.sd_model,
+                    prompts=call_prompts,
+                    negative_prompts=call_negative_prompts,
+                    prompts_2=[p.refiner_prompt] if len(p.refiner_prompt) > 0 else call_prompts,
+                    negative_prompts_2=[p.refiner_negative] if len(p.refiner_negative) > 0 else call_negative_prompts,
+                    num_inference_steps=calculate_base_steps(p, use_refiner_start=use_refiner_start, use_denoise_start=use_denoise_start),
+                    eta=sched_eta,
+                    guidance_scale=p.cfg_scale if p.cfg_scale is not None and p.cfg_scale > -1 else None,
+                    guidance_rescale=p.cfg_rescale if p.cfg_rescale is not None and p.cfg_rescale > -1 else None,
+                    true_cfg_scale=p.cfg_true if p.cfg_true is not None and p.cfg_true > -1 else None,
+                    denoising_start=0 if use_refiner_start else p.refiner_start if use_denoise_start else None,
+                    denoising_end=p.refiner_start if use_refiner_start else 1 if use_denoise_start else None,
+                    num_frames=getattr(p, 'frames', 1),
+                    output_type=output_type,
+                    clip_skip=p.clip_skip,
+                    prompt_attention=getattr(p, 'prompt_attention', None),
+                    desc=desc,
+                )
+            if len(outputs) == 0:
+                base_steps = base_args.get('prior_num_inference_steps', None) or p.steps or base_args.get('num_inference_steps', None)
+                shared.state.update(get_job_name(p, shared.sd_model), base_steps, len(calls))
+            if hasattr(shared.sd_model, 'tgate') and getattr(p, 'gate_step', -1) > 0:
+                base_args['gate_step'] = p.gate_step
+                result = shared.sd_model.tgate(**base_args) # pylint: disable=not-callable
+            else:
+                taskid = shared.state.begin('Inference')
+                result = shared.sd_model(**base_args)
+                shared.state.end(taskid)
+            outputs.append(result)
+        output = outputs[0] if len(outputs) == 1 else join_outputs(outputs)
         if isinstance(output, diffusers.modular_pipelines.PipelineState) and modular_debug:
             log.trace(f'Pipeline: output={output}')
         if isinstance(output, dict):
@@ -291,7 +357,7 @@ def process_hires(p: processing.StableDiffusionProcessing, output):
             p.hr_force = False
         if p.hr_force:
             shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.IMAGE_2_IMAGE)
-            if 'Upscale' in shared.sd_model.__class__.__name__ or 'Flux' in shared.sd_model.__class__.__name__ or 'Kandinsky' in shared.sd_model.__class__.__name__:
+            if 'Upscale' in shared.sd_model.__class__.__name__ or 'Flux' in shared.sd_model.__class__.__name__ or 'Kandinsky' in shared.sd_model.__class__.__name__ or sd_models.get_max_condition_images() > 0: # condition images are read as pixels
                 output.images = processing_vae.vae_decode(latents=output.images, model=shared.sd_model, vae_type=p.vae_type, output_type='pil', width=p.width, height=p.height)
             if p.is_control and hasattr(p, 'task_args') and p.task_args.get('image', None) is not None:
                 if hasattr(shared.sd_model, "vae") and output.images is not None and len(output.images) > 0:
@@ -307,41 +373,56 @@ def process_hires(p: processing.StableDiffusionProcessing, output):
             sched_eta = p.scheduler_eta if p.scheduler_eta is not None else shared.opts.scheduler_eta
             if len(p.refiner_prompt) > 0:
                 prompts = len(output.images)* [p.refiner_prompt]
+                p.network_data.clear() # clear loaded lora from base prompt
                 prompts, p.network_data = extra_networks.parse_prompts(prompts, p.network_data)
                 reset_prompts = True
             if reset_prompts or ('base' in p.skip):
                 extra_networks.activate(p)
 
-            hires_args = set_pipeline_args(
-                p=p,
-                model=shared.sd_model,
-                prompts=prompts,
-                negative_prompts=len(output.images) * [p.refiner_negative] if len(p.refiner_negative) > 0 else p.negative_prompts,
-                prompts_2=len(output.images) * [p.refiner_prompt] if len(p.refiner_prompt) > 0 else p.prompts,
-                negative_prompts_2=len(output.images) * [p.refiner_negative] if len(p.refiner_negative) > 0 else p.negative_prompts,
-                num_inference_steps=calculate_hires_steps(p),
-                eta=sched_eta,
-                guidance_scale=p.cfg_image if p.cfg_image is not None and p.cfg_image > -1 else p.cfg_scale,
-                guidance_rescale=p.cfg_rescale if p.cfg_rescale is not None and p.cfg_rescale > -1 else None,
-                true_cfg_scale=p.cfg_true if p.cfg_true is not None and p.cfg_true > -1 else None,
-                output_type=output_type,
-                clip_skip=p.clip_skip,
-                image=output.images,
-                strength=strength,
-                prompt_attention=getattr(p, 'prompt_attention', None),
-                desc='Hires',
-            )
-
-            hires_steps = hires_args.get('prior_num_inference_steps', None) or p.hr_second_pass_steps or hires_args.get('num_inference_steps', None)
-            shared.state.update(get_job_name(p, shared.sd_model), hires_steps, 1)
+            negative_prompts = len(output.images) * [p.refiner_negative] if len(p.refiner_negative) > 0 else p.negative_prompts
+            prompts_2 = len(output.images) * [p.refiner_prompt] if len(p.refiner_prompt) > 0 else p.prompts
+            calls = [(None, prompts, negative_prompts, prompts_2, output.images)]
+            if sd_models.takes_condition_set() and len(output.images) > 1: # one condition set serves every prompt, so each output takes its own call
+                calls = [(i, [prompts[i]], [negative_prompts[i]], [prompts_2[i]], [image]) for i, image in enumerate(output.images)]
+            hires_args = {}
+            outputs = []
             try:
-                taskid = shared.state.begin('Inference')
-                output = shared.sd_model(**hires_args) # pylint: disable=not-callable
-                shared.state.end(taskid)
-                if isinstance(output, dict):
-                    output = SimpleNamespace(**output)
-                if hasattr(output, 'images'):
-                    shared.history.add(output.images, info=processing.create_infotext(p), ops=p.ops)
+                for index, call_prompts, call_negative_prompts, call_prompts_2, call_images in calls:
+                    with sample_scope(p, index):
+                        hires_args = set_pipeline_args(
+                            p=p,
+                            model=shared.sd_model,
+                            prompts=call_prompts,
+                            negative_prompts=call_negative_prompts,
+                            prompts_2=call_prompts_2,
+                            negative_prompts_2=call_negative_prompts,
+                            num_inference_steps=calculate_hires_steps(p),
+                            eta=sched_eta,
+                            guidance_scale=p.cfg_image if p.cfg_image is not None and p.cfg_image > -1 else p.cfg_scale,
+                            guidance_rescale=p.cfg_rescale if p.cfg_rescale is not None and p.cfg_rescale > -1 else None,
+                            true_cfg_scale=p.cfg_true if p.cfg_true is not None and p.cfg_true > -1 else None,
+                            output_type=output_type,
+                            clip_skip=p.clip_skip,
+                            image=call_images,
+                            strength=strength,
+                            prompt_attention=getattr(p, 'prompt_attention', None),
+                            desc='Hires',
+                        )
+                    if len(outputs) == 0:
+                        hires_steps = hires_args.get('prior_num_inference_steps', None) or p.hr_second_pass_steps or hires_args.get('num_inference_steps', None)
+                        shared.state.update(get_job_name(p, shared.sd_model), hires_steps, len(calls))
+                        if ('strength' not in hires_args) and not getattr(p, 'hires_strength_warned', False): # set_pipeline_args drops what the pipeline does not take
+                            log.warning(f'Hires: model="{shared.sd_model.__class__.__name__}" strength=ignored')
+                            p.hires_strength_warned = True
+                    taskid = shared.state.begin('Inference')
+                    result = shared.sd_model(**hires_args) # pylint: disable=not-callable
+                    shared.state.end(taskid)
+                    if isinstance(result, dict):
+                        result = SimpleNamespace(**result)
+                    if hasattr(result, 'images'):
+                        shared.history.add(result.images, info=processing.create_infotext(p), ops=p.ops)
+                    outputs.append(result)
+                output = outputs[0] if len(outputs) == 1 else join_outputs(outputs)
                 sd_models_compile.check_deepcache(enable=False)
                 sd_models_compile.openvino_post_compile(op="base")
             except AssertionError as e:
@@ -570,7 +651,7 @@ def validate_pipeline(p: processing.StableDiffusionProcessing):
     max_images = sd_models.get_max_condition_images()
     init_images = getattr(p, 'init_images', None)
     num_images = len([i for i in init_images if i is not None]) if isinstance(init_images, list) else int(init_images is not None)
-    if max_images > 0 and num_images > max_images:
+    if sd_models.takes_condition_set() and num_images > max_images: # one image per prompt otherwise, so any count is a batch
         log.error(f'Mismatch: type={shared.sd_model_type} cls={shared.sd_model.__class__.__name__} request={p.__class__.__name__} images={num_images} max={max_images}')
         return False
     return True
@@ -596,7 +677,7 @@ def process_diffusers(p: processing.StableDiffusionProcessing):
         p.init_images = [p.init_images]
     if hasattr(p, 'init_images') and isinstance(getattr(p, 'init_images', []), list):
         p.init_images = [i for i in p.init_images if i is not None]
-    if len(getattr(p, 'init_images', [])) > 0 and sd_models.get_max_condition_images() == 0: # a condition set is shared by every prompt
+    if len(getattr(p, 'init_images', [])) > 0 and not sd_models.takes_condition_set(): # a condition set is shared by every prompt
         while len(p.init_images) < len(p.prompts):
             p.init_images.append(p.init_images[-1])
 

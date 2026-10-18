@@ -11,7 +11,7 @@ from modules.image.util import collapse_alpha, draw_text
 
 
 SamplerData = namedtuple('SamplerData', ['name', 'constructor', 'aliases', 'options'])
-flow_models = ['f1', 'f2', 'sd3', 'lumina', 'auraflow', 'sana', 'zimage', 'lumina2', 'cogview4', 'h1', 'cosmos', 'anima', 'chroma', 'omnigen', 'omnigen2', 'longcat', 'ideogram4', 'krea2', 'qwen21']
+flow_models = ['f1', 'f2', 'f3', 'sd3', 'lumina', 'auraflow', 'sana', 'zimage', 'lumina2', 'cogview4', 'h1', 'cosmos', 'anima', 'chroma', 'omnigen', 'omnigen2', 'longcat', 'ideogram4', 'krea2', 'qwen21', 'mingimage', 'mossimage']
 warned = False
 queue_lock = threading.Lock()
 debug = os.environ.get('SD_VAE_DEBUG', None) is not None
@@ -90,9 +90,9 @@ def single_sample_to_image(sample, approximation=None):
                 else:
                     # x_sample = torch.nan_to_num(x_sample, nan=0.0, posinf=1, neginf=0) # let it fail instead
                     if (x_sample.ndim == 4) and (x_sample.shape[0] == 1 or x_sample.shape[0] > 4):
-                        image = collapse_alpha(convert.to_pil(x_sample[0]))
+                        image = collapse_alpha(convert.to_pil(x_sample[0], quiet=True))
                     else:
-                        image = collapse_alpha(convert.to_pil_batch(x_sample))
+                        image = collapse_alpha(convert.to_pil_batch(x_sample, quiet=True))
         except Exception as e:
             warn_once('exception', e)
             image = get_missing_img(str(e))
@@ -110,7 +110,9 @@ def samples_to_image_grid(samples, approximation=None):
 
 
 def samples_decode(samples, approximation=None):
-    if samples.ndim == 5:
+    if samples is None:
+        return get_missing_img('no latents')
+    elif samples.ndim == 5:
         return single_sample_to_image(samples, approximation) # video latent
     elif samples.ndim == 4: # batch of images
         return samples_to_image_grid(samples, approximation) # handle batch

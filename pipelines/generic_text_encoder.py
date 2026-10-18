@@ -25,7 +25,9 @@ def get_shared(cls, repo_id, subfolder=None, variant=None, shared_id: str | None
             identifiers = []
         identifiers = [identifier.lower() for identifier in identifiers if identifier is not None]
         shared_id = shared_id or repo_id.lower()
-        if item['cls'] == cls and (not identifiers or any(identifier in shared_id for identifier in identifiers)):
+        item_cls = item['cls']
+        same_cls = item_cls == cls or (isinstance(item_cls, str) and item_cls == getattr(cls, '__name__', None))
+        if same_cls and (not identifiers or any(identifier in shared_id for identifier in identifiers)):
             if item.get('config_class', None) is not None and item.get('config_path', None) is not None:
                 with open(item['config_path'], encoding='utf8') as f:
                     args['config'] = item['config_class'](**json.load(f))
@@ -37,6 +39,19 @@ def get_shared(cls, repo_id, subfolder=None, variant=None, shared_id: str | None
     if subfolder is not None: # use default provided subfolder
         args['subfolder'] = subfolder
     return repo_id, args
+
+
+def check_linear_attention_kernels(cls_name: str) -> None:
+    """Fail the load with the reason when the optional kernels of a gated-delta encoder (Qwen3.5) cannot run here."""
+    import importlib.util
+    if importlib.util.find_spec('fla') is not None:
+        try:
+            import fla.ops # pylint: disable=unused-import
+        except Exception as e:
+            raise RuntimeError(f'text_encoder={cls_name} flash-linear-attention is installed but fails to import: {e}; install a build that supports the installed triton or uninstall flash-linear-attention') from e
+    from transformers.utils.import_utils import is_causal_conv1d_available
+    if shared.opts.diffusers_offload_mode == 'group' and is_causal_conv1d_available(): # its kernel reads conv1d.weight without calling conv1d, so group hooks never onload it
+        raise RuntimeError(f'text_encoder={cls_name} causal-conv1d is installed, which group offload does not support for this encoder; use balanced offload or uninstall causal-conv1d')
 
 
 def load_local_file(local_file, cls_name, quant_type, repo_id=None, dtype=None, quant_args=None):

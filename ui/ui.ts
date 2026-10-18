@@ -264,6 +264,20 @@ function getCaptionActiveTab(...args) {
   return res;
 }
 
+function setHeader(text: string) {
+  const headers = gradioApp().querySelectorAll('.header-text');
+  headers.forEach((header) => {
+    header.style.transition = 'none';
+    header.style.color = 'var(--sd-muted-color)';
+    header.textContent = text;
+    setTimeout(() => {
+      header.style.transition = 'color 1s';
+      header.style.color = 'transparent';
+      setTimeout(() => { header.textContent = ''; }, 1000);
+    }, 1000);
+  });
+}
+
 function showSubmitButtons(tabname, show) {}
 
 function clearGallery(tabname) {
@@ -275,9 +289,10 @@ function clearGallery(tabname) {
 }
 
 export function submit_txt2img(...args) {
-  log('submitTxt');
-  clearGallery('txt2img');
   const id = randomId();
+  log('submitTxt', id);
+  setHeader(`Txt2Img: ${id}`);
+  clearGallery('txt2img');
   requestProgress(id, null, gradioApp().getElementById('txt2img_gallery'));
   const res = create_submit_args(args);
   res[0] = id;
@@ -287,9 +302,10 @@ export function submit_txt2img(...args) {
 }
 
 function submit_img2img(...args) {
-  log('submitImg');
-  clearGallery('img2img');
   const id = randomId();
+  log('submitImg', id);
+  setHeader(`Img2Img: ${id}`);
+  clearGallery('img2img');
   requestProgress(id, null, gradioApp().getElementById('img2img_gallery'));
   const res = create_submit_args(args);
   res[0] = id;
@@ -300,9 +316,10 @@ function submit_img2img(...args) {
 }
 
 function submit_control(...args) {
-  log('submitControl');
-  clearGallery('control');
   const id = randomId();
+  log('submitControl', id);
+  setHeader(`Generate: ${id}`);
+  clearGallery('control');
   requestProgress(id, null, gradioApp().getElementById('control_gallery'));
   const res = create_submit_args(args);
   res[0] = id;
@@ -317,10 +334,29 @@ function submit_control(...args) {
   return res;
 }
 
+function submit_scheduler(...args) {
+  const id = randomId();
+  log('submitScheduler', id);
+  setHeader(`Scheduler: ${id}`);
+  const res = create_submit_args(args);
+  res[0] = id;
+  res[1] = window.submit_state;
+
+  const tabs = Array.from<any>(gradioApp().querySelectorAll('#control-tabs > .tab-nav > button'));
+  const tabIdx = tabs.findIndex((btn) => btn.classList.contains('selected'));
+  const tabNames = ['ControlNet', 'T2I Adapter', 'XS', 'Lite', 'Reference'];
+  const selectedTab = tabNames[tabIdx] || 'ControlNet';
+  res[2] = selectedTab.toLowerCase();
+  res[3] = 'scheduled';
+  window.submit_state = '';
+  return res;
+}
+
 function submit_video(...args) {
-  clearGallery('video');
   const id = randomId();
   log('submitVideo', id);
+  setHeader(`Video: ${id}`);
+  clearGallery('video');
   requestProgress(id, null, gradioApp().getElementById('video_gallery'));
   const res = create_submit_args(args);
   res[0] = id;
@@ -332,6 +368,7 @@ function submit_video(...args) {
 function submit_framepack(...args) {
   const id = randomId();
   log('submitFramepack', id);
+  setHeader(`Video Framepack: ${id}`);
   requestProgress(id, null, null);
   window.submit_state = '';
   args[0] = id;
@@ -341,6 +378,7 @@ function submit_framepack(...args) {
 function submit_ltx(...args) {
   const id = randomId();
   log('submitFramepack', id);
+  setHeader(`Video LTX: ${id}`);
   requestProgress(id, null, gradioApp().getElementById('ltx_output_video'));
   window.submit_state = '';
   args[0] = id;
@@ -350,6 +388,7 @@ function submit_ltx(...args) {
 function submit_minimax(...args) {
   const id = randomId();
   log('submitMiniMax', id);
+  setHeader(`Video MiniMax: ${id}`);
   requestProgress(id, null, gradioApp().getElementById('minimax_output_video'));
   window.submit_state = '';
   args[0] = id;
@@ -365,9 +404,18 @@ function submit_video_wrapper(...args) {
   if (btn) btn.click();
 }
 
+function submit_video_schedule_wrapper(...args) {
+  const currentTabElement = gradioApp().getElementById('video_current_tab')?.querySelector('input, textarea') as HTMLInputElement | HTMLTextAreaElement | null;
+  const currentTab = currentTabElement?.value || 'video';
+  const btn = gradioApp().getElementById(`${currentTab}_schedule_btn`);
+  log('submitVideoSchedule', { type: currentTab, found: !!btn });
+  if (btn) btn.click();
+}
+
 function submit_postprocessing(...args) {
   const id = randomId();
   log('SubmitProcess', id);
+  setHeader(`Process: ${id}`);
   clearGallery('extras');
   requestProgress(id, null, null);
   window.submit_state = '';
@@ -441,6 +489,14 @@ function recalculate_prompts_inpaint(...args) {
 function recalculate_prompts_control(...args) {
   recalculatePromptTokens('control_prompt');
   recalculatePromptTokens('control_neg_prompt');
+  return Array.from<any>(arguments);
+}
+
+function recalculate_prompts_video(...args) {
+  for (const promptId of ['video_prompt', 'video_neg_prompt']) {
+    const textarea = gradioApp().querySelector(`#${promptId} > label > textarea`);
+    if (textarea instanceof HTMLTextAreaElement) textarea.dispatchEvent(new Event('input', { bubbles: true }));
+  }
   return Array.from<any>(arguments);
 }
 
@@ -832,6 +888,7 @@ window.selected_gallery_index = selected_gallery_index;
 window.selected_gallery_files = selected_gallery_files;
 window.send_to_kanvas = send_to_kanvas;
 window.submit_control = submit_control;
+window.submit_scheduler = submit_scheduler;
 window.submit_framepack = submit_framepack;
 window.submit_img2img = submit_img2img;
 window.submit_ltx = submit_ltx;
@@ -840,6 +897,7 @@ window.submit_postprocessing = submit_postprocessing;
 window.submit = submit_txt2img; // compatibility alias
 window.submit_txt2img = submit_txt2img;
 window.submit_video = submit_video;
+window.submit_video_schedule_wrapper = submit_video_schedule_wrapper;
 window.submit_video_wrapper = submit_video_wrapper;
 window.switch_to_txt2img = switch_to_txt2img;
 window.switch_to_img2img_tab = switch_to_img2img_tab;
@@ -855,6 +913,7 @@ window.recalculate_prompts_txt2img = recalculate_prompts_txt2img;
 window.recalculate_prompts_img2img = recalculate_prompts_img2img;
 window.recalculate_prompts_inpaint = recalculate_prompts_inpaint;
 window.recalculate_prompts_control = recalculate_prompts_control;
+window.recalculate_prompts_video = recalculate_prompts_video;
 window.selectCheckpoint = selectCheckpoint;
 window.selectVAE = selectVAE;
 window.selectUNet = selectUNet;

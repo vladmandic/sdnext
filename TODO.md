@@ -1,24 +1,18 @@
 # TODO
 
-## Short-term
-
-- Video: unify execution path for ui and api
-- Torch: update ipex, rocm to torch==2.14
-
 ## Issues
 
-- [Inpaint](https://discord.com/channels/1101998836328697867/1130536562422186044/1506850651035144322), @vladmandic
+None
 
 ## Features
 
 ### Roadmap
 
 - OpenAI API interface for image generation, @vladmandic
-- Lightweight scheduler/queue manager, @vladmandic
 - Integrate natural language image search: [ImageDB](https://github.com/vladmandic/imagedb), @vladmandic
 - Support cloud providers, @CalamitousFelicitousness
-- Benchmark tool productize: @CalamitousFelicitousness
 - Automated testing and integrate models repo, @CalamitousFelicitousness
+- Video: unify execution path for ui and api
 - Video: support finetunes
 - Video: use Networks/Reference instead of custom, @vladmandic
 - Video: implement LTX2DFRPipeline
@@ -32,7 +26,6 @@
 
 ### OnHold
 
-- [nVidia-VFX](https://pypi.org/project/nvidia-vfx/): not compatible with latest nVidia drivers
 - [QuantFunc](https://huggingface.co/QuantFunc/Klein-9B-Series): once its released as sdk
 - LoRA add OMI format support for SD35/FLUX.1
 - Remote Text-Encoder support, sidelined for the moment
@@ -46,13 +39,9 @@
 
 ## New models / Pipelines
 
-TODO: Investigate which models are diffusers-compatible and prioritize!
-
 ### Image
 
-- [nVidia Cosmos-Predict-2.5](https://huggingface.co/nvidia/Cosmos-Predict2.5-2B) (in diffusers)
-- [nVidia Cosmos-Transfer-2.5](https://huggingface.co/nvidia/Cosmos-Transfer2.5-2B) (in diffusers)
-- [Tencent HY-WU](https://huggingface.co/tencent/HY-WU) (transformers-compatible)
+None
 
 ### Video
 

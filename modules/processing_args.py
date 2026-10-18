@@ -90,19 +90,12 @@ def task_specific_kwargs(p, model):
         }
         if model_cls == 'FluxImg2ImgPipeline' or model_cls == 'FluxKontextPipeline': # needs explicit width/height
             if torch.is_tensor(p.init_images[0]):
-                p.width = p.init_images[0].shape[-1] * vae_scale_factor
-                p.height = p.init_images[0].shape[-2] * vae_scale_factor
+                latent_scale = sd_vae.get_vae_scale_factor(model, patch=False) # pixels per latent
+                p.width = p.init_images[0].shape[-1] * latent_scale
+                p.height = p.init_images[0].shape[-2] * latent_scale
             else:
                 p.width = width
                 p.height = height
-            if model_cls == 'FluxKontextPipeline':
-                aspect_ratio = p.width / p.height
-                max_area = max(p.width, p.height)**2
-                p.width = round((max_area * aspect_ratio) ** 0.5)
-                p.height = round((max_area / aspect_ratio) ** 0.5)
-                p.width = p.width // vae_scale_factor * vae_scale_factor
-                p.height = p.height // vae_scale_factor * vae_scale_factor
-                task_args['max_area'] = max_area
             task_args['width'], task_args['height'] = p.width, p.height
         elif model_cls == 'OmniGenPipeline' or model_cls == 'OmniGen2Pipeline':
             p.width = width
@@ -158,7 +151,7 @@ def task_specific_kwargs(p, model):
     if (model_cls in can_i2i) and (len(getattr(p, 'init_images', [])) > 0):
         task_args['image'] = p.init_images
     if (sd_models.get_max_condition_images(model) > 0) and (len(getattr(p, 'init_images', [])) > 0): # otherwise set_pipeline_args sizes the call from the first condition image
-        task_args['width'], task_args['height'] = p.width, p.height
+        task_args['width'], task_args['height'] = width, height
 
     if ('QwenImageLayeredPipeline' in model_cls) and (task_args.get('image', None) is not None):
         image_items = task_args['image']
@@ -215,6 +208,10 @@ def get_defaults(model, kwargs):
     remove = ['return_dict', 'output_type', 'num_images_per_prompt', 'callback', 'callback_on_step_end_tensor_inputs']
     default_cfg = 0
     try:
+        model_name = model.sd_checkpoint_info.name or model.sd_model_checkpoint
+    except Exception:
+        model_name = "unknown"
+    try:
         defaults = {}
         if hasattr(model, 'blocks') and hasattr(model.blocks, 'inputs'):
             for input_param in model.blocks.inputs:
@@ -232,12 +229,11 @@ def get_defaults(model, kwargs):
 
         defaults = {k: v for k, v in defaults.items() if k not in kwargs} # only log defaults that are not already set by kwargs
         defaults = {k: v for k, v in defaults.items() if k not in remove} # remove common args that are not useful to log
-        log.debug(f'Pipeline: cls={model.__class__.__name__} defaults={defaults}')
+        log.debug(f'Pipeline: cls={model.__class__.__name__} model="{model_name}" defaults={defaults}')
         default_cfg = defaults.get('guidance_scale', 0)
     except Exception as e:
         log.error(f'Pipeline defaults: {e}')
     try:
-        model_name = model.sd_checkpoint_info.name or model.sd_model_checkpoint
         is_turbo = getattr(getattr(model, 'config', None), 'is_distilled', False) or 'turbo' in model_name.lower()
         if is_turbo and default_cfg > 1:
             log.warning(f'Pipeline: cls={model.__class__.__name__} model="{model_name}" type=turbo default guidance={default_cfg}')
@@ -381,6 +377,16 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:l
         args.pop('negative_prompt', None) # guidance-distilled, no negative prompt
         if isinstance(args.get('generator', None), list) and len(args['generator']) > 0:
             args['generator'] = args['generator'][0] # >1-element list breaks the audio noise draw
+    if sd_models.takes_single_prompt(model):
+        if isinstance(args.get('prompt', None), list) and len(args['prompt']) > 1 and 'num_images_per_prompt' in possible: # the text encoder step takes one prompt per call
+            args['num_images_per_prompt'] = len(args['prompt'])
+        for key in ('prompt', 'negative_prompt'):
+            if isinstance(args.get(key, None), list):
+                if len(set(args[key])) > 1:
+                    log.warning(f'Pipeline: cls={model.__class__.__name__} {key} differs within the batch, every image gets the first: batch={len(args[key])}')
+                args[key] = args[key][0] if len(args[key]) > 0 else ''
+        if not args.get('negative_prompt', None):
+            args.pop('negative_prompt', None) # an empty negative is omitted, the base text encoder warns about one it will not use
 
     # set callbacks
     if 'prior_callback_steps' in possible:  # Wuerstchen / Cascade

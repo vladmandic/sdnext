@@ -41,8 +41,10 @@ class Api:
         self.img2imgapi = self.generate.post_img2img
 
     def register(self):
-        # fetch js/css
+        # fetch js/css/html
         self.add_api_route("/js", server.get_js, methods=["GET"], auth=False, tags=["Base"])
+        self.add_api_route("/html", server.get_html_manifest, methods=["GET"], auth=False, tags=["Base"])
+        self.add_api_route("/html/{path:path}", server.get_html, methods=["GET"], auth=False, tags=["Base"])
         self.add_api_route("/manifest", server.get_manifest, methods=["GET"], auth=False, tags=["Base"])
         self.add_api_route("/icon", server.get_icon, methods=["GET"], auth=False, tags=["Base"])
 
@@ -169,6 +171,13 @@ class Api:
         from modules.rembg import rembg_api
         rembg_api.register_api(self)
 
+        from modules.api import scheduler as scheduler_api
+        scheduler_api.register_api(self)
+
+        # framepack api
+        from modules.framepack import framepack_api
+        framepack_api.register_api(self)
+
         # hide trailing-slash duplicates from OpenAPI schema
         from fastapi.routing import APIRoute
         route_paths = {r.path for r in self.app.routes if hasattr(r, 'path')}
@@ -212,7 +221,7 @@ class Api:
             self.add_auth(host=request.client.host, user=credentials.username if credentials else None, method="none")
             return True
         if (credentials is not None) and (credentials.username in self.credentials):
-            if compare_digest(credentials.password, self.credentials[credentials.username]): # client user + encoded password
+            if compare_digest(credentials.password.encode('utf-8'), self.credentials[credentials.username].encode('utf-8')): # client user + encoded password; str compare_digest rejects non-ascii
                 self.add_auth(host=request.client.host, user=credentials.username if credentials else None, method="digest")
                 return True
             if hasattr(self.app, 'tokens') and (self.app.tokens is not None): # client sends token as password

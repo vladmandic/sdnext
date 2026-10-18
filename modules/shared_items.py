@@ -41,6 +41,7 @@ pipelines = {
     'FLUX': getattr(diffusers, 'FluxPipeline', None),
     'FLUX2Klein': getattr(diffusers, 'Flux2KleinPipeline', None),
     'FLUX2': getattr(diffusers, 'Flux2Pipeline', None),
+    'FLUX3': getattr(diffusers, 'Flux3ModularPipeline', None),
     'GLMImage': getattr(diffusers, 'GlmImagePipeline', None),
     'HiDream': getattr(diffusers, 'HiDreamImagePipeline', None),
     'HunyuanDiT': getattr(diffusers, 'HunyuanDiTPipeline', None),
@@ -52,8 +53,8 @@ pipelines = {
     'Kandinsky50': getattr(diffusers, 'Kandinsky5T2IPipeline', None),
     'Kolors': getattr(diffusers, 'KolorsPipeline', None),
     'LongCat': getattr(diffusers, 'LongCatImagePipeline', None),
+    'LuminaNext': getattr(diffusers, 'LuminaPipeline', None),
     'Lumina2': getattr(diffusers, 'Lumina2Pipeline', None),
-    'LuminaNext': getattr(diffusers, 'LuminaText2ImgPipeline', None),
     'NucleusImage': getattr(diffusers, 'NucleusMoEImagePipeline', None),
     'OvisImage': getattr(diffusers, 'OvisImagePipeline', None),
     'OmniGen': getattr(diffusers, 'OmniGenPipeline', None),
@@ -93,6 +94,8 @@ pipelines = {
     'Boogu': None,
     'SeFi': None,
     'MageFlow': None,
+    'MingImage': None,
+    'MOSSImage': None,
 }
 logging.getLogger("diffusers").setLevel(logging_level)
 logging.getLogger("diffusers.modular_pipelines").setLevel(logging_level)

@@ -81,6 +81,12 @@ shared_te_map = {
         'target_subfolder': 'text_encoder',
     },
 
+    'Qwen3.5 9B MOSS-Image': { # byte-identical to the base checkpoint, which adds the lm head and mtp layers
+        'cls': 'Qwen3_5Model', # by name: the qwen3_5 modeling module pulls optional linear-attention kernels on import
+        'identifier': ['moss-image', 'moss_image'],
+        'target_repo': 'Qwen/Qwen3.5-9B',
+    },
+
     'Qwen3-VL 4B Base': {  # Krea 2 base+turbo share one canonical 4B copy
         'cls': transformers.Qwen3VLModel,
         'identifier': 'krea',
@@ -127,6 +133,12 @@ shared_te_map = {
         'cls': transformers.Qwen3VLForConditionalGeneration,
         'identifier': ['qwen-image-2.1'],
         'target_repo': 'Qwen/Qwen3-VL-8B-Instruct',
+    },
+
+    'Qwen3-VL 4B Conditional FLUX.3': { # byte-identical to the base instruct checkpoint
+        'cls': transformers.Qwen3VLForConditionalGeneration,
+        'identifier': ['flux-3', 'flux3', 'flux_3'],
+        'target_repo': 'Qwen/Qwen3-VL-4B-Instruct',
     },
 
     'Qwen3-VL 2B Conditional': {

@@ -197,7 +197,6 @@ try:
 except Exception as ex:
     log.error(f'Device: {ex}')
 
-
 def restart_server(restart=True):
     if demo is None:
         return

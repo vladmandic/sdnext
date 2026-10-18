@@ -206,4 +206,7 @@ def create_ui(prompt, negative, styles, overrides, script_inputs, mp4_fps, mp4_i
         show_progress='hidden',
     )
     generate.click(**video_dict)
+    from modules import scheduler
+    schedule = gr.Button(visible=False, elem_id='video_schedule_btn')
+    schedule.click(fn=lambda *args: scheduler.enqueue_video_request('video', *args), inputs=state_inputs + video_inputs + script_inputs, outputs=video_outputs, show_progress='hidden')
     return engine, model, steps, sampler_index, width, height, frames, seed

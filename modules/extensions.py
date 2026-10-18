@@ -84,8 +84,9 @@ def temp_disable_extensions():
         if theme_name == 'gradio':
             theme_name = 'gradio/default'
         if theme_name == 'huggingface':
-            theme_name = 'huggingface/blaaa'
-
+            theme_name = 'huggingface/default'
+    if not shared.cmd_opts.enso:
+        disabled.append('enso')
     if theme_name.lower().startswith('standard'):
         shared.opts.data['theme_type'] = 'Standard'
         shared.opts.data['gradio_theme'] = theme_name[9:]

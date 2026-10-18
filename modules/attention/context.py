@@ -1,6 +1,6 @@
 """Per-generation state for attention consumers: the component running, the denoiser forward about to run, and the model."""
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import torch
 
 
@@ -13,7 +13,7 @@ class GenerationContext:
     forwards: int = 0
     model_key: tuple[str, str | None] | None = None # pipeline class and denoiser class, for telemetry and the sparse exclusion list
     step_buffer: torch.Tensor | None = None # the step as a device scalar updated in place, so compiled readers keep their graph
-    layout: object | None = None # TokenLayout published by whoever knows the packing, None until something does
+    layouts: dict = field(default_factory=dict) # TokenLayout per sequence length, published by whoever knows the packing, empty until something does
 
 
 current = GenerationContext()
@@ -41,7 +41,7 @@ def install_layout_hook(pipe) -> None:
     from modules.attention.sparse import layout as sparse_layout
 
     def publish(denoiser, args, kwargs): # pylint: disable=unused-argument
-        set_layout(sparse_layout.layout_from_kwargs(kwargs, denoiser.__class__.__name__))
+        set_layouts(sparse_layout.layouts_from_kwargs(kwargs, denoiser.__class__.__name__))
 
     for name in DENOISER_SLOTS:
         module = getattr(pipe, name, None)
@@ -54,7 +54,7 @@ def begin(pipe, steps: int = 0) -> None:
     from modules import devices
     current.active = True
     current.role = 'transformer'
-    current.layout = None
+    current.layouts = {}
     current.model_key = (pipe.__class__.__name__, denoiser_name(pipe)) if pipe is not None else None
     install_layout_hook(pipe)
     device = devices.device if devices.device is not None else torch.device('cpu')
@@ -83,8 +83,13 @@ def tick(step: int | None = None) -> None:
 
 
 def set_layout(layout) -> None:
-    """Publish what the packed sequence holds; callers that know the packing set this per forward."""
-    current.layout = layout
+    """Publish what one packed sequence holds; the site that packs it calls this per forward."""
+    current.layouts = {} if layout is None else {layout.length: layout}
+
+
+def set_layouts(layouts: dict) -> None:
+    """Publish a layout per sequence length, for a denoiser whose blocks attend over more than one sequence."""
+    current.layouts = dict(layouts or {})
 
 
 def end() -> None:
@@ -92,7 +97,7 @@ def end() -> None:
     current.active = False
     current.role = None
     current.model_key = None
-    current.layout = None
+    current.layouts = {}
     new_pass(0)
     debug.end_generation()
 

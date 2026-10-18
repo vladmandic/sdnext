@@ -239,7 +239,7 @@ def torch_gc(force: bool = False, fast: bool = False, reason: str | None = None)
                     torch.accelerator.synchronize()
                 if hasattr(torch.accelerator, "empty_cache"):
                     torch.accelerator.empty_cache()
-                if hasattr(torch.accelerator, "empty_host_cache"):
+                if hasattr(torch.accelerator, "empty_host_cache") and backend != 'mps':
                     torch.accelerator.empty_host_cache()
                 if torch.cuda.is_available() and hasattr(torch.cuda, "ipc_collect"):
                     torch.cuda.ipc_collect()

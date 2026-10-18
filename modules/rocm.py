@@ -30,8 +30,8 @@ def dirname(path_: str, r: int = 1) -> str:
     return path_
 
 
-def spawn(command: str | list[str], cwd: os.PathLike = '.') -> str:
-    process = subprocess.run(command, cwd=cwd, shell=True, check=False, capture_output=True, text=True)
+def spawn(command: str | list[str], cwd: os.PathLike = '.', env: dict[str, str] | None = None) -> str:
+    process = subprocess.run(command, cwd=cwd, shell=True, check=False, capture_output=True, text=True, env=env)
     return process.stdout
 
 
@@ -54,6 +54,7 @@ class ROCmEnvironment(Environment):
 # rocm-sdk package is installed
 class PythonPackageEnvironment(Environment):
     hip: ctypes.CDLL
+    path: str
 
     def __init__(self, rocm_sdk_module: ModuleType):
         spec = rocm_sdk_module._dist_info.ALL_PACKAGES['core'].get_py_package() # pylint: disable=protected-access
@@ -62,6 +63,7 @@ class PythonPackageEnvironment(Environment):
         candidates = glob.glob(pattern)
         if len(candidates) == 0:
             raise FileNotFoundError("Could not find amdhip64 in rocm-sdk package")
+        self.path = os.path.dirname(candidates[0])
         self.hip = ctypes.CDLL(candidates[0])
 
 
@@ -70,6 +72,10 @@ class MicroArchitecture(Enum):
     RDNA = "rdna"
     CDNA = "cdna"
 
+xnack_arches = frozenset({
+    0x906, 0x908, 0x909, 0x90a, 0x90c,
+    0x940, 0x941, 0x942, 0x950,
+})
 
 class Agent:
     name: str
@@ -149,6 +155,12 @@ class Agent:
             return "10.3.0"
         return None
 
+
+def configure_xnack(agents: list[Agent]):
+    unsupported = [agent.name for agent in agents if agent.gfx_version not in xnack_arches]
+    if unsupported:
+        os.environ.pop('HSA_XNACK', None)
+        log.info(f'ROCm: XNACK is Null for unsupported {unsupported}')
 
 def find() -> ROCmEnvironment | None:
     hip_path = shutil.which("hipconfig")
@@ -270,12 +282,20 @@ if sys.platform == "win32":
             name = f.name
             f.write(CODE_AMDGPU_ARCH)
             f.flush()
-        out = spawn([sys.executable, name])
+        # newer drivers ship amdhip64 that depends on sdk dlls such as rocm_kpack.dll
+        env = os.environ.copy()
+        if isinstance(environment, PythonPackageEnvironment):
+            env["PATH"] = os.path.join(environment.path, env.get("PATH", ""))
+        elif isinstance(environment, ROCmEnvironment):
+            env["PATH"] = os.path.join(environment.path, "bin", env.get("PATH", ""))
+        out = spawn([sys.executable, name], env=env)
         os.unlink(name)
         out = out.strip()
         if out == "":
             return []
-        return [Agent(x.split(' ')[-1].strip()) for x in out.split("\n")]
+        agents = [Agent(x.split(' ')[-1].strip()) for x in out.split("\n")]
+        configure_xnack(agents)
+        return agents
 
     def postinstall():
         import torch
@@ -348,7 +368,9 @@ else: # sys.platform != "win32"
         except Exception: # old version of ROCm WSL doesn't have rocm_agent_enumerator
             _agents = spawn("rocminfo").split("\n")
             _agents = [x.strip().split(" ")[-1] for x in _agents if x.startswith('  Name:') and "CPU" not in x]
-        return [Agent(x) for x in _agents]
+        agents = [Agent(x) for x in _agents]
+        configure_xnack(agents)
+        return agents
 
     def postinstall():
         if is_wsl:

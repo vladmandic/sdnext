@@ -80,10 +80,11 @@ def setup_middleware(app: FastAPI, cmd_opts):
     app.add_middleware(GZipMiddleware, minimum_size=2048)
     if cmd_opts.profile:
         app.add_middleware(LoopInstrumentorMiddleware)
-    if cmd_opts.cors_origins and cmd_opts.cors_regex:
-        app.add_middleware(CORSMiddleware, allow_origins=cmd_opts.cors_origins.split(','), allow_origin_regex=cmd_opts.cors_regex, allow_methods=['*'], allow_credentials=True, allow_headers=['*'])
-    elif cmd_opts.cors_origins:
-        app.add_middleware(CORSMiddleware, allow_origins=cmd_opts.cors_origins.split(','), allow_methods=['*'], allow_credentials=True, allow_headers=['*'])
+    origins = [x.strip() for x in (cmd_opts.cors_origins or '').split(',') if x.strip()] # starlette compares origins verbatim
+    if origins and cmd_opts.cors_regex:
+        app.add_middleware(CORSMiddleware, allow_origins=origins, allow_origin_regex=cmd_opts.cors_regex, allow_methods=['*'], allow_credentials=True, allow_headers=['*'])
+    elif origins:
+        app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=['*'], allow_credentials=True, allow_headers=['*'])
     elif cmd_opts.cors_regex:
         app.add_middleware(CORSMiddleware, allow_origin_regex=cmd_opts.cors_regex, allow_methods=['*'], allow_credentials=True, allow_headers=['*'])
 
@@ -102,9 +103,10 @@ def setup_middleware(app: FastAPI, cmd_opts):
             if redirect:
                 return redirect
 
-            validate_request(client, endpoint)
+            route = getattr(req.scope.get('route'), 'path', None)
+            validate_request(client, endpoint, route)
             if cmd_opts.api_log:
-                if not validate_log(client, endpoint):
+                if not validate_log(client, endpoint, route):
                     return res
                 log.info('API user={user} code={code} {prot}/{ver} {method} {endpoint} {client} {duration}'.format( # pylint: disable=consider-using-f-string, logging-format-interpolation
                     user = app.tokens.get(token) if hasattr(app, 'tokens') else None,
@@ -139,12 +141,12 @@ def setup_middleware(app: FastAPI, cmd_opts):
 
         endpoint = req.scope.get("path", "err")
         client = req.scope.get("client", ("0:0.0.0", 0))[0]
-        if not validate_log(client, endpoint):
-            log.error(f"API error: {req.method}: {req.url} {err}")
+        if validate_log(client, endpoint, getattr(req.scope.get("route"), "path", None)):
+            log.error(f"API error: {req.method}: {endpoint} {err}") # query strings can carry credentials
 
         if not isinstance(e, HTTPException) and err['error'] != 'TypeError': # do not print backtrace on known httpexceptions
             errors.display(e, 'HTTP API', [anyio, fastapi, uvicorn, starlette])
-        elif err['code'] in [404, 401, 400, 403]:
+        elif err['code'] in [404, 401, 400, 403, 503]:
             pass
         else:
             log.debug(e, exc_info=True) # print stack trace

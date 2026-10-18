@@ -37,6 +37,8 @@ class ReqFramepack(BaseModel):
     mp4_opt: str | None = Field(default="crf=16", title="Options", description="Options for the video codec")
     mp4_ext: str | None = Field(default="mp4", title="Format", description="Format for the video")
     mp4_interpolate: int | None = Field(default=0, title="Interpolation", description="Interpolation for the video")
+    mp4_scale: float | None = Field(default=1.0, title="Video scale", description="Scale factor for the video upscale")
+    mp4_upscaler: str | None = Field(default="", title="Video upscaler", description="Upscaler for the video, empty to skip upscaling")
     vae_type: str | None = Field(default="Local", title="VAE", description="VAE type for the model")
     vlm_enhance: bool | None = Field(default=False, title="VLM enhance", description="Enable VLM enhance")
     vlm_model: str | None = Field(default=None, title="VLM model", description="VLM model to use")
@@ -49,10 +51,23 @@ class ResFramepack(BaseModel):
     message: str = Field(title="TaskID", description="Task ID")
 
 
+def result_error(request: ReqFramepack, response: ResFramepack) -> HTTPException | None:
+    if response.filename:
+        return None
+    if shared.state.interrupted or shared.state.skipped:
+        return HTTPException(status_code=499, detail="interrupted")
+    if request.mp4_video and request.mp4_codec != 'none': # worker logs its own errors and yields no file
+        return HTTPException(status_code=500, detail="no video written, see server log")
+    return None
+
+
 def framepack_post(request: ReqFramepack):
     import numpy as np
     from modules.api import helpers
-    from framepack_wrappers import run_framepack
+    from modules.framepack import framepack_load
+    from modules.framepack.framepack_wrappers import run_framepack
+    if request.variant is not None and not framepack_load.models.get(request.variant):
+        raise HTTPException(status_code=400, detail=f'variant "{request.variant}" invalid, choices: {[k for k, v in framepack_load.models.items() if v]}')
     task_id = shared.state.get_id()
 
     try:
@@ -75,7 +90,7 @@ def framepack_post(request: ReqFramepack):
 
     del request.init_image
     del request.end_image
-    log.trace(f"API FramePack: id={task_id} init={init_image.shape} end={end_image.shape if end_image else None} {request}")
+    log.trace(f"API FramePack: id={task_id} init={getattr(init_image, 'shape', None)} end={getattr(end_image, 'shape', None)} {request}")
 
     generator = run_framepack(
         _ui_state=None,
@@ -113,6 +128,8 @@ def framepack_post(request: ReqFramepack):
         mp4_opt=request.mp4_opt,
         mp4_ext=request.mp4_ext,
         mp4_interpolate=request.mp4_interpolate,
+        mp4_scale=request.mp4_scale,
+        mp4_upscaler=request.mp4_upscaler,
         vae_type=request.vae_type,
         vlm_enhance=request.vlm_enhance,
         vlm_model=request.vlm_model,
@@ -125,8 +142,11 @@ def framepack_post(request: ReqFramepack):
                 response.filename = message[0]
             if isinstance(message[2], str):
                 response.message = message[2]
+    error = result_error(request, response)
+    if error is not None:
+        raise error
     return response
 
 
-def create_api(_fastapi, _gradioapp):
-    shared.api.add_api_route("/sdapi/v1/framepack", framepack_post, methods=["POST"], response_model=ResFramepack)
+def register_api(api):
+    api.add_api_route("/sdapi/v1/framepack", framepack_post, methods=["POST"], response_model=ResFramepack, tags=["Generation"])

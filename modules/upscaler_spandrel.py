@@ -9,16 +9,16 @@ from modules.logger import log
 
 
 MODELS = {
-    "Spandrel 4x RealPLKSR NomosWebPhoto": "https://huggingface.co/vladmandic/sdnext-upscalers/resolve/main/4xNomosWebPhoto_RealPLKSR.safetensors",
-    "Spandrel 2x RealPLKSR AnimeSharpV2": "https://huggingface.co/vladmandic/sdnext-upscalers/resolve/main/2x-AnimeSharpV2_RPLKSR_Sharp.pth",
-    "Spandrel 2x RealESRGAN Compact": "https://huggingface.co/vladmandic/sdnext-upscalers/resolve/main/RealESRGAN-2x-Compact.pth",
-    "Spandrel 2x RealESRGAN UltraCompact": "https://huggingface.co/vladmandic/sdnext-upscalers/resolve/main/RealESRGAN-2x-UltraCompact.pth",
-    "Spandrel 4x RealSAFMN++": "https://huggingface.co/vladmandic/sdnext-upscalers/resolve/main/Real-SAFMN++.pth",
-    "Spandrel 2x RealSAFMN": "https://huggingface.co/vladmandic/sdnext-upscalers/resolve/main/Real-SAFMN-x2.pth",
-    "Spandrel 4x RealSAFMN": "https://huggingface.co/vladmandic/sdnext-upscalers/resolve/main/Real-SAFMN-x4-v2.pth",
-    "Spandrel 2x SAFMN PureScale": "https://huggingface.co/vladmandic/sdnext-upscalers/resolve/main/2x_SAFMN_PureScale.pth",
-    "Spandrel 2x SAFMN PureScale Sharper": "https://huggingface.co/vladmandic/sdnext-upscalers/resolve/main/2x_SAFMN_PureScale_sharper.pth",
-    "Spandrel 4x SAFMN PureScale": "https://huggingface.co/vladmandic/sdnext-upscalers/resolve/main/4x_SAFMN_PureScale.pth",
+    "Spandrel 4x RealPLKSR NomosWebPhoto": "https://huggingface.co/SD-Next/Upscalers/resolve/main/4xNomosWebPhoto_RealPLKSR.safetensors",
+    "Spandrel 2x RealPLKSR AnimeSharpV2": "https://huggingface.co/SD-Next/Upscalers/resolve/main/2x-AnimeSharpV2_RPLKSR_Sharp.pth",
+    "Spandrel 2x RealESRGAN Compact": "https://huggingface.co/SD-Next/Upscalers/resolve/main/RealESRGAN-2x-Compact.pth",
+    "Spandrel 2x RealESRGAN UltraCompact": "https://huggingface.co/SD-Next/Upscalers/resolve/main/RealESRGAN-2x-UltraCompact.pth",
+    "Spandrel 4x RealSAFMN++": "https://huggingface.co/SD-Next/Upscalers/resolve/main/Real-SAFMN++.pth",
+    "Spandrel 2x RealSAFMN": "https://huggingface.co/SD-Next/Upscalers/resolve/main/Real-SAFMN-x2.pth",
+    "Spandrel 4x RealSAFMN": "https://huggingface.co/SD-Next/Upscalers/resolve/main/Real-SAFMN-x4-v2.pth",
+    "Spandrel 2x SAFMN PureScale": "https://huggingface.co/SD-Next/Upscalers/resolve/main/2x_SAFMN_PureScale.pth",
+    "Spandrel 2x SAFMN PureScale Sharper": "https://huggingface.co/SD-Next/Upscalers/resolve/main/2x_SAFMN_PureScale_sharper.pth",
+    "Spandrel 4x SAFMN PureScale": "https://huggingface.co/SD-Next/Upscalers/resolve/main/4x_SAFMN_PureScale.pth",
 }
 
 class UpscalerSpandrel(Upscaler):

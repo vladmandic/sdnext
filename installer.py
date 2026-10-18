@@ -28,9 +28,9 @@ class Torch(dict):
 
 
 # target commit hashes for specific packages
-diffusers_target = 'fef717ffb01f407d2637584ed936c16db908587a' # diffusers commit hash == 0.41.0.dev0 == 09-29-2026
+diffusers_target = 'b800f828f3951c4d206e154411bcbfa693cd322e' # diffusers commit hash == 0.41.0.dev0 == 10-17-2026
 transformers_target = 'b70d02fc724d04c916832ca4ead03ff05e8fb1ee' # transformers commit hash == 5.13.0.dev0 == 07-03-2026
-sdnq_target = '8aa3dace09237873bbb0ed8ca89e6a81a754da85' # sdnq commit hash == 0.2.7.dev == 10-05-2026
+sdnq_target = '35337772cdd3ca160d8ab216d06b22461fa476dc' # sdnq commit hash == 0.2.9 == 10-16-2026
 
 git_commit = "unknown"
 diffusers_commit = "unknown"
@@ -128,6 +128,27 @@ def print_dict(d):
     if d is None:
         return ''
     return ' '.join([f'{k}={v}' for k, v in d.items()])
+
+
+secret_args = ['auth', 'api_auth'] # cli options whose values never reach the log or the api
+
+
+def mask_args(argv: list, parsed) -> list:
+    values = [v for v in (getattr(parsed, name, None) for name in secret_args) if v]
+    masked = []
+    for arg in argv:
+        flag, _sep, value = arg.partition('=')
+        if arg in values:
+            masked.append('***')
+        elif value in values:
+            masked.append(f'{flag}=***')
+        else:
+            masked.append(arg)
+    return masked
+
+
+def mask_dict(d: dict) -> dict:
+    return {k: '***' if (k in secret_args and v) else v for k, v in d.items()}
 
 
 def env_flag(name: str, default: bool = False) -> bool:
@@ -436,7 +457,8 @@ def branch(folder=None):
 def restart(argv: list | None = None):
     argv = argv if isinstance(argv, list) else sys.argv
     log.critical('Restarting process...')
-    os.execv(sys.executable, ['python'] + argv)
+    executable = 'python' if sys.platform == 'win32' else sys.executable # posix python locates its venv from argv[0]; windows execv does not quote a path with spaces
+    os.execv(sys.executable, [executable] + argv)
 
 
 # update git repository
@@ -577,7 +599,7 @@ def register_sdnq():
     sdnq_ver = version.get('sdnq', 'unknown')
     sdnq_commit = sdnq_ver.split('@')[1] if '@' in sdnq_ver else 'unknown'
     core_branch = version.get('branch', 'unknown')
-    locked = core_branch in ['master', 'main', 'dev']
+    locked = core_branch in ['master', 'main']
     if locked and (sdnq_commit not in sdnq_target):
         git('checkout ' + sdnq_target, folder='extensions-builtin/sdnq', ignore=True, optional=True)
         sdnq_commit = run('git', 'rev-parse HEAD', check=True, cwd='extensions-builtin/sdnq')[0].stdout.strip()[:8]

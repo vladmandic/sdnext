@@ -26,6 +26,7 @@ NATIVE_DISPATCH = {
     'chroma':     'pipelines.chroma.chroma_lora',
     'ernieimage': 'pipelines.ernie.ernie_lora',
     'f2':         'pipelines.flux.flux2_lora',
+    'f3':         'pipelines.flux3.flux3_lora',
     'anima':      'pipelines.anima.anima_lora',
     'krea2':      'pipelines.krea2.krea2_lora',
     'minimaxh3':  'pipelines.minimax.minimax_lora',

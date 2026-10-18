@@ -107,11 +107,11 @@ class InterruptLogFilter(logging.Filter):
         return not filtered
 
 
-def publish_layout(kwargs):
-    """Hand the attention router whatever the pipeline says about its packed sequence, keyed on the *_indices tensors rather than the model."""
+def publish_layout(module, kwargs):
+    """Hand the attention router whatever the pipeline says about its packed sequences: the *_indices tensors, or the packing declared for the denoiser class."""
     try:
         from modules.attention.sparse import layout as sparse_layout
-        attention_context.set_layout(sparse_layout.layout_from_index_kwargs(kwargs or {}))
+        attention_context.set_layouts(sparse_layout.layouts_from_kwargs(kwargs or {}, module.__class__.__name__))
     except Exception as e:
         log.debug(f'Pipeline: token layout {e}')
 
@@ -137,7 +137,7 @@ def install_state_hook(pipe):
     def _pre_transformer_hook(module, args, kwargs): # pylint: disable=unused-argument
         new_phase = set_phase('Generate', module)
         attention_context.set_role('transformer')
-        publish_layout(kwargs)
+        publish_layout(module, kwargs)
         if new_phase:
             sd_offload.offload_ondemand(pipe, exclude=['transformer', 'transformer_ref', 'unet'], reason='generate', force=hasattr(pipe, 'sdnext_force_offload'))
         if shared.state.sampling_steps == 0 and getattr(pipe, 'num_timesteps', 0) > 0:

@@ -109,7 +109,8 @@ def build_sparse_stage(plan: Plan):
     from modules.attention.sparse import stage as sparse_stage
     try:
         options = sparse_stage.read_options()
-    except Exception:
+    except Exception as e: # an unreadable value, such as a null written over the api, must not turn the feature off quietly
+        log.error(f'Attention: sparse options unreadable, attention stays dense: {e}')
         return None
     if not options.enabled:
         return None
@@ -151,7 +152,7 @@ def report() -> dict:
     plan = current_plan
     state = context.current
     options = sparse_stage.read_options()
-    layout = state.layout
+    layouts = state.layouts
     return {
         'chain': plan.chain() if plan is not None else ['sdpa'],
         'overrides': list(plan.labels) if plan is not None else [],
@@ -160,7 +161,7 @@ def report() -> dict:
             'budget': options.budget,
             'gate': options.min_tokens,
             'capable': [entry.backend.name for entry in plan.entries if 'block_mask' in entry.caps] if plan is not None else [],
-            'layout': {'source': layout.source, 'kinds': list(layout.kinds()), 'length': layout.length} if layout is not None else None,
+            'layouts': [{'source': layout.source, 'kinds': list(layout.kinds()), 'length': layout.length} for layout in layouts.values()],
         },
         'backend': plan.platform.backend if plan is not None else None,
         'context': {'active': state.active, 'role': state.role, 'step': state.step, 'steps': state.steps, 'model': state.model_key},

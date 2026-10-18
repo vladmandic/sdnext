@@ -10,7 +10,15 @@ _save_timer = None
 _save_lock = threading.Lock()
 
 
-def create_toprow(is_img2img: bool = False, id_part: str | None = None, generate_visible: bool = True, negative_visible: bool = True, reprocess_visible: bool = True):
+def create_toprow(
+        is_img2img: bool = False,
+        id_part: str | None = None,
+        generate_visible: bool = True,
+        negative_visible: bool = True,
+        reprocess_visible: bool = True,
+        schedule_visible: bool = True,
+    ):
+
     def apply_styles(prompt, prompt_neg, styles):
         prompt = shared.prompt_styles.apply_styles_to_prompt(prompt, styles, wildcards=not shared.opts.extra_networks_apply_unparsed)
         prompt_neg = shared.prompt_styles.apply_negative_styles_to_prompt(prompt_neg, styles, wildcards=not shared.opts.extra_networks_apply_unparsed)
@@ -41,6 +49,7 @@ def create_toprow(is_img2img: bool = False, id_part: str | None = None, generate
             with gr.Row(elem_id=f"{id_part}_generate_box"):
                 reprocess = []
                 submit = gr.Button('Generate', elem_id=f"{id_part}_generate", variant='primary', visible=generate_visible)
+                schedule = gr.Button('Schedule', elem_id=f"{id_part}_schedule", variant='primary', visible=schedule_visible)
                 if reprocess_visible:
                     reprocess.append(gr.Button('Reprocess', elem_id=f"{id_part}_reprocess", variant='primary', visible=True))
                     reprocess.append(gr.Button('Reprocess decode', elem_id=f"{id_part}_reprocess_decode", variant='primary', visible=False))
@@ -72,7 +81,7 @@ def create_toprow(is_img2img: bool = False, id_part: str | None = None, generate
                 styles_btn_select.click(_js="applyStyles", fn=parse_style, inputs=[styles], outputs=[styles], show_progress='hidden')
                 styles_btn_apply.click(fn=apply_styles, inputs=[prompt, negative_prompt, styles], outputs=[prompt, negative_prompt, styles], show_progress='hidden')
                 styles_btn_save.click(fn=lambda: None, _js='() => quickSaveStyle()', inputs=[], outputs=[], show_progress='hidden')
-    return prompt, styles, negative_prompt, submit, reprocess, button_paste, button_extra, token_counter, token_button, negative_token_counter, negative_token_button
+    return prompt, styles, negative_prompt, submit, reprocess, button_paste, button_extra, token_counter, token_button, negative_token_counter, negative_token_button, schedule
 
 
 def create_resolution_inputs(tab, default_width=1024, default_height=1024, step=8):
@@ -253,7 +262,11 @@ def create_sampler_and_steps_selection(choices, tabname, default_steps:int=20):
         steps = gr.Slider(minimum=1, maximum=100, step=1, label="Steps", elem_id=f"{tabname}_steps", value=default_steps)
         sampler_index = gr.Dropdown(label='Sampling method', elem_id=f"{tabname}_sampling", choices=dropdown_choices, value=default_value, type="value")
         create_filter_indicator(tabname, 'Sampler', filtered)
+    _sampler_dropdowns[tabname] = sampler_index
     return steps, sampler_index
+
+
+_sampler_dropdowns = {}
 
 
 def save_with_debounce(delay=0.5):
@@ -274,7 +287,108 @@ def save_with_debounce(delay=0.5):
         _save_timer.start()
 
 
+def sampler_ui_defaults(name):
+    from modules import sd_samplers_diffusers
+
+    sampler = next((item for item in sd_samplers_diffusers.samplers_data_diffusers if item.name == name), None)
+    if sampler is None or name == 'Default' or sampler.constructor is None:
+        return None
+
+    option_keys = {
+        'schedulers_sigma',
+        'schedulers_timestep_spacing',
+        'schedulers_beta_schedule',
+        'schedulers_prediction_type',
+        'schedulers_timesteps',
+        'schedulers_sigma_adjust',
+        'schedulers_sigma_adjust_min',
+        'schedulers_sigma_adjust_max',
+        'schedulers_solver_order',
+        'schedulers_shift',
+        'schedulers_base_shift',
+        'schedulers_max_shift',
+        'schedulers_base_image_seq_len',
+        'schedulers_max_image_seq_len',
+        'schedulers_use_loworder',
+        'schedulers_use_thresholding',
+        'schedulers_dynamic_shift',
+        'schedulers_rescale_betas',
+    }
+    values = {key: shared.opts.get_default(key) for key in option_keys}
+    model = shared.sd_model if shared.sd_loaded else None
+    scheduler = getattr(model, 'default_scheduler', None) if model is not None else None
+    scheduler = scheduler or (getattr(model, 'scheduler', None) if model is not None else None)
+    model_config = getattr(scheduler, 'config', None)
+    model_defaults = dict(model_config.items()) if model_config is not None and hasattr(model_config, 'items') else {}
+
+    defaults = dict(sd_samplers_diffusers.config.get('All', {}))
+    defaults.update(model_defaults)
+    defaults.update(sd_samplers_diffusers.config.get(name, {}))
+    defaults.update(sampler.options)
+    if 'num_train_timesteps' in defaults:
+        values['schedulers_timesteps'] = str(defaults['num_train_timesteps'])
+    if 'prediction_type' in defaults and 'Flow' in name and name not in sd_samplers_diffusers.flow_exclude:
+        defaults['prediction_type'] = 'flow_prediction'
+    if 'SGM' in name:
+        defaults['timestep_spacing'] = 'trailing'
+
+    prediction = defaults.get('prediction_type')
+    values['schedulers_prediction_type'] = {
+        'v-prediction': 'v_prediction',
+    }.get(prediction, prediction if prediction in {'epsilon', 'sample', 'v_prediction', 'flow_prediction'} else 'default')
+    spacing = defaults.get('timestep_spacing')
+    if spacing in {'linspace', 'leading', 'trailing'}:
+        values['schedulers_timestep_spacing'] = spacing
+    values['schedulers_beta_schedule'] = {
+        'linear': 'linear',
+        'scaled_linear': 'scaled',
+        'squaredcos_cap_v2': 'cosine',
+        'sigmoid': 'sigmoid',
+    }.get(defaults.get('beta_schedule'), 'default')
+    sigma = defaults.get('sigma_schedule')
+    if sigma not in {'karras', 'betas', 'exponential', 'lambdas', 'flowmatch'}:
+        sigma = next((value for key, value in (
+            ('use_karras_sigmas', 'karras'),
+            ('use_beta_sigmas', 'betas'),
+            ('use_exponential_sigmas', 'exponential'),
+            ('use_lu_lambdas', 'lambdas'),
+            ('use_flow_sigmas', 'flowmatch'),
+        ) if defaults.get(key)), 'default')
+    values['schedulers_sigma'] = sigma
+
+    mapping = {
+        'solver_order': 'schedulers_solver_order',
+        'lower_order_final': 'schedulers_use_loworder',
+        'thresholding': 'schedulers_use_thresholding',
+        'rescale_betas_zero_snr': 'schedulers_rescale_betas',
+        'use_dynamic_shifting': 'schedulers_dynamic_shift',
+        'base_image_seq_len': 'schedulers_base_image_seq_len',
+        'max_image_seq_len': 'schedulers_max_image_seq_len',
+        'sigma_adjust': 'schedulers_sigma_adjust',
+        'sigma_adjust_min': 'schedulers_sigma_adjust_min',
+        'sigma_adjust_max': 'schedulers_sigma_adjust_max',
+        'base_shift': 'schedulers_base_shift',
+        'max_shift': 'schedulers_max_shift',
+    }
+    for config_key, option_key in mapping.items():
+        if config_key in defaults:
+            values[option_key] = defaults[config_key]
+    for config_key in ('flow_shift', 'shift'):
+        if config_key in defaults:
+            values['schedulers_shift'] = defaults[config_key]
+            break
+    return values
+
+
 def create_sampler_options(tabname):
+    saved_defaults = shared.opts.data.copy()
+    sampler_dropdown = _sampler_dropdowns.get(tabname)
+    selected_sampler = getattr(sampler_dropdown, 'value', 'Default')
+    sampler_defaults = sampler_ui_defaults(selected_sampler)
+    if selected_sampler == 'Default':
+        timesteps_value = saved_defaults.get('schedulers_timesteps', shared.opts.get_default('schedulers_timesteps'))
+    else:
+        timesteps_value = sampler_defaults['schedulers_timesteps'] if sampler_defaults is not None else shared.opts.get_default('schedulers_timesteps')
 
     def set_sampler_options(sampler_options):
         shared.opts.data['schedulers_dynamic_shift'] = 'dynamic' in sampler_options
@@ -314,11 +428,6 @@ def create_sampler_options(tabname):
         shared.opts.schedulers_prediction_type = sampler_prediction
         save_with_debounce()
 
-    def set_sampler_beta(sampler_beta):
-        log.debug(f'Sampler set options: beta={sampler_beta}')
-        shared.opts.schedulers_beta_schedule = sampler_beta
-        save_with_debounce()
-
     def set_sampler_shift(sampler_shift, sampler_base_shift, sampler_max_shift):
         log.debug(f'Sampler set options: shift={sampler_shift} base={sampler_base_shift} max={sampler_max_shift}')
         shared.opts.schedulers_shift = sampler_shift
@@ -332,6 +441,11 @@ def create_sampler_options(tabname):
         shared.opts.schedulers_max_image_seq_len = max_image_seq_len
         save_with_debounce()
 
+    def set_sampler_beta(sampler_beta):
+        log.debug(f'Sampler set options: beta={sampler_beta}')
+        shared.opts.schedulers_beta_schedule = sampler_beta
+        save_with_debounce()
+
     def set_sigma_adjust(val, start, end):
         log.debug(f'Sampler set options: sigma={val} min={start} max={end}')
         shared.opts.schedulers_sigma_adjust = val
@@ -339,7 +453,6 @@ def create_sampler_options(tabname):
         shared.opts.schedulers_sigma_adjust_max = end
         save_with_debounce()
 
-    # 'linear', 'scaled_linear', 'squaredcos_cap_v2'
     def set_sampler_preset(preset):
         if preset == 'AYS SD15':
             return '999,850,736,645,545,455,343,233,124,24'
@@ -355,7 +468,7 @@ def create_sampler_options(tabname):
         sampler_prediction = gr.Dropdown(label='Prediction method', elem_id=f"{tabname}_sampler_prediction", choices=['default', 'epsilon', 'sample', 'v_prediction', 'flow_prediction'], value=shared.opts.schedulers_prediction_type, type='value')
     with gr.Row(elem_classes=['flex-break']):
         sampler_presets = gr.Dropdown(label='Timesteps presets', elem_id=f"{tabname}_sampler_presets", choices=['None', 'AYS SD15', 'AYS SDXL'], value='None', type='value')
-        sampler_timesteps = gr.Textbox(label='Timesteps override', elem_id=f"{tabname}_sampler_timesteps", value=shared.opts.schedulers_timesteps)
+        sampler_timesteps = gr.Textbox(label='Timesteps override', elem_id=f"{tabname}_sampler_timesteps", value=timesteps_value)
     with gr.Row(elem_classes=['flex-break']):
         sampler_sigma_adjust_val = gr.Slider(minimum=0.5, maximum=1.5, step=0.01, label='Sigma adjust', value=shared.opts.schedulers_sigma_adjust, elem_id=f"{tabname}_sampler_sigma_adjust")
         sampler_sigma_adjust_min = gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label='Adjust start', value=shared.opts.schedulers_sigma_adjust_min, elem_id=f"{tabname}_sampler_sigma_adjust_min")
@@ -380,12 +493,69 @@ def create_sampler_options(tabname):
     with gr.Row(elem_classes=['flex-break']):
         sampler_fallback = gr.Checkbox(label='Fallback on invalid', value=shared.opts.schedulers_fallback, elem_id=f"{tabname}_sampler_fallback")
 
+    ui_fields = [
+        ('schedulers_sigma', sampler_sigma),
+        ('schedulers_timestep_spacing', sampler_spacing),
+        ('schedulers_beta_schedule', sampler_beta),
+        ('schedulers_prediction_type', sampler_prediction),
+        ('sampler_presets', sampler_presets),
+        ('schedulers_timesteps', sampler_timesteps),
+        ('schedulers_sigma_adjust', sampler_sigma_adjust_val),
+        ('schedulers_sigma_adjust_min', sampler_sigma_adjust_min),
+        ('schedulers_sigma_adjust_max', sampler_sigma_adjust_max),
+        ('schedulers_solver_order', sampler_order),
+        ('schedulers_shift', sampler_shift),
+        ('schedulers_base_shift', sampler_base_shift),
+        ('schedulers_max_shift', sampler_max_shift),
+        ('schedulers_base_image_seq_len', sampler_base_image_seq_len),
+        ('schedulers_max_image_seq_len', sampler_max_image_seq_len),
+        ('sampler_options', sampler_options),
+    ]
+
+    def set_sampler_defaults(name):
+        if name == 'Default':
+            values = {
+                field[0]: saved_defaults.get(field[0], shared.opts.get_default(field[0]))
+                for field in ui_fields
+                if field[0] not in {'sampler_presets', 'sampler_options'}
+            }
+            values.update({
+                key: saved_defaults.get(key, shared.opts.get_default(key))
+                for key in (
+                    'schedulers_use_loworder',
+                    'schedulers_use_thresholding',
+                    'schedulers_dynamic_shift',
+                    'schedulers_rescale_betas',
+                )
+            })
+            shared.opts.schedulers_beta_schedule = values['schedulers_beta_schedule']
+        else:
+            values = sampler_ui_defaults(name)
+            if values is None:
+                return [gr.update() for _ in ui_fields]
+            values['schedulers_sigma'] = 'default'
+            shared.opts.schedulers_beta_schedule = 'default'
+        values['sampler_presets'] = 'None'
+        values['sampler_options'] = [
+            label for key, label in (
+                ('schedulers_use_loworder', 'low order'),
+                ('schedulers_use_thresholding', 'thresholding'),
+                ('schedulers_dynamic_shift', 'dynamic'),
+                ('schedulers_rescale_betas', 'rescale'),
+            ) if values[key]
+        ]
+        return [gr.update(value=values[field[0]]) for field in ui_fields]
+
+    sampler_dropdown = _sampler_dropdowns.get(tabname)
+    if sampler_dropdown is not None:
+        sampler_dropdown.change(fn=set_sampler_defaults, inputs=[sampler_dropdown], outputs=[field[1] for field in ui_fields])
+
     sampler_sigma.change(fn=set_sampler_sigma, inputs=[sampler_sigma], outputs=[])
     sampler_spacing.change(fn=set_sampler_spacing, inputs=[sampler_spacing], outputs=[])
     sampler_presets.change(fn=set_sampler_preset, inputs=[sampler_presets], outputs=[sampler_timesteps])
     sampler_timesteps.change(fn=set_sampler_timesteps, inputs=[sampler_timesteps], outputs=[])
-    sampler_beta.change(fn=set_sampler_beta, inputs=[sampler_beta], outputs=[])
     sampler_prediction.change(fn=set_sampler_prediction, inputs=[sampler_prediction], outputs=[])
+    sampler_beta.change(fn=set_sampler_beta, inputs=[sampler_beta], outputs=[])
     sampler_order.change(fn=set_sampler_order, inputs=[sampler_order], outputs=[])
     sampler_shift.change(fn=set_sampler_shift, inputs=[sampler_shift, sampler_base_shift, sampler_max_shift], outputs=[])
     sampler_base_shift.change(fn=set_sampler_shift, inputs=[sampler_shift, sampler_base_shift, sampler_max_shift], outputs=[])

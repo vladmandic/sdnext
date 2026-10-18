@@ -47,6 +47,8 @@ def get_model_type(pipe):
         model_type = 'zetachroma'
     elif 'Chroma' in name:
         model_type = 'chroma'
+    elif "Flux3" in name:
+        model_type = 'f3'
     elif "Flux2" in name:
         model_type = 'f2'
     elif "UltraFlux" in name:
@@ -105,6 +107,10 @@ def get_model_type(pipe):
         model_type = 'qwen21'
     elif 'Qwen' in name:
         model_type = 'qwen'
+    elif 'MOSSImage' in name:
+        model_type = 'mossimage'
+    elif 'MingImage' in name:
+        model_type = 'mingimage'
     elif 'ErnieImage' in name or 'ERNIE-Image' in name:
         model_type = 'ernieimage'
     elif 'NucleusMoEImage' in name or 'Nucleus-Image' in name:
@@ -143,7 +149,7 @@ def get_model_type(pipe):
         model_type = 'sdxs'
     elif 'SeFi' in name:
         model_type = 'sefi'
-    elif 'Mage-Flow' in name:
+    elif 'MageFlow' in name:
         model_type = 'mageflow'
     elif 'ObjectClear' in name:
         model_type = 'sdxl'

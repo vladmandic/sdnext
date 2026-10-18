@@ -177,6 +177,11 @@ Most new model families need all of these:
 
 Add only what the model actually needs.
 
+Check these conditional runtime registries and update them when the new model type needs the behavior they control:
+
+- `modules/sd_samplers_common.py:flow_models` when the model needs scheduler configs with `use_flow_sigmas` to use flow sigmas.
+- `modules/vae/model_map.py:vae_map` when SD.Next VAE handling needs to map the model type to a VAE family.
+
 Reference catalog touchpoints are also required for model ports intended to appear in SD.Next model references.
 
 - `data/reference-base.json` for `base`

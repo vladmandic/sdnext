@@ -11,7 +11,7 @@ from modules.vae.model_map import get_vae_type
 
 decoder = None
 decoder_cls = None
-repo_id = 'vladmandic/MicroDecoder'
+repo_id = 'SD-Next/MicroDecoder'
 
 
 def get_timestep() -> torch.Tensor:

@@ -23,7 +23,7 @@ def fix_prompt_batch(p, prompts, negative_prompts, prompts_2, negative_prompts_2
     if type(negative_prompts) is str:
         negative_prompts = [negative_prompts]
 
-    if hasattr(p, 'init_images') and (p.init_images is not None) and (len(p.init_images) > 1) and not getattr(p, 'skip_processing', False) and (sd_models.get_max_condition_images() == 0):
+    if hasattr(p, 'init_images') and (p.init_images is not None) and (len(p.init_images) > 1) and not getattr(p, 'skip_processing', False) and not sd_models.takes_condition_set():
         while len(prompts) < len(p.init_images):
             prompts.append(prompts[-1] if prompts else '')
         while len(negative_prompts) < len(p.init_images):
@@ -94,7 +94,7 @@ def set_prompt(p: StableDiffusionProcessing,
     if (prompt_attention != 'fixed') and ('Onnx' not in cls) and ('prompt' not in p.task_args) and (
         ('StableDiffusion' in cls) or
         ('StableCascade' in cls) or
-        ('Flux' in cls and 'Flux2' not in cls)
+        ('Flux' in cls and 'Flux2' not in cls and 'Flux3' not in cls)
         # or ('Chroma' in cls)
         # or ('HiDreamImagePipeline' in cls)
     ):
@@ -120,9 +120,11 @@ def set_prompt(p: StableDiffusionProcessing,
 
     if not hasattr(shared.sd_model, 'orig_encode_prompt'):
         if isinstance(prompts, list):
-            log.debug(f'Encode: prompt={prompts} negative={negative_prompts} embedder={prompt_parser_diffusers.embedder is not None} attention={prompt_attention}')
+            length = sum(len(p) for p in prompts if isinstance(p, str))
+            log.debug(f'Encode: length={length} prompt={prompts} negative={negative_prompts} embedder={prompt_parser_diffusers.embedder is not None} attention={prompt_attention}')
         else:
-            log.debug(f'Encode: prompt="{prompts}" negative="{negative_prompts}" embedder={prompt_parser_diffusers.embedder is not None} attention={prompt_attention}')
+            length = len(prompts) if isinstance(prompts, str) else 0
+            log.debug(f'Encode: length={length} prompt="{prompts}" negative="{negative_prompts}" embedder={prompt_parser_diffusers.embedder is not None} attention={prompt_attention}')
 
     prompts, negative_prompts, prompts_2, negative_prompts_2 = fix_prompt_batch(p, prompts, negative_prompts, prompts_2, negative_prompts_2)
     prompts, negative_prompts, prompts_2, negative_prompts_2 = fix_prompt_model(cls, prompts, negative_prompts, prompts_2, negative_prompts_2)

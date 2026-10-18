@@ -103,6 +103,7 @@ def create_paths(opts):
         return opts.data[folder]
 
     create_path(data_path)
+    create_path(os.path.join(data_path, 'data'))
     create_path(script_path)
     create_path(models_path)
     create_path(sd_configs_path)

@@ -495,6 +495,7 @@ def create_settings(cmd_opts):
         "embeddings_dir": OptionInfo(os.path.join(paths.models_path, 'embeddings'), "Folder with textual inversion embeddings", folder=True),
         "control_dir": OptionInfo(os.path.join(paths.models_path, 'control'), "Folder with Control models", folder=True),
         "yolo_dir": OptionInfo(os.path.join(paths.models_path, 'yolo'), "Folder with Yolo models", folder=True),
+        "scheduler_dir": OptionInfo(os.path.join(paths.models_path, 'scheduler'), "Folder for scheduler database", folder=True),
         "esrgan_models_path": OptionInfo(os.path.join(paths.models_path, 'ESRGAN'), "Folder with ESRGAN models", folder=True),
         "bsrgan_models_path": OptionInfo(os.path.join(paths.models_path, 'BSRGAN'), "Folder with BSRGAN models", folder=True),
         "realesrgan_models_path": OptionInfo(os.path.join(paths.models_path, 'RealESRGAN'), "Folder with RealESRGAN models", folder=True),
@@ -655,10 +656,17 @@ def create_settings(cmd_opts):
         "send_size": OptionInfo(False, "Send size when sending prompt or image to another interface", gr.Checkbox, {"visible": False}),
     }))
 
+    # --- Scheduler ---
+    options_templates.update(options_section(('scheduler', "Scheduler"), {
+        "scheduler_state": OptionInfo("Paused", "Scheduler state", gr.Dropdown, {"choices": ["Active", "Paused", "Auto", "Stopped"], "visible": False}),
+        "scheduler_start": OptionInfo("09:00", "Scheduler start time", gr.Textbox, {"visible": False}),
+        "scheduler_end": OptionInfo("18:00", "Scheduler end time", gr.Textbox, {"visible": False}),
+    }))
+
     # --- Live Previews ---
     options_templates.update(options_section(('live-preview', "Live Previews"), {
         "show_progress_every_n_steps": OptionInfo(1, "Live preview display period", gr.Slider, {"minimum": 0, "maximum": 20, "step": 1, "visible": False}),
-        "show_progress_type": OptionInfo("Tiny", "Live preview method", gr.Dropdown, {"choices": ["None", "Micro", "Tiny", "Full"]}),
+        "show_progress_type": OptionInfo("Micro", "Live preview method", gr.Dropdown, {"choices": ["None", "Micro", "Tiny", "Full"]}),
         "live_preview_refresh_period": OptionInfo(500, "Progress update period", gr.Slider, {"minimum": 0, "maximum": 5000, "step": 25}),
         "live_preview_force": OptionInfo(False, "Force live previews on each step"),
         "live_preview_require_focus": OptionInfo(True, "Pause live previews when tab is not focused"),

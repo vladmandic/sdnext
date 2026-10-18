@@ -1,6 +1,5 @@
 import os
 import sys
-from functools import partial
 import cv2
 from PIL import Image
 from modules.logger import log
@@ -338,12 +337,16 @@ def control_process(p: StableDiffusionProcessingControl,
 
 
 def generate(*args, **kwargs):
-    generate_call = partial(control_run, *args, **kwargs)
-    # return [], '', '', 'Queued'
-    return generate_call()
+    is_scheduled = args[1] == 'scheduled'
+    if is_scheduled:
+        from modules import scheduler
+        return scheduler.enqueue_control_request(*args, **kwargs)
+    else:
+        return control_run(*args, **kwargs)
 
 
 def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
+                scheduler: str = '',
                 units: list[unit.Unit] | None = None, inputs: list[Image.Image] | None = None, inits: list[Image.Image] | None = None, mask: Image.Image = None, unit_type: str | None = None, is_generator: bool = True,
                 input_type: int = 0,
                 prompt: str = '', negative_prompt: str = '',
@@ -428,6 +431,9 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
         inputs = []
     if units is None:
         units = []
+
+    if scheduler != 'none':
+        log.debug('Scheduler: start task')
     global pipe, original_pipeline # pylint: disable=global-statement
     if 'refine' in state:
         enable_hr = True
@@ -694,7 +700,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                         yield terminate(f'Video open failed: path={inputs} {e}')
                     return terminate(f'Video open failed: path={inputs} {e}')
 
-            condition_set = cap is None and isinstance(inputs, list) and len(inputs) > 1 and all(isinstance(image, Image.Image) for image in inputs) and sd_models.get_max_condition_images(pipe) > 0 # a multi-image pipeline takes every input in one run
+            condition_set = cap is None and isinstance(inputs, list) and len(inputs) > 1 and all(isinstance(image, Image.Image) for image in inputs) and sd_models.takes_condition_set(pipe) # a multi-image pipeline takes every input in one run
             while status:
                 processed_image = None
                 if frame is not None:
@@ -755,12 +761,9 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                         continue
                     index += 1
 
-                    if getattr(pipe, 'skip_processing', False) or getattr(p, 'skip_processing', False):
+                    if (getattr(pipe, 'skip_processing', False) or getattr(p, 'skip_processing', False)) and mask is None:
                         p.init_images = inputs
                         p.extra_generation_params['Process'] = False
-                        if mask is not None: # the mask is applied by preprocessing only
-                            log.warning('Control: process=skip mask=ignored')
-                            p.extra_generation_params['Mask'] = 'ignored'
                     else:
                         processed_image, blended_image = preprocess_image(p,
                                                                           pipe,
@@ -859,7 +862,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
     html_txt = f'<p>Ready {image_txt}</p>' if image_txt != '' else ''
     if (info_txt is not None) and (len(info_txt) > 0):
         html_txt = html_txt + infotext_to_html(info_txt[0])
-    result = (output_images, blended_image, html_txt, output_filename)
+    result = (output_images, blended_image, html_txt, output_filename, info_txt or [])
     if is_generator:
         yield result
     return result

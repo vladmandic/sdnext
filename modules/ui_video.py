@@ -14,11 +14,12 @@ def create_ui():
     scripts_manager.scripts_video.initialize_scripts(is_img2img=False, is_control=False, is_video=True)
 
     with gr.Blocks(analytics_enabled=False) as _video_interface:
-        prompt, styles, negative, generate_btn, _reprocess, paste, networks_button, _token_counter, _token_button, _token_counter_negative, _token_button_negative = ui_sections.create_toprow(
+        prompt, styles, negative, generate_btn, _reprocess, paste, networks_button, _token_counter, _token_button, _token_counter_negative, _token_button_negative, _schedule = ui_sections.create_toprow(
             is_img2img=False,
             id_part="video",
             negative_visible=True,
             reprocess_visible=False,
+            schedule_visible=True,
         )
         prompt_image = gr.File(label="", elem_id="video_prompt_image", file_count="single", type="binary", visible=False)
         prompt_image.change(fn=images.image_data, inputs=[prompt_image], outputs=[prompt, prompt_image])
@@ -94,10 +95,11 @@ def create_ui():
         bindings = generation_parameters_copypaste.ParamBinding(paste_button=paste, tabname="video", source_text_component=prompt, source_image_component=None)
         generation_parameters_copypaste.register_paste_params_button(bindings)
 
-        current_tab = gr.Textbox(visible=False, value='video')
+        current_tab = gr.Textbox(visible=False, value='video', elem_id='video_current_tab')
         video_core_tab.select(fn=lambda: 'video', inputs=[], outputs=[current_tab])
         minimax_tab.select(fn=lambda: 'minimax', inputs=[], outputs=[current_tab])
         ltx_tab.select(fn=lambda: 'ltx', inputs=[], outputs=[current_tab])
         framepack_tab.select(fn=lambda: 'framepack', inputs=[], outputs=[current_tab])
 
         generate_btn.click(fn=None, _js='submit_video_wrapper', inputs=[current_tab], outputs=[])
+        _schedule.click(fn=None, _js='submit_video_schedule_wrapper', inputs=[current_tab], outputs=[])
