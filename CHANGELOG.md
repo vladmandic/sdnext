@@ -3,6 +3,7 @@
 ## Update for 2026-10-18
 
 - **Fixes**
+  - lora: bias deltas no longer refused when the model is quantized or native fuse is off
   - mageflow: load single-file transformers, including low-rank modulation checkpoints (MageTrail 0.3+)
 
 ## Update for 2026-10-18
