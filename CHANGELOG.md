@@ -7,6 +7,9 @@
   - [SD.Next CUDA docker image](https://hub.docker.com/repository/docker/vladmandic/sdnext-cuda) rebuild and update
 - **Wiki**
   - updates to: `Scheduler`, `Models`, `Model-Support`, `Docker`, `AMD-ROCm`, `AMD-MIOpen`, `Detailer`, `LoRA`
+- **Coding**  
+  expand ai/ml instructions and skills  
+  see [instructions](https://github.com/vladmandic/sdnext/blob/dev/.github/copilot-instructions.md) and [skills readme](https://github.com/vladmandic/sdnext/blob/dev/.github/skills/README.md) for details
 - **Internal**
   - expand `--test` behavior
 - **Fixes**
