@@ -20,6 +20,7 @@ Covers:
 - ``offload_ondemand`` force sweeps moving only stamped components
 - a settings change re-placing a previously resident component
 - ``apply_group_offload_ondemand`` return contract and idempotency
+- leaf group offload moving each transformers ``_no_split_modules`` unit as one group
 - ``get_module_names`` on both pipeline kinds
 - the upstream markers the roles read
 - an inventory audit deriving the role of every component of every registered pipeline,
@@ -519,6 +520,72 @@ def test_group_offload_hands_back_the_loaded_tensors():
     return True
 
 
+class DirectReadLayer(torch.nn.Module):
+    """No-split unit that hands its conv weight to a function instead of calling the conv."""
+    def __init__(self):
+        super().__init__()
+        self.conv = torch.nn.Conv1d(4, 4, 3, padding=2, groups=4, bias=False)
+        self.proj = torch.nn.Linear(4, 4)
+
+    def forward(self, x):
+        x = torch.nn.functional.conv1d(x.transpose(1, 2), self.conv.weight, padding=2, groups=4)[..., :x.shape[1]].transpose(1, 2)
+        return self.proj(x)
+
+
+def tiny_encoder():
+    import transformers
+
+    class TinyEncoder(transformers.PreTrainedModel):
+        config_class = transformers.PretrainedConfig
+        _no_split_modules = ['DirectReadLayer']
+
+        def __init__(self, config):
+            super().__init__(config)
+            self.embed = torch.nn.Embedding(8, 4)
+            self.layers = torch.nn.ModuleList([DirectReadLayer(), DirectReadLayer()])
+
+        def forward(self, ids):
+            x = self.embed(ids)
+            for layer in self.layers:
+                x = layer(x)
+            return x
+
+    return TinyEncoder(transformers.PretrainedConfig()).eval()
+
+
+def test_no_split_units_are_the_outermost_declared_layers():
+    names = [name for name, _unit in sd_offload_group.no_split_units(tiny_encoder())]
+    assert names == ['layers.0', 'layers.1'], f'got {names}'
+
+
+def test_group_offload_keeps_no_split_units_whole():
+    from diffusers.hooks.group_offloading import _GROUP_OFFLOADING
+    device = accelerator()
+    if device is None:
+        return True
+    module = tiny_encoder()
+    ids = torch.tensor([[1, 2, 3, 4, 5]])
+    with torch.no_grad():
+        expected = module(ids)
+    orig_device = sd_offload_group.devices.device
+    sd_offload_group.devices.device = device
+    try:
+        sd_offload_group.apply_group_offload_component(module, 'text_encoder', main=False)
+        with torch.no_grad():
+            output = module(ids.to(device)).cpu()
+        unit = module.layers[0]
+        group = unit._diffusers_hook.get_hook(_GROUP_OFFLOADING).group # pylint: disable=protected-access
+        assert group.modules == [unit], 'each unit must be one group'
+        assert unit.conv._diffusers_hook.get_hook(_GROUP_OFFLOADING) is None, 'leaves inside a unit must not keep their own groups' # pylint: disable=protected-access
+        assert module.embed._diffusers_hook.get_hook(_GROUP_OFFLOADING) is not None, 'leaves outside the units keep their groups' # pylint: disable=protected-access
+    finally:
+        sd_offload_group.remove_group_offload_component(module)
+        sd_offload_group.devices.device = orig_device
+    assert torch.allclose(output, expected, atol=1e-3), 'the offloaded encode must match the cpu encode'
+    assert next(module.parameters()).device.type == 'cpu', 'the units must return to cpu after the forward'
+    return True
+
+
 # ============================================================
 # get_module_names
 # ============================================================
@@ -761,6 +828,8 @@ def run_all():
         test_resident_placement_clears_the_ondemand_stamp,
         test_ondemand_offload_hands_back_the_loaded_tensors,
         test_group_offload_hands_back_the_loaded_tensors,
+        test_no_split_units_are_the_outermost_declared_layers,
+        test_group_offload_keeps_no_split_units_whole,
     ]:
         run_test(cat, fn)
 

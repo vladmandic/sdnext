@@ -22,6 +22,7 @@ Usage:
 import os
 import sys
 import time
+import types
 
 import torch
 
@@ -45,9 +46,14 @@ modules.cmd_args.parsed, _ = modules.cmd_args.parser.parse_known_args([])
 
 from modules.errors import log  # pylint: disable=wrong-import-position
 from modules import devices  # pylint: disable=wrong-import-position
-from modules.lora.lora_apply import network_apply_direct, network_apply_weights  # pylint: disable=wrong-import-position
+from modules.lora import lora_common as l  # pylint: disable=wrong-import-position
+from modules.lora.lora_apply import network_apply_direct, network_apply_weights, network_backup_weights  # pylint: disable=wrong-import-position
 
 devices.device = torch.device('cpu')  # apply moves operands to devices.device; keep the suite off the gpu
+
+LAYER = 'lora_transformer_test'
+WANTED = (('test', 1.0, [1.0, 1.0, 1.0], None),)
+l.loaded_networks.append(types.SimpleNamespace(modules={LAYER: object()}))  # network_backup_weights only backs up layers a loaded network covers
 
 
 # ============================================================
@@ -101,19 +107,13 @@ def make_linear(out_features: int, in_features: int, seed: int = 0):
 
 
 def stamp_fuse(module):
-    """Mark the module as network_backup_weights leaves it in fuse mode: no tensor backup.
-
-    The bias flag is only set when the module has one, same as the loader does.
-    """
-    module.network_weights_backup = True
-    if getattr(module, 'bias', None) is not None:
-        module.network_bias_backup = True
+    """Back the module up through network_backup_weights in fuse mode: markers, no tensors."""
+    network_backup_weights(module, LAYER, WANTED, fuse=True)
 
 
-def stamp_backup(module, weight, bias):
-    """Mark the module as network_backup_weights leaves it in backup mode: cloned tensors."""
-    module.network_weights_backup = weight.clone().to(CPU)
-    module.network_bias_backup = bias.clone().to(CPU)
+def stamp_backup(module):
+    """Back the module up through network_backup_weights in backup mode: cloned tensors."""
+    network_backup_weights(module, LAYER, WANTED, fuse=False)
 
 
 def assert_close(actual, expected, label):
@@ -227,7 +227,7 @@ def test_fuse_mismatched_weight_delta_is_refused():
 def test_backup_bias_delta_asymmetric():
     """Backup mode adds the deltas onto the cloned base rather than the live tensors."""
     module, w0, b0 = make_linear(32, 8)
-    stamp_backup(module, w0, b0)
+    stamp_backup(module)
     updown = torch.full_like(w0, 0.5)
     ex_bias = torch.full_like(b0, 0.25)
     written = network_apply_weights(module, updown, ex_bias, device=CPU)
@@ -240,7 +240,7 @@ def test_backup_bias_delta_asymmetric():
 def test_backup_reapply_is_not_cumulative():
     """Applying twice from the same backup yields one delta, not two."""
     module, w0, b0 = make_linear(32, 8)
-    stamp_backup(module, w0, b0)
+    stamp_backup(module)
     for _ in range(2):
         network_apply_weights(module, torch.full_like(w0, 0.5), torch.full_like(b0, 0.25), device=CPU)
     assert_close(module.weight.detach(), w0 + 0.5, 'weight')
@@ -251,7 +251,7 @@ def test_backup_reapply_is_not_cumulative():
 def test_backup_restore_without_delta():
     """Applying with no deltas restores the module to its backup."""
     module, w0, b0 = make_linear(32, 8)
-    stamp_backup(module, w0, b0)
+    stamp_backup(module)
     network_apply_weights(module, torch.full_like(w0, 0.5), torch.full_like(b0, 0.25), device=CPU)
     network_apply_weights(module, None, None, device=CPU)
     assert_close(module.weight.detach(), w0, 'weight')

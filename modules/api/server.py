@@ -64,6 +64,7 @@ def get_html_manifest(request: Request):
         templates[path] = template.decode("utf-8")
     content = json.dumps({"manifest": manifest, "templates": templates}, separators=(",", ":"), sort_keys=True).encode("utf-8")
     etag = f'"{hashlib.sha256(content).hexdigest()}"'
+    log.debug(f'UI: root="{html_root}" etag={etag} templates={len(templates)}')
     headers = {"Cache-Control": "no-cache", "ETag": etag, "Server-Timing": f"manifest;dur={(time.perf_counter() - started) * 1000:.2f}"}
     if etag_matches(request, etag):
         return Response(status_code=304, headers=headers)
