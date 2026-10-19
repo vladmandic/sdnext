@@ -15,16 +15,6 @@ from diffusers.pipelines.pipeline_utils import ImagePipelineOutput
 from diffusers.utils.torch_utils import randn_tensor
 
 
-class MOSSImageRMSNorm(nn.Module):
-    def __init__(self, dim: int):
-        super().__init__()
-        self.weight = nn.Parameter(torch.ones(dim))
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        y = x.to(dtype=torch.float32) * torch.rsqrt(x.to(dtype=torch.float32).square().mean(-1, keepdim=True) + 1e-6)
-        return y.to(x.dtype) * self.weight
-
-
 def situ(hidden: torch.Tensor, gate: torch.Tensor) -> torch.Tensor:
     return (4.0 * torch.tanh(gate / 4.0) * torch.sigmoid(gate)) * (25.0 * torch.tanh(hidden / 25.0))
 
@@ -56,8 +46,8 @@ class MOSSImageTextBlock(nn.Module):
     def __init__(self, dim: int, ffn_dim: int, heads: int):
         super().__init__()
         self.heads = heads
-        self.norm1, self.norm2 = MOSSImageRMSNorm(dim), MOSSImageRMSNorm(dim)
-        self.q_norm, self.k_norm = MOSSImageRMSNorm(dim // heads), MOSSImageRMSNorm(dim // heads)
+        self.norm1, self.norm2 = nn.RMSNorm(dim, eps=1e-6), nn.RMSNorm(dim, eps=1e-6)
+        self.q_norm, self.k_norm = nn.RMSNorm(dim // heads, eps=1e-6), nn.RMSNorm(dim // heads, eps=1e-6)
         self.qkv = nn.Linear(dim, 3 * dim)
         self.proj = nn.Linear(dim, dim)
         self.ffn_gate, self.ffn_up = nn.Linear(dim, ffn_dim), nn.Linear(dim, ffn_dim)
@@ -89,8 +79,8 @@ class MOSSImageBlock(nn.Module):
     def __init__(self, dim: int, ffn_dim: int, heads: int):
         super().__init__()
         self.heads = heads
-        self.norm1, self.norm2 = MOSSImageRMSNorm(dim), MOSSImageRMSNorm(dim)
-        self.q_norm, self.k_norm = MOSSImageRMSNorm(dim // heads), MOSSImageRMSNorm(dim // heads)
+        self.norm1, self.norm2 = nn.RMSNorm(dim, eps=1e-6), nn.RMSNorm(dim, eps=1e-6)
+        self.q_norm, self.k_norm = nn.RMSNorm(dim // heads, eps=1e-6), nn.RMSNorm(dim // heads, eps=1e-6)
         self.proj = nn.ModuleDict({name: nn.Linear(dim, dim, bias=False) for name in ('q', 'k', 'v', 'o')})
         self.proj['ffn_up_gate'] = nn.Linear(dim, 2 * ffn_dim, bias=False)
         self.proj['ffn_down'] = nn.Linear(ffn_dim, dim, bias=False)
@@ -158,7 +148,7 @@ class MOSSImageTransformer(ModelMixin, ConfigMixin):
         self.time_embedding = nn.Sequential(nn.Linear(freq_dim, dim), nn.SiLU(), nn.Linear(dim, dim))
         self.shared_block_modulation = nn.Linear(dim, 6 * dim)
         self.layers = nn.ModuleList([MOSSImageBlock(dim, ffn_dim, num_heads) for _ in range(num_layers)])
-        self.final_norm_video = MOSSImageRMSNorm(dim)
+        self.final_norm_video = nn.RMSNorm(dim, eps=1e-6)
         self.final_linear_video = nn.Linear(dim, latent_channels, bias=False)
         self.video_head_modulation = nn.Linear(dim, 2 * dim)
 
