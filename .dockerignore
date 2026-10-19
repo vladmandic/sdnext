@@ -1,7 +1,7 @@
 # defaults
 .history
 .vscode/
-/__pycache__
+**/__pycache__
 /.ruff_cache
 /cache
 /cache.json
@@ -23,3 +23,4 @@
 /webui-user.sh
 /*.log.*
 /*.log
+*.pyc

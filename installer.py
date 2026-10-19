@@ -267,8 +267,8 @@ def uv_info():
         uv_version = subprocess.check_output([uv_global, "--version"], text=True).strip()
         uv_cache_dir = subprocess.check_output([uv_global, "cache", "dir"], text=True).strip()
     uv_cache_disabled = os.environ.get("UV_NO_CACHE") == "1"
-    site = next(p for p in sys.path if p.endswith("site-packages"))
-    if uv_cache_dir and not uv_cache_disabled:
+    site = next((p for p in sys.path if p.endswith(("site-packages", "dist-packages"))), None)
+    if uv_cache_dir and not uv_cache_disabled and site:
         for root, _dirs, files in os.walk(site):
             for f in files:
                 full = os.path.join(root, f)
