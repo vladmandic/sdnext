@@ -16,25 +16,25 @@ torch_version[0], torch_version[1] = int(torch_version[0]), int(torch_version[1]
 
 # pylint: disable=protected-access, missing-function-docstring, line-too-long
 
-def return_true(*args, **kwargs):
+def return_true(*args, **kwargs) -> bool:
     return True
 
-def return_false(*args, **kwargs):
+def return_false(*args, **kwargs) -> bool:
     return False
 
-def return_none(*args, **kwargs):
+def return_none(*args, **kwargs) -> None:
     return None
 
-def return_zero(*args, **kwargs):
+def return_zero(*args, **kwargs) -> int:
     return 0
 
-def return_cuda_version(*args, **kwargs):
+def return_cuda_version(*args, **kwargs) -> tuple[int, int]:
     return (12,1)
 
-def return_xpu_string(*args, **kwargs):
+def return_xpu_string(*args, **kwargs) -> str:
     return "xpu"
 
-def return_arch_list(*args, **kwargs):
+def return_arch_list(*args, **kwargs) -> list[str]:
     return ["pvc", "dg2", "ats-m150"]
 
 
@@ -51,6 +51,12 @@ def ipex_init(): # pylint: disable=too-many-statements
                 torch._inductor.utils.get_gpu_type = return_xpu_string
                 from triton import backends as triton_backends # pylint: disable=import-error
                 triton_backends.backends["nvidia"].driver.is_active = return_false
+            except Exception:
+                pass
+            try:
+                from torch._inductor.runtime import benchmarking as torch_inductor_benchmarking # pylint: disable=import-error, unused-import # noqa: F401,RUF100
+                torch._inductor.runtime.benchmarking.get_default_gpu_device_type = return_xpu_string
+                torch._inductor.runtime.benchmarking.GPU_BENCHMARK_DEVICE_TYPES = ("xpu",)
             except Exception:
                 pass
             # Replace cuda with xpu:
