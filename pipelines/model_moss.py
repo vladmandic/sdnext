@@ -1,6 +1,6 @@
 import diffusers
 import transformers
-from modules import shared, devices, sd_models, model_quant, sd_hijack_te, sd_hijack_vae
+from modules import shared, devices, sd_models, sd_detect, model_quant, sd_hijack_te, sd_hijack_vae
 from modules.logger import log
 from pipelines import generic
 from pipelines.generic_text_encoder import check_linear_attention_kernels
@@ -21,6 +21,7 @@ def load_moss_image(checkpoint_info, diffusers_load_config=None):
 
     check_linear_attention_kernels('Qwen3_5Model') # before the transformer load, so an unsupported setup fails fast
     # the repo's model_index names classes from its remote-code file, so the pipeline is assembled here instead of through from_pretrained
+    sd_detect.get_model_index(repo_id) # the model list only shows cached repos that hold model_index.json
     transformer = generic.load_transformer(repo_id, cls_name=MOSSImageTransformer, load_config=diffusers_load_config, modules_to_not_convert=['video_embedder', '.text_embedder.proj', 'time_embedding', 'shared_block_modulation', 'video_head_modulation', 'final_linear_video'])
     text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.Qwen3_5Model, load_config=diffusers_load_config)
     pipe = MOSSImagePipeline(

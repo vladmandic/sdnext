@@ -1,5 +1,10 @@
 # Change Log for SD.Next
 
+## Update for 2026-10-20
+
+- **Fixes**
+  - moss: downloaded moss-image models appear in the model list
+
 ## Update for 2026-10-19
 
 - **Docker**
