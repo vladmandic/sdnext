@@ -1,12 +1,13 @@
 # Change Log for SD.Next
 
-## Update for 2026-10-18
+## Update for 2026-10-19
 
 - **Fixes**
+  - ui: fallback template load method when running on older server
   - lora: bias deltas no longer refused when the model is quantized or native fuse is off
   - mageflow: load single-file transformers, including low-rank modulation checkpoints (MageTrail 0.3+)
   - offload: group offload keeps text encoder layers whole, so qwen3.5 encoders run with causal-conv1d installed
-  - offload: group offload recognizes vae encode and decode entry points with current diffusers, so vaes load on demand instead of staying on gpu
+  - offload: group offload recognizes vae encode and decode entry points with current diffusers
 
 ## Update for 2026-10-18
 
