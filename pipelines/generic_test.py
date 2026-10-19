@@ -5,6 +5,25 @@ from scipy import stats
 from installer import log
 
 
+def test_server_wiring(app):
+    required_routes = {
+        ('/sdapi/v1/version', 'GET'),
+        ('/sdapi/v1/status', 'GET'),
+        ('/sdapi/v1/txt2img', 'POST'),
+        ('/sdapi/v1/img2img', 'POST'),
+        ('/sdapi/v1/samplers', 'GET'),
+    }
+    registered_routes = {
+        (route.path, method)
+        for route in app.routes
+        for method in getattr(route, 'methods', set())
+    }
+    missing_routes = required_routes - registered_routes
+    if missing_routes:
+        raise RuntimeError(f'Server wiring test failed: missing routes={sorted(missing_routes)}')
+    log.info(f'Server wiring test: routes={len(required_routes)} verified')
+
+
 def test_pipelines():
     from modules.sd_checkpoint import CheckpointInfo
 
