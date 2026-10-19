@@ -193,6 +193,15 @@ Reference catalog touchpoints are also required for model ports intended to appe
 
 If the model belongs to multiple categories, update each corresponding `data/reference*.json` file.
 
+When adding a new model in the user-confirmed `base` category, also update both wiki model pages:
+
+1. Add the model family to `wiki/Model-Support.md`, using the existing linked-name and variant style.
+2. Add one or more rows to `wiki/Models.md` for the new base model variants, following the existing table columns and formatting.
+3. Use official source links and verified architecture, parameter, encoder, size, license, and release-date details. Leave unavailable details blank or clearly unspecified; do not infer them.
+4. Check both pages for an existing entry first and update it instead of adding a duplicate.
+
+These wiki updates apply to new base models, not models added only to `cloud`, `quant`, `distilled`, `nunchaku`, or `community` categories.
+
 Possible extra integration points:
 
 - `diffusers.pipelines.auto_pipeline.AUTO_*_PIPELINES_MAPPING` when task switching matters

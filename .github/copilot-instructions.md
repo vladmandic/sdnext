@@ -77,7 +77,7 @@ Use these repo-local skills for recurring SD.Next model integration work:
 
 - `port-model`  
   File: `.github/skills/port-model/SKILL.md`  
-  Use when adding a new model family, porting a standalone script into a Diffusers pipeline, or wiring an upstream Diffusers model into SD.Next, including conditional flow-sampler and VAE-family registry updates.
+  Use when adding a new model family, porting a standalone script into a Diffusers pipeline, or wiring an upstream Diffusers model into SD.Next, including conditional flow-sampler and VAE-family registry updates. New base models also require updates to `wiki/Model-Support.md` and `wiki/Models.md`.
 
 - `port-pipeline`  
   File: `.github/skills/port-pipeline/SKILL.md`  
@@ -129,7 +129,7 @@ Use these repo-local skills for recurring SD.Next model integration work:
 
 - `reference-catalog`  
   File: `.github/skills/reference-catalog/SKILL.md`  
-  Use when maintaining and validating model reference catalogs in `data/reference*.json`, including duplicate checks and thumbnail alignment.
+  Use when maintaining and validating model reference catalogs in `data/reference*.json`, including duplicate checks and thumbnail alignment. When `data/reference-base.json` is in scope, ensure every catalog entry has matching family/variant coverage in `wiki/Model-Support.md` and `wiki/Models.md`.
 
 - `fix-lint`  
   File: `.github/skills/fix-lint/SKILL.md`  
