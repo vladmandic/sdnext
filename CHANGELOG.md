@@ -5,6 +5,8 @@
 - **Docker**
   - update `Dockerfile` for all supported platforms
   - [SD.Next CUDA docker image](https://hub.docker.com/repository/docker/vladmandic/sdnext-cuda) rebuild and update
+- **Wiki**
+  - updates to: `Scheduler`, `Models`, `Model-Support`, `Docker`, `AMD-ROCm`, `AMD-MIOpen`, `Detailer`, `LoRA`
 - **Fixes**
   - ui: fallback template load method when running on older server
   - lora: bias deltas no longer refused when the model is quantized or native fuse is off
