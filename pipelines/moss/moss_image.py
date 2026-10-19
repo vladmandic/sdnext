@@ -36,10 +36,10 @@ def rotate(x: torch.Tensor, rope: torch.Tensor) -> torch.Tensor:
 
 def attention(q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, rope: torch.Tensor, heads: int) -> torch.Tensor:
     shape = (*q.shape[:2], heads, q.shape[-1] // heads)
-    q = rotate(q.reshape(shape), rope).transpose(1, 2)
-    k = rotate(k.reshape(shape), rope).transpose(1, 2)
+    q = rotate(q.reshape(shape), rope).transpose(1, 2).to(dtype=v.dtype)
+    k = rotate(k.reshape(shape), rope).transpose(1, 2).to(dtype=v.dtype)
     v = v.reshape(shape).transpose(1, 2)
-    return F.scaled_dot_product_attention(q.to(v.dtype), k.to(v.dtype), v).transpose(1, 2).flatten(2)
+    return F.scaled_dot_product_attention(q, k, v).transpose(1, 2).flatten(2)
 
 
 class MOSSImageTextBlock(nn.Module):
@@ -108,8 +108,8 @@ class MOSSImageRoPE(nn.Module):
         self.register_buffer('bands', self.default_bands(torch.device('cpu')))
 
     def default_bands(self, device) -> torch.Tensor:
-        exponent = torch.arange(self.num_bands, device='cpu', dtype=torch.float32) / self.num_bands
-        return (1 / (self.base ** exponent)).to(device)
+        exponent = torch.arange(self.num_bands, device='cpu', dtype=torch.float32).div_(self.num_bands)
+        return torch.reciprocal(self.base ** exponent).to(device)
 
     def _apply(self, fn, recurse=True):
         super()._apply(fn, recurse=recurse)
@@ -167,7 +167,7 @@ class MOSSImageTransformer(ModelMixin, ConfigMixin):
             raise ValueError('encoder_attention_mask must be a [B, S] mask.')
         times = torch.as_tensor(timestep, device=hidden_states.device, dtype=torch.float32).reshape(-1).expand(batch)
         half = self.config['freq_dim'] // 2 # the sinusoid is computed in float64 and fed to the mlp in float32, as in training
-        freq = 10000 ** (-torch.arange(half, device=times.device, dtype=torch.float64) / half)
+        freq = 10000 ** torch.arange(half, device=times.device, dtype=torch.float64).div_(-half)
         phase = times.to(dtype=torch.float64).unsqueeze(1) * freq
         embedding = torch.cat((phase.cos(), phase.sin()), -1).to(dtype=dtype)
         time = self.time_embedding(embedding)
