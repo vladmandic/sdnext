@@ -111,8 +111,8 @@ def load_safetensors(name, network_on_disk: network.NetworkOnDisk) -> network.Ne
             continue
         if parts[0] in ["clip_l", "clip_g", "t5", "unet", "transformer", "transformer_2"]:
             network_part = []
-            while parts and parts[-1] in ["alpha","weight","lora_up","lora_down"]:
-                network_part.insert(0,parts[-1])
+            while parts and parts[-1] in ["alpha","weight","lora_up","lora_down","lora_A","lora_B"]:
+                network_part.insert(0, {"lora_A": "lora_down", "lora_B": "lora_up"}.get(parts[-1], parts[-1]))
                 parts = parts[0:-1]
             if not parts:
                 continue
