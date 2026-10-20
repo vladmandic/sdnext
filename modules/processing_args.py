@@ -345,6 +345,10 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:l
     # model specific
     if 'Kandinsky' in model.__class__.__name__ or 'Cosmos2' in model.__class__.__name__ or 'OmniGen2' in model.__class__.__name__:
         kwargs['output_type'] = 'np' # only set latent if model has vae
+    if model.__class__.__name__.startswith('Wan') and 'video' not in p.ops:
+        # Image passes need decoded single frames, independent of the loading route.
+        kwargs['num_frames'] = 1
+        kwargs['output_type'] = 'np'
     if 'StableCascade' in model.__class__.__name__:
         kwargs.pop("num_inference_steps") # remove
         if 'prior_num_inference_steps' in possible:
