@@ -1688,7 +1688,7 @@ def reload_model_weights(sd_model=None, info: CheckpointInfo | None = None, op='
 
 
 def clear_caches(full: bool = False):
-    from modules import prompt_parser_diffusers, memstats, sd_offload
+    from modules import prompt_parser_diffusers, memstats, sd_offload_state
     from modules.lora import lora_common, lora_load
     prompt_parser_diffusers.cache.clear()
     memstats.reset_stats()
@@ -1698,7 +1698,7 @@ def clear_caches(full: bool = False):
     fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
     log.debug(f'Cache clear: full={full} fn={fn}')
     if full:
-        sd_offload.offload_hook_instance = None
+        sd_offload_state.offload_hook_instance = None
 
 
 def unload_model_weights(op='model'):
