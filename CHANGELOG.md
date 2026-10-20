@@ -2,11 +2,6 @@
 
 ## Update for 2026-10-20
 
-- **Fixes**
-  - moss: downloaded moss-image models appear in the model list
-
-## Update for 2026-10-19
-
 - **Docker**
   - update `Dockerfile` for all supported platforms
   - [SD.Next CUDA docker image](https://hub.docker.com/repository/docker/vladmandic/sdnext-cuda) rebuild and update
@@ -18,12 +13,17 @@
 - **Internal**
   - expand `--test` behavior
 - **Fixes**
-  - ui: fallback template load method when running on older server
+  - launch: dont overwrite existing LD_LIBRARY_PATH
   - lora: bias deltas no longer refused when the model is quantized or native fuse is off
   - mageflow: load single-file transformers, including low-rank modulation checkpoints (MageTrail 0.3+)
+  - moss: downloaded moss-image models appear in the model list
+  - moss: performance optimizations
+  - offload: balanced offload clear stale state on unload, thanks @Jackmeson1
   - offload: group offload keeps text encoder layers whole, so qwen3.5 encoders run with causal-conv1d installed
   - offload: group offload recognizes vae encode and decode entry points with current diffusers
   - scheduler: delete orphan records on record deletion
+  - seedvr: unblock usage on non-cuda devices
+  - ui: fallback template load method when running on older server
 
 ## Update for 2026-10-18
 
