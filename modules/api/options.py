@@ -4,7 +4,7 @@ from modules.shared import opts
 
 def get_options():
     options = {}
-    for k in opts.data.keys():
+    for k in opts.data.keys() | (opts.data_labels.keys() - opts.secrets.keys()):
         if opts.data_labels.get(k) is not None:
             options.update({k: opts.data.get(k, opts.data_labels.get(k).default)})
         else:
