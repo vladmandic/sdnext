@@ -21,6 +21,9 @@
   - infer transformers `native_spec` everywhere where its not explicitly set
   - remove `subseed` from codebase as its obsolete
   - remove `seed resize` from codebase as its obsolete
+- **Other**
+  - customizable logging theme  
+    see `data/console.json` for defaults and specify custom file using env variable `SDNEXT_CONSOLE_THEME`  
 - **Fixes**
   - api: return complete set in GET /sdapi/v1/options, thanks @Jackmeson1
   - launch: dont overwrite existing LD_LIBRARY_PATH

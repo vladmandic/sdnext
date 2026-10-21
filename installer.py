@@ -105,8 +105,9 @@ except Exception:
 
 @lru_cache
 def get_logfile():
+    from modules.logger import get_console_theme_file
     log_size = os.path.getsize(log_file) if os.path.exists(log_file) else 0
-    log.info(f'Logger: file="{os.path.abspath(log_file)}" level={logging.getLevelName(logging.DEBUG if args.debug else logging.INFO)} host="{hostname}" size={log_size} mode={"append" if not log_rolled else "create"}')
+    log.info(f'Logger: file="{os.path.abspath(log_file)}" theme="{get_console_theme_file()}" level={logging.getLevelName(logging.DEBUG if args.debug else logging.INFO)} host="{hostname}" size={log_size} mode={"append" if not log_rolled else "create"}')
     return log_file
 
 

@@ -1,0 +1,18 @@
+{
+  "traceback.border": "black",
+  "inspect.value.border": "black",
+  "traceback.border.syntax_error": "red",
+  "logging.level.trace": "dim cyan",
+  "logging.level.debug": "cyan",
+  "logging.level.info": "bright_cyan",
+  "logging.level.warning": "yellow",
+  "logging.level.error": "red",
+  "logging.level.critical": "bold bright_red",
+  "repr.attrib_name": "bright_white",
+  "repr.attrib_value": "cyan",
+  "repr.str": "bright_cyan",
+  "repr.none": "yellow",
+  "repr.number": "bright_yellow",
+  "repr.bool_true": "green",
+  "repr.bool_false": "bright_red"
+}
