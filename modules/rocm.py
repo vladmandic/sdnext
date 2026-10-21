@@ -149,9 +149,11 @@ class Agent:
             return None
         if self.gfx_version >= 0x1100 and self.gfx_version < 0x1200:
             return "11.0.0"
-        elif self.gfx_version != 0x1030 and self.gfx_version >= 0x1000 and self.gfx_version < 0x1100:
-            # gfx1010 users had to override gfx version to 10.3.0 in Linux
-            # it is unknown whether overriding is needed in ZLUDA
+        elif self.gfx_version == 0x1010:
+            return "10.1.0"
+        elif self.gfx_version != 0x1030 and self.gfx_version > 0x1000 and self.gfx_version < 0x1100:
+            # Some gfx10xx users may need to override the version to 10.3.0.
+            # It is unknown whether overriding is needed in ZLUDA.
             return "10.3.0"
         return None
 
