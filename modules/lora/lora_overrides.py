@@ -42,6 +42,7 @@ NATIVE_DISPATCH = {
     'minimaxh3':  'pipelines.minimax.minimax_lora',
     'mossimage':  'pipelines.moss.moss_lora',
     'boogu':      'pipelines.boogu.boogu_lora',
+    'fibo2':      'pipelines.bria.fibo2_lora',
 }
 
 allow_native = list(NATIVE_DISPATCH)
