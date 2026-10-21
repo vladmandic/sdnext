@@ -34,7 +34,7 @@ from modules.logger import log
 
 cache_root = os.path.join(paths.models_path, 'lora-factor-cache')
 state = {'wn': None, 'sig': None, 'path': None, 'store': {}, 'dirty': False, 'hits': 0, 'misses': 0}
-FMT = '5' # bump on entry-layout changes so older files recompute instead of replaying short
+FMT = '6' # bump on entry-layout or binding changes so older files recompute instead of replaying stale factors
 
 
 def budget_gb():
