@@ -1443,6 +1443,142 @@ def test_moss_converter_rejects_bias_and_invalid_qkv_shapes():
 
 
 # ============================================================
+# Bria FIBO 2 converter (ComfyUI fused layout -> diffusers)
+# ============================================================
+
+FIBO2_DIM = 48      # fibo2_ffn_width(48) == 128
+FIBO2_HIDDEN = 128
+FIBO2_PADDED = 256  # the ComfyUI export pads the FFN width to a multiple of 256
+
+
+def fibo2_converter():
+    from pipelines.bria import convert_fibo2_transformer_state_dict
+    return convert_fibo2_transformer_state_dict
+
+
+def fibo2_fused_ffn(w1_fill, w3_fill, w2_fill):
+    w13 = torch.zeros((2 * FIBO2_PADDED, FIBO2_DIM), dtype=torch.float32)
+    w13[:FIBO2_HIDDEN] = w1_fill
+    w13[FIBO2_PADDED:FIBO2_PADDED + FIBO2_HIDDEN] = w3_fill
+    w2 = torch.zeros((FIBO2_DIM, FIBO2_PADDED), dtype=torch.float32)
+    w2[:, :FIBO2_HIDDEN] = w2_fill
+    return w13, w2
+
+
+def test_fibo2_converter_splits_fused_projections():
+    convert = fibo2_converter()
+    qkv = torch.arange(36, dtype=torch.float32).reshape(12, 3)
+    kv = torch.arange(24, dtype=torch.float32).reshape(8, 3)
+    gate = torch.zeros(1)
+    out = convert({
+        'layers.0.attention.qkv.weight': qkv,
+        'layers.0.attention.out.weight': torch.zeros((4, 4)),
+        'layers.0.attention.q_norm.weight': torch.ones(2),
+        'layers.0.attention.k_norm.weight': torch.ones(2),
+        'layers.6.cross_attention.to_q.weight': torch.zeros((4, 4)),
+        'layers.6.cross_attention.to_kv.weight': kv,
+        'layers.6.cross_attention.to_out.weight': torch.zeros((4, 4)),
+        'layers.6.cross_attention.norm_q.weight': torch.ones(2),
+        'layers.6.cross_attn_gate': gate,
+        'perceiver.layers.0.self_attention.to_kv.weight': kv,
+        'perceiver.layers.0.self_attention.to_out.weight': torch.zeros((4, 4)),
+    })
+    assert set(out) == {
+        'layers.0.attention.to_q.weight',
+        'layers.0.attention.to_k.weight',
+        'layers.0.attention.to_v.weight',
+        'layers.0.attention.to_out.0.weight',
+        'layers.0.attention.norm_q.weight',
+        'layers.0.attention.norm_k.weight',
+        'layers.6.cross_attention.to_q.weight',
+        'layers.6.cross_attention.to_k.weight',
+        'layers.6.cross_attention.to_v.weight',
+        'layers.6.cross_attention.to_out.0.weight',
+        'layers.6.cross_attention.norm_q.weight',
+        'layers.6.cross_attn_gate',
+        'perceiver.layers.0.self_attention.to_k.weight',
+        'perceiver.layers.0.self_attention.to_v.weight',
+        'perceiver.layers.0.self_attention.to_out.0.weight',
+    }, f'keys: {sorted(out)}'
+    assert torch.equal(out['layers.0.attention.to_q.weight'], qkv[0:4])
+    assert torch.equal(out['layers.0.attention.to_k.weight'], qkv[4:8])
+    assert torch.equal(out['layers.0.attention.to_v.weight'], qkv[8:12])
+    assert torch.equal(out['layers.6.cross_attention.to_k.weight'], kv[0:4])
+    assert torch.equal(out['layers.6.cross_attention.to_v.weight'], kv[4:8])
+    assert torch.equal(out['perceiver.layers.0.self_attention.to_v.weight'], kv[4:8])
+    assert out['layers.6.cross_attn_gate'] is gate
+
+
+def test_fibo2_converter_unpads_fused_ffn():
+    convert = fibo2_converter()
+    w13, w2 = fibo2_fused_ffn(1.0, 3.0, 2.0)
+    out = convert({
+        'layers.0.feed_forward.w13.weight': w13,
+        'layers.0.feed_forward.w2.weight': w2,
+        'perceiver.layers.0.ffn.w13.weight': w13,
+        'perceiver.layers.0.ffn.w2.weight': w2,
+    })
+    for stem in ('layers.0.feed_forward', 'perceiver.layers.0.ffn'):
+        w1 = out[f'{stem}.w1.weight']
+        w3 = out[f'{stem}.w3.weight']
+        w2_out = out[f'{stem}.w2.weight']
+        assert tuple(w1.shape) == (FIBO2_HIDDEN, FIBO2_DIM) and torch.all(w1 == 1.0), f'{stem} w1 {tuple(w1.shape)}'
+        assert tuple(w3.shape) == (FIBO2_HIDDEN, FIBO2_DIM) and torch.all(w3 == 3.0), f'{stem} w3 {tuple(w3.shape)}'
+        assert tuple(w2_out.shape) == (FIBO2_DIM, FIBO2_HIDDEN) and torch.all(w2_out == 2.0), f'{stem} w2 {tuple(w2_out.shape)}'
+        assert f'{stem}.w13.weight' not in out
+
+
+def test_fibo2_converter_rejects_nonzero_padding():
+    convert = fibo2_converter()
+    w13, w2 = fibo2_fused_ffn(1.0, 3.0, 2.0)
+    w13[FIBO2_HIDDEN] = 0.5
+    try:
+        convert({'layers.0.feed_forward.w13.weight': w13})
+        raise AssertionError('expected non-zero w13 padding to be rejected')
+    except ValueError as e:
+        assert 'padding is not zero' in str(e)
+    w2[0, FIBO2_HIDDEN] = 0.5
+    try:
+        convert({'layers.0.feed_forward.w2.weight': w2})
+        raise AssertionError('expected non-zero w2 padding to be rejected')
+    except ValueError as e:
+        assert 'padding is not zero' in str(e)
+
+
+def test_fibo2_converter_passes_diffusers_layout_through():
+    convert = fibo2_converter()
+    sd = {
+        'layers.0.attention.to_q.weight': torch.zeros((4, 4)),
+        'layers.0.attention.to_out.0.weight': torch.zeros((4, 4)),
+        'layers.0.attention.norm_q.weight': torch.ones(2),
+        'layers.0.feed_forward.w1.weight': torch.zeros((FIBO2_HIDDEN, FIBO2_DIM)),
+        'layers.0.feed_forward.w2.weight': torch.zeros((FIBO2_DIM, FIBO2_HIDDEN)),
+        'layers.6.cross_attention.to_k.weight': torch.zeros((4, 8)),
+        'layers.6.cross_attention.to_out.0.weight': torch.zeros((4, 4)),
+        'final_layer.linear.weight': torch.zeros((4, 4)),
+    }
+    out = convert(sd)
+    assert set(out) == set(sd), f'keys: {sorted(out)}'
+    for key, value in sd.items():
+        assert out[key] is value, key
+
+
+def test_fibo2_converter_does_not_mutate_input():
+    convert = fibo2_converter()
+    w13, w2 = fibo2_fused_ffn(1.0, 3.0, 2.0)
+    sd = {
+        'layers.0.attention.qkv.weight': torch.zeros((12, 4)),
+        'layers.0.feed_forward.w13.weight': w13,
+        'layers.0.feed_forward.w2.weight': w2,
+        'x_embedder.weight': torch.zeros((4, 4)),
+    }
+    keys_before = set(sd.keys())
+    convert(sd)
+    assert set(sd.keys()) == keys_before
+    assert tuple(sd['layers.0.feed_forward.w2.weight'].shape) == (FIBO2_DIM, FIBO2_PADDED)
+
+
+# ============================================================
 # Integration: comfy_quant pre-quantized load
 # ============================================================
 # Same patching strategy as the plain load tests, plus pinned SDNQ opts so the
@@ -2570,6 +2706,17 @@ def run_all():
     for fn in [
         test_moss_converter_splits_outer_qkv_and_preserves_text_qkv,
         test_moss_converter_rejects_bias_and_invalid_qkv_shapes,
+    ]:
+        run_test(cat, fn)
+
+    log.warning('=== bria fibo 2 converter ===')
+    cat = category('fibo2')
+    for fn in [
+        test_fibo2_converter_splits_fused_projections,
+        test_fibo2_converter_unpads_fused_ffn,
+        test_fibo2_converter_rejects_nonzero_padding,
+        test_fibo2_converter_passes_diffusers_layout_through,
+        test_fibo2_converter_does_not_mutate_input,
     ]:
         run_test(cat, fn)
 
