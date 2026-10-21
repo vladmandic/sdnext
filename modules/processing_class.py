@@ -30,10 +30,6 @@ class StableDiffusionProcessing:
                  prompt: str = "",
                  negative_prompt: str = "",
                  seed: int = -1,
-                 subseed: int = -1,
-                 subseed_strength: float = 0,
-                 seed_resize_from_h: int = -1,
-                 seed_resize_from_w: int = -1,
                  batch_size: int = 1,
                  n_iter: int = 1,
                  steps: int = 20,
@@ -329,10 +325,6 @@ class StableDiffusionProcessing:
         # initializers
         self.prompt = prompt
         self.seed = int(seed)
-        self.subseed = int(subseed)
-        self.subseed_strength = subseed_strength
-        self.seed_resize_from_h = seed_resize_from_h
-        self.seed_resize_from_w = seed_resize_from_w
         self.batch_size = batch_size
         self.n_iter = n_iter
         self.steps = steps
@@ -571,9 +563,7 @@ class StableDiffusionProcessing:
         self.all_templates = []
         self.all_negative_templates = []
         self.seeds = []
-        self.subseeds = []
         self.all_seeds = []
-        self.all_subseeds = []
 
         # a1111 compatibility items
         self.seed_enable_extras: bool = True
@@ -678,7 +668,7 @@ class StableDiffusionProcessing:
     def comment(self, text):
         self.comments[text] = 1
 
-    def init(self, all_prompts=None, all_seeds=None, all_subseeds=None):
+    def init(self, all_prompts=None, all_seeds=None):
         pass
 
     def close(self):
@@ -705,7 +695,7 @@ class StableDiffusionProcessingTxt2Img(StableDiffusionProcessing):
         debug(f'Process init: mode={self.__class__.__name__} kwargs={kwargs}') # pylint: disable=protected-access
         super().__init__(**kwargs)
 
-    def init(self, all_prompts=None, all_seeds=None, all_subseeds=None):
+    def init(self, all_prompts=None, all_seeds=None):
         shared.sd_model = sd_models.set_diffuser_pipe(self.sd_model, sd_models.DiffusersTaskType.TEXT_2_IMAGE)
         self.width = self.width or 1024
         self.height = self.height or 1024
@@ -713,8 +703,6 @@ class StableDiffusionProcessingTxt2Img(StableDiffusionProcessing):
             self.all_prompts = all_prompts
         if all_seeds is not None:
             self.all_seeds = all_seeds
-        if all_subseeds is not None:
-            self.all_subseeds = all_subseeds
 
     def init_hr(self, scale = None, upscaler = None, force = False): # pylint: disable=unused-argument
         scale = scale or self.hr_scale
@@ -740,7 +728,7 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
         debug(f'Process init: mode={self.__class__.__name__} kwargs={kwargs}') # pylint: disable=protected-access
         super().__init__(**kwargs)
 
-    def init(self, all_prompts=None, all_seeds=None, all_subseeds=None):
+    def init(self, all_prompts=None, all_seeds=None):
         if self.init_images is not None and len(self.init_images) > 0:
             vae_scale_factor = sd_vae.get_vae_scale_factor(init_image=True)
             if self.width is None or self.width == 0:
@@ -756,8 +744,6 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
             self.all_prompts = all_prompts
         if all_seeds is not None:
             self.all_seeds = all_seeds
-        if all_subseeds is not None:
-            self.all_subseeds = all_subseeds
         if self.image_mask is not None:
             self.ops.append('inpaint')
         elif self.init_images is not None and len(self.init_images) > 0:

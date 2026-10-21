@@ -241,8 +241,6 @@ axis_options = [
     AxisOption("[Param] Height", int, apply_field("height")),
     AxisOption("[Param] Seed", int, apply_seed),
     AxisOption("[Param] Steps", int, apply_field("steps")),
-    AxisOption("[Param] Variation seed", int, apply_field("subseed")),
-    AxisOption("[Param] Variation strength", float, apply_field("subseed_strength")),
     AxisOption("[Param] CLiP-skip", float, apply_clip_skip),
     AxisOption("[Param] Denoising strength", float, apply_field("denoising_strength")),
     AxisOptionImg2Img("[Param] Mask weight", float, apply_field("inpainting_mask_weight")),

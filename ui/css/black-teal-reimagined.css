@@ -392,7 +392,7 @@ input[type='range']::-moz-range-track {
 }
 
 /* Form Styles */
-div.form, #txt2img_seed_row, #txt2img_subseed_row {
+div.form, #txt2img_seed_row {
   border-width: 0;
   box-shadow: var(--shadow-md);
   background: var(--background-fill-primary);

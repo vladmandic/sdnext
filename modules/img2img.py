@@ -54,7 +54,6 @@ def process_batch(p, input_files, input_dir, output_dir, inpaint_mask_dir, args)
         window_size = p.batch_size
         btcrept = 1
         p.seed = [p.seed] * window_size # SBM MONKEYPATCH: Need to change processing to support a fixed seed value.
-        p.subseed = [p.subseed] * window_size # SBM MONKEYPATCH
         log.info(f"Process batch: inputs={len(image_files)} outputs={p.n_iter}x{len(image_files)} parallel={window_size}")
     else: # SBM Frame mode is off, standard operation of repeating same images with sequential seed.
         window_size = 1
@@ -86,7 +85,6 @@ def process_batch(p, input_files, input_dir, output_dir, inpaint_mask_dir, args)
                 p.all_prompts = None
                 p.all_negative_prompts = None
                 p.all_seeds = None
-                p.all_subseeds = None
                 log.debug(f'Process batch: image="{image_file}" prompt={prompt_type} i={i+1}/{len(image_files)}')
             except UnidentifiedImageError as e:
                 log.error(f'Process batch: image="{image_file}" {e}')
@@ -167,7 +165,7 @@ def img2img(id_task: str, state: str, mode: int,
             refiner_start,
             clip_skip,
             denoising_strength,
-            seed, subseed, subseed_strength, seed_resize_from_h, seed_resize_from_w,
+            seed,
             selected_scale_tab,
             height, width,
             scale_by,
@@ -254,10 +252,6 @@ def img2img(id_task: str, state: str, mode: int,
         negative_prompt=negative_prompt,
         styles=prompt_styles,
         seed=seed,
-        subseed=subseed,
-        subseed_strength=subseed_strength,
-        seed_resize_from_h=seed_resize_from_h,
-        seed_resize_from_w=seed_resize_from_w,
         sampler_name = processing.get_sampler_name(sampler_index, img=True),
         batch_size=batch_size,
         n_iter=n_iter,

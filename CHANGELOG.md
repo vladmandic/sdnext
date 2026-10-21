@@ -19,6 +19,8 @@
 - **Internal**
   - expand `--test` behavior
   - infer transformers `native_spec` everywhere where its not explicitly set
+  - remove `subseed` from codebase as its obsolete
+  - remove `seed resize` from codebase as its obsolete
 - **Fixes**
   - api: return complete set in GET /sdapi/v1/options, thanks @Jackmeson1
   - launch: dont overwrite existing LD_LIBRARY_PATH
@@ -41,6 +43,7 @@
   - state: race condition when settings are changed while generate is running
   - ui: fallback template load method when running on older server
   - unet: hash on first load
+  - wan: loading route changes video frame count, thanks @Jackmeson1
 
 ## Update for 2026-10-18
 

@@ -161,7 +161,7 @@ def task_specific_kwargs(p, model):
         p.ops.append('lcm')
         init_latents = [processing_vae.vae_encode(image, model=shared.sd_model).squeeze(dim=0) for image in p.init_images]
         init_latent = torch.stack(init_latents, dim=0).to(shared.device)
-        init_noise = p.denoising_strength * processing.create_random_tensors(init_latent.shape[1:], seeds=p.all_seeds, subseeds=p.all_subseeds, subseed_strength=p.subseed_strength, p=p)
+        init_noise = p.denoising_strength * processing.create_random_tensors(init_latent.shape[1:], seeds=p.all_seeds, p=p)
         init_latent = (1 - p.denoising_strength) * init_latent + init_noise
         task_args = {
             'latents': init_latent.to(model.dtype),

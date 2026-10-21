@@ -109,23 +109,14 @@ def create_batch_inputs(tab, accordion=True):
     return batch_count, batch_size
 
 
-def create_seed_inputs(tab, reuse_visible=True, accordion=True, subseed_visible=True, seed_resize_visible=False):
+def create_seed_inputs(tab, reuse_visible=True, accordion=True):
     with gr.Accordion(open=False, label="Seed", elem_id=f"{tab}_seed_group", elem_classes=["small-accordion"]) if accordion else gr.Group():
         with gr.Row(elem_id=f"{tab}_seed_row", variant="compact"):
             seed = gr.Number(label='Initial seed', value=-1, elem_id=f"{tab}_seed", container=True)
             random_seed = ToolButton(ui_symbols.random, elem_id=f"{tab}_seed_random")
             reuse_seed = ToolButton(ui_symbols.reuse, elem_id=f"{tab}_seed_reuse", visible=reuse_visible)
-        with gr.Row(elem_id=f"{tab}_subseed_row", variant="compact", visible=subseed_visible):
-            subseed = gr.Number(label='Variation', value=-1, elem_id=f"{tab}_subseed", container=True)
-            random_subseed = ToolButton(ui_symbols.random, elem_id=f"{tab}_subseed_random")
-            reuse_subseed = ToolButton(ui_symbols.reuse, elem_id=f"{tab}_subseed_reuse", visible=reuse_visible)
-            subseed_strength = gr.Slider(label='Variation strength', value=0.0, minimum=0, maximum=1, step=0.01, elem_id=f"{tab}_subseed_strength", elem_classes=["subseed-strength"])
-        with gr.Row(visible=seed_resize_visible):
-            seed_resize_from_w = gr.Slider(minimum=0, maximum=4096, step=8, label="Resize seed from width", value=0, elem_id=f"{tab}_seed_resize_from_w")
-            seed_resize_from_h = gr.Slider(minimum=0, maximum=4096, step=8, label="Resize seed from height", value=0, elem_id=f"{tab}_seed_resize_from_h")
         random_seed.click(fn=lambda: -1, show_progress='hidden', inputs=[], outputs=[seed])
-        random_subseed.click(fn=lambda: -1, show_progress='hidden', inputs=[], outputs=[subseed])
-    return seed, reuse_seed, subseed, reuse_subseed, subseed_strength, seed_resize_from_h, seed_resize_from_w
+    return seed, reuse_seed
 
 
 def create_video_inputs(tab:str, show_always:bool=False):

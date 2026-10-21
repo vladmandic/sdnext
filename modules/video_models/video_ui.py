@@ -165,7 +165,7 @@ def create_ui(prompt, negative, styles, overrides, script_inputs, mp4_fps, mp4_i
                 with gr.Tab('Frames', id='out-gallery'):
                     gallery, gen_info, html_info, _html_info_formatted, html_log = ui_common.create_output_panel("video", prompt=prompt, preview=False, transfer=False, scale=2)
 
-    ui_common.connect_reuse_seed(seed, reuse_seed, gen_info, is_subseed=False)
+    ui_common.connect_reuse_seed(seed, reuse_seed, gen_info)
     engine.change(fn=engine_change, inputs=[engine], outputs=[model])
     model.change(fn=model_change, inputs=[engine, model], outputs=[url])
     btn_load.click(fn=model_load, inputs=[engine, model], outputs=[html_log])

@@ -38,7 +38,7 @@ processed = None # last known processed results
 
 
 class Processed:
-    def __init__(self, p: StableDiffusionProcessing, images_list, seed=-1, info=None, subseed=None, all_prompts=None, all_negative_prompts=None, all_seeds=None, all_subseeds=None, index_of_first_image=0, infotexts=None, comments="", binary=None, audio=None):
+    def __init__(self, p: StableDiffusionProcessing, images_list, seed=-1, info=None, all_prompts=None, all_negative_prompts=None, all_seeds=None, index_of_first_image=0, infotexts=None, comments="", binary=None, audio=None):
         self.sd_model_hash = getattr(shared.sd_model, 'sd_model_hash', '') if shared.sd_loaded is not None else ''
 
         self.prompt = p.prompt or ''
@@ -69,8 +69,6 @@ class Processed:
 
         self.detailer = p.detailer_enabled or False
         self.detailer_model = 'Detailer' if p.detailer_enabled else None
-        self.seed_resize_from_w = p.seed_resize_from_w
-        self.seed_resize_from_h = p.seed_resize_from_h
         self.extra_generation_params = p.extra_generation_params
         self.index_of_first_image = index_of_first_image
         self.job_timestamp = shared.state.job_timestamp
@@ -78,17 +76,13 @@ class Processed:
         self.eta = p.eta
 
         self.seed = seed if seed != -1 else p.seed
-        self.subseed = subseed
         self.seed = int(self.seed if type(self.seed) != list else self.seed[0]) if self.seed is not None else -1
-        self.subseed = int(self.subseed if type(self.subseed) != list else self.subseed[0]) if self.subseed is not None else -1
-        self.subseed_strength = p.subseed_strength
 
         self.is_using_inpainting_conditioning = p.is_using_inpainting_conditioning
 
         self.all_prompts = all_prompts or p.all_prompts or [self.prompt]
         self.all_negative_prompts = all_negative_prompts or p.all_negative_prompts or [self.negative_prompt]
         self.all_seeds = all_seeds or p.all_seeds or [self.seed]
-        self.all_subseeds = all_subseeds or p.all_subseeds or [self.subseed]
 
         self.info = info or create_infotext(p)
         self.infotexts = infotexts or [self.info]
@@ -102,9 +96,6 @@ class Processed:
             "all_negative_prompts": self.all_negative_prompts,
             "seed": self.seed,
             "all_seeds": self.all_seeds,
-            "subseed": self.subseed,
-            "all_subseeds": self.all_subseeds,
-            "subseed_strength": self.subseed_strength,
             "width": self.width,
             "height": self.height,
             "sampler_name": self.sampler_name,
@@ -119,8 +110,6 @@ class Processed:
             "detailer": self.detailer,
             "detailer_model": self.detailer_model,
             "sd_model_hash": self.sd_model_hash,
-            "seed_resize_from_w": self.seed_resize_from_w,
-            "seed_resize_from_h": self.seed_resize_from_h,
             "denoising_strength": self.denoising_strength,
             "extra_generation_params": self.extra_generation_params,
             "index_of_first_image": self.index_of_first_image,
@@ -132,7 +121,7 @@ class Processed:
         return json.dumps(obj)
 
     def infotext(self, p: StableDiffusionProcessing, index):
-        return create_infotext(p, self.all_prompts, self.all_seeds, self.all_subseeds, comments=[], position_in_batch=index % self.batch_size, iteration=index // self.batch_size)
+        return create_infotext(p, self.all_prompts, self.all_seeds, comments=[], position_in_batch=index % self.batch_size, iteration=index // self.batch_size)
 
     def __str__(self):
         return f'{self.__class__.__name__}: {self.__dict__}'
@@ -264,7 +253,6 @@ def process_images(p: StableDiffusionProcessing) -> Processed | None:
 
 def process_init(p: StableDiffusionProcessing):
     seed = get_fixed_seed(p.seed)
-    subseed = get_fixed_seed(p.subseed)
     reset_prompts = False
     if not p.all_prompts:
         p.all_prompts = p.prompt if isinstance(p.prompt, list) else p.batch_size * p.n_iter * [p.prompt]
@@ -281,18 +269,13 @@ def process_init(p: StableDiffusionProcessing):
             if _sequential_seed is None:
                 _sequential_seed = shared.opts.sequential_seed
             if _sequential_seed:
-                p.all_seeds = [int(seed) + (x if p.subseed_strength == 0 else 0) for x in range(len(p.all_prompts))]
+                p.all_seeds = [int(seed) + x for x in range(len(p.all_prompts))]
             else:
                 p.all_seeds = []
                 if p.all_prompts is not None:
                     for i in range(len(p.all_prompts)):
                         seed = get_fixed_seed(p.seed)
-                        p.all_seeds.append(int(seed) + (i if p.subseed_strength == 0 else 0))
-    if not p.all_subseeds:
-        if type(subseed) == list:
-            p.all_subseeds = [int(s) for s in subseed]
-        else:
-            p.all_subseeds = [int(subseed) + x for x in range(len(p.all_prompts))]
+                        p.all_seeds.append(int(seed) + i)
     if reset_prompts:
         if not hasattr(p, 'keep_prompts'):
             p.all_prompts, p.all_negative_prompts = shared.prompt_styles.apply_styles_to_prompts(p.all_prompts, p.all_negative_prompts, p.styles, p.all_seeds, p=p)
@@ -330,7 +313,7 @@ def process_samples(p: StableDiffusionProcessing, samples):
             if p.detailer_enabled:
                 p.ops.append('detailer')
                 if not p.do_not_save_samples and get_opt(p, 'save_images_before_detailer'):
-                    info = create_infotext(p, p.prompts, p.seeds, p.subseeds, index=i)
+                    info = create_infotext(p, p.prompts, p.seeds, index=i)
                     images.save_image(image, path=p.outpath_samples, basename="", seed=p.seeds[i], prompt=p.prompts[i], extension=get_opt(p, 'samples_format'), info=info, p=p, suffix="-before-detailer")
                 sample = shared.detailer.restore(sample, p)
                 if isinstance(sample, list):
@@ -347,7 +330,7 @@ def process_samples(p: StableDiffusionProcessing, samples):
                 p.ops.append('color')
                 if not p.do_not_save_samples and get_opt(p, 'save_images_before_color_correction'):
                     image_without_cc = apply_overlay(image, p.paste_to, i, p.overlay_images)
-                    info = create_infotext(p, p.prompts, p.seeds, p.subseeds, index=i)
+                    info = create_infotext(p, p.prompts, p.seeds, index=i)
                     images.save_image(image_without_cc, path=p.outpath_samples, basename="", seed=p.seeds[i], prompt=p.prompts[i], extension=get_opt(p, 'samples_format'), info=info, p=p, suffix="-before-color-correct")
                 method = p.color_correction_method if p.color_correction_method is not None else getattr(shared.opts, 'color_correction_method', 'histogram')
                 image = apply_color_correction(p.color_corrections[i], image, method=method)
@@ -407,7 +390,7 @@ def process_samples(p: StableDiffusionProcessing, samples):
             if _inc_mask is None:
                 _inc_mask = shared.opts.include_mask
             if _inc_mask:
-                info = create_infotext(p, p.prompts, p.seeds, p.subseeds, index=i)
+                info = create_infotext(p, p.prompts, p.seeds, index=i)
                 if _overlay and p.overlay_images is not None and len(p.overlay_images) > 0:
                     p.image_mask = create_binary_mask(p.overlay_images[0])
                     p.image_mask = ImageOps.invert(p.image_mask)
@@ -426,7 +409,7 @@ def process_samples(p: StableDiffusionProcessing, samples):
             if p.resize_mode_after != 0 and p.resize_name_after != 'None':
                 image = images.resize_image(p.resize_mode_after, image, p.width_after, p.height_after, p.resize_name_after, context=p.resize_context_after)
 
-        info = create_infotext(p, p.prompts, p.seeds, p.subseeds, index=i)
+        info = create_infotext(p, p.prompts, p.seeds, index=i)
         if get_opt(p, 'samples_save') and not p.do_not_save_samples and p.outpath_samples is not None:
             images.save_image(image, p.outpath_samples, "", p.seeds[i], p.prompts[i], get_opt(p, 'samples_format'), info=info, p=p) # main save image
 
@@ -483,7 +466,7 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
     with devices.inference_context():
         t1 = time.time()
         if not hasattr(p, 'skip_init'):
-            p.init(p.all_prompts, p.all_seeds, p.all_subseeds)
+            p.init(p.all_prompts, p.all_seeds)
         debug(f'Processing inner: args={vars(p)}')
         p.iter_init_images = p.init_images # required so we use same starting non-processed images for each batch sequence
         for n in range(p.n_iter):
@@ -505,15 +488,14 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
                 p.prompts = p.all_prompts[(n * p.batch_size):((n+1) * p.batch_size)]
                 p.negative_prompts = p.all_negative_prompts[(n * p.batch_size):((n+1) * p.batch_size)]
             p.seeds = p.all_seeds[(n * p.batch_size):((n+1) * p.batch_size)]
-            p.subseeds = p.all_subseeds[(n * p.batch_size):((n+1) * p.batch_size)]
             if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
-                p.scripts.before_process_batch(p, batch_number=n, prompts=p.prompts, seeds=p.seeds, subseeds=p.subseeds)
+                p.scripts.before_process_batch(p, batch_number=n, prompts=p.prompts, seeds=p.seeds)
             if not p.prompts:
                 break
             p.prompts, p.network_data = extra_networks.parse_prompts(p.prompts, p.network_data)
 
             if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
-                p.scripts.process_batch(p, batch_number=n, prompts=p.prompts, seeds=p.seeds, subseeds=p.subseeds)
+                p.scripts.process_batch(p, batch_number=n, prompts=p.prompts, seeds=p.seeds)
 
             samples = None
             timer.process.record('init')
@@ -537,7 +519,7 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
                 p.do_not_save_samples = not _keep
                 if shared.state.current_image is not None and isinstance(shared.state.current_image, Image.Image):
                     samples = [shared.state.current_image]
-                    infotexts = [create_infotext(p, p.all_prompts, p.all_seeds, p.all_subseeds, index=0)]
+                    infotexts = [create_infotext(p, p.all_prompts, p.all_seeds, index=0)]
                 else:
                     samples = []
                 if not _keep:
@@ -594,7 +576,7 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
                 r, c = images.get_grid_size(output_images, p.batch_size)
                 grid = images.image_grid(output_images, p.batch_size)
                 grid_text = f'{r}x{c}'
-                grid_info = create_infotext(p, p.all_prompts, p.all_seeds, p.all_subseeds, index=0, grid=grid_text)
+                grid_info = create_infotext(p, p.all_prompts, p.all_seeds, index=0, grid=grid_text)
                 if _return_grid:
                     infotexts.insert(0, grid_info)
                     output_images.insert(0, grid)
@@ -609,7 +591,6 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
         seed=p.all_seeds[0],
         info=infotexts[0] if len(infotexts) > 0 else '',
         comments="\n".join(comments),
-        subseed=p.all_subseeds[0],
         index_of_first_image=index_of_first_image,
         infotexts=infotexts,
         audio=audio,

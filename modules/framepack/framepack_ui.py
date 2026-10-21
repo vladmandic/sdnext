@@ -35,7 +35,7 @@ def create_ui(prompt, negative, styles, _overrides, script_inputs, mp4_fps, mp4_
             with gr.Accordion(label="Sections", open=False):
                 section_prompt = gr.Textbox(label="FP section prompts", elem_id="framepack_section_prompt", lines=2, placeholder="Optional one-line prompt suffix per each video section", interactive=True)
             with gr.Accordion(label="Advanced", open=False):
-                seed = ui_sections.create_seed_inputs('control', reuse_visible=False, subseed_visible=False, accordion=False)[0]
+                seed = ui_sections.create_seed_inputs('control', reuse_visible=False, accordion=False)[0]
                 latent_ws = gr.Slider(label="FP latent window size", minimum=1, maximum=33, value=9, step=1)
                 with gr.Row():
                     steps = gr.Slider(label="FP steps", minimum=1, maximum=100, value=25, step=1)

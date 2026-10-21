@@ -210,9 +210,8 @@ def create_ui(_blocks: gr.Blocks=None):
 
                 batch_count, batch_size = ui_sections.create_batch_inputs('control', accordion=True)
 
-                seed, reuse_seed, subseed, reuse_subseed, subseed_strength, seed_resize_from_h, seed_resize_from_w = ui_sections.create_seed_inputs('control')
-                ui_common.reuse_seed(seed, reuse_seed, subseed=False)
-                ui_common.reuse_seed(subseed, reuse_subseed, subseed=True)
+                seed, reuse_seed = ui_sections.create_seed_inputs('control')
+                ui_common.reuse_seed(seed, reuse_seed)
 
                 mask_controls = masking.create_segment_ui()
 
@@ -332,7 +331,7 @@ def create_ui(_blocks: gr.Blocks=None):
                 input_type,
                 prompt, negative, styles,
                 steps, sampler_index,
-                seed, subseed, subseed_strength, seed_resize_from_h, seed_resize_from_w,
+                seed,
                 cfg_name, cfg_scale, cfg_image, cfg_rescale, cfg_start, cfg_stop, cfg_true, cfg_adaptive,
                 clip_skip, vae_type, tiling, hidiffusion,
                 detailer_enabled, detailer_prompt, detailer_negative, detailer_steps, detailer_strength, detailer_resolution, detailer_classes,
@@ -427,8 +426,6 @@ def create_ui(_blocks: gr.Blocks=None):
                 (batch_size, "Batch-2"),
                 # seed
                 (seed, "Seed"),
-                (subseed, "Variation seed"),
-                (subseed_strength, "Variation strength"),
                 # mask
                 (mask_controls[1], "Mask only"),
                 (mask_controls[2], "Mask invert"),
@@ -481,8 +478,6 @@ def create_ui(_blocks: gr.Blocks=None):
                 (cfg_true, "CFG true"),
                 (cfg_adaptive, "CFG adaptive"),
                 # hidden
-                (seed_resize_from_w, "Seed resize from-1"),
-                (seed_resize_from_h, "Seed resize from-2"),
                 *scripts_manager.scripts_control.infotext_fields
             ]
             generation_parameters_copypaste.add_paste_fields("control", input_image, paste_fields, override_settings)

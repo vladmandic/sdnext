@@ -134,7 +134,7 @@ def create_ui():
                         ui_sections.create_sampler_options('img2img')
                     resize_mode, resize_name, resize_context, width, height, scale_by, selected_scale_tab = ui_sections.create_resize_inputs('img2img', [img_init, img_sketch], latent=True, non_zero=False)
                     batch_count, batch_size = ui_sections.create_batch_inputs('img2img', accordion=True)
-                    seed, reuse_seed, subseed, reuse_subseed, subseed_strength, seed_resize_from_h, seed_resize_from_w = ui_sections.create_seed_inputs('img2img')
+                    seed, reuse_seed = ui_sections.create_seed_inputs('img2img')
 
                     with gr.Accordion(open=False, label="Denoise", elem_classes=["small-accordion"], elem_id="img2img_denoise_group"):
                         with gr.Row():
@@ -171,8 +171,7 @@ def create_ui():
 
             img2img_gallery, img2img_generation_info, img2img_html_info, _img2img_html_info_formatted, img2img_html_log = ui_common.create_output_panel("img2img", prompt=img2img_prompt)
 
-            ui_common.reuse_seed(seed, reuse_seed, subseed=False)
-            ui_common.reuse_seed(subseed, reuse_subseed, subseed=True)
+            ui_common.reuse_seed(seed, reuse_seed)
 
             dummy_component1 = gr.Textbox(visible=False, value='dummy')
             dummy_component2 = gr.Number(visible=False, value=0)
@@ -191,7 +190,7 @@ def create_ui():
                 refiner_start,
                 clip_skip,
                 denoising_strength,
-                seed, subseed, subseed_strength, seed_resize_from_h, seed_resize_from_w,
+                seed,
                 selected_scale_tab,
                 height, width,
                 scale_by,
@@ -267,8 +266,6 @@ def create_ui():
                 (batch_size, "Batch-2"),
                 # seed
                 (seed, "Seed"),
-                (subseed, "Variation seed"),
-                (subseed_strength, "Variation strength"),
                 # advanced
                 (clip_skip, "CLiP-skip"),
                 (vae_type, "VAE type"),
@@ -319,8 +316,6 @@ def create_ui():
                 (inpainting_mask_invert, "Mask invert"),
                 (inpaint_full_res, "Mask area"),
                 # hidden
-                (seed_resize_from_w, "Seed resize from-1"),
-                (seed_resize_from_h, "Seed resize from-2"),
                 *modules.scripts_manager.scripts_img2img.infotext_fields
             ]
             generation_parameters_copypaste.add_paste_fields("img2img", img_init, img2img_paste_fields, override_settings)

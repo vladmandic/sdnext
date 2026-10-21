@@ -3,20 +3,6 @@ description: "Use when editing Python core runtime code, startup flow, model loa
 name: "Core Runtime Guidelines"
 applyTo: "launch.py, webui.py, installer.py, modules/**/*.py, pipelines/**/*.py, scripts/**/*.py, extensions-builtin/**/*.py, cli/**/*.py"
 ---
-## Agent Guidelines
-
-1. Verify the user instruction against relevant guidelines in this file and linked instruction files before proceeding.
-2. If the instruction conflicts with any guideline, do not proceed. Explain which guideline(s) it conflicts with and how to adjust the instruction to comply.
-3. If the instruction is valid but unclear or incomplete, ask targeted follow-up questions before implementation. Do not assume user intent or requirements.
-4. When giving feedback, name the applicable guideline(s) and explain how each one applies.
-5. If the instruction is clear and compliant, proceed and keep resulting changes aligned with project coding style, conventions, and structure.
-
-## Language Guidelines
-
-- Use clear and concise language when communicating with users, providing feedback, and explaining guidelines.
-- Avoid unnecessary pleasantries or filler language; focus on the technical content and actionable feedback.
-- When asking follow-up questions for clarification, be direct and specific about the information needed to proceed with the instruction while ensuring that the questions are relevant to the project guidelines and conventions.
-
 # Core Runtime Guidelines
 
 1. Preserve startup ordering and import timing in `launch.py` and `webui.py`; avoid moving initialization steps unless required to fix a critical startup bug or implement a new startup feature.
@@ -26,7 +12,7 @@ applyTo: "launch.py, webui.py, installer.py, modules/**/*.py, pipelines/**/*.py,
 5. Keep extension and script loading resilient: when adding startup scans/hooks, preserve partial-failure tolerance and logging.
 6. Follow existing API/server patterns under `modules/api/` and reuse shared queue/state helpers rather than ad-hoc request handling.
 7. Reuse established model-loading and pipeline patterns (`modules/sd_*`, `pipelines/`) instead of creating parallel abstractions.
-8. For substantial Python changes, run at least relevant checks: `pnpm run ruff` and `pnpm run pylint` (or narrower equivalents when appropriate).
+8. For substantial Python changes, run relevant Ruff and Pylint checks, scoped to changed files when supported; run full checks for broad changes.
 
 ## Tools
 
@@ -42,9 +28,9 @@ applyTo: "launch.py, webui.py, installer.py, modules/**/*.py, pipelines/**/*.py,
 ## Build And Test
 
 - Activate environment: `source venv/bin/activate` (always ensure this is active when working with Python code).
-- Test startup: `python launch.py --test`
-- Full startup: `python launch.py`
-- Full lint sequence: `pnpm lint`
+- Startup smoke test: `python launch.py --test` (when startup behavior changes)
+- Full startup/integration check: `python launch.py` (not routine validation)
+- Full lint sequence: `pnpm lint` (for broad changes; otherwise use relevant narrower checks)
 - Python checks individually: `pnpm ruff`, `pnpm pylint`
 
 ## Pitfalls

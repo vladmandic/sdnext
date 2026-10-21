@@ -102,7 +102,7 @@ class IPInstructScript(scripts_manager.Script):
             auto_scale = False,
             simple_cfg_mode = False,
         )
-        processed = processing.get_processed(p, images_list=image_list, seed=p.seed, subseed=p.subseed, index_of_first_image=0) # manually created processed object
+        processed = processing.get_processed(p, images_list=image_list, seed=p.seed, index_of_first_image=0) # manually created processed object
         # p.extra_generation_params["IPInstruct"] = f''
         return processed
 

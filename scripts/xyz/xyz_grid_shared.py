@@ -52,8 +52,6 @@ def apply_processing(p, x, xs):
             p.all_negative_prompts = None
         elif k == 'seed':
             p.all_seeds = None
-        elif k == 'subseed':
-            p.all_subseeds = None
         log.debug(f'XYZ grid apply processing-arg: type={found} {k}={type(v)}:{v} ')
 
 
