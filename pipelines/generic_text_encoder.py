@@ -2,7 +2,7 @@ import os
 import json
 import torch
 import transformers
-from modules import shared, devices, errors, sd_models, sd_offload, model_quant
+from modules import shared, devices, errors, sd_models, sd_offload, model_quant, sd_hijack_te
 from modules.logger import log
 from pipelines.generic_util import get_loader
 from pipelines.generic_shared import shared_te_map
@@ -117,6 +117,7 @@ def load_text_encoder(
         return None
     if repo_id is None or repo_id.lower() == 'none':
         return None
+    sd_hijack_te.prompt_cache.cache.clear()
     text_encoder = None
     allow_shared = allow_shared and shared.opts.te_shared_te
     if load_config is None:
