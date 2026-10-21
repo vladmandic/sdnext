@@ -49,6 +49,8 @@ def generate_prompt_gemini(prompt, image=None):
 def before_prompt_encode(prompt):
     if isinstance(prompt, list):
         prompt = prompt[0] if len(prompt) > 0 else ''
+    if len(prompt) == 0:
+        return prompt
 
     try:
         json_data = json.loads(prompt)
@@ -56,7 +58,7 @@ def before_prompt_encode(prompt):
         return json_str
     except Exception: # not a json
         from modules.logger import log
-        log.warning(f'BriaFIBO: prompt="{prompt}" is not a valid JSON')
+        log.warning(f'Encode: prompt="{prompt}" type=str is not a valid JSON')
 
     # dct = generate_prompt_local(prompt)
     # return dct
@@ -64,5 +66,5 @@ def before_prompt_encode(prompt):
     # dct = generate_prompt_gemini(prompt)
     # return dct
 
-    json_str = '{ instructions: "' + prompt + '" }'
+    json_str = '{ "instructions": "' + prompt + '" }'
     return json_str

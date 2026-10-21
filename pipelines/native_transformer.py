@@ -386,9 +386,7 @@ def drop_companion_keys(state_dict: dict, ignored_prefixes: tuple[str, ...], typ
         return state_dict
     counts = " ".join(f"{prefix.rstrip('.')}={count}" for prefix, count in dropped.items())
     if not kept:
-        raise ValueError(
-            f"Load model: type={type_name} native_transformer has no transformer keys ({counts})"
-        )
+        raise ValueError(f"Load model: type={type_name} native_transformer has no transformer keys ({counts})")
     log.info(f"Load model: type={type_name} native_transformer skipping bundled components: {counts}")
     return kept
 

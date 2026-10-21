@@ -1,6 +1,6 @@
 """Bria pipeline package.
 
-Exports :data:`BRIA_SPEC` and :data:`BRIA_FIBO_SPEC` for use by
+Exports transformer specs for use by
 :mod:`pipelines.model_bria` together with :mod:`pipelines.native_transformer`.
 
 Bria ships two transformer variants:
@@ -11,6 +11,8 @@ Bria ships two transformer variants:
 - Bria FIBO (and FIBO Edit) use the upstream
   :class:`diffusers.BriaFiboTransformer2DModel`, which also lacks a
   ``SINGLE_FILE_LOADABLE_CLASSES`` entry.
+- Bria FIBO 2.0 uses the upstream
+  :class:`diffusers.BriaFibo2Transformer2DModel`.
 
 Both specs use the default 3-prefix detection
 (``model.diffusion_model.``, ``diffusion_model.``, ``net.``), no
@@ -25,3 +27,4 @@ from pipelines.native_transformer import TransformerSpec
 
 BRIA_SPEC = TransformerSpec(cls=BriaTransformer2DModel)
 BRIA_FIBO_SPEC = TransformerSpec(cls=diffusers.BriaFiboTransformer2DModel)
+BRIA_FIBO2_SPEC = TransformerSpec(cls=diffusers.BriaFibo2Transformer2DModel)

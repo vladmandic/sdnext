@@ -21,7 +21,8 @@ def load_ultraflux(checkpoint_info, diffusers_load_config=None):
     diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING['ultraflux'] = UltraFluxPipeline
     generic.set_pipeline('UltraFlux', UltraFluxPipeline)
 
-    transformer = generic.load_transformer(repo_id, cls_name=FluxTransformer2DModel, load_config=diffusers_load_config)
+    from pipelines.native_transformer import make_default_spec
+    transformer = generic.load_transformer(repo_id, cls_name=FluxTransformer2DModel, load_config=diffusers_load_config, native_spec=make_default_spec(FluxTransformer2DModel))
     text_encoder_2 = generic.load_text_encoder(repo_id, cls_name=transformers.T5EncoderModel, load_config=diffusers_load_config, subfolder='text_encoder_2')
     if repo_id is None or repo_id.lower() == 'none':
         return None

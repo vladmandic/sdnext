@@ -29,27 +29,30 @@ def load_wan(checkpoint_info, diffusers_load_config=None):
     repo_id = sd_models.path_to_repo(checkpoint_info)
     sd_models.hf_auth_check(checkpoint_info)
     transformer_cls = diffusers.WanVACETransformer3DModel if 'VACE' in repo_id else diffusers.WanTransformer3DModel
+    from dataclasses import replace
+    from pipelines.native_transformer import make_default_spec
+    native_spec = make_default_spec(transformer_cls)
 
     boundary_ratio = None
     if 'a14b' in repo_id.lower() or 'fun-14b' in repo_id.lower():
         if shared.opts.model_wan_stage == 'high noise' or shared.opts.model_wan_stage == 'first':
-            transformer = generic.load_transformer(repo_id, cls_name=transformer_cls, load_config=diffusers_load_config, subfolder='transformer')
+            transformer = generic.load_transformer(repo_id, cls_name=transformer_cls, load_config=diffusers_load_config, subfolder='transformer', native_spec=replace(native_spec, subfolder='transformer'))
             transformer_2 = None
             boundary_ratio = 0.0
         elif shared.opts.model_wan_stage == 'low noise' or shared.opts.model_wan_stage == 'second':
             transformer = None
-            transformer_2 = generic.load_transformer(repo_id, cls_name=transformer_cls, load_config=diffusers_load_config, subfolder='transformer_2')
+            transformer_2 = generic.load_transformer(repo_id, cls_name=transformer_cls, load_config=diffusers_load_config, subfolder='transformer_2', native_spec=replace(native_spec, subfolder='transformer_2'))
             boundary_ratio = 1000.0
         elif shared.opts.model_wan_stage == 'combined' or shared.opts.model_wan_stage == 'both':
-            transformer = generic.load_transformer(repo_id, cls_name=transformer_cls, load_config=diffusers_load_config, subfolder='transformer')
-            transformer_2 = generic.load_transformer(repo_id, cls_name=transformer_cls, load_config=diffusers_load_config, subfolder='transformer_2', override_slot='secondary')
+            transformer = generic.load_transformer(repo_id, cls_name=transformer_cls, load_config=diffusers_load_config, subfolder='transformer', native_spec=replace(native_spec, subfolder='transformer'))
+            transformer_2 = generic.load_transformer(repo_id, cls_name=transformer_cls, load_config=diffusers_load_config, subfolder='transformer_2', native_spec=replace(native_spec, subfolder='transformer_2'), override_slot='secondary')
             # load with the checkpoint's boundary; the slider override is applied at runtime in set_pipeline_args
             boundary_ratio = None
         else:
             log.error(f'Load model: type=WanAI stage="{shared.opts.model_wan_stage}" unsupported')
             return None
     else:
-        transformer = generic.load_transformer(repo_id, cls_name=transformer_cls, load_config=diffusers_load_config, subfolder='transformer')
+        transformer = generic.load_transformer(repo_id, cls_name=transformer_cls, load_config=diffusers_load_config, subfolder='transformer', native_spec=replace(native_spec, subfolder='transformer'))
         transformer_2 = None
 
     log.debug(f'Load model: type=WanAI model="{checkpoint_info.name}" repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={diffusers_load_config} stage="{shared.opts.model_wan_stage}" boundary={boundary_ratio}')

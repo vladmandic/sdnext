@@ -12,6 +12,7 @@ from modules.vae.model_map import get_vae_type
 decoder = None
 decoder_cls = None
 repo_id = 'SD-Next/MicroDecoder'
+warned = None
 
 
 def get_timestep() -> torch.Tensor:
@@ -34,7 +35,15 @@ def get_timestep() -> torch.Tensor:
 
 
 def decode(latents: torch.Tensor) -> torch.Tensor:
-    global decoder, decoder_cls  # pylint: disable=global-statement
+    global decoder, decoder_cls, warned  # pylint: disable=global-statement
+
+    def warn_once(e: Exception):
+        global warned  # pylint: disable=global-statement
+        if warned != shared.sd_model_type:
+            log.error(f'Decode: repo="{repo_id}" target={vae_cls} {str(e)}')
+            log.trace(f'Decode: timestep={get_timestep().item():.3f} shape={list(latents.shape)} channels={in_channels} scale={scale_factor} min={latents.min():.2f} max={latents.max():.2f}')
+            warned = shared.sd_model_type
+
     vae_cls = get_vae_type()
     if vae_cls is None:
         return latents
@@ -43,7 +52,7 @@ def decode(latents: torch.Tensor) -> torch.Tensor:
     scale_factor = sd_vae.get_vae_scale_factor(patch=False)
     in_channels = getattr(shared.sd_model.vae.config, "latent_channels", 64)
 
-    if (decoder is None) or (decoder_cls != vae_cls):
+    if (decoder is None) or (decoder_cls != vae_cls): # load or reload the decoder if not initialized or if the VAE type has changed
         model_folder = os.path.join(paths.models_path, "Preview")
         os.makedirs(model_folder, exist_ok=True)
         model_file = f'microdecoder-{vae_cls}.safetensors'
@@ -58,25 +67,30 @@ def decode(latents: torch.Tensor) -> torch.Tensor:
             if not os.path.exists(model_path):
                 log.error(f'MicroDecoder: repo={repo_id} target={vae_cls} file="{model_path}" not found')
                 return latents
+
         state_dict = safetensors.torch.load_file(model_path, device=str(devices.device))
         hidden_dim = state_dict["in_proj.0.weight"].shape[0] if "in_proj.0.weight" in state_dict else 256 # dynamically detect hidden_dim from checkpoint weights if present
         in_ch = state_dict["in_proj.0.weight"].shape[1] if "in_proj.0.weight" in state_dict else in_channels
         num_up = sum(1 for k in state_dict if k.startswith("up_blocks.") and k.endswith(".conv.weight"))
         chk_scale = (2 ** num_up) if num_up > 0 else 1
         decoder = MicroDecoder(in_channels=in_ch, hidden_dim=hidden_dim, scale_factor=chk_scale).to(device=devices.device, dtype=devices.dtype)
-        log.info(f'\nDecode: type=Micro file="{model_path}" target={vae_cls} channels={in_ch} dim={hidden_dim} scale={chk_scale}')
+        log.info(f'\nDecode: type=Micro file="{model_path}" target={vae_cls} channels={in_ch} dim={hidden_dim} scale={chk_scale} latents={list(latents.shape)}')
         decoder.load_state_dict(state_dict)
         decoder.to(device=devices.device, dtype=devices.dtype)
         decoder.eval()
-        del state_dict
         decoder_cls = vae_cls
+        warned = None
+        del state_dict
 
-
-    with devices.inference_context():
-        rgb = decoder(latents.to(device=devices.device, dtype=devices.dtype), t=get_timestep())
-        # log.trace(f'MicroDecoder: t={get_timestep():.3f} shape={latents.shape} ch={in_channels} scale={scale_factor} in={latents.min():.2f}:{latents.max():.2f} out={rgb.min():.2f}:{rgb.max():.2f}')
 
     target_size = (latents.shape[-2] * scale_factor, latents.shape[-1] * scale_factor)
+    try:
+        with devices.inference_context():
+            rgb = decoder(latents.to(device=devices.device, dtype=devices.dtype), t=get_timestep())
+    except Exception as e:
+        warn_once(e)
+        return latents
+
     if rgb.shape[-2:] != target_size:
         rgb = F.interpolate(rgb, size=target_size, mode="bilinear", align_corners=False)
 

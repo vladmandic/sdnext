@@ -1398,6 +1398,51 @@ def test_ideogram4_converter_does_not_mutate_input():
 
 
 # ============================================================
+# MOSS-Image converter (fused outer-block QKV -> separate projections)
+# ============================================================
+
+def moss_converter():
+    from pipelines.moss import convert_moss_transformer_state_dict
+    return convert_moss_transformer_state_dict
+
+
+def test_moss_converter_splits_outer_qkv_and_preserves_text_qkv():
+    convert = moss_converter()
+    fused = torch.arange(48, dtype=torch.float32).reshape(12, 4)
+    text_qkv = torch.arange(48, dtype=torch.float32).reshape(12, 4)
+    out = convert({
+        'layers.0.proj.qkv.weight': fused,
+        'text_embedder.blocks.0.qkv.weight': text_qkv,
+        'layers.0.proj.o.weight': torch.zeros((4, 4)),
+    })
+    assert set(out) == {
+        'layers.0.proj.q.weight',
+        'layers.0.proj.k.weight',
+        'layers.0.proj.v.weight',
+        'text_embedder.blocks.0.qkv.weight',
+        'layers.0.proj.o.weight',
+    }
+    assert torch.equal(out['layers.0.proj.q.weight'], fused[0:4])
+    assert torch.equal(out['layers.0.proj.k.weight'], fused[4:8])
+    assert torch.equal(out['layers.0.proj.v.weight'], fused[8:12])
+    assert out['text_embedder.blocks.0.qkv.weight'] is text_qkv
+
+
+def test_moss_converter_rejects_bias_and_invalid_qkv_shapes():
+    convert = moss_converter()
+    try:
+        convert({'layers.0.proj.qkv.bias': torch.zeros(12)})
+        raise AssertionError('expected fused bias to be rejected')
+    except ValueError as e:
+        assert 'bias is unsupported' in str(e)
+    try:
+        convert({'layers.0.proj.qkv.weight': torch.zeros((10, 4))})
+        raise AssertionError('expected invalid fused weight shape to be rejected')
+    except ValueError as e:
+        assert 'three equal row groups' in str(e)
+
+
+# ============================================================
 # Integration: comfy_quant pre-quantized load
 # ============================================================
 # Same patching strategy as the plain load tests, plus pinned SDNQ opts so the
@@ -2517,6 +2562,14 @@ def run_all():
         test_load_fused_comfy_end_to_end,
         test_load_fused_bf16_end_to_end,
         test_load_fused_convrot_end_to_end,
+    ]:
+        run_test(cat, fn)
+
+    log.warning('=== moss image converter ===')
+    cat = category('moss')
+    for fn in [
+        test_moss_converter_splits_outer_qkv_and_preserves_text_qkv,
+        test_moss_converter_rejects_bias_and_invalid_qkv_shapes,
     ]:
         run_test(cat, fn)
 

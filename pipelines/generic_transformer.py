@@ -1,6 +1,6 @@
 import os
 import torch
-from modules import shared, devices, errors, sd_models, sd_offload, model_quant
+from modules import shared, devices, errors, sd_models, sd_offload, model_quant, hashes
 from modules.logger import log
 from pipelines.generic_util import get_loader
 from pipelines.generic_map import transformers_map
@@ -170,6 +170,10 @@ def load_transformer(
         # mark the dropdown selection as loaded so the slot's onchange callback, does not force a redundant full reload for an already-consumed override
         if (transformer is not None) and (override_name is not None) and getattr(shared.opts, override_opt, None) == override_name:
             setattr(sd_unet, tracker_attr, override_name)
+            try:
+                hashes.sha256(local_file, f'unet/{override_name}')
+            except Exception as e:
+                log.warning(f'Load model: transformer hash failed: name="{override_name}" {e}')
 
         sd_models.allow_post_quant = False # we already handled it
         if shared.opts.diffusers_offload_mode != 'none' and transformer is not None:

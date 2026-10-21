@@ -1,5 +1,5 @@
 import os
-from modules import shared, devices, files_cache, sd_models, model_quant
+from modules import shared, devices, files_cache, sd_models, model_quant, hashes
 from modules.logger import log
 
 
@@ -101,6 +101,10 @@ def load_unet(model, repo_id: str | None = None):
             from modules import errors
             errors.display(e, 'UNet load:')
         return
+    try:
+        hashes.sha256(unet_dict[shared.opts.sd_unet], f'unet/{shared.opts.sd_unet}')
+    except Exception as e:
+        log.warning(f'Load module: type=UNet hash failed: name="{shared.opts.sd_unet}" {e}')
     devices.torch_gc()
 
 

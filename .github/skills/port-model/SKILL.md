@@ -105,9 +105,11 @@ Use this path when the model already has a usable Diffusers pipeline and compone
 Implement:
 
 - `pipelines/model_<name>.py`
-- `modules/sd_models.py` dispatch branch
+- `modules/sd_models.py` dispatch branch in `load_diffuser_force`
 - `modules/sd_detect.py` filename autodetect branch if appropriate
 - `modules/modeldata.py` model type detection branch
+
+Every base-model family loader, whether upstream or custom, must be dispatched from an explicit detected-model-type branch in `modules/sd_models.py:load_diffuser_force`. Do not rely on `load_diffuser_folder` or another generic fallback to trigger a family loader.
 
 Reuse:
 
@@ -217,7 +219,10 @@ In `pipelines/model_<name>.py`:
 - Use `model_quant.get_dit_args(...)` for load args
 - Respect `devices.dtype`
 - Log meaningful loader details
-- Reuse `generic.load_transformer(...)` and `generic.load_text_encoder(...)` when possible
+- When using `generic.load_transformer(...)`, define a `TransformerSpec` for the model and pass it through the `native_spec=` argument. Put the spec in the model package or another appropriate shared module, and define the model's checkpoint prefixes, converter, and sibling handling as needed; do not omit the spec or rely on the generic single-file fallback.
+- Leave `allow_quant` at its loader default for `generic.load_transformer(...)` and `generic.load_text_encoder(...)` unless a verified model-specific constraint requires disabling or otherwise overriding quantization.
+- Explicitly preload only the transformer and text encoder through `generic.load_transformer(...)` and `generic.load_text_encoder(...)`. Let the pipeline's `from_pretrained(...)` load its processor, tokenizer, and other declared components unless a verified model-specific requirement calls for separate loading.
+- Reuse `generic.load_text_encoder(...)` when possible
 - Set `pipe.task_args = {'output_type': 'np'}` when the pipeline should default to numpy output for SD.Next
 - Clean up temporary references and call `devices.torch_gc(...)`
 

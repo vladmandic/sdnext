@@ -525,7 +525,11 @@ def load_diffuser_force(detected_model_type: str, checkpoint_info: CheckpointInf
             from pipelines.model_chrono import load_chrono
             sd_model = load_chrono(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
-        elif model_type in ['Bria']:
+        elif model_type in ['BriaFibo2']:
+            from pipelines.model_bria import load_bria2
+            sd_model = load_bria2(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
+        elif model_type in ['BriaFibo']:
             from pipelines.model_bria import load_bria
             sd_model = load_bria(checkpoint_info, diffusers_load_config)
             allow_post_quant = False

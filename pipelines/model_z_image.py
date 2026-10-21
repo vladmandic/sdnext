@@ -45,7 +45,8 @@ def load_z_image(checkpoint_info, diffusers_load_config=None):
         transformer = init_nunchaku()
 
     if transformer is None:
-        transformer = generic.load_transformer(repo_id, cls_name=diffusers.ZImageTransformer2DModel, load_config=diffusers_load_config)
+        from pipelines.native_transformer import make_default_spec
+        transformer = generic.load_transformer(repo_id, cls_name=diffusers.ZImageTransformer2DModel, load_config=diffusers_load_config, native_spec=make_default_spec(diffusers.ZImageTransformer2DModel))
 
     text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.Qwen3ForCausalLM, load_config=diffusers_load_config)
 

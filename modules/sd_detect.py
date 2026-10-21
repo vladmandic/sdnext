@@ -123,8 +123,10 @@ def guess_by_name(fn, current_guess):
         new_guess = 'WanAI'
     if 'chronoedit' in fn.lower():
         new_guess = 'ChronoEdit'
+    elif 'fibo-2' in fn.lower() or 'fibo2' in fn.lower():
+        new_guess = 'BriaFibo2'
     elif 'bria' in fn.lower() or 'fibo' in fn.lower():
-        new_guess = 'Bria'
+        new_guess = 'BriaFibo'
     elif 'qwen-image-2.1' in fn.lower() or 'qwen_image_2.1' in fn.lower() or 'qwen_image_2_1' in fn.lower():
         new_guess = 'Qwen21'
     elif 'qwen' in fn.lower() or 'firered' in fn.lower() or 'unipic3' in fn.lower():

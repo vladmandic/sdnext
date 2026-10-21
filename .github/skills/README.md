@@ -6,7 +6,7 @@ This folder contains repo-local Copilot skills for recurring SD.Next tasks.
 
 - `port-model`
   File: `port-model/SKILL.md`
-  Use when adding or porting a model family into SD.Next and Diffusers, including conditional flow-sampler and VAE-family registry updates; new base models also update `wiki/Model-Support.md` and `wiki/Models.md`.
+  Use when adding or porting a model family into SD.Next and Diffusers; includes `TransformerSpec`/`native_spec` requirements for `generic.load_transformer`, explicit base-model dispatch through `load_diffuser_force`, conditional flow-sampler and VAE-family registry updates, and wiki updates for new base models.
 
 - `port-pipeline`
   File: `port-pipeline/SKILL.md`

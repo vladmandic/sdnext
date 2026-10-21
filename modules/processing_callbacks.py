@@ -172,7 +172,8 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
             else:
                 width = getattr(p, 'width', 1024)
                 height = getattr(p, 'height', 1024)
-            if len(latents.shape) == 4:
+            latent_channels = getattr(getattr(getattr(pipe, 'vae', None), 'config', None), 'latent_channels', None)
+            if (len(latents.shape) == 4) and (latent_channels is not None) and (latents.shape[1] == latent_channels * 4):
                 latents = pipe._unpatchify_latents(latents) # [B, C*4, h/2, w/2] -> [B, C, h, w] # pylint: disable=protected-access
             elif len(latents.shape) == 3:  # packed format [B, seq_len, patch_channels]
                 b, seq_len, patch_ch = latents.shape

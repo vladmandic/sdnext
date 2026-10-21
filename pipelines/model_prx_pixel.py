@@ -17,7 +17,8 @@ def load_prx_pixel(checkpoint_info, diffusers_load_config=None):
         f'offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}'
     )
 
-    transformer = generic.load_transformer(repo_id, cls_name=diffusers.PRXTransformer2DModel, load_config=diffusers_load_config)
+    from pipelines.prx import PRX_SPEC
+    transformer = generic.load_transformer(repo_id, cls_name=diffusers.PRXTransformer2DModel, load_config=diffusers_load_config, native_spec=PRX_SPEC)
     text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.Qwen3VLTextModel, load_config=diffusers_load_config)
 
     if repo_id is None or repo_id.lower() == 'none':

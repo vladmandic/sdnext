@@ -2,6 +2,12 @@
 
 ## Update for 2026-10-21
 
+- **Models**
+  - [Bria FIBO 2.0](https://huggingface.co/briaai/Fibo-2.0-dev) *Dev* base and *Edit Turbo* distilled variants  
+    *architecture*: 8.1B flow-matching transformer with Qwen3-VL-4B text-encoder  
+    *note*: this is a [gated model](https://vladmandic.github.io/sdnext-docs/Gated)  
+    *note*: BriaFIBO is designed to work with highly structured [JSON prompts](https://docs.bria.ai/vgl#5-schema-reference)  
+    if you provide a simple string-based prompt, sdnext will convert it to naive JSON, but it will be sub-optimal  
 - **Coding**  
   expand ai/ml instructions and skills  
   see [instructions](https://github.com/vladmandic/sdnext/blob/dev/.github/copilot-instructions.md) and [skills readme](https://github.com/vladmandic/sdnext/blob/dev/.github/skills/README.md) for details
@@ -12,21 +18,28 @@
   - [SD.Next CUDA docker image](https://hub.docker.com/repository/docker/vladmandic/sdnext-cuda) rebuild and update
 - **Internal**
   - expand `--test` behavior
+  - infer transformers `native_spec` everywhere where its not explicitly set
 - **Fixes**
   - api: return complete set in GET /sdapi/v1/options, thanks @Jackmeson1
   - launch: dont overwrite existing LD_LIBRARY_PATH
   - lora: bias deltas no longer refused when the model is quantized or native fuse is off
   - mageflow: load single-file transformers, including low-rank modulation checkpoints (MageTrail 0.3+)
+  - microdecoder: improve error handling
   - moss: downloaded moss-image models appear in the model list
   - moss: performance optimizations
+  - moss: single-file model loading support
+  - network preview: handle unets
   - offload: balanced offload clear stale state on unload, thanks @Jackmeson1
   - offload: group offload keeps text encoder layers whole, so qwen3.5 encoders run with causal-conv1d installed
   - offload: group offload recognizes vae encode and decode entry points with current diffusers
+  - prompt encode: expand simple str-to-json handling for models that require json
   - rocm: add explicit support for gfx1030, thanks @resonantsky
   - scheduler: delete orphan records on record deletion
   - sdnq: attention dtype and mask fixes
   - seedvr: unblock usage on non-cuda devices
+  - state: race condition when settings are changed while generate is running
   - ui: fallback template load method when running on older server
+  - unet: hash on first load
 
 ## Update for 2026-10-18
 
