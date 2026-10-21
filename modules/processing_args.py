@@ -92,6 +92,9 @@ def task_specific_kwargs(p, model):
             'image': p.init_images,
             'strength': p.denoising_strength,
         }
+        mask_image = p.task_args.get('image_mask', None) or getattr(p, 'image_mask', None) or getattr(p, 'mask', None)
+        if (mask_image is not None) and sd_models.pipe_serves_task(model, sd_models.DiffusersTaskType.INPAINTING): # one class registered for every task keeps this branch for inpaint requests
+            task_args['mask_image'] = mask_image
         if model_cls == 'FluxImg2ImgPipeline' or model_cls == 'FluxKontextPipeline': # needs explicit width/height
             if torch.is_tensor(p.init_images[0]):
                 latent_scale = sd_vae.get_vae_scale_factor(model, patch=False) # pixels per latent
@@ -174,6 +177,7 @@ def task_specific_kwargs(p, model):
         }
     if ('WanVACEPipeline' in model_cls) and (p.init_images is not None) and (len(p.init_images) > 0):
         task_args['reference_images'] = p.init_images
+        task_args.pop('mask_image', None) # vace takes a mask only together with video
     if 'BlipDiffusionPipeline' in model_cls:
         if len(p.init_images) == 0:
             log.error('BLiP diffusion requires init image')
@@ -454,6 +458,8 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:l
     task_kwargs.update(model_args or {})
     if ('image' in task_kwargs) and ('image' not in possible) and ('images' in possible): # JoyImageEditPlusPipeline and GoogleNanoBananaPipeline take the list as images
         task_kwargs['images'] = task_kwargs.pop('image')
+    if ('mask_image' in task_kwargs) and ('mask_image' not in possible) and ('mask' in possible): # BriaFibo2Pipeline takes the inpaint mask as mask
+        task_kwargs['mask'] = task_kwargs.pop('mask_image')
     if debug_enabled:
         debug_log(f'Process task args: {task_kwargs}')
     for k, v in task_kwargs.items():
