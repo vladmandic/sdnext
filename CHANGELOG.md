@@ -1,18 +1,19 @@
 # Change Log for SD.Next
 
-## Update for 2026-10-20
+## Update for 2026-10-21
 
-- **Docker**
-  - update `Dockerfile` for all supported platforms
-  - [SD.Next CUDA docker image](https://hub.docker.com/repository/docker/vladmandic/sdnext-cuda) rebuild and update
-- **Wiki**
-  - updates to: `Scheduler`, `Models`, `Model-Support`, `Docker`, `AMD-ROCm`, `AMD-MIOpen`, `Detailer`, `LoRA`
 - **Coding**  
   expand ai/ml instructions and skills  
   see [instructions](https://github.com/vladmandic/sdnext/blob/dev/.github/copilot-instructions.md) and [skills readme](https://github.com/vladmandic/sdnext/blob/dev/.github/skills/README.md) for details
+- **Wiki**
+  - updates to: `Scheduler`, `Models`, `Model-Support`, `Docker`, `AMD-ROCm`, `AMD-MIOpen`, `Detailer`, `LoRA`
+- **Docker**
+  - update `Dockerfile` for all supported platforms
+  - [SD.Next CUDA docker image](https://hub.docker.com/repository/docker/vladmandic/sdnext-cuda) rebuild and update
 - **Internal**
   - expand `--test` behavior
 - **Fixes**
+  - api: return complete set in GET /sdapi/v1/options, thanks @Jackmeson1
   - launch: dont overwrite existing LD_LIBRARY_PATH
   - lora: bias deltas no longer refused when the model is quantized or native fuse is off
   - mageflow: load single-file transformers, including low-rank modulation checkpoints (MageTrail 0.3+)
@@ -21,7 +22,9 @@
   - offload: balanced offload clear stale state on unload, thanks @Jackmeson1
   - offload: group offload keeps text encoder layers whole, so qwen3.5 encoders run with causal-conv1d installed
   - offload: group offload recognizes vae encode and decode entry points with current diffusers
+  - rocm: add explicit support for gfx1030, thanks @resonantsky
   - scheduler: delete orphan records on record deletion
+  - sdnq: attention dtype and mask fixes
   - seedvr: unblock usage on non-cuda devices
   - ui: fallback template load method when running on older server
 

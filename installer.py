@@ -28,7 +28,7 @@ class Torch(dict):
 
 
 # target commit hashes for specific packages
-diffusers_target = 'b800f828f3951c4d206e154411bcbfa693cd322e' # diffusers commit hash == 0.41.0.dev0 == 10-17-2026
+diffusers_target = '1ddaf8f4e7c33afaa7c6c2c3be9e56f2c2a634c8' # diffusers commit hash == 0.41.0.dev0 == 10-21-2026
 transformers_target = 'b70d02fc724d04c916832ca4ead03ff05e8fb1ee' # transformers commit hash == 5.13.0.dev0 == 07-03-2026
 sdnq_target = '35337772cdd3ca160d8ab216d06b22461fa476dc' # sdnq commit hash == 0.2.9 == 10-16-2026
 
