@@ -16,6 +16,7 @@ Covered:
   (shift, scale) and read (scale, shift).
 - Flux kohya without alpha tensors loads at scale 1.
 - A load leaves the cached state dict whole.
+- SD 1.x: ``lora_te1_`` keys bind to the single text encoder.
 
 No running server required.
 
@@ -49,6 +50,7 @@ installer.add_args(modules.cmd_args.parser)
 modules.cmd_args.parsed, _ = modules.cmd_args.parser.parse_known_args([])
 
 import diffusers  # pylint: disable=wrong-import-position
+import transformers  # pylint: disable=wrong-import-position
 from modules.errors import log  # pylint: disable=wrong-import-position
 from modules import shared, sd_models_utils  # pylint: disable=wrong-import-position
 from modules.modeldata import model_data  # pylint: disable=wrong-import-position
@@ -119,6 +121,12 @@ class FluxPipeline:
         self.embedding_db = None
 
 
+class StableDiffusionPipeline:
+    def __init__(self, unet, text_encoder):
+        self.unet = unet
+        self.text_encoder = text_encoder
+        self.embedding_db = None
+
 
 def install(pipe):
     model_data.sd_model = pipe
@@ -153,6 +161,16 @@ def flux_tree():
             num_attention_heads=2, joint_attention_dim=32, pooled_projection_dim=16, guidance_embeds=True, axes_dims_rope=(2, 2, 4),
         )
 
+
+def sd15_trees():
+    with torch.device('meta'):
+        unet = diffusers.UNet2DConditionModel(
+            sample_size=8, in_channels=4, out_channels=4, layers_per_block=1, block_out_channels=(32, 64),
+            down_block_types=('CrossAttnDownBlock2D', 'DownBlock2D'), up_block_types=('UpBlock2D', 'CrossAttnUpBlock2D'),
+            cross_attention_dim=32, attention_head_dim=8, norm_num_groups=8,
+        )
+        te = transformers.CLIPTextModel(transformers.CLIPTextConfig(hidden_size=32, intermediate_size=64, num_hidden_layers=1, num_attention_heads=4, vocab_size=64, max_position_embeddings=16))
+    return unet, te
 
 
 def write(state_dict):
@@ -296,6 +314,29 @@ def test_cached_state_dict_left_whole():
         os.unlink(path)
 
 
+def test_sd15_te1_prefix_binds_single_encoder():
+    unet, te = sd15_trees()
+    install(StableDiffusionPipeline(unet, te))
+    q_proj = next(m for n, m in te.named_modules() if n.endswith('layers.0.self_attn.q_proj'))
+    down, up = factors(32, 32, 7)
+    sd = {
+        'lora_te1_text_model_encoder_layers_0_self_attn_q_proj.lora_down.weight': down,
+        'lora_te1_text_model_encoder_layers_0_self_attn_q_proj.lora_up.weight': up,
+        'lora_te1_text_model_encoder_layers_0_self_attn_q_proj.alpha': torch.tensor(float(RANK)),
+        'lora_unet_down_blocks_0_attentions_0_transformer_blocks_0_attn2_to_k.lora_down.weight': down,
+        'lora_unet_down_blocks_0_attentions_0_transformer_blocks_0_attn2_to_k.lora_up.weight': up[:32],
+        'lora_unet_down_blocks_0_attentions_0_transformer_blocks_0_attn2_to_k.alpha': torch.tensor(float(RANK)),
+    }
+    path = write(sd)
+    try:
+        net = load(path, 'sd15-te1')
+        assert net is not None, 'not loaded'
+        stamped = q_proj.network_layer_name
+        assert stamped in net.modules, f'te key not bound to {stamped}; bound={sorted(net.modules)}'
+        assert any(k.startswith('lora_unet_') for k in net.modules), 'unet half missing'
+    finally:
+        os.unlink(path)
+
 
 # ============================================================
 # Runner
@@ -312,6 +353,7 @@ def run_tests():
         test_sd35_large_kohya_fixture,
         test_flux_kohya_without_alpha,
         test_cached_state_dict_left_whole,
+        test_sd15_te1_prefix_binds_single_encoder,
     ]:
         run_test(cat, fn)
     model_data.sd_model = None

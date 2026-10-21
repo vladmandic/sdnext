@@ -114,10 +114,14 @@ class KeyConvert:
         # SDXL: must starts with LORA_PREFIX_TEXT_ENCODER
         self.LORA_PREFIX_TEXT_ENCODER1 = "lora_te1_"
         self.LORA_PREFIX_TEXT_ENCODER2 = "lora_te2_"
+        mapping = getattr(shared.sd_model, 'network_layer_mapping', None) or {}
+        self.single_te = not any(k.startswith(self.LORA_PREFIX_TEXT_ENCODER1) for k in mapping) # a lone text encoder is stamped lora_te_; kohya also saves it as lora_te1_
 
     def __call__(self, key):
         if "diffusion_model" in key:  # Fix NTC Slider naming error
             key = key.replace("diffusion_model", "lora_unet")
+        if self.single_te and key.startswith(self.LORA_PREFIX_TEXT_ENCODER1):
+            key = self.LORA_PREFIX_TEXT_ENCODER + key[len(self.LORA_PREFIX_TEXT_ENCODER1):]
         map_keys = list(self.UNET_CONVERSION_MAP.keys())  # prefix of U-Net modules
         map_keys.sort()
         search_key = key.replace(self.LORA_PREFIX_UNET, "").replace(self.OFT_PREFIX_UNET, "").replace(self.LORA_PREFIX_TEXT_ENCODER1, "").replace(self.LORA_PREFIX_TEXT_ENCODER2, "")
