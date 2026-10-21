@@ -362,6 +362,22 @@ def _convert_kohya_flux_lora_to_diffusers(state_dict):
 
     return _convert_sd_scripts_to_ai_toolkit(state_dict)
 
+def swap_pre_only_modulation(ait_sd, ait_key):
+    """Swap the halves of a pre-only block's context modulation.
+
+    The last SD3 joint block is pre-only: its context modulation has two chunks, stored
+    (shift, scale) by the original model and read (scale, shift) by AdaLayerNormContinuous.
+    Full blocks carry six chunks in the same order on both sides.
+    """
+    up_key, down_key = ait_key + ".lora_up.weight", ait_key + ".lora_down.weight"
+    if up_key not in ait_sd or down_key not in ait_sd:
+        return
+    up = ait_sd[up_key]
+    if up.shape[0] == 2 * ait_sd[down_key].shape[1]:
+        shift, scale = torch.chunk(up, 2, dim=0)
+        ait_sd[up_key] = torch.cat([scale, shift], dim=0)
+
+
 def _convert_kohya_sd3_lora_to_diffusers(state_dict):
     def _convert_sd_scripts_to_ai_toolkit(sds_sd):
         ait_sd = {}
@@ -371,9 +387,9 @@ def _convert_kohya_sd3_lora_to_diffusers(state_dict):
                 ait_sd,
                 f"lora_unet_joint_blocks_{i}_context_block_attn_qkv",
                 [
-                    f"transformer.transformer_blocks.{i}.attn.to_q",
-                    f"transformer.transformer_blocks.{i}.attn.to_k",
-                    f"transformer.transformer_blocks.{i}.attn.to_v",
+                    f"transformer.transformer_blocks.{i}.attn.add_q_proj",
+                    f"transformer.transformer_blocks.{i}.attn.add_k_proj",
+                    f"transformer.transformer_blocks.{i}.attn.add_v_proj",
                 ],
             )
             _convert_to_ai_toolkit(
@@ -406,6 +422,7 @@ def _convert_kohya_sd3_lora_to_diffusers(state_dict):
                 f"lora_unet_joint_blocks_{i}_context_block_adaLN_modulation_1",
                 f"transformer.transformer_blocks.{i}.norm1_context.linear",
             )
+            swap_pre_only_modulation(ait_sd, f"transformer.transformer_blocks.{i}.norm1_context.linear")
             _convert_to_ai_toolkit(
                 sds_sd,
                 ait_sd,
@@ -430,9 +447,9 @@ def _convert_kohya_sd3_lora_to_diffusers(state_dict):
                 ait_sd,
                 f"lora_unet_joint_blocks_{i}_x_block_attn_qkv",
                 [
-                    f"transformer.transformer_blocks.{i}.attn.add_q_proj",
-                    f"transformer.transformer_blocks.{i}.attn.add_k_proj",
-                    f"transformer.transformer_blocks.{i}.attn.add_v_proj",
+                    f"transformer.transformer_blocks.{i}.attn.to_q",
+                    f"transformer.transformer_blocks.{i}.attn.to_k",
+                    f"transformer.transformer_blocks.{i}.attn.to_v",
                 ],
             )
         remaining_keys = list(sds_sd.keys())
