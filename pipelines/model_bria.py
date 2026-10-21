@@ -7,6 +7,19 @@ from modules.logger import log
 from pipelines import generic
 
 
+FIBO2_FONTS = ('Aileron-Regular.otf', 'DejaVuSans.ttf') # fallback fonts the caption text images were drawn with in training
+
+
+def fibo2_fonts(repo_id):
+    """Paths of the repo's fallback fonts the pipeline draws caption text with; empty when they cannot be fetched."""
+    from huggingface_hub import hf_hub_download
+    try:
+        return [hf_hub_download(repo_id, name, subfolder='fonts', cache_dir=shared.opts.diffusers_dir) for name in FIBO2_FONTS]
+    except Exception as e:
+        log.warning(f'Load model: type=BriaFibo2 fonts="{repo_id}/fonts" {e}')
+        return []
+
+
 def load_bria2(checkpoint_info, diffusers_load_config=None):
     if diffusers_load_config is None:
         diffusers_load_config = {}
@@ -29,7 +42,6 @@ def load_bria2(checkpoint_info, diffusers_load_config=None):
         repo_id,
         cls_name=transformers.Qwen3VLForConditionalGeneration,
         load_config=diffusers_load_config,
-        allow_shared=False,
     )
     cls = diffusers.BriaFibo2Pipeline
     diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING['fibo2'] = cls
@@ -44,12 +56,11 @@ def load_bria2(checkpoint_info, diffusers_load_config=None):
         cache_dir=shared.opts.diffusers_dir,
         **load_args,
     )
-    from pipelines.bria import prompt_to_json
-    pipe.before_prompt_encode = prompt_to_json.before_prompt_encode
+    # the pipeline reads a plain prompt as the trained short-description or edit-instruction form, so no str-to-json wrapping
     pipe.max_condition_images = 4
 
     generic.load_vae_override(pipe, diffusers_load_config)
-    pipe.task_args = {'output_type': 'np'}
+    pipe.task_args = {'output_type': 'np', 'fonts': fibo2_fonts(repo_id)}
 
     del text_encoder
     del transformer
