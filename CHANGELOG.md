@@ -29,6 +29,7 @@
   - moss: performance optimizations
   - moss: single-file model loading support
   - network preview: handle unets
+  - network preview: fix stale cache
   - offload: balanced offload clear stale state on unload, thanks @Jackmeson1
   - offload: group offload keeps text encoder layers whole, so qwen3.5 encoders run with causal-conv1d installed
   - offload: group offload recognizes vae encode and decode entry points with current diffusers
