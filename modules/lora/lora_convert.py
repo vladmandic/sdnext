@@ -153,9 +153,10 @@ def _convert_to_ai_toolkit(sds_sd, ait_sd, sds_key, ait_key):
         return
     down_weight = sds_sd.pop(sds_key + ".lora_down.weight")
 
-    # scale weight by alpha and dim
+    # scale weight by alpha and dim; a file without alpha tensors trains at alpha = rank
     rank = down_weight.shape[0]
-    alpha = sds_sd.pop(sds_key + ".alpha").item()  # alpha is scalar
+    default_alpha = torch.tensor(rank, dtype=down_weight.dtype, device=down_weight.device)
+    alpha = sds_sd.pop(sds_key + ".alpha", default_alpha).item()  # alpha is scalar
     scale = alpha / rank  # LoRA is scaled by 'alpha / rank' in forward pass, so we need to scale it back here
 
     # calculate scale_down and scale_up to keep the same value. if scale is 4, scale_down is 2 and scale_up is 2
@@ -176,7 +177,8 @@ def _convert_to_ai_toolkit_cat(sds_sd, ait_sd, sds_key, ait_keys, dims=None):
     sd_lora_rank = down_weight.shape[0]
 
     # scale weight by alpha and dim
-    alpha = sds_sd.pop(sds_key + ".alpha")
+    default_alpha = torch.tensor(sd_lora_rank, dtype=down_weight.dtype, device=down_weight.device)
+    alpha = sds_sd.pop(sds_key + ".alpha", default_alpha)
     scale = alpha / sd_lora_rank
 
     # calculate scale_down and scale_up

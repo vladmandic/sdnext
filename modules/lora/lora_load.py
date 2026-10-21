@@ -85,11 +85,12 @@ def load_safetensors(name, network_on_disk: network.NetworkOnDisk) -> network.Ne
     net = network.Network(name, network_on_disk)
     net.mtime = os.path.getmtime(network_on_disk.filename)
     state_dict = sd_models.read_state_dict(network_on_disk.filename, what='network')
+    # converters pop the keys they consume; a copy keeps the cached dict whole when a conversion is refused
     if shared.sd_model_type == 'f1': # if kohya flux lora, convert state_dict
-        state_dict = lora_convert._convert_kohya_flux_lora_to_diffusers(state_dict) or state_dict # pylint: disable=protected-access
-    if shared.sd_model_type == 'sd3': # if kohya flux lora, convert state_dict
+        state_dict = lora_convert._convert_kohya_flux_lora_to_diffusers(dict(state_dict)) or state_dict # pylint: disable=protected-access
+    if shared.sd_model_type == 'sd3': # if kohya sd3 lora, convert state_dict
         try:
-            state_dict = lora_convert._convert_kohya_sd3_lora_to_diffusers(state_dict) or state_dict # pylint: disable=protected-access
+            state_dict = lora_convert._convert_kohya_sd3_lora_to_diffusers(dict(state_dict)) or state_dict # pylint: disable=protected-access
         except ValueError: # EAFP for diffusers PEFT keys
             pass
     lora_convert.assign_network_names_to_compvis_modules(sd_model)

@@ -14,6 +14,8 @@ Covered:
   ``x_block`` the image stream (``to_q/k/v``).
 - SD3 kohya: the pre-only last block's context modulation is stored
   (shift, scale) and read (scale, shift).
+- Flux kohya without alpha tensors loads at scale 1.
+- A load leaves the cached state dict whole.
 
 No running server required.
 
@@ -111,6 +113,11 @@ class StableDiffusion3Pipeline:
         self.embedding_db = None
 
 
+class FluxPipeline:
+    def __init__(self, transformer):
+        self.transformer = transformer
+        self.embedding_db = None
+
 
 
 def install(pipe):
@@ -138,6 +145,13 @@ def sd35_large_tree():
             caption_projection_dim=2432, pooled_projection_dim=2048, pos_embed_max_size=192, qk_norm='rms_norm',
         )
 
+
+def flux_tree():
+    with torch.device('meta'):
+        return diffusers.FluxTransformer2DModel(
+            patch_size=1, in_channels=4, num_layers=1, num_single_layers=1, attention_head_dim=8,
+            num_attention_heads=2, joint_attention_dim=32, pooled_projection_dim=16, guidance_embeds=True, axes_dims_rope=(2, 2, 4),
+        )
 
 
 
@@ -249,6 +263,37 @@ def test_sd35_large_kohya_fixture():
     assert residual < 1e-2, f'last block modulation residual {residual:.3g} against the swapped halves'
 
 
+def test_flux_kohya_without_alpha():
+    install(FluxPipeline(flux_tree()))
+    inner = 16
+    down, up = factors(inner, inner, 5)
+    base = 'lora_unet_double_blocks_0_img_attn_proj'
+    path = write({f'{base}.lora_down.weight': down, f'{base}.lora_up.weight': up})
+    try:
+        net = load(path, 'flux-no-alpha')
+        assert net is not None, 'a file without alpha tensors must load'
+        module = net.modules.get('lora_transformer_transformer_blocks_0_attn_to_out_0')
+        assert module is not None, f'bound={sorted(net.modules)}'
+        assert torch.equal(module.up_model.weight.float(), up) and torch.equal(module.down_model.weight.float(), down), 'factors changed without an alpha to fold'
+        assert module.calc_scale() == 1.0
+    finally:
+        os.unlink(path)
+
+
+def test_cached_state_dict_left_whole():
+    install(StableDiffusion3Pipeline(sd3_tree()))
+    dim = 32
+    down, up = factors(3 * dim, dim, 6)
+    base = 'lora_unet_joint_blocks_0_x_block_attn_qkv'
+    sd = {f'{base}.lora_down.weight': down, f'{base}.lora_up.weight': up, f'{base}.alpha': torch.tensor(float(RANK)), 'lora_unet_joint_blocks_0_x_block_attn2_qkv.lora_down.weight': down}
+    path = write(sd)
+    try:
+        load(path, 'sd3-cache')
+        cached = sd_models_utils.state_dict_cache.get(path)
+        if cached is not None:
+            assert set(cached) == set(sd), f'cached dict lost keys: {sorted(set(sd) - set(cached))}'
+    finally:
+        os.unlink(path)
 
 
 
@@ -265,6 +310,8 @@ def run_tests():
         test_sd3_kohya_last_block_modulation_halves,
         test_sd3_kohya_full_block_modulation_unswapped,
         test_sd35_large_kohya_fixture,
+        test_flux_kohya_without_alpha,
+        test_cached_state_dict_left_whole,
     ]:
         run_test(cat, fn)
     model_data.sd_model = None
