@@ -87,10 +87,6 @@ def load_wan(checkpoint_info, diffusers_load_config=None):
     if boundary_ratio is not None: # omit so from_pretrained keeps the checkpoint's shipped boundary_ratio
         wan_args['boundary_ratio'] = boundary_ratio
     pipe = pipe_cls.from_pretrained(repo_id, **wan_args)
-    pipe.task_args = {
-        'num_frames': 1,
-        'output_type': 'np',
-    }
 
     del text_encoder
     del transformer
