@@ -938,7 +938,6 @@ def set_defaults(sd_model, checkpoint_info: CheckpointInfo):
     sd_model.is_sd2 = hasattr(sd_model, 'cond_stage_model') and hasattr(sd_model.cond_stage_model, 'model') # a1111 compatibility item
     sd_model.is_sd1 = not sd_model.is_sd2 # a1111 compatibility item
     sd_model.logvar = sd_model.logvar.to(devices.device) if hasattr(sd_model, 'logvar') else None # fix for training
-    shared.opts.data["sd_checkpoint_hash"] = checkpoint_info.sha256
     if hasattr(sd_model, "set_progress_bar_config"):
         sd_model.set_progress_bar_config(bar_format='Progress {rate_fmt}{postfix} {bar:15} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining}', ncols=120, colour='#327fba')
 

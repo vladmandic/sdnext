@@ -75,7 +75,7 @@ def infotext(p):
         p.extra_generation_params["LoRA networks"] = ", ".join(names)
     if networks.refused_writes > 0: # the model took only part of what was loaded, so the names above do not describe what generated the image
         p.extra_generation_params["LoRA refused"] = networks.refused_writes
-    if shared.opts.lora_add_hashes_to_infotext:
+    if shared.opts.add_lora_hash:
         network_hashes = []
         for item in l.loaded_networks:
             if not item.network_on_disk.shorthash:

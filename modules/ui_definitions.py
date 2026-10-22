@@ -589,6 +589,8 @@ def create_settings(cmd_opts):
     # --- Image Metadata ---
     options_templates.update(options_section(('image-metadata', "Image Metadata"), {
         "image_metadata": OptionInfo(True, "Save metadata in image"),
+        "add_model_hash": OptionInfo(True, "Add hash: Model"),
+        "add_lora_hash": OptionInfo(False, "Add hash: LoRA"),
         "save_txt": OptionInfo(False, "Save metadata to text file"),
         "save_log_fn": OptionInfo("", "Save metadata to JSON file", component_args=hide_dirs),
         "disable_apply_params": OptionInfo('', "Restore from metadata: skip params", gr.Textbox),
@@ -784,9 +786,6 @@ def create_settings(cmd_opts):
         "lora_stack_density": OptionInfo(0.5, "LoRA stack density", gr.Slider, {"minimum": 0.05, "maximum": 1.0, "step": 0.05}),
         "lora_stack_alpha": OptionInfo(0.0, "LoRA stack ramp", gr.Slider, {"minimum": 0.0, "maximum": 3.0, "step": 0.1}),
         "lora_stack_discrepancy": OptionInfo(0.5, "LoRA stack discrepancy", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.05}),
-
-        "lora_meta_sep": OptionInfo("<h2>Metadata</h2>", "", gr.HTML),
-        "lora_add_hashes_to_infotext": OptionInfo(False, "LoRA add hash info to metadata"),
     }))
 
     # --- Extensions ---

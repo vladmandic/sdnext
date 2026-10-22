@@ -1,6 +1,6 @@
 import os
 from installer import git_commit
-from modules import shared, sd_samplers_common, sd_vae
+from modules import shared, sd_samplers_common, sd_vae, hashes
 from modules.logger import log
 from modules.processing_class import StableDiffusionProcessing
 from modules.infotext import quote
@@ -75,18 +75,22 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         "UNet": None if (shared.opts.sd_unet is None or shared.opts.sd_unet == 'Default') else shared.opts.sd_unet,
         "Operations": '; '.join(ops).replace('"', '') if len(p.ops) > 0 else 'none',
     }
-    if shared.opts.add_model_name_to_info:
-        if getattr(shared.sd_model, 'sd_checkpoint_info', None) is not None:
-            args["Model"] = shared.sd_model.sd_checkpoint_info.model_name.replace(',', '').replace(':', '')
-    if shared.opts.add_model_hash_to_info:
-        if getattr(p, 'sd_model_hash', None) is not None:
-            args["Model hash"] = p.sd_model_hash
-        elif getattr(shared.sd_model, 'sd_model_hash', None) is not None:
+    if getattr(shared.sd_model, 'sd_checkpoint_info', None) is not None:
+        args["Model"] = shared.sd_model.sd_checkpoint_info.model_name.replace(',', '').replace(':', '')
+
+    if shared.opts.add_model_hash:
+        if getattr(shared.sd_model, 'sd_model_hash', None) is not None:
             args["Model hash"] = shared.sd_model.sd_model_hash
+        if 'UNet' in args:
+            unet_hash = hashes.sha256_from_cache(shared.opts.sd_unet, f"unet/{shared.opts.sd_unet}")
+            args["UNet hash"] = unet_hash[0:10] if unet_hash else None
+
     if p.vae_type == 'Full':
-        args["VAE"] = (None if not shared.opts.add_model_name_to_info or sd_vae.loaded_vae_file is None else os.path.splitext(os.path.basename(sd_vae.loaded_vae_file))[0])
+        args["VAE"] = (None if sd_vae.loaded_vae_file is None else os.path.splitext(os.path.basename(sd_vae.loaded_vae_file))[0])
     elif p.vae_type == 'Tiny':
         args["VAE"] = 'TAESD'
+    elif p.vae_type == 'Micro':
+        args["VAE"] = 'Micro'
     elif p.vae_type == 'REPA-E':
         args["VAE"] = 'REPA-E'
     elif p.vae_type == 'Remote':

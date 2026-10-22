@@ -21,6 +21,10 @@
   - infer transformers `native_spec` everywhere where its not explicitly set
   - remove `subseed` from codebase as its obsolete
   - remove `seed resize` from codebase as its obsolete
+- **Metadata**
+  - improve model hash info for all models
+  - add unet hash if using custom unet/dit
+  - add prompt from style to metadata template field
 - **Logging**
   - customizable logging theme  
     see `data/console.json` for defaults and specify custom file using env variable `SDNEXT_CONSOLE_THEME`  

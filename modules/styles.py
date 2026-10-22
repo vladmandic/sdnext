@@ -440,6 +440,8 @@ class StyleDatabase:
             prompt = apply_styles_to_prompt(prompt, [self.find_style(x).prompt for x in styles])
             prompt = apply_wildcards_to_prompt(prompt, [self.find_style(x).wildcards for x in styles], seeds[i], p=p)
             parsed_positive.append(prompt)
+            style_prompts = ' '.join([self.find_style(x).prompt for x in styles])
+            p.all_templates[i] += (' ' + style_prompts).strip()
         for i in range(len(negatives)):
             if seeds[i]> 0:
                 random.seed(seeds[i])
@@ -448,6 +450,8 @@ class StyleDatabase:
             prompt = apply_styles_to_prompt(prompt, [self.find_style(x).negative_prompt for x in styles])
             prompt = apply_wildcards_to_prompt(prompt, [self.find_style(x).wildcards for x in styles], seeds[i], p=p)
             parsed_negative.append(prompt)
+            style_negative = ' '.join([self.find_style(x).negative_prompt for x in styles])
+            p.all_negative_templates[i] += (' ' + style_negative).strip()
 
         random.setstate(random_state)
         shared.state.end(jobid)

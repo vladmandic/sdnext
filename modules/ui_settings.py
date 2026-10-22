@@ -347,8 +347,8 @@ def create_ui(disabled_tabs=None):
 def reset_quicksettings(quick_components):
     quick_components = quick_components.split(',')
     updates = []
+    log.warning(f'Reset: settings={quick_components}')
     for key in quick_components:
-        log.warning(f'Reset: setting={key}')
         updates.append(gr.update(value=shared.opts.get_default(key)))
     return updates
 

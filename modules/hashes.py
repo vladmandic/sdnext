@@ -94,6 +94,13 @@ def sha256(filename: str, title: str, *, store: KnownHashStores | str | None = N
         return sha256_value
     if shared.cmd_opts.no_hashing:
         return None
+
+    if ('models--' in filename) and ('snapshot' in filename): # use hf_hub assigned hash
+        sha256_value = os.path.basename(filename)
+        cache(store).add_hash(title, os.path.getmtime(filename), sha256_value)
+        save_cache()
+        return sha256_value
+
     if not os.path.isfile(filename):
         return None
     jobid = shared.state.begin("Hash")
