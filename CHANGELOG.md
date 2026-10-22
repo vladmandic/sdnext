@@ -33,6 +33,7 @@
   - remove `seed resize` from codebase as its obsolete
 - **Fixes**
   - api: return complete set in GET /sdapi/v1/options, thanks @Jackmeson1
+  - dlss: save once when running as extras
   - launch: dont overwrite existing LD_LIBRARY_PATH
   - lora: bias deltas no longer refused when the model is quantized or native fuse is off
   - mageflow: load single-file transformers, including low-rank modulation checkpoints (MageTrail 0.3+)

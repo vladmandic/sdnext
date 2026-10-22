@@ -113,9 +113,17 @@ class DLSSScript(scripts_manager.Script):
         if p.xyz:
             pp = dlss_run(p, pp, *args, **kwargs)
 
+    def before_process(self, p: processing.StableDiffusionProcessing, *args):
+        dlss_enabled = args[0] if len(args) > 0 else []
+        if isinstance(dlss_enabled, list) and len(dlss_enabled) > 0:
+            p.dlss_do_not_save = p.do_not_save_samples
+            p.do_not_save_samples = True
+
     def postprocess(self, p: processing.StableDiffusionProcessing, pp: processing.Processed, *args, **kwargs): # pylint: disable=arguments-differ,unused-argument
         if p.xyz: # do not postprocessing when running in xyz mode
             return pp
+        if hasattr(p, 'dlss_do_not_save'):
+            p.do_not_save_samples = p.dlss_do_not_save
         _pp = dlss_run(p, pp, *args, **kwargs)
         # postprocess triggers after initial images have already been saved
         if _pp is not None and hasattr(_pp, 'images') and _pp.images is not None:
