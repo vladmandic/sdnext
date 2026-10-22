@@ -379,7 +379,7 @@ def file_alpha(network_on_disk):
     return None
 
 
-def finalize_network(net, name, family, lora_scale, t0, unmapped=0, mismatch=0, skipped=0):
+def finalize_network(net, name, family, lora_scale, t0, unmapped=0, mismatch=0, skipped=0, expanded=0):
     """Emit the standard debug log line and return the populated network (or ``None``).
 
     Returns ``None`` when no modules were bound. Records ``mismatch`` on the
@@ -400,7 +400,7 @@ def finalize_network(net, name, family, lora_scale, t0, unmapped=0, mismatch=0, 
         return None
     log.debug(
         f'Network load: type={family} name="{name}" native modules={len(net.modules)}'
-        f' unmapped={unmapped} mismatch={mismatch} skipped={skipped} scale={lora_scale}'
+        f' unmapped={unmapped} mismatch={mismatch} skipped={skipped} expanded={expanded} scale={lora_scale}'
     )
     l.timer.activate += time.time() - t0
     return net
@@ -413,6 +413,27 @@ def module_shape(sd_module):
     if hasattr(sd_module, "sdnq_dequantizer"):
         return tuple(sd_module.sdnq_dequantizer.original_shape)
     return tuple(sd_module.weight.shape)
+
+
+def widen_input(sd_module, w):
+    """Zero-pad the down factor's input columns when the module is a wider-input variant of the trained one.
+
+    Inpaint and pix2pix UNets widen ``conv_in`` from 4 to 9 channels and Flux Fill and
+    Control widen ``x_embedder``; the extra inputs are appended, so a delta trained on the
+    base model applies to the leading columns and leaves the rest untouched. Returns the
+    padded copy of ``w``, or None when the delta is not a narrower-input fit. A per-input
+    DoRA magnitude keeps its trained length; ``apply_weight_decompose`` fills the new columns.
+    """
+    mod_shape = module_shape(sd_module)
+    down, up = w.get("lora_down.weight"), w.get("lora_up.weight")
+    if mod_shape is None or len(mod_shape) < 2 or down is None or up is None or down.ndim < 2:
+        return None
+    if up.shape[0] != mod_shape[0] or down.shape[1] >= mod_shape[1]:
+        return None
+    pad = torch.zeros((down.shape[0], mod_shape[1] - down.shape[1], *down.shape[2:]), dtype=down.dtype, device=down.device)
+    out = dict(w)
+    out["lora_down.weight"] = torch.cat([down, pad], dim=1)
+    return out
 
 
 def shapes_match(sd_module, down_w: torch.Tensor, up_w: torch.Tensor) -> bool:
@@ -716,6 +737,7 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
     unmapped = 0
     mismatch = 0
     skipped = 0
+    expanded = 0
     for (prefix, base), w in groups.items():
         if "lora_down.weight" not in w or "lora_up.weight" not in w:
             continue
@@ -767,6 +789,11 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
                 target_w = adapt_weights(sd_module, network_key, target_w) or target_w
 
             if not shapes_match(sd_module, target_w["lora_down.weight"], target_w["lora_up.weight"]):
+                widened = widen_input(sd_module, target_w)
+                if widened is not None:
+                    target_w = widened
+                    expanded += 1
+            if not shapes_match(sd_module, target_w["lora_down.weight"], target_w["lora_up.weight"]):
                 if l.debug:
                     _module = f'{getattr(sd_module, "weight", None).shape if hasattr(sd_module, "weight") else "?"}'
                     log.warning(f'Network load: type=LoRA name="{name}" arch={arch_name} key={network_key} lora={target_w["lora_down.weight"].shape[1]}x{target_w["lora_up.weight"].shape[0]} module={_module} shape mismatch')
@@ -783,7 +810,7 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
             nw = network.NetworkWeights(network_key=network_key, sd_key=network_key, w=target_w, sd_module=sd_module)
             net.modules[network_key] = network_lora.NetworkModuleLora(net, nw)
 
-    return finalize_network(net, name, "LoRA", lora_scale, t0, unmapped=unmapped, mismatch=mismatch, skipped=skipped)
+    return finalize_network(net, name, "LoRA", lora_scale, t0, unmapped=unmapped, mismatch=mismatch, skipped=skipped, expanded=expanded)
 
 
 def try_load_lokr(name, network_on_disk, lora_scale, *,

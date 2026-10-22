@@ -303,6 +303,8 @@ class NetworkModule:
                 .reshape(merged_scale1.shape[1], *[1] * self.dora_norm_dims)
                 .transpose(0, 1)
             )
+            if dora_scale.ndim == merged_scale1_norm.ndim and dora_scale.shape[1] < in_dim: # widened input: added columns take their own norm and stay unchanged
+                dora_scale = torch.cat([dora_scale, merged_scale1_norm[:, dora_scale.shape[1]:]], dim=1)
 
         dora_merged = merged_scale1 * (dora_scale / merged_scale1_norm)
         final_updown = dora_merged - orig_weight

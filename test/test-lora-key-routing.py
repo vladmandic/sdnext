@@ -18,6 +18,8 @@ Covered:
 - A load leaves the cached state dict whole.
 - SD 1.x: ``lora_te1_`` keys bind to the single text encoder.
 - The native chain warns once per file when some targets name no module.
+- Narrower-input deltas zero-pad onto widened modules (inpaint ``conv_in``,
+  Flux Fill ``x_embedder``); wider or per-input DoRA deltas stay mismatches.
 
 No running server required.
 
@@ -380,6 +382,65 @@ def test_native_chain_quiet_when_nothing_bound():
     assert net is None and not warnings, 'a file that binds nothing is reported by the not-loaded error, not this warning'
 
 
+def load_native(state_dict, mapping):
+    """try_load_lora over a file holding state_dict, with the mapping replaced by the given modules."""
+    path = write(state_dict)
+    real = native_adapter.resolve_mapping
+    native_adapter.resolve_mapping = lambda: mapping
+    try:
+        return native_adapter.try_load_lora('widen', network.NetworkOnDisk('widen', path), 1.0, resolve_targets=lambda prefix, base: [])
+    finally:
+        native_adapter.resolve_mapping = real
+        os.unlink(path)
+
+
+def widen_case(module, down, up, key='lora_transformer_target', **extra):
+    state_dict = {f'{key}.lora_down.weight': down, f'{key}.lora_up.weight': up, **{f'{key}.{k}': v for k, v in extra.items()}}
+    net = load_native(state_dict, {key: module})
+    return None if net is None else net.modules.get(key)
+
+
+def test_widen_inpaint_conv_in():
+    conv = torch.nn.Conv2d(9, 32, 3, padding=1)
+    down, up = torch.randn(RANK, 4, 3, 3), torch.randn(32, RANK, 1, 1)
+    module = widen_case(conv, down, up)
+    assert module is not None, 'a 4-channel conv_in delta must bind to a 9-channel conv_in'
+    updown, _ = module.calc_updown(conv.weight.detach())
+    assert updown.shape == conv.weight.shape, updown.shape
+    assert updown[:, 4:].abs().max() == 0, 'the added channels must not move'
+    want = (up.reshape(32, RANK) @ down.reshape(RANK, -1)).reshape(32, 4, 3, 3)
+    assert torch.allclose(updown[:, :4], want, atol=1e-5), 'the trained channels must carry the delta'
+
+
+def test_widen_fill_x_embedder():
+    linear = torch.nn.Linear(384, 48)
+    down, up = torch.randn(RANK, 64), torch.randn(48, RANK)
+    module = widen_case(linear, down, up)
+    assert module is not None, 'a 64-wide x_embedder delta must bind to a 384-wide x_embedder'
+    updown, _ = module.calc_updown(linear.weight.detach())
+    assert updown[:, 64:].abs().max() == 0 and torch.allclose(updown[:, :64], up @ down, atol=1e-5)
+
+
+def test_widen_refuses_wider_delta():
+    linear = torch.nn.Linear(64, 48)
+    assert widen_case(linear, torch.randn(RANK, 384), torch.randn(48, RANK)) is None, 'a wider delta is a mismatch'
+
+
+def test_widen_per_input_dora():
+    conv = torch.nn.Conv2d(9, 32, 3, padding=1)
+    down, up = torch.randn(RANK, 4, 3, 3), torch.randn(32, RANK, 1, 1)
+    dora = torch.rand(1, 4, 1, 1) + 0.5
+    module = widen_case(conv, down, up, dora_scale=dora)
+    assert module is not None, 'a per-input DoRA conv_in must bind to a 9-channel conv_in'
+    updown, _ = module.calc_updown(conv.weight.detach())
+    assert updown.shape == conv.weight.shape, updown.shape
+    assert updown[:, 4:].abs().max() < 1e-5, 'the added channels must not move'
+    narrow = torch.nn.Conv2d(4, 32, 3, padding=1)
+    narrow.weight.data.copy_(conv.weight.data[:, :4])
+    want, _ = widen_case(narrow, down, up, dora_scale=dora).calc_updown(narrow.weight.detach())
+    assert torch.allclose(updown[:, :4], want, atol=1e-5), 'the trained channels must match DoRA on the narrow weight'
+
+
 # ============================================================
 # Runner
 # ============================================================
@@ -399,6 +460,10 @@ def run_tests():
         test_native_chain_warns_on_unmapped,
         test_native_chain_quiet_when_all_bound,
         test_native_chain_quiet_when_nothing_bound,
+        test_widen_inpaint_conv_in,
+        test_widen_fill_x_embedder,
+        test_widen_refuses_wider_delta,
+        test_widen_per_input_dora,
     ]:
         run_test(cat, fn)
     model_data.sd_model = None
