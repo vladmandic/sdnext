@@ -32,6 +32,7 @@ class Options:
         'mistralai/Ministral-3-3B-Reasoning-2512',
         'mistralai/Ministral-3-8B-Reasoning-2512',
         # Finetunes
+        'p-e-w/Qwen3.5-4B-heretic-new-ara-test-reproduced',
         'trohrbaugh/gemma-4-E4B-it-heretic-ara',
         'trohrbaugh/Qwen3.5-9B-heretic-v2',
     ]
@@ -113,6 +114,7 @@ class Options:
         'mistralai/Ministral-3-8B-Reasoning-2512': {},
         # Finetunes
         'p-e-w/gemma-4-E2B-it-heretic-ara': {},
+        'p-e-w/Qwen3.5-4B-heretic-new-ara-test-reproduced': {},
         'trohrbaugh/gemma-4-E4B-it-heretic-ara': {},
         'trohrbaugh/Qwen3.5-9B-heretic-v2': {},
         # GGUF

@@ -29,6 +29,8 @@ class Style:
 
 
 def merge_prompts(style_prompt: str, prompt: str) -> str:
+    if style_prompt is None:
+        return prompt
     if "{prompt}" in style_prompt:
         res = style_prompt.replace("{prompt}", prompt)
     else:
