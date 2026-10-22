@@ -798,7 +798,7 @@ def install_rocm():
     else: # linux
         rocm_major, rocm_minor = (int(x) for x in rocm.version.split('.')) if rocm.version is not None else (0, 0)
         if args.use_nightly:
-            torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm10.0')
+            torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm10.1')
         else:
             if (rocm.version is None) or (rocm_major > 7): # assume the latest if version check fails
                 torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.14.1+rocm7.14 torchvision==0.29.1+rocm7.14 --index-url https://download.pytorch.org/whl/rocm7.14')
