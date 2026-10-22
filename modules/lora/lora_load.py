@@ -49,7 +49,7 @@ def lora_dump(lora, dct):
             f.write(line + "\n")
     fn = os.path.join(tempfile.gettempdir(), f'Model-{ty}-{cn}.txt')
     with open(fn, 'w', encoding='utf8') as f:
-        keys = sd_model.network_layer_mapping.keys()
+        keys = getattr(shared.sd_model, 'network_layer_mapping', {}).keys() # the stamping writes the mapping on the outer model
         log.trace(f'LoRA dump: type=Mapping fn="{fn}" keys={len(keys)}')
         for line in keys:
             f.write(line + "\n")
@@ -66,6 +66,10 @@ def load_safetensors(name, network_on_disk: network.NetworkOnDisk) -> network.Ne
         if l.debug:
             log.trace(f'LoRA: load name="{name}" fn="{network_on_disk.filename}" cache=True')
         return cached
+
+    if dump_lora_keys:
+        lora_convert.assign_network_names_to_compvis_modules(sd_model)
+        lora_dump(network_on_disk.filename, sd_models.read_state_dict(network_on_disk.filename, what='network'))
 
     # native dispatch
     native_module = NATIVE_DISPATCH.get(shared.sd_model_type)
@@ -99,8 +103,6 @@ def load_safetensors(name, network_on_disk: network.NetworkOnDisk) -> network.Ne
     bundle_embeddings = {}
     dtypes = []
     convert = lora_convert.KeyConvert()
-    if dump_lora_keys:
-        lora_dump(network_on_disk.filename, state_dict)
 
     for key_network, weight in state_dict.items():
         parts = key_network.split('.')

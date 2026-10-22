@@ -27,6 +27,7 @@ Covered:
 - A pure row reorder applies exactly to LoKr, LoHA and per-input DoRA.
 - Every family checks its delta against the module shape, so a misfit file
   is refused whole.
+- ``SD_LORA_DUMP`` writes the key lists for native arches too.
 
 No running server required.
 
@@ -632,6 +633,34 @@ def test_full_widens_inpaint_conv_in():
     assert updown[:, 4:].abs().max() == 0 and updown.shape == conv.weight.shape
 
 
+class ZImagePipeline:
+    def __init__(self, transformer):
+        self.transformer = transformer
+        self.embedding_db = None
+
+
+def test_dump_covers_native_arch():
+    install(ZImagePipeline(torch.nn.Sequential(torch.nn.Linear(4, 4))))
+    path = write({'lora_transformer_0.lora_down.weight': torch.zeros(2, 4), 'lora_transformer_0.lora_up.weight': torch.zeros(4, 2)})
+    real = lora_load.dump_lora_keys
+    lora_load.dump_lora_keys = True
+    try:
+        lora_load.load_safetensors('dump', network.NetworkOnDisk('dump', path))
+    finally:
+        lora_load.dump_lora_keys = real
+    try:
+        mapping_file = os.path.join(tempfile.gettempdir(), 'Model-zimage-ZImagePipeline.txt')
+        keys_file = os.path.join(tempfile.gettempdir(), f'LoRA-zimage-ZImagePipeline-{os.path.splitext(os.path.basename(path))[0]}.txt')
+        assert os.path.isfile(keys_file), 'file keys not dumped for a native arch'
+        with open(mapping_file, encoding='utf8') as f:
+            assert 'lora_transformer_0' in f.read().split(), 'the dumped mapping lacks the stamped module'
+        os.unlink(keys_file)
+        os.unlink(mapping_file)
+    finally:
+        os.unlink(path)
+
+
+
 # ============================================================
 # Runner
 # ============================================================
@@ -668,6 +697,7 @@ def run_tests():
         test_reorder_per_input_dora,
         test_family_shape_checks,
         test_full_widens_inpaint_conv_in,
+        test_dump_covers_native_arch,
     ]:
         run_test(cat, fn)
     model_data.sd_model = None
