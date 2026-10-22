@@ -23,6 +23,7 @@ Covered:
 - Text-encoder prefixes route by encoder role: kohya ``lora_te3_`` is the T5,
   ``lora_te_`` names only a lone encoder, the ``text_model`` wrapper matches
   either tree shape.
+- Underscore-namespace keys with a dotted tail group with their factors.
 
 No running server required.
 
@@ -506,6 +507,32 @@ def test_te_path_text_model_either_shape():
     assert router.path('lora_te1_', 'encoder_layers_9_self_attn_q_proj') is None, 'a layer the tree lacks stays unmapped'
 
 
+FIXTURE_MERVE_KOHYA = '/home/ohiom/database/models/Lora/SDXL 1.0/merve_lego-sdxl-dora_kohya.safetensors'
+
+
+def test_dotted_tail_groups_with_factors():
+    sd = {
+        'lora_unet_blk_attn1_to_k.lora_down.weight': torch.zeros(2, 4),
+        'lora_unet_blk_attn1_to_k.lora_up.weight': torch.zeros(4, 2),
+        'lora_unet_blk_attn1.to_k.lora_magnitude_vector': torch.ones(4),
+        'lora_unet_blk_attn1_to_out_0.lora_down.weight': torch.zeros(2, 4),
+        'lora_unet_blk_attn1_to_out_0.lora_up.weight': torch.zeros(4, 2),
+        'lora_unet_blk_attn1_to_out.0.lora_magnitude_vector': torch.ones(4),
+    }
+    groups = native_adapter.group_by_suffixes(sd, native_adapter.LORA_SUFFIXES)
+    assert set(groups) == {('lora_unet_', 'blk_attn1_to_k'), ('lora_unet_', 'blk_attn1_to_out_0')}, sorted(groups)
+    assert all('lora_magnitude_vector' in w and 'lora_down.weight' in w for w in groups.values())
+
+
+def test_dotted_tail_fixture():
+    if not os.path.isfile(FIXTURE_MERVE_KOHYA):
+        raise Skip(f'fixture absent: {FIXTURE_MERVE_KOHYA}')
+    groups = native_adapter.group_by_suffixes(safetensors.torch.load_file(FIXTURE_MERVE_KOHYA), native_adapter.LORA_SUFFIXES)
+    factored = [w for w in groups.values() if 'lora_down.weight' in w]
+    assert factored and all('lora_magnitude_vector' in w for w in factored), 'every factored group carries its magnitude'
+    assert len(factored) == len(groups), f'{len(groups) - len(factored)} groups hold a magnitude without factors'
+
+
 # ============================================================
 # Runner
 # ============================================================
@@ -534,6 +561,8 @@ def run_tests():
         test_te_routing_sd15,
         test_te_routing_sd3,
         test_te_path_text_model_either_shape,
+        test_dotted_tail_groups_with_factors,
+        test_dotted_tail_fixture,
     ]:
         run_test(cat, fn)
     model_data.sd_model = None

@@ -72,6 +72,13 @@ BARE_DIFFUSERS_PREFIX_USED = "bare_diffusers"
 NETWORK_PREFIX_DEFAULT = "lora_transformer_"
 
 
+# Prefixes whose keys are flat module names with underscores for dots. A save that
+# leaves a dotted tail on some keys (the diffusers kohya export writes DoRA magnitudes as
+# ``lora_unet_..._attn1.to_k.lora_magnitude_vector`` beside ``..._attn1_to_k`` factors)
+# would otherwise split one module into two groups, so :func:`parse_key` flattens them.
+UNDERSCORE_PREFIXES = ("lora_unet_", "lora_transformer_", "lycoris_", "lora_te_", "lora_te1_", "lora_te2_", "lora_te3_")
+
+
 # Prefixes whose parsed ``base`` is normally already a network-key tail
 # (``arch_prefix + base.replace(".", "_")`` matches the stamped module name).
 # :func:`resolve_group_targets` binds them verbatim unless the arch's
@@ -637,6 +644,8 @@ def parse_key(key, suffixes, *, prefixes=KNOWN_PREFIXES_DEFAULT):
     base = stripped[:split_at]
     if not base:
         return None
+    if prefix_used in UNDERSCORE_PREFIXES:
+        base = base.replace(".", "_")
 
     suffix = SUFFIX_NORMALIZE.get(matched_suffix, matched_suffix)
     return prefix_used, base, suffix
