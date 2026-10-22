@@ -32,6 +32,8 @@ def get_system_prompt(system: str | None, options: Options, nsfw: bool, has_prom
         system += options.json_format
     elif prompt_style == 'Tag':
         system += options.tag_format
+    elif prompt_style == 'None':
+        system += ''
     else:
         system += options.standard_format
     debug_log(f'Prompt enhance: style="{prompt_style}" image={is_image} video={is_video} nsfw={nsfw} prompt={has_prompt} system="{system}"')

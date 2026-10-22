@@ -10,19 +10,27 @@
     if you provide a simple string-based prompt, sdnext will convert it to naive JSON, but it will be sub-optimal  
 - **Coding**  
   expand ai/ml instructions and skills  
-  see [instructions](https://github.com/vladmandic/sdnext/blob/dev/.github/copilot-instructions.md) and [skills readme](https://github.com/vladmandic/sdnext/blob/dev/.github/skills/README.md) for details
+  see [instructions](https://github.com/vladmandic/sdnext/blob/dev/.github/copilot-instructions.md) and [skills readme](https://github.com/vladmandic/sdnext/blob/dev/.github/skills/README.md) for details  
+- **Prompt Enhance**
+  - add presets for different prompt styles: *Standard, Simple, Detailed, Creative, Structured, JSON, Tag*  
+    use different presets depending on the desired prompt style and model's preferred input format  
+    added as more and more models require highly structured and/or json-based prompts  
+- **Story Mode**
+  - new story mode feature for generating multiple slides in a sequence  
+    in *extras -> story mode*  
+    provide input image and use base prompt to write a short story  
+    the system will use llm of choice to caption the image and define prompt for each slide of the story  
+    works best with edit-models, but can be used in text-to-image and image-to-image modes as well  
+    *note*: this is a playground thing, dont expect full cartoon level quality in a single shot  
+- **Metadata**
+  - improve model hash info for all models
+  - add unet hash if using custom unet/dit
+  - add prompt from style to metadata template field
 - **Wiki**
   - updates to: `Scheduler`, `Models`, `Model-Support`, `Docker`, `AMD-ROCm`, `AMD-MIOpen`, `Detailer`, `LoRA`
 - **Docker**
   - update `Dockerfile` for all supported platforms
   - [SD.Next CUDA docker image](https://hub.docker.com/repository/docker/vladmandic/sdnext-cuda) rebuild and update
-- **Prompt Enhance**
-  - add presets for different prompt styles: *Standard, Simple, Detailed, Creative, Structured, JSON, Tag*  
-    use different presets depending on the desired prompt style and model's preferred input format  
-- **Metadata**
-  - improve model hash info for all models
-  - add unet hash if using custom unet/dit
-  - add prompt from style to metadata template field
 - **Logging**
   - customizable logging theme  
     see `data/console.json` for defaults and specify custom file using env variable `SDNEXT_CONSOLE_THEME`  
@@ -47,6 +55,7 @@
   - offload: group offload keeps text encoder layers whole, so qwen3.5 encoders run with causal-conv1d installed
   - offload: group offload recognizes vae encode and decode entry points with current diffusers
   - prompt encode: expand simple str-to-json handling for models that require json
+  - prompt encode: invalidate cache on te or lora change, thanks @Jackmeson1
   - rocm: add explicit support for gfx1030, thanks @resonantsky
   - scheduler: delete orphan records on record deletion
   - sdnq: attention dtype and mask fixes

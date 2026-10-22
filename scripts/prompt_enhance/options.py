@@ -136,7 +136,7 @@ class Options:
     }
 
     # default = list(models)[1] # gemma-3-4b-it
-    default = 'google/gemma-3-4b-it'
+    default = 'trohrbaugh/gemma-4-E4B-it-heretic-ara'
     supported = list(transformers.integrations.ggml.GGUF_CONFIG_MAPPING)
     t2i_prompt: str = textwrap.dedent('''\
         You are an expert AI image prompt engineer.

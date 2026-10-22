@@ -142,7 +142,7 @@ class PromptEnhanceScript(scripts_manager.Script):
                     debug_log(f'Prompt enhance: {m}')
             self.model = name
             t1 = time.time()
-            log.debug(f'Prompt enhance: cls={self.llm.__class__.__name__} name="{name}" repo="{model_repo}" fn="{model_file}" processor="{self.processor.__class__.__name__ if self.processor else None}" tokenizer="{self.tokenizer.__class__.__name__ if self.tokenizer else None}" module={self.parent} time={t1-t0:.2f} loaded')
+            log.debug(f'Prompt enhance: cls={self.llm.__class__.__name__} model="{name}" repo="{model_repo}" fn="{model_file}" processor="{self.processor.__class__.__name__ if self.processor else None}" tokenizer="{self.tokenizer.__class__.__name__ if self.tokenizer else None}" module={self.parent} time={t1-t0:.2f} loaded')
             self.compile()
         except Exception as e:
             log.error(f'Prompt enhance: load {e}')
@@ -651,7 +651,7 @@ class PromptEnhanceScript(scripts_manager.Script):
             with gr.Row():
                 apply_btn = gr.Button(value='Enhance now', elem_id='prompt_enhance_apply', variant='primary')
             with gr.Row():
-                prompt_style = gr.Dropdown(label='Prompt style', choices=['Standard', 'Simple', 'Detailed', 'Creative', 'Structured', 'JSON', 'Tag'], value='Standard', elem_id='prompt_enhance_prompt_style')
+                prompt_style = gr.Dropdown(label='Prompt style', choices=['Standard', 'Simple', 'Detailed', 'Creative', 'Structured', 'JSON', 'Tag', 'None'], value='Standard', elem_id='prompt_enhance_prompt_style')
             with gr.Row():
                 apply_prompt = gr.Checkbox(label='Apply to prompt', value=False)
                 apply_auto = gr.Checkbox(label='Auto enhance', value=False)

@@ -321,6 +321,8 @@ def control_process(p: StableDiffusionProcessingControl,
         processed: processing.Processed = processing.process_images(p) # run actual pipeline
     else:
         script_run = True
+    if getattr(p, 'story_mode_error', None):
+        raise errors.ValidationError(f'Story mode failed: {p.story_mode_error}')
 
     # postprocessing
     if p.scripts is not None:
