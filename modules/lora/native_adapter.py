@@ -292,8 +292,8 @@ def note_unmapped(target):
 
 
 def has_marker(state_dict, markers):
-    """Substring scan: does any key in ``state_dict`` contain any marker?"""
-    return any(any(m in k for m in markers) for k in state_dict)
+    """Substring scan: does any key in ``state_dict`` contain any marker? False for an unreadable file."""
+    return state_dict is not None and any(any(m in k for m in markers) for k in state_dict)
 
 
 def resolve_mapping():

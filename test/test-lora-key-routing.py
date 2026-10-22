@@ -676,6 +676,17 @@ def test_chain_modules_share_the_returned_network():
     assert torch.allclose(updown, sd['lora_transformer_1.diff'] * 0.25), 'the Full delta must scale with the network strength'
 
 
+def test_unreadable_file_declines():
+    install(ZImagePipeline(torch.nn.Sequential(torch.nn.Linear(4, 4))))
+    path = write({'lora_transformer_0.lora_down.weight': torch.randn(2, 4), 'lora_transformer_0.lora_up.weight': torch.randn(4, 2)})
+    with open(path, 'r+b') as f:
+        f.truncate(os.path.getsize(path) - 8) # header promises more bytes than the file holds
+    try:
+        assert lora_load.load_safetensors('truncated', network.NetworkOnDisk('truncated', path)) is None
+    finally:
+        os.unlink(path)
+
+
 # ============================================================
 # Runner
 # ============================================================
@@ -714,6 +725,7 @@ def run_tests():
         test_full_widens_inpaint_conv_in,
         test_dump_covers_native_arch,
         test_chain_modules_share_the_returned_network,
+        test_unreadable_file_declines,
     ]:
         run_test(cat, fn)
     model_data.sd_model = None
