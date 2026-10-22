@@ -672,7 +672,7 @@ def test_chain_modules_share_the_returned_network():
         os.unlink(path)
     assert {type(m).__name__ for m in net.modules.values()} == {'NetworkModuleLora', 'NetworkModuleFull'}, sorted(net.modules)
     assert all(m.network is net for m in net.modules.values()), 'a module of a later family ignores the strength set on the returned network'
-    net.te_multiplier = 0.25
+    net.unet_multiplier = 0.25
     full = net.modules['lora_transformer_1']
     updown, _ = full.calc_updown(torch.zeros(4, 4))
     assert torch.allclose(updown, sd['lora_transformer_1.diff'] * 0.25), 'the Full delta must scale with the network strength'

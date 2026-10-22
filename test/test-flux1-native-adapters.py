@@ -245,6 +245,15 @@ def test_text_encoders_by_role():
     assert clip_key.endswith('layers_0_self_attn_q_proj') and t5_key == 'lora_te2_encoder_block_0_layer_0_SelfAttention_q', sorted(net.modules)
 
 
+def test_component_strengths_by_namespace():
+    install()
+    net = load(lora('lora_te1_text_model_encoder_layers_0_self_attn_q_proj', 768, 768, 45) | lora('lora_unet_double_blocks_0_img_attn_proj', INNER, INNER, 46))
+    net.te_multiplier, net.unet_multiplier = 0.3, [0.7, 0.7, 0.7]
+    clip_key = next(k for k in net.modules if k.startswith('lora_te1_'))
+    assert net.modules[clip_key].multiplier() == 0.3, 'te= scales the text encoder'
+    assert net.modules[f'{T}transformer_blocks_0_attn_to_out_0'].multiplier() == 0.7, 'unet= scales the transformer'
+
+
 def test_guidance_keys_unmapped_on_schnell():
     install(guidance=False)
     net = load(lora('lora_unet_guidance_in_in_layer', INNER, 256, 50) | lora('lora_unet_img_in', INNER, 8, 51))
@@ -301,6 +310,7 @@ def run_tests():
         test_peft_onetrainer_and_wrapper_verbatim,
         test_xlabs_processor_keys,
         test_text_encoders_by_role,
+        test_component_strengths_by_namespace,
         test_guidance_keys_unmapped_on_schnell,
         test_fill_widens_x_embedder,
         test_kohya_without_alpha_scale_one,
