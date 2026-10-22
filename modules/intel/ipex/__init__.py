@@ -59,13 +59,17 @@ def ipex_init(): # pylint: disable=too-many-statements
                 torch._inductor.runtime.benchmarking.GPU_BENCHMARK_DEVICE_TYPES = ("xpu",)
             except Exception:
                 pass
+            try:
+                from torch._dynamo.device_interface import get_interface_for_device, register_interface_for_device
+                register_interface_for_device("cuda", get_interface_for_device("xpu"))
+            except Exception:
+                pass
             # Replace cuda with xpu:
             torch.cuda.current_device = torch.xpu.current_device
             torch.cuda.device = torch.xpu.device
             torch.cuda.device_count = torch.xpu.device_count
             torch.cuda.device_of = torch.xpu.device_of
             torch.cuda.get_device_name = torch.xpu.get_device_name
-            torch.cuda.get_device_properties = torch.xpu.get_device_properties
             torch.cuda.init = torch.xpu.init
             torch.cuda.is_available = torch.xpu.is_available
             torch.cuda.is_initialized = torch.xpu.is_initialized
@@ -79,7 +83,6 @@ def ipex_init(): # pylint: disable=too-many-statements
             torch.cuda.torch = torch.xpu.torch
             torch.cuda.StreamContext = torch.xpu.StreamContext
             torch.cuda.random = torch.xpu.random
-            torch.cuda._get_device_index = torch.xpu._get_device_index
             torch.cuda._lazy_init = torch.xpu._lazy_init
             torch.cuda._lazy_call = torch.xpu._lazy_call
             torch.cuda.is_current_stream_capturing = return_false
