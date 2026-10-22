@@ -20,6 +20,9 @@ Covered:
 - The native chain warns once per file when some targets name no module.
 - Narrower-input deltas zero-pad onto widened modules (inpaint ``conv_in``,
   Flux Fill ``x_embedder``); wider or per-input DoRA deltas stay mismatches.
+- Text-encoder prefixes route by encoder role: kohya ``lora_te3_`` is the T5,
+  ``lora_te_`` names only a lone encoder, the ``text_model`` wrapper matches
+  either tree shape.
 
 No running server required.
 
@@ -57,7 +60,7 @@ import transformers  # pylint: disable=wrong-import-position
 from modules.errors import log  # pylint: disable=wrong-import-position
 from modules import shared, sd_models_utils  # pylint: disable=wrong-import-position
 from modules.modeldata import model_data  # pylint: disable=wrong-import-position
-from modules.lora import lora_load, network, native_adapter  # pylint: disable=wrong-import-position
+from modules.lora import lora_convert, lora_load, network, native_adapter  # pylint: disable=wrong-import-position
 
 FIXTURE_SD35L = '/home/ohiom/database/models/Lora/SD3/Photorealistic-SD3.5-Large-LoRA.safetensors'
 RANK = 4  # not a multiple of three, so fused qkv takes the dense split
@@ -441,6 +444,68 @@ def test_widen_per_input_dora():
     assert torch.allclose(updown[:, :4], want, atol=1e-5), 'the trained channels must match DoRA on the narrow weight'
 
 
+def clip(hidden, projection=False):
+    config = transformers.CLIPTextConfig(hidden_size=hidden, intermediate_size=4 * hidden, num_hidden_layers=1, num_attention_heads=hidden // 64, projection_dim=hidden)
+    with torch.device('meta'):
+        return transformers.CLIPTextModelWithProjection(config) if projection else transformers.CLIPTextModel(config)
+
+
+def t5_encoder():
+    with torch.device('meta'):
+        return transformers.T5EncoderModel(transformers.T5Config(d_model=64, d_kv=32, d_ff=128, num_layers=1, num_heads=2, vocab_size=64))
+
+
+class TextEncoders:
+    def __init__(self, **components):
+        self.embedding_db = None
+        for name, component in components.items():
+            setattr(self, name, component)
+
+
+def router_for(**components):
+    pipe = TextEncoders(**components)
+    model_data.sd_model = pipe
+    lora_convert.assign_network_names_to_compvis_modules(pipe)
+    return native_adapter.TextEncoderRouter(pipe, shared.sd_model.network_layer_mapping)
+
+
+def test_te_routing_flux():
+    router = router_for(text_encoder=clip(768), text_encoder_2=t5_encoder())
+    cases = {'lora_te1_': 'lora_te1_', 'lora_te3_': 'lora_te2_', 'lora_te2_': 'lora_te2_', 'text_encoder_2.': 'lora_te2_', 't5.': 'lora_te2_', 'lora_te_': None, 'clip_g.': None}
+    for prefix, want in cases.items():
+        assert router.prefix(prefix) == want, f'{prefix}: {router.prefix(prefix)} != {want}'
+
+
+def test_te_routing_sdxl():
+    router = router_for(text_encoder=clip(768), text_encoder_2=clip(1280, projection=True))
+    cases = {'lora_te1_': 'lora_te1_', 'lora_te2_': 'lora_te2_', 'clip_l.': 'lora_te1_', 'clip_g.': 'lora_te2_', 'text_encoder.': 'lora_te1_', 'lora_te_': None, 'lora_te3_': None}
+    for prefix, want in cases.items():
+        assert router.prefix(prefix) == want, f'{prefix}: {router.prefix(prefix)} != {want}'
+
+
+def test_te_routing_sd15():
+    router = router_for(text_encoder=clip(768))
+    cases = {'lora_te_': 'lora_te_', 'lora_te1_': 'lora_te_', 'text_encoder.': 'lora_te_', 'clip_l.': 'lora_te_', 'lora_te2_': None}
+    for prefix, want in cases.items():
+        assert router.prefix(prefix) == want, f'{prefix}: {router.prefix(prefix)} != {want}'
+
+
+def test_te_routing_sd3():
+    router = router_for(text_encoder=clip(768, projection=True), text_encoder_2=clip(1280, projection=True), text_encoder_3=t5_encoder())
+    assert router.prefix('lora_te1_') == 'lora_te1_' and router.prefix('lora_te2_') == 'lora_te2_'
+    assert router.prefix('lora_te3_') is None, 'the SD3 T5 is not stamped, so its keys stay unmapped'
+
+
+def test_te_path_text_model_either_shape():
+    router = router_for(text_encoder=clip(768), text_encoder_2=clip(1280, projection=True))
+    mapping = shared.sd_model.network_layer_mapping
+    for prefix in ('lora_te1_', 'lora_te2_'):
+        for base in ('text_model_encoder_layers_0_self_attn_q_proj', 'encoder.layers.0.self_attn.q_proj', 'text_model.encoder.layers.0.self_attn.q_proj'):
+            path = router.path(prefix, base)
+            assert path is not None and router.prefix(prefix) + path in mapping, f'{prefix}{base} -> {path}'
+    assert router.path('lora_te1_', 'encoder_layers_9_self_attn_q_proj') is None, 'a layer the tree lacks stays unmapped'
+
+
 # ============================================================
 # Runner
 # ============================================================
@@ -464,6 +529,11 @@ def run_tests():
         test_widen_fill_x_embedder,
         test_widen_refuses_wider_delta,
         test_widen_per_input_dora,
+        test_te_routing_flux,
+        test_te_routing_sdxl,
+        test_te_routing_sd15,
+        test_te_routing_sd3,
+        test_te_path_text_model_either_shape,
     ]:
         run_test(cat, fn)
     model_data.sd_model = None

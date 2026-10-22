@@ -514,6 +514,86 @@ def lokr_shapes_match(sd_module, kron_shape, chunk: ChunkSpec | None) -> bool:
     return (chunk.end - chunk.start) == mod_shape[0] and kron_out >= chunk.end
 
 
+# === Text-encoder routing ===
+#
+# Trainers name text-encoder keys by slot (kohya lora_te_/te1_/te2_/te3_, diffusers
+# text_encoder./text_encoder_2./text_encoder_3., OMI clip_l./clip_g./t5.), and the slot
+# for one encoder differs between arches: kohya writes the Flux T5 as lora_te3_ while
+# sdnext stamps it lora_te2_. Routing goes through the encoder's role instead, read from
+# the loaded component.
+
+TE_COMPONENTS = ("text_encoder", "text_encoder_2", "text_encoder_3")
+
+# parsed file prefix -> role it names; "single" is the one encoder of a single-encoder pipeline
+TE_PREFIX_ROLES = {
+    "lora_te_": "single", "lora_te1_": "clip_l", "lora_te2_": "clip_g", "lora_te3_": "t5",
+    "clip_l.": "clip_l", "clip_g.": "clip_g", "t5.": "t5",
+}
+
+# diffusers component prefixes name the component itself
+TE_PREFIX_COMPONENTS = {"text_encoder.": "text_encoder", "text_encoder_2.": "text_encoder_2", "text_encoder_3.": "text_encoder_3"}
+
+
+def text_encoder_role(component):
+    """clip_l, clip_g, clip_h or t5 from the component's structure; None for anything else."""
+    config = getattr(component, "config", None)
+    kind = component.__class__.__name__
+    if kind.startswith("T5") or getattr(config, "model_type", "") in ("t5", "umt5"):
+        return "t5"
+    if kind.startswith("CLIPText"):
+        hidden = getattr(config, "hidden_size", None)
+        return {768: "clip_l", 1024: "clip_h", 1280: "clip_g"}.get(hidden)
+    return None
+
+
+class TextEncoderRouter:
+    """Maps a parsed text-encoder prefix and base onto the stamped name of a loaded encoder."""
+
+    def __init__(self, pipe, mapping):
+        self.mapping = mapping
+        self.stamped = {} # component -> stamped prefix
+        self.roles = {} # role -> stamped prefix
+        for name in TE_COMPONENTS:
+            component = getattr(pipe, name, None)
+            prefix = getattr(component, "network_layer_name", None) if component is not None else None
+            if not prefix:
+                continue
+            self.stamped[name] = prefix
+            role = text_encoder_role(component)
+            if role is not None:
+                self.roles.setdefault(role, prefix)
+
+    def prefix(self, prefix_used):
+        """Stamped prefix for a parsed prefix, or None when no loaded encoder fills the role."""
+        component = TE_PREFIX_COMPONENTS.get(prefix_used)
+        if component is not None:
+            return self.stamped.get(component)
+        role = TE_PREFIX_ROLES.get(prefix_used)
+        if role is None:
+            return None
+        if role == "single":
+            return next(iter(self.stamped.values())) if len(self.stamped) == 1 else None
+        stamped = self.roles.get(role)
+        if stamped is None and role == "clip_l" and len(self.stamped) == 1:
+            stamped = next(iter(self.stamped.values())) # kohya also saves a lone encoder as lora_te1_
+        if stamped is None and prefix_used in self.stamped.values():
+            stamped = prefix_used # the slot names a stamped encoder of another role (sdnext Flux extracts write T5 as lora_te2_)
+        return stamped
+
+    def path(self, prefix_used, base):
+        """Underscored module path under the stamped prefix, adding or dropping the text_model wrapper to match the loaded tree."""
+        stamped = self.prefix(prefix_used)
+        if stamped is None:
+            return None
+        flat = base.replace(".", "_")
+        candidates = [flat]
+        if flat.startswith("text_model_"):
+            candidates.append(flat[len("text_model_"):]) # transformers >=5.6 flattened CLIPTextModel
+        else:
+            candidates.append("text_model_" + flat)
+        return next((c for c in candidates if stamped + c in self.mapping), None)
+
+
 # === Parsing primitives ===
 
 
