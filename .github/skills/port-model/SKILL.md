@@ -1,6 +1,6 @@
 ---
 name: port-model
-description: "Port or add a model to SD.Next using a phased integration flow: select the least-new-code path that follows SD.Next conventions, then implement loader and routing updates, then validate."
+description: "Port or add a model to SD.Next using a phased integration flow: select the least-new-code path that follows SD.Next conventions, invoke port-pipeline when no upstream Diffusers implementation exists, then implement loader and routing updates and validate."
 argument-hint: "Describe the source model, target task, checkpoint format, and whether the model already has a Diffusers pipeline"
 ---
 
@@ -70,7 +70,16 @@ Do not guess this category. Use the user answer to decide which reference JSON f
 ## Mandatory Pipeline Question
 
 Before implementing a pipeline, explicitly ask the user if the model already has an upstream Diffusers pipeline that can be reused.
-If not, ask for URL or path to a reference implementation that can be structurally copied.
+If the desired model implementation does not already exist in upstream Diffusers, ask for the reference implementation's code path. A repository URL is acceptable when the code path is not yet available locally. Do not begin a custom pipeline port until the reference implementation is identified.
+
+## Custom Pipeline Handoff
+
+When no usable upstream Diffusers implementation exists:
+
+1. Collect the reference implementation code path, destination path in this repository, and target pipeline class name required by `port-pipeline`. Ask for any missing values before proceeding.
+2. Invoke the `port-pipeline` skill with the model task, artifact layout, components, source code path, destination path, target class name, and relevant findings already gathered. Do not ask the user to repeat known details.
+3. Let `port-pipeline` implement and validate the custom Diffusers pipeline, then return control to this `port-model` workflow. Continue the remaining SD.Next model integration and validation here.
+4. If `port-pipeline` was invoked from this `port-model` run, its final handoff must return to this run rather than invoke `port-model` again.
 
 ## Repo Files To Check
 
