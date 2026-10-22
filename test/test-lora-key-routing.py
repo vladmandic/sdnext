@@ -17,6 +17,7 @@ Covered:
 - Flux kohya without alpha tensors loads at scale 1.
 - A load leaves the cached state dict whole.
 - SD 1.x: ``lora_te1_`` keys bind to the single text encoder.
+- The native chain warns once per file when some targets name no module.
 
 No running server required.
 
@@ -54,7 +55,7 @@ import transformers  # pylint: disable=wrong-import-position
 from modules.errors import log  # pylint: disable=wrong-import-position
 from modules import shared, sd_models_utils  # pylint: disable=wrong-import-position
 from modules.modeldata import model_data  # pylint: disable=wrong-import-position
-from modules.lora import lora_load, network  # pylint: disable=wrong-import-position
+from modules.lora import lora_load, network, native_adapter  # pylint: disable=wrong-import-position
 
 FIXTURE_SD35L = '/home/ohiom/database/models/Lora/SD3/Photorealistic-SD3.5-Large-LoRA.safetensors'
 RANK = 4  # not a multiple of three, so fused qkv takes the dense split
@@ -338,6 +339,47 @@ def test_sd15_te1_prefix_binds_single_encoder():
         os.unlink(path)
 
 
+def chain_warnings(family_loaders):
+    """Run try_load_chain over stub family loaders; return the WARNING messages it logged."""
+    warnings = []
+    real_warning = native_adapter.log.warning
+    native_adapter.log.warning = lambda msg, *a, **k: warnings.append(msg)
+    try:
+        net = native_adapter.try_load_chain('chain', None, 1.0, family_loaders)
+    finally:
+        native_adapter.log.warning = real_warning
+    return net, warnings
+
+
+def stub_net(modules, unmapped=()):
+    def family(name, network_on_disk, lora_scale): # pylint: disable=unused-argument
+        for target in unmapped:
+            native_adapter.note_unmapped(target)
+        if not modules:
+            return None
+        net = network.Network(name, network.NetworkOnDisk(name, __file__))
+        net.modules = dict.fromkeys(modules)
+        return net
+    return family
+
+
+def test_native_chain_warns_on_unmapped():
+    net, warnings = chain_warnings((stub_net(['a', 'b'], unmapped=['x']), stub_net([], unmapped=['y', 'x'])))
+    assert net is not None and len(net.modules) == 2
+    assert len(warnings) == 1, f'expected one warning per file, got {warnings}'
+    assert 'native modules=2 unmapped=2' in warnings[0], warnings[0]
+
+
+def test_native_chain_quiet_when_all_bound():
+    net, warnings = chain_warnings((stub_net(['a']),))
+    assert net is not None and not warnings, warnings
+
+
+def test_native_chain_quiet_when_nothing_bound():
+    net, warnings = chain_warnings((stub_net([], unmapped=['x']),))
+    assert net is None and not warnings, 'a file that binds nothing is reported by the not-loaded error, not this warning'
+
+
 # ============================================================
 # Runner
 # ============================================================
@@ -354,6 +396,9 @@ def run_tests():
         test_flux_kohya_without_alpha,
         test_cached_state_dict_left_whole,
         test_sd15_te1_prefix_binds_single_encoder,
+        test_native_chain_warns_on_unmapped,
+        test_native_chain_quiet_when_all_bound,
+        test_native_chain_quiet_when_nothing_bound,
     ]:
         run_test(cat, fn)
     model_data.sd_model = None

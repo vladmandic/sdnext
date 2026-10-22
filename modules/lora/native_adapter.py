@@ -274,6 +274,15 @@ def strip_peft_adapter_name(key):
 # === Core helpers ===
 
 
+chain_unmapped: list[str] = [] # targets the family loaders could not find in the mapping; try_load_chain resets and reports it per file
+
+
+def note_unmapped(target):
+    """Record one target that names no live module; returns the count to add."""
+    chain_unmapped.append(target)
+    return 1
+
+
 def has_marker(state_dict, markers):
     """Substring scan: does any key in ``state_dict`` contain any marker?"""
     return any(any(m in k for m in markers) for k in state_dict)
@@ -730,7 +739,7 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
             network_key = arch_prefix + diffusers_path.replace(".", "_")
             sd_module = mapping.get(network_key)
             if sd_module is None:
-                unmapped += 1
+                unmapped += note_unmapped(network_key)
                 continue
 
             target_w = w
@@ -817,7 +826,7 @@ def try_load_lokr(name, network_on_disk, lora_scale, *,
             network_key = arch_prefix + diffusers_path.replace(".", "_")
             sd_module = mapping.get(network_key)
             if sd_module is None:
-                unmapped += 1
+                unmapped += note_unmapped(network_key)
                 continue
             if not lokr_shapes_match(sd_module, kron_shape, chunk):
                 log.warning(
@@ -902,7 +911,7 @@ def try_load_loha(name, network_on_disk, lora_scale, *,
             network_key = arch_prefix + diffusers_path.replace(".", "_")
             sd_module = mapping.get(network_key)
             if sd_module is None:
-                unmapped += 1
+                unmapped += note_unmapped(network_key)
                 continue
             target_w = w
             if chunk is not None:
@@ -978,7 +987,7 @@ def try_load_oft(name, network_on_disk, lora_scale, *,
             network_key = arch_prefix + diffusers_path.replace(".", "_")
             sd_module = mapping.get(network_key)
             if sd_module is None:
-                unmapped += 1
+                unmapped += note_unmapped(network_key)
                 continue
             nw = network.NetworkWeights(network_key=network_key, sd_key=network_key, w=w, sd_module=sd_module)
             if is_boft:
@@ -1034,7 +1043,7 @@ def try_load_ia3(name, network_on_disk, lora_scale, *,
             network_key = arch_prefix + diffusers_path.replace(".", "_")
             sd_module = mapping.get(network_key)
             if sd_module is None:
-                unmapped += 1
+                unmapped += note_unmapped(network_key)
                 continue
             nw = network.NetworkWeights(network_key=network_key, sd_key=network_key, w=w, sd_module=sd_module)
             net.modules[network_key] = network_ia3.NetworkModuleIa3(net, nw)
@@ -1083,7 +1092,7 @@ def try_load_glora(name, network_on_disk, lora_scale, *,
             network_key = arch_prefix + diffusers_path.replace(".", "_")
             sd_module = mapping.get(network_key)
             if sd_module is None:
-                unmapped += 1
+                unmapped += note_unmapped(network_key)
                 continue
             nw = network.NetworkWeights(network_key=network_key, sd_key=network_key, w=w, sd_module=sd_module)
             net.modules[network_key] = network_glora.NetworkModuleGLora(net, nw)
@@ -1127,7 +1136,7 @@ def try_load_norm(name, network_on_disk, lora_scale, *,
             continue
         targets = resolve_group_targets(resolve_targets, prefix, base)
         if not targets:
-            unmapped += 1
+            unmapped += note_unmapped(base)
             continue
         arch_prefix = _resolve_prefix(network_prefix, prefix)
         for diffusers_path, chunk in targets:
@@ -1136,7 +1145,7 @@ def try_load_norm(name, network_on_disk, lora_scale, *,
             network_key = arch_prefix + diffusers_path.replace(".", "_")
             sd_module = mapping.get(network_key)
             if sd_module is None:
-                unmapped += 1
+                unmapped += note_unmapped(network_key)
                 continue
             if "b_norm" in w and not bias_delta_fits(sd_module, w["b_norm"]):
                 log.warning(
@@ -1195,7 +1204,7 @@ def try_load_full(name, network_on_disk, lora_scale, *,
             network_key = arch_prefix + diffusers_path.replace(".", "_")
             sd_module = mapping.get(network_key)
             if sd_module is None:
-                unmapped += 1
+                unmapped += note_unmapped(network_key)
                 continue
             if "diff_b" in w and not bias_delta_fits(sd_module, w["diff_b"]):
                 log.warning(
@@ -1231,6 +1240,7 @@ def try_load_chain(name, network_on_disk, lora_scale, family_loaders):
     """
     from modules import sd_models_utils
     sd_models_utils.state_dict_cache.enable()
+    chain_unmapped.clear()
     net = None
     mismatch = 0
     for try_fn in family_loaders:
@@ -1247,4 +1257,9 @@ def try_load_chain(name, network_on_disk, lora_scale, family_loaders):
     if net is not None and mismatch > 0: # applying only the layers that fit leaves the model in a state nothing was trained for
         log.error(f'Network load: type=LoRA name="{name}" modules={len(net.modules)} mismatch={mismatch} shapes do not match the loaded model')
         return None
+    if net is not None and chain_unmapped:
+        unmapped = sorted(set(chain_unmapped))
+        log.warning(f'Network load: type=LoRA name="{name}" native modules={len(net.modules)} unmapped={len(unmapped)}')
+        if l.debug:
+            log.trace(f'Network load: type=LoRA name="{name}" unmapped={unmapped}')
     return net
