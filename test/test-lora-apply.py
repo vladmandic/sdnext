@@ -259,6 +259,33 @@ def test_backup_restore_without_delta():
     return True
 
 
+def inpaint_conv_in():
+    """A 9-input conv_in as inpaint UNets carry it, with a copy of its weight."""
+    torch.manual_seed(0)
+    module = torch.nn.Conv2d(9, 32, 3, padding=1)
+    return module, module.weight.detach().clone()
+
+
+def test_fuse_inpaint_conv_in_takes_the_delta_as_given():
+    """A delta already shaped to a 9-input conv_in lands unpadded."""
+    module, w0 = inpaint_conv_in()
+    stamp_fuse(module)
+    weight_written, _ = network_apply_direct(module, torch.full_like(w0, 0.5), None, device=CPU)
+    assert weight_written, 'the target-shaped delta must be written'
+    assert_close(module.weight.detach(), w0 + 0.5, 'weight')
+    return True
+
+
+def test_backup_inpaint_conv_in_takes_the_delta_as_given():
+    """Backup mode writes the same target-shaped delta onto the cloned base."""
+    module, w0 = inpaint_conv_in()
+    stamp_backup(module)
+    weight_written, _ = network_apply_weights(module, torch.full_like(w0, 0.5), None, device=CPU)
+    assert weight_written, 'the target-shaped delta must be written'
+    assert_close(module.weight.detach(), w0 + 0.5, 'weight')
+    return True
+
+
 def run_tests():
     t0 = time.time()
     log.warning('=== fuse mode ===')
@@ -270,6 +297,7 @@ def run_tests():
         test_fuse_mismatched_bias_delta_is_refused,
         test_fuse_mismatched_weight_delta_is_refused,
         test_fuse_bias_delta_without_a_bias_is_refused,
+        test_fuse_inpaint_conv_in_takes_the_delta_as_given,
     ]:
         run_test(CAT_FUSE, fn)
 
@@ -278,6 +306,7 @@ def run_tests():
         test_backup_bias_delta_asymmetric,
         test_backup_reapply_is_not_cumulative,
         test_backup_restore_without_delta,
+        test_backup_inpaint_conv_in_takes_the_delta_as_given,
     ]:
         run_test(CAT_BACKUP, fn)
 

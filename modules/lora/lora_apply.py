@@ -272,8 +272,6 @@ def network_apply_direct(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Grou
     weight_written, bias_written = False, False
 
     if weights_backup:
-        if updown is not None and len(self.weight.shape) == 4 and self.weight.shape[1] == 9: # inpainting model so zero pad updown to make channel 4 to 9
-            updown = torch.nn.functional.pad(updown, (0, 0, 0, 0, 0, 5)) # pylint: disable=not-callable
         if updown is not None:
             weight_written = network_add_weights(self, lora_weights=updown, deactivate=deactivate, device=device, bias=False)
 
@@ -298,8 +296,6 @@ def network_apply_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Gro
     weight_written, bias_written = False, False
 
     if weights_backup is not None and not isinstance(weights_backup, bool):
-        if updown is not None and len(weights_backup.shape) == 4 and weights_backup.shape[1] == 9: # inpainting model. zero pad updown to make channel[1]  4 to 9
-            updown = torch.nn.functional.pad(updown, (0, 0, 0, 0, 0, 5)) # pylint: disable=not-callable
         if updown is not None:
             weight_written = network_add_weights(self, model_weights=weights_backup, lora_weights=updown, deactivate=deactivate, device=device, bias=False)
         else:

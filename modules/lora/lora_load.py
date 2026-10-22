@@ -24,6 +24,8 @@ exclude_errors = [
 NATIVE_DISPATCH = {
     'f1':         'pipelines.flux.flux1_lora',
     'sd3':        'pipelines.sd3.sd3_lora',
+    'sd':         'pipelines.sd.sd_lora',
+    'sdxl':       'pipelines.sd.sd_lora',
     'zimage':     'pipelines.z_image.zimage_lora',
     'chroma':     'pipelines.chroma.chroma_lora',
     'ernieimage': 'pipelines.ernie.ernie_lora',
