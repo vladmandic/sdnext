@@ -352,12 +352,14 @@ def test_sd15_te1_prefix_binds_single_encoder():
 def chain_warnings(family_loaders):
     """Run try_load_chain over stub family loaders; return the WARNING messages it logged."""
     warnings = []
+    path = write({'unrelated': torch.zeros(1)})
     real_warning = native_adapter.log.warning
     native_adapter.log.warning = lambda msg, *a, **k: warnings.append(msg)
     try:
-        net = native_adapter.try_load_chain('chain', None, 1.0, family_loaders)
+        net = native_adapter.try_load_chain('chain', network.NetworkOnDisk('chain', path), 1.0, family_loaders)
     finally:
         native_adapter.log.warning = real_warning
+        os.unlink(path)
     return net, warnings
 
 

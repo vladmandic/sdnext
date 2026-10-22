@@ -102,6 +102,11 @@ def _resolve_prefix(network_prefix, prefix_used):
 SUFFIX_NORMALIZE = {
     "lora_A.weight": "lora_down.weight",
     "lora_B.weight": "lora_up.weight",
+    # diffusers training scripts: unet ``.lora.down.weight``, text encoder ``.lora_linear_layer.down.weight``
+    "lora.down.weight": "lora_down.weight",
+    "lora.up.weight": "lora_up.weight",
+    "lora_linear_layer.down.weight": "lora_down.weight",
+    "lora_linear_layer.up.weight": "lora_up.weight",
     # bare parameter names, saved by wrappers that hold the factors as nn.Parameter (alibaba-pai PDD files)
     "lora_down": "lora_down.weight",
     "lora_a": "lora_down.weight",
@@ -123,6 +128,7 @@ LORA_SUFFIXES = (
     ".lora_down",        ".lora_up",
     ".lora_a",           ".lora_b", # lowercase peft factor names without .weight (TaoLive adapters)
     ".lora_A",           ".lora_B", # peft factor names without .weight (custom adapter saves)
+    ".lora.down.weight", ".lora.up.weight", ".lora_linear_layer.down.weight", ".lora_linear_layer.up.weight",
     # diff_b: bias delta some saves pair with the weight LoRA, applied as ex_bias.
     # magnitude / lora_magnitude_vector: DoRA row norms (ai-toolkit / PEFT key
     # names); converted onto the dora_scale path by try_load_lora.
@@ -179,6 +185,7 @@ LORA_MARKERS = (
     ".lora_A", ".lora_B",
     # attention-processor saves (XLabs ``qkv_lora1.down``, diffusers 2023 ``to_k_lora.down``); an arch grouper renames them
     "_lora.down", "_lora1.down", "_lora2.down",
+    ".lora.down", ".lora_linear_layer.down", # diffusers training scripts
 )
 LOKR_MARKERS = (".lokr_w1", ".lokr_w2")
 LOHA_MARKERS = (".hada_w1_a", ".hada_w1_b", ".hada_w2_a", ".hada_w2_b")
@@ -1476,6 +1483,16 @@ def try_load_full(name, network_on_disk, lora_scale, *,
 # === Per-arch umbrella ===
 
 
+def bundled_embeddings(state_dict):
+    """``{name: {key: tensor}}`` for textual-inversion vectors bundled as ``bundle_emb.<name>.<key>`` (the LyCORIS bundle format)."""
+    out = {}
+    for key, value in state_dict.items():
+        if key.startswith("bundle_emb."):
+            _, emb_name, vec_name = key.split(".", 2)
+            out.setdefault(emb_name, {})[vec_name] = value
+    return out
+
+
 def try_load_chain(name, network_on_disk, lora_scale, family_loaders):
     """Run each family loader in order and merge any non-None results.
 
@@ -1502,6 +1519,8 @@ def try_load_chain(name, network_on_disk, lora_scale, family_loaders):
                 module.network = net # strength, dyn_dim and block weights are read from the network a module points at
             net.modules.update(sub.modules)
             net.extras.update(sub.extras)
+    if net is not None:
+        net.bundle_embeddings = bundled_embeddings(read_state_dict(network_on_disk.filename, what="network"))
     sd_models_utils.state_dict_cache.disable()
     if net is not None and mismatch > 0: # applying only the layers that fit leaves the model in a state nothing was trained for
         log.error(f'Network load: type=LoRA name="{name}" modules={len(net.modules)} mismatch={mismatch} shapes do not match the loaded model')
