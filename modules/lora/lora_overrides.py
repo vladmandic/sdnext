@@ -47,9 +47,7 @@ NATIVE_DISPATCH = {
 allow_native = list(NATIVE_DISPATCH)
 
 
-force_classes_diffusers = [ # forced always
-    'FluxKontextPipeline', 'FluxKontextInpaintPipeline',
-]
+force_classes_diffusers = [] # forced always
 
 fuse_ignore = [
     'hunyuanvideo',
