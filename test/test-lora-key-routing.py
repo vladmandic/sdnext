@@ -660,6 +660,21 @@ def test_dump_covers_native_arch():
         os.unlink(path)
 
 
+def test_chain_modules_share_the_returned_network():
+    install(ZImagePipeline(torch.nn.Sequential(torch.nn.Linear(4, 4), torch.nn.Linear(4, 4))))
+    sd = {'lora_transformer_0.lora_down.weight': torch.randn(2, 4), 'lora_transformer_0.lora_up.weight': torch.randn(4, 2), 'lora_transformer_1.diff': torch.randn(4, 4)}
+    path = write(sd)
+    try:
+        net = lora_load.load_safetensors('mixed', network.NetworkOnDisk('mixed', path))
+    finally:
+        os.unlink(path)
+    assert {type(m).__name__ for m in net.modules.values()} == {'NetworkModuleLora', 'NetworkModuleFull'}, sorted(net.modules)
+    assert all(m.network is net for m in net.modules.values()), 'a module of a later family ignores the strength set on the returned network'
+    net.te_multiplier = 0.25
+    full = net.modules['lora_transformer_1']
+    updown, _ = full.calc_updown(torch.zeros(4, 4))
+    assert torch.allclose(updown, sd['lora_transformer_1.diff'] * 0.25), 'the Full delta must scale with the network strength'
+
 
 # ============================================================
 # Runner
@@ -698,6 +713,7 @@ def run_tests():
         test_family_shape_checks,
         test_full_widens_inpaint_conv_in,
         test_dump_covers_native_arch,
+        test_chain_modules_share_the_returned_network,
     ]:
         run_test(cat, fn)
     model_data.sd_model = None

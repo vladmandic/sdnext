@@ -1494,6 +1494,8 @@ def try_load_chain(name, network_on_disk, lora_scale, family_loaders):
         if net is None:
             net = sub
         else:
+            for module in sub.modules.values():
+                module.network = net # strength, dyn_dim and block weights are read from the network a module points at
             net.modules.update(sub.modules)
             net.extras.update(sub.extras)
     sd_models_utils.state_dict_cache.disable()
