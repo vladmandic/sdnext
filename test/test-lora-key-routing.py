@@ -28,6 +28,7 @@ Covered:
 - Every family checks its delta against the module shape, so a misfit file
   is refused whole.
 - ``SD_LORA_DUMP`` writes the key lists for native arches too.
+- ``module=`` and ``high``/``low`` tags are reported on the native method.
 
 No running server required.
 
@@ -662,6 +663,25 @@ def test_dump_covers_native_arch():
         os.unlink(path)
 
 
+def test_component_tags_parsed_and_missing_reported():
+    from modules import extra_networks
+    from modules.lora import extra_networks_lora
+    install(ZImagePipeline(torch.nn.Sequential(torch.nn.Linear(4, 4))))
+    params = [extra_networks.ExtraNetworkParams(items) for items in (['a', '1.0'], ['b_lowres', '1.0', 'high'], ['c', 'module=te'], ['d', '0.8', 'low', 'module=transformer'])]
+    requested = extra_networks_lora.requested_components(params)
+    assert requested == {'b_lowres': ['transformer'], 'c': ['text_encoder'], 'd': ['transformer_2', 'transformer']}, requested
+    warnings = []
+    real = extra_networks_lora.log.warning
+    extra_networks_lora.log.warning = warnings.append
+    extra_networks_lora.warned_components.clear()
+    try:
+        extra_networks_lora.warn_missing_components(requested)
+        extra_networks_lora.warn_missing_components(requested)
+    finally:
+        extra_networks_lora.log.warning = real
+    assert len(warnings) == 2 and all('missing' in w for w in warnings), f'text_encoder and transformer_2 are absent, each reported once: {warnings}'
+
+
 def test_chain_modules_share_the_returned_network():
     install(ZImagePipeline(torch.nn.Sequential(torch.nn.Linear(4, 4), torch.nn.Linear(4, 4))))
     sd = {'lora_transformer_0.lora_down.weight': torch.randn(2, 4), 'lora_transformer_0.lora_up.weight': torch.randn(4, 2), 'lora_transformer_1.diff': torch.randn(4, 4)}
@@ -728,6 +748,7 @@ def run_tests():
         test_dump_covers_native_arch,
         test_chain_modules_share_the_returned_network,
         test_unreadable_file_declines,
+        test_component_tags_parsed_and_missing_reported,
     ]:
         run_test(cat, fn)
     model_data.sd_model = None

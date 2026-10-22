@@ -233,6 +233,7 @@ def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=Non
             'unet': unet_multipliers[i] if unet_multipliers else shared.opts.extra_networks_default_multiplier,
             'dyn': dyn_dims[i] if dyn_dims else None, # a multiplier is not a rank; float dyn_dim crashes every consumer that slices with it
             'blocks': block_specs[i] if block_specs and len(block_specs) > i else None,
+            'components': tuple(lora_modules[i]) if lora_modules and len(lora_modules) > i and lora_modules[i] else None,
         }
         l.loaded_networks.append(net)
 

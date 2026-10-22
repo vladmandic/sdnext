@@ -74,7 +74,7 @@ class ActivationPass:
         self.fuse = fuse
         self.elimit = None # the error limiter, bound for the duration of the walk
         self.wanted_names: tuple[tuple[str, float, list, int | None], ...] = tuple((x.name, x.te_multiplier, x.unet_multiplier, x.dyn_dim) for x in l.loaded_networks) if len(l.loaded_networks) > 0 else ()
-        self.stack_sig = lora_stack.signature() + lora_blocks.signature() + lora_sdnq.signature() # tracked beside network_current_names so stack-setting, block-weight and mechanism changes re-apply
+        self.stack_sig = lora_stack.signature() + lora_blocks.signature() + component_signature() + lora_sdnq.signature() # tracked beside network_current_names so stack-setting, block-weight, component and mechanism changes re-apply
         self.select_active = len(l.loaded_networks) > 0 and lora_stack.active_select(len(l.loaded_networks)) # restore-only walks have nothing to stack; the count warning would fire on every network-free generation
         self.component_wanted: tuple[tuple[str, float, list, int | None], ...] = ()
         self.device = None
@@ -154,7 +154,29 @@ def promote_pending():
             net.unet_multiplier = pending['unet']
             net.dyn_dim = pending['dyn']
             net.block_spec = pending.get('blocks', None)
+            net.components = pending.get('components', None)
+            net.component_layers = component_layers(net.components)
             net.pending_config = None # promotion is one-shot
+
+
+def component_layers(components):
+    """Stamped layer names of the named pipeline components; None when the network applies to every component."""
+    if not components:
+        return None
+    sd_model = getattr(shared.sd_model, "pipe", shared.sd_model)
+    layers = set()
+    for name in components:
+        component = getattr(sd_model, name, None)
+        if hasattr(component, 'named_modules'):
+            layers.update(getattr(module, 'network_layer_name', None) for _, module in component.named_modules())
+    layers.discard(None)
+    return frozenset(layers)
+
+
+def component_signature():
+    """Identity suffix for the per-module apply stamp; empty while no loaded network names its components."""
+    specs = [f'{net.name}:{",".join(net.components)}' for net in l.loaded_networks if getattr(net, 'components', None)]
+    return '|module=' + ','.join(specs) if specs else ''
 
 
 def prepare_model_for_write(sd_model):

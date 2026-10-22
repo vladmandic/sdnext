@@ -182,6 +182,8 @@ class Network:  # LoraModule
         self.unet_multiplier = [1.0] * 3
         self.dyn_dim = None
         self.block_spec = None # raw lbw= value; per-layer factors resolve through lora_blocks
+        self.components = None # module= and high/low components; None applies the network to every component
+        self.component_layers = None # stamped layer names of those components, resolved by networks.promote_pending
         self.pending_config = None # staged multipliers; network_activate promotes them after the removal pass so fuse removal subtracts the delta that was applied
         self.modules = {}
         self.extras = {} # non-delta payloads a family carries, e.g. parallel heads
@@ -223,7 +225,9 @@ class NetworkModule:
         self.dora_norm_dims = (len(self.shape) - 1) if self.shape is not None else None
 
     def multiplier(self):
-        unet_multiplier = 3 * [self.network.unet_multiplier] if not isinstance(self.network.unet_multiplier, list) else self.network.unet_multiplier
+        if self.network.component_layers is not None and self.sd_key not in self.network.component_layers:
+            return 0.0
+        unet_multiplier =3 * [self.network.unet_multiplier] if not isinstance(self.network.unet_multiplier, list) else self.network.unet_multiplier
         if self.sd_key.startswith('lora_te'):
             base = self.network.te_multiplier
         elif "down_blocks" in self.sd_key:

@@ -254,6 +254,24 @@ def test_component_strengths_by_namespace():
     assert net.modules[f'{T}transformer_blocks_0_attn_to_out_0'].multiplier() == 0.7, 'unet= scales the transformer'
 
 
+def test_component_filter_zeroes_other_components():
+    from modules.lora import networks, lora_common
+    install()
+    net = load(lora('lora_te1_text_model_encoder_layers_0_self_attn_q_proj', 768, 768, 47) | lora('lora_unet_double_blocks_0_img_attn_proj', INNER, INNER, 48))
+    clip_key = next(k for k in net.modules if k.startswith('lora_te1_'))
+    transformer_key = f'{T}transformer_blocks_0_attn_to_out_0'
+    real = list(lora_common.loaded_networks)
+    try:
+        lora_common.loaded_networks[:] = [net]
+        for components, te, tr in ((('transformer',), 0.0, 1.0), (('text_encoder',), 1.0, 0.0), (None, 1.0, 1.0)):
+            net.pending_config = {'te': 1.0, 'unet': [1.0] * 3, 'dyn': None, 'components': components}
+            networks.promote_pending()
+            assert (net.modules[clip_key].multiplier(), net.modules[transformer_key].multiplier()) == (te, tr), components
+            assert (networks.component_signature() != '') == (components is not None), 'a component filter must change the apply stamp'
+    finally:
+        lora_common.loaded_networks[:] = real
+
+
 def test_guidance_keys_unmapped_on_schnell():
     install(guidance=False)
     net = load(lora('lora_unet_guidance_in_in_layer', INNER, 256, 50) | lora('lora_unet_img_in', INNER, 8, 51))
@@ -311,6 +329,7 @@ def run_tests():
         test_xlabs_processor_keys,
         test_text_encoders_by_role,
         test_component_strengths_by_namespace,
+        test_component_filter_zeroes_other_components,
         test_guidance_keys_unmapped_on_schnell,
         test_fill_widens_x_embedder,
         test_kohya_without_alpha_scale_one,

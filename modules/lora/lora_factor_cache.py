@@ -71,6 +71,8 @@ def signature(wanted_names):
         spec = lora_blocks.net_signature(net)
         if spec is not None: # appended only when set so existing cache files stay valid without block weights
             entry.append(spec)
+        if getattr(net, 'components', None):
+            entry.append('module=' + ','.join(net.components))
         parts['nets'].append(entry)
     return parts
 

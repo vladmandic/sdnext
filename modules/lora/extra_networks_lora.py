@@ -9,6 +9,9 @@ from modules.logger import log
 
 debug = os.environ.get('SD_LORA_DEBUG', None) is not None
 debug_log = log.trace if debug else lambda *args, **kwargs: None
+warned_components: set = set()
+COMPONENT_TAGS = {'high': 'transformer', 'low': 'transformer_2'}
+COMPONENT_ALIASES = {'te': 'text_encoder'} # module= names as lora_diffusers.load_per_module reads them
 
 
 def get_stepwise(param, step, steps): # from https://github.com/cheald/sd-webui-loractl/blob/master/loractl/lib/utils.py
@@ -155,6 +158,30 @@ def parse(p, params_list, step=0):
     return names, te_multipliers, unet_multipliers, dyn_dims, lora_modules, block_specs
 
 
+def requested_components(params_list):
+    """{name: components} for networks given an explicit component: a module= argument or a high/low tag."""
+    requested = {}
+    for params in params_list:
+        given = [COMPONENT_TAGS[str(x).lower()] for x in params.positional[1:] if str(x).lower() in COMPONENT_TAGS]
+        if params.named.get('module', None) is not None:
+            module = str(params.named['module']).lower()
+            given.append(COMPONENT_ALIASES.get(module, module))
+        if given:
+            requested[params.positional[0]] = given
+    return requested
+
+
+def warn_missing_components(requested):
+    """Report once per network, component and pipeline a requested component the loaded pipeline lacks."""
+    sd_model = getattr(shared.sd_model, "pipe", shared.sd_model)
+    for name, components in requested.items():
+        for component in components:
+            key = (name, component, sd_model.__class__.__name__)
+            if not hasattr(getattr(sd_model, component, None), 'named_modules') and key not in warned_components:
+                warned_components.add(key)
+                log.warning(f'Network load: type=LoRA name="{name}" requested={component} missing')
+
+
 def unload_diffusers():
     if hasattr(shared.sd_model, "unfuse_lora"):
         try:
@@ -176,9 +203,11 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
         self.model = None
         self.errors = {}
 
-    def signature(self, names: list[str], te_multipliers: list, unet_multipliers: list, block_specs: list | None = None):
+    def signature(self, names: list[str], te_multipliers: list, unet_multipliers: list, block_specs: list | None = None, components: dict | None = None):
         specs = block_specs if block_specs else [None] * len(names)
-        return [f'{name}:{te}:{unet}' + (f':lbw={str(spec).strip().lower()}' if spec else '') for name, te, unet, spec in zip(names, te_multipliers, unet_multipliers, specs, strict=False)]
+        components = components or {}
+        return [f'{name}:{te}:{unet}' + (f':lbw={str(spec).strip().lower()}' if spec else '') + (f':module={",".join(components[name])}' if name in components else '')
+                for name, te, unet, spec in zip(names, te_multipliers, unet_multipliers, specs, strict=False)]
 
     def changed(self, requested: list[str], include: list[str] | None = None, exclude: list[str] | None = None) -> tuple[bool, str]:
         from modules.lora import lora_sdnq, lora_stack
@@ -224,7 +253,8 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
             self.active = True
             self.model = shared.opts.sd_model_checkpoint
         names, te_multipliers, unet_multipliers, dyn_dims, lora_modules, block_specs = parse(p, params_list, step)
-        requested = self.signature(names, te_multipliers, unet_multipliers, block_specs)
+        components = requested_components(params_list)
+        requested = self.signature(names, te_multipliers, unet_multipliers, block_specs, components)
         reason = ''
 
         load_method, load_reason = lora_overrides.get_method()
@@ -259,7 +289,8 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
             has_changed = lora_nunchaku.load_nunchaku(names, unet_multipliers)
 
         else: # native
-            lora_load.network_load(names, te_multipliers, unet_multipliers, dyn_dims, block_specs=block_specs, activate=False) # load only, activation below honors include/exclude
+            warn_missing_components(components)
+            lora_load.network_load(names, te_multipliers, unet_multipliers, dyn_dims, lora_modules=[components.get(name) for name in names], block_specs=block_specs, activate=False) # load only, activation below honors include/exclude
             has_changed, reason = self.changed(requested, include, exclude)
             if has_changed:
                 jobid = shared.state.begin('LoRA')
