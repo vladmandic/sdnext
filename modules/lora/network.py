@@ -193,11 +193,6 @@ class Network:  # LoraModule
         """the text that was used to add the network to prompt - can be either name or an alias"""
 
 
-class ModuleType:
-    def create_module(self, net: Network, weights: NetworkWeights) -> Network | None: # pylint: disable=W0613
-        return None
-
-
 class NetworkModule:
     def __init__(self, net: Network, weights: NetworkWeights):
         self.network = net

@@ -1,13 +1,6 @@
 import modules.lora.network as network
 
 
-class ModuleTypeFull(network.ModuleType):
-    def create_module(self, net: network.Network, weights: network.NetworkWeights):
-        if all(x in weights.w for x in ["diff"]):
-            return NetworkModuleFull(net, weights)
-        return None
-
-
 class NetworkModuleFull(network.NetworkModule): # pylint: disable=abstract-method
     def __init__(self,  net: network.Network, weights: network.NetworkWeights):
         super().__init__(net, weights)

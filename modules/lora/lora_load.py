@@ -17,27 +17,6 @@ exclude_errors = [
     "'ChronoEditTransformer3DModel'",
 ]
 
-# shared.sd_model_type -> dotted module path of a pipeline native loader
-# exposing ``try_load(name, network_on_disk, lora_scale)``. New archs add an
-# entry here and ship a per-arch ``try_load`` (either binding native_adapter's
-# generic helpers via try_load_chain, or rolling their own).
-NATIVE_DISPATCH = {
-    'f1':         'pipelines.flux.flux1_lora',
-    'sd3':        'pipelines.sd3.sd3_lora',
-    'sd':         'pipelines.sd.sd_lora',
-    'sdxl':       'pipelines.sd.sd_lora',
-    'zimage':     'pipelines.z_image.zimage_lora',
-    'chroma':     'pipelines.chroma.chroma_lora',
-    'ernieimage': 'pipelines.ernie.ernie_lora',
-    'f2':         'pipelines.flux.flux2_lora',
-    'f3':         'pipelines.flux3.flux3_lora',
-    'anima':      'pipelines.anima.anima_lora',
-    'krea2':      'pipelines.krea2.krea2_lora',
-    'minimaxh3':  'pipelines.minimax.minimax_lora',
-    'qwen21':     'pipelines.qwen.qwen21_lora',
-}
-
-
 def lora_dump(lora, dct):
     import tempfile
     sd_model = getattr(shared.sd_model, "pipe", shared.sd_model)
@@ -75,108 +54,17 @@ def load_safetensors(name, network_on_disk: network.NetworkOnDisk) -> network.Ne
         lora_convert.assign_network_names_to_compvis_modules(sd_model)
         lora_dump(network_on_disk.filename, sd_models.read_state_dict(network_on_disk.filename, what='network'))
 
-    # native dispatch
-    native_module = NATIVE_DISPATCH.get(shared.sd_model_type)
+    native_module = lora_overrides.NATIVE_DISPATCH.get(shared.sd_model_type)
     if l.debug:
         log.trace(f'LoRA: load name="{name}" fn="{network_on_disk.filename}" native={native_module}')
-    if native_module is not None:
-        import importlib
-        mod = importlib.import_module(native_module)
-        net = mod.try_load(name, network_on_disk, shared.opts.extra_networks_default_multiplier)
-        if net is not None:
-            lora_cache[name] = net
-        return net
-
-    # fallback to standard network loading
-    if l.debug:
-        log.trace(f'LoRA: load name="{name}" network_on_disk="{network_on_disk.filename}" safetensors')
-    net = network.Network(name, network_on_disk)
-    net.mtime = os.path.getmtime(network_on_disk.filename)
-    state_dict = sd_models.read_state_dict(network_on_disk.filename, what='network')
-    # converters pop the keys they consume; a copy keeps the cached dict whole when a conversion is refused
-    if shared.sd_model_type == 'f1': # if kohya flux lora, convert state_dict
-        state_dict = lora_convert._convert_kohya_flux_lora_to_diffusers(dict(state_dict)) or state_dict # pylint: disable=protected-access
-    if shared.sd_model_type == 'sd3': # if kohya sd3 lora, convert state_dict
-        try:
-            state_dict = lora_convert._convert_kohya_sd3_lora_to_diffusers(dict(state_dict)) or state_dict # pylint: disable=protected-access
-        except ValueError: # EAFP for diffusers PEFT keys
-            pass
-    lora_convert.assign_network_names_to_compvis_modules(sd_model)
-    keys_failed_to_match = {}
-    matched_networks = {}
-    bundle_embeddings = {}
-    dtypes = []
-    convert = lora_convert.KeyConvert()
-
-    for key_network, weight in state_dict.items():
-        parts = key_network.split('.')
-        if parts[0] == "bundle_emb":
-            emb_name, vec_name = parts[1], key_network.split(".", 2)[-1]
-            emb_dict = bundle_embeddings.get(emb_name, {})
-            emb_dict[vec_name] = weight
-            bundle_embeddings[emb_name] = emb_dict
-            continue
-        if parts[0] in ["clip_l", "clip_g", "t5", "unet", "transformer", "transformer_2"]:
-            network_part = []
-            while parts and parts[-1] in ["alpha","weight","lora_up","lora_down","lora_A","lora_B"]:
-                network_part.insert(0,parts[-1])
-                parts = parts[0:-1]
-            if not parts:
-                continue
-            # diffusers PEFT adapters name the pair lora_A/lora_B and can keep the pipeline
-            # prefix (transformer. / unet. / ...), so the suffix has to be folded into the
-            # network part and normalized here instead of staying on the module key
-            network_part = ".".join(network_part).replace("lora_A","lora_down").replace("lora_B","lora_up")
-            key_network_without_network_parts = "_".join(parts)
-            if key_network_without_network_parts.startswith("unet") or key_network_without_network_parts.startswith("transformer"):
-                key_network_without_network_parts = "lora_" + key_network_without_network_parts
-            key_network_without_network_parts = key_network_without_network_parts.replace("clip_g","lora_te2").replace("clip_l","lora_te")
-
-        elif len(parts) > 5: # messy handler for diffusers peft lora
-            key_network_without_network_parts = '_'.join(parts[:-2])
-            if not key_network_without_network_parts.startswith('lora_'):
-                key_network_without_network_parts = 'lora_' + key_network_without_network_parts
-            network_part = '.'.join(parts[-2:]).replace('lora_A', 'lora_down').replace('lora_B', 'lora_up')
-        else:
-            key_network_without_network_parts, network_part = key_network.split(".", 1)
-        key, sd_module = convert(key_network_without_network_parts)
-        if sd_module is None:
-            keys_failed_to_match[key_network] = key
-            continue
-        if key not in matched_networks:
-            matched_networks[key] = network.NetworkWeights(network_key=key_network, sd_key=key, w={}, sd_module=sd_module)
-        matched_networks[key].w[network_part] = weight
-        if weight.dtype not in dtypes:
-            dtypes.append(weight.dtype)
-    network_types = []
-    state_dict = None
-    del state_dict
-    module_errors = 0
-    for key, weights in matched_networks.items():
-        net_module = None
-        for nettype in l.module_types:
-            net_module = nettype.create_module(net, weights)
-            if net_module is not None:
-                network_types.append(nettype.__class__.__name__)
-                break
-        if net_module is None:
-            module_errors += 1
-            if l.debug:
-                log.error(f'LoRA unhandled: name={name} key={key} weights={weights.w.keys()}')
-        else:
-            net.modules[key] = net_module
-    if module_errors > 0:
-        log.error(f'Network load: type=LoRA name="{name}" file="{network_on_disk.filename}" errors={module_errors} empty modules')
-    if len(keys_failed_to_match) > 0:
-        log.warning(f'Network load: type=LoRA name="{name}" type={set(network_types)} unmatched={len(keys_failed_to_match)} matched={len(matched_networks)}')
-        if l.debug:
-            log.trace(f'Network load: type=LoRA name="{name}" unmatched={keys_failed_to_match}')
-    else:
-        log.debug(f'Network load: type=LoRA name="{name}" type={set(network_types)} keys={len(matched_networks)} dtypes={dtypes} fuse={lora_overrides.fuse_native()}:{shared.opts.lora_fuse_diffusers}')
-    if len(matched_networks) == 0:
+    if native_module is None:
+        log.error(f'Network load: type=LoRA name="{name}" arch={shared.sd_model_type} native loader=none')
         return None
-    lora_cache[name] = net
-    net.bundle_embeddings = bundle_embeddings
+    import importlib
+    mod = importlib.import_module(native_module)
+    net = mod.try_load(name, network_on_disk, shared.opts.extra_networks_default_multiplier)
+    if net is not None:
+        lora_cache[name] = net
     return net
 
 

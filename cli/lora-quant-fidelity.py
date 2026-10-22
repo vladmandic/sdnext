@@ -82,7 +82,7 @@ from rich import print as rprint # pylint: disable=wrong-import-position, wrong-
 
 from modules import shared # pylint: disable=wrong-import-position,unused-import # shared must initialize before sd_models, which imports back into it
 from modules.lora import native_adapter, network, network_lora, network_lokr, network_hada, network_oft, network_full, network_ia3, network_glora, network_norm, lora_sdnq # pylint: disable=wrong-import-position
-from modules.lora.lora_load import NATIVE_DISPATCH # pylint: disable=wrong-import-position, wrong-import-order
+from modules.lora.lora_overrides import NATIVE_DISPATCH # pylint: disable=wrong-import-position, wrong-import-order
 from sdnq.quantizer import sdnq_quantize_layer_weight # pylint: disable=wrong-import-position, wrong-import-order
 from sdnq.quant_utils import rotate_hadamard # pylint: disable=wrong-import-position, wrong-import-order
 

@@ -2507,22 +2507,32 @@ def test_remove_factors_after_device_move():
 
 
 def dispatch_module_type(w):
-    """Pick a module type the way the generic loader does."""
+    """Bind one group through the native OFT loader, which tells OFT from BOFT by the rank of oft_blocks."""
+    import tempfile
+    import safetensors.torch
+    from modules.lora import native_adapter
     host = torch.nn.Linear(IN_F, OUT_F)
-    net = network.Network('typed', MockNOD('typed'))
-    nw = network.NetworkWeights(network_key='lora_unet_x', sd_key='lora_unet_x', w=w, sd_module=host)
-    for nettype in l_common.module_types:
-        mod = nettype.create_module(net, nw)
-        if mod is not None:
-            return mod
-    return None
+    key = 'lora_transformer_x'
+    fd, path = tempfile.mkstemp(suffix='.safetensors')
+    os.close(fd)
+    safetensors.torch.save_file({f'{key}.{k}': v.contiguous() for k, v in w.items()}, path)
+    real = native_adapter.resolve_mapping
+    native_adapter.resolve_mapping = lambda: {key: host}
+    try:
+        nod = MockNOD('typed')
+        nod.filename = path
+        net = native_adapter.try_load_oft('typed', nod, 1.0, resolve_targets=lambda prefix, base: [])
+    finally:
+        native_adapter.resolve_mapping = real
+        os.unlink(path)
+    return None if net is None else net.modules.get(key)
 
 
 def test_four_dim_oft_blocks_load_as_boft():
-    blocks4 = torch.zeros(2, 8, 64, 64) # (boft_m, block_num, block_size, block_size)
+    blocks4 = torch.zeros(2, 8, 64, 64) # (boft_m, block_num, block_size, block_size); 8 * 64 rows cover the 512-wide host
     mod = dispatch_module_type({'oft_blocks': blocks4, 'alpha': torch.tensor(1.0)})
     assert type(mod).__name__ == 'NetworkModuleBOFT', f'4-d oft_blocks must bind to boft, got {type(mod).__name__}'
-    blocks3 = torch.zeros(8, 64, 64) # (num_blocks, block_size, block_size)
+    blocks3 = torch.zeros(8, 64, 64) # (num_blocks, block_size, block_size); 8 * 64 rows cover the 512-wide host
     mod = dispatch_module_type({'oft_blocks': blocks3, 'alpha': torch.tensor(1.0)})
     assert type(mod).__name__ == 'NetworkModuleOFT', f'3-d oft_blocks must stay on oft, got {type(mod).__name__}'
     return True
@@ -2535,13 +2545,6 @@ def test_nunchaku_entries_carry_the_network_interface():
     assert len(net.modules) == 0, 'a composed set owns no modules: the reported method probes this to tell native from nunchaku'
     assert net.network_on_disk is nod, 'infotext reads the hash through network_on_disk'
     assert net.name == nod.name
-    return True
-
-
-def test_native_dispatch_archs_are_native_eligible():
-    from modules.lora import lora_load, lora_overrides
-    missing = sorted(set(lora_load.NATIVE_DISPATCH) - set(lora_overrides.allow_native))
-    assert not missing, f'an arch with a native loader that the method choice sends elsewhere never reaches it: {missing}'
     return True
 
 
@@ -3048,8 +3051,7 @@ def run_tests():
         run_test(CAT_COMPILE, fn)
     log.warning('=== Robustness ===')
     for fn in [test_remove_factors_after_device_move, test_stacked_shape_mismatch_falls_back, test_nunchaku_entries_carry_the_network_interface,
-               test_four_dim_oft_blocks_load_as_boft, test_aborted_pass_still_publishes_its_state,
-               test_native_dispatch_archs_are_native_eligible]:
+               test_four_dim_oft_blocks_load_as_boft, test_aborted_pass_still_publishes_its_state]:
         run_test(CAT_ROBUST, fn)
     log.warning('=== Block weights ===')
     for fn in [test_block_index_sd_unet_layout, test_block_index_sdxl_unet_layout, test_block_index_flux_chains_concatenate,

@@ -1,12 +1,6 @@
 import modules.lora.network as network
 
 
-class ModuleTypeGLora(network.ModuleType):
-    def create_module(self, net: network.Network, weights: network.NetworkWeights):
-        if all(x in weights.w for x in ["a1.weight", "a2.weight", "alpha", "b1.weight", "b2.weight"]):
-            return NetworkModuleGLora(net, weights)
-        return None
-
 # adapted from https://github.com/KohakuBlueleaf/LyCORIS
 class NetworkModuleGLora(network.NetworkModule): # pylint: disable=abstract-method
     def __init__(self,  net: network.Network, weights: network.NetworkWeights):
