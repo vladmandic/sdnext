@@ -499,10 +499,12 @@ def delta_fits(family, w, sd_module, chunk: ChunkSpec | None = None) -> bool:
             return False
         return w["weight"].numel() == (shape[1] if bool(w["on_input"].item()) else out)
     if family == "glora":
-        if len(shape) != 2:
+        if len(shape) not in (2, 4):
             return False
         inputs = shape[1]
-        return w["b2.weight"].shape[0] == out and w["b1.weight"].shape[-1] == inputs and w["a2.weight"].shape[0] == inputs and w["a1.weight"].shape[-1] == inputs
+        a1, a2, b1, b2 = (w[k].reshape(w[k].shape[0], -1) for k in ("a1.weight", "a2.weight", "b1.weight", "b2.weight"))
+        return (b2.shape == (out, b1.shape[0]) and b1.shape[1] * out == size
+                and a2.shape == (inputs, a1.shape[0]) and a1.shape[1] == inputs)
     if family == "norm":
         return tuple(w["w_norm"].shape) == tuple(shape)
     if family == "full":

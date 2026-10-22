@@ -229,6 +229,19 @@ def test_wrong_base_refused():
     assert load(lora('lora_unet_down_blocks_1_attentions_0_proj_in', 32, 32, 50)) is None, 'an SD 1.x width on SDXL must refuse the file'
 
 
+def test_glora_on_pointwise_conv():
+    install()
+    g = torch.Generator().manual_seed(70)
+    stem = 'lora_unet_down_blocks_0_attentions_0_proj_in' # 1x1 conv on SD 1.x; factors in the kohya lycoris layout
+    a1, a2, b1, b2 = torch.randn(RANK, 32, 1, 1, generator=g), torch.randn(32, RANK, 1, 1, generator=g), torch.randn(RANK, 32, 1, 1, generator=g), torch.randn(32, RANK, 1, 1, generator=g)
+    net = load({f'{stem}.a1.weight': a1, f'{stem}.a2.weight': a2, f'{stem}.b1.weight': b1, f'{stem}.b2.weight': b2, f'{stem}.alpha': torch.tensor(float(RANK))})
+    module = bound(net, f'{U}down_blocks_0_attentions_0_proj_in')
+    weight = torch.randn(32, 32, 1, 1, generator=g)
+    updown, _ = module.calc_updown(weight)
+    flat = b2.flatten(1) @ b1.flatten(1) + (weight.flatten(1) @ a2.flatten(1)) @ a1.flatten(1)
+    assert updown.shape == weight.shape and torch.allclose(updown.flatten(1), flat * module.calc_scale() * module.multiplier(), atol=1e-4), 'a pointwise conv must match the linear form'
+
+
 def test_bundled_embeddings():
     install()
     sd = lora('lora_unet_down_blocks_0_attentions_0_proj_in', 32, 32, 60) | {'bundle_emb.mytoken.string_to_param.*': torch.randn(2, 768)}
@@ -253,6 +266,7 @@ def run_tests():
         test_sd15_text_encoder_keys_unmapped_on_sdxl,
         test_inpaint_conv_in_widens,
         test_wrong_base_refused,
+        test_glora_on_pointwise_conv,
         test_bundled_embeddings,
     ]:
         run_test(cat, fn)
