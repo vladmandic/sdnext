@@ -22,6 +22,7 @@ def prepare(platform: Platform, original): # pylint: disable=unused-argument
         'hadamard_group_size': shared.opts.sdnq_attention_hadamard_group_size,
         'quantize_fp32': shared.opts.sdnq_attention_quantize_fp32,
         'use_fp16_accum': shared.opts.sdnq_attention_use_fp16_accum,
+        'use_tensor_descriptors': None if shared.opts.sdnq_attention_use_tensor_descriptors == "default" else shared.opts.sdnq_attention_use_tensor_descriptors == "enabled",
     }
     block_mask = supports_block_mask(sdnq_triton_atten)
 
@@ -33,13 +34,13 @@ def prepare(platform: Platform, original): # pylint: disable=unused-argument
     call.caps = backend.caps if block_mask else frozenset()
     if not block_mask and getattr(shared.opts, 'sparse_attention_enabled', False):
         log.warning('SDNQ attention: the installed sdnq has no block mask input, sparse attention cannot use it; update the sdnq submodule')
-    log.debug(f'Attention: type="SDNQ attention" matmul={options["matmul_dtype"]}:{options["pv_matmul_dtype"]} smooth={options["smooth_k"]} hadamard={options["use_hadamard"]} quantize_fp32={options["quantize_fp32"]} fp16_accum={options["use_fp16_accum"]} block_mask={block_mask}')
+    log.debug(f'Attention: type="SDNQ attention" matmul={options["matmul_dtype"]}:{options["pv_matmul_dtype"]} smooth={options["smooth_k"]} hadamard={options["use_hadamard"]} quantize_fp32={options["quantize_fp32"]} fp16_accum={options["use_fp16_accum"]} block_mask={block_mask}, tensor_descriptors={shared.opts.sdnq_attention_use_tensor_descriptors}')
     return call
 
 
 backend = AttentionBackend(
     name='sdnq', label='SDNQ attention', priority=60, prepare=prepare,
     constraints=Constraints(min_tokens=32, min_long_side=512, min_heads=2), # sequences of 512 or fewer are text encoders, single-head calls the vae
-    options=('sdnq_attention_matmul_type', 'sdnq_attention_pv_matmul_type', 'sdnq_attention_smooth_k', 'sdnq_attention_use_hadamard', 'sdnq_attention_hadamard_group_size', 'sdnq_attention_quantize_fp32', 'sdnq_attention_use_fp16_accum'),
+    options=('sdnq_attention_matmul_type', 'sdnq_attention_pv_matmul_type', 'sdnq_attention_smooth_k', 'sdnq_attention_use_hadamard', 'sdnq_attention_hadamard_group_size', 'sdnq_attention_quantize_fp32', 'sdnq_attention_use_fp16_accum', 'sdnq_attention_use_tensor_descriptors'),
     caps=frozenset({'block_mask', 'masked_block'}), # the kernel takes attn_mask and block_mask together
 )
