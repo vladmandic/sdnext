@@ -3,7 +3,7 @@ import re
 import numpy as np
 from modules.lora import networks, lora_overrides, lora_load, lora_diffusers
 from modules.lora import lora_common as l
-from modules import extra_networks, shared, sd_models
+from modules import extra_networks, shared, sd_models, sd_hijack_te
 from modules.logger import log
 
 
@@ -271,6 +271,9 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
                 if len(include) == 0:
                     l.previously_loaded_networks = l.loaded_networks.copy()
                 shared.state.end(jobid)
+
+        if has_changed:
+            sd_hijack_te.prompt_cache.cache.clear()
 
         if len(l.loaded_networks) > 0 and (len(networks.applied_layers) > 0 or load_method=='diffusers' or load_method=='nunchaku') and step == 0:
             infotext(p)

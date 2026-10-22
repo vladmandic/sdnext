@@ -1694,6 +1694,7 @@ def clear_caches(full: bool = False):
     from modules import prompt_parser_diffusers, memstats, sd_offload_state
     from modules.lora import lora_common, lora_load
     prompt_parser_diffusers.cache.clear()
+    sd_hijack_te.prompt_cache.cache.clear()
     memstats.reset_stats()
     lora_common.loaded_networks.clear()
     lora_common.previously_loaded_networks.clear()
