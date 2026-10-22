@@ -25,6 +25,8 @@ Covered:
   either tree shape.
 - Underscore-namespace keys with a dotted tail group with their factors.
 - A pure row reorder applies exactly to LoKr, LoHA and per-input DoRA.
+- Every family checks its delta against the module shape, so a misfit file
+  is refused whole.
 
 No running server required.
 
@@ -590,6 +592,46 @@ def test_reorder_per_input_dora():
     assert torch.allclose(updown, want, atol=1e-4)
 
 
+FAMILY_CASES = { # family: (loader, factors for a Linear(6, 8))
+    'loha': ('try_load_loha', lambda: {'hada_w1_a': torch.randn(8, 2), 'hada_w1_b': torch.randn(2, 6), 'hada_w2_a': torch.randn(8, 2), 'hada_w2_b': torch.randn(2, 6)}),
+    'oft': ('try_load_oft', lambda: {'oft_diag': torch.zeros(2, 4, 4)}),
+    'ia3': ('try_load_ia3', lambda: {'weight': torch.randn(8), 'on_input': torch.tensor(False)}),
+    'glora': ('try_load_glora', lambda: {'a1.weight': torch.randn(2, 6), 'a2.weight': torch.randn(6, 2), 'b1.weight': torch.randn(2, 6), 'b2.weight': torch.randn(8, 2), 'alpha': torch.tensor(2.0)}),
+    'full': ('try_load_full', lambda: {'diff': torch.randn(8, 6)}),
+}
+
+
+def chain_one(loader_name, factors, module):
+    key = 'lora_transformer_target'
+    path = write({f'{key}.{k}': v for k, v in factors.items()})
+    real = native_adapter.resolve_mapping
+    native_adapter.resolve_mapping = lambda: {key: module}
+    loader = getattr(native_adapter, loader_name)
+    family = lambda name, nod, scale: loader(name, nod, scale, resolve_targets=lambda prefix, base: [])
+    try:
+        return native_adapter.try_load_chain('family', network.NetworkOnDisk('family', path), 1.0, (family,))
+    finally:
+        native_adapter.resolve_mapping = real
+        os.unlink(path)
+
+
+def test_family_shape_checks():
+    for family, (loader, factors) in FAMILY_CASES.items():
+        fits = chain_one(loader, factors(), torch.nn.Linear(6, 8))
+        assert fits is not None and len(fits.modules) == 1, f'{family}: a fitting delta must bind'
+        misfit = chain_one(loader, factors(), torch.nn.Linear(10, 16))
+        assert misfit is None, f'{family}: a misfit delta must refuse the file'
+
+
+def test_full_widens_inpaint_conv_in():
+    conv = torch.nn.Conv2d(9, 8, 3)
+    net = chain_one('try_load_full', {'diff': torch.randn(8, 4, 3, 3)}, conv)
+    assert net is not None, 'a 4-channel conv_in diff must bind to a 9-channel conv_in'
+    module = next(iter(net.modules.values()))
+    updown, _ = module.calc_updown(conv.weight.detach())
+    assert updown[:, 4:].abs().max() == 0 and updown.shape == conv.weight.shape
+
+
 # ============================================================
 # Runner
 # ============================================================
@@ -624,6 +666,8 @@ def run_tests():
         test_reorder_lokr_uneven_skips,
         test_reorder_loha,
         test_reorder_per_input_dora,
+        test_family_shape_checks,
+        test_full_widens_inpaint_conv_in,
     ]:
         run_test(cat, fn)
     model_data.sd_model = None

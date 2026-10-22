@@ -444,6 +444,63 @@ def widen_input(sd_module, w):
     return out
 
 
+def widen_full(sd_module, w):
+    """:func:`widen_input` for a full-rank ``diff``: zero columns appended up to a widened module's input width."""
+    mod_shape = module_shape(sd_module)
+    diff = w.get("diff")
+    if mod_shape is None or diff is None or diff.ndim != len(mod_shape) or diff.ndim < 2:
+        return None
+    if diff.shape[0] != mod_shape[0] or diff.shape[1] >= mod_shape[1] or tuple(diff.shape[2:]) != tuple(mod_shape[2:]):
+        return None
+    pad = torch.zeros((diff.shape[0], mod_shape[1] - diff.shape[1], *diff.shape[2:]), dtype=diff.dtype, device=diff.device)
+    out = dict(w)
+    out["diff"] = torch.cat([diff, pad], dim=1)
+    return out
+
+
+def delta_fits(family, w, sd_module, chunk: ChunkSpec | None = None) -> bool:
+    """Whether a family's delta has the live module's shape, read from the stored factors.
+
+    Mirrors what each family's ``calc_updown`` produces: the delta must cover the
+    module's output rows, and its element count must equal the weight's, which is
+    what ``finalize_updown`` reshapes against. An equal-chunks ``chunk`` divides the
+    fused rows the way ``NetworkModuleHadaChunk`` slices them.
+    """
+    shape = module_shape(sd_module)
+    if shape is None:
+        return False
+    out, size = shape[0], math.prod(shape)
+    if family == "loha":
+        w1a, w1b = w["hada_w1_a"], w["hada_w1_b"]
+        if "hada_t1" in w:
+            return w1a.shape[1] == out and w1a.shape[1] * w1b.shape[1] * math.prod(w["hada_t1"].shape[2:]) == size
+        rows = w1a.shape[0]
+        if chunk is not None and chunk.is_equal_chunks:
+            if rows % chunk.total:
+                return False
+            rows //= chunk.total
+        return rows == out and rows * math.prod(w1b.shape[1:]) == size
+    if family == "oft":
+        blocks = w["oft_blocks"] if "oft_blocks" in w else w["oft_diag"]
+        if blocks.ndim == 4: # BOFT (boft_m, block_num, block_size, block_size)
+            return blocks.shape[1] * blocks.shape[2] == out
+        return blocks.shape[0] * blocks.shape[1] == out
+    if family == "ia3":
+        if len(shape) < 2:
+            return False
+        return w["weight"].numel() == (shape[1] if bool(w["on_input"].item()) else out)
+    if family == "glora":
+        if len(shape) != 2:
+            return False
+        inputs = shape[1]
+        return w["b2.weight"].shape[0] == out and w["b1.weight"].shape[-1] == inputs and w["a2.weight"].shape[0] == inputs and w["a1.weight"].shape[-1] == inputs
+    if family == "norm":
+        return tuple(w["w_norm"].shape) == tuple(shape)
+    if family == "full":
+        return w["diff"].numel() == size and w["diff"].shape[0] == out
+    raise ValueError(family)
+
+
 def shapes_match(sd_module, down_w: torch.Tensor, up_w: torch.Tensor) -> bool:
     """LoRA-style rank-and-dim sanity check against the live module weight."""
     mod_shape = module_shape(sd_module)
@@ -1039,6 +1096,7 @@ def try_load_loha(name, network_on_disk, lora_scale, *,
 
     unmapped = 0
     skipped = 0
+    mismatch = 0
     for (prefix, base), w in groups.items():
         if not all(k in w for k in ("hada_w1_a", "hada_w1_b", "hada_w2_a", "hada_w2_b")):
             continue
@@ -1078,6 +1136,11 @@ def try_load_loha(name, network_on_disk, lora_scale, *,
                         skipped += 1
                         continue
                     chunk = None
+            if not delta_fits("loha", target_w, sd_module, chunk):
+                if l.debug:
+                    log.warning(f'Network load: type=LoHA name="{name}" arch={arch_name} key={network_key} module={module_shape(sd_module)} shape mismatch')
+                mismatch += 1
+                continue
             nw = network.NetworkWeights(network_key=network_key, sd_key=network_key, w=target_w, sd_module=sd_module)
             if chunk is None:
                 net.modules[network_key] = network_hada.NetworkModuleHada(net, nw)
@@ -1087,7 +1150,7 @@ def try_load_loha(name, network_on_disk, lora_scale, *,
                 log.warning(f'Network load: type=LoHA name="{name}" arch={arch_name} key={network_key} unequal fused chunks unsupported')
                 skipped += 1
 
-    return finalize_network(net, name, "LoHA", lora_scale, t0, unmapped=unmapped, skipped=skipped)
+    return finalize_network(net, name, "LoHA", lora_scale, t0, unmapped=unmapped, mismatch=mismatch, skipped=skipped)
 
 
 def try_load_oft(name, network_on_disk, lora_scale, *,
@@ -1123,6 +1186,7 @@ def try_load_oft(name, network_on_disk, lora_scale, *,
 
     unmapped = 0
     skipped = 0
+    mismatch = 0
     for (prefix, base), w in groups.items():
         if not ("oft_blocks" in w or "oft_diag" in w):
             continue
@@ -1139,13 +1203,18 @@ def try_load_oft(name, network_on_disk, lora_scale, *,
             if sd_module is None:
                 unmapped += note_unmapped(network_key)
                 continue
+            if not delta_fits("oft", w, sd_module):
+                if l.debug:
+                    log.warning(f'Network load: type=OFT name="{name}" arch={arch_name} key={network_key} module={module_shape(sd_module)} shape mismatch')
+                mismatch += 1
+                continue
             nw = network.NetworkWeights(network_key=network_key, sd_key=network_key, w=w, sd_module=sd_module)
             if is_boft:
                 net.modules[network_key] = network_boft.NetworkModuleBOFT(net, nw)
             else:
                 net.modules[network_key] = network_oft.NetworkModuleOFT(net, nw)
 
-    return finalize_network(net, name, "OFT", lora_scale, t0, unmapped=unmapped, skipped=skipped)
+    return finalize_network(net, name, "OFT", lora_scale, t0, unmapped=unmapped, mismatch=mismatch, skipped=skipped)
 
 
 def try_load_ia3(name, network_on_disk, lora_scale, *,
@@ -1180,6 +1249,7 @@ def try_load_ia3(name, network_on_disk, lora_scale, *,
 
     unmapped = 0
     skipped = 0
+    mismatch = 0
     for (prefix, base), w in groups.items():
         if not ("weight" in w and "on_input" in w):
             continue
@@ -1195,10 +1265,15 @@ def try_load_ia3(name, network_on_disk, lora_scale, *,
             if sd_module is None:
                 unmapped += note_unmapped(network_key)
                 continue
+            if not delta_fits("ia3", w, sd_module):
+                if l.debug:
+                    log.warning(f'Network load: type=IA3 name="{name}" arch={arch_name} key={network_key} module={module_shape(sd_module)} shape mismatch')
+                mismatch += 1
+                continue
             nw = network.NetworkWeights(network_key=network_key, sd_key=network_key, w=w, sd_module=sd_module)
             net.modules[network_key] = network_ia3.NetworkModuleIa3(net, nw)
 
-    return finalize_network(net, name, "IA3", lora_scale, t0, unmapped=unmapped, skipped=skipped)
+    return finalize_network(net, name, "IA3", lora_scale, t0, unmapped=unmapped, mismatch=mismatch, skipped=skipped)
 
 
 def try_load_glora(name, network_on_disk, lora_scale, *,
@@ -1229,6 +1304,7 @@ def try_load_glora(name, network_on_disk, lora_scale, *,
 
     unmapped = 0
     skipped = 0
+    mismatch = 0
     for (prefix, base), w in groups.items():
         if not all(k in w for k in ("a1.weight", "a2.weight", "b1.weight", "b2.weight")):
             continue
@@ -1244,10 +1320,15 @@ def try_load_glora(name, network_on_disk, lora_scale, *,
             if sd_module is None:
                 unmapped += note_unmapped(network_key)
                 continue
+            if not delta_fits("glora", w, sd_module):
+                if l.debug:
+                    log.warning(f'Network load: type=GLoRA name="{name}" arch={arch_name} key={network_key} module={module_shape(sd_module)} shape mismatch')
+                mismatch += 1
+                continue
             nw = network.NetworkWeights(network_key=network_key, sd_key=network_key, w=w, sd_module=sd_module)
             net.modules[network_key] = network_glora.NetworkModuleGLora(net, nw)
 
-    return finalize_network(net, name, "GLoRA", lora_scale, t0, unmapped=unmapped, skipped=skipped)
+    return finalize_network(net, name, "GLoRA", lora_scale, t0, unmapped=unmapped, mismatch=mismatch, skipped=skipped)
 
 
 def try_load_norm(name, network_on_disk, lora_scale, *,
@@ -1307,6 +1388,11 @@ def try_load_norm(name, network_on_disk, lora_scale, *,
                 continue
             if not getattr(sd_module, "network_layer_name", None):
                 sd_module.network_layer_name = network_key
+            if not delta_fits("norm", w, sd_module):
+                if l.debug:
+                    log.warning(f'Network load: type=Norm name="{name}" arch={arch_name} key={network_key} module={module_shape(sd_module)} shape mismatch')
+                mismatch += 1
+                continue
             nw = network.NetworkWeights(network_key=network_key, sd_key=network_key, w=w, sd_module=sd_module)
             net.modules[network_key] = network_norm.NetworkModuleNorm(net, nw)
 
@@ -1355,6 +1441,13 @@ def try_load_full(name, network_on_disk, lora_scale, *,
             sd_module = mapping.get(network_key)
             if sd_module is None:
                 unmapped += note_unmapped(network_key)
+                continue
+            if not delta_fits("full", w, sd_module):
+                w = widen_full(sd_module, w) or w
+            if not delta_fits("full", w, sd_module):
+                if l.debug:
+                    log.warning(f'Network load: type=Full name="{name}" arch={arch_name} key={network_key} module={module_shape(sd_module)} shape mismatch')
+                mismatch += 1
                 continue
             if "diff_b" in w and not bias_delta_fits(sd_module, w["diff_b"]):
                 log.warning(
