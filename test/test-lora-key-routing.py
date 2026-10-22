@@ -24,6 +24,7 @@ Covered:
   ``lora_te_`` names only a lone encoder, the ``text_model`` wrapper matches
   either tree shape.
 - Underscore-namespace keys with a dotted tail group with their factors.
+- A pure row reorder applies exactly to LoKr, LoHA and per-input DoRA.
 
 No running server required.
 
@@ -533,6 +534,62 @@ def test_dotted_tail_fixture():
     assert len(factored) == len(groups), f'{len(groups) - len(factored)} groups hold a magnitude without factors'
 
 
+def load_reordered(loader, state_dict, module):
+    """Run a family loader with one target that swaps the halves of its rows."""
+    key = 'lora_transformer_target'
+    path = write({f'{key}.{k}': v for k, v in state_dict.items()})
+    real = native_adapter.resolve_mapping
+    native_adapter.resolve_mapping = lambda: {key: module}
+    try:
+        net = loader('reorder', network.NetworkOnDisk('reorder', path), 1.0, resolve_targets=lambda prefix, base: [(base, native_adapter.ChunkSpec(reorder=(1, 0)))])
+    finally:
+        native_adapter.resolve_mapping = real
+        os.unlink(path)
+    return None if net is None else net.modules.get(key)
+
+
+def swap_halves(d):
+    a, b = torch.chunk(d, 2, dim=0)
+    return torch.cat([b, a], dim=0)
+
+
+def test_reorder_lokr():
+    linear = torch.nn.Linear(12, 8)
+    w1, w2 = torch.randn(2, 3), torch.randn(4, 4)
+    module = load_reordered(native_adapter.try_load_lokr, {'lokr_w1': w1, 'lokr_w2': w2}, linear)
+    assert module is not None, 'a reordered LoKr target must bind'
+    updown, _ = module.calc_updown(linear.weight.detach())
+    assert torch.allclose(updown, swap_halves(torch.kron(w1, w2)), atol=1e-5)
+
+
+def test_reorder_lokr_uneven_skips():
+    linear = torch.nn.Linear(12, 8)
+    module = load_reordered(native_adapter.try_load_lokr, {'lokr_w1': torch.randn(1, 3), 'lokr_w2': torch.randn(8, 4)}, linear)
+    assert module is None, 'w1 with one row cannot carry a half swap'
+
+
+def test_reorder_loha():
+    linear = torch.nn.Linear(6, 8)
+    w = {'hada_w1_a': torch.randn(8, 2), 'hada_w1_b': torch.randn(2, 6), 'hada_w2_a': torch.randn(8, 2), 'hada_w2_b': torch.randn(2, 6)}
+    module = load_reordered(native_adapter.try_load_loha, w, linear)
+    assert module is not None, 'a reordered LoHA target must bind'
+    updown, _ = module.calc_updown(linear.weight.detach())
+    want = (w['hada_w1_a'] @ w['hada_w1_b']) * (w['hada_w2_a'] @ w['hada_w2_b'])
+    assert torch.allclose(updown, swap_halves(want), atol=1e-5)
+
+
+def test_reorder_per_input_dora():
+    linear = torch.nn.Linear(6, 8)
+    down, up, magnitude = torch.randn(RANK, 6), torch.randn(8, RANK), torch.rand(1, 6) + 0.5
+    module = load_reordered(native_adapter.try_load_lora, {'lora_down.weight': down, 'lora_up.weight': up, 'dora_scale': magnitude}, linear)
+    assert module is not None, 'per-input DoRA survives a row reorder'
+    weight = linear.weight.detach()
+    updown, _ = module.calc_updown(weight)
+    merged = weight + swap_halves(up @ down)
+    want = merged * (magnitude / merged.norm(dim=0, keepdim=True)) - weight
+    assert torch.allclose(updown, want, atol=1e-4)
+
+
 # ============================================================
 # Runner
 # ============================================================
@@ -563,6 +620,10 @@ def run_tests():
         test_te_path_text_model_either_shape,
         test_dotted_tail_groups_with_factors,
         test_dotted_tail_fixture,
+        test_reorder_lokr,
+        test_reorder_lokr_uneven_skips,
+        test_reorder_loha,
+        test_reorder_per_input_dora,
     ]:
         run_test(cat, fn)
     model_data.sd_model = None

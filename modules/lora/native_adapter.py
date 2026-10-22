@@ -206,8 +206,9 @@ class ChunkSpec:
     - Row reorder (``reorder``): the module lays out equal row blocks in a
       different order from the save; ``(1, 0)`` swaps the halves of a fused
       SwiGLU projection saved ``[gate; value]`` onto a ``[value; gate]``
-      module. Applied to the rows the slice selects. Only the LoRA family
-      permutes rows; the others skip a reordered target.
+      module. Applied to the rows the slice selects. LoRA permutes the up
+      rows; LoKr and LoHA permute their row factors for a pure reorder and
+      skip a reorder within a slice.
 
     Generic loaders check :attr:`is_equal_chunks` to decide between the two
     forms and select the appropriate ``NetworkModule*Chunk`` /
@@ -767,7 +768,26 @@ def slice_dora_scale(w, chunk: ChunkSpec, fused_out):
         out = dict(w)
         out["dora_scale"] = slice_chunk_rows(ds, chunk)
         return out
+    if not chunk.is_slice:
+        return w # a pure row reorder leaves the column norms of a per-input magnitude unchanged
     return None
+
+
+def reorder_factor_rows(w, keys, reorder):
+    """Copy of ``w`` with the row blocks of each named factor laid out in ``reorder``; None when a factor's rows do not split evenly.
+
+    Exact for families whose delta rows are row blocks of these factors: LoHA's
+    ``(w1a w1b) * (w2a w2b)`` takes its rows from ``w1a`` and ``w2a``, and LoKr's
+    ``kron(w1, w2)`` takes row block b from row block b of ``w1`` when ``w1`` splits evenly.
+    """
+    out = dict(w)
+    for key in keys:
+        if key not in w:
+            continue
+        if w[key].shape[0] % len(reorder):
+            return None
+        out[key] = slice_chunk_rows(w[key], ChunkSpec(reorder=reorder))
+    return out
 
 
 def slice_bias_delta(w, chunk: ChunkSpec, fused_out):
@@ -955,8 +975,8 @@ def try_load_lokr(name, network_on_disk, lora_scale, *,
                 continue
             target_w = w
             if chunk is not None:
-                if chunk.reorder is not None:
-                    log.warning(f'Network load: type=LoKR name="{name}" arch={arch_name} key={network_key} row reorder on fused target skipped (unsupported)')
+                if chunk.reorder is not None and chunk.is_slice:
+                    log.warning(f'Network load: type=LoKR name="{name}" arch={arch_name} key={network_key} row reorder within a fused slice skipped (unsupported)')
                     skipped += 1
                     continue
                 if "bias" in w:
@@ -974,6 +994,13 @@ def try_load_lokr(name, network_on_disk, lora_scale, *,
                     log.warning(f'Network load: type=LoKR name="{name}" arch={arch_name} key={network_key} per-input DoRA on fused target skipped (unsupported)')
                     skipped += 1
                     continue
+                if chunk.reorder is not None:
+                    target_w = reorder_factor_rows(target_w, ("lokr_w1", "lokr_w1_a"), chunk.reorder)
+                    if target_w is None:
+                        log.warning(f'Network load: type=LoKR name="{name}" arch={arch_name} key={network_key} row reorder with uneven w1 rows skipped (unsupported)')
+                        skipped += 1
+                        continue
+                    chunk = None
             nw = network.NetworkWeights(network_key=network_key, sd_key=network_key, w=target_w, sd_module=sd_module)
             if chunk is None:
                 net.modules[network_key] = network_lokr.NetworkModuleLokr(net, nw)
@@ -1031,8 +1058,8 @@ def try_load_loha(name, network_on_disk, lora_scale, *,
                 continue
             target_w = w
             if chunk is not None:
-                if chunk.reorder is not None:
-                    log.warning(f'Network load: type=LoHA name="{name}" arch={arch_name} key={network_key} row reorder on fused target skipped (unsupported)')
+                if chunk.reorder is not None and chunk.is_slice:
+                    log.warning(f'Network load: type=LoHA name="{name}" arch={arch_name} key={network_key} row reorder within a fused slice skipped (unsupported)')
                     skipped += 1
                     continue
                 if "bias" in w:
@@ -1044,6 +1071,13 @@ def try_load_loha(name, network_on_disk, lora_scale, *,
                     log.warning(f'Network load: type=LoHA name="{name}" arch={arch_name} key={network_key} per-input DoRA on fused target skipped (unsupported)')
                     skipped += 1
                     continue
+                if chunk.reorder is not None:
+                    target_w = reorder_factor_rows(target_w, ("hada_w1_a", "hada_w2_a"), chunk.reorder)
+                    if target_w is None:
+                        log.warning(f'Network load: type=LoHA name="{name}" arch={arch_name} key={network_key} row reorder with uneven rows skipped (unsupported)')
+                        skipped += 1
+                        continue
+                    chunk = None
             nw = network.NetworkWeights(network_key=network_key, sd_key=network_key, w=target_w, sd_module=sd_module)
             if chunk is None:
                 net.modules[network_key] = network_hada.NetworkModuleHada(net, nw)
