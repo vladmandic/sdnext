@@ -121,7 +121,6 @@ class PromptEnhanceScript(scripts_manager.Script):
                     torch_dtype=devices.dtype,
                     low_cpu_mem_usage=True,
                     cache_dir=shared.opts.hfcache_dir,
-                    # _attn_implementation="eager",
                     **gguf_args,
                     **quant_args,
                 )
@@ -204,7 +203,7 @@ class PromptEnhanceScript(scripts_manager.Script):
                 response = response.replace('</think>', '')  # Handle orphaned closing tags
 
         # strip empty lines
-        response = response.replace('\n\n', '\n').replace('  ', ' ').replace('...', '.')
+        response = response.replace('\n\n', '\n').replace('  ', ' ').replace('...', '.').replace('```', '')
         # remove repeating characters and short repeated tokens from model collapse
         response = re.sub(r'\b([A-Za-z]{1,3})(?:\s+\1){1,}\b', r'\1', response, flags=re.IGNORECASE)
 
@@ -323,6 +322,7 @@ class PromptEnhanceScript(scripts_manager.Script):
                 semantic_threshold:float=0.0,
                 embedding_similarity:float=0.0,
                 use_openai:bool=False,
+                prompt_style: str = 'Standard',
                ):
         # Strip symbols from model name if present
         choices = [get_model_repo_from_display(m) for m in Options.get_model_choices()]
@@ -346,7 +346,8 @@ class PromptEnhanceScript(scripts_manager.Script):
         thinking = thinking or self.options.thinking_mode
         sample = sample if sample is not None else self.options.do_sample
         nsfw = nsfw if nsfw is not None else True # Default nsfw to True if not provided
-        debug_log(f'Prompt enhance: model="{model}" model_class="{self.llm.__class__.__name__ if self.llm is not None else "not loaded"}" nsfw={nsfw} thinking={thinking} prefill="{prefill[:30] if prefill else ""}" vision={use_vision} image={image}')
+
+        debug_log(f'Prompt enhance: model="{model}" cls="{self.llm.__class__.__name__ if self.llm is not None else "not loaded"}" nsfw={nsfw} thinking={thinking} prefill="{prefill[:30] if prefill else ""}" vision={use_vision} image={image} style={prompt_style}')
 
         while self.busy:
             time.sleep(0.1)
@@ -446,13 +447,14 @@ class PromptEnhanceScript(scripts_manager.Script):
             nsfw=nsfw,
             has_processor=self.processor is not None,
             module=self.parent,
+            prompt_style=prompt_style,
         )
 
         use_prefill = len(prefill_text) > 0
         is_thinking = is_thinking_model(model)
         debug_log(f'Prompt enhance: system="{system}"')
         debug_log(f'Prompt enhance: prompt="{prompt_text}"')
-        debug_log(f'Prompt template: roles={[msg["role"] for msg in chat_template]} thinking={is_thinking}:{thinking} prefill={use_prefill}')
+        debug_log(f'Prompt template: roles={[msg["role"] for msg in chat_template]} thinking={is_thinking}:{thinking} prefill={use_prefill} style={prompt_style}')
 
         try:
             # Qwen3.5 uses native enable_thinking parameter in the chat template
@@ -513,9 +515,11 @@ class PromptEnhanceScript(scripts_manager.Script):
             self.busy = False
             return prompt_text # Return original text part on error
 
+        generate_time = 0.0
+        offload_time = 0.0
         try:
             with devices.llm_context():
-                move_aux_to_gpu('prompt_enhance')
+                offload_time += move_aux_to_gpu('prompt_enhance')
                 gen_kwargs = {
                     'do_sample': sample,
                     'temperature': float(temperature),
@@ -542,7 +546,13 @@ class PromptEnhanceScript(scripts_manager.Script):
                 defaults = {k: v for k, v in helpers.get_default_args(self.llm).items() if k not in gen_kwargs}
                 debug_log(f'Prompt enhance: defaults={defaults}')
 
+                if devices.device.type == 'cuda':
+                    torch.cuda.synchronize(devices.device)
+                generate_t0 = time.perf_counter()
                 outputs = self.llm.generate(**inputs, **gen_kwargs)
+                if devices.device.type == 'cuda':
+                    torch.cuda.synchronize(devices.device)
+                generate_time = time.perf_counter() - generate_t0
 
                 if logits_processor is not None:
                     log.debug(f'Prompt enhance: process={logits_processor.get_replacements()}')
@@ -564,7 +574,7 @@ class PromptEnhanceScript(scripts_manager.Script):
             self.busy = False
             response = f'Error: {str(e)}'
         finally:
-            offload_aux('prompt_enhance')
+            offload_time += offload_aux('prompt_enhance')
             devices.torch_gc(force=False, reason='prompt-enhance')
         t1 = time.time()
 
@@ -574,7 +584,10 @@ class PromptEnhanceScript(scripts_manager.Script):
         if not is_censored:
             response = self.clean(response, keep_thinking=keep_thinking, prefill_text=prefill_text, keep_prefill=keep_prefill)
             response = self.post(response, prefix, suffix, networks)
-        log.info(f'Prompt enhance: model="{model}" nsfw={nsfw} time={t1-t0:.2f} seed={seed} thinking={thinking} keep={keep_thinking}:{keep_prefill} prefill="{prefill_text[:20] if prefill_text else None}" inputs={input_len} outputs={outputs.shape[-1] if isinstance(outputs, torch.Tensor) else 0} prompt={len(prompt_text)} response={len(response)}')
+        generated_tokens = max(0, outputs.shape[-1] - input_len) if isinstance(outputs, torch.Tensor) else 0
+        tps = generated_tokens / generate_time if generate_time > 0 else 0.0
+        prefill = prefill_text[:20] if prefill_text else None
+        log.info(f'Prompt enhance: model="{model}" tps={tps:.2f} time={t1-t0:.2f} offload={offload_time:.2f} style={prompt_style} nsfw={nsfw} seed={seed} thinking={thinking} keep={keep_thinking}:{keep_prefill} prefill="{prefill}" inputs={input_len} outputs={generated_tokens} prompt={len(prompt_text)} response={len(response)}')
         debug_log(f'Prompt enhance: prompt="{prompt_text}"')
         debug_log(f'Prompt enhance: response_after_clean="{response}"')
         self.busy = False
@@ -583,7 +596,7 @@ class PromptEnhanceScript(scripts_manager.Script):
             return prompt # Return original full prompt on censorship
         return response
 
-    def apply(self, prompt, image, apply_prompt, llm_model, prompt_system, prompt_prefix, prompt_suffix, min_tokens, max_tokens, do_sample, temperature, repetition_penalty, top_k, top_p, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking, custom_args, process_words, semantic_threshold, embedding_similarity, use_openai):
+    def apply(self, prompt, image, apply_prompt, llm_model, prompt_system, prompt_prefix, prompt_suffix, min_tokens, max_tokens, do_sample, temperature, repetition_penalty, top_k, top_p, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking, custom_args, process_words, semantic_threshold, embedding_similarity, use_openai, prompt_style):
         response = self.enhance(
             prompt=prompt,
             image=image,
@@ -609,6 +622,7 @@ class PromptEnhanceScript(scripts_manager.Script):
             semantic_threshold=semantic_threshold,
             embedding_similarity=embedding_similarity,
             use_openai=use_openai,
+            prompt_style=prompt_style,
         )
         if apply_prompt:
             return [response, response]
@@ -637,6 +651,8 @@ class PromptEnhanceScript(scripts_manager.Script):
             with gr.Row():
                 apply_btn = gr.Button(value='Enhance now', elem_id='prompt_enhance_apply', variant='primary')
             with gr.Row():
+                prompt_style = gr.Dropdown(label='Prompt style', choices=['Standard', 'Simple', 'Detailed', 'Creative', 'Structured', 'JSON', 'Tag'], value='Standard', elem_id='prompt_enhance_prompt_style')
+            with gr.Row():
                 apply_prompt = gr.Checkbox(label='Apply to prompt', value=False)
                 apply_auto = gr.Checkbox(label='Auto enhance', value=False)
             with gr.Row():
@@ -644,7 +660,6 @@ class PromptEnhanceScript(scripts_manager.Script):
                 default_is_vl = is_vision_model(Options.default)
                 use_vision = gr.Checkbox(label='Use vision', value=False, interactive=default_is_vl, elem_id='prompt_enhance_use_vision')
                 use_openai = gr.Checkbox(label='OpenAI interface', value=False, elem_id='prompt_enhance_openai')
-            gr.HTML('<br>')
             with gr.Group():
                 with gr.Row():
                     llm_model = gr.Dropdown(label='LLM model', choices=Options.get_model_choices(), value=Options.get_default_display(), interactive=True, allow_custom_value=True, elem_id='prompt_enhance_model')
@@ -716,8 +731,8 @@ class PromptEnhanceScript(scripts_manager.Script):
             # Update vision toggle interactivity when model changes
             llm_model.change(fn=self.update_vision_toggle, inputs=[llm_model], outputs=[use_vision], show_progress=False)
             if self.prompt:
-                apply_btn.click(fn=self.apply, inputs=[self.prompt, self.image, apply_prompt, llm_model, prompt_system, prompt_prefix, prompt_suffix, min_tokens, max_tokens, do_sample, temperature, repetition_penalty, top_k, top_p, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking, custom_args, process_words, semantic_threshold, embedding_similarity, use_openai], outputs=[prompt_output, self.prompt])
-        return [self.prompt, self.image, apply_auto, llm_model, prompt_system, prompt_prefix, prompt_suffix, min_tokens, max_tokens, do_sample, temperature, repetition_penalty, top_k, top_p, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking, custom_args, process_words, semantic_threshold, embedding_similarity, use_openai]
+                apply_btn.click(fn=self.apply, inputs=[self.prompt, self.image, apply_prompt, llm_model, prompt_system, prompt_prefix, prompt_suffix, min_tokens, max_tokens, do_sample, temperature, repetition_penalty, top_k, top_p, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking, custom_args, process_words, semantic_threshold, embedding_similarity, use_openai, prompt_style], outputs=[prompt_output, self.prompt])
+        return [self.prompt, self.image, apply_auto, llm_model, prompt_system, prompt_prefix, prompt_suffix, min_tokens, max_tokens, do_sample, temperature, repetition_penalty, top_k, top_p, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking, custom_args, process_words, semantic_threshold, embedding_similarity, use_openai, prompt_style]
 
     def after_component(self, component, **_kwargs): # searching for actual ui prompt components
         if getattr(component, 'elem_id', '') in ['txt2img_prompt', 'img2img_prompt', 'control_prompt', 'video_prompt']:
@@ -728,7 +743,7 @@ class PromptEnhanceScript(scripts_manager.Script):
             self.image.use_original = True
 
     def before_process(self, p: processing.StableDiffusionProcessing, *args, **kwargs): # pylint: disable=unused-argument
-        _self_prompt, self_image, apply_auto, llm_model, prompt_system, prompt_prefix, prompt_suffix, min_tokens, max_tokens, do_sample, temperature, repetition_penalty, top_k, top_p, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking, custom_args, process_words, semantic_threshold, embedding_similarity, use_openai = args
+        _self_prompt, self_image, apply_auto, llm_model, prompt_system, prompt_prefix, prompt_suffix, min_tokens, max_tokens, do_sample, temperature, repetition_penalty, top_k, top_p, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking, custom_args, process_words, semantic_threshold, embedding_similarity, use_openai, prompt_style = args
         if not apply_auto and not p.enhance_prompt:
             return
         if shared.state.skipped or shared.state.interrupted:
@@ -769,6 +784,7 @@ class PromptEnhanceScript(scripts_manager.Script):
             semantic_threshold=semantic_threshold,
             embedding_similarity=embedding_similarity,
             use_openai=use_openai,
+            prompt_style=prompt_style,
         )
         timer.process.record('prompt')
         shared.state.end(jobid)

@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-10-21
+## Update for 2026-10-22
 
 - **Models**
   - [Bria FIBO 2.0](https://huggingface.co/briaai/Fibo-2.0-dev) *Dev* base and *Edit Turbo* distilled variants  
@@ -16,11 +16,9 @@
 - **Docker**
   - update `Dockerfile` for all supported platforms
   - [SD.Next CUDA docker image](https://hub.docker.com/repository/docker/vladmandic/sdnext-cuda) rebuild and update
-- **Internal**
-  - expand `--test` behavior
-  - infer transformers `native_spec` everywhere where its not explicitly set
-  - remove `subseed` from codebase as its obsolete
-  - remove `seed resize` from codebase as its obsolete
+- **Prompt Enhance**
+  - add presets for different prompt styles: *Standard, Simple, Detailed, Creative, Structured, JSON, Tag*  
+    use different presets depending on the desired prompt style and model's preferred input format  
 - **Metadata**
   - improve model hash info for all models
   - add unet hash if using custom unet/dit
@@ -28,6 +26,11 @@
 - **Logging**
   - customizable logging theme  
     see `data/console.json` for defaults and specify custom file using env variable `SDNEXT_CONSOLE_THEME`  
+- **Internal**
+  - expand `--test` behavior
+  - infer transformers `native_spec` everywhere where its not explicitly set
+  - remove `subseed` from codebase as its obsolete
+  - remove `seed resize` from codebase as its obsolete
 - **Fixes**
   - api: return complete set in GET /sdapi/v1/options, thanks @Jackmeson1
   - launch: dont overwrite existing LD_LIBRARY_PATH

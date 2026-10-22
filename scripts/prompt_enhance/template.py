@@ -9,7 +9,7 @@ debug_enabled = os.environ.get('SD_LLM_DEBUG', None) is not None
 debug_log = log.trace if debug_enabled else lambda *args, **kwargs: None
 
 
-def get_system_prompt(system: str | None, options: Options, nsfw: bool, has_prompt: bool, is_video: bool, is_image: bool) -> str:
+def get_system_prompt(system: str | None, options: Options, nsfw: bool, has_prompt: bool, is_video: bool, is_image: bool, prompt_style: str = 'Standard') -> str:
     if system is not None and len(system) > 4:
         return system
     if is_video:
@@ -20,13 +20,26 @@ def get_system_prompt(system: str | None, options: Options, nsfw: bool, has_prom
         system = options.t2i_prompt if has_prompt else options.t2i_noprompt
     system += options.nsfw_ok if nsfw else options.nsfw_no
     system += options.details_prompt
-    system += options.details_format
-    debug_log(f'Prompt enhance: system="{system}"')
+    if prompt_style == 'Detailed':
+        system += options.detailed_format
+    elif prompt_style == 'Simple':
+        system += options.simple_format
+    elif prompt_style == 'Creative':
+        system += options.creative_format
+    elif prompt_style == 'Structured':
+        system += options.structured_format
+    elif prompt_style == 'JSON':
+        system += options.json_format
+    elif prompt_style == 'Tag':
+        system += options.tag_format
+    else:
+        system += options.standard_format
+    debug_log(f'Prompt enhance: style="{prompt_style}" image={is_image} video={is_video} nsfw={nsfw} prompt={has_prompt} system="{system}"')
     return system
 
 
-def get_text_template(system, prompt, options, nsfw, has_prompt, has_processor, is_video, _image) -> list[dict]:
-    system = get_system_prompt(system, options, nsfw, has_prompt, is_video, is_image=False)
+def get_text_template(system, prompt, options, nsfw, has_prompt, has_processor, is_video, _image, prompt_style) -> list[dict]:
+    system = get_system_prompt(system, options, nsfw, has_prompt, is_video, is_image=False, prompt_style=prompt_style)
     if not has_prompt:
         prompt = 'be creative!'
     if not has_processor:
@@ -46,8 +59,8 @@ def get_text_template(system, prompt, options, nsfw, has_prompt, has_processor, 
     return chat_template
 
 
-def get_image_template(system, prompt, options, nsfw, has_prompt, _has_processor, is_video, image) -> list[dict]:
-    system = get_system_prompt(system, options, nsfw, has_prompt, is_video, is_image=True)
+def get_image_template(system, prompt, options, nsfw, has_prompt, _has_processor, is_video, image, prompt_style: str = 'Standard') -> list[dict]:
+    system = get_system_prompt(system, options, nsfw, has_prompt, is_video, is_image=True, prompt_style=prompt_style)
     if has_prompt:
         chat_template = [
             { "role": "system", "content": [
@@ -79,25 +92,18 @@ def set_template(
         nsfw: bool = True,
         has_processor: bool = False,
         module: str | None = None,
+        prompt_style: str = 'Standard',
 ) -> list[dict] | str:
     chat_template = []
     has_prompt = prompt is not None and len(prompt) > 4
     has_image = image is not None and isinstance(image, Image.Image)
     is_video = module == 'video'
 
-    debug_log(f'Prompt enhance template: module={module} prompt={has_prompt} image={has_image} video={is_video} model="{model}" nsfw={nsfw} processor={has_processor} cloud={is_cloud_model(model)}')
+    debug_log(f'Prompt enhance template: module={module} prompt={has_prompt} image={has_image} video={is_video} model="{model}" nsfw={nsfw} processor={has_processor} cloud={is_cloud_model(model)} style={prompt_style}')
 
-    """
     if has_image:
-        if is_cloud_model(model):
-            pass
-        elif not has_processor:
-            log.error('Prompt enhance: image not supported by model')
-            return prompt if prompt is not None else '' # Return original text part if image cannot be processed
-    """
-    if has_image:
-        chat_template = get_image_template(system, prompt, options, nsfw, has_prompt, has_processor, is_video, image)
+        chat_template = get_image_template(system, prompt, options, nsfw, has_prompt, has_processor, is_video, image, prompt_style=prompt_style)
     else:
-        chat_template = get_text_template(system, prompt, options, nsfw, has_prompt, has_processor, is_video, image)
+        chat_template = get_text_template(system, prompt, options, nsfw, has_prompt, has_processor, is_video, image, prompt_style=prompt_style)
 
     return chat_template
