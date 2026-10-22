@@ -22,6 +22,7 @@ exclude_errors = [
 # entry here and ship a per-arch ``try_load`` (either binding native_adapter's
 # generic helpers via try_load_chain, or rolling their own).
 NATIVE_DISPATCH = {
+    'f1':         'pipelines.flux.flux1_lora',
     'zimage':     'pipelines.z_image.zimage_lora',
     'chroma':     'pipelines.chroma.chroma_lora',
     'ernieimage': 'pipelines.ernie.ernie_lora',

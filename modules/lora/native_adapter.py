@@ -177,6 +177,8 @@ LORA_MARKERS = (
     ".lora_down", ".lora_up", ".lora_a", ".lora_b", # bare and .weight forms alike
     # bare, .weight and PEFT named-adapter (``.lora_A.<name>.weight``) forms alike
     ".lora_A", ".lora_B",
+    # attention-processor saves (XLabs ``qkv_lora1.down``, diffusers 2023 ``to_k_lora.down``); an arch grouper renames them
+    "_lora.down", "_lora1.down", "_lora2.down",
 )
 LOKR_MARKERS = (".lokr_w1", ".lokr_w2")
 LOHA_MARKERS = (".hada_w1_a", ".hada_w1_b", ".hada_w2_a", ".hada_w2_b")
