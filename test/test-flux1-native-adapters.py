@@ -205,6 +205,13 @@ def test_final_layer_modulation_swaps_halves():
     assert torch.equal(up_of(load(sd), f'{T}norm_out_linear'), torch.cat([scale, shift], dim=0))
 
 
+def test_lycoris_whole_model_wrapper():
+    install()
+    sd = {'lycoris__transformer_blocks_0_attn_to_q.lokr_w1': torch.randn(4, 4), 'lycoris__transformer_blocks_0_attn_to_q.lokr_w2': torch.randn(4, 4), 'lycoris__transformer_blocks_0_attn_to_q.alpha': torch.tensor(1.0)}
+    net = load(sd)
+    assert net is not None and f'{T}transformer_blocks_0_attn_to_q' in net.modules, 'lycoris__ keys name the module after the doubled underscore'
+
+
 def test_peft_onetrainer_and_wrapper_verbatim():
     install()
     for stem in ('transformer.transformer_blocks.0.attn.to_q', 'base_model.model.transformer_blocks.0.attn.to_q', 'lora_transformer_transformer_blocks_0_attn_to_q'):
@@ -290,6 +297,7 @@ def run_tests():
         test_bfl_dotted_and_comfy_names,
         test_non_block_targets,
         test_final_layer_modulation_swaps_halves,
+        test_lycoris_whole_model_wrapper,
         test_peft_onetrainer_and_wrapper_verbatim,
         test_xlabs_processor_keys,
         test_text_encoders_by_role,

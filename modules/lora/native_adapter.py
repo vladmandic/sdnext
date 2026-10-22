@@ -706,6 +706,8 @@ def parse_key(key, suffixes, *, prefixes=KNOWN_PREFIXES_DEFAULT):
         return None
     if prefix_used in UNDERSCORE_PREFIXES:
         base = base.replace(".", "_")
+    if prefix_used == "lycoris_":
+        base = base.lstrip("_") # a LyCORIS wrapper around the whole model writes its root children as lycoris__<name>
 
     suffix = SUFFIX_NORMALIZE.get(matched_suffix, matched_suffix)
     return prefix_used, base, suffix
