@@ -500,7 +500,7 @@ def test_te_routing_sd15():
 def test_te_routing_sd3():
     router = router_for(text_encoder=clip(768, projection=True), text_encoder_2=clip(1280, projection=True), text_encoder_3=t5_encoder())
     assert router.prefix('lora_te1_') == 'lora_te1_' and router.prefix('lora_te2_') == 'lora_te2_'
-    assert router.prefix('lora_te3_') is None, 'the SD3 T5 is not stamped, so its keys stay unmapped'
+    assert router.prefix('lora_te3_') == 'lora_te3_' and router.prefix('t5.') == 'lora_te3_' and router.prefix('text_encoder_3.') == 'lora_te3_'
 
 
 def test_te_path_text_model_either_shape():

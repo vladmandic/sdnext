@@ -102,6 +102,7 @@ def install():
         )
         pipe.text_encoder = transformers.CLIPTextModelWithProjection(transformers.CLIPTextConfig(hidden_size=768, intermediate_size=3072, num_hidden_layers=1, num_attention_heads=12, projection_dim=768))
         pipe.text_encoder_2 = transformers.CLIPTextModelWithProjection(transformers.CLIPTextConfig(hidden_size=1280, intermediate_size=5120, num_hidden_layers=1, num_attention_heads=20, projection_dim=1280))
+        pipe.text_encoder_3 = transformers.T5EncoderModel(transformers.T5Config(d_model=64, d_kv=16, num_heads=4, d_ff=160, num_layers=1, feed_forward_proj='gated-gelu'))
     model_data.sd_model = pipe
     lora_load.lora_cache.clear()
     sd_models_utils.state_dict_cache.disable()
@@ -205,9 +206,12 @@ def test_original_dotted_and_peft():
 def test_text_encoders_by_role():
     install()
     sd = lora('lora_te1_text_model_encoder_layers_0_self_attn_q_proj', 768, 768, 50) | lora('lora_te2_text_model_encoder_layers_0_self_attn_q_proj', 1280, 1280, 51) | lora('lora_te3_encoder_block_0_layer_0_SelfAttention_q', 64, 64, 52)
+    sd |= lora('text_encoder_3.encoder.block.0.layer.1.DenseReluDense.wi_0', 160, 64, 53, down='lora_A.weight', up='lora_B.weight', alpha=False)
     net = load(sd)
     assert any(k.startswith('lora_te1_') for k in net.modules) and any(k.startswith('lora_te2_') for k in net.modules), sorted(net.modules)
-    assert not any(k.startswith('lora_te3_') for k in net.modules), 'the SD3 T5 is not stamped'
+    assert {'lora_te3_encoder_block_0_layer_0_SelfAttention_q', 'lora_te3_encoder_block_0_layer_1_DenseReluDense_wi_0'} <= set(net.modules), sorted(net.modules)
+    net.te_multiplier, net.unet_multiplier = 0.3, 0.7
+    assert net.modules['lora_te3_encoder_block_0_layer_0_SelfAttention_q'].multiplier() == 0.3, 'T5 keys take the text-encoder strength'
 
 
 # ============================================================

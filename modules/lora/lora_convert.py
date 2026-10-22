@@ -99,6 +99,11 @@ def assign_network_names_to_compvis_modules(sd_model):
             network_name = "lora_te2_" + name.replace(".", "_")
             network_layer_mapping[network_name] = module
             module.network_layer_name = network_name
+    if hasattr(sd_model, 'text_encoder_3') and sd_model.text_encoder_3 is not None:
+        for name, module in sd_model.text_encoder_3.named_modules():
+            network_name = "lora_te3_" + name.replace(".", "_")
+            network_layer_mapping[network_name] = module
+            module.network_layer_name = network_name
     if hasattr(sd_model, 'unet') and sd_model.unet is not None:
         for name, module in sd_model.unet.named_modules():
             network_name = "lora_unet_" + name.replace(".", "_")
