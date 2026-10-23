@@ -20,6 +20,7 @@ class NetworkModuleBOFT(network.NetworkModule):  # pylint: disable=abstract-meth
     re-derived via :func:`butterfly_factor`, which keeps loading deterministic
     even if the upstream factorization heuristic changes.
     """
+    weight_dependent = True
 
     def __init__(self, net: network.Network, weights: network.NetworkWeights):
         super().__init__(net, weights)

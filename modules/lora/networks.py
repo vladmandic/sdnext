@@ -458,6 +458,13 @@ def network_deactivate(include=None, exclude=None):
                         if task is not None:
                             pbar.update(task, advance=1)
                         continue
+                    if tensor_backup(module) is not None: # a weight-dependent delta recomputed on the fused weight is not the one applied; the copy restores the layer
+                        network_apply_weights(module, None, None, device=device)
+                        applied_layers.append(network_layer_name)
+                        module.network_current_names = ()
+                        if task is not None:
+                            pbar.update(task, advance=1)
+                        continue
                     batch_updown, batch_ex_bias = network_calc_weights(module, network_layer_name, use_previous=True, elimit=elimit)
                     if fuse:
                         weight_written, bias_written = network_apply_direct(module, batch_updown, batch_ex_bias, device=device, deactivate=True)

@@ -20,6 +20,9 @@ for the per-model analyzer):
   before re-entering the factor path, layers targeted by only some of the
   loaded networks stay independent, and untargeted quantized layers are not
   flagged as requantized.
+- Pristine base: a weight-dependent set (DoRA here) is computed on the
+  layer's stored copy in backup mode, and fuse mode keeps such a copy for the
+  layers it touches and restores them on removal; a plain set keeps the marker.
 - Robustness: factor removal restores onto the layer's current device after
   an offload-style move, and a shape-mismatched network stacked onto a
   factor-mode layer downgrades to the legacy path instead of raising.
@@ -381,16 +384,19 @@ def test_backup_mode_clones_full_quant_state():
 
 
 def test_fuse_mode_marker_takes_no_memory():
-    """Fuse mode stores a boolean marker instead of tensors; guard forces backup on quantized models."""
+    """Fuse mode stores a boolean marker instead of tensors, except under a weight-dependent set; guard forces backup on quantized models."""
     from modules.lora.lora_apply import network_backup_weights
     from modules.lora import lora_overrides
     layer = build_layer('uint4')
     A, B, _D = make_delta()
     l_common.loaded_networks.clear()
-    l_common.loaded_networks.append(make_net('dora', layer, A, B, dora=True))
-    reported = network_backup_weights(layer, layer.network_layer_name, (('dora', 1.0, 1.0, None),), fuse=True)
+    l_common.loaded_networks.append(make_net('plain', layer, A, B))
+    reported = network_backup_weights(layer, layer.network_layer_name, (('plain', 1.0, 1.0, None),), fuse=True)
     assert layer.network_weights_backup is True and reported == 0
     assert not hasattr(layer, 'sdnq_dequantizer_backup')
+    l_common.loaded_networks[:] = [make_net('dora', layer, A, B, dora=True)]
+    reported = network_backup_weights(layer, layer.network_layer_name, (('dora', 1.0, 1.0, None),), fuse=True)
+    assert isinstance(layer.network_weights_backup, torch.Tensor) and reported > 0, 'a weight-dependent set keeps a copy in fuse mode'
 
     # the guard: a quantized component forces fuse off model-wide regardless of the option
     class MockCfg:
@@ -645,6 +651,60 @@ def test_fuse_change_then_remove_restores_pristine():
         rho2 = rho_of(resid, D)
         assert abs(rho2) < 0.05, f'rho={rho2:.3f} removal must subtract the strength that was applied'
         assert float(resid.abs().max()) < 2e-3, f'max={float(resid.abs().max()):.2e} removal must leave only rounding residue'
+    return True
+
+
+# ============================================================
+# Tests - the pristine base of weight-dependent deltas
+# ============================================================
+
+CAT_BASE = category('pristine-base')
+
+
+def plain_fixture(seed=0, name='base'):
+    """An unquantized fp32 Linear, so fuse stays allowed and the arithmetic is exact to rounding."""
+    torch.manual_seed(seed)
+    lin = torch.nn.Linear(64, 48).to(DEVICE)
+    lin.network_layer_name = f'lora_transformer_{name}'
+    lin.network_current_names = ()
+    return lin, lin.weight.detach().clone()
+
+
+def small_net(name, lin, dora=False):
+    return make_net(name, lin, torch.randn(4, 64, device=DEVICE) * 0.2, torch.randn(48, 4, device=DEVICE) * 0.2, dora=dora)
+
+
+def test_backup_mode_computes_dora_on_the_pristine_weight():
+    """Backup mode has no removal pass: a weight-dependent set applied after another must read the stored copy, not the live weight."""
+    lin, w0 = plain_fixture()
+    net_plain = small_net('base_plain', lin)
+    net_dora = small_net('base_dora', lin, dora=True)
+    want, _ = net_dora.modules[lin.network_layer_name].calc_updown(w0)
+    with mock_model(lin=lin):
+        activate(net_plain)
+        activate(net_dora)
+        got = lin.weight.detach() - w0
+    assert torch.allclose(got, want, atol=1e-5), f'max |got-want|={float((got - want).abs().max()):.2e}'
+    return True
+
+
+def test_fuse_mode_restores_a_weight_dependent_set_from_its_copy():
+    """Fuse mode keeps a copy of the layers a weight-dependent set touches and restores them on removal; a plain set keeps the marker."""
+    lin, w0 = plain_fixture()
+    net_dora = small_net('base_dora', lin, dora=True)
+    with mock_model(lin=lin):
+        shared.opts.lora_fuse_native = True
+        activate(net_dora)
+        assert isinstance(lin.network_weights_backup, torch.Tensor), 'a weight-dependent set must keep a copy in fuse mode'
+        assert float((lin.weight.detach() - w0).abs().max()) > 0.1, 'the set must have changed the weight'
+        l_common.previously_loaded_networks[:] = l_common.loaded_networks
+        l_common.loaded_networks.clear()
+        networks.network_deactivate()
+        networks.network_activate()
+        residue = float((lin.weight.detach() - w0).abs().max())
+        assert residue < 1e-6, f'residue={residue:.2e}'
+        activate(small_net('base_plain', lin))
+        assert lin.network_weights_backup is True, 'a plain set keeps the marker in fuse mode'
     return True
 
 
@@ -3011,6 +3071,9 @@ def run_tests():
                test_mechanism_gate_declines_candidates, test_requantize_option_routes_to_legacy_path,
                test_mechanism_flip_strips_attached_factors, test_mechanism_flip_restore_pass_strips]:
         run_test(CAT_TRANS, fn)
+    log.warning('=== Pristine base ===')
+    for fn in [test_backup_mode_computes_dora_on_the_pristine_weight, test_fuse_mode_restores_a_weight_dependent_set_from_its_copy]:
+        run_test(CAT_BASE, fn)
     log.warning('=== Hosting ===')
     for fn in [test_hosted_low_rank_delta_is_kept, test_hosted_dense_delta_beats_requant, test_hosted_skips_int8,
                test_hosted_disabled_by_option, test_hosted_transitions_and_rng_isolation,

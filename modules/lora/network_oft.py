@@ -7,6 +7,8 @@ from modules.lora.lyco_helpers import factorization
 # Supports both kohya-ss' implementation of COFT  https://github.com/kohya-ss/sd-scripts/blob/main/networks/oft.py
 # and KohakuBlueleaf's implementation of OFT/COFT https://github.com/KohakuBlueleaf/LyCORIS/blob/dev/lycoris/modules/diag_oft.py
 class NetworkModuleOFT(network.NetworkModule): # pylint: disable=abstract-method
+    weight_dependent = True
+
     def __init__(self,  net: network.Network, weights: network.NetworkWeights):
         super().__init__(net, weights)
         self.lin_module = None

@@ -196,6 +196,8 @@ class Network:  # LoraModule
 
 
 class NetworkModule:
+    weight_dependent = False # the family's delta is a function of the target weight
+
     def __init__(self, net: Network, weights: NetworkWeights):
         self.network = net
         self.network_key = weights.network_key
@@ -242,6 +244,10 @@ class NetworkModule:
             return base
         from modules.lora import lora_blocks
         return base * lora_blocks.factor(self.sd_key, self.network)
+
+    def depends_on_weight(self):
+        """True when the delta is a function of the target weight; apply and removal then need the pristine one."""
+        return self.weight_dependent or self.dora_scale is not None
 
     def calc_scale(self):
         if self.scale is not None:

@@ -19,13 +19,16 @@ re_network_name = re.compile(r"(.*)\s*\([0-9a-fA-F]+\)")
 
 def network_backup_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.GroupNorm | torch.nn.LayerNorm | diffusers.models.lora.LoRACompatibleLinear | diffusers.models.lora.LoRACompatibleConv, network_layer_name: str, wanted_names: tuple, fuse: bool):
     backup_size = 0
-    if len(l.loaded_networks) > 0 and network_layer_name is not None and any([net.modules.get(network_layer_name, None) for net in l.loaded_networks]): # noqa: C419 # pylint: disable=R1729
+    modules = [net.modules.get(network_layer_name, None) for net in l.loaded_networks] if network_layer_name is not None else []
+    modules = [module for module in modules if module is not None]
+    if len(modules) > 0:
         t0 = time.time()
+        tensor = not fuse or any(module.depends_on_weight() for module in modules) # a delta computed from the weight cannot be subtracted off the fused weight; such layers restore from a copy in either mode
 
         weights_backup = getattr(self, "network_weights_backup", None)
         bias_backup = getattr(self, "network_bias_backup", None)
         if weights_backup is not None or bias_backup is not None:
-            if (fuse and not isinstance(weights_backup, bool)) or (not fuse and isinstance(weights_backup, bool)): # invalidate so we can change direct/backup on-the-fly
+            if isinstance(weights_backup, bool) == tensor: # invalidate so we can change direct/backup on-the-fly
                 weights_backup = None
                 bias_backup = None
                 self.network_weights_backup = weights_backup
@@ -34,24 +37,24 @@ def network_backup_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Gr
         if weights_backup is None and wanted_names != (): # pylint: disable=C1803
             weight = getattr(self, 'weight', None)
             self.network_weights_backup = None
-            if fuse:
-                self.network_weights_backup = True
-            else:
+            if tensor:
                 self.network_weights_backup = weight.clone().to(devices.cpu)
                 if hasattr(self, "sdnq_dequantizer"):
                     from sdnq.common import sdnq_keys
                     for key in sdnq_keys:
-                        tensor = getattr(self, key, None)
-                        if tensor is not None:
-                            setattr(self, "sdnq_" + key + "_backup", tensor.clone().to(devices.cpu))
+                        value = getattr(self, key, None)
+                        if value is not None:
+                            setattr(self, "sdnq_" + key + "_backup", value.clone().to(devices.cpu))
                     self.sdnq_dequantizer_backup = self.sdnq_dequantizer
+            else:
+                self.network_weights_backup = True
 
         if bias_backup is None:
             if getattr(self, 'bias', None) is not None:
-                if fuse:
-                    self.network_bias_backup = True
-                else:
+                if tensor:
                     self.network_bias_backup = self.bias.clone().to(devices.cpu)
+                else:
+                    self.network_bias_backup = True
 
         if getattr(self, 'network_weights_backup', None) is not None:
             backup_size += self.network_weights_backup.numel() * self.network_weights_backup.element_size() if isinstance(self.network_weights_backup, torch.Tensor) else 0
@@ -59,6 +62,30 @@ def network_backup_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Gr
             backup_size += self.network_bias_backup.numel() * self.network_bias_backup.element_size() if isinstance(self.network_bias_backup, torch.Tensor) else 0
         l.timer.backup += time.time() - t0
     return backup_size
+
+
+def pristine_weight(self: torch.nn.Module) -> torch.Tensor:
+    """The layer's weight before any network, dequantized, on the compute device."""
+    weights_backup = getattr(self, "network_weights_backup", None)
+    if isinstance(weights_backup, torch.Tensor):
+        if hasattr(self, "sdnq_dequantizer_backup"):
+            from sdnq.common import sdnq_keys
+            sdnq_params = {}
+            for key in sdnq_keys:
+                tensor = getattr(self, "sdnq_" + key + "_backup", None)
+                if tensor is not None:
+                    sdnq_params[key] = tensor.to(devices.device)
+            sdnq_params["weight"] = weights_backup.to(devices.device)
+            return self.sdnq_dequantizer_backup(**sdnq_params, skip_quantized_matmul=self.sdnq_dequantizer_backup.use_quantized_matmul)
+        return weights_backup.to(devices.device)
+    if hasattr(self, "sdnq_dequantizer"):
+        from sdnq.utils import get_sdnq_params
+        sdnq_params = get_sdnq_params(self)
+        for key, value in sdnq_params.items():
+            if value is not None:
+                sdnq_params[key] = value.to(devices.device)
+        return self.sdnq_dequantizer(**sdnq_params, skip_quantized_matmul=self.sdnq_dequantizer.use_quantized_matmul)
+    return self.weight.to(devices.device) # must perform calc on gpu due to performance
 
 
 def network_calc_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.GroupNorm | torch.nn.LayerNorm | diffusers.models.lora.LoRACompatibleLinear | diffusers.models.lora.LoRACompatibleConv, network_layer_name: str, use_previous: bool = False, *, elimit: Callable[[], None] | None = None, per_net: bool = False):
@@ -79,24 +106,7 @@ def network_calc_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Grou
             continue
         try:
             t0 = time.time()
-            if hasattr(self, "sdnq_dequantizer_backup"):
-                from sdnq.common import sdnq_keys
-                sdnq_params = {}
-                for key in sdnq_keys:
-                    tensor = getattr(self, "sdnq_" + key + "_backup", None)
-                    if tensor is not None:
-                        sdnq_params[key] = tensor.to(devices.device)
-                sdnq_params["weight"] = self.weight.to(devices.device)
-                weight = self.sdnq_dequantizer_backup(**sdnq_params, skip_quantized_matmul=self.sdnq_dequantizer_backup.use_quantized_matmul)
-            elif hasattr(self, "sdnq_dequantizer"):
-                from sdnq.utils import get_sdnq_params
-                sdnq_params = get_sdnq_params(self)
-                for key, value in sdnq_params.items():
-                    if value is not None:
-                        sdnq_params[key] = value.to(devices.device)
-                weight = self.sdnq_dequantizer(**sdnq_params, skip_quantized_matmul=self.sdnq_dequantizer.use_quantized_matmul)
-            else:
-                weight = self.weight.to(devices.device) # must perform calc on gpu due to performance
+            weight = pristine_weight(self)
             updown, ex_bias = module.calc_updown(weight)
             weight = None
             del weight
@@ -262,7 +272,7 @@ def network_apply_direct(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Grou
     """Add the deltas onto the live tensors; returns which of (weight, bias) was written."""
     weights_backup = getattr(self, "network_weights_backup", False)
     bias_backup = getattr(self, "network_bias_backup", False)
-    if not isinstance(weights_backup, bool): # remove previous backup if we switched settings
+    if not isinstance(weights_backup, bool): # a weight-dependent set keeps a copy for its removal; the delta still lands on the live weight
         weights_backup = True
     if not isinstance(bias_backup, bool):
         bias_backup = True

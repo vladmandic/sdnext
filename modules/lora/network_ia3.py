@@ -1,6 +1,8 @@
 import modules.lora.network as network
 
 class NetworkModuleIa3(network.NetworkModule): # pylint: disable=abstract-method
+    weight_dependent = True
+
     def __init__(self,  net: network.Network, weights: network.NetworkWeights):
         super().__init__(net, weights)
         self.w = weights.w["weight"]

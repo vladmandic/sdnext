@@ -4,6 +4,8 @@ import modules.lora.network as network
 
 # adapted from https://github.com/KohakuBlueleaf/LyCORIS
 class NetworkModuleGLora(network.NetworkModule): # pylint: disable=abstract-method
+    weight_dependent = True
+
     def __init__(self,  net: network.Network, weights: network.NetworkWeights):
         super().__init__(net, weights)
 
