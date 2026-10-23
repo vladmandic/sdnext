@@ -158,7 +158,7 @@ def w(shape, value=1.0):
 def load(sd: dict):
     """Run the real loader over ``sd`` against a model exposing the flux block names."""
     from modules import shared
-    from modules.lora import lora_common as l  # noqa: F401  pylint: disable=unused-import
+    from modules.lora import lora_common as l  # pylint: disable=unused-import
     matched.clear()
     global calls  # pylint: disable=global-statement
     calls += 1  # the loader caches by name, so every case needs its own
