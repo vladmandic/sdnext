@@ -1,3 +1,4 @@
+import ast
 import json
 import os
 import re
@@ -59,10 +60,42 @@ class StoryScript(scripts_manager.Script):
 
     def parse_json(self, response):
         response = re.sub(r'^\s*```(?:json)?\s*|\s*```\s*$', '', response.strip(), flags=re.IGNORECASE)
-        match = re.search(r'(\[.*\]|\{.*\})', response, flags=re.DOTALL)
-        if match is None:
-            raise ValueError('Story: LLM response did not contain a JSON value')
-        return json.loads(match.group(1))
+        last_error = None
+        for match in re.finditer(r'[\[{]', response):
+            start = match.start()
+            stack = []
+            quote = None
+            escaped = False
+            for index in range(start, len(response)):
+                char = response[index]
+                if quote is not None:
+                    if escaped:
+                        escaped = False
+                    elif char == '\\':
+                        escaped = True
+                    elif char == quote:
+                        quote = None
+                elif char in ('"', "'"):
+                    quote = char
+                elif char in '[{':
+                    stack.append(']' if char == '[' else '}')
+                elif char in ']}':
+                    if not stack or char != stack.pop():
+                        break
+                    if not stack:
+                        candidate = response[start:index + 1]
+                        try:
+                            return json.loads(candidate)
+                        except json.JSONDecodeError as e:
+                            last_error = e
+                        try:
+                            return ast.literal_eval(candidate)
+                        except (SyntaxError, ValueError) as e:
+                            last_error = e
+                        break
+        if last_error is not None:
+            raise ValueError(f'Story: LLM response did not contain valid JSON or a Python literal: {last_error}') from last_error
+        raise ValueError('Story: LLM response did not contain a JSON value')
 
     def parse_frame_prompts(self, response, slide_count):
         data = self.parse_json(response)
