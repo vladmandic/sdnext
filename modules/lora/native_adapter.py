@@ -785,7 +785,7 @@ def resolve_group_targets(resolve_targets, prefix_used, base):
 # DoRA on fused targets (LoRA/LoKR/LoHA): per-output dora_scale rows are
 # sliced with the chunk via slice_dora_scale (exact, row norms are
 # independent); per-input dora_scale couples the chunks through shared
-# column norms and the group is skipped with a warning.
+# column norms, which a network.DoraGroup computes over every chunk at apply time.
 #
 # Bias companions on fused targets: per-output diff_b deltas slice with the
 # chunk (LoRA only; no other family's save format pairs them). The legacy
@@ -828,8 +828,8 @@ def slice_dora_scale(w, chunk: ChunkSpec, fused_out):
     partition exactly with the fused weight, so the chunk slice preserves the
     DoRA math (row norms are independent across rows). ``wd_on_out=False``
     stores per-input magnitudes whose column norms span every fused row,
-    coupling the chunks; no exact per-chunk equivalent exists and the caller
-    must skip the group.
+    coupling the chunks; the caller shares the norm across them through a
+    ``network.DoraGroup``.
     """
     ds = w.get("dora_scale")
     if ds is None:
@@ -936,6 +936,7 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
                 w.pop(mag_key)
                 w["dora_scale"] = mag.reshape(-1, 1) if mag.ndim == 1 else mag
         arch_prefix = _resolve_prefix(network_prefix, prefix)
+        split_dora = None
         for diffusers_path, chunk in resolve_group_targets(resolve_targets, prefix, base):
             network_key = arch_prefix + diffusers_path.replace(".", "_")
             sd_module = mapping.get(network_key)
@@ -944,6 +945,7 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
                 continue
 
             target_w = w
+            group = None
             if chunk is not None:
                 if "bias_indices" in w or ("bias" in w and chunk.is_slice):
                     # Weight-shaped bias residuals (dense or LyCORIS sparse
@@ -953,11 +955,12 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
                     continue
                 fused_out = w["lora_up.weight"].shape[0]
                 target_w = slice_lora_chunk(w, chunk)
-                target_w = slice_dora_scale(target_w, chunk, fused_out)
-                if target_w is None:
-                    log.warning(f'Network load: type=LoRA name="{name}" arch={arch_name} key={network_key} per-input DoRA on fused target skipped (unsupported)')
-                    skipped += 1
-                    continue
+                sliced = slice_dora_scale(target_w, chunk, fused_out)
+                if sliced is None: # per-input magnitude: its column norm spans every chunk
+                    split_dora = split_dora or network.DoraGroup()
+                    group = split_dora
+                else:
+                    target_w = sliced
                 target_w = slice_bias_delta(target_w, chunk, fused_out)
                 if target_w is None:
                     log.warning(f'Network load: type=LoRA name="{name}" arch={arch_name} key={network_key} non-per-output diff_b on fused target skipped (unsupported)')
@@ -987,7 +990,10 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
                 continue
 
             nw = network.NetworkWeights(network_key=network_key, sd_key=network_key, w=target_w, sd_module=sd_module)
-            net.modules[network_key] = network_lora.NetworkModuleLora(net, nw)
+            module = network_lora.NetworkModuleLora(net, nw)
+            if group is not None:
+                group.add(module)
+            net.modules[network_key] = module
 
     return finalize_network(net, name, "LoRA", lora_scale, t0, unmapped=unmapped, mismatch=mismatch, skipped=skipped, expanded=expanded)
 
@@ -1028,6 +1034,7 @@ def try_load_lokr(name, network_on_disk, lora_scale, *,
             continue
         arch_prefix = _resolve_prefix(network_prefix, prefix)
         kron_shape = lokr_kron_shape(w)
+        split_dora = None
         for diffusers_path, chunk in resolve_group_targets(resolve_targets, prefix, base):
             network_key = arch_prefix + diffusers_path.replace(".", "_")
             sd_module = mapping.get(network_key)
@@ -1044,6 +1051,7 @@ def try_load_lokr(name, network_on_disk, lora_scale, *,
                 mismatch += 1
                 continue
             target_w = w
+            group = None
             if chunk is not None:
                 if chunk.reorder is not None and chunk.is_slice:
                     log.warning(f'Network load: type=LoKR name="{name}" arch={arch_name} key={network_key} row reorder within a fused slice skipped (unsupported)')
@@ -1059,11 +1067,12 @@ def try_load_lokr(name, network_on_disk, lora_scale, *,
                 w2 = w.get("lokr_w2")
                 w1_rows = w1.shape[0] if w1 is not None else w["lokr_w1_a"].shape[0]
                 w2_rows = w2.shape[0] if w2 is not None else w["lokr_w2_a"].shape[0]
-                target_w = slice_dora_scale(w, chunk, fused_out=w1_rows * w2_rows)
-                if target_w is None:
-                    log.warning(f'Network load: type=LoKR name="{name}" arch={arch_name} key={network_key} per-input DoRA on fused target skipped (unsupported)')
-                    skipped += 1
-                    continue
+                sliced = slice_dora_scale(w, chunk, fused_out=w1_rows * w2_rows)
+                if sliced is None: # per-input magnitude: its column norm spans every chunk
+                    split_dora = split_dora or network.DoraGroup()
+                    group = split_dora
+                else:
+                    target_w = sliced
                 if chunk.reorder is not None:
                     target_w = reorder_factor_rows(target_w, ("lokr_w1", "lokr_w1_a"), chunk.reorder)
                     if target_w is None:
@@ -1073,11 +1082,14 @@ def try_load_lokr(name, network_on_disk, lora_scale, *,
                     chunk = None
             nw = network.NetworkWeights(network_key=network_key, sd_key=network_key, w=target_w, sd_module=sd_module)
             if chunk is None:
-                net.modules[network_key] = network_lokr.NetworkModuleLokr(net, nw)
+                module = network_lokr.NetworkModuleLokr(net, nw)
             elif chunk.is_equal_chunks:
-                net.modules[network_key] = network_lokr.NetworkModuleLokrChunk(net, nw, chunk.idx, chunk.total)
+                module = network_lokr.NetworkModuleLokrChunk(net, nw, chunk.idx, chunk.total)
             else:
-                net.modules[network_key] = network_lokr.NetworkModuleLokrSliceChunk(net, nw, chunk.start, chunk.end)
+                module = network_lokr.NetworkModuleLokrSliceChunk(net, nw, chunk.start, chunk.end)
+            if group is not None:
+                group.add(module)
+            net.modules[network_key] = module
 
     return finalize_network(net, name, "LoKR", lora_scale, t0, unmapped=unmapped, mismatch=mismatch, skipped=skipped)
 
@@ -1121,6 +1133,7 @@ def try_load_loha(name, network_on_disk, lora_scale, *,
             skipped += 1
             continue
         arch_prefix = _resolve_prefix(network_prefix, prefix)
+        split_dora = None
         for diffusers_path, chunk in targets:
             network_key = arch_prefix + diffusers_path.replace(".", "_")
             sd_module = mapping.get(network_key)
@@ -1128,6 +1141,7 @@ def try_load_loha(name, network_on_disk, lora_scale, *,
                 unmapped += note_unmapped(network_key)
                 continue
             target_w = w
+            group = None
             if chunk is not None:
                 if chunk.reorder is not None and chunk.is_slice:
                     log.warning(f'Network load: type=LoHA name="{name}" arch={arch_name} key={network_key} row reorder within a fused slice skipped (unsupported)')
@@ -1137,11 +1151,12 @@ def try_load_loha(name, network_on_disk, lora_scale, *,
                     log.warning(f'Network load: type=LoHA name="{name}" arch={arch_name} key={network_key} weight-shaped bias on fused target skipped (unsupported)')
                     skipped += 1
                     continue
-                target_w = slice_dora_scale(w, chunk, fused_out=w["hada_w1_a"].shape[0])
-                if target_w is None:
-                    log.warning(f'Network load: type=LoHA name="{name}" arch={arch_name} key={network_key} per-input DoRA on fused target skipped (unsupported)')
-                    skipped += 1
-                    continue
+                sliced = slice_dora_scale(w, chunk, fused_out=w["hada_w1_a"].shape[0])
+                if sliced is None: # per-input magnitude: its column norm spans every chunk
+                    split_dora = split_dora or network.DoraGroup()
+                    group = split_dora
+                else:
+                    target_w = sliced
                 if chunk.reorder is not None:
                     target_w = reorder_factor_rows(target_w, ("hada_w1_a", "hada_w2_a"), chunk.reorder)
                     if target_w is None:
@@ -1156,12 +1171,16 @@ def try_load_loha(name, network_on_disk, lora_scale, *,
                 continue
             nw = network.NetworkWeights(network_key=network_key, sd_key=network_key, w=target_w, sd_module=sd_module)
             if chunk is None:
-                net.modules[network_key] = network_hada.NetworkModuleHada(net, nw)
+                module = network_hada.NetworkModuleHada(net, nw)
             elif chunk.is_equal_chunks:
-                net.modules[network_key] = network_hada.NetworkModuleHadaChunk(net, nw, chunk.idx, chunk.total)
+                module = network_hada.NetworkModuleHadaChunk(net, nw, chunk.idx, chunk.total)
             else:
                 log.warning(f'Network load: type=LoHA name="{name}" arch={arch_name} key={network_key} unequal fused chunks unsupported')
                 skipped += 1
+                continue
+            if group is not None:
+                group.add(module)
+            net.modules[network_key] = module
 
     return finalize_network(net, name, "LoHA", lora_scale, t0, unmapped=unmapped, mismatch=mismatch, skipped=skipped)
 

@@ -23,6 +23,8 @@ for the per-model analyzer):
 - Pristine base: a weight-dependent set (DoRA here) is computed on the
   layer's stored copy in backup mode, and fuse mode keeps such a copy for the
   layers it touches and restores them on removal; a plain set keeps the marker.
+  A per-input DoRA split across the chunks of a fused weight shares one
+  column norm, read from every sibling's pristine weight, dequantized.
 - Robustness: factor removal restores onto the layer's current device after
   an offload-style move, and a shape-mismatched network stacked onto a
   factor-mode layer downgrades to the legacy path instead of raising.
@@ -705,6 +707,56 @@ def test_fuse_mode_restores_a_weight_dependent_set_from_its_copy():
         assert residue < 1e-6, f'residue={residue:.2e}'
         activate(small_net('base_plain', lin))
         assert lin.network_weights_backup is True, 'a plain set keeps the marker in fuse mode'
+    return True
+
+
+def split_dora_net(name, layers, magnitude):
+    """One per-input DoRA over the fused weight of ``layers``, split in equal chunks that share the column norm."""
+    net = network.Network(name, MockNOD(name))
+    net.unet_multiplier = [1.0] * 3
+    torch.manual_seed(3)
+    down, up = torch.randn(4, layers[0].in_features) * 0.2, torch.randn(sum(layer.out_features for layer in layers), 4) * 0.2
+    group = network.DoraGroup()
+    for layer, up_rows in zip(layers, torch.chunk(up, len(layers))):
+        w = {'lora_up.weight': up_rows.contiguous(), 'lora_down.weight': down, 'dora_scale': magnitude}
+        nw = network.NetworkWeights(network_key=layer.network_layer_name, sd_key=layer.network_layer_name, w=w, sd_module=layer)
+        module = network_lora.NetworkModuleLora(net, nw)
+        group.add(module)
+        net.modules[layer.network_layer_name] = module
+    return net, up @ down
+
+
+def test_split_dora_group_reads_pristine_siblings_in_a_pass():
+    """Backup mode after a plain set: each chunk's norm comes from every sibling's stored copy, so the chunks add up to the DoRA on the fused weight."""
+    layers, w0 = zip(*[plain_fixture(seed=i, name=f'split{i}') for i in range(3)])
+    magnitude = torch.rand(1, 64) + 0.5
+    net_dora, delta = split_dora_net('split_dora', layers, magnitude)
+    fused = torch.cat(w0)
+    merged = fused + delta.to(DEVICE)
+    want = merged * (magnitude.to(DEVICE) / merged.norm(dim=0, keepdim=True)) - fused
+    with mock_model(**{f'split{i}': layer for i, layer in enumerate(layers)}):
+        activate(*[small_net(f'plain{i}', layer) for i, layer in enumerate(layers)])
+        activate(net_dora)
+        got = torch.cat([layer.weight.detach() - base for layer, base in zip(layers, w0)])
+    assert torch.allclose(got, want, atol=1e-5), f'max |got-want|={float((got - want).abs().max()):.2e}'
+    return True
+
+
+def test_split_dora_group_dequantizes_a_quantized_sibling():
+    """A sibling under SDNQ enters the shared column norm dequantized."""
+    plain = torch.nn.Linear(IN_F, OUT_F, bias=False, dtype=torch.bfloat16, device=DEVICE)
+    plain.network_layer_name = 'lora_transformer_mixq0'
+    quant = build_layer('int8', seed=1)
+    quant.network_layer_name = 'lora_transformer_mixq1'
+    magnitude = torch.rand(1, IN_F) + 0.5
+    net, delta = split_dora_net('mixq_dora', [plain, quant], magnitude)
+    member = net.modules[plain.network_layer_name]
+    delta = delta.to(DEVICE)
+    merged_plain = plain.weight.detach() + delta[:OUT_F].to(torch.bfloat16)
+    merged_quant = dq(quant).to(torch.bfloat16) + delta[OUT_F:].to(torch.bfloat16)
+    want = (network.column_norms(merged_plain.float()).square() + network.column_norms(merged_quant.float()).square()).sqrt()
+    got = member.dora_group.column_norms(member, merged_plain).float()
+    assert torch.allclose(got, want, rtol=1e-2), f'max rel err={float(((got - want).abs() / want).max()):.2e}'
     return True
 
 
@@ -3072,7 +3124,8 @@ def run_tests():
                test_mechanism_flip_strips_attached_factors, test_mechanism_flip_restore_pass_strips]:
         run_test(CAT_TRANS, fn)
     log.warning('=== Pristine base ===')
-    for fn in [test_backup_mode_computes_dora_on_the_pristine_weight, test_fuse_mode_restores_a_weight_dependent_set_from_its_copy]:
+    for fn in [test_backup_mode_computes_dora_on_the_pristine_weight, test_fuse_mode_restores_a_weight_dependent_set_from_its_copy,
+               test_split_dora_group_reads_pristine_siblings_in_a_pass, test_split_dora_group_dequantizes_a_quantized_sibling]:
         run_test(CAT_BASE, fn)
     log.warning('=== Hosting ===')
     for fn in [test_hosted_low_rank_delta_is_kept, test_hosted_dense_delta_beats_requant, test_hosted_skips_int8,

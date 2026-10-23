@@ -596,6 +596,45 @@ def test_reorder_per_input_dora():
     assert torch.allclose(updown, want, atol=1e-4)
 
 
+def load_split(loader, state_dict, targets):
+    """Run a family loader with one fused key split in equal chunks onto ``targets``; the modules in that order."""
+    key = 'lora_transformer_target'
+    path = write({f'{key}.{k}': v for k, v in state_dict.items()})
+    real = native_adapter.resolve_mapping
+    native_adapter.resolve_mapping = lambda: {f'{key}_{i}': module for i, module in enumerate(targets)}
+    try:
+        net = loader('split', network.NetworkOnDisk('split', path), 1.0, resolve_targets=lambda prefix, base: [(f'{base}_{i}', native_adapter.ChunkSpec(idx=i, total=len(targets))) for i in range(len(targets))])
+    finally:
+        native_adapter.resolve_mapping = real
+        os.unlink(path)
+    return None if net is None else [net.modules.get(f'{key}_{i}') for i in range(len(targets))]
+
+
+def check_split_per_input_dora(modules, targets, delta, magnitude):
+    """Each chunk must equal its rows of the DoRA on the fused weight."""
+    assert modules is not None and all(m is not None for m in modules), 'every chunk of a per-input DoRA must bind'
+    fused = torch.cat([t.weight.detach() for t in targets])
+    merged = fused + delta
+    want = merged * (magnitude / merged.norm(dim=0, keepdim=True)) - fused
+    for module, target, rows in zip(modules, targets, torch.chunk(want, len(targets))):
+        updown, _ = module.calc_updown(target.weight.detach())
+        assert torch.allclose(updown, rows, atol=1e-4), f'max |got-want|={float((updown - rows).abs().max()):.2e}'
+
+
+def test_split_per_input_dora_lora():
+    targets = [torch.nn.Linear(6, 4) for _ in range(3)]
+    down, up, magnitude = torch.randn(RANK, 6), torch.randn(12, RANK), torch.rand(1, 6) + 0.5
+    modules = load_split(native_adapter.try_load_lora, {'lora_down.weight': down, 'lora_up.weight': up, 'dora_scale': magnitude}, targets)
+    check_split_per_input_dora(modules, targets, up @ down, magnitude)
+
+
+def test_split_per_input_dora_lokr():
+    targets = [torch.nn.Linear(6, 4) for _ in range(3)]
+    w1, w2, magnitude = torch.randn(3, 2), torch.randn(4, 3), torch.rand(1, 6) + 0.5
+    modules = load_split(native_adapter.try_load_lokr, {'lokr_w1': w1, 'lokr_w2': w2, 'dora_scale': magnitude}, targets)
+    check_split_per_input_dora(modules, targets, torch.kron(w1, w2), magnitude)
+
+
 FAMILY_CASES = { # family: (loader, factors for a Linear(6, 8))
     'loha': ('try_load_loha', lambda: {'hada_w1_a': torch.randn(8, 2), 'hada_w1_b': torch.randn(2, 6), 'hada_w2_a': torch.randn(8, 2), 'hada_w2_b': torch.randn(2, 6)}),
     'oft': ('try_load_oft', lambda: {'oft_diag': torch.zeros(2, 4, 4)}),
@@ -743,6 +782,8 @@ def run_tests():
         test_reorder_lokr_uneven_skips,
         test_reorder_loha,
         test_reorder_per_input_dora,
+        test_split_per_input_dora_lora,
+        test_split_per_input_dora_lokr,
         test_family_shape_checks,
         test_full_widens_inpaint_conv_in,
         test_dump_covers_native_arch,

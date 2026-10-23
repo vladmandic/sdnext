@@ -376,6 +376,7 @@ def network_activate(include=None, exclude=None):
     ctx = ActivationPass(lora_overrides.fuse_native()) # fuse resolved once: the backup, apply and restore paths must agree
     applied_layers.clear()
     lora_sdnq.reset_pass()
+    l.pass_token = object()
     modules = {}
     try:
         with limit_errors("network_activate") as elimit:
@@ -406,6 +407,7 @@ def network_activate(include=None, exclude=None):
                 if ctx.task is not None and len(applied_layers) == 0:
                     ctx.pbar.remove_task(ctx.task) # hide progress bar for no action
     finally:
+        l.pass_token = None
         finish_pass(ctx, t0)
         modules.clear()
 
