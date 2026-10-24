@@ -111,12 +111,15 @@ def load_safetensors(name, network_on_disk: network.NetworkOnDisk) -> network.Ne
             continue
         if parts[0] in ["clip_l", "clip_g", "t5", "unet", "transformer", "transformer_2"]:
             network_part = []
-            while parts and parts[-1] in ["alpha","weight","lora_up","lora_down"]:
+            while parts and parts[-1] in ["alpha","weight","lora_up","lora_down","lora_A","lora_B"]:
                 network_part.insert(0,parts[-1])
                 parts = parts[0:-1]
             if not parts:
                 continue
-            network_part = ".".join(network_part)
+            # diffusers PEFT adapters name the pair lora_A/lora_B and can keep the pipeline
+            # prefix (transformer. / unet. / ...), so the suffix has to be folded into the
+            # network part and normalized here instead of staying on the module key
+            network_part = ".".join(network_part).replace("lora_A","lora_down").replace("lora_B","lora_up")
             key_network_without_network_parts = "_".join(parts)
             if key_network_without_network_parts.startswith("unet") or key_network_without_network_parts.startswith("transformer"):
                 key_network_without_network_parts = "lora_" + key_network_without_network_parts
