@@ -1422,7 +1422,9 @@ def install_requirements():
             if not installed(line, quiet=True) or args.reinstall:
                 if args.reinstall:
                     log.trace(f'Install: package="{line}" reinstall')
-                _res = install(line, reinstall=args.reinstall)
+                # reinstall only the listed package - dependencies were handled by the bulk pass above and
+                # force-reinstalling them would replace the backend torch build with a cpu one from pypi
+                _res = install(line, reinstall=args.reinstall, no_deps=args.reinstall)
     install_compel()
     install_pydantic()
     install_opencv()
