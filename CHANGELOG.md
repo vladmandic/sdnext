@@ -56,6 +56,7 @@
   - end-of-life for `python==3.10`  
     see [Python 3.10 EOL](https://endoflife.ai/article-python-310-eol) for details  
   - update major requirements
+  - update `setuptools`, thanks @wbkearly
   - expand `--test` behavior
   - infer transformers `native_spec` everywhere where its not explicitly set
   - remove `subseed` from codebase as its obsolete
@@ -67,6 +68,7 @@
   - krea2: use prequant text-encoder when loading pre-quant model
   - launch: dont overwrite existing LD_LIBRARY_PATH
   - lora: bias deltas no longer refused when the model is quantized or native fuse is off
+  - lora: resolve a/b peft keys, thanks @li-lizhe
   - mageflow: load single-file transformers, including low-rank modulation checkpoints (MageTrail 0.3+)
   - microdecoder: improve error handling
   - moss: downloaded moss-image models appear in the model list
