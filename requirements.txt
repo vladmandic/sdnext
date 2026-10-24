@@ -1,5 +1,5 @@
-# required for `python>=3.12`
-setuptools==69.5.1
+# required for `python>=3.12`; 77.0.3 is the minimum torch accepts and still ships pkg_resources
+setuptools==77.0.3
 wheel
 
 # standard
