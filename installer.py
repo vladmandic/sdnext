@@ -1019,6 +1019,9 @@ def check_torch():
         if not installed('torch') or args.reinstall:
             log.info(f'Install: package="torch" cmd="{torch_command}" download and install in progress... ')
             install('--upgrade pip', 'pip', reinstall=args.reinstall) # pytorch rocm is too large for older pip
+            if sys.platform == 'win32' and 'stable.repo.amd.com' in torch_command:
+                # torchvision needs pillow and the amd index only mirrors its latest version
+                install('pillow', reinstall=True)
             install(torch_command, 'torch torchvision', quiet=False)
 
     try:
