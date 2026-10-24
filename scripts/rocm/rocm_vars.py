@@ -62,35 +62,6 @@ GENERAL_VARS: Dict[str, Dict[str, Any]] = {
             "options": [("0 - Off", "0"), ("1 - On", "1")],
             "restart_required": False,
         },
-    "MIOPEN_GEMM_ENFORCE_BACKEND": {
-        "default": "1",
-        "desc": "GEMM backend",
-        "widget": "dropdown",
-        "options": [("1 - rocBLAS", "1"), ("5 - hipBLASLt", "5")],
-        "restart_required": False,
-    },
-    "PYTORCH_ROCM_USE_ROCBLAS": {
-        "default": "0",
-        "desc": "PyTorch: Use rocBLAS",
-        "widget": "dropdown",
-        "options": [("0 - Off", "0"), ("1 - On", "1")],
-        "restart_required": True,
-    },
-    "PYTORCH_HIPBLASLT_DISABLE": {
-        "default": "1",
-        "desc": "PyTorch: Use hipBLASLt",
-        "widget": "dropdown",
-        "options": [("0 - Allow hipBLASLt", "0"), ("1 - Disable hipBLASLt", "1")],
-        "restart_required": True,
-    },
-    "ROCBLAS_USE_HIPBLASLT": {
-        "default": "0",
-        "desc": "rocBLAS: use hipBLASLt backend",
-        "widget": "dropdown",
-        "options": [("0 - Tensile (rocBLAS)", "0"), ("1 - hipBLASLt", "1")],
-        "restart_required": True,
-    },
-
     "MIOPEN_SEARCH_CUTOFF": {
         "default": "0",
         "desc": "Enable early termination of suboptimal searches",
@@ -158,13 +129,6 @@ GENERAL_VARS: Dict[str, Dict[str, Any]] = {
     #    "options": [("0 - Use Cache", "0"), ("1 - Benchmark new shapes", "1")],
     #    "restart_required": False,
     #},
-    #"PYTORCH_TUNABLEOP_HIPBLASLT_ENABLED": {
-    #    "default": "0",
-    #    "desc": "TunableOp: benchmark hipBLASLt kernels",
-    #    "widget": "dropdown",
-    #    "options": [("0 - Off", "0"), ("1 - On", "1")],
-    #    "restart_required": False,
-    #},
     #
     #"ROCBLAS_LAYER": {
     #    "default": "0",
@@ -215,12 +179,3 @@ ROCM_ENV_VARS: Dict[str, Dict[str, Any]] = {}
 ROCM_ENV_VARS.update(GENERAL_VARS)
 
 MIOPEN_LOGGING_VARS = {"MIOPEN_LOG_LEVEL", "MIOPEN_DEBUG_ENABLE"}
-
-# Variables that are relevant only when hipBLASLt is the active GEMM backend.
-# These are visually greyed-out in the UI when rocBLAS (MIOPEN_GEMM_ENFORCE_BACKEND="1") is selected.
-HIPBLASLT_VARS: set = {
-    "PYTORCH_HIPBLASLT_DISABLE",
-    "ROCBLAS_USE_HIPBLASLT",
-    "PYTORCH_TUNABLEOP_HIPBLASLT_ENABLED",
-    "HIPBLASLT_LOG_LEVEL",
-}
