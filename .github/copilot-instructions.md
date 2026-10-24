@@ -31,7 +31,7 @@ This file contains general guidelines for contributing to the SD.Next codebase, 
 
 - `venv` for Python environment management, activated with `source venv/bin/activate` (Linux) or `venv\Scripts\activate` (Windows).  
   venv MUST be activated before running any Python commands or scripts to ensure correct dependencies and environment variables.  
-- `python` 3.10+.
+- `python` 3.11+.
 - `pyproject.toml` for Python configuration, including linting and type checking settings.
 - `eslint` configured for both core and UI code.
 - `pnpm` for managing JavaScript dependencies and scripts, with key commands defined in `package.json`.

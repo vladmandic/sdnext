@@ -27,8 +27,9 @@ def check(force=False):
 
 
 def install_nunchaku(force=False):
+    from modules import devices
     if not force:
-        from modules import devices, shared
+        from modules import shared
         if devices.backend is None:
             return False # too early
         if shared.cmd_opts.reinstall:

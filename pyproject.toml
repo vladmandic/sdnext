@@ -3,7 +3,7 @@ name = "SD.Next"
 version = "0.0.0"
 description = "SD.Next: All-in-one WebUI for AI generative image and video creation and captioning"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 
 [tool.ruff]
 line-length = 250
@@ -84,7 +84,7 @@ docstring-code-format = false
 max-complexity = 150
 
 [tool.pylint]
-main.py-version="3.10"
+main.py-version="3.11"
 main.analyse-fallback-blocks=false
 main.clear-cache-post-run=false
 main.extension-pkg-allow-list=""
@@ -380,7 +380,7 @@ reportInvalidTypeForm = "none"
 [tool.ty.environment]
 python = "./venv/bin/python"
 python-platform = "all"
-python-version = "3.10"
+python-version = "3.11"
 
 [tool.ty.src]
 include = [

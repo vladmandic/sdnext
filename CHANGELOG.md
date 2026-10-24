@@ -1,6 +1,20 @@
 # Change Log for SD.Next
 
-## Update for 2026-10-22
+## Update for 2026-10-24
+
+### Highlights for 2026-10-24
+
+*What's new in this release?*
+- One new base model: ***Bria FIBO 2.0**  
+- Major improvements to **Prompt Enhance** functionality to make it more versatile and cover usage in new structured/json based prompts  
+- New playground feature **Story Mode**  
+- Updates to **AI Coding** instructions and skills: try your favorite model/tool on SD.Next, you might be surprised how quickly it adapts and performs  
+- And many more smaller improvements and fixes...
+
+> [!IMPORTANT]
+> Python 3.10 is end-of-life as of October 2026!
+
+### Details for 2026-10-24
 
 - **Models**
   - [Bria FIBO 2.0](https://huggingface.co/briaai/Fibo-2.0-dev) *Dev* base and *Edit Turbo* distilled variants  
@@ -15,6 +29,9 @@
   - add presets for different prompt styles: *Standard, Simple, Detailed, Creative, Structured, JSON, Tag*  
     use different presets depending on the desired prompt style and model's preferred input format  
     added as more and more models require highly structured and/or json-based prompts  
+  - set [Qwen-3.5-4B sdnq-uint8](https://huggingface.co/SD-Next/Qwen-3.5-4B-sdnq-uint8) as default model for all prompt enhance and caption tasks  
+  - improve all system prompts
+  - improve thinking mode
 - **Story Mode**
   - new story mode feature for generating multiple slides in a sequence  
     in *extras -> story mode*  
@@ -35,13 +52,18 @@
   - customizable logging theme  
     see `data/console.json` for defaults and specify custom file using env variable `SDNEXT_CONSOLE_THEME`  
 - **Internal**
+  - end-of-life for `python==3.10`  
+    see [Python 3.10 EOL](https://endoflife.ai/article-python-310-eol) for details  
+  - update major requirements
   - expand `--test` behavior
   - infer transformers `native_spec` everywhere where its not explicitly set
   - remove `subseed` from codebase as its obsolete
   - remove `seed resize` from codebase as its obsolete
 - **Fixes**
   - api: return complete set in GET /sdapi/v1/options, thanks @Jackmeson1
+  - caption: get/set attention fallbacks
   - dlss: save once when running as extras
+  - krea2: use prequant text-encoder when loading pre-quant model
   - launch: dont overwrite existing LD_LIBRARY_PATH
   - lora: bias deltas no longer refused when the model is quantized or native fuse is off
   - mageflow: load single-file transformers, including low-rank modulation checkpoints (MageTrail 0.3+)
@@ -56,7 +78,9 @@
   - offload: group offload recognizes vae encode and decode entry points with current diffusers
   - prompt encode: expand simple str-to-json handling for models that require json
   - prompt encode: invalidate cache on te or lora change, thanks @Jackmeson1
+  - prompt enhance: autodetext txt vs img llms
   - rocm: add explicit support for gfx1030, thanks @resonantsky
+  - rocm: remove obsolete switches from rocm script, thanks @resonantsky
   - scheduler: delete orphan records on record deletion
   - sdnq: attention dtype and mask fixes
   - seedvr: unblock usage on non-cuda devices

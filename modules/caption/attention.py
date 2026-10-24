@@ -7,7 +7,12 @@ ATTENTIONS = ['eager', 'sdpa', 'flash_attention_2', 'flash_attention_3', 'flex_a
 def get_first_attention_block(model): # for models still using transformers==4 internal architecture
     m = model.model
     if hasattr(m, "layers"):
-        return m.layers[0].self_attn if hasattr(m.layers[0], "self_attn") else m.layers[0].attention
+        layer = m.layers[0]
+        for name in ("self_attn", "attention", "linear_attn"):
+            attention = getattr(layer, name, None)
+            if attention is not None:
+                return attention
+        return None
     if hasattr(m, "transformer") and hasattr(m.transformer, "layers"):
         return m.transformer.layers[0].attention
     if hasattr(m, "block"):
@@ -26,6 +31,7 @@ def set_attention(model):
         default = model._get_attn_implementation() # pylint: disable=protected-access
     else:
         default = get_first_attention_block(model)
+        default = default.__class__.__name__ if getattr(default, "__class__", None) else default
         log.debug(f"LLM attention: cls={model.__class__.__name__} default={default} fixed")
         return
 

@@ -208,7 +208,7 @@ def create_ui():
                         with gr.Row():
                             vlm_custom_args = gr.Textbox(label='Custom Args', value=shared.opts.caption_vlm_custom_args, placeholder='key=value pairs separated by ; or newlines', lines=2, elem_id='vlm_custom_args')
                         with gr.Row():
-                            vlm_keep_thinking = gr.Checkbox(label='Keep Thinking Trace', value=shared.opts.caption_vlm_keep_thinking, elem_id='vlm_keep_thinking')
+                            vlm_keep_thinking = gr.Checkbox(label='Keep Thinking trace', value=shared.opts.caption_vlm_keep_thinking, elem_id='vlm_keep_thinking')
                             vlm_keep_prefill = gr.Checkbox(label='Keep Prefill', value=shared.opts.caption_vlm_keep_prefill, elem_id='vlm_keep_prefill')
                         with gr.Row():
                             vlm_prefill = gr.Textbox(label='Prefill Text', value='', lines=1, elem_id='vlm_prefill', placeholder='Optional prefill text for model to continue from')

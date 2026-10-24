@@ -183,7 +183,8 @@ def create_sdnq_config(kwargs = None,
         codebook = f'{shared.opts.sdnq_use_codebook} steps={shared.opts.sdnq_codebook_steps}' if shared.opts.sdnq_use_codebook else f'{shared.opts.sdnq_use_codebook}'
         log.debug(f'Quantization: module="{module}" type=sdnq mode=pre dtype={weights_dtype} scale_dtype={shared.opts.sdnq_quantize_scale_mode} svd={svd} hadamard={hadamard} codebook={codebook} codebook_scale={shared.opts.sdnq_use_codebook_scale} dynamic={shared.opts.sdnq_use_dynamic_quantization} group={shared.opts.sdnq_group_size} loss={shared.opts.sdnq_dynamic_loss_threshold} matmul_dtype={quantized_matmul_dtype_log} matmul_quant={use_quantized_matmul} matmul_conv={shared.opts.sdnq_use_quantized_matmul_conv} quant_conv={shared.opts.sdnq_quantize_conv_layers} quant_embed={shared.opts.sdnq_quantize_embedding_layers} fp32={shared.opts.sdnq_dequantize_fp32} device={quantization_device} return={return_device} gpu={shared.opts.sdnq_quantize_with_gpu} map={shared.opts.device_map}')
         if len(modules_to_not_convert) > 0 or modules_dtype_dict:
-            log.debug(f'Quantization: module={module} type=sdnq skip_modules={modules_to_not_convert} modules_dtype_dict={modules_dtype_dict}')
+            if debug:
+                log.debug(f'Quantization: module="{module}" type=sdnq skip_modules={modules_to_not_convert} modules_dtype_dict={modules_dtype_dict}')
         if kwargs is None:
             return sdnq_config
         else:
