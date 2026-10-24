@@ -785,8 +785,8 @@ def install_rocm():
                 log.error('ROCm: no agent found - make sure that graphics driver is installed and up to date')
             if device is not None and device.therock is not None:
                 check_python(supported_minors=[11, 12, 13], reason='ROCm-Windows: python==3.11/3.12/3.13 required')
-                # Use device-specific index for torch/torchvision, with root index as fallback for torchaudio and other packages
-                torch_command = os.environ.get('TORCH_COMMAND', f'"torch[device-{device.therock}]==2.13.0+rocm10.0.0" "torchvision[device-{device.therock}]==0.28.0+rocm10.0.0" "torchaudio==2.11.0+rocm10.0.0"  --index-url https://stable.repo.amd.com/rocm/whl-next/')
+                # Use device-specific index for torch/torchvision, with pypi as fallback for dependencies (e.g. pillow pinned in constraints.txt)
+                torch_command = os.environ.get('TORCH_COMMAND', f'"torch[device-{device.therock}]==2.13.0+rocm10.0.0" "torchvision[device-{device.therock}]==0.28.0+rocm10.0.0" "torchaudio==2.11.0+rocm10.0.0"  --index-url https://stable.repo.amd.com/rocm/whl-next/ --extra-index-url https://pypi.org/simple')
             elif isinstance(rocm.environment, rocm.PythonPackageEnvironment):
                 check_python(supported_minors=[11, 12, 13], reason='ROCm-Windows: python==3.11/3.12/3.13 required')
                 torch_command = os.environ.get('TORCH_COMMAND', 'torch torchvision torchaudio --index-url https://stable.repo.amd.com/rocm/whl-next/')
