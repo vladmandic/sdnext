@@ -71,10 +71,10 @@ def hf_search(keyword):
     import huggingface_hub as hf
     t0 = time.time()
     hf_api = hf.HfApi()
-    models = hf_api.list_models(model_name=keyword, full=True, filter="diffusers", limit=50, sort="downloads")
+    models = hf_api.list_models(search=keyword, full=True, filter="diffusers", limit=50, sort="downloads")
     data = []
     for model in models:
-        tags = [t for t in model.tags if not t.startswith('diffusers') and not t.startswith('license') and not t.startswith('arxiv') and len(t) > 2]
+        tags = [t for t in (model.tags or []) if not t.startswith('diffusers') and not t.startswith('license') and not t.startswith('arxiv') and len(t) > 2]
         data.append([model.id, model.pipeline_tag, tags, model.downloads, model.lastModified, f'https://huggingface.co/{model.id}'])
     log.debug(f'Huggingface: search="{keyword}" results={len(data)} time={time.time()-t0:.2f}')
     return data

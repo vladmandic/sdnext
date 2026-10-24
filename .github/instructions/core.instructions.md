@@ -18,7 +18,7 @@ applyTo: "launch.py, webui.py, installer.py, modules/**/*.py, pipelines/**/*.py,
 
 - `venv` for Python environment management, activated with `source venv/bin/activate` (Linux) or `venv\Scripts\activate` (Windows).  
   venv MUST be activated before running any Python commands or scripts to ensure correct dependencies and environment variables.  
-- `python` 3.10+.
+- `python` 3.11+.
 - `pyproject.toml` for Python configuration, including linting and type checking settings.
 - `pnpm` for managing JavaScript dependencies and scripts, with key commands defined in `package.json`.
 - `ruff` and `pylint` for Python linting, with configurations in `pyproject.toml` and executed via `pnpm ruff` and `pnpm pylint`.

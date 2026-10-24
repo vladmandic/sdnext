@@ -28,8 +28,8 @@ class Torch(dict):
 
 
 # target commit hashes for specific packages
-diffusers_target = '1ddaf8f4e7c33afaa7c6c2c3be9e56f2c2a634c8' # diffusers commit hash == 0.41.0.dev0 == 10-21-2026
-transformers_target = 'b70d02fc724d04c916832ca4ead03ff05e8fb1ee' # transformers commit hash == 5.13.0.dev0 == 07-03-2026
+diffusers_target = 'aaf57d03a3edfbd9de457d2872417a92f149a91d' # diffusers commit hash == 0.42.0.dev0 == 2026-10-24
+transformers_target = '50e35cc0ca18ec19b80653690de553e6decf74f5' # transformers commit hash == 5.20.2.dev0 == 2026-10-24
 sdnq_target = '35337772cdd3ca160d8ab216d06b22461fa476dc' # sdnq commit hash == 0.2.9 == 10-16-2026
 
 git_commit = "unknown"
@@ -651,7 +651,7 @@ def check_transformers():
         return
     pkg_transformers = package_spec('transformers')
     pkg_tokenizers = package_spec('tokenizers')
-    target_tokenizers = '0.22.2'
+    target_tokenizers = '0.23.3'
     # Git commit-pinned version
     transformers_commit = package_commit(pkg_transformers)
     if args.reinstall or (pkg_transformers is None) or (pkg_transformers.version.startswith('4')) or (transformers_commit != transformers_target):
@@ -2020,7 +2020,7 @@ def ensure_base_requirements():
     # used by installer itself so must be installed before requirements
     install('rich==15.0.0', 'rich', quiet=True)
     install('psutil', 'psutil', quiet=True)
-    install('requests==2.32.3', 'requests', quiet=True)
+    install('requests==2.34.2', 'requests', quiet=True)
     ts('base', t_start)
 
 
