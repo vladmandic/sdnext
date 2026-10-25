@@ -65,8 +65,6 @@ def load_diffusers(name: str, network_on_disk: network.NetworkOnDisk, lora_scale
             name = load_per_module(sd_model, network_on_disk.filename, adapter_name=name, lora_modules=lora_module)
             sd_model._lora_partial = True # pylint: disable=protected-access
         else:
-            if shared.sd_model_type in ['sd', 'sdxl']: # skip te to avoid errors when lora does not have te to start with
-                diffusers.loaders.lora_pipeline._load_lora_into_text_encoder = lambda *args, **kwargs: None # pylint: disable=protected-access
             sd_model.load_lora_weights(network_on_disk.filename, adapter_name=name)
     except Exception as e:
         if 'already in use' in str(e):
