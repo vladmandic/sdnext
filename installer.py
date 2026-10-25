@@ -1976,7 +1976,7 @@ def read_options():
 
 def ensure_base_requirements():
     t_start = time.time()
-    setuptools_version = '69.5.1'
+    setuptools_version = '77.0.3'
     if (args.uv or '--uv' in sys.argv) and (shutil.which('uv') is not None): # early enable uv
         args.uv = True # pylint: disable=attribute-defined-outside-init
         uv_info()
@@ -2028,6 +2028,7 @@ def ensure_base_requirements():
     install('rich==15.0.0', 'rich', quiet=True)
     install('psutil', 'psutil', quiet=True)
     install('requests==2.32.3', 'requests', quiet=True)
+    install('Pillow==13.0.0', 'Pillow', quiet=True)
     ts('base', t_start)
 
 

@@ -14,6 +14,10 @@
 > [!IMPORTANT]
 > Python 3.10 is end-of-life as of October 2026!
 
+See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) below for full details
+
+[Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
+
 ### Details for 2026-10-24
 
 - **Models**
