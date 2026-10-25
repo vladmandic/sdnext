@@ -39,10 +39,10 @@ def _to_ndarray_rgb_float(img) -> np.ndarray:
     elif arr.ndim == 3 and arr.shape[2] == 4:
         arr = arr[:, :, :3]
     if arr.dtype == np.uint8:
-        return arr.astype(np.float32) / 255.0   
+        return arr.astype(np.float32) / 255.0
     if arr.dtype in (np.float32, np.float64):
         return arr.astype(np.float32) if arr.max() <= 1.0 else (arr / 255.0).astype(np.float32)
-    return arr.astype(np.float32) / 255.0      
+    return arr.astype(np.float32) / 255.0
 
 
 def dlss_run(p: StableDiffusionProcessing | None,
