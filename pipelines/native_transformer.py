@@ -637,8 +637,8 @@ def adopt_nvfp4_layer(sd: dict, name: str, linear: torch.nn.Linear, component_na
         )
     weight = sd.get(f"{name}.weight")
     scales = sd.pop(f"{name}.weight_scale", None)
-    global_scale = sd.pop(f"{name}.weight_scale_2", None)
-    if scales is None or global_scale is None:
+    scale_2 = sd.pop(f"{name}.weight_scale_2", None)
+    if scales is None or scale_2 is None:
         raise OverrideArchMismatch(
             f"Load model: transformer=native {component_name} comfy_quant marked module "
             f"{name!r} is missing nvfp4 weight_scale/weight_scale_2 tensors"
@@ -659,9 +659,10 @@ def adopt_nvfp4_layer(sd: dict, name: str, linear: torch.nn.Linear, component_na
         )
     weight = weight[:out_features, :packed_columns]
     weight = torch.bitwise_or(torch.bitwise_left_shift(torch.bitwise_and(weight, 15), 4), torch.bitwise_right_shift(weight, 4))
-    scales = unswizzle_block_scales(scales, out_features, groups)
+    scales = unswizzle_block_scales(scales, out_features, groups).unsqueeze(-1)
     sd[f"{name}.weight"] = weight
-    sd[f"{name}.scale"] = scales.to(torch.float32).mul_(global_scale.to(torch.float32)).unsqueeze(-1)
+    sd[f"{name}.scale"] = scales
+    sd[f"{name}.scale_2"] = scale_2
 
 
 def partition_siblings(
@@ -877,6 +878,7 @@ def build_component_prequantized(
     full_precision_mm = [f"{name}.weight" for name in sorted(marked_names) if marker_meta[name].get("full_precision_matrix_mult")]
     quantization_config = SDNQConfig(
         weights_dtype=weights_dtype,
+        scale_dtype="float8_e4m3fn" if is_nvfp4 else None,
         quantized_matmul_dtype=matmul_dtype,
         group_size=NVFP4_GROUP_SIZE if is_nvfp4 else -1,
         use_quantized_matmul=(shared.opts.sdnq_quantize_matmul_mode != "disabled"),
@@ -926,7 +928,7 @@ def build_component_prequantized(
             quantized_scale_shape=None,
             quantized_zero_point_shape=None,
             weights_dtype=weights_dtype,
-            scale_dtype=None,
+            scale_dtype="float8_e4m3fn" if is_nvfp4 else None,
             zero_point_dtype=None,
             quantized_matmul_dtype=matmul_dtype,
             hadamard_group_size=hadamard_group_size,
@@ -943,9 +945,10 @@ def build_component_prequantized(
             layer_class_name="Linear",
         )
         wrapped = get_sdnq_wrapper_class(linear, dequant_forward)
-        wrapped.scale = torch.nn.Parameter(torch.empty((1, 1), dtype=torch.float32, device="meta"), requires_grad=False)
+        wrapped.scale = torch.nn.Parameter(torch.empty((1, 1), dtype=torch.float8_e4m3fn if is_nvfp4 else torch.float32, device="meta"), requires_grad=False)
+        wrapped.scale_2 = torch.nn.Parameter(torch.empty((1,), dtype=torch.float32, device="meta"), requires_grad=False) if is_nvfp4 else None
         for key in sdnq_keys:
-            if key not in {"weight", "scale"}:
+            if key not in {"weight", "scale", "scale_2"}:
                 setattr(wrapped, key, None)
         setattr(parent, child, wrapped)
 
