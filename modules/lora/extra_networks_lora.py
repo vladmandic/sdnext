@@ -140,9 +140,10 @@ def parse(p, params_list, step=0):
         lora_module = []
         name_lower = params.positional[0].lower()
         positional_lower = [str(p).lower() for p in params.positional]
-        if 'high' in positional_lower or '_high' in name_lower or 'high ' in name_lower:
+        staged = shared.sd_loaded and hasattr(shared.sd_model, 'transformer_2') # a stage word in the file name names a transformer only on a pipeline with a second stage
+        if 'high' in positional_lower or (staged and ('_high' in name_lower or 'high ' in name_lower)):
             lora_module.append('transformer')
-        if 'low' in positional_lower or '_low' in name_lower or 'low ' in name_lower:
+        if 'low' in positional_lower or (staged and ('_low' in name_lower or 'low ' in name_lower)):
             lora_module.append('transformer_2')
         if params.named.get('module', None) is not None:
             lora_module.append(params.named['module'].lower())
