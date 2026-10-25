@@ -1528,21 +1528,23 @@ def try_load_chain(name, network_on_disk, lora_scale, family_loaders):
     chain_unmapped.clear()
     net = None
     mismatch = 0
-    for try_fn in family_loaders:
-        sub = try_fn(name, network_on_disk, lora_scale)
-        if sub is None:
-            continue
-        mismatch += getattr(sub, 'mismatch', 0)
-        if net is None:
-            net = sub
-        else:
-            for module in sub.modules.values():
-                module.network = net # strength, dyn_dim and block weights are read from the network a module points at
-            net.modules.update(sub.modules)
-            net.extras.update(sub.extras)
-    if net is not None:
-        net.bundle_embeddings = bundled_embeddings(read_state_dict(network_on_disk.filename, what="network"))
-    sd_models_utils.state_dict_cache.disable()
+    try:
+        for try_fn in family_loaders:
+            sub = try_fn(name, network_on_disk, lora_scale)
+            if sub is None:
+                continue
+            mismatch += getattr(sub, 'mismatch', 0)
+            if net is None:
+                net = sub
+            else:
+                for module in sub.modules.values():
+                    module.network = net # strength, dyn_dim and block weights are read from the network a module points at
+                net.modules.update(sub.modules)
+                net.extras.update(sub.extras)
+        if net is not None:
+            net.bundle_embeddings = bundled_embeddings(read_state_dict(network_on_disk.filename, what="network"))
+    finally:
+        sd_models_utils.state_dict_cache.disable()
     if net is not None and mismatch > 0: # applying only the layers that fit leaves the model in a state nothing was trained for
         log.error(f'Network load: type=LoRA name="{name}" modules={len(net.modules)} mismatch={mismatch} shapes do not match the loaded model')
         return None
