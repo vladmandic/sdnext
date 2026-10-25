@@ -246,11 +246,11 @@ def dlss_run(p: StableDiffusionProcessing | None,
                     next_frames.append(session(current_frame))
                 else:
                     next_frames.append(current_frame)
-            
+
             frame_nd = next_frames[0]
 
             frame_nd = np.clip(frame_nd, 0.0, 1.0)
-            
+
             # Scale safely to uint8 [0, 255]
             current_frame = (255.0 * frame_nd).astype(np.uint8)
             return current_frame
