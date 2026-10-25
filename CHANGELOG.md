@@ -44,6 +44,9 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
     the system will use llm of choice to caption the image and define prompt for each slide of the story  
     works best with edit-models, but can be used in text-to-image and image-to-image modes as well  
     *note*: this is a playground thing, dont expect full cartoon level quality in a single shot  
+- **LoRA**
+  - major cleanup of older lora code and full switch to *native-dispatcher* introduced last month
+  - native dispatcher: *sd, sdxl, sd3, f1, f2, f3, chroma, zimage, ernieimage, anima, krea2, minimaxh3, qwen21*
 - **Metadata**
   - improve model hash info for all models
   - add unet hash if using custom unet/dit
@@ -52,7 +55,7 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
   - use streaming for DLSS video processing  
     allows near-infinite video length without excessive memory usage  
 - **Wiki**
-  - updates to: `Scheduler`, `Models`, `Model-Support`, `Docker`, `AMD-ROCm`, `AMD-MIOpen`, `Detailer`, `LoRA`
+  - updates to: `Scheduler`, `Models`, `Model-Support`, `Docker`, `AMD-ROCm`, `AMD-MIOpen`, `Detailer`, `LoRA`, `LoRA-Technical`
 - **Docker**
   - update `Dockerfile` for all supported platforms
   - [SD.Next CUDA docker image](https://hub.docker.com/repository/docker/vladmandic/sdnext-cuda) rebuild and update
