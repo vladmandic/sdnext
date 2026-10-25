@@ -73,7 +73,7 @@ def create_ui(parent):
 class DLSSScript(scripts_manager.Script):
     def __init__(self):
         super().__init__()
-        self.video_capable = True
+        self.video_capable = scripts_manager.AlwaysVisible
         self.register()
 
     def title(self):

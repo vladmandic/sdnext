@@ -103,6 +103,7 @@ def dlss_run(p: StableDiffusionProcessing | None,
             fg_profile = getattr(p, 'fg_profile', fg_profile)
             dlss_enabled.append('FrameGen')
         dlss_enabled = list(set(dlss_enabled))
+
     if debug:
         log.trace(f'DLSS enabled={dlss_enabled} graph={dlss_graph} chunk={dlss_chunk} full={dlss_full} nr_profile={nr_profile} ss_profile={ss_profile} fg_profile={fg_profile} nr_motion={nr_motion} nr_scale={nr_scale} nr_intensity={nr_intensity} nr_blend={nr_blend} nr_detail={nr_detail} nr_colour={nr_colour} nr_radius={nr_radius} nr_threshold={nr_threshold} nr_normalized={nr_normalized} nr_local_tone={nr_local_tone} nr_local_structure={nr_local_structure} nr_skin_structure={nr_skin_structure} nr_mask_structure={nr_mask_structure} ss_scale={ss_scale} ss_detail={ss_detail} ss_colour={ss_colour} ss_radius={ss_radius} ss_threshold={ss_threshold} fg_mode={fg_mode} fg_factor={fg_factor} fg_threshold={fg_threshold}')
 
@@ -126,7 +127,8 @@ def dlss_run(p: StableDiffusionProcessing | None,
         from modules import video
         frames, fps, duration, w, h, codec, _frame = video.get_video_params(pp.video)
         log.info(f'DLSS video: file="{pp.video}" frames={frames} fps={fps} duration={duration} w={w} h={h} codec={codec}')
-        raw_inputs = video.read_video(pp.video)
+        # raw_inputs = video.read_video(pp.video)
+        raw_inputs = [None] * frames
     else:
         raw_inputs = []
 
@@ -218,7 +220,6 @@ def dlss_run(p: StableDiffusionProcessing | None,
 
         t1 = time.perf_counter()
         is_pil = isinstance(raw_inputs[0], Image.Image)
-        input_ndarrays = [_to_ndarray_rgb_float(img) for img in raw_inputs]
 
         pbar = progress.Progress(
             progress.TextColumn("DLSS"),
@@ -230,49 +231,67 @@ def dlss_run(p: StableDiffusionProcessing | None,
             progress.TextColumn("{task.description}"),
         )
         pbar_desc = f'ops: {", ".join([name for name, _ in active_chain])}'
-        par_enabled = len(input_ndarrays) > 1
-        pbar_task = pbar.add_task(description=pbar_desc, total=len(input_ndarrays)) if par_enabled else None
+        par_enabled = len(raw_inputs) > 1
+        pbar_task = pbar.add_task(description=pbar_desc, total=len(raw_inputs)) if par_enabled else None
+
+        def process_frame(raw_frame):
+            current_frame = _to_ndarray_rgb_float(raw_frame)
+            for stage_name, session in active_chain:
+                next_frames = []
+                if stage_name == 'nr':
+                    next_frames.append(session(current_frame))
+                elif stage_name == 'fg':
+                    next_frames.extend(session(current_frame))
+                elif stage_name == 'vsr':
+                    next_frames.append(session(current_frame))
+                else:
+                    next_frames.append(current_frame)
+                current_frame = [(255.0 * np.clip(frame_nd, 0.0, 1.0)).astype(np.uint8) for frame_nd in next_frames][0]
+            return current_frame
 
         jobid = shared.state.begin('DLSS')
+
+        video_writter = None
+        use_stream = has_video and(len(raw_inputs) > 0) and (raw_inputs[0] is None)
+        num_frames = len(raw_inputs)
+        if use_stream:
+            raw_inputs = video.read_generator(pp.video) # use read generator instead of bulk read
+
         with pbar:
+            video_initialized = False
             total_produced_frames = []
-            for in_nd in input_ndarrays:
-                current_frames = [in_nd]
-                for stage_name, session in active_chain:
-                    next_frames = []
-                    for f in current_frames:
-                        if stage_name == 'nr':
-                            next_frames.append(session(f))
-                        elif stage_name == 'fg':
-                            next_frames.extend(session(f))
-                        elif stage_name == 'vsr':
-                            next_frames.append(session(f))
-                        else:
-                            next_frames.append(f)
-                    current_frames = next_frames
-                total_produced_frames.extend(current_frames)
+            for raw_input in raw_inputs:
+                current_frame = process_frame(raw_input)
+                if use_stream:
+                    if not video_initialized:
+                        pp.video, video_writter = video.save_video(p, [current_frame], video_type='mp4', duration=duration, sync=True, stream=True, frames_hint=num_frames)
+                        video_initialized = True
+                    else:
+                        video.save_video_frames(video_writter, [current_frame])
+                    total_produced_frames.append(None)
+                else: # not use_stream
+                    total_produced_frames.append(current_frame)
                 if par_enabled:
                     pbar.update(pbar_task, advance=1)
 
-        output_images = []
-        for frame_nd in total_produced_frames:
-            frame_uint8 = (255.0 * np.clip(frame_nd, 0.0, 1.0)).astype(np.uint8)
-            if is_pil:
-                output_images.append(Image.fromarray(frame_uint8))
-            else:
-                output_images.append(frame_uint8)
+        if is_pil:
+            output_images = [Image.fromarray(frame_nd) for frame_nd in total_produced_frames]
+        else:
+            output_images = total_produced_frames
 
-        t2 = time.perf_counter()
-        log.debug(f'DLSS output: frames={len(output_images)} init={t1 - t0:.4f} time={t2 - t1:.4f} its={len(output_images) / (t2 - t1):.4f}')
-        shared.state.end(jobid)
-
-        if has_images:
-            pp.images = output_images
+        if video_writter is not None:
+            video_writter.release()
+        elif has_images:
+            pp.images = output_images.copy()
         elif has_image:
             pp.image = output_images[0] if output_images else None
         elif has_video:
-            output_video = video.save_video(p, output_images, video_type='mp4', duration=duration, sync=True)
-            pp.video = output_video
+            pp.video = video.save_video(p, output_images, video_type='mp4', duration=duration, sync=True)
+
+        t2 = time.perf_counter()
+        log.debug(f'DLSS output: frames={len(output_images)} init={t1 - t0:.4f} time={t2 - t1:.4f} its={len(output_images) / (t2 - t1):.4f}')
+        output_images.clear()
+        shared.state.end(jobid)
 
     finally:
         for pipe in active_pipelines:

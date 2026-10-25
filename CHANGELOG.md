@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2026-10-24
+## Update for 2026-10-25
 
-### Highlights for 2026-10-24
+### Highlights for 2026-10-25
 
 *What's new in this release?*
 - One new base model: ***Bria FIBO 2.0**  
@@ -18,7 +18,7 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
 
 [Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-10-24
+### Details for 2026-10-25
 
 - **Models**
   - [Bria FIBO 2.0](https://huggingface.co/briaai/Fibo-2.0-dev) *Dev* base and *Edit Turbo* distilled variants  
@@ -48,6 +48,9 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
   - improve model hash info for all models
   - add unet hash if using custom unet/dit
   - add prompt from style to metadata template field
+- **DLSS**
+  - use streaming for DLSS video processing  
+    allows near-infinite video length without excessive memory usage  
 - **Wiki**
   - updates to: `Scheduler`, `Models`, `Model-Support`, `Docker`, `AMD-ROCm`, `AMD-MIOpen`, `Detailer`, `LoRA`
 - **Docker**
@@ -93,6 +96,7 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
   - seedvr: unblock usage on non-cuda devices
   - state: race condition when settings are changed while generate is running
   - ui: fallback template load method when running on older server
+  - ui: autohide panels
   - unet: hash on first load
   - wan: loading route changes video frame count, thanks @Jackmeson1
 

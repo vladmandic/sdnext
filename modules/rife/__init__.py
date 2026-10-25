@@ -45,9 +45,15 @@ def interpolate(images: list, count: int = 2, scale: float = 1.0, pad: int = 1, 
     if model is None:
         load()
     interpolated = []
-    h = images[0].height
-    w = images[0].width
+    if isinstance(images[0], np.ndarray):
+        h, w = images[0].shape[:2]
+    else:
+        h = images[0].height
+        w = images[0].width
     t0 = time.time()
+
+    def to_bgr(image):
+        return cv2.cvtColor(np.asarray(image), cv2.COLOR_RGB2BGR)
 
     def write(buffer):
         item = buffer.get()
@@ -85,7 +91,7 @@ def interpolate(images: list, count: int = 2, scale: float = 1.0, pad: int = 1, 
     duplicate = 0
     _thread.start_new_thread(write, (buffer,))
 
-    frame = cv2.cvtColor(np.array(images[0]), cv2.COLOR_RGB2BGR)
+    frame = to_bgr(images[0])
     for _i in range(pad): # fill starting frames
         buffer.put(frame)
 
@@ -95,7 +101,7 @@ def interpolate(images: list, count: int = 2, scale: float = 1.0, pad: int = 1, 
             task = pbar.add_task(total=len(images), description='starting...')
             for idx, image in enumerate(images):
                 pbar.update(task, advance=1, description=f'frame {idx + 1}/{len(images)}')
-                frame = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+                frame = to_bgr(image)
                 I0 = I1
                 I1 = f_pad(torch.from_numpy(np.transpose(frame, (2,0,1))).to(devices.device).unsqueeze(0).float() / 255.0)
                 I0_small = F.interpolate(I0, (32, 32), mode='bilinear', align_corners=False).to(torch.float32)
