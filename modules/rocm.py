@@ -82,6 +82,7 @@ class Agent:
     gfx_version: int
     arch: MicroArchitecture
     is_apu: bool
+    rocblas_supported: bool
     blaslt_supported: bool
 
     @staticmethod
@@ -120,22 +121,28 @@ class Agent:
             self.arch = MicroArchitecture.GCN
         self.is_apu = (self.gfx_version & 0xFFF0 == 0x1150) or self.gfx_version in (0x801, 0x902, 0x90c, 0x1013, 0x1033, 0x1035, 0x1036, 0x1103,)
         blaslt_filename = f"TensileLibrary_lazy_{self.name}.dat"
-        if blaslt_tensile_libpath is None:
-            self.blaslt_supported = False
-        else:
+
+        def has_tensile_library(path: str | None) -> bool:
+            if path is None:
+                return False
             search_paths = (
-                os.path.join(blaslt_tensile_libpath, blaslt_filename),
-                os.path.join(blaslt_tensile_libpath, blaslt_filename + ".zlib"),
-                os.path.join(blaslt_tensile_libpath, self.name, blaslt_filename),
-                os.path.join(blaslt_tensile_libpath, self.name, blaslt_filename + ".zlib"),
+                os.path.join(path, blaslt_filename),
+                os.path.join(path, blaslt_filename + ".zlib"),
+                os.path.join(path, self.name, blaslt_filename),
+                os.path.join(path, self.name, blaslt_filename + ".zlib"),
             )
-            self.blaslt_supported = any(os.path.exists(p) for p in search_paths)
+            return any(os.path.exists(p) for p in search_paths)
+
+        rocblas_path = os.environ.get("ROCBLAS_TENSILE_LIBPATH") or rocblas_tensile_libpath
+        hipblaslt_path = os.environ.get("HIPBLASLT_TENSILE_LIBPATH") or blaslt_tensile_libpath
+        self.rocblas_supported = has_tensile_library(rocblas_path) and (0x1010 <= self.gfx_version <= 0x1036 or self.gfx_version >= 0x1100)
+        self.blaslt_supported = self.gfx_version >= 0x1100 and has_tensile_library(hipblaslt_path)
 
     def __str__(self) -> str:
         return self.name
 
     def __repr__(self) -> str:
-        return f"Agent(name={self.name} gfx={hex(self.gfx_version)} arch={self.arch} apu={self.is_apu} blaslt={self.blaslt_supported})"
+        return f"Agent(name={self.name} gfx={hex(self.gfx_version)} arch={self.arch} apu={self.is_apu} rocblas={self.rocblas_supported} blaslt={self.blaslt_supported})"
 
     @property
     def therock(self) -> str | None:
@@ -251,7 +258,7 @@ def get_flash_attention_command(agent: Agent) -> str:
 
 
 def refresh():
-    global rocm_sdk, environment, blaslt_tensile_libpath, is_installed, version # pylint: disable=global-statement
+    global rocm_sdk, environment, rocblas_tensile_libpath, blaslt_tensile_libpath, is_installed, version # pylint: disable=global-statement
     try:
         import rocm_sdk as rocm_sdk_module
         rocm_sdk = rocm_sdk_module
@@ -259,18 +266,24 @@ def refresh():
         try:
             target_family = rocm_sdk._dist_info.determine_target_family() # pylint: disable=protected-access
             spec = rocm_sdk._dist_info.ALL_PACKAGES['libraries'].get_py_package(target_family) # pylint: disable=protected-access
-            blaslt_tensile_libpath = os.path.join(os.path.dirname(spec.origin), "bin", "hipblaslt", "library")
+            library_path = os.path.join(os.path.dirname(spec.origin), "bin")
+            rocblas_tensile_libpath = os.path.join(library_path, "rocblas", "library")
+            blaslt_tensile_libpath = os.path.join(library_path, "hipblaslt", "library")
         except Exception:
+            rocblas_tensile_libpath = None
             blaslt_tensile_libpath = None
         spawn(["rocm-sdk", "init"])
     except ImportError:
         rocm_sdk = None
         environment = find()
         if environment is not None:
-            blaslt_tensile_libpath = os.path.join(environment.path, "bin" if sys.platform == "win32" else "lib", "hipblaslt", "library")
+            library_path = os.path.join(environment.path, "bin" if sys.platform == "win32" else "lib")
+            rocblas_tensile_libpath = os.path.join(library_path, "rocblas", "library")
+            blaslt_tensile_libpath = os.path.join(library_path, "hipblaslt", "library")
 
     if environment is not None:
-        blaslt_tensile_libpath = os.environ.get("HIPBLASLT_TENSILE_LIBPATH", blaslt_tensile_libpath)
+        rocblas_tensile_libpath = os.environ.get("ROCBLAS_TENSILE_LIBPATH") or rocblas_tensile_libpath
+        blaslt_tensile_libpath = os.environ.get("HIPBLASLT_TENSILE_LIBPATH") or blaslt_tensile_libpath
         is_installed = True
         version = get_version()
 
@@ -399,6 +412,7 @@ else: # sys.platform != "win32"
     is_wsl: bool = os.environ.get('WSL_DISTRO_NAME', 'unknown' if spawn('wslpath -w /') else None) is not None
 
 environment: Environment | None = None
+rocblas_tensile_libpath: str | None = None
 blaslt_tensile_libpath: str | None = None
 is_installed: bool = False
 version: str | None = None
