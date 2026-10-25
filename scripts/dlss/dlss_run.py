@@ -39,10 +39,10 @@ def _to_ndarray_rgb_float(img) -> np.ndarray:
     elif arr.ndim == 3 and arr.shape[2] == 4:
         arr = arr[:, :, :3]
     if arr.dtype == np.uint8:
-        return arr.astype(np.float32) / 255.0
+        return arr.astype(np.float32) / 255.0   
     if arr.dtype in (np.float32, np.float64):
         return arr.astype(np.float32) if arr.max() <= 1.0 else (arr / 255.0).astype(np.float32)
-    return arr.astype(np.float32) / 255.0
+    return arr.astype(np.float32) / 255.0      
 
 
 def dlss_run(p: StableDiffusionProcessing | None,
@@ -246,7 +246,13 @@ def dlss_run(p: StableDiffusionProcessing | None,
                     next_frames.append(session(current_frame))
                 else:
                     next_frames.append(current_frame)
-                current_frame = [(255.0 * np.clip(frame_nd, 0.0, 1.0)).astype(np.uint8) for frame_nd in next_frames][0]
+            
+            frame_nd = next_frames[0]
+            
+            frame_nd = np.clip(frame_nd, 0.0, 1.0)
+            
+            # Scale safely to uint8 [0, 255]
+            current_frame = (255.0 * frame_nd).astype(np.uint8)
             return current_frame
 
         jobid = shared.state.begin('DLSS')
