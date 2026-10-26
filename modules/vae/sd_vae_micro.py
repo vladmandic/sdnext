@@ -13,7 +13,7 @@ decoder = None
 decoder_cls = None
 repo_id = 'SD-Next/MicroDecoder'
 warned = None
-supported = ['sd', 'sdxl', 'sd3', 'f1', 'f2', 'hy', 'dcae', 'mage', 'qwen', 'qwen21', 'wan21', 'minimaxh3']
+supported = ['sd', 'sdxl', 'sd3', 'f1', 'f2', 'hy', 'dcae', 'mage', 'qwen', 'qwen21', 'wan21', 'wan22', 'minimaxh3', 'cog']
 
 
 def get_timestep() -> torch.Tensor:

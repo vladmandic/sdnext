@@ -88,6 +88,9 @@ def load_wan(checkpoint_info, diffusers_load_config=None):
         wan_args['boundary_ratio'] = boundary_ratio
     pipe = pipe_cls.from_pretrained(repo_id, **wan_args)
 
+    if 'Wan2.2' in repo_id and '5B' in repo_id:
+        pipe.vae_variant = 'wan22'
+
     del text_encoder
     del transformer
     del transformer_2
