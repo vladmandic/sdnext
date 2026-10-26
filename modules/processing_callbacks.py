@@ -152,10 +152,16 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
             else:
                 width = getattr(p, 'width', 1024)
                 height = getattr(p, 'height', 1024)
+            unpack_method = pipe._unpack_latents  # pylint: disable=protected-access
+            if pipe.__class__.__name__ in {'BriaFiboPipeline', 'BriaFiboEditPipeline'} and latents.ndim == 3:
+                vae_scale = pipe.vae_scale_factor
+                expected_no_patch_tokens = (height // vae_scale) * (width // vae_scale)
+                if latents.shape[1] == expected_no_patch_tokens and hasattr(pipe, '_unpack_latents_no_patch'):
+                    unpack_method = pipe._unpack_latents_no_patch  # pylint: disable=protected-access
             try:
-                shared.state.current_latent = pipe._unpack_latents(latents, height, width, pipe.vae_scale_factor) # pylint: disable=protected-access
+                shared.state.current_latent = unpack_method(latents, height, width, pipe.vae_scale_factor)
                 if current_noise_pred is not None:
-                    shared.state.current_noise_pred = pipe._unpack_latents(current_noise_pred, height, width, pipe.vae_scale_factor) # pylint: disable=protected-access
+                    shared.state.current_noise_pred = unpack_method(current_noise_pred, height, width, pipe.vae_scale_factor)
                 else:
                     shared.state.current_noise_pred = current_noise_pred
             except Exception:
@@ -254,8 +260,9 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
         if not warned:
             log.error(f'Callback: {e}')
             warned = True
-        # from modules import errors
-        # errors.display(e, 'Callback')
+            if debug:
+                from modules import errors
+                errors.display(e, 'Callback')
     if shared.cmd_opts.profile and shared.profiler is not None:
         shared.profiler.step()
 
