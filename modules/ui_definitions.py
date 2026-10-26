@@ -691,8 +691,6 @@ def create_settings(cmd_opts):
         "color_correction_method": OptionInfo("histogram", "Color correction method", gr.Radio, {"choices": ["histogram", "wavelet", "adain"]}),
         "mask_apply_overlay": OptionInfo(True, "Apply mask as overlay"),
         "img2img_background_color": OptionInfo("#ffffff", "Image transparent color fill", gr.ColorPicker, {}),
-        "inpainting_mask_weight": OptionInfo(1.0, "Inpainting conditioning mask strength", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.01}),
-        "initial_noise_multiplier": OptionInfo(1.0, "Noise multiplier for image processing", gr.Slider, {"minimum": 0.1, "maximum": 1.5, "step": 0.01, "visible": False}),
 
         "postprocessing_sep_detailer": OptionInfo("<h2>Detailer</h2>", "", gr.HTML),
         "detailer_unload": OptionInfo(False, "Move detailer model to CPU when complete"),

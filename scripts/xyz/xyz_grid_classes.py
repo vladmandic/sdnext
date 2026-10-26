@@ -243,7 +243,6 @@ axis_options = [
     AxisOption("[Param] Steps", int, apply_field("steps")),
     AxisOption("[Param] CLiP-skip", float, apply_clip_skip),
     AxisOption("[Param] Denoising strength", float, apply_field("denoising_strength")),
-    AxisOptionImg2Img("[Param] Mask weight", float, apply_field("inpainting_mask_weight")),
     AxisOption("[Process] Model args", str, apply_task_args),
     AxisOption("[Process] Processing args", str, apply_processing),
     AxisOption("[Process] Server options", str, apply_options),

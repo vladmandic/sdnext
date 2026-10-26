@@ -69,8 +69,9 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
   - update `setuptools`, thanks @wbkearly
   - expand `--test` behavior
   - infer transformers `native_spec` everywhere where its not explicitly set
-  - remove `subseed` from codebase as its obsolete
-  - remove `seed resize` from codebase as its obsolete
+  - remove number of params from codebase as obsolete and no-op for over a year:  
+    *note*: this may cause breakage in extensions that rely on obsolete params  
+    removed: `subseed, subseed_strength, seed_resize_from_h/w, do_not_reload_embeddings, nan_skip, inpainting_mask_weigtht, initial_noise_multiplier, inpainting_fill, te_complex_human_instruction, te_use_mask, firstphase_width, firstphase_height`
 - **Fixes**
   - api: return complete set in GET /sdapi/v1/options, thanks @Jackmeson1
   - caption: get/set attention fallbacks

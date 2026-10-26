@@ -387,7 +387,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                 detailer_models: list | None = None, detailer_augment: bool | None = None,
                 img2img_color_correction: bool | None = None, color_correction_method: str | None = None, img2img_background_color: str | None = None,
                 img2img_fix_steps: bool | None = None, mask_apply_overlay: bool | None = None,
-                include_mask: bool | None = None, inpainting_mask_weight: float | None = None,
+                include_mask: bool | None = None,
                 # output and saving
                 samples_save: bool | None = None, samples_format: str | None = None,
                 save_images_before_highres_fix: bool | None = None, save_images_before_refiner: bool | None = None,
@@ -404,11 +404,11 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                 schedulers_sigma_adjust: float | None = None, schedulers_sigma_adjust_min: float | None = None, schedulers_sigma_adjust_max: float | None = None,
                 schedulers_base_image_seq_len: int | None = None, schedulers_max_image_seq_len: int | None = None,
                 scheduler_eta: float | None = None, eta_noise_seed_delta: int | None = None, enable_batch_seeds: bool | None = None,
-                diffusers_generator_device: str | None = None, nan_skip: bool | None = None,
+                diffusers_generator_device: str | None = None,
                 sequential_seed: bool | None = None,
                 # prompt/attention overrides
                 prompt_attention: str | None = None, prompt_mean_norm: bool | None = None, diffusers_zeros_prompt_pad: bool | None = None,
-                te_pooled_embeds: bool | None = None, te_complex_human_instruction: str | None = None, te_use_mask: bool | None = None,
+                te_pooled_embeds: bool | None = None,
                 # generation modifier overrides (hijack)
                 freeu_enabled: bool | None = None, freeu_b1: float | None = None, freeu_b2: float | None = None, freeu_s1: float | None = None, freeu_s2: float | None = None,
                 hypertile_unet_enabled: bool | None = None, hypertile_hires_only: bool | None = None, hypertile_unet_tile: int | None = None, hypertile_unet_min_tile: int | None = None,
@@ -544,7 +544,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
         # img2img and mask
         img2img_color_correction=img2img_color_correction, color_correction_method=color_correction_method, img2img_background_color=img2img_background_color,
         img2img_fix_steps=img2img_fix_steps, mask_apply_overlay=mask_apply_overlay,
-        include_mask=include_mask, inpainting_mask_weight=inpainting_mask_weight,
+        include_mask=include_mask,
         # output and saving
         samples_save=samples_save, samples_format=samples_format,
         save_images_before_highres_fix=save_images_before_highres_fix, save_images_before_refiner=save_images_before_refiner,
@@ -582,12 +582,11 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
         schedulers_sigma_adjust=schedulers_sigma_adjust, schedulers_sigma_adjust_min=schedulers_sigma_adjust_min,
         schedulers_sigma_adjust_max=schedulers_sigma_adjust_max,
         scheduler_eta=scheduler_eta, eta_noise_seed_delta=eta_noise_seed_delta,
-        enable_batch_seeds=enable_batch_seeds, diffusers_generator_device=diffusers_generator_device, nan_skip=nan_skip,
+        enable_batch_seeds=enable_batch_seeds, diffusers_generator_device=diffusers_generator_device,
         sequential_seed=sequential_seed,
         # prompt/attention overrides
         prompt_attention=prompt_attention, prompt_mean_norm=prompt_mean_norm,
         diffusers_zeros_prompt_pad=diffusers_zeros_prompt_pad, te_pooled_embeds=te_pooled_embeds,
-        te_complex_human_instruction=te_complex_human_instruction, te_use_mask=te_use_mask,
         # generation modifier overrides (hijack)
         freeu_enabled=freeu_enabled, freeu_b1=freeu_b1, freeu_b2=freeu_b2, freeu_s1=freeu_s1, freeu_s2=freeu_s2,
         hypertile_unet_enabled=hypertile_unet_enabled, hypertile_hires_only=hypertile_hires_only,

@@ -130,7 +130,6 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         args["Init image size"] = f"{getattr(p, 'init_img_width', 0)}x{getattr(p, 'init_img_height', 0)}"
         args["Init image hash"] = getattr(p, 'init_img_hash', None)
         args['Image CFG scale'] = p.cfg_image if (p.cfg_image is not None and p.cfg_image > -1) else None
-        args["Mask weight"] = getattr(p, "inpainting_mask_weight", shared.opts.inpainting_mask_weight) if p.is_using_inpainting_conditioning else None
         args["Denoising strength"] = getattr(p, 'denoising_strength', None)
         if args["Size"] != args["Init image size"]:
             args['Resize scale'] = float(getattr(p, 'scale_by', None)) if getattr(p, 'scale_by', None) != 1 else None
@@ -188,7 +187,6 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
     if getattr(p, 'sampler_name', None) is not None and p.sampler_name.lower() != 'default':
         _eta_delta = get_opt('eta_noise_seed_delta')
         args["Sampler eta delta"] = _eta_delta if _eta_delta != 0 and sd_samplers_common.is_sampler_using_eta_noise_seed_delta(p) else None
-        args["Sampler eta multiplier"] = p.initial_noise_multiplier if getattr(p, 'initial_noise_multiplier', 1.0) != 1.0 else None
         args['Sampler timesteps'] = get_opt('schedulers_timesteps') if get_opt('schedulers_timesteps') != shared.opts.data_labels.get('schedulers_timesteps').default else None
         args['Sampler spacing'] = get_opt('schedulers_timestep_spacing') if get_opt('schedulers_timestep_spacing') != shared.opts.data_labels.get('schedulers_timestep_spacing').default else None
         args['Sampler sigma'] = get_opt('schedulers_sigma') if get_opt('schedulers_sigma') != shared.opts.data_labels.get('schedulers_sigma').default else None

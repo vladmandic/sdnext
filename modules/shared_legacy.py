@@ -24,7 +24,6 @@ legacy_options = options_section(('legacy_options', "Legacy options"), {
     "sd_textencoder_cache": LegacyOption(True, "Cache text encoder results", gr.Checkbox, {"visible": False}),
     "rollback_vae": LegacyOption(False, "Attempt VAE roll back for NaN values", gr.Checkbox, {"visible": False}),
     "sd_vae_sliced_encode": LegacyOption(False, "VAE sliced encode", gr.Checkbox, {"visible": False}),
-    "nan_skip": LegacyOption(False, "Skip Generation if NaN found in latents", gr.Checkbox, {"visible": False}),
     "sd_model_dict": LegacyOption('None', "Use separate base dict", gr.Dropdown, lambda: {"choices": ['None'], "visible": False}),
     "diffusers_extract_ema": LegacyOption(False, "Use model EMA weights when possible", gr.Checkbox, {"visible": False }),
     "batch_cond_uncond": LegacyOption(True, "Do conditional and unconditional denoising in one batch", gr.Checkbox, {"visible": False}),

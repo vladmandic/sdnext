@@ -109,7 +109,6 @@ mapping = [
     ('Color correction method', 'color_correction_method'),
     # Samplers
     ('Sampler eta delta', 'eta_noise_seed_delta'),
-    ('Sampler eta multiplier', 'initial_noise_multiplier'),
     ('Sampler timesteps', 'schedulers_timesteps'),
     ('Sampler spacing', 'schedulers_timestep_spacing'),
     ('Sampler sigma', 'schedulers_sigma'),
@@ -127,7 +126,6 @@ mapping = [
     ('Sampler max seq', 'schedulers_max_image_seq_len'),
     ('Sampler dynamic shift', 'schedulers_dynamic_shift'),
     # Token Merging
-    ('Mask weight', 'inpainting_mask_weight'),
     ('ToMe', 'tome_ratio'),
     ('ToDo', 'todo_ratio'),
 ]

@@ -483,7 +483,6 @@ class UltimateSDUpscaleScript(scripts_manager.Script):
         p.do_not_save_grid = True
         p.do_not_save_samples = True
         p.inpaint_full_res = False
-        p.inpainting_fill = 1
         p.n_iter = 1
         p.batch_size = 1
 
