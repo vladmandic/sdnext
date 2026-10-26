@@ -105,7 +105,7 @@ def _run_img2img(
         raise ValueError("height and width must be positive multiples of 16.")
     if num_images_per_prompt < 1:
         raise ValueError("num_images_per_prompt must be positive.")
-    device = pipe._execution_device
+    device = pipe._execution_device # pylint: disable=protected-access
     if prompt_embeds is not None:
         prompt_batch = prompt_embeds.shape[0]
     elif isinstance(prompt, str):
@@ -183,7 +183,7 @@ class MOSSImageToImagePipeline(MOSSImagePipeline):
     """MOSS-Image image-to-image pipeline."""
 
     @torch.no_grad()
-    def __call__(
+    def __call__( # pylint: disable=arguments-differ
         self,
         prompt=None,
         *,

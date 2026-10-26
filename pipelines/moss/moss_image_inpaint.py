@@ -13,7 +13,7 @@ class MOSSImageInpaintPipeline(MOSSImagePipeline):
     """MOSS-Image inpainting using per-step latent preservation outside the mask."""
 
     @torch.no_grad()
-    def __call__(
+    def __call__(  # pylint: disable=arguments-differ
         self,
         prompt=None,
         *,
