@@ -5,12 +5,12 @@
 ### Highlights for 2026-10-26
 
 *What's new in this release?*
-- One new base model: ***Bria FIBO 2.0**  
+- One new base model: ***Bria FIBO 2.0** and improvements to **MOSS-Image** and **Ming-Image** workflows  
 - Major improvements to **Prompt Enhance** functionality to make it more versatile and cover usage in new structured/json based prompts  
 - New playground feature **Story Mode**  
 - Updates to **AI Coding** instructions and skills: try your favorite model/tool on SD.Next, you might be surprised how quickly it adapts and performs  
-- Codebase cleanup: removed deprecated options that were left as legacy remnants
-- And many more smaller improvements and fixes...
+- Codebase cleanup: removed deprecated options that were left as legacy remnants  
+- And many more smaller improvements and fixes...  
 
 > [!IMPORTANT]
 > Python 3.10 is end-of-life as of October 2026!
@@ -27,9 +27,12 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
     *note*: this is a [gated model](https://vladmandic.github.io/sdnext-docs/Gated)  
     *note*: BriaFIBO is designed to work with highly structured [JSON prompts](https://docs.bria.ai/vgl#5-schema-reference)  
     if you provide a simple string-based prompt, sdnext will convert it to naive JSON, but it will be sub-optimal  
-  - [lodestones Kromoss](https://huggingface.co/lodestones/Kromoss) fine-tune of MOSS-Image
-  - [OpenMOSS MOSS-Image](https://huggingface.co/OpenMOSS-Team/MOSS-Image-Base) in *image2image* and *inpaint* workflows  
+  - [OpenMOSS MOSS-Image](https://huggingface.co/OpenMOSS-Team/MOSS-Image-Base) add *image2image* and *inpaint* workflows  
+    *note*: model is trained with highly shifted sigma, so its not ideal for expected i2i results  
     *note*: this also unlocks use in hires/refine/detailer workflows  
+  - [lodestones Kromoss](https://huggingface.co/lodestones/Kromoss) fine-tune of MOSS-Image  
+  - [inclusionAI Ming-Image Design 0.1](https://huggingface.co/OzzyGT/ming_image_0_1_design_diffusers) add *ref-image* workflow  
+    *note*: model is not a true image edit model, but this gives it some editing capabilities  
 - **Coding**  
   expand ai/ml instructions and skills  
   see [instructions](https://github.com/vladmandic/sdnext/blob/dev/.github/copilot-instructions.md) and [skills readme](https://github.com/vladmandic/sdnext/blob/dev/.github/skills/README.md) for details  

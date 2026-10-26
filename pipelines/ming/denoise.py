@@ -95,6 +95,7 @@ class MingImageLoopDenoiser(ModularPipelineBlocks):
             InputParam("prompt_embeds_2", required=True, type_hint=list[torch.Tensor]),
             InputParam("negative_prompt_embeds", type_hint=list[torch.Tensor]),
             InputParam("negative_prompt_embeds_2", type_hint=list[torch.Tensor]),
+            InputParam("ref_hidden_states", type_hint=list[torch.Tensor]),
         ]
 
     @torch.no_grad()
@@ -108,9 +109,16 @@ class MingImageLoopDenoiser(ModularPipelineBlocks):
                 name: [e.to(block_state.dtype) for e in getattr(guider_state_batch, name)]
                 for name in self.guider_input_fields
             }
+            ref_hidden_states = getattr(block_state, "ref_hidden_states", None)
+            if ref_hidden_states:
+                ref_hidden_states = [
+                    latent.to(device=block_state.latent_model_input[index].device, dtype=block_state.dtype)
+                    for index, latent in enumerate(ref_hidden_states)
+                ]
             model_out = components.transformer(
                 hidden_states=block_state.latent_model_input,
                 timestep=block_state.timestep,
+                ref_hidden_states=ref_hidden_states or None,
                 return_dict=False,
                 **cond_kwargs,
             )[0]

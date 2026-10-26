@@ -2,9 +2,11 @@
 #
 # Licensed under the MIT License. See the LICENSE file in this repository.
 
+import numpy as np
 import torch
+from PIL import Image
 
-from diffusers import AutoModel
+from diffusers import AutoModel, AutoencoderKLQwenImage
 from diffusers.modular_pipelines import ModularPipelineBlocks, PipelineState
 from diffusers.modular_pipelines.modular_pipeline_utils import ComponentSpec, InputParam, OutputParam
 from diffusers.schedulers import FlowMatchEulerDiscreteScheduler
@@ -28,12 +30,15 @@ class MingImageTextInputStep(ModularPipelineBlocks):
 
     @property
     def expected_components(self) -> list[ComponentSpec]:
-        return [ComponentSpec("transformer", AutoModel)]
+        return [ComponentSpec("transformer", AutoModel), ComponentSpec("vae", AutoencoderKLQwenImage)]
 
     @property
     def inputs(self) -> list[InputParam]:
         return [
             InputParam.template("num_images_per_prompt"),
+            InputParam.template("height", default=2048),
+            InputParam.template("width", default=2048),
+            InputParam("image", type_hint=Image.Image, description="Optional source images used as clean reference frames."),
             InputParam(
                 "prompt_embeds",
                 required=True,
@@ -67,6 +72,7 @@ class MingImageTextInputStep(ModularPipelineBlocks):
                 description="Number of prompts; the model batch is `batch_size * num_images_per_prompt`.",
             ),
             OutputParam("dtype", type_hint=torch.dtype, description="Dtype of the transformer inputs."),
+            OutputParam("ref_hidden_states", type_hint=list[torch.Tensor], description="Clean VAE-encoded reference frames."),
             OutputParam(
                 "prompt_embeds",
                 type_hint=list[torch.Tensor],
@@ -104,11 +110,54 @@ class MingImageTextInputStep(ModularPipelineBlocks):
 
         block_state.batch_size = len(block_state.prompt_embeds)
         block_state.dtype = components.transformer.dtype
+        num_images_per_prompt = getattr(block_state, "num_images_per_prompt", 1) or 1
+        height = getattr(block_state, "height", 2048)
+        width = getattr(block_state, "width", 2048)
+
+        images = getattr(block_state, "image", None)
+        if images is None:
+            images = []
+        elif isinstance(images, Image.Image):
+            images = [images]
+        elif not isinstance(images, (list, tuple)):
+            raise ValueError(f"`image` has to be a PIL image or list of images, got {type(images)}")
+        images = [image for image in images if image is not None]
+        if images:
+            if len(images) == 1 and block_state.batch_size > 1:
+                images = images * block_state.batch_size
+            if len(images) != block_state.batch_size:
+                raise ValueError(
+                    f"`image` must contain one image or one image per prompt; got {len(images)} images for "
+                    f"{block_state.batch_size} prompts"
+                )
+
+            ref_hidden_states = []
+            vae = components.vae
+            for image in images:
+                if not isinstance(image, Image.Image):
+                    raise ValueError(f"`image` items must be PIL images, got {type(image)}")
+                image = image.convert("RGBA").resize((width, height), Image.Resampling.LANCZOS)
+                pixels = torch.from_numpy(np.asarray(image).copy()).permute(2, 0, 1).unsqueeze(0).float()
+                pixels = (pixels / 127.5 - 1.0).to(device=components._execution_device, dtype=vae.dtype).unsqueeze(2)
+                latent_dist = vae.encode(pixels).latent_dist
+                latents = latent_dist.mode() if hasattr(latent_dist, "mode") else latent_dist.sample()
+                latents = latents.squeeze(2)
+                scaling_factor = vae.config.get("scaling_factor", 1.0)
+                shift_factor = vae.config.get("shift_factor", 0.0) or 0.0
+                ref_hidden_states.append(((latents - shift_factor) * scaling_factor).squeeze(0).unsqueeze(1))
+
+            block_state.ref_hidden_states = [
+                latent
+                for latent in ref_hidden_states
+                for _ in range(num_images_per_prompt)
+            ]
+        else:
+            block_state.ref_hidden_states = []
 
         def repeat(embeds):
             if embeds is None:
                 return None
-            return [e for e in embeds for _ in range(block_state.num_images_per_prompt)]
+            return [e for e in embeds for _ in range(num_images_per_prompt)]
 
         block_state.prompt_embeds = repeat(block_state.prompt_embeds)
         block_state.prompt_embeds_2 = repeat(block_state.prompt_embeds_2)

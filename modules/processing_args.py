@@ -27,11 +27,15 @@ def task_modular_kwargs(p, model):
     p.ops.append('modular')
 
     processing_helpers.resize_init_images(p)
+    if model_cls == 'MingImageModularPipeline' and len(getattr(p, 'init_images', [])) > 0:
+        p.width = max(16, 16 * ((p.width + 8) // 16))
+        p.height = max(16, 16 * ((p.height + 8) // 16))
     task_args['width'] = p.width
     task_args['height'] = p.height
     if len(getattr(p, 'init_images', [])) > 0:
         task_args['image'] = p.init_images
-        task_args['strength'] = p.denoising_strength
+        if model_cls != 'MingImageModularPipeline':
+            task_args['strength'] = p.denoising_strength
         if (shared.sd_model_type == 'sdxl') and hasattr(model, 'register_to_config') and (model_cls not in sd_models.i2i_pipes):
             model.register_to_config(requires_aesthetics_score = False)
 
