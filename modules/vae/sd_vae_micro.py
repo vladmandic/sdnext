@@ -47,7 +47,7 @@ def decode(latents: torch.Tensor) -> torch.Tensor:
 
     vae_cls = get_vae_type()
     scale_factor = sd_vae.get_vae_scale_factor(patch=False)
-    in_channels = getattr(shared.sd_model.vae.config, "latent_channels", 64)
+    in_channels = sd_vae.get_vae_channels()
 
     if vae_cls is None:
         return latents

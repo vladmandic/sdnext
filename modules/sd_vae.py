@@ -28,6 +28,18 @@ vae_scale_override = {
 }
 
 
+def get_vae_channels(model: DiffusionPipeline | None = None) -> int:
+    if not shared.sd_loaded:
+        return 64
+    if model is None:
+        model = shared.sd_model
+    try:
+        in_channels = getattr(model.vae.config, "latent_channels", 16)
+    except Exception:
+        in_channels = 16
+    return in_channels
+
+
 def get_vae_scale_factor(model: DiffusionPipeline | None = None, init_image: bool = False, patch: bool = True):
     if not shared.sd_loaded:
         vae_scale_factor = 8

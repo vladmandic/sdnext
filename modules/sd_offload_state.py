@@ -7,13 +7,16 @@ debug = os.environ.get('SD_MOVE_DEBUG', None) is not None
 verbose = os.environ.get('SD_MOVE_VERBOSE', None) is not None
 debug_move = log.trace if debug else lambda *args, **kwargs: None
 
+move_stream = None
+accelerate_dtype_byte_size = None # monkey-patch accelerate.utils.modeling.dtype_byte_size
 
+# balanced offload
 offload_allow_none = ['sd', 'sdxl'] # used to warn if offloading=none
-
-
 offload_post = ['h1']
 offload_hook_instance = None # instance of sd_offload_balanced.OffloadHook
-balanced_offload_exclude = ['CogView4Pipeline', 'MeissonicPipeline']
+balanced_offload_exclude = ['MeissonicPipeline']
+
+# group offload
 group_offload_main = [ # component names entered once per denoising step
     "unet", "transformer", "transformer_2", "transformer_ref", "unconditional_transformer",
     "prior", "prior_prior", "decoder", "dit_model", "model", "controlnet",
@@ -30,6 +33,3 @@ no_split_module_classes = [
     "Flux3ModeTransformerBlock", "Flux3SingleTransformerBlock",
     "MOSSImageBlock", "MOSSImageTextBlock",
 ]
-
-accelerate_dtype_byte_size = None # monkey-patch accelerate.utils.modeling.dtype_byte_size
-move_stream = None

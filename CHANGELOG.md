@@ -84,6 +84,7 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
 - **Fixes**
   - api: return complete set in GET /sdapi/v1/options, thanks @Jackmeson1
   - caption: get/set attention fallbacks
+  - cogview: support offloading
   - dlss: save once when running as extras
   - krea2: use prequant text-encoder when loading pre-quant model
   - launch: dont overwrite existing LD_LIBRARY_PATH
