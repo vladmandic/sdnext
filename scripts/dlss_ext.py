@@ -132,7 +132,7 @@ class DLSSScript(scripts_manager.Script):
             detailer_enabled = p.detailer_enabled
             p.detailer_enabled = False
             try:
-                out_images, out_infos = processing.process_samples(p, pp.images)
+                out_images, out_infos = processing.process_samples(p, pp.images, skip_postprocess_image=True)
             finally:
                 p.detailer_enabled = detailer_enabled
             pp.images = out_images

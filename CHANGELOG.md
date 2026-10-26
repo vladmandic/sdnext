@@ -62,7 +62,7 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
     allows near-infinite video length without excessive memory usage  
 - **MicroDecoder**
   - add support for additional vae families  
-    supported: `sd, sdxl, sd3, f1, f2, hy, dcae, mage, qwen, qwen21, wan21, minimaxh3`  
+    supported: `sd, sdxl, sd3, f1, f2, hy, dcae, mage, qwen, qwen21, wan21, wan22, minimaxh3, cog`  
 - **Wiki**
   - updates to: `Scheduler`, `Models`, `Model-Support`, `Docker`, `AMD-ROCm`, `AMD-MIOpen`, `Detailer`, `LoRA`, `LoRA-Technical`
 - **Docker**
@@ -86,6 +86,7 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
   - caption: get/set attention fallbacks
   - cogview: support offloading
   - dlss: save once when running as extras
+  - dlss: do not run other postprocess again
   - krea2: use prequant text-encoder when loading pre-quant model
   - launch: dont overwrite existing LD_LIBRARY_PATH
   - lora: bias deltas no longer refused when the model is quantized or native fuse is off

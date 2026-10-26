@@ -288,7 +288,7 @@ def get_opt(p, key):
     return val if val is not None else getattr(shared.opts, key)
 
 
-def process_samples(p: StableDiffusionProcessing, samples):
+def process_samples(p: StableDiffusionProcessing, samples, skip_postprocess_image: bool = False):
     out_images = []
     out_infotexts = []
     if not isinstance(samples, list):
@@ -335,7 +335,7 @@ def process_samples(p: StableDiffusionProcessing, samples):
                 method = p.color_correction_method if p.color_correction_method is not None else getattr(shared.opts, 'color_correction_method', 'histogram')
                 image = apply_color_correction(p.color_corrections[i], image, method=method)
 
-            if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner) and not getattr(p, 'is_grid', False):
+            if not skip_postprocess_image and p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner) and not getattr(p, 'is_grid', False):
                 pp = scripts_manager.PostprocessImageArgs(image)
                 p.scripts.postprocess_image(p, pp)
                 if pp.image is not None:
