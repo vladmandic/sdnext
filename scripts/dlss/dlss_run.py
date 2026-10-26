@@ -235,25 +235,32 @@ def dlss_run(p: StableDiffusionProcessing | None,
         pbar_task = pbar.add_task(description=pbar_desc, total=len(raw_inputs)) if par_enabled else None
 
         def process_frame(raw_frame):
-            current_frame = _to_ndarray_rgb_float(raw_frame)
+            current_frames = [_to_ndarray_rgb_float(raw_frame)]
             for stage_name, session in active_chain:
                 next_frames = []
-                if stage_name == 'nr':
-                    next_frames.append(session(current_frame))
-                elif stage_name == 'fg':
-                    next_frames.extend(session(current_frame))
-                elif stage_name == 'vsr':
-                    next_frames.append(session(current_frame))
-                else:
-                    next_frames.append(current_frame)
-                current_frame = [(255.0 * np.clip(frame_nd, 0.0, 1.0)).astype(np.uint8) for frame_nd in next_frames][0]
-            return current_frame
+                for current_frame in current_frames:
+                    if stage_name == 'nr':
+                        next_frames.append(session(current_frame))
+                    elif stage_name == 'fg':
+                        next_frames.extend(session(current_frame))
+                    elif stage_name == 'vsr':
+                        next_frames.append(session(current_frame))
+                    else:
+                        next_frames.append(current_frame)
+                current_frames = next_frames
+            return [(255.0 * np.clip(frame_nd, 0.0, 1.0)).astype(np.uint8) for frame_nd in current_frames]
 
         jobid = shared.state.begin('DLSS')
 
         video_writter = None
         use_stream = has_video and(len(raw_inputs) > 0) and (raw_inputs[0] is None)
         num_frames = len(raw_inputs)
+        framegen_factor = 1
+        for stage_name, session in active_chain:
+            if stage_name == 'fg':
+                framegen_factor *= session.options.factor
+        output_frames_hint = 1 + (num_frames - 1) * framegen_factor
+
         if use_stream:
             raw_inputs = video.read_generator(pp.video) # use read generator instead of bulk read
 
@@ -261,16 +268,16 @@ def dlss_run(p: StableDiffusionProcessing | None,
             video_initialized = False
             total_produced_frames = []
             for raw_input in raw_inputs:
-                current_frame = process_frame(raw_input)
+                current_frames = process_frame(raw_input)
                 if use_stream:
                     if not video_initialized:
-                        pp.video, video_writter = video.save_video(p, [current_frame], video_type='mp4', duration=duration, sync=True, stream=True, frames_hint=num_frames)
+                        pp.video, video_writter = video.save_video(p, current_frames, video_type='mp4', duration=duration, sync=True, stream=True, frames_hint=output_frames_hint)
                         video_initialized = True
                     else:
-                        video.save_video_frames(video_writter, [current_frame])
+                        video.save_video_frames(video_writter, current_frames)
                     total_produced_frames.append(None)
                 else: # not use_stream
-                    total_produced_frames.append(current_frame)
+                    total_produced_frames.extend(current_frames)
                 if par_enabled:
                     pbar.update(pbar_task, advance=1)
 
