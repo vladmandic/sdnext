@@ -15,7 +15,13 @@ def load_moss_image(checkpoint_info, diffusers_load_config=None):
     log.debug(f'Load model: type=MOSSImage repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
     from pipelines.moss.moss_image import MOSSImagePipeline, MOSSImageTransformer, MOSSImageFlowMatchScheduler
+    from pipelines.moss.moss_image_i2i import MOSSImageToImagePipeline
+    from pipelines.moss.moss_image_inpaint import MOSSImageInpaintPipeline
     generic.set_pipeline('MOSSImage', MOSSImagePipeline)
+    auto_pipeline = diffusers.pipelines.auto_pipeline
+    auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING['mossimage'] = MOSSImagePipeline
+    auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING['mossimage'] = MOSSImageToImagePipeline
+    auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING['mossimage'] = MOSSImageInpaintPipeline
     if repo_id is None or repo_id.lower() == 'none':
         return None
 

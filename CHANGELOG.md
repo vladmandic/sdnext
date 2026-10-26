@@ -28,6 +28,8 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
     *note*: BriaFIBO is designed to work with highly structured [JSON prompts](https://docs.bria.ai/vgl#5-schema-reference)  
     if you provide a simple string-based prompt, sdnext will convert it to naive JSON, but it will be sub-optimal  
   - [lodestones Kromoss](https://huggingface.co/lodestones/Kromoss) fine-tune of MOSS-Image
+  - [OpenMOSS MOSS-Image](https://huggingface.co/OpenMOSS-Team/MOSS-Image-Base) in *image2image* and *inpaint* workflows  
+    *note*: this also unlocks use in hires/refine/detailer workflows  
 - **Coding**  
   expand ai/ml instructions and skills  
   see [instructions](https://github.com/vladmandic/sdnext/blob/dev/.github/copilot-instructions.md) and [skills readme](https://github.com/vladmandic/sdnext/blob/dev/.github/skills/README.md) for details  
