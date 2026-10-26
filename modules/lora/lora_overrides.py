@@ -40,6 +40,7 @@ NATIVE_DISPATCH = {
     'qwen21':     'pipelines.qwen.qwen21_lora',
     'zimage':     'pipelines.z_image.zimage_lora',
     'minimaxh3':  'pipelines.minimax.minimax_lora',
+    'mossimage':  'pipelines.moss.moss_lora',
 }
 
 allow_native = list(NATIVE_DISPATCH)
