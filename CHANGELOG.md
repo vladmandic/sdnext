@@ -1,14 +1,15 @@
 # Change Log for SD.Next
 
-## Update for 2026-10-25
+## Update for 2026-10-26
 
-### Highlights for 2026-10-25
+### Highlights for 2026-10-26
 
 *What's new in this release?*
 - One new base model: ***Bria FIBO 2.0**  
 - Major improvements to **Prompt Enhance** functionality to make it more versatile and cover usage in new structured/json based prompts  
 - New playground feature **Story Mode**  
 - Updates to **AI Coding** instructions and skills: try your favorite model/tool on SD.Next, you might be surprised how quickly it adapts and performs  
+- Codebase cleanup: removed deprecated options that were left as legacy remnants
 - And many more smaller improvements and fixes...
 
 > [!IMPORTANT]
@@ -18,7 +19,7 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
 
 [Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-10-25
+### Details for 2026-10-26
 
 - **Models**
   - [Bria FIBO 2.0](https://huggingface.co/briaai/Fibo-2.0-dev) *Dev* base and *Edit Turbo* distilled variants  
@@ -54,6 +55,9 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
 - **DLSS**
   - use streaming for DLSS video processing  
     allows near-infinite video length without excessive memory usage  
+- **MicroDecoder**
+  - add support for additional vae families  
+    supported: `sd, sdxl, sd3, f1, f2, hy, dcae, mage, qwen, qwen21, wan21, minimaxh3`  
 - **Wiki**
   - updates to: `Scheduler`, `Models`, `Model-Support`, `Docker`, `AMD-ROCm`, `AMD-MIOpen`, `Detailer`, `LoRA`, `LoRA-Technical`
 - **Docker**
@@ -71,7 +75,7 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
   - infer transformers `native_spec` everywhere where its not explicitly set
   - remove number of params from codebase as obsolete and no-op for over a year:  
     *note*: this may cause breakage in extensions that rely on obsolete params  
-    removed: `subseed, subseed_strength, seed_resize_from_h/w, do_not_reload_embeddings, nan_skip, inpainting_mask_weigtht, initial_noise_multiplier, inpainting_fill, te_complex_human_instruction, te_use_mask, firstphase_width, firstphase_height`
+    removed: `subseed, subseed_strength, seed_resize_from_h/w, do_not_reload_embeddings, nan_skip, inpainting_mask_weigtht, initial_noise_multiplier, inpainting_fill, te_complex_human_instruction, te_use_mask, firstphase_width, firstphase_height`  
 - **Fixes**
   - api: return complete set in GET /sdapi/v1/options, thanks @Jackmeson1
   - caption: get/set attention fallbacks
@@ -82,6 +86,7 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
   - lora: resolve a/b peft keys, thanks @li-lizhe
   - mageflow: load single-file transformers, including low-rank modulation checkpoints (MageTrail 0.3+)
   - microdecoder: improve error handling
+  - microdecoder: warn once on errors
   - moss: downloaded moss-image models appear in the model list
   - moss: performance optimizations
   - moss: single-file model loading support

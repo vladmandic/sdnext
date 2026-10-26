@@ -4,6 +4,7 @@ import math
 import warnings
 import argparse
 import importlib
+import importlib.metadata
 from pathlib import Path
 from PIL import Image
 import torch
@@ -316,7 +317,20 @@ class HelpFormatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawDescript
 
 def resolve_vae_class(vae_name):
     if ":" not in vae_name:
-        return getattr(importlib.import_module("diffusers"), vae_name)
+        original_version = importlib.metadata.version
+
+        def compatible_version(package):
+            if package.lower().replace("_", "-") == "huggingface-hub":
+                return "1.99.0"
+            return original_version(package)
+
+        importlib.metadata.version = compatible_version
+        try:
+            importlib.import_module("transformers")
+            diffusers = importlib.import_module("diffusers")
+        finally:
+            importlib.metadata.version = original_version
+        return getattr(diffusers, vae_name)
     module_name, class_name = vae_name.rsplit(":", 1)
     module_name = module_name.removesuffix(".py").replace("/", ".").replace("\\", ".")
     return getattr(importlib.import_module(module_name), class_name)

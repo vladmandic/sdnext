@@ -13,6 +13,7 @@ decoder = None
 decoder_cls = None
 repo_id = 'SD-Next/MicroDecoder'
 warned = None
+supported = ['sd', 'sdxl', 'sd3', 'f1', 'f2', 'hy', 'dcae', 'mage', 'qwen', 'qwen21', 'wan21', 'minimaxh3']
 
 
 def get_timestep() -> torch.Tensor:
@@ -45,12 +46,16 @@ def decode(latents: torch.Tensor) -> torch.Tensor:
             warned = shared.sd_model_type
 
     vae_cls = get_vae_type()
+    scale_factor = sd_vae.get_vae_scale_factor(patch=False)
+    in_channels = getattr(shared.sd_model.vae.config, "latent_channels", 64)
+
     if vae_cls is None:
+        return latents
+    if vae_cls not in supported:
+        warn_once(RuntimeError(f'type={vae_cls} unsupported'))
         return latents
     if (latents is None) or (latents.ndim == 2): # likely packed latents that we cant handle directly
         return latents
-    scale_factor = sd_vae.get_vae_scale_factor(patch=False)
-    in_channels = getattr(shared.sd_model.vae.config, "latent_channels", 64)
 
     if (decoder is None) or (decoder_cls != vae_cls): # load or reload the decoder if not initialized or if the VAE type has changed
         model_folder = os.path.join(paths.models_path, "Preview")
@@ -62,10 +67,10 @@ def decode(latents: torch.Tensor) -> torch.Tensor:
             try:
                 model_path = hf.hf_hub_download(repo_id=repo_id, filename=model_file, local_dir=model_folder)
             except Exception as e:
-                log.error(f'MicroDecoder: repo={repo_id} target={vae_cls} {str(e)}')
+                warn_once(e)
                 return latents
             if not os.path.exists(model_path):
-                log.error(f'MicroDecoder: repo={repo_id} target={vae_cls} file="{model_path}" not found')
+                warn_once(RuntimeError(f'MicroDecoder: repo="{repo_id}" target={vae_cls} file="{model_path}" not found'))
                 return latents
 
         state_dict = safetensors.torch.load_file(model_path, device=str(devices.device))
