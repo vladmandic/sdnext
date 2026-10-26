@@ -170,6 +170,15 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
                     shared.state.current_noise_pred = pipe._unpack_latents(current_noise_pred, height, width) # pylint: disable=protected-access # pythoning ask-for-forgiveness if method does not support vae_scale_factor
                 else:
                     shared.state.current_noise_pred = current_noise_pred
+        elif getattr(pipe, 'texture_vae_name', None) == 'flux2' and hasattr(pipe, 'semantic_channels') and hasattr(pipe, '_unpatchify_latents'):
+            texture_latents = latents[:, pipe.semantic_channels:]
+            bn = pipe.vae.bn
+            eps = getattr(pipe.vae.config, 'batch_norm_eps', 1e-6)
+            mean = bn.running_mean.view(1, -1, 1, 1).to(device=texture_latents.device, dtype=texture_latents.dtype)
+            std = torch.sqrt(bn.running_var + eps).view(1, -1, 1, 1).to(device=texture_latents.device, dtype=texture_latents.dtype)
+            texture_latents = texture_latents * std + mean
+            shared.state.current_latent = pipe._unpatchify_latents(texture_latents) # pylint: disable=protected-access
+            shared.state.current_noise_pred = current_noise_pred
         elif hasattr(pipe, "_unpatchify_latents"): # FLUX.2 - unpack [B, seq, patch_ch] to [B, ch, H, W]
             vae_scale = getattr(pipe, 'vae_scale_factor', 8)
             if p.hr_resize_mode > 0 and (p.hr_upscaler != 'None' or p.hr_resize_mode == 5) and p.is_hr_pass:
