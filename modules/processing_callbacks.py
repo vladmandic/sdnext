@@ -145,7 +145,9 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
         if current_noise_pred is None:
             current_noise_pred = kwargs.get("predicted_image_embedding", None)
 
-        if hasattr(pipe, "_unpack_latents") and hasattr(pipe, "vae_scale_factor"): # FLUX.1
+        if pipe.__class__.__name__ == 'QwenImageLayeredPipeline':
+            pass
+        elif hasattr(pipe, "_unpack_latents") and hasattr(pipe, "vae_scale_factor"): # FLUX.1
             if p.hr_resize_mode > 0 and (p.hr_upscaler != 'None' or p.hr_resize_mode == 5) and p.is_hr_pass:
                 width = max(getattr(p, 'width', 0), getattr(p, 'hr_upscale_to_x', 0))
                 height = max(getattr(p, 'height', 0), getattr(p, 'hr_upscale_to_y', 0))
