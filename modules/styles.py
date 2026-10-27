@@ -101,8 +101,9 @@ def apply_curly_braces_to_prompt(prompt, seed=-1):
         random.seed(seed)
     prompt = prompt.strip()
     try:
-        json.loads(prompt)
-        return prompt # this is already a json, do not process
+        from modules.extra_networks import re_extra_net
+        json.loads(re.sub(re_extra_net, '', prompt).strip(', \n')) # a json caption keeps its braces, with or without extra-network tags after it
+        return prompt
     except Exception:
         pass
     try:

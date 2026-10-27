@@ -113,6 +113,7 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
   - sdnq: attention dtype and mask fixes
   - seedvr: unblock usage on non-cuda devices
   - state: race condition when settings are changed while generate is running
+  - styles: json prompts keep their braces when extra-network tags follow them
   - ui: fallback template load method when running on older server
   - ui: autohide panels
   - unet: hash on first load
