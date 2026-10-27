@@ -352,6 +352,7 @@ def finish_pass(ctx, t0):
     refused_writes = ctx.refused
     l.last_backup_size = ctx.backup_size
     l.last_mode = 'backup' if ctx.backup_size > 0 else ('fuse' if ctx.fuse else 'factor')
+    l.last_fuse = ctx.fuse
     l.timer.activate += time.time() - t0
     if ctx.refused > 0:
         log.error(f'Network load: type=LoRA networks={[n.name for n in l.loaded_networks]} weights={ctx.applied_weight} bias={ctx.applied_bias} refused={ctx.refused} network partially applied')
@@ -429,7 +430,7 @@ def network_deactivate(include=None, exclude=None):
         exclude = []
     if include is None:
         include = []
-    fuse = lora_overrides.fuse_native() # must match network_activate: backup mode restores in its restore-only pass instead
+    fuse = l.last_fuse or lora_overrides.fuse_native() # a fused set has no copy, so it is subtracted under the option it went in with; a fuse-mode pass would drop a backup-mode copy, so those layers restore here; backup to backup restores in the restore-only pass
     if not fuse or shared.opts.lora_force_diffusers:
         return
     if len(l.previously_loaded_networks) == 0:

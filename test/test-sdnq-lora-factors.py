@@ -710,6 +710,62 @@ def test_fuse_mode_restores_a_weight_dependent_set_from_its_copy():
     return True
 
 
+def request(*nets):
+    """One generation's native activation as extra_networks_lora runs it: remove the previous sets, then apply these."""
+    l_common.loaded_networks[:] = list(nets)
+    if len(l_common.previously_loaded_networks) > 0:
+        networks.network_deactivate()
+    networks.network_activate()
+    l_common.previously_loaded_networks[:] = l_common.loaded_networks
+
+
+def switch_fixture(dora=False):
+    """Two plain-weight sets on one layer and the delta the second makes on the pristine weight."""
+    lin, w0 = plain_fixture()
+    net_a = small_net('switch_a', lin, dora=dora)
+    net_b = small_net('switch_b', lin)
+    want_b, _ = net_b.modules[lin.network_layer_name].calc_updown(w0)
+    return lin, w0, net_a, net_b, want_b
+
+
+def check_switch(first_fuse, follow, dora=False):
+    """A set applied in one mode, then the option flipped before the next request, as a per-request override does."""
+    lin, w0, net_a, net_b, want_b = switch_fixture(dora)
+    with mock_model(lin=lin):
+        shared.opts.lora_fuse_native = first_fuse
+        request(net_a)
+        assert float((lin.weight.detach() - w0).abs().max()) > 0.1, 'the first set must have changed the weight'
+        shared.opts.lora_fuse_native = not first_fuse
+        if follow:
+            request(net_b)
+            err = float((lin.weight.detach() - w0 - want_b).abs().max())
+            assert err < 1e-5, f'max |got-want|={err:.2e}: the second set must land on the pristine weight'
+        request()
+        residue = float((lin.weight.detach() - w0).abs().max())
+        assert residue < 1e-5, f'residue={residue:.2e}: the switch left an earlier set in the weight'
+    return True
+
+
+def test_fuse_set_removed_after_switch_to_backup():
+    """A plain set fused under lora_fuse_native, then a request with the option off and no set: the fused delta must come out."""
+    return check_switch(first_fuse=True, follow=False)
+
+
+def test_fuse_set_removed_before_backup_set():
+    """The next request carries a set in backup mode: its copy must be taken from the weight with the fused set removed."""
+    return check_switch(first_fuse=True, follow=True)
+
+
+def test_fuse_weight_dependent_set_removed_after_switch_to_backup():
+    """A DoRA set restores from its fuse-mode copy even when the next request turns fuse off."""
+    return check_switch(first_fuse=True, follow=True, dora=True)
+
+
+def test_backup_set_removed_after_switch_to_fuse():
+    """The reverse switch: a backup-mode set is restored from its copy before a fuse-mode request applies."""
+    return check_switch(first_fuse=False, follow=True)
+
+
 def split_dora_net(name, layers, magnitude):
     """One per-input DoRA over the fused weight of ``layers``, split in equal chunks that share the column norm."""
     net = network.Network(name, MockNOD(name))
@@ -3121,7 +3177,9 @@ def run_tests():
     for fn in [test_mixed_family_transition_restores_base, test_partial_coverage_layers_stay_independent,
                test_apply_restore_preserves_weight_storage, test_fuse_promote_applies_new_multiplier, test_fuse_change_then_remove_restores_pristine,
                test_mechanism_gate_declines_candidates, test_requantize_option_routes_to_legacy_path,
-               test_mechanism_flip_strips_attached_factors, test_mechanism_flip_restore_pass_strips]:
+               test_mechanism_flip_strips_attached_factors, test_mechanism_flip_restore_pass_strips,
+               test_fuse_set_removed_after_switch_to_backup, test_fuse_set_removed_before_backup_set,
+               test_fuse_weight_dependent_set_removed_after_switch_to_backup, test_backup_set_removed_after_switch_to_fuse]:
         run_test(CAT_TRANS, fn)
     log.warning('=== Pristine base ===')
     for fn in [test_backup_mode_computes_dora_on_the_pristine_weight, test_fuse_mode_restores_a_weight_dependent_set_from_its_copy,
