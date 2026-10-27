@@ -766,6 +766,95 @@ def test_backup_set_removed_after_switch_to_fuse():
     return check_switch(first_fuse=False, follow=True)
 
 
+def test_remove_takes_every_native_set_off():
+    """network_remove restores the pristine weight from either mode and forgets the removed sets."""
+    for fuse in (True, False):
+        lin, w0 = plain_fixture()
+        with mock_model(lin=lin):
+            shared.opts.lora_fuse_native = fuse
+            request(small_net('remove', lin))
+            networks.network_remove()
+            residue = float((lin.weight.detach() - w0).abs().max())
+            assert residue < 1e-5, f'fuse={fuse} residue={residue:.2e}'
+            assert len(l_common.previously_loaded_networks) == 0, f'fuse={fuse} removed sets must not be removed again'
+    return True
+
+
+def test_remove_runs_with_force_diffusers_on():
+    """A switch to the diffusers method still takes the fused native set off."""
+    lin, w0 = plain_fixture()
+    old = shared.opts.lora_force_diffusers
+    try:
+        with mock_model(lin=lin):
+            shared.opts.lora_fuse_native = True
+            request(small_net('remove_forced', lin))
+            shared.opts.lora_force_diffusers = True
+            networks.network_remove()
+            residue = float((lin.weight.detach() - w0).abs().max())
+            assert residue < 1e-5, f'residue={residue:.2e}'
+    finally:
+        shared.opts.lora_force_diffusers = old
+    return True
+
+
+def method_fixture(previous, model=None):
+    from modules.lora import extra_networks_lora
+    handler = extra_networks_lora.ExtraNetworkLora()
+    handler.method = (previous, model or shared.opts.sd_model_checkpoint)
+    shared.sd_model.pipe.loaded_loras = {'include=all:exclude=none': ['remove:1.0:1.0']}
+    return extra_networks_lora, handler
+
+
+def test_method_switch_removes_native_sets():
+    """native to diffusers: the native set comes off and the change cache is cleared, so the same tags apply again."""
+    lin, w0 = plain_fixture()
+    with mock_model(lin=lin):
+        shared.opts.lora_fuse_native = True
+        request(small_net('switch_native', lin))
+        _, handler = method_fixture('native')
+        handler.switch_method('diffusers')
+        residue = float((lin.weight.detach() - w0).abs().max())
+        assert residue < 1e-5, f'residue={residue:.2e}'
+        assert shared.sd_model.pipe.loaded_loras == {}, 'the change cache must not report the same tags as applied'
+        assert handler.method[0] == 'diffusers'
+    return True
+
+
+def test_method_switch_unloads_diffusers_adapters():
+    """diffusers to native: the adapters still attached from the previous request are unloaded once."""
+    lin, _ = plain_fixture()
+    with mock_model(lin=lin):
+        module, handler = method_fixture('diffusers')
+        calls = []
+        real_unload = module.unload_diffusers
+        module.unload_diffusers = lambda: calls.append('unload')
+        try:
+            module.lora_diffusers.diffuser_loaded[:] = ['adapter']
+            handler.switch_method('native')
+            assert calls == ['unload'], f'calls={calls}'
+            assert module.lora_diffusers.diffuser_loaded == [], 'the unloaded adapters must be forgotten'
+            handler.switch_method('native')
+            assert calls == ['unload'], 'a request under the same method must not unload again'
+        finally:
+            module.unload_diffusers = real_unload
+            module.lora_diffusers.diffuser_loaded.clear()
+    return True
+
+
+def test_method_switch_ignores_a_model_change():
+    """A different checkpoint means the previous method's sets went with the old model: nothing is removed from the new one."""
+    lin, w0 = plain_fixture()
+    with mock_model(lin=lin):
+        shared.opts.lora_fuse_native = True
+        request(small_net('switch_model', lin))
+        applied = lin.weight.detach().clone()
+        _, handler = method_fixture('native', model='another checkpoint')
+        handler.switch_method('diffusers')
+        assert torch.equal(lin.weight.detach(), applied), 'a set on the current model must not be touched by a stale method record'
+        assert float((applied - w0).abs().max()) > 0.1
+    return True
+
+
 def split_dora_net(name, layers, magnitude):
     """One per-input DoRA over the fused weight of ``layers``, split in equal chunks that share the column norm."""
     net = network.Network(name, MockNOD(name))
@@ -3179,7 +3268,9 @@ def run_tests():
                test_mechanism_gate_declines_candidates, test_requantize_option_routes_to_legacy_path,
                test_mechanism_flip_strips_attached_factors, test_mechanism_flip_restore_pass_strips,
                test_fuse_set_removed_after_switch_to_backup, test_fuse_set_removed_before_backup_set,
-               test_fuse_weight_dependent_set_removed_after_switch_to_backup, test_backup_set_removed_after_switch_to_fuse]:
+               test_fuse_weight_dependent_set_removed_after_switch_to_backup, test_backup_set_removed_after_switch_to_fuse,
+               test_remove_takes_every_native_set_off, test_remove_runs_with_force_diffusers_on, test_method_switch_removes_native_sets,
+               test_method_switch_unloads_diffusers_adapters, test_method_switch_ignores_a_model_change]:
         run_test(CAT_TRANS, fn)
     log.warning('=== Pristine base ===')
     for fn in [test_backup_mode_computes_dora_on_the_pristine_weight, test_fuse_mode_restores_a_weight_dependent_set_from_its_copy,

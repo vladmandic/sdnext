@@ -203,6 +203,25 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
         self.active = False
         self.model = None
         self.errors = {}
+        self.method = (None, None) # load method of the last activation and the checkpoint it ran on
+
+    def switch_method(self, method: str):
+        """Take the previous method's sets off the model when this request loads with another; each method removes only its own, and the change cache keys on the tags alone."""
+        previous, model = self.method
+        self.method = (method, shared.opts.sd_model_checkpoint)
+        if previous is None or previous == method or model != shared.opts.sd_model_checkpoint:
+            return
+        if previous == 'native':
+            networks.network_remove()
+        elif previous == 'diffusers' and len(lora_diffusers.diffuser_loaded) > 0:
+            unload_diffusers()
+            lora_diffusers.diffuser_loaded.clear()
+            lora_diffusers.diffuser_scales.clear()
+            sd_models.set_diffuser_offload(shared.sd_model, op="model") # unload_lora_weights unwraps modules and detaches offload hooks
+        sd_model = getattr(shared.sd_model, 'pipe', shared.sd_model)
+        if sd_model is not None and hasattr(sd_model, 'loaded_loras'):
+            sd_model.loaded_loras.clear()
+        log.info(f'Network unload: type=LoRA method={previous} next={method} reason="method changed"')
 
     def signature(self, names: list[str], te_multipliers: list, unet_multipliers: list, block_specs: list | None = None, components: dict | None = None):
         specs = block_specs if block_specs else [None] * len(names)
@@ -259,6 +278,7 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
         reason = ''
 
         load_method, load_reason = lora_overrides.get_method()
+        self.switch_method(load_method)
         from modules.lora import lora_stack
         if load_method != 'native' and lora_stack.mode() != 'sum':
             log.warning(f'Network stack: mode={lora_stack.mode()} method={load_method} fallback=sum')

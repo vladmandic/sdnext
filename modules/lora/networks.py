@@ -425,13 +425,23 @@ def effective_mode():
     return 'fuse' if lora_overrides.fuse_native() else 'factor'
 
 
+def network_remove():
+    """Take every native set off the model: fused layers subtract, backed-up layers restore, attached factors drop."""
+    if len(l.previously_loaded_networks) == 0:
+        return
+    l.loaded_networks.clear()
+    network_deactivate()
+    network_activate()
+    l.previously_loaded_networks.clear()
+
+
 def network_deactivate(include=None, exclude=None):
     if exclude is None:
         exclude = []
     if include is None:
         include = []
     fuse = l.last_fuse or lora_overrides.fuse_native() # a fused set has no copy, so it is subtracted under the option it went in with; a fuse-mode pass would drop a backup-mode copy, so those layers restore here; backup to backup restores in the restore-only pass
-    if not fuse or shared.opts.lora_force_diffusers:
+    if not fuse:
         return
     if len(l.previously_loaded_networks) == 0:
         return
