@@ -342,7 +342,7 @@
   },
   "OpenMOSS MOSS-Image SFT sdnq-uint4": {
     "path": "OzzyGT/MOSS_Image_SFT_sdnq_dynamic_4bit",
-    "preview": "SD-Next--MOSS-Image-SFT.jpg",
+    "preview": "OzzyGT--MOSS_Image_SFT_sdnq_dynamic_4bit.jpg",
     "desc": "Quantization of MOSS-Image-SFT using SDNQ: dynamic 4-bit uint.",
     "extras": "sampler: Default, cfg_scale: 3.0, steps: 50",
     "size": 27.22,
@@ -350,7 +350,7 @@
   },
   "OpenMOSS MOSS-Image Base sdnq-uint4": {
     "path": "OzzyGT/MOSS_Image_Base_sdnq_dynamic_4bit",
-    "preview": "SD-Next--MOSS-Image-Base.jpg",
+    "preview": "OzzyGT--MOSS_Image_Base_sdnq_dynamic_4bit.jpg",
     "desc": "Quantization of MOSS-Image-Base using SDNQ: dynamic 4-bit uint.",
     "extras": "sampler: Default, cfg_scale: 3.0, steps: 50",
     "size": 27.22,
