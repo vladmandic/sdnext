@@ -38,7 +38,7 @@ def _upstream_layer_path(separator, layer, projection):
 
 def _uses_upstream_layout():
     from modules import shared
-    transformer = getattr(shared.sd_model, "transformer", None)
+    transformer = getattr(getattr(shared.sd_model, "pipe", shared.sd_model), "transformer", None)
     return hasattr(transformer, "context_refiner") and hasattr(transformer, "transformer_blocks")
 
 
