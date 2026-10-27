@@ -92,6 +92,7 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
   - launch: dont overwrite existing LD_LIBRARY_PATH
   - lora: bias deltas no longer refused when the model is quantized or native fuse is off
   - lora: resolve a/b peft keys, thanks @li-lizhe
+  - lora: trim zero-padded input columns of fused-layout deltas to the module width
   - mageflow: load single-file transformers, including low-rank modulation checkpoints (MageTrail 0.3+)
   - microdecoder: improve error handling
   - microdecoder: warn once on errors

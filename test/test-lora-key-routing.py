@@ -452,6 +452,37 @@ def test_widen_per_input_dora():
     assert torch.allclose(updown[:, :4], want, atol=1e-5), 'the trained channels must match DoRA on the narrow weight'
 
 
+def test_narrow_padded_input():
+    linear = torch.nn.Linear(576, 48)
+    down, up = torch.randn(RANK, 768), torch.randn(48, RANK)
+    down[:, 576:] = 0
+    module = widen_case(linear, down, up)
+    assert module is not None, 'a delta whose columns past the input width are zero must bind to the unpadded module'
+    updown, _ = module.calc_updown(linear.weight.detach())
+    assert updown.shape == linear.weight.shape, updown.shape
+    assert torch.allclose(updown, up @ down[:, :576], atol=1e-5), 'the live columns must carry the delta'
+
+
+def test_narrow_refuses_trained_tail():
+    linear = torch.nn.Linear(576, 48)
+    down = torch.randn(RANK, 768)
+    down[:, 576:] = 0
+    down[0, 700] = 1.0
+    assert widen_case(linear, down, torch.randn(48, RANK)) is None, 'a value past the input width is a mismatch, not padding'
+
+
+def test_narrow_per_input_dora():
+    linear = torch.nn.Linear(576, 48)
+    down, up = torch.randn(RANK, 768), torch.randn(48, RANK)
+    down[:, 576:] = 0
+    dora = torch.rand(1, 768) + 0.5
+    module = widen_case(linear, down, up, dora_scale=dora)
+    assert module is not None, 'a per-input DoRA saved at the padded width must bind'
+    updown, _ = module.calc_updown(linear.weight.detach())
+    want, _ = widen_case(linear, down[:, :576].clone(), up, dora_scale=dora[:, :576].clone()).calc_updown(linear.weight.detach())
+    assert torch.allclose(updown, want, atol=1e-5), 'trimming must match a delta saved at the module width'
+
+
 def clip(hidden, projection=False):
     config = transformers.CLIPTextConfig(hidden_size=hidden, intermediate_size=4 * hidden, num_hidden_layers=1, num_attention_heads=hidden // 64, projection_dim=hidden)
     with torch.device('meta'):
@@ -675,6 +706,17 @@ def test_full_widens_inpaint_conv_in():
     assert updown[:, 4:].abs().max() == 0 and updown.shape == conv.weight.shape
 
 
+def test_full_narrows_padded_input():
+    linear = torch.nn.Linear(576, 8)
+    diff = torch.randn(8, 768)
+    diff[:, 576:] = 0
+    net = chain_one('try_load_full', {'diff': diff}, linear)
+    assert net is not None, 'a diff whose columns past the input width are zero must bind to the unpadded module'
+    module = next(iter(net.modules.values()))
+    updown, _ = module.calc_updown(linear.weight.detach())
+    assert updown.shape == linear.weight.shape and torch.allclose(updown, diff[:, :576], atol=1e-5)
+
+
 class ZImagePipeline:
     def __init__(self, transformer):
         self.transformer = transformer
@@ -771,6 +813,9 @@ def run_tests():
         test_widen_fill_x_embedder,
         test_widen_refuses_wider_delta,
         test_widen_per_input_dora,
+        test_narrow_padded_input,
+        test_narrow_refuses_trained_tail,
+        test_narrow_per_input_dora,
         test_te_routing_flux,
         test_te_routing_sdxl,
         test_te_routing_sd15,
@@ -786,6 +831,7 @@ def run_tests():
         test_split_per_input_dora_lokr,
         test_family_shape_checks,
         test_full_widens_inpaint_conv_in,
+        test_full_narrows_padded_input,
         test_dump_covers_native_arch,
         test_chain_modules_share_the_returned_network,
         test_unreadable_file_declines,

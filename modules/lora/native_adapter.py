@@ -396,7 +396,7 @@ def file_alpha(network_on_disk):
     return None
 
 
-def finalize_network(net, name, family, lora_scale, t0, unmapped=0, mismatch=0, skipped=0, expanded=0):
+def finalize_network(net, name, family, lora_scale, t0, unmapped=0, mismatch=0, skipped=0, expanded=0, trimmed=0):
     """Emit the standard debug log line and return the populated network (or ``None``).
 
     Returns ``None`` when no modules were bound. Records ``mismatch`` on the
@@ -417,7 +417,7 @@ def finalize_network(net, name, family, lora_scale, t0, unmapped=0, mismatch=0, 
         return None
     log.debug(
         f'Network load: type={family} name="{name}" native modules={len(net.modules)}'
-        f' unmapped={unmapped} mismatch={mismatch} skipped={skipped} expanded={expanded} scale={lora_scale}'
+        f' unmapped={unmapped} mismatch={mismatch} skipped={skipped} expanded={expanded} trimmed={trimmed} scale={lora_scale}'
     )
     l.timer.activate += time.time() - t0
     return net
@@ -453,6 +453,28 @@ def widen_input(sd_module, w):
     return out
 
 
+def narrow_input(sd_module, w):
+    """Drop the down factor's zero input columns past the module's width when a fused save padded the input.
+
+    ComfyUI pads a SwiGLU down projection's input to the fused w13 row count (Fibo 2: 9536 to
+    9728); the padded activations are zero, so a delta's trailing columns are inert. Returns the
+    trimmed copy of ``w``, or None unless every column past the module's width is zero. A
+    per-input DoRA magnitude saved at the padded width is trimmed with the factor.
+    """
+    mod_shape = module_shape(sd_module)
+    down, up = w.get("lora_down.weight"), w.get("lora_up.weight")
+    if mod_shape is None or len(mod_shape) < 2 or down is None or up is None or down.ndim < 2:
+        return None
+    if up.shape[0] != mod_shape[0] or down.shape[1] <= mod_shape[1] or torch.count_nonzero(down[:, mod_shape[1]:]).item():
+        return None
+    out = dict(w)
+    out["lora_down.weight"] = down[:, :mod_shape[1]].contiguous()
+    dora = w.get("dora_scale")
+    if dora is not None and dora.ndim >= 2 and dora.shape[1] == down.shape[1]:
+        out["dora_scale"] = dora[:, :mod_shape[1]].contiguous()
+    return out
+
+
 def widen_full(sd_module, w):
     """:func:`widen_input` for a full-rank ``diff``: zero columns appended up to a widened module's input width."""
     mod_shape = module_shape(sd_module)
@@ -464,6 +486,21 @@ def widen_full(sd_module, w):
     pad = torch.zeros((diff.shape[0], mod_shape[1] - diff.shape[1], *diff.shape[2:]), dtype=diff.dtype, device=diff.device)
     out = dict(w)
     out["diff"] = torch.cat([diff, pad], dim=1)
+    return out
+
+
+def narrow_full(sd_module, w):
+    """:func:`narrow_input` for a full-rank ``diff``: zero columns past the module's input width dropped."""
+    mod_shape = module_shape(sd_module)
+    diff = w.get("diff")
+    if mod_shape is None or diff is None or diff.ndim != len(mod_shape) or diff.ndim < 2:
+        return None
+    if diff.shape[0] != mod_shape[0] or diff.shape[1] <= mod_shape[1] or tuple(diff.shape[2:]) != tuple(mod_shape[2:]):
+        return None
+    if torch.count_nonzero(diff[:, mod_shape[1]:]).item():
+        return None
+    out = dict(w)
+    out["diff"] = diff[:, :mod_shape[1]].contiguous()
     return out
 
 
@@ -917,6 +954,7 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
     mismatch = 0
     skipped = 0
     expanded = 0
+    trimmed = 0
     for (prefix, base), w in groups.items():
         if "lora_down.weight" not in w or "lora_up.weight" not in w:
             continue
@@ -975,6 +1013,11 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
                 if widened is not None:
                     target_w = widened
                     expanded += 1
+                else:
+                    narrowed = narrow_input(sd_module, target_w)
+                    if narrowed is not None:
+                        target_w = narrowed
+                        trimmed += 1
             if not shapes_match(sd_module, target_w["lora_down.weight"], target_w["lora_up.weight"]):
                 if l.debug:
                     _module = f'{getattr(sd_module, "weight", None).shape if hasattr(sd_module, "weight") else "?"}'
@@ -995,7 +1038,7 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
                 group.add(module)
             net.modules[network_key] = module
 
-    return finalize_network(net, name, "LoRA", lora_scale, t0, unmapped=unmapped, mismatch=mismatch, skipped=skipped, expanded=expanded)
+    return finalize_network(net, name, "LoRA", lora_scale, t0, unmapped=unmapped, mismatch=mismatch, skipped=skipped, expanded=expanded, trimmed=trimmed)
 
 
 def try_load_lokr(name, network_on_disk, lora_scale, *,
@@ -1475,7 +1518,7 @@ def try_load_full(name, network_on_disk, lora_scale, *,
                 unmapped += note_unmapped(network_key)
                 continue
             if not delta_fits("full", w, sd_module):
-                w = widen_full(sd_module, w) or w
+                w = widen_full(sd_module, w) or narrow_full(sd_module, w) or w
             if not delta_fits("full", w, sd_module):
                 if l.debug:
                     log.warning(f'Network load: type=Full name="{name}" arch={arch_name} key={network_key} module={module_shape(sd_module)} shape mismatch')
