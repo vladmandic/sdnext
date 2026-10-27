@@ -27,7 +27,7 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
     *note*: this is a [gated model](https://vladmandic.github.io/sdnext-docs/Gated)  
     *note*: BriaFIBO is designed to work with highly structured [JSON prompts](https://docs.bria.ai/vgl#5-schema-reference)  
     if you provide a simple string-based prompt, sdnext will convert it to naive JSON, but it will be sub-optimal  
-  - [OpenMOSS MOSS-Image](https://huggingface.co/OpenMOSS-Team/MOSS-Image-Base) add *image2image* and *inpaint* workflows  
+  - [OpenMOSS MOSS-Image](https://huggingface.co/OpenMOSS-Team/MOSS-Image-Base) add *sdnq-uint4* pre-quants and add *image2image* and *inpaint* workflows  
     *note*: model is trained with highly shifted sigma, so its not ideal for expected i2i results  
     *note*: this also unlocks use in hires/refine/detailer workflows  
   - [lodestones Kromoss](https://huggingface.co/lodestones/Kromoss) fine-tune of MOSS-Image  
@@ -52,7 +52,7 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
     *note*: this is a playground thing, dont expect full cartoon level quality in a single shot  
 - **LoRA**
   - major cleanup of older lora code and full switch to *native-dispatcher* introduced last month
-  - native dispatcher: *sd, sdxl, sd3, f1, f2, f3, chroma, zimage, ernieimage, anima, krea2, minimaxh3, qwen21, moss*
+  - native dispatcher: *sd, sdxl, sd3, f1, f2, f3, chroma, zimage, ernieimage, anima, krea2, minimaxh3, qwen21, moss, boogu*
 - **Metadata**
   - improve model hash info for all models
   - add unet hash if using custom unet/dit

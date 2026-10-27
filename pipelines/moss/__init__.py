@@ -3,6 +3,7 @@
 import re
 
 from pipelines.moss.moss_image import MOSSImageTransformer
+from pipelines.moss.moss_transformer_2d import MOSSImageTransformer2DModel
 from pipelines.native_transformer import TransformerSpec
 
 
@@ -32,4 +33,8 @@ def convert_moss_transformer_state_dict(state_dict: dict) -> dict:
 MOSS_SPEC = TransformerSpec(
     cls=MOSSImageTransformer,
     converter=convert_moss_transformer_state_dict,
+)
+
+MOSS_SDNQ_SPEC = TransformerSpec(
+    cls=MOSSImageTransformer2DModel
 )

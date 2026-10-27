@@ -168,6 +168,10 @@ def load_text_encoder(
                 **kwargs,
             )
 
+        if 'sdnq' in repo_id.lower(): # already-prequantized checkpoint
+            quant_args = {}
+            quant_type = None
+
         # 3. load shared from repo
         if allow_shared and (text_encoder is None):
             log.debug(f'Load model: text_encoder="{repo_id}" cls={cls_name.__name__} quant="{quant_type}" loader={get_loader("transformers")}')

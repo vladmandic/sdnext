@@ -62,6 +62,7 @@ from modules.lora import native_adapter          # pylint: disable=wrong-import-
 from modules.lora.native_adapter import ChunkSpec  # pylint: disable=wrong-import-position
 from pipelines.moss import moss_lora as M         # pylint: disable=wrong-import-position
 from pipelines.moss.moss_image import MOSSImageTransformer  # pylint: disable=wrong-import-position
+from pipelines.moss.moss_transformer_2d import MOSSImageTransformer2DModel  # pylint: disable=wrong-import-position
 
 
 # ============================================================
@@ -93,8 +94,8 @@ def record(cat: str, passed: bool, name: str, detail: str = ''):
 def run_test(cat: str, fn):
     name = fn.__name__
     try:
-        ok = fn()
-        if ok is False:
+        test_result = fn()
+        if test_result is False:
             record(cat, False, name)
         else:
             record(cat, True, name)
@@ -117,6 +118,16 @@ LAYERS = 2
 
 torch.manual_seed(0)
 REF = MOSSImageTransformer(dim=DIM, ffn_dim=FFN, num_heads=4, num_layers=LAYERS, text_dim=32, freq_dim=16, latent_channels=8)
+REF_UPSTREAM = MOSSImageTransformer2DModel(
+    in_channels=8,
+    num_layers=LAYERS,
+    num_refiner_layers=2,
+    num_attention_heads=4,
+    attention_head_dim=16,
+    ffn_dim=FFN,
+    text_embed_dim=32,
+    timestep_embed_dim=16,
+)
 
 # {dotted module name: (out, in)} for every Linear, so synthesizers size tensors to the real module.
 LINEAR_SHAPES = {name: tuple(m.weight.shape) for name, m in REF.named_modules() if isinstance(m, nn.Linear)}
@@ -143,9 +154,9 @@ class _MockMossSdModel:
         self.__class__.__name__ = 'MOSSImagePipeline'
 
 
-def install_mock_pipe():
+def install_mock_pipe(transformer=REF):
     """Point shared.sd_model at a mock exposing the reference transformer; re-installed per load."""
-    sd_model = _MockMossSdModel(_MockMossPipeline(REF))
+    sd_model = _MockMossSdModel(_MockMossPipeline(transformer))
     from modules.modeldata import model_data
     model_data.sd_model = sd_model
     return sd_model
@@ -235,8 +246,8 @@ class _MockNetworkOnDisk:
         self.sd_version = 'unknown'
 
 
-def load_via(try_fn, state_dict, name='test'):
-    install_mock_pipe()
+def load_via(try_fn, state_dict, name='test', transformer=REF):
+    install_mock_pipe(transformer)
     with TempLora(state_dict, name=name) as nod:
         return try_fn(name, nod, lora_scale=1.0)
 
@@ -291,10 +302,11 @@ def test_parse_key_all_prefixes():
 
 
 def test_resolve_fused_qkv_every_spelling():
+    install_mock_pipe(REF)
     bare = native_adapter.BARE_DIFFUSERS_PREFIX_USED
     for prefix, base, sep in (('diffusion_model.', 'layers.3.proj.qkv', '.'), ('transformer.', 'layers.3.proj.qkv', '.'), (bare, 'layers.3.proj.qkv', '.'), ('lora_unet_', 'layers_3_proj_qkv', '_')):
         got = native_adapter.resolve_group_targets(M.resolve_targets, prefix, base)
-        expected = [(f'layers{sep}3{sep}proj{sep}{n}', ChunkSpec(idx=i, total=3)) for i, n in enumerate(('q', 'k', 'v'))]
+        expected = [(f'layers{sep}3{sep}proj{sep}{name}', ChunkSpec(idx=i, total=3)) for i, name in enumerate(('q', 'k', 'v'))]
         assert got == expected, f'{prefix}{base}: {got}'
     return True
 
@@ -307,12 +319,48 @@ def test_resolve_text_embedder_qkv_verbatim():
     return True
 
 
+def test_resolve_upstream_refiner_qkv_verbatim():
+    install_mock_pipe(REF_UPSTREAM)
+    bare = native_adapter.BARE_DIFFUSERS_PREFIX_USED
+    cases = (
+        ('diffusion_model.', 'context_refiner.0.attn.to_qkv'),
+        ('transformer.', 'context_refiner.1.attn.to_qkv'),
+        (bare, 'context_refiner.0.attn.to_qkv'),
+        ('lora_unet_', 'context_refiner_1_attn_to_qkv'),
+    )
+    for prefix, base in cases:
+        assert native_adapter.resolve_group_targets(M.resolve_targets, prefix, base) == [(base, None)]
+    for prefix, base, sep in (('diffusion_model.', 'layers.3.proj.qkv', '.'), ('lora_unet_', 'layers_3_proj_qkv', '_')):
+        got = native_adapter.resolve_group_targets(M.resolve_targets, prefix, base)
+        expected = [
+            (f'transformer_blocks{sep}3{sep}attn{sep}to_{name}', ChunkSpec(idx=idx, total=3))
+            for idx, name in enumerate(('q', 'k', 'v'))
+        ]
+        assert got == expected, f'{prefix}{base}: {got}'
+    return True
+
+
 def test_resolve_every_module_is_real():
     """Every Linear of the reference, dotted or kohya-underscored, resolves to a stamped network key."""
+    install_mock_pipe(REF)
     for path in LINEAR_SHAPES:
         for prefix, base in (('diffusion_model.', path), ('transformer.', path), ('lora_unet_', path.replace('.', '_'))):
             keys = resolve_netkeys(prefix, base)
-            assert keys and set(keys) <= LINEAR_NETKEYS, f'{prefix}{base} -> {keys}'
+            legacy_key = 'lora_transformer_' + path.replace('.', '_')
+            assert keys == [legacy_key] and legacy_key in LINEAR_NETKEYS, f'{prefix}{base} -> {keys}'
+    return True
+
+
+def test_resolve_every_upstream_module_is_real():
+    """Every Linear in the upstream tree resolves to its exact named target."""
+    install_mock_pipe(REF_UPSTREAM)
+    linear_paths = {
+        name for name, module in REF_UPSTREAM.named_modules() if isinstance(module, nn.Linear)
+    }
+    for path in linear_paths:
+        for prefix, base in (('diffusion_model.', path), ('transformer.', path), ('lora_unet_', path.replace('.', '_'))):
+            targets = native_adapter.resolve_group_targets(M.resolve_targets, prefix, base)
+            assert targets == [(base, None)], f'{prefix}{base} -> {targets}'
     return True
 
 
@@ -386,6 +434,50 @@ def test_lora_extras():
     return True
 
 
+def test_upstream_lora_targets_attach():
+    paths = (
+        ('diffusion_model.', 'context_refiner.0.attn.to_qkv', 'context_refiner.0.attn.to_qkv'),
+        ('transformer.', 'transformer_blocks.0.attn.to_q', 'transformer_blocks.0.attn.to_q'),
+        ('lora_unet_', 'transformer_blocks_1_ff_in', 'transformer_blocks.1.ff_in'),
+        ('diffusion_model.', 'time_embedder.linear_1', 'time_embedder.linear_1'),
+    )
+    state_dict = {}
+    expected = set()
+    for prefix, path, module_path in paths:
+        module = REF_UPSTREAM.get_submodule(module_path)
+        down, up = lora_factors(*module.weight.shape)
+        state_dict.update(lora_sd(prefix + path, down, up))
+        expected.add('lora_transformer_' + module_path.replace('.', '_'))
+    net = load_via(M.try_load_lora, state_dict, transformer=REF_UPSTREAM)
+    assert net is not None and set(net.modules) == expected, f'got {set(net.modules) if net else None}'
+    assert net.mismatch == 0, f'mismatches: {net.mismatch}'
+    return True
+
+
+def test_legacy_comfy_lora_targets_attach_upstream():
+    state_dict = {}
+    expected = set()
+    for projection in ('q', 'k', 'v', 'o', 'ffn_up_gate', 'ffn_down'):
+        legacy_path = f'layers.0.proj.{projection}'
+        if projection in ('q', 'k', 'v'):
+            target_path = f'transformer_blocks.0.attn.to_{projection}'
+        elif projection == 'o':
+            target_path = 'transformer_blocks.0.attn.to_out'
+        elif projection == 'ffn_up_gate':
+            target_path = 'transformer_blocks.0.ff_in'
+        else:
+            target_path = 'transformer_blocks.0.ff_out'
+        module = REF_UPSTREAM.get_submodule(target_path)
+        down, up = lora_factors(*module.weight.shape)
+        state_dict.update(lora_sd(f'diffusion_model.{legacy_path}', down, up))
+        expected.add('lora_transformer_' + target_path.replace('.', '_'))
+
+    net = load_via(M.try_load_lora, state_dict, transformer=REF_UPSTREAM)
+    assert net is not None and set(net.modules) == expected, f'got {set(net.modules) if net else None}'
+    assert net.mismatch == 0, f'mismatches: {net.mismatch}'
+    return True
+
+
 def test_lokr_fused_qkv_matches_fused_module():
     net = chunked_matches_fused(M.try_load_lokr, lambda base: lokr_sd(base, 3 * DIM, DIM))
     for mod in net.modules.values():
@@ -442,7 +534,9 @@ def run_tests():
         test_parse_key_all_prefixes,
         test_resolve_fused_qkv_every_spelling,
         test_resolve_text_embedder_qkv_verbatim,
+        test_resolve_upstream_refiner_qkv_verbatim,
         test_resolve_every_module_is_real,
+        test_resolve_every_upstream_module_is_real,
     ]:
         run_test(CAT_RESOLVE, fn)
 
@@ -455,6 +549,8 @@ def run_tests():
         test_lora_kohya_fused_qkv,
         test_lora_diffusers_peft,
         test_lora_extras,
+        test_upstream_lora_targets_attach,
+        test_legacy_comfy_lora_targets_attach_upstream,
         test_lokr_fused_qkv_matches_fused_module,
         test_loha_fused_qkv_matches_fused_module,
         test_oft_fused_qkv_skipped,
@@ -477,5 +573,5 @@ def run_tests():
 
 
 if __name__ == '__main__':
-    ok = run_tests()
-    sys.exit(0 if ok else 1)
+    tests_passed = run_tests()
+    sys.exit(0 if tests_passed else 1)

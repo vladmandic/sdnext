@@ -41,8 +41,11 @@ def _encode_image(pipe, image, height, width, device, generator) -> torch.Tensor
     mean = bn.running_mean.view(1, -1, 1, 1).to(device=device, dtype=torch.float32)
     std = torch.sqrt(bn.running_var.view(1, -1, 1, 1).to(device=device, dtype=torch.float32) + pipe.vae.config.batch_norm_eps)
     normalized = ((packed.float() - mean) / std).to(dtype=pipe.transformer.dtype)
-    if normalized.shape[1] != pipe.transformer.config.latent_channels:
-        raise ValueError(f"Expected {pipe.transformer.config.latent_channels} packed latent channels, got {normalized.shape[1]}.")
+    latent_channels = getattr(pipe.transformer.config, "latent_channels", None)
+    if latent_channels is None:
+        latent_channels = pipe.transformer.config.in_channels
+    if normalized.shape[1] != latent_channels:
+        raise ValueError(f"Expected {latent_channels} packed latent channels, got {normalized.shape[1]}.")
     return normalized
 
 

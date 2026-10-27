@@ -155,8 +155,9 @@ class MOSSImageTransformer(ModelMixin, ConfigMixin):
     def forward(self, hidden_states: torch.Tensor, timestep, encoder_hidden_states: torch.Tensor, encoder_attention_mask: torch.Tensor | None = None, return_dict: bool = True, skip_layers=None):
         dtype = self.dtype
         skip_layers = validate_skip_layers(skip_layers, len(self.layers))
-        if hidden_states.ndim != 4 or hidden_states.shape[1] != self.config['latent_channels']:
-            raise ValueError('hidden_states must be [B, latent_channels, H, W].')
+        latent_channels = self.config.get('latent_channels', self.config.get('in_channels'))
+        if hidden_states.ndim != 4 or hidden_states.shape[1] != latent_channels:
+            raise ValueError(f'hidden_states must be [B, {latent_channels}, H, W].')
         batch, _, height, width = hidden_states.shape
         if encoder_hidden_states.ndim != 3 or encoder_hidden_states.shape[0] != batch:
             raise ValueError('encoder_hidden_states must be [B, S, text_dim].')
@@ -354,7 +355,10 @@ class MOSSImagePipeline(DiffusionPipeline):
                 negative_prompt_embeds, negative_prompt_attention_mask = self.encode_prompt(negatives, max_sequence_length)
             negative, negative_mask = prepare(negative_prompt_embeds, negative_prompt_attention_mask)
 
-        shape = (batch * num_images_per_prompt, self.transformer.config.latent_channels, height // 16, width // 16)
+        latent_channels = getattr(self.transformer.config, 'latent_channels', None)
+        if latent_channels is None:
+            latent_channels = self.transformer.config.in_channels
+        shape = (batch * num_images_per_prompt, latent_channels, height // 16, width // 16)
         if latents is None:
             latents = randn_tensor(shape, generator=generator, device=device, dtype=torch.float32) # fp32 noise: bf16 noise cannot be promoted back
         elif tuple(latents.shape) != shape:

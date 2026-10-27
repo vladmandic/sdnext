@@ -3,17 +3,15 @@
 Runs when :func:`modules.lora.lora_overrides.get_method` returns ``'native'``
 (``mossimage`` in ``allow_native``).
 
-The transformer keeps the official checkpoint names:
-``layers.N.proj.{q,k,v,o,ffn_up_gate,ffn_down}``, ``text_embedder.*``,
-``time_embedding.*``, ``shared_block_modulation``, ``video_embedder``,
-``final_linear_video`` and ``video_head_modulation``. Trainers built on the
-ComfyUI model (ai-toolkit, diffusion-pipe) save block attention fused as
-``layers.N.proj.qkv`` in q, k, v order; :func:`resolve_targets` splits it into
-equal chunks on the three projections. Every other path binds verbatim, dotted
-(``diffusion_model.``, ``transformer.``, bare) or kohya flat-underscore
-(``lora_unet_``). The text embedder's ``blocks.N.qkv`` is fused in the model
-as well and binds as is.
+The legacy transformer uses ``layers.N.proj.*`` and ``text_embedder.*`` names;
+ComfyUI-format fused ``layers.N.proj.qkv`` weights are split into q/k/v chunks.
+The upstream-layout transformer uses ``context_refiner.*`` and
+``transformer_blocks.*`` names. Its ``context_refiner.N.attn.to_qkv`` remains a
+single fused module, while the main transformer blocks use separate q/k/v
+projections. Other paths bind verbatim for dotted and kohya prefixes.
 """
+
+import re
 
 from modules.lora import native_adapter
 from modules.lora.native_adapter import ChunkSpec
@@ -22,6 +20,26 @@ from modules.lora.native_adapter import ChunkSpec
 KNOWN_PREFIXES = native_adapter.KNOWN_PREFIXES_DEFAULT
 
 QKV_SPLIT = ("q", "k", "v")
+LEGACY_LAYER_RE = re.compile(r"^layers([._])(\d+)\1proj\1(qkv|q|k|v|o|ffn_up_gate|ffn_down)$")
+
+
+def _upstream_layer_path(separator, layer, projection):
+    stem = f"transformer_blocks{separator}{layer}{separator}"
+    if projection in QKV_SPLIT:
+        return f"{stem}attn{separator}to_{projection}"
+    if projection == "o":
+        return f"{stem}attn{separator}to_out"
+    if projection == "ffn_up_gate":
+        return f"{stem}ff_in"
+    if projection == "ffn_down":
+        return f"{stem}ff_out"
+    raise ValueError(f"Unsupported MOSS projection: {projection}")
+
+
+def _uses_upstream_layout():
+    from modules import shared
+    transformer = getattr(shared.sd_model, "transformer", None)
+    return hasattr(transformer, "context_refiner") and hasattr(transformer, "transformer_blocks")
 
 
 def resolve_targets(prefix_used, base):
@@ -32,9 +50,22 @@ def resolve_targets(prefix_used, base):
     :func:`native_adapter.resolve_group_targets`.
     """
     sep = "_" if prefix_used == "lora_unet_" else "."
-    if base.endswith(f"{sep}proj{sep}qkv"):
-        stem = base[:-len("qkv")]
-        return [(stem + name, ChunkSpec(idx=idx, total=len(QKV_SPLIT))) for idx, name in enumerate(QKV_SPLIT)]
+    match = LEGACY_LAYER_RE.match(base)
+    if match is not None:
+        source_sep, layer, projection = match.groups()
+        upstream = _uses_upstream_layout()
+        if projection == "qkv":
+            targets = []
+            for idx, name in enumerate(QKV_SPLIT):
+                chunk = ChunkSpec(idx=idx, total=len(QKV_SPLIT))
+                legacy_path = f"layers{source_sep}{layer}{source_sep}proj{source_sep}{name}"
+                path = _upstream_layer_path(source_sep, layer, name) if upstream else legacy_path
+                targets.append((path, chunk))
+            return targets
+        path = _upstream_layer_path(source_sep, layer, projection) if upstream else base
+        return [(path, None)]
+    if base.endswith(f"{sep}attn{sep}to_qkv"):
+        return [(base, None)]
     if prefix_used in ("diffusion_model.", "lora_unet_"):
         return [(base, None)]
     return []

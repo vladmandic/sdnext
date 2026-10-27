@@ -81,6 +81,13 @@ shared_te_map = {
         'target_subfolder': 'text_encoder',
     },
 
+    'Qwen3.5 9B MOSS-Image SDNQ-UInt4': { # byte-identical to the base checkpoint, which adds the lm head and mtp layers
+        'cls': 'Qwen3_5TextModel', # by name: the qwen3_5 modeling module pulls optional linear-attention kernels on import
+        'identifier': ['MOSS_Image_SFT_sdnq_dynamic_4bit', 'MOSS_Image_Base_sdnq_dynamic_4bit'],
+        'target_repo': 'OzzyGT/MOSS_Image_Base_sdnq_dynamic_4bit',
+        'target_subfolder': 'text_encoder',
+    },
+
     'Qwen3.5 9B MOSS-Image': { # byte-identical to the base checkpoint, which adds the lm head and mtp layers
         'cls': 'Qwen3_5Model', # by name: the qwen3_5 modeling module pulls optional linear-attention kernels on import
         'identifier': ['moss-image', 'moss_image'],
