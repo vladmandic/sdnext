@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2026-10-26
+## Update for 2026-10-27
 
-### Highlights for 2026-10-26
+### Highlights for 2026-10-27
 
 *What's new in this release?*
 - One new base model: ***Bria FIBO 2.0** and improvements to **MOSS-Image** and **Ming-Image** workflows  
@@ -18,8 +18,8 @@
 See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) below for full details
 
 [Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
-
-### Details for 2026-10-26
+  
+### Details for 2026-10-27
 
 - **Models**
   - [Bria FIBO 2.0](https://huggingface.co/briaai/Fibo-2.0-dev) *Dev* base and *Edit Turbo* distilled variants  
@@ -52,7 +52,7 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
     *note*: this is a playground thing, dont expect full cartoon level quality in a single shot  
 - **LoRA**
   - major cleanup of older lora code and full switch to *native-dispatcher* introduced last month
-  - native dispatcher: *sd, sdxl, sd3, f1, f2, f3, chroma, zimage, ernieimage, anima, krea2, minimaxh3, qwen21*
+  - native dispatcher: *sd, sdxl, sd3, f1, f2, f3, chroma, zimage, ernieimage, anima, krea2, minimaxh3, qwen21, moss*
 - **Metadata**
   - improve model hash info for all models
   - add unet hash if using custom unet/dit

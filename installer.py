@@ -28,9 +28,9 @@ class Torch(dict):
 
 
 # target commit hashes for specific packages
-diffusers_target = '1ddaf8f4e7c33afaa7c6c2c3be9e56f2c2a634c8' # diffusers commit hash == 0.41.0.dev0 == 10-21-2026
-transformers_target = 'b70d02fc724d04c916832ca4ead03ff05e8fb1ee' # transformers commit hash == 5.13.0.dev0 == 07-03-2026
-sdnq_target = '35337772cdd3ca160d8ab216d06b22461fa476dc' # sdnq commit hash == 0.2.9 == 10-16-2026
+diffusers_target = '06a9cfb86ae8aa69c6a220ba0da0f37b819dde6a' # diffusers commit hash == 0.42.0.dev == 10-27-2026
+transformers_target = 'c0d024fbc873ab0325e1b40fc1bd69069609de65' # transformers commit hash == 5.21.0.dev == 10-27-2026
+sdnq_target = '8bf23dffa1da84cbf1989bdec4a4fc2adc3e2e5f' # sdnq commit hash == 0.2.9.dev == 10-27-2026
 
 git_commit = "unknown"
 diffusers_commit = "unknown"
@@ -651,7 +651,7 @@ def check_transformers():
         return
     pkg_transformers = package_spec('transformers')
     pkg_tokenizers = package_spec('tokenizers')
-    target_tokenizers = '0.22.2'
+    target_tokenizers = '0.23.3'
     # Git commit-pinned version
     transformers_commit = package_commit(pkg_transformers)
     if args.reinstall or (pkg_transformers is None) or (pkg_transformers.version.startswith('4')) or (transformers_commit != transformers_target):
