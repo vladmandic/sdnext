@@ -41,6 +41,7 @@ NATIVE_DISPATCH = {
     'zimage':     'pipelines.z_image.zimage_lora',
     'minimaxh3':  'pipelines.minimax.minimax_lora',
     'mossimage':  'pipelines.moss.moss_lora',
+    'boogu':      'pipelines.boogu.boogu_lora',
 }
 
 allow_native = list(NATIVE_DISPATCH)
