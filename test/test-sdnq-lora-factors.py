@@ -18,8 +18,8 @@ for the per-model analyzer):
 - Multi-LoRA set transitions keep the base pristine: a layer that fell back
   to requantize (mixed factorable/non-factorable set) restores from backup
   before re-entering the factor path, layers targeted by only some of the
-  loaded networks stay independent, and untargeted quantized layers are not
-  flagged as requantized.
+  loaded networks stay independent, and untargeted quantized layers are
+  neither flagged as requantized nor counted as applied.
 - Pristine base: a weight-dependent set (DoRA here) is computed on the
   layer's stored copy in backup mode, and fuse mode keeps such a copy for the
   layers it touches and restores them on removal; a plain set keeps the marker.
@@ -566,6 +566,38 @@ def test_partial_coverage_layers_stay_independent():
         activate()
         assert torch.equal(dq(layer_plain), Wdq0), 'factor layer must restore bit-exact'
         assert torch.equal(dq(layer_dora), Wdq0_dora), 'fallback layer must restore bit-exact'
+    return True
+
+
+def test_dropped_factors_do_not_count_as_applied():
+    """A layer the next set does not cover drops its factors bit-exact without counting as an applied weight."""
+    kept = build_layer('uint4')
+    dropped = build_layer('uint4', seed=7)
+    dropped.network_layer_name = 'lora_transformer_dropped'
+    A, B, _ = make_delta()
+    A2, B2, _ = make_delta(seed=5)
+    wide = make_net('wide', kept, A, B)
+    nw = network.NetworkWeights(network_key=dropped.network_layer_name, sd_key=dropped.network_layer_name, w={'lora_up.weight': B2.cpu(), 'lora_down.weight': A2.cpu()}, sd_module=dropped)
+    wide.modules[dropped.network_layer_name] = network_lora.NetworkModuleLora(wide, nw)
+    narrow = make_net('narrow', kept, A, B)
+
+    passes = []
+    real_finish = networks.finish_pass
+    def capture_finish(ctx, t0):
+        passes.append((ctx.applied_weight, list(networks.applied_layers)))
+        real_finish(ctx, t0)
+    networks.finish_pass = capture_finish
+    try:
+        with mock_model(lin=kept, other=dropped):
+            Wdq0 = dq(dropped)
+            activate(wide)
+            assert passes[-1][0] == 2 and hasattr(dropped, 'sdnq_lora_svd_stash'), f'both layers must take factors: {passes[-1]}'
+            activate(narrow)
+            assert not hasattr(dropped, 'sdnq_lora_svd_stash') and torch.equal(dq(dropped), Wdq0), 'uncovered layer must drop its factors bit-exact'
+            assert passes[-1] == (1, [kept.network_layer_name]), f'only the layer that took factors counts: {passes[-1]}'
+            activate()
+    finally:
+        networks.finish_pass = real_finish
     return True
 
 
@@ -3263,7 +3295,7 @@ def run_tests():
     for fn in [test_network_activate_roundtrip]:
         run_test(CAT_E2E, fn)
     log.warning('=== Set transitions ===')
-    for fn in [test_mixed_family_transition_restores_base, test_partial_coverage_layers_stay_independent,
+    for fn in [test_mixed_family_transition_restores_base, test_partial_coverage_layers_stay_independent, test_dropped_factors_do_not_count_as_applied,
                test_apply_restore_preserves_weight_storage, test_fuse_promote_applies_new_multiplier, test_fuse_change_then_remove_restores_pristine,
                test_mechanism_gate_declines_candidates, test_requantize_option_routes_to_legacy_path,
                test_mechanism_flip_strips_attached_factors, test_mechanism_flip_restore_pass_strips,

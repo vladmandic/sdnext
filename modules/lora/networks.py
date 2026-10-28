@@ -102,9 +102,9 @@ class ActivationPass:
         else:
             self.pbar.update(self.task, advance=1, description=description)
 
-    def claim(self, module, network_layer_name, changed):
-        """Accept a layer one of the mechanisms took; only a layer whose weights changed counts as applied."""
-        if changed and self.component_wanted:
+    def claim(self, module, network_layer_name, applied):
+        """Accept a layer one of the mechanisms took; only a layer that took a delta counts as applied."""
+        if applied and self.component_wanted:
             applied_layers.append(network_layer_name)
             self.applied_weight += 1
         self.stamp(module)

@@ -184,15 +184,16 @@ def apply_factors(self, network_layer_name, wanted_names):
     """Attach the active networks' LoRA factors to this layer's svd side-channel.
 
     Replaces any previously attached factors (multiplier changes re-enter
-    here with a new ``wanted_names`` signature). Returns True when the layer
-    changed. Falls back to the caller's requantize path by returning None
-    when factor extraction fails at this stage.
+    here with a new ``wanted_names`` signature). Returns True when factors
+    were attached and False when the layer is left without any. Falls back
+    to the caller's requantize path by returning None when factor extraction
+    fails at this stage.
     """
     from sdnq.quant_utils import rotate_hadamard
 
-    changed = remove_factors(self)
+    remove_factors(self)
     if wanted_names == ():
-        return changed
+        return False
 
     deq = self.sdnq_dequantizer
     dtype = deq.result_dtype
@@ -210,8 +211,8 @@ def apply_factors(self, network_layer_name, wanted_names):
             down = rotate_hadamard(down.to(dtype=torch.float32), group_size=deq.hadamard_group_size).to(dtype=dtype)
         ups.append(up_eff)
         downs.append(down)
-    if not ups:
-        return changed
+    if not ups: # no loaded network covers this layer; dropping stale factors is a restore, not an applied weight
+        return False
     append_factors(self, ups, downs)
     factor_layers.append(network_layer_name)
     return True
