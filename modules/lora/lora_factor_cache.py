@@ -61,7 +61,7 @@ def signature(wanted_names):
     }
     from modules.lora import lora_blocks
     for name, te, unet, dyn in wanted_names:
-        net = next((n for n in l.loaded_networks if n.name == name), None)
+        net = next((n for n in l.loaded_networks if n.key == name), None)
         filename = getattr(getattr(net, 'network_on_disk', None), 'filename', None)
         try:
             st = os.stat(filename)

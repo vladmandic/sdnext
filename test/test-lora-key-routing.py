@@ -770,9 +770,36 @@ def test_tower_tags_parsed():
     from modules.lora import extra_networks_lora
     install(ZImagePipeline(torch.nn.Sequential(torch.nn.Linear(4, 4))))
     params = [extra_networks.ExtraNetworkParams(items) for items in (['a', '1.0'], ['b', '0.7', 'uncond'], ['c', '1.0', 'cond', 'uncond'])]
-    names, _te, _unet, _dyn, lora_modules, _blocks = extra_networks_lora.parse(None, params)
+    names, _te, _unet, _dyn, lora_modules, _blocks, components = extra_networks_lora.parse(None, params)
     assert dict(zip(names, lora_modules)) == {'a': [], 'b': ['unconditional_transformer'], 'c': ['transformer', 'unconditional_transformer']}, lora_modules
+    assert components == [None, ['unconditional_transformer'], ['transformer', 'unconditional_transformer']], components
     assert extra_networks_lora.requested_components(params) == {'b': ['unconditional_transformer'], 'c': ['transformer', 'unconditional_transformer']}
+
+
+def test_native_activate_stages_each_reference_its_tags():
+    """The prompt path hands network_load one component list per reference, so one file named twice keeps both and the change signature tells the orders apart."""
+    from modules import extra_networks
+    from modules.lora import extra_networks_lora, lora_overrides, networks
+    install(ZImagePipeline(torch.nn.Sequential(torch.nn.Linear(4, 4))))
+    staged = []
+    saved = lora_load.network_load, lora_overrides.get_method, networks.network_activate, networks.network_deactivate
+    lora_load.network_load = lambda names, te, unet, dyn, lora_modules=None, block_specs=None, activate=True: staged.append((list(names), list(te), lora_modules))
+    lora_overrides.get_method = lambda shorthash='': ('native', 'test')
+    networks.network_activate = networks.network_deactivate = lambda *args, **kwargs: None
+    extra_networks_lora.warned_components.clear()
+    real_warning = extra_networks_lora.log.warning
+    extra_networks_lora.log.warning = lambda *args, **kwargs: None # the mock pipeline has no unconditional tower
+    try:
+        lora = extra_networks_lora.ExtraNetworkLora()
+        lora.activate(None, [extra_networks.ExtraNetworkParams(items) for items in (['x', '0.9', 'cond'], ['x', '0.4', 'uncond'])])
+        lora.activate(None, [extra_networks.ExtraNetworkParams(items) for items in (['x', '0.9', 'uncond'], ['x', '0.4', 'uncond'])])
+    finally:
+        lora_load.network_load, lora_overrides.get_method, networks.network_activate, networks.network_deactivate = saved
+        extra_networks_lora.log.warning = real_warning
+    assert staged[0] == (['x', 'x'], [0.9, 0.4], [['transformer'], ['unconditional_transformer']]), staged[0]
+    assert staged[1][2] == [['unconditional_transformer'], ['unconditional_transformer']], staged[1]
+    sig = lora.signature
+    assert sig(['x', 'x'], [0.9, 0.4], [[0.9] * 3, [0.4] * 3], None, [['transformer'], ['unconditional_transformer']]) != sig(['x', 'x'], [0.9, 0.4], [[0.9] * 3, [0.4] * 3], None, [['unconditional_transformer'], ['unconditional_transformer']])
 
 
 def test_chain_modules_share_the_returned_network():
@@ -849,6 +876,7 @@ def run_tests():
         test_unreadable_file_declines,
         test_component_tags_parsed_and_missing_reported,
         test_tower_tags_parsed,
+        test_native_activate_stages_each_reference_its_tags,
     ]:
         run_test(cat, fn)
     model_data.sd_model = None

@@ -103,6 +103,7 @@ def parse(p, params_list, step=0):
     dyn_dims = []
     lora_modules = []
     block_specs = []
+    components = [] # explicit tags per kept reference, aligned with names; the native method reads these instead of lora_modules
     for params in params_list:
         name = params.positional[0]
 
@@ -137,6 +138,7 @@ def parse(p, params_list, step=0):
         unet_multipliers.append(unet_multiplier)
         dyn_dims.append(dyn_dim)
         block_specs.append(params.named.get('lbw', None)) # per-block strength; resolved per layer by lora_blocks
+        components.append(explicit_components(params) or None)
 
         lora_module = []
         name_lower = params.positional[0].lower()
@@ -158,19 +160,26 @@ def parse(p, params_list, step=0):
 
         lora_modules.append(lora_module)
 
-    return names, te_multipliers, unet_multipliers, dyn_dims, lora_modules, block_specs
+    return names, te_multipliers, unet_multipliers, dyn_dims, lora_modules, block_specs, components
+
+
+def explicit_components(params):
+    """Components one reference names with a module= argument or a component tag; empty when it names none."""
+    given = [COMPONENT_TAGS[str(x).lower()] for x in params.positional[1:] if str(x).lower() in COMPONENT_TAGS]
+    if params.named.get('module', None) is not None:
+        module = str(params.named['module']).lower()
+        given.append(COMPONENT_ALIASES.get(module, module))
+    return given
 
 
 def requested_components(params_list):
-    """{name: components} for networks given an explicit component: a module= argument or a high/low tag."""
+    """{name: components} over every reference that names a component, for the missing-component warning."""
     requested = {}
     for params in params_list:
-        given = [COMPONENT_TAGS[str(x).lower()] for x in params.positional[1:] if str(x).lower() in COMPONENT_TAGS]
-        if params.named.get('module', None) is not None:
-            module = str(params.named['module']).lower()
-            given.append(COMPONENT_ALIASES.get(module, module))
-        if given:
-            requested[params.positional[0]] = given
+        for component in explicit_components(params):
+            listed = requested.setdefault(params.positional[0], [])
+            if component not in listed:
+                listed.append(component)
     return requested
 
 
@@ -225,11 +234,11 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
             sd_model.loaded_loras.clear()
         log.info(f'Network unload: type=LoRA method={previous} next={method} reason="method changed"')
 
-    def signature(self, names: list[str], te_multipliers: list, unet_multipliers: list, block_specs: list | None = None, components: dict | None = None):
+    def signature(self, names: list[str], te_multipliers: list, unet_multipliers: list, block_specs: list | None = None, components: list | None = None):
         specs = block_specs if block_specs else [None] * len(names)
-        components = components or {}
-        return [f'{name}:{te}:{unet}' + (f':lbw={str(spec).strip().lower()}' if spec else '') + (f':module={",".join(components[name])}' if name in components else '')
-                for name, te, unet, spec in zip(names, te_multipliers, unet_multipliers, specs, strict=False)]
+        components = components if components else [None] * len(names)
+        return [f'{name}:{te}:{unet}' + (f':lbw={str(spec).strip().lower()}' if spec else '') + (f':module={",".join(given)}' if given else '')
+                for name, te, unet, spec, given in zip(names, te_multipliers, unet_multipliers, specs, components, strict=False)]
 
     def changed(self, requested: list[str], include: list[str] | None = None, exclude: list[str] | None = None) -> tuple[bool, str]:
         from modules.lora import lora_sdnq, lora_stack
@@ -274,8 +283,7 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
         if len(params_list) > 0 and not self.active: # activate patches once
             self.active = True
             self.model = shared.opts.sd_model_checkpoint
-        names, te_multipliers, unet_multipliers, dyn_dims, lora_modules, block_specs = parse(p, params_list, step)
-        components = requested_components(params_list)
+        names, te_multipliers, unet_multipliers, dyn_dims, lora_modules, block_specs, components = parse(p, params_list, step)
         requested = self.signature(names, te_multipliers, unet_multipliers, block_specs, components)
         reason = ''
 
@@ -312,8 +320,8 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
             has_changed = lora_nunchaku.load_nunchaku(names, unet_multipliers)
 
         else: # native
-            warn_missing_components(components)
-            lora_load.network_load(names, te_multipliers, unet_multipliers, dyn_dims, lora_modules=[components.get(name) for name in names], block_specs=block_specs, activate=False) # load only, activation below honors include/exclude
+            warn_missing_components(requested_components(params_list))
+            lora_load.network_load(names, te_multipliers, unet_multipliers, dyn_dims, lora_modules=components, block_specs=block_specs, activate=False) # load only, activation below honors include/exclude
             has_changed, reason = self.changed(requested, include, exclude)
             if has_changed:
                 jobid = shared.state.begin('LoRA')

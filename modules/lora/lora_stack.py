@@ -201,7 +201,7 @@ def register_weight_pair(layer_name, module, per_net, wanted_names=None):
     for net_name, d in per_net:
         if d is None:
             return False
-        net = next((n for n in l.loaded_networks if n.name == net_name), None)
+        net = next((n for n in l.loaded_networks if n.key == net_name), None)
         net_module = net.modules.get(layer_name, None) if net is not None else None
         if net_module is None:
             return False
@@ -232,7 +232,7 @@ def register_weight_pair_cached(layer_name, module, wanted_names):
     if rec is None:
         return False
     scores, abs_sums = rec
-    register(layer_name, module, 'weight', scores, nets=tuple(n.name for n in l.loaded_networks), abs_sums=abs_sums)
+    register(layer_name, module, 'weight', scores, nets=tuple(n.key for n in l.loaded_networks), abs_sums=abs_sums)
     return True
 
 
@@ -396,7 +396,7 @@ def weight_selection(module, entry, winner):
     if not isinstance(backup, torch.Tensor): # fuse mode keeps a bool sentinel, not a pristine copy
         warn_once('select-nobackup', 'Network stack: flip=skipped backup=none')
         return
-    net = next((n for n in l.loaded_networks if n.name == entry['nets'][winner]), None)
+    net = next((n for n in l.loaded_networks if n.key == entry['nets'][winner]), None)
     net_module = net.modules.get(entry['layer'], None) if net is not None else None
     if net_module is None:
         return

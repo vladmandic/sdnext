@@ -33,6 +33,9 @@ for the per-model analyzer):
   it and drop it again, in factor and fuse mode; two files split across the
   towers stay on their own; and split DoRA groups are rebuilt for the tower's
   layers.
+- References: several references to one file are separate clones through the
+  real network_load, so each keeps its own strength and tower, references on
+  the same layers add up, and select mode keeps their segments and pairs apart.
 - Hosting: on sub-8-bit layers, non-factorable sets ride the side-channel as
   a truncated svd of their calc_updown delta: low-rank content survives
   whole, dense content beats the requantize floor by a wide margin, int8
@@ -1130,6 +1133,124 @@ def test_tower_alias_rebuilds_dora_groups():
     assert group is not net.modules[layers[0].network_layer_name].dora_group, 'aliases must not share the conditional group'
     assert group.members == [aliases[twin.network_layer_name] for twin in twins], 'the alias group holds exactly the aliases'
     assert [alias.sd_module for alias in group.members] == twins, 'aliases must point at the tower layers'
+    return True
+
+
+# ============================================================
+# Tests - several references to one file
+# ============================================================
+
+CAT_REFS = category('references')
+
+
+@contextmanager
+def cached_file(template):
+    """Serve ``template`` from the LoRA cache on the native method, as a file already loaded once is served."""
+    from modules.lora import lora_load, lora_overrides
+    saved_cache, saved_aliases, saved_method = dict(lora_load.lora_cache), dict(lora_load.available_network_aliases), lora_overrides.get_method
+    lora_load.lora_cache.clear()
+    lora_load.lora_cache[template.name] = template
+    lora_load.available_network_aliases[template.name] = template.network_on_disk
+    lora_overrides.get_method = lambda shorthash='': ('native', 'test')
+    try:
+        yield
+    finally:
+        lora_load.lora_cache.clear()
+        lora_load.lora_cache.update(saved_cache)
+        lora_load.available_network_aliases.clear()
+        lora_load.available_network_aliases.update(saved_aliases)
+        lora_overrides.get_method = saved_method
+
+
+def load_references(name, strengths, components):
+    """One request naming ``name`` once per strength, through the real network_load, then the activate pass."""
+    from modules.lora import lora_load
+    lora_load.network_load([name] * len(strengths), te_multipliers=list(strengths), unet_multipliers=[[s] * 3 for s in strengths],
+                           dyn_dims=[None] * len(strengths), lora_modules=list(components), activate=False)
+    networks.network_activate()
+    return list(l_common.loaded_networks)
+
+
+def test_one_file_on_both_towers_at_two_strengths():
+    """<lora:x:0.9:cond> <lora:x:0.4:uncond>: each reference applies its own strength to its own tower."""
+    cond = build_layer('uint4')
+    uncond = tower_twin(cond, seed=3)
+    A, B, D = make_delta()
+    template = make_net('two_refs', cond, A, B)
+    with mock_model(lin=cond), cached_file(template):
+        add_tower(uncond)
+        Wc, Wu = dq(cond), dq(uncond)
+        nets = load_references('two_refs', (0.9, 0.4), (['transformer'], ['unconditional_transformer']))
+        assert [n.key for n in nets] == ['two_refs', 'two_refs#2'] and nets[0] is not nets[1] and template not in nets, f'keys={[n.key for n in nets]}'
+        rho_cond, rho_uncond = rho_of(dq(cond) - Wc, D), rho_of(dq(uncond) - Wu, D)
+        assert abs(rho_cond - 0.9) < 0.01 and abs(rho_uncond - 0.4) < 0.01, f'retained cond={rho_cond:.4f} uncond={rho_uncond:.4f}, want 0.9 and 0.4'
+        assert template.pending_config is None and template.bound_modules is None, 'the cached template must stay untouched'
+        activate()
+        assert torch.equal(dq(cond), Wc) and torch.equal(dq(uncond), Wu), 'unload must restore both towers bit-exact'
+    return True
+
+
+def test_one_file_twice_sums_both_references():
+    """Two references on the same layers add up: 0.7 and 0.3 give the delta of one reference at 1.0."""
+    layer = build_layer('uint4')
+    A, B, D = make_delta()
+    template = make_net('summed', layer, A, B)
+    with mock_model(lin=layer), cached_file(template):
+        W0 = dq(layer)
+        load_references('summed', (1.0,), ([],))
+        single = dq(layer) - W0
+        load_references('summed', (0.7, 0.3), ([], []))
+        both = dq(layer) - W0
+        ratio = float(both.norm() / single.norm())
+        assert rho_of(both, D) > 0.99 and abs(ratio - 1.0) < 0.01, f'rho={rho_of(both, D):.4f} ratio={ratio:.4f}'
+        activate()
+        assert torch.equal(dq(layer), W0), 'unload must restore bit-exact'
+    return True
+
+
+def test_select_keeps_two_references_apart():
+    """Select mode with two references to one file: factor segments carry their own strengths, weight pairs their own keys."""
+    layer = build_layer('uint4')
+    A, B, _ = make_delta(seed=41, sigma=1e-2)
+    template = make_net('sel_refs', layer, A, B)
+    plain = torch.nn.Linear(IN_F, OUT_F, bias=False, dtype=torch.bfloat16, device=DEVICE)
+    with torch.no_grad():
+        plain.weight.copy_(torch.randn(OUT_F, IN_F, device=DEVICE) * 0.02)
+    plain.network_layer_name = 'lora_transformer_plainrefs'
+    plain.network_current_names = ()
+    Ap, Bp, Dp = make_delta(seed=61, sigma=1e-2)
+    plain_template = make_net('sel_plain', plain, Ap, Bp)
+    W0p = plain.weight.detach().float().clone()
+
+    def references(source, strengths):
+        nets = [source.clone() for _ in strengths]
+        for i, (net, strength) in enumerate(zip(nets, strengths)):
+            net.key = source.name if i == 0 else f'{source.name}#{i + 1}'
+            net.pending_config = {'te': strength, 'unet': [strength] * 3, 'dyn': None, 'components': None}
+        return nets
+
+    with mock_model(lin=layer, plain=plain), select_mode('klora', alpha=1.5):
+        activate(*references(template, (1.0, 0.25)))
+        entry = lora_stack.state['entries'].get(layer.network_layer_name)
+        assert entry is not None and entry['kind'] == 'factor', f'entry={entry}'
+        (a0, b0), (a1, b1), transposed = entry['segments']
+        up, down = layer.svd_up.float(), layer.svd_down.float()
+        segment = (lambda a, b: down[:, a:b] @ up[a:b, :]) if transposed else (lambda a, b: up[:, a:b] @ down[a:b, :])
+        ratio = float(segment(a1, b1).norm() / segment(a0, b0).norm())
+        assert abs(ratio - 0.25) < 0.01, f'second/first segment={ratio:.4f}, want 0.25'
+        activate(*references(plain_template, (1.0, 0.25)))
+        entry = lora_stack.state['entries'].get(plain.network_layer_name)
+        assert entry is not None and entry['kind'] == 'weight' and tuple(entry['nets']) == ('sel_plain', 'sel_plain#2'), f'entry nets={entry and entry["nets"]}'
+        total = 20
+        lora_stack.reset(total)
+        flips = [s for s, layers in lora_stack.state['flips'].items() if plain.network_layer_name in layers]
+        start = rho_of(plain.weight.detach().float() - W0p, Dp)
+        for step in range(total):
+            lora_stack.on_step(step)
+        end = rho_of(plain.weight.detach().float() - W0p, Dp)
+        assert len(flips) == 1, f'the pair must flip once on this ramp: {flips}'
+        assert {round(start, 2), round(end, 2)} == {1.0, 0.25}, f'the flip must move from one reference to the other at its own strength: {start:.4f} -> {end:.4f}'
+        activate()
     return True
 
 
@@ -3507,6 +3628,9 @@ def run_tests():
     log.warning('=== Towers ===')
     for fn in [test_bare_reference_skips_the_unconditional_tower, test_tower_tags_reach_the_named_towers, test_fuse_mode_removes_the_tower_set, test_two_files_split_across_towers, test_tower_alias_rebuilds_dora_groups]:
         run_test(CAT_TOWER, fn)
+    log.warning('=== References ===')
+    for fn in [test_one_file_on_both_towers_at_two_strengths, test_one_file_twice_sums_both_references, test_select_keeps_two_references_apart]:
+        run_test(CAT_REFS, fn)
     log.warning('=== Hosting ===')
     for fn in [test_hosted_low_rank_delta_is_kept, test_hosted_dense_delta_beats_requant, test_hosted_skips_int8,
                test_hosted_disabled_by_option, test_hosted_transitions_and_rng_isolation,

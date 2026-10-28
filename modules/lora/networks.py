@@ -40,7 +40,6 @@ State the walk keeps on the model's own modules:
 """
 
 from contextlib import nullcontext
-import copy
 import time
 import rich.progress as rp
 from modules.errorlimiter import limit_errors
@@ -76,7 +75,7 @@ class ActivationPass:
         self.sd_model = getattr(shared.sd_model, "pipe", shared.sd_model)
         self.fuse = fuse
         self.elimit = None # the error limiter, bound for the duration of the walk
-        self.wanted_names: tuple[tuple[str, float, list, int | None], ...] = tuple((x.name, x.te_multiplier, x.unet_multiplier, x.dyn_dim) for x in l.loaded_networks) if len(l.loaded_networks) > 0 else ()
+        self.wanted_names: tuple[tuple[str, float, list, int | None], ...] = tuple((x.key, x.te_multiplier, x.unet_multiplier, x.dyn_dim) for x in l.loaded_networks) if len(l.loaded_networks) > 0 else ()
         self.stack_sig = lora_stack.signature() + lora_blocks.signature() + component_signature() + lora_sdnq.signature() # tracked beside network_current_names so stack-setting, block-weight, component and mechanism changes re-apply
         self.select_active = len(l.loaded_networks) > 0 and lora_stack.active_select(len(l.loaded_networks)) # restore-only walks have nothing to stack; the count warning would fire on every network-free generation
         self.component_wanted: tuple[tuple[str, float, list, int | None], ...] = ()
@@ -168,22 +167,18 @@ def tower_aliases(net, components):
     mapping = getattr(shared.sd_model, 'network_layer_mapping', None) or {}
     aliases = {}
     for tower in towers:
-        groups = {} # a DoRA group shared by fused siblings is rebuilt from their aliases, so its column norm reads the tower's weights
+        sources, targets = {}, {}
         for key, module in net.bound().items():
-            if not key.startswith('lora_transformer_'):
-                continue
-            alias_key = f'lora_{tower}_' + key[len('lora_transformer_'):]
-            target = mapping.get(alias_key, None)
-            if target is None:
-                continue
-            alias = copy.copy(module)
+            alias_key = f'lora_{tower}_' + key[len('lora_transformer_'):] if key.startswith('lora_transformer_') else None
+            if alias_key in mapping:
+                sources[alias_key], targets[alias_key] = module, mapping[alias_key]
+        copies = network.copy_modules(sources, net) # per tower, so a split DoRA group's column norm reads that tower's weights
+        for alias_key, alias in copies.items():
             alias.sd_key = alias_key
-            alias.sd_module = target
+            alias.sd_module = targets[alias_key]
             if hasattr(alias, 'org_module'):
-                alias.org_module = [target]
-            if getattr(module, 'dora_group', None) is not None:
-                groups.setdefault(id(module.dora_group), network.DoraGroup()).add(alias)
-            aliases[alias_key] = alias
+                alias.org_module = [targets[alias_key]]
+        aliases.update(copies)
     return aliases
 
 
@@ -203,7 +198,7 @@ def component_layers(components):
 
 def component_signature():
     """Identity suffix for the per-module apply stamp; empty while no loaded network names its components."""
-    specs = [f'{net.name}:{",".join(net.components)}' for net in l.loaded_networks if getattr(net, 'components', None)]
+    specs = [f'{net.key}:{",".join(net.components)}' for net in l.loaded_networks if getattr(net, 'components', None)]
     return '|module=' + ','.join(specs) if specs else ''
 
 

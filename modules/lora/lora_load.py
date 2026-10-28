@@ -48,7 +48,7 @@ def load_safetensors(name, network_on_disk: network.NetworkOnDisk) -> network.Ne
     if cached is not None:
         if l.debug:
             log.trace(f'LoRA: load name="{name}" fn="{network_on_disk.filename}" cache=True')
-        return cached
+        return cached.clone()
 
     if dump_lora_keys:
         lora_convert.assign_network_names_to_compvis_modules(sd_model)
@@ -63,9 +63,10 @@ def load_safetensors(name, network_on_disk: network.NetworkOnDisk) -> network.Ne
     import importlib
     mod = importlib.import_module(native_module)
     net = mod.try_load(name, network_on_disk, shared.opts.extra_networks_default_multiplier)
-    if net is not None:
-        lora_cache[name] = net
-    return net
+    if net is None:
+        return None
+    lora_cache[name] = net # the cache keeps the loaded file as a template; every reference gets a clone of it
+    return net.clone()
 
 
 def maybe_recompile_model(names, te_multipliers):
@@ -213,6 +214,8 @@ def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=Non
                     net = load_safetensors(name, network_on_disk)
                 if net is not None:
                     net.mentioned_name = name
+                    repeat = names[:i].count(name)
+                    net.key = name if repeat == 0 else f'{name}#{repeat + 1}'
                     network_on_disk.read_hash()
             except Exception as e:
                 log.error(f'Network load: type=LoRA file="{network_on_disk.filename}" {e}')

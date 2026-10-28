@@ -113,7 +113,7 @@ def network_calc_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Grou
 
             if updown is not None:
                 if stack_deltas is not None:
-                    stack_deltas.append((net.name, updown.to(devices.device)))
+                    stack_deltas.append((net.key, updown.to(devices.device)))
                 elif batch_updown is not None:
                     batch_updown += updown.to(batch_updown.device)
                 else:

@@ -543,7 +543,7 @@ def apply_select(self, network_layer_name, per_net, wanted_names):
     for i, (net_name, D) in enumerate(per_net):
         if D is None or D.ndim != 2 or tuple(D.shape) != tuple(deq.original_shape):
             return None
-        net = next((n for n in l.loaded_networks if n.name == net_name), None)
+        net = next((n for n in l.loaded_networks if n.key == net_name), None)
         module = net.modules.get(network_layer_name, None) if net is not None else None
         if module is None:
             return None

@@ -1,4 +1,5 @@
 import os
+import copy
 import enum
 import json
 from collections import namedtuple
@@ -177,6 +178,7 @@ class NetworkOnDisk:
 class Network:  # LoraModule
     def __init__(self, name, network_on_disk: NetworkOnDisk):
         self.name = name
+        self.key = name # per-reference identity: the name for the first reference to a file, name#N for the Nth
         self.network_on_disk = network_on_disk
         self.te_multiplier = 1.0
         self.unet_multiplier = [1.0] * 3
@@ -204,6 +206,28 @@ class Network:  # LoraModule
         self.modules = self.bound_modules if layers is None else {key: module for key, module in self.bound_modules.items() if key in layers}
         if aliases:
             self.modules = {**self.modules, **aliases}
+
+    def clone(self):
+        """A copy for one reference to the file: shares the bound weights, owns its settings, component view and identity."""
+        net = copy.copy(self)
+        net.pending_config = None
+        net.components = None
+        net.bound_modules = None
+        net.modules = copy_modules(self.bound(), net)
+        return net
+
+
+def copy_modules(modules, net):
+    """Shallow copies of ``modules`` bound to ``net``, sharing the weights; split DoRA groups are rebuilt from the copies."""
+    groups = {}
+    copies = {}
+    for key, module in modules.items():
+        twin = copy.copy(module)
+        twin.network = net
+        if getattr(module, 'dora_group', None) is not None:
+            groups.setdefault(id(module.dora_group), DoraGroup()).add(twin)
+        copies[key] = twin
+    return copies
 
 
 def column_norms(merged):
