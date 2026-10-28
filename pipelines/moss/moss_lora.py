@@ -8,7 +8,8 @@ ComfyUI-format fused ``layers.N.proj.qkv`` weights are split into q/k/v chunks.
 The upstream-layout transformer uses ``context_refiner.*`` and
 ``transformer_blocks.*`` names. Its ``context_refiner.N.attn.to_qkv`` remains a
 single fused module, while the main transformer blocks use separate q/k/v
-projections. Other paths bind verbatim for dotted and kohya prefixes.
+projections. On that layout every legacy name is renamed to its upstream module
+(``UPSTREAM_NAMES``). Other paths bind verbatim for dotted and kohya prefixes.
 """
 
 import re
@@ -20,20 +21,38 @@ from modules.lora.native_adapter import ChunkSpec
 KNOWN_PREFIXES = native_adapter.KNOWN_PREFIXES_DEFAULT
 
 QKV_SPLIT = ("q", "k", "v")
-LEGACY_LAYER_RE = re.compile(r"^layers([._])(\d+)\1proj\1(qkv|q|k|v|o|ffn_up_gate|ffn_down)$")
+LEGACY_QKV_RE = re.compile(r"^layers([._])(\d+)\1proj\1qkv$")
+UPSTREAM_NAMES = tuple((re.compile(pattern), name) for pattern, name in ( # legacy module, underscored, to its upstream-layout module
+    (r"^layers_(\d+)_proj_(q|k|v)$", r"transformer_blocks.\1.attn.to_\2"),
+    (r"^layers_(\d+)_proj_o$", r"transformer_blocks.\1.attn.to_out"),
+    (r"^layers_(\d+)_proj_ffn_up_gate$", r"transformer_blocks.\1.ff_in"),
+    (r"^layers_(\d+)_proj_ffn_down$", r"transformer_blocks.\1.ff_out"),
+    (r"^layers_(\d+)_(q|k)_norm$", r"transformer_blocks.\1.attn.norm_\2"),
+    (r"^layers_(\d+)_norm(1|2)$", r"transformer_blocks.\1.norm\2"),
+    (r"^text_embedder_blocks_(\d+)_qkv$", r"context_refiner.\1.attn.to_qkv"),
+    (r"^text_embedder_blocks_(\d+)_proj$", r"context_refiner.\1.attn.to_out"),
+    (r"^text_embedder_blocks_(\d+)_ffn_(gate|up|down)$", r"context_refiner.\1.ff_\2"),
+    (r"^text_embedder_blocks_(\d+)_(q|k)_norm$", r"context_refiner.\1.attn.norm_\2"),
+    (r"^text_embedder_blocks_(\d+)_norm(1|2)$", r"context_refiner.\1.norm\2"),
+    (r"^text_embedder_proj$", "context_embedder"),
+    (r"^video_embedder$", "x_embedder"),
+    (r"^time_embedding_0$", "time_embedder.linear_1"),
+    (r"^time_embedding_2$", "time_embedder.linear_2"),
+    (r"^shared_block_modulation$", "block_modulation"),
+    (r"^final_norm_video$", "norm_out"),
+    (r"^final_linear_video$", "proj_out"),
+    (r"^video_head_modulation$", "norm_out_modulation"),
+))
 
 
-def _upstream_layer_path(separator, layer, projection):
-    stem = f"transformer_blocks{separator}{layer}{separator}"
-    if projection in QKV_SPLIT:
-        return f"{stem}attn{separator}to_{projection}"
-    if projection == "o":
-        return f"{stem}attn{separator}to_out"
-    if projection == "ffn_up_gate":
-        return f"{stem}ff_in"
-    if projection == "ffn_down":
-        return f"{stem}ff_out"
-    raise ValueError(f"Unsupported MOSS projection: {projection}")
+def upstream_name(base, sep):
+    """Upstream-layout module for a legacy module path, joined with ``sep``; ``None`` for a path with no legacy name."""
+    flat = base.replace(".", "_")
+    for pattern, name in UPSTREAM_NAMES:
+        if pattern.match(flat):
+            path = pattern.sub(name, flat)
+            return path if sep == "." else path.replace(".", sep)
+    return None
 
 
 def _uses_upstream_layout():
@@ -50,20 +69,19 @@ def resolve_targets(prefix_used, base):
     :func:`native_adapter.resolve_group_targets`.
     """
     sep = "_" if prefix_used == "lora_unet_" else "."
-    match = LEGACY_LAYER_RE.match(base)
+    upstream = _uses_upstream_layout()
+    match = LEGACY_QKV_RE.match(base)
     if match is not None:
-        source_sep, layer, projection = match.groups()
-        upstream = _uses_upstream_layout()
-        if projection == "qkv":
-            targets = []
-            for idx, name in enumerate(QKV_SPLIT):
-                chunk = ChunkSpec(idx=idx, total=len(QKV_SPLIT))
-                legacy_path = f"layers{source_sep}{layer}{source_sep}proj{source_sep}{name}"
-                path = _upstream_layer_path(source_sep, layer, name) if upstream else legacy_path
-                targets.append((path, chunk))
-            return targets
-        path = _upstream_layer_path(source_sep, layer, projection) if upstream else base
-        return [(path, None)]
+        source_sep, layer = match.groups()
+        targets = []
+        for idx, name in enumerate(QKV_SPLIT):
+            legacy_path = f"layers{source_sep}{layer}{source_sep}proj{source_sep}{name}"
+            path = upstream_name(legacy_path, source_sep) if upstream else legacy_path
+            targets.append((path, ChunkSpec(idx=idx, total=len(QKV_SPLIT))))
+        return targets
+    renamed = upstream_name(base, sep) if upstream else None
+    if renamed is not None:
+        return [(renamed, None)]
     if base.endswith(f"{sep}attn{sep}to_qkv"):
         return [(base, None)]
     if prefix_used in ("diffusion_model.", "lora_unet_"):

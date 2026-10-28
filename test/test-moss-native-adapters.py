@@ -313,6 +313,7 @@ def test_resolve_fused_qkv_every_spelling():
 
 def test_resolve_text_embedder_qkv_verbatim():
     """The text embedder's qkv is fused in the model, so it is not split."""
+    install_mock_pipe(REF)
     for prefix, base in (('diffusion_model.', 'text_embedder.blocks.0.qkv'), ('lora_unet_', 'text_embedder_blocks_0_qkv'), ('transformer.', 'text_embedder.blocks.0.qkv')):
         got = native_adapter.resolve_group_targets(M.resolve_targets, prefix, base)
         assert got == [(base, None)], f'{prefix}{base}: {got}'
@@ -361,6 +362,27 @@ def test_resolve_every_upstream_module_is_real():
         for prefix, base in (('diffusion_model.', path), ('transformer.', path), ('lora_unet_', path.replace('.', '_'))):
             targets = native_adapter.resolve_group_targets(M.resolve_targets, prefix, base)
             assert targets == [(base, None)], f'{prefix}{base} -> {targets}'
+    return True
+
+
+def weighted_modules(model):
+    return {name: tuple(m.weight.shape) for name, m in model.named_modules() if isinstance(getattr(m, 'weight', None), torch.Tensor)}
+
+
+def test_resolve_every_legacy_module_onto_upstream():
+    """Each weighted legacy module, in every spelling, resolves to a distinct upstream module of its shape, covering the upstream tree."""
+    install_mock_pipe(REF_UPSTREAM)
+    legacy = weighted_modules(REF)
+    upstream = {'lora_transformer_' + name.replace('.', '_'): s for name, s in weighted_modules(REF_UPSTREAM).items()}
+    bare = native_adapter.BARE_DIFFUSERS_PREFIX_USED
+    for prefix, flat in (('diffusion_model.', False), ('transformer.', False), (bare, False), ('lora_unet_', True)):
+        reached = set()
+        for path, weight_shape in legacy.items():
+            keys = resolve_netkeys(prefix, path.replace('.', '_') if flat else path)
+            assert len(keys) == 1 and keys[0] in upstream, f'{prefix}{path} -> {keys}'
+            assert upstream[keys[0]] == weight_shape, f'{prefix}{path}: {weight_shape} onto {keys[0]} {upstream[keys[0]]}'
+            reached.add(keys[0])
+        assert len(reached) == len(legacy) and reached == set(upstream), f'{prefix}: unreached {set(upstream) - reached}'
     return True
 
 
@@ -478,6 +500,40 @@ def test_legacy_comfy_lora_targets_attach_upstream():
     return True
 
 
+def test_legacy_extras_attach_upstream():
+    """Text embedder, embedding, modulation, head and norm targets under legacy names bind on the upstream tree."""
+    lora_paths = (
+        ('diffusion_model.text_embedder.proj', 'context_embedder'),
+        (f'diffusion_model.{FUSED_REF}', 'context_refiner.0.attn.to_qkv'),
+        ('diffusion_model.text_embedder.blocks.1.proj', 'context_refiner.1.attn.to_out'),
+        ('transformer.text_embedder.blocks.1.ffn_gate', 'context_refiner.1.ff_gate'),
+        ('lora_unet_text_embedder_blocks_0_ffn_down', 'context_refiner.0.ff_down'),
+        ('diffusion_model.time_embedding.0', 'time_embedder.linear_1'),
+        ('diffusion_model.time_embedding.2', 'time_embedder.linear_2'),
+        ('diffusion_model.shared_block_modulation', 'block_modulation'),
+        ('diffusion_model.video_embedder', 'x_embedder'),
+        ('diffusion_model.final_linear_video', 'proj_out'),
+        ('diffusion_model.video_head_modulation', 'norm_out_modulation'),
+    )
+    diff_paths = (
+        ('diffusion_model.layers.1.q_norm', 'transformer_blocks.1.attn.norm_q'),
+        ('diffusion_model.layers.0.norm2', 'transformer_blocks.0.norm2'),
+        ('diffusion_model.text_embedder.blocks.0.k_norm', 'context_refiner.0.attn.norm_k'),
+        ('diffusion_model.final_norm_video', 'norm_out'),
+    )
+    sd = {}
+    for key_base, target in lora_paths:
+        suffix = ('lora_down.weight', 'lora_up.weight') if key_base.startswith('lora_unet_') else ('lora_A.weight', 'lora_B.weight')
+        sd.update(lora_sd(key_base, *lora_factors(*REF_UPSTREAM.get_submodule(target).weight.shape), suffix=suffix))
+    for key_base, target in diff_paths:
+        sd[f'{key_base}.diff'] = torch.randn(REF_UPSTREAM.get_submodule(target).weight.shape) * 0.01
+    net = load_via(M.try_load, sd, transformer=REF_UPSTREAM)
+    expected = {'lora_transformer_' + target.replace('.', '_') for _base, target in lora_paths + diff_paths}
+    assert net is not None and set(net.modules) == expected, f'missing {expected - set(net.modules) if net else expected}'
+    assert net.mismatch == 0, f'mismatches: {net.mismatch}'
+    return True
+
+
 def test_lokr_fused_qkv_matches_fused_module():
     net = chunked_matches_fused(M.try_load_lokr, lambda base: lokr_sd(base, 3 * DIM, DIM))
     for mod in net.modules.values():
@@ -537,6 +593,7 @@ def run_tests():
         test_resolve_upstream_refiner_qkv_verbatim,
         test_resolve_every_module_is_real,
         test_resolve_every_upstream_module_is_real,
+        test_resolve_every_legacy_module_onto_upstream,
     ]:
         run_test(CAT_RESOLVE, fn)
 
@@ -551,6 +608,7 @@ def run_tests():
         test_lora_extras,
         test_upstream_lora_targets_attach,
         test_legacy_comfy_lora_targets_attach_upstream,
+        test_legacy_extras_attach_upstream,
         test_lokr_fused_qkv_matches_fused_module,
         test_loha_fused_qkv_matches_fused_module,
         test_oft_fused_qkv_skipped,
