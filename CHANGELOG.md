@@ -1,33 +1,32 @@
 # Change Log for SD.Next
 
-## Update for 2026-10-27
+## Update for 2026-10-29
 
-### Highlights for 2026-10-27
+### Highlights for 2026-10-29
 
 *What's new in this release?*
-- One new base model: ***Bria FIBO 2.0** and improvements to **MOSS-Image** and **Ming-Image** workflows  
-- Major improvements to **Prompt Enhance** functionality to make it more versatile and cover usage in new structured/json based prompts  
-- New playground feature **Story Mode**  
-- Expanded native **LoRA** support with compatibility for multiple model types  
-- Updates to **AI Coding** instructions and skills: try your favorite model/tool on SD.Next, you might be surprised how quickly it adapts and performs  
-- Codebase cleanup: removed deprecated options that were left as legacy remnants  
-- And many more smaller improvements and fixes...  
+- New base model: **Bria FIBO 2.0** and improvements to **MOSS-Image** and **Ming-Image** workflows
+- Major improvements to **Prompt Enhance** functionality to make it more versatile and cover usage in new structured/json based prompts
+- New playground feature **Story Mode**
+- Expanded native **LoRA** support with compatibility for multiple model types
+- Updates to **AI Coding** instructions and skills: try your favorite model/tool on SD.Next, you might be surprised how quickly it adapts and performs
+- Codebase cleanup: removed deprecated options that were left as legacy remnants
+- And many more smaller improvements and fixes...
 
 > [!IMPORTANT]
 > Python 3.10 is end-of-life as of October 2026!
 
-See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) below for full details
+See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) below for full details...
 
 [Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
-  
-### Details for 2026-10-27
+
+### Details for 2026-10-29
 
 - **Models**
   - [Bria FIBO 2.0](https://huggingface.co/briaai/Fibo-2.0-dev) *Dev* base and *Edit Turbo* distilled variants  
     *architecture*: 8.1B flow-matching transformer with Qwen3-VL-4B text-encoder  
     *note*: this is a [gated model](https://vladmandic.github.io/sdnext-docs/Gated)  
     *note*: BriaFIBO is designed to work with highly structured [JSON prompts](https://docs.bria.ai/vgl#5-schema-reference)  
-    if you provide a simple string-based prompt, sdnext will convert it to naive JSON, but it will be sub-optimal  
   - [OpenMOSS MOSS-Image](https://huggingface.co/OpenMOSS-Team/MOSS-Image-Base) add *sdnq-uint4* pre-quants and add *image2image* and *inpaint* workflows  
     *note*: model is trained with highly shifted sigma, so its not ideal for i2i workflows  
     *note*: this also unlocks use in hires/refine/detailer workflows  
@@ -53,7 +52,7 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
     *note*: this is a playground thing, dont expect full cartoon level quality in a single shot  
 - **LoRA**
   - major cleanup of older lora code and full switch to *native-dispatcher* introduced last month
-  - native dispatcher: *sd, sdxl, sd3, f1, f2, f3, chroma, zimage, ernieimage, anima, krea2, minimaxh3, qwen21, moss, boogu*
+  - native dispatcher: *sd, sdxl, sd3, f1, f2, f3, chroma, zimage, ernieimage, anima, krea2, minimaxh3, qwen21, moss, boogu, fibo2*
 - **Metadata**
   - improve model hash info for all models
   - add unet hash if using custom unet/dit
@@ -64,6 +63,7 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
 - **MicroDecoder**
   - add support for additional vae families  
     supported: *sd, sdxl, sd3, f1, f2, hy, dcae, mage, qwen, qwen21, wan21, wan22, minimaxh3, cog, sefi*  
+    too see how different vae families map to different models, see <https://huggingface.co/SD-Next/MicroDecoder>  
 - **Wiki**
   - updates to: `Scheduler`, `Models`, `Model-Support`, `Docker`, `AMD-ROCm`, `AMD-MIOpen`, `Detailer`, `LoRA`, `LoRA-Technical`
 - **Docker**
