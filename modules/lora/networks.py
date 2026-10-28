@@ -40,14 +40,17 @@ State the walk keeps on the model's own modules:
 """
 
 from contextlib import nullcontext
+import copy
 import time
 import rich.progress as rp
 from modules.errorlimiter import limit_errors
 from modules.lora import lora_blocks
 from modules.lora import lora_common as l
+from modules.lora import lora_convert
 from modules.lora import lora_overrides
 from modules.lora import lora_sdnq
 from modules.lora import lora_stack
+from modules.lora import network
 from modules.lora import network_pdd
 from modules.lora.lora_apply import network_apply_weights, network_apply_direct, network_backup_weights, network_calc_weights
 from modules import shared, devices, sd_models, errors
@@ -57,7 +60,7 @@ from modules.logger import log, console
 applied_layers: list[str] = []
 refused_writes: int = 0 # deltas the modules would not take on the last activate pass; infotext reports the network as partial
 native_active: bool = False
-default_components = ['text_encoder', 'text_encoder_2', 'text_encoder_3', 'text_encoder_4', 'unet', 'transformer', 'transformer_2', 'transformer_ref', 'llm_adapter']
+default_components = ['text_encoder', 'text_encoder_2', 'text_encoder_3', 'text_encoder_4', 'unet', 'transformer', 'transformer_2', 'transformer_ref', *lora_convert.TOWERS, 'llm_adapter']
 
 
 class ActivationPass:
@@ -155,8 +158,33 @@ def promote_pending():
             net.dyn_dim = pending['dyn']
             net.block_spec = pending.get('blocks', None)
             net.components = pending.get('components', None)
-            net.select_layers(component_layers(net.components)) # layers outside the components leave the walk instead of taking a zero delta
+            net.select_layers(component_layers(net.components), tower_aliases(net, net.components)) # layers outside the components leave the walk instead of taking a zero delta
             net.pending_config = None # promotion is one-shot
+
+
+def tower_aliases(net, components):
+    """The network's transformer modules re-targeted onto every tower in ``components``, keyed by the tower's layer names."""
+    towers = [name for name in components or () if name in lora_convert.TOWERS]
+    mapping = getattr(shared.sd_model, 'network_layer_mapping', None) or {}
+    aliases = {}
+    for tower in towers:
+        groups = {} # a DoRA group shared by fused siblings is rebuilt from their aliases, so its column norm reads the tower's weights
+        for key, module in net.bound().items():
+            if not key.startswith('lora_transformer_'):
+                continue
+            alias_key = f'lora_{tower}_' + key[len('lora_transformer_'):]
+            target = mapping.get(alias_key, None)
+            if target is None:
+                continue
+            alias = copy.copy(module)
+            alias.sd_key = alias_key
+            alias.sd_module = target
+            if hasattr(alias, 'org_module'):
+                alias.org_module = [target]
+            if getattr(module, 'dora_group', None) is not None:
+                groups.setdefault(id(module.dora_group), network.DoraGroup()).add(alias)
+            aliases[alias_key] = alias
+    return aliases
 
 
 def component_layers(components):

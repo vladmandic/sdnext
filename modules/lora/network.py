@@ -198,10 +198,12 @@ class Network:  # LoraModule
         """Every module the file bound, whichever layers the current request applies."""
         return self.modules if self.bound_modules is None else self.bound_modules
 
-    def select_layers(self, layers):
-        """Apply only the bound modules on ``layers``; None applies every one."""
+    def select_layers(self, layers, aliases=None):
+        """Apply only the bound modules on ``layers``, plus ``aliases`` re-targeted onto other layers; None applies every bound module."""
         self.bound_modules = self.bound()
         self.modules = self.bound_modules if layers is None else {key: module for key, module in self.bound_modules.items() if key in layers}
+        if aliases:
+            self.modules = {**self.modules, **aliases}
 
 
 def column_norms(merged):

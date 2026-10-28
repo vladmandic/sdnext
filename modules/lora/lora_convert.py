@@ -1,6 +1,9 @@
 from modules import shared
 
 
+TOWERS = ('unconditional_transformer',) # second instances of the transformer (Ideogram 4's CFG prior); stamped lora_<name>_, so a network reaches one only by naming it
+
+
 def make_unet_conversion_map() -> dict[str, str]:
     unet_conversion_map_layer = []
 
@@ -119,6 +122,16 @@ def assign_network_names_to_compvis_modules(sd_model):
     if hasattr(sd_model, 'transformer_ref') and sd_model.transformer_ref is not None:
         for name, module in sd_model.transformer_ref.named_modules():
             network_name = "lora_transformer_" + name.replace(".", "_")
+            network_layer_mapping[network_name] = module
+            if "norm" in network_name and "linear" not in network_name and shared.sd_model_type != "sd3":
+                continue
+            module.network_layer_name = network_name
+    for tower in TOWERS:
+        component = getattr(sd_model, tower, None)
+        if component is None or component is getattr(sd_model, 'transformer', None): # a pipeline that reuses the transformer as its tower keeps the transformer's names
+            continue
+        for name, module in component.named_modules():
+            network_name = f"lora_{tower}_" + name.replace(".", "_")
             network_layer_mapping[network_name] = module
             if "norm" in network_name and "linear" not in network_name and shared.sd_model_type != "sd3":
                 continue

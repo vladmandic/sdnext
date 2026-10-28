@@ -8,7 +8,9 @@ LoRAs save the checkpoint's fused attention (``layers.N.attention.qkv`` and
 the diffusers transformer splits it into ``to_q``/``to_k``/``to_v`` and
 ``to_out.0``. The qkv up-weight is taken in equal q/k/v thirds, ``o`` is
 renamed, and ``feed_forward.w1-3``, ``adaln_modulation`` and the embedders
-bind verbatim. Every binding targets the conditional ``transformer``.
+bind verbatim. Every binding targets the conditional ``transformer``; the
+``uncond`` tag re-targets them onto ``unconditional_transformer``
+(:func:`modules.lora.networks.tower_aliases`).
 """
 
 import re

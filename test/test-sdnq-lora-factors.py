@@ -28,6 +28,11 @@ for the per-model analyzer):
 - Robustness: factor removal restores onto the layer's current device after
   an offload-style move, and a shape-mismatched network stacked onto a
   factor-mode layer downgrades to the legacy path instead of raising.
+- Towers: a reference without tower tags leaves a second transformer tower
+  (Ideogram 4's unconditional one) pristine; named towers take the set, count
+  it and drop it again, in factor and fuse mode; two files split across the
+  towers stay on their own; and split DoRA groups are rebuilt for the tower's
+  layers.
 - Hosting: on sub-8-bit layers, non-factorable sets ride the side-channel as
   a truncated svd of their calc_updown delta: low-rank content survives
   whole, dense content beats the requantize floor by a wide margin, int8
@@ -969,6 +974,162 @@ def test_split_dora_group_dequantizes_a_quantized_sibling():
     want = (network.column_norms(merged_plain.float()).square() + network.column_norms(merged_quant.float()).square()).sqrt()
     got = member.dora_group.column_norms(member, merged_plain).float()
     assert torch.allclose(got, want, rtol=1e-2), f'max rel err={float(((got - want).abs() / want).max()):.2e}'
+    return True
+
+
+# ============================================================
+# Tests - a second transformer tower (asymmetric CFG)
+# ============================================================
+
+CAT_TOWER = category('towers')
+
+
+def add_tower(*layers):
+    """Hang ``layers`` on an unconditional tower of the installed mock model and map every stamped layer by name."""
+    from modules.modeldata import model_data
+    sd = model_data.sd_model
+    tower = MockHolder()
+    for i, layer in enumerate(layers):
+        setattr(tower, f'lin{i}', layer)
+    sd.pipe.unconditional_transformer = tower
+    stamped = [m for m in list(sd.pipe.transformer.modules()) + list(tower.modules()) if getattr(m, 'network_layer_name', None)]
+    sd.network_layer_mapping = {m.network_layer_name: m for m in stamped}
+
+
+def tower_twin(layer, seed):
+    """A layer of the same shape on the unconditional tower, stamped with that tower's name for ``layer``."""
+    twin = build_layer('uint4', seed=seed)
+    twin.network_layer_name = 'lora_unconditional_transformer_' + layer.network_layer_name[len('lora_transformer_'):]
+    return twin
+
+
+def request_components(net, components):
+    net.pending_config = {'te': 1.0, 'unet': [1.0] * 3, 'dyn': None, 'components': components}
+    activate(net)
+
+
+def test_bare_reference_skips_the_unconditional_tower():
+    """A reference without tower tags applies to the conditional transformer only."""
+    cond = build_layer('uint4')
+    uncond = tower_twin(cond, seed=3)
+    A, B, D = make_delta()
+    net = make_net('tower_bare', cond, A, B)
+    with mock_model(lin=cond):
+        add_tower(uncond)
+        Wc, Wu = dq(cond), dq(uncond)
+        request_components(net, None)
+        rho = rho_of(dq(cond) - Wc, D)
+        assert rho > 0.99, f'rho={rho:.4f}'
+        assert torch.equal(dq(uncond), Wu) and not hasattr(uncond, 'sdnq_lora_svd_stash'), 'the unconditional tower must stay pristine'
+    return True
+
+
+def test_tower_tags_reach_the_named_towers():
+    """Each request applies the set to exactly the named towers, counts them, and leaves the others on their checkpoint weights."""
+    cond = build_layer('uint4')
+    uncond = tower_twin(cond, seed=3)
+    A, B, D = make_delta()
+    net = make_net('tower_tags', cond, A, B)
+    passes = []
+    real_finish = networks.finish_pass
+    def capture_finish(ctx, t0):
+        passes.append(ctx.applied_weight)
+        real_finish(ctx, t0)
+    networks.finish_pass = capture_finish
+    try:
+        with mock_model(lin=cond):
+            add_tower(uncond)
+            Wc, Wu = dq(cond), dq(uncond)
+            for components, on_cond, on_uncond in ((('unconditional_transformer',), False, True), (('transformer', 'unconditional_transformer'), True, True),
+                                                   (None, True, False), (('unconditional_transformer',), False, True)):
+                request_components(net, components)
+                for tag, layer, w0, on in (('cond', cond, Wc, on_cond), ('uncond', uncond, Wu, on_uncond)):
+                    if on:
+                        rho = rho_of(dq(layer) - w0, D)
+                        assert rho > 0.99, f'{components} {tag}: rho={rho:.4f}'
+                    else:
+                        assert torch.equal(dq(layer), w0), f'{components} {tag}: must be pristine'
+                assert passes[-1] == on_cond + on_uncond, f'{components}: weights={passes[-1]}'
+            activate()
+            assert torch.equal(dq(cond), Wc) and torch.equal(dq(uncond), Wu), 'unload must restore both towers bit-exact'
+    finally:
+        networks.finish_pass = real_finish
+    return True
+
+
+def test_fuse_mode_removes_the_tower_set():
+    """A set fused into the unconditional tower is subtracted from it when the next request drops the tag."""
+    cond, cw0 = plain_fixture(name='tower')
+    uncond, uw0 = plain_fixture(seed=1, name='tower')
+    uncond.network_layer_name = 'lora_unconditional_transformer_tower'
+    net = small_net('tower_fuse', cond)
+    want, _ = net.modules[cond.network_layer_name].calc_updown(cw0)
+    with mock_model(lin=cond):
+        add_tower(uncond)
+        shared.opts.lora_fuse_native = True
+        net.pending_config = {'te': 1.0, 'unet': [1.0] * 3, 'dyn': None, 'components': ('transformer', 'unconditional_transformer')}
+        request(net)
+        assert torch.allclose(uncond.weight.detach() - uw0, want, atol=1e-5), 'the tower must take the set'
+        net.pending_config = {'te': 1.0, 'unet': [1.0] * 3, 'dyn': None, 'components': None}
+        request(net)
+        residue = float((uncond.weight.detach() - uw0).abs().max())
+        assert residue < 1e-6, f'tower residue={residue:.2e}'
+        assert torch.allclose(cond.weight.detach() - cw0, want, atol=1e-5), 'the conditional transformer keeps the set'
+        request()
+        assert float((cond.weight.detach() - cw0).abs().max()) < 1e-6, 'unload must restore the conditional transformer'
+    return True
+
+
+def test_two_files_split_across_towers():
+    """One file on each tower applies each set to its own tower only, and swapping the tags swaps the towers."""
+    cond = build_layer('uint4')
+    uncond = tower_twin(cond, seed=3)
+    A1, B1, D1 = make_delta(seed=1)
+    A2, B2, D2 = make_delta(seed=2)
+    net_a = make_net('tower_a', cond, A1, B1)
+    net_b = make_net('tower_b', cond, A2, B2)
+    passes = []
+    real_finish = networks.finish_pass
+    def capture_finish(ctx, t0):
+        passes.append(ctx.applied_weight)
+        real_finish(ctx, t0)
+    networks.finish_pass = capture_finish
+    try:
+        with mock_model(lin=cond):
+            add_tower(uncond)
+            Wc, Wu = dq(cond), dq(uncond)
+            for a_tower, b_tower in (('transformer', 'unconditional_transformer'), ('unconditional_transformer', 'transformer')):
+                for net, tower in ((net_a, a_tower), (net_b, b_tower)):
+                    net.pending_config = {'te': 1.0, 'unet': [1.0] * 3, 'dyn': None, 'components': (tower,)}
+                activate(net_a, net_b)
+                on_cond, on_uncond = (D1, D2) if a_tower == 'transformer' else (D2, D1)
+                for tag, layer, w0, want, other in (('cond', cond, Wc, on_cond, on_uncond), ('uncond', uncond, Wu, on_uncond, on_cond)):
+                    got = dq(layer) - w0
+                    rho_want, rho_other = rho_of(got, want), rho_of(got, other)
+                    assert rho_want > 0.99 and abs(rho_other) < 0.1, f'a={a_tower} {tag}: rho own={rho_want:.4f} other={rho_other:.4f}'
+                assert passes[-1] == 2, f'a={a_tower}: weights={passes[-1]}'
+            activate()
+            assert torch.equal(dq(cond), Wc) and torch.equal(dq(uncond), Wu), 'unload must restore both towers bit-exact'
+    finally:
+        networks.finish_pass = real_finish
+    return True
+
+
+def test_tower_alias_rebuilds_dora_groups():
+    """Aliases of a split DoRA target the tower's layers and share a group of their own."""
+    layers = [build_layer('uint4', seed=i) for i in range(2)]
+    for i, layer in enumerate(layers):
+        layer.network_layer_name = f'lora_transformer_split{i}'
+    twins = [tower_twin(layer, seed=10 + i) for i, layer in enumerate(layers)]
+    net, _ = split_dora_net('tower_dora', layers, torch.rand(1, IN_F) + 0.5)
+    with mock_model(**{f'split{i}': layer for i, layer in enumerate(layers)}):
+        add_tower(*twins)
+        aliases = networks.tower_aliases(net, ('unconditional_transformer',))
+    assert set(aliases) == {twin.network_layer_name for twin in twins}, sorted(aliases)
+    group = aliases[twins[0].network_layer_name].dora_group
+    assert group is not net.modules[layers[0].network_layer_name].dora_group, 'aliases must not share the conditional group'
+    assert group.members == [aliases[twin.network_layer_name] for twin in twins], 'the alias group holds exactly the aliases'
+    assert [alias.sd_module for alias in group.members] == twins, 'aliases must point at the tower layers'
     return True
 
 
@@ -3343,6 +3504,9 @@ def run_tests():
     for fn in [test_backup_mode_computes_dora_on_the_pristine_weight, test_fuse_mode_restores_a_weight_dependent_set_from_its_copy,
                test_split_dora_group_reads_pristine_siblings_in_a_pass, test_split_dora_group_dequantizes_a_quantized_sibling]:
         run_test(CAT_BASE, fn)
+    log.warning('=== Towers ===')
+    for fn in [test_bare_reference_skips_the_unconditional_tower, test_tower_tags_reach_the_named_towers, test_fuse_mode_removes_the_tower_set, test_two_files_split_across_towers, test_tower_alias_rebuilds_dora_groups]:
+        run_test(CAT_TOWER, fn)
     log.warning('=== Hosting ===')
     for fn in [test_hosted_low_rank_delta_is_kept, test_hosted_dense_delta_beats_requant, test_hosted_skips_int8,
                test_hosted_disabled_by_option, test_hosted_transitions_and_rng_isolation,

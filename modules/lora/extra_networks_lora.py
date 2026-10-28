@@ -10,7 +10,8 @@ from modules.logger import log
 debug = os.environ.get('SD_LORA_DEBUG', None) is not None
 debug_log = log.trace if debug else lambda *args, **kwargs: None
 warned_components: set = set()
-COMPONENT_TAGS = {'high': 'transformer', 'low': 'transformer_2'}
+TOWER_TAGS = {'cond': 'transformer', 'uncond': 'unconditional_transformer'} # asymmetric-CFG towers; a bare reference applies to the conditional one only
+COMPONENT_TAGS = {'high': 'transformer', 'low': 'transformer_2', **TOWER_TAGS}
 COMPONENT_ALIASES = {'te': 'text_encoder'} # module= names as lora_diffusers.load_per_module reads them
 
 
@@ -145,6 +146,7 @@ def parse(p, params_list, step=0):
             lora_module.append('transformer')
         if 'low' in positional_lower or (staged and ('_low' in name_lower or 'low ' in name_lower)):
             lora_module.append('transformer_2')
+        lora_module.extend(component for tag, component in TOWER_TAGS.items() if tag in positional_lower)
         if params.named.get('module', None) is not None:
             lora_module.append(params.named['module'].lower())
 

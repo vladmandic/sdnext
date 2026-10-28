@@ -19,7 +19,8 @@ Save formats exercised, cross-referenced against real Ideogram 4 LoRAs:
 
 The reference module tree is the real ``Ideogram4Transformer2DModel`` at tiny dims.
 Chunked q/k/v deltas are checked against the same factors applied whole to a
-plain ``Linear(dim, 3 * dim)``.
+plain ``Linear(dim, 3 * dim)``. A second instance stands in for the
+unconditional tower, which carries its own layer names.
 
 No running server required.
 
@@ -476,6 +477,33 @@ def test_chain_refuses_mismatch():
 
 
 # ============================================================
+# Tests - the unconditional tower
+# ============================================================
+
+CAT_TOWER = category('tower')
+
+
+def test_unconditional_tower_stamped_apart():
+    """The second transformer carries its own layer names, so a load binds only the conditional one."""
+    torch.manual_seed(1)
+    uncond = Ideogram4Transformer2DModel(in_channels=8, num_layers=LAYERS, attention_head_dim=16, num_attention_heads=4, intermediate_size=FFN, adaln_dim=32, llm_features_dim=48, mrope_section=(4, 2, 2))
+    sd_model = install_mock_pipe()
+    sd_model.pipe.unconditional_transformer = uncond
+    from modules.lora import lora_convert
+    lora_convert.assign_network_names_to_compvis_modules(sd_model)
+    assert REF.layers[0].attention.to_q.network_layer_name == 'lora_transformer_layers_0_attention_to_q'
+    assert uncond.layers[0].attention.to_q.network_layer_name == 'lora_unconditional_transformer_layers_0_attention_to_q'
+    assert sd_model.network_layer_mapping['lora_unconditional_transformer_layers_1_feed_forward_w2'] is uncond.layers[1].feed_forward.w2
+    with TempLora(lora_sd('diffusion_model.layers.0.attention.qkv', *lora_factors(3 * DIM, DIM))) as nod:
+        net = I.try_load('tower', nod, lora_scale=1.0)
+    assert net is not None and all(module.sd_module is REF.get_submodule(f'layers.0.attention.{n}') for n, module in zip(('to_q', 'to_k', 'to_v'), net.modules.values())), 'the load must bind the conditional transformer'
+    sd_model.pipe.unconditional_transformer = REF # guidance off: the pipeline reuses the conditional transformer for the negative pass
+    lora_convert.assign_network_names_to_compvis_modules(sd_model)
+    assert REF.layers[0].attention.to_q.network_layer_name == 'lora_transformer_layers_0_attention_to_q', 'a reused transformer keeps its own names'
+    return True
+
+
+# ============================================================
 # Test runner
 # ============================================================
 
@@ -509,6 +537,12 @@ def run_tests():
         test_chain_refuses_mismatch,
     ]:
         run_test(CAT_LOADER, fn)
+
+    log.warning('=== Tower ===')
+    for fn in [
+        test_unconditional_tower_stamped_apart,
+    ]:
+        run_test(CAT_TOWER, fn)
 
     elapsed = time.time() - t0
     log.warning('=== Results ===')
