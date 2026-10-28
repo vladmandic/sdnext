@@ -27,6 +27,8 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
     *architecture*: 8.1B flow-matching transformer with Qwen3-VL-4B text-encoder  
     *note*: this is a [gated model](https://vladmandic.github.io/sdnext-docs/Gated)  
     *note*: BriaFIBO is designed to work with highly structured [JSON prompts](https://docs.bria.ai/vgl#5-schema-reference)  
+    a plain string prompt is read as a short description, a form the model was also trained on, but a structured caption gives far more control  
+    *note*: single-file transformers in the ComfyUI layout load through the UNET selector and LoRAs load through the native loader  
   - [OpenMOSS MOSS-Image](https://huggingface.co/OpenMOSS-Team/MOSS-Image-Base) add *sdnq-uint4* pre-quants and add *image2image* and *inpaint* workflows  
     *note*: model is trained with highly shifted sigma, so its not ideal for i2i workflows  
     *note*: this also unlocks use in hires/refine/detailer workflows  
@@ -84,6 +86,7 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
     removed: `subseed, subseed_strength, seed_resize_from_h/w, do_not_reload_embeddings, nan_skip, inpainting_mask_weigtht, initial_noise_multiplier, inpainting_fill, te_complex_human_instruction, te_use_mask, firstphase_width, firstphase_height`  
 - **Fixes**
   - api: return complete set in GET /sdapi/v1/options, thanks @Jackmeson1
+  - bria: fibo 2 inpaint masks reach the pipeline, caption text draws with the repo fonts, the text encoder is shared with qwen3-vl-4b
   - caption: get/set attention fallbacks
   - cogview: support offloading
   - dlss: save once when running as extras
