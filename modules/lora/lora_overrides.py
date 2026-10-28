@@ -43,6 +43,7 @@ NATIVE_DISPATCH = {
     'mossimage':  'pipelines.moss.moss_lora',
     'boogu':      'pipelines.boogu.boogu_lora',
     'fibo2':      'pipelines.bria.fibo2_lora',
+    'ideogram4':  'pipelines.ideogram.ideogram_lora',
 }
 
 allow_native = list(NATIVE_DISPATCH)
