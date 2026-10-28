@@ -155,7 +155,7 @@ def promote_pending():
             net.dyn_dim = pending['dyn']
             net.block_spec = pending.get('blocks', None)
             net.components = pending.get('components', None)
-            net.component_layers = component_layers(net.components)
+            net.select_layers(component_layers(net.components)) # layers outside the components leave the walk instead of taking a zero delta
             net.pending_config = None # promotion is one-shot
 
 

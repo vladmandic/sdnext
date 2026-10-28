@@ -332,7 +332,7 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
             prompt(p)
             sd_model = shared.sd_model.pipe if hasattr(shared.sd_model, 'pipe') else shared.sd_model
             if len(include) == 0: # print only once
-                actual_method = 'native' if any(len(n.modules) > 0 for n in l.loaded_networks) else load_method
+                actual_method = 'native' if any(len(n.bound()) > 0 for n in l.loaded_networks) else load_method
                 stack = lora_stack.signature() if actual_method == 'native' else 'sum' # non-native paths always combine as sum
                 log.info(f'Network status: type=LoRA networks={[n.name for n in l.loaded_networks]} method={actual_method}({load_reason}) mode={networks.effective_mode()} stack={stack} te={te_multipliers} unet={unet_multipliers} time={l.timer.summary} changed={has_changed} reason="{reason}"')
 

@@ -254,7 +254,7 @@ def test_component_strengths_by_namespace():
     assert net.modules[f'{T}transformer_blocks_0_attn_to_out_0'].multiplier() == 0.7, 'unet= scales the transformer'
 
 
-def test_component_filter_zeroes_other_components():
+def test_component_filter_leaves_other_components_out():
     from modules.lora import networks, lora_common
     install()
     net = load(lora('lora_te1_text_model_encoder_layers_0_self_attn_q_proj', 768, 768, 47) | lora('lora_unet_double_blocks_0_img_attn_proj', INNER, INNER, 48))
@@ -263,10 +263,12 @@ def test_component_filter_zeroes_other_components():
     real = list(lora_common.loaded_networks)
     try:
         lora_common.loaded_networks[:] = [net]
-        for components, te, tr in ((('transformer',), 0.0, 1.0), (('text_encoder',), 1.0, 0.0), (None, 1.0, 1.0)):
+        for components, keys in ((('transformer',), {transformer_key}), (('text_encoder',), {clip_key}), (None, {clip_key, transformer_key})):
             net.pending_config = {'te': 1.0, 'unet': [1.0] * 3, 'dyn': None, 'components': components}
             networks.promote_pending()
-            assert (net.modules[clip_key].multiplier(), net.modules[transformer_key].multiplier()) == (te, tr), components
+            assert set(net.modules) == keys, f'{components}: {sorted(net.modules)}'
+            assert set(net.bound()) == {clip_key, transformer_key}, 'the bound set must survive a narrowed request'
+            assert all(module.multiplier() == 1.0 for module in net.modules.values()), components
             assert (networks.component_signature() != '') == (components is not None), 'a component filter must change the apply stamp'
     finally:
         lora_common.loaded_networks[:] = real
@@ -329,7 +331,7 @@ def run_tests():
         test_xlabs_processor_keys,
         test_text_encoders_by_role,
         test_component_strengths_by_namespace,
-        test_component_filter_zeroes_other_components,
+        test_component_filter_leaves_other_components_out,
         test_guidance_keys_unmapped_on_schnell,
         test_fill_widens_x_embedder,
         test_kohya_without_alpha_scale_one,

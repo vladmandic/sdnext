@@ -601,6 +601,41 @@ def test_dropped_factors_do_not_count_as_applied():
     return True
 
 
+def test_component_filter_leaves_other_layers_untouched():
+    """A network given components writes only their layers; a covered layer outside them takes no factors and is not counted."""
+    outside = build_layer('uint4')
+    te_layer = build_layer('uint4', seed=7)
+    te_layer.network_layer_name = 'lora_te_scoped'
+    A, B, _ = make_delta()
+    A2, B2, _ = make_delta(seed=5)
+    net = make_net('scoped', outside, A, B)
+    nw = network.NetworkWeights(network_key=te_layer.network_layer_name, sd_key=te_layer.network_layer_name, w={'lora_up.weight': B2.cpu(), 'lora_down.weight': A2.cpu()}, sd_module=te_layer)
+    net.modules[te_layer.network_layer_name] = network_lora.NetworkModuleLora(net, nw)
+    net.pending_config = {'te': 1.0, 'unet': [1.0] * 3, 'dyn': None, 'components': ('text_encoder',)}
+
+    passes = []
+    real_finish = networks.finish_pass
+    def capture_finish(ctx, t0):
+        passes.append((ctx.applied_weight, list(networks.applied_layers)))
+        real_finish(ctx, t0)
+    networks.finish_pass = capture_finish
+    try:
+        with mock_model(lin=outside):
+            from modules.modeldata import model_data
+            text_encoder = MockHolder()
+            text_encoder.lin = te_layer
+            model_data.sd_model.pipe.text_encoder = text_encoder
+            Wdq0 = dq(outside)
+            activate(net)
+            assert not hasattr(outside, 'sdnq_lora_svd_stash') and torch.equal(dq(outside), Wdq0), 'a layer outside the components must keep its weights and take no factors'
+            assert hasattr(te_layer, 'sdnq_lora_svd_stash'), 'the named component must take the set'
+            assert passes[-1] == (1, [te_layer.network_layer_name]), f'only the named component counts: {passes[-1]}'
+            activate()
+    finally:
+        networks.finish_pass = real_finish
+    return True
+
+
 def test_apply_restore_preserves_weight_storage():
     """Apply and restore write into the existing parameter storage: kernel selection is
     placement-sensitive, so a swapped-in Parameter shifts deterministic outputs bitwise."""
@@ -3295,7 +3330,7 @@ def run_tests():
     for fn in [test_network_activate_roundtrip]:
         run_test(CAT_E2E, fn)
     log.warning('=== Set transitions ===')
-    for fn in [test_mixed_family_transition_restores_base, test_partial_coverage_layers_stay_independent, test_dropped_factors_do_not_count_as_applied,
+    for fn in [test_mixed_family_transition_restores_base, test_partial_coverage_layers_stay_independent, test_dropped_factors_do_not_count_as_applied, test_component_filter_leaves_other_layers_untouched,
                test_apply_restore_preserves_weight_storage, test_fuse_promote_applies_new_multiplier, test_fuse_change_then_remove_restores_pristine,
                test_mechanism_gate_declines_candidates, test_requantize_option_routes_to_legacy_path,
                test_mechanism_flip_strips_attached_factors, test_mechanism_flip_restore_pass_strips,

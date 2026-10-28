@@ -183,9 +183,9 @@ class Network:  # LoraModule
         self.dyn_dim = None
         self.block_spec = None # raw lbw= value; per-layer factors resolve through lora_blocks
         self.components = None # module= and high/low components; None applies the network to every component
-        self.component_layers = None # stamped layer names of those components, resolved by networks.promote_pending
         self.pending_config = None # staged multipliers; network_activate promotes them after the removal pass so fuse removal subtracts the delta that was applied
-        self.modules = {}
+        self.modules = {} # what the current request applies, keyed by layer name; select_layers narrows it to the requested components
+        self.bound_modules = None # every module the file bound, kept once select_layers has run
         self.extras = {} # non-delta payloads a family carries, e.g. parallel heads
         self.mismatch = 0 # deltas dropped for not fitting their target module; try_load_chain refuses the file when non-zero
         self.bundle_embeddings = {}
@@ -193,6 +193,15 @@ class Network:  # LoraModule
         self.mentioned_name = None
         self.tags = None
         """the text that was used to add the network to prompt - can be either name or an alias"""
+
+    def bound(self):
+        """Every module the file bound, whichever layers the current request applies."""
+        return self.modules if self.bound_modules is None else self.bound_modules
+
+    def select_layers(self, layers):
+        """Apply only the bound modules on ``layers``; None applies every one."""
+        self.bound_modules = self.bound()
+        self.modules = self.bound_modules if layers is None else {key: module for key, module in self.bound_modules.items() if key in layers}
 
 
 def column_norms(merged):
@@ -267,8 +276,6 @@ class NetworkModule:
         self.decompose = True # off while scaled_delta reads the delta ahead of the decomposition
 
     def multiplier(self):
-        if self.network.component_layers is not None and self.sd_key not in self.network.component_layers:
-            return 0.0
         unet_multiplier =3 * [self.network.unet_multiplier] if not isinstance(self.network.unet_multiplier, list) else self.network.unet_multiplier
         if self.sd_key.startswith('lora_te'):
             base = self.network.te_multiplier
