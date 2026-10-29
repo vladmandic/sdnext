@@ -791,7 +791,7 @@ def install_rocm():
                     # The unpinned index resolves to ROCm 10.1 wheels, which are incompatible with gfx10 GPUs.
                     torch_command = os.environ.get('TORCH_COMMAND', f'"torch[device-{device.therock}]==2.13.0+rocm10.0.0" "torchvision[device-{device.therock}]==0.28.0+rocm10.0.0" "torchaudio==2.11.0+rocm10.0.0" --index-url https://stable.repo.amd.com/rocm/whl-next/')
                 else:
-                    torch_command = os.environ.get('TORCH_COMMAND', f'"torch[device-{device.therock}]" torchvision torchaudio --index-url https://stable.repo.amd.com/rocm/whl-next/')
+                    torch_command = os.environ.get('TORCH_COMMAND', f'"torch[device-{device.therock}]" "torchvision[device-{device.therock}]==0.29.0a0+rocm10.1.0" torchaudio --index-url https://stable.repo.amd.com/rocm/whl-next/')
             elif isinstance(rocm.environment, rocm.PythonPackageEnvironment):
                 check_python(supported_minors=[11, 12, 13], reason='ROCm-Windows: python==3.11/3.12/3.13 required')
                 torch_command = os.environ.get('TORCH_COMMAND', 'torch torchvision torchaudio --index-url https://stable.repo.amd.com/rocm/whl-next/')
