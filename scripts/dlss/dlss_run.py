@@ -269,7 +269,7 @@ def dlss_run(p: StableDiffusionProcessing | None,
         if use_stream:
             raw_inputs = video.read_generator(pp.video) # use read generator instead of bulk read
 
-        if isinstance(pp.video, str):
+        if hasattr(pp, 'video') and isinstance(pp.video, str):
             filename = os.path.splitext(os.path.basename(pp.video))[0]
 
         with pbar:

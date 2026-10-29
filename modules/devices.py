@@ -449,9 +449,13 @@ def test_triton(early: bool = False):
             except Exception:
                 pass
         torch_info.set(triton=triton_version)
+    try:
+        triton_threads = torch._inductor.config.decide_compile_threads() # pylint: disable=protected-access
+    except Exception:
+        triton_threads = None
     t1 = time.time()
     fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
-    log.debug(f'Triton: pass={triton_ok} version={triton_version} fn={fn} time={t1-t0:.2f}')
+    log.debug(f'Triton: pass={triton_ok} version={triton_version} fn={fn} threads={triton_threads} time={t1-t0:.2f}')
     return triton_ok
 
 

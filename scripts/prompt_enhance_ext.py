@@ -6,7 +6,7 @@ import torch
 import transformers
 import gradio as gr
 from PIL import Image
-from modules import scripts_manager, shared, devices, errors, processing, sd_models, sd_modules, timer, extra_networks
+from modules import scripts_manager, shared, devices, errors, processing, sd_models, sd_modules, timer, extra_networks, sd_hijack_te
 from modules import ui_control_helpers
 from modules.sd_offload_aux import register_aux, deregister_aux, move_aux_to_gpu, offload_aux
 from modules.logger import log
@@ -321,6 +321,7 @@ class PromptEnhanceScript(scripts_manager.Script):
             current_image = None
         return current_image
 
+    @sd_hijack_te.with_compile_stance('LLM')
     def enhance(self,
                 model: str | None=None,
                 prompt:str | None=None,
@@ -623,6 +624,8 @@ class PromptEnhanceScript(scripts_manager.Script):
             response = response[0]
         raw_response = raw_response[0] if isinstance(raw_response, list) else raw_response
         thinking_output, answer = self.extract_thinking(raw_response)
+        debug_log(f'Prompt enhance: thinking="{thinking_output}"')
+        debug_log(f'Prompt enhance: answer="{answer}"')
         if thinking_output:
             for token in self.tokenizer.all_special_tokens:
                 answer = answer.replace(token, '')

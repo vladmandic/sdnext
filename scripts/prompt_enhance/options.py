@@ -258,7 +258,8 @@ class Options:
         ''')
     direct_format: str = textwrap.dedent('''\
         Do not add greetings, conversational filler, concluding remarks, numbering, notes, or extraneous commentary.
-        Start immediately with the prompt content.
+        Do not copy the original prompt verbatim.
+        Start immediately with the enhanced prompt content.
         No stray tokens!
         ''')
 

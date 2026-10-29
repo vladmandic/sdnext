@@ -1,6 +1,7 @@
 import os
 import time
 import contextlib
+from functools import wraps
 import torch
 from modules import shared, errors, timer, sd_models
 from modules.logger import log
@@ -55,11 +56,21 @@ class PromptCache:
 prompt_cache = PromptCache()
 
 
-def encode_stance():
-    # sdnq compiles its helpers for static shapes, so a compiled encode recompiles for every new prompt length or image size and runs no faster once warm
-    if not shared.opts.torch_skip_compile_te or 'TE' in shared.opts.cuda_compile or not hasattr(torch.compiler, 'set_stance'): # an encoder compiled through compile model keeps its compile
+def compile_stance(target='TE'):
+    # SDNQ compiles static-shape helpers, so variable prompt lengths and image sizes can cause repeated recompiles without a warmup speedup
+    if not shared.opts.torch_skip_compile_te or target in shared.opts.cuda_compile or not hasattr(torch.compiler, 'set_stance'):
         return contextlib.nullcontext()
     return torch.compiler.set_stance('force_eager')
+
+
+def with_compile_stance(target='TE'):
+    def decorate(func):
+        @wraps(func)
+        def wrapped(*args, **kwargs):
+            with compile_stance(target):
+                return func(*args, **kwargs)
+        return wrapped
+    return decorate
 
 
 def hijack_encode_prompt(*args, **kwargs):
@@ -98,7 +109,7 @@ def hijack_encode_prompt(*args, **kwargs):
             else:
                 length = len(prompt) if isinstance(prompt, str) else 0
                 log.debug(f'Encode: length={length} prompt="{prompt}" hijack=True')
-            with attention_context.role('te'), encode_stance():
+            with attention_context.role('te'), compile_stance():
                 if hasattr(shared.sd_model, 'orig_encode_prompt'):
                     res = shared.sd_model.orig_encode_prompt(*args_copy, **kwargs)
                 else:
