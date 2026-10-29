@@ -2214,6 +2214,46 @@ def test_load_transformer_syncs_loaded_unet():
             os.unlink(path)
 
 
+def test_load_unet_hashes_only_a_kept_override():
+    """A transformer load that rejects the override resets sd_unet to Default
+    during the reload; load_unet then hashes nothing and warns nothing. An
+    override the reload keeps is hashed."""
+    import types
+    from modules import sd_unet, shared, sd_models, hashes
+
+    class Recorder:
+        def __init__(self):
+            self.warnings = []
+
+        def warning(self, msg, *args, **kwargs):
+            self.warnings.append(msg)
+
+        def info(self, *args, **kwargs):
+            pass
+
+        error = debug = info
+
+    hashed = []
+    orig = (shared.opts.sd_unet, sd_unet.loaded_unet, sd_unet.log, sd_models.reload_model_weights, hashes.sha256)
+    sd_unet.unet_dict['mock-unet-reset'] = '/nonexistent/mock-unet-reset.safetensors'
+    hashes.sha256 = lambda filename, title, **kwargs: hashed.append(title)
+    model = types.SimpleNamespace(transformer=object())
+    try:
+        for keep in (False, True):
+            recorder = Recorder()
+            sd_unet.log = recorder
+            hashed.clear()
+            shared.opts.data['sd_unet'] = 'mock-unet-reset'
+            sd_unet.loaded_unet = None
+            sd_models.reload_model_weights = lambda force=False, keep=keep: None if keep else shared.opts.data.update(sd_unet='Default')
+            sd_unet.load_unet(model)
+            assert not recorder.warnings, f'keep={keep} warned: {recorder.warnings}'
+            assert hashed == (['unet/mock-unet-reset'] if keep else []), f'keep={keep} hashed {hashed}'
+    finally:
+        sd_unet.unet_dict.pop('mock-unet-reset', None)
+        shared.opts.data['sd_unet'], sd_unet.loaded_unet, sd_unet.log, sd_models.reload_model_weights, hashes.sha256 = orig
+
+
 class MockFusedAttention(torch.nn.Module):
     """Split-attention module tree matching Ideogram4Transformer2DModel's
     naming (to_q/to_k/to_v + to_out ModuleList), fed by fused checkpoints."""
@@ -2764,6 +2804,7 @@ def run_all():
         test_load_comfy_convrot_end_to_end,
         test_load_comfy_convrot_nondivisible_falls_back,
         test_load_transformer_syncs_loaded_unet,
+        test_load_unet_hashes_only_a_kept_override,
         test_load_transformer_secondary_slot_syncs_tracker,
         test_build_component_comfy_preempts_sdnq_fresh_quant,
         test_build_component_comfy_skips_converter_when_not_quant_aware,

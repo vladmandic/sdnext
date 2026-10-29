@@ -101,10 +101,11 @@ def load_unet(model, repo_id: str | None = None):
             from modules import errors
             errors.display(e, 'UNet load:')
         return
-    try:
-        hashes.sha256(unet_dict[shared.opts.sd_unet], f'unet/{shared.opts.sd_unet}')
-    except Exception as e:
-        log.warning(f'Load module: type=UNet hash failed: name="{shared.opts.sd_unet}" {e}')
+    if shared.opts.sd_unet in unet_dict: # a transformer load that rejects the override resets the selection to Default
+        try:
+            hashes.sha256(unet_dict[shared.opts.sd_unet], f'unet/{shared.opts.sd_unet}')
+        except Exception as e:
+            log.warning(f'Load module: type=UNet hash failed: name="{shared.opts.sd_unet}" {e}')
     devices.torch_gc()
 
 
