@@ -49,7 +49,7 @@ for /f "delims=" %%i in ('CALL %PYTHON% -c "import sys; print(sys.executable)"')
 echo Using python: %PYTHON_FULLNAME%
 if "%use_uv%" == "1" (
     echo Creating VENV: UV
-    uv venv "%VENV_DIR%" >tmp/stdout.txt 2>tmp/stderr.txt
+    uv venv --python %PYTHON_FULLNAME% --seed "%VENV_DIR%" >tmp/stdout.txt 2>tmp/stderr.txt
 ) else (
     echo Creating VENV: VENV
     %PYTHON_FULLNAME% -m venv "%VENV_DIR%" >tmp/stdout.txt 2>tmp/stderr.txt

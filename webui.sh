@@ -92,7 +92,7 @@ then
     if [[ "${use_uv}" -eq 1 ]]
     then
         echo "Create VENV: UV"
-        uv venv "${venv_dir}"
+        uv venv --python "${PYTHON}" --seed "${venv_dir}"
     else
         echo "Create VENV: VENV"
         "${PYTHON}" -m venv "${venv_dir}"

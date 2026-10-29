@@ -76,7 +76,7 @@ if ($VENV_DIR -ne '-' -and $env:SKIP_VENV -ne '1') {
 
         if ($use_uv) {
             Write-Output "Creating VENV: UV"
-            & uv venv $VENV_DIR 2>tmp\stderr.txt | Out-File tmp\stdout.txt
+            & uv venv --python $PYTHON_FULLNAME --seed $VENV_DIR 2>tmp\stderr.txt | Out-File tmp\stdout.txt
         } else {
             Write-Output "Creating VENV: VENV"
             & $PYTHON_FULLNAME -m venv $VENV_DIR 2>tmp\stderr.txt | Out-File tmp\stdout.txt
