@@ -599,6 +599,28 @@ def remap_comfy_quant(state_dict: dict, marked_names: set[str], defer_scales: bo
     return remapped
 
 
+def split_fused_rows(state_dict: dict, fused: str, suffix: str, targets: tuple[str, ...]) -> dict:
+    """Split ``<fused>.<suffix>`` of a row-stacked fused linear into ``<target>.<suffix>`` per target.
+
+    Tensors stacked on the fused weight's rows (weight, row-wise scale, bias)
+    are dim-0 sliced into equal parts; ``comfy_quant`` markers and other
+    sidecars (scalar scales) are copied to every target. Row slicing commutes
+    with convrot, which rotates along in_features.
+    """
+    value = state_dict[f"{fused}.{suffix}"]
+    weight = state_dict.get(f"{fused}.weight")
+    rows = weight.shape[0] if torch.is_tensor(weight) and weight.ndim >= 1 else None
+    row_stacked = (
+        suffix != "comfy_quant"
+        and torch.is_tensor(value) and value.ndim >= 1
+        and rows is not None and value.shape[0] == rows and rows % len(targets) == 0
+    )
+    if not row_stacked:
+        return {f"{target}.{suffix}": value for target in targets}
+    part = rows // len(targets)
+    return {f"{target}.{suffix}": value[i * part:(i + 1) * part] for i, target in enumerate(targets)}
+
+
 def unswizzle_block_scales(scales: torch.Tensor, rows: int, groups: int) -> torch.Tensor:
     """Invert the cuBLAS 2D block-scaling factor layout back to row-major
     ``[rows, groups]``, dropping the tile alignment padding.
