@@ -802,6 +802,19 @@ def test_native_activate_stages_each_reference_its_tags():
     assert sig(['x', 'x'], [0.9, 0.4], [[0.9] * 3, [0.4] * 3], None, [['transformer'], ['unconditional_transformer']]) != sig(['x', 'x'], [0.9, 0.4], [[0.9] * 3, [0.4] * 3], None, [['unconditional_transformer'], ['unconditional_transformer']])
 
 
+def test_request_options_fold_into_overrides():
+    """The per-request LoRA keywords become overrides for that request; an explicit override of the same key wins."""
+    import inspect
+    import types
+    from modules import processing, processing_class
+    p = types.SimpleNamespace(override_settings={'lora_force_reload': True}, lora_fuse_native=False, lora_fuse_diffusers=None, lora_force_reload=False, extra_networks_default_multiplier=0.6, lora_apply_tags=None)
+    processing.apply_request_options(p)
+    assert p.override_settings == {'lora_force_reload': True, 'lora_fuse_native': False, 'extra_networks_default_multiplier': 0.6}, p.override_settings
+    keywords = inspect.signature(processing_class.StableDiffusionProcessing.__init__).parameters
+    assert all(key in keywords for key in processing.REQUEST_OPTIONS), 'every request option must be a processing keyword'
+    assert all(key in shared.opts.data_labels for key in processing.REQUEST_OPTIONS), 'every request option must be a setting, or the override is skipped'
+
+
 def test_chain_modules_share_the_returned_network():
     install(ZImagePipeline(torch.nn.Sequential(torch.nn.Linear(4, 4), torch.nn.Linear(4, 4))))
     sd = {'lora_transformer_0.lora_down.weight': torch.randn(2, 4), 'lora_transformer_0.lora_up.weight': torch.randn(4, 2), 'lora_transformer_1.diff': torch.randn(4, 4)}
@@ -877,6 +890,7 @@ def run_tests():
         test_component_tags_parsed_and_missing_reported,
         test_tower_tags_parsed,
         test_native_activate_stages_each_reference_its_tags,
+        test_request_options_fold_into_overrides,
     ]:
         run_test(cat, fn)
     model_data.sd_model = None

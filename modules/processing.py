@@ -147,6 +147,7 @@ def process_images(p: StableDiffusionProcessing) -> Processed | None:
         return None
     if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
         p.scripts.before_process(p)
+    apply_request_options(p)
     stored_opts = {}
     for k, v in p.override_settings.copy().items():
         if shared.opts.data.get(k, None) is None and shared.opts.data_labels.get(k, None) is None:
@@ -286,6 +287,17 @@ def process_init(p: StableDiffusionProcessing):
 def get_opt(p, key):
     val = getattr(p, key, None)
     return val if val is not None else getattr(shared.opts, key)
+
+
+REQUEST_OPTIONS = ('lora_fuse_native', 'lora_fuse_diffusers', 'lora_force_reload', 'extra_networks_default_multiplier', 'lora_apply_tags') # processing keywords whose readers take shared.opts
+
+
+def apply_request_options(p):
+    """Fold the set ``REQUEST_OPTIONS`` keywords into ``p.override_settings``, so they hold for this request only; an explicit override of the same key wins."""
+    for key in REQUEST_OPTIONS:
+        value = getattr(p, key, None)
+        if value is not None:
+            p.override_settings.setdefault(key, value)
 
 
 def process_samples(p: StableDiffusionProcessing, samples, skip_postprocess_image: bool = False):
