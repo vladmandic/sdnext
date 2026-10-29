@@ -20,7 +20,7 @@ class Style:
         self.name = name
         self.description = desc
         self.prompt = prompt
-        self.negative_prompt = negative_prompt
+        self.negative_prompt = "" if negative_prompt is None else negative_prompt
         self.extra = extra
         self.wildcards = wildcards
         self.filename = filename
