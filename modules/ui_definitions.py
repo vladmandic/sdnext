@@ -261,6 +261,7 @@ def create_settings(cmd_opts):
         "sdnq_attention_use_hadamard": OptionInfo(False, "SDNQ Attention use Hadamard", gr.Checkbox),
         "sdnq_attention_use_fp16_accum": OptionInfo(False, "SDNQ Attention use FP16 Accumulation", gr.Checkbox),
         "sdnq_attention_quantize_fp32": OptionInfo(True, "SDNQ Attention Quantize FP32", gr.Checkbox),
+        "sdnq_attention_use_tensor_descriptors": OptionInfo("default", "SDNQ Attention use TMA Tensor Descriptors", gr.Radio, {"choices": ["default", "enabled", "disabled"]}),
         "sdnq_attention_matmul_type": OptionInfo("enabled", "SDNQ Attention MatMul type", gr.Radio, {"choices": sdnq_matmul_modes}),
         "sdnq_attention_pv_matmul_type": OptionInfo("disabled", "SDNQ Attention PV MatMul type", gr.Radio, {"choices": sdnq_matmul_modes}),
         "sdnq_attention_hadamard_group_size": OptionInfo(256, "SDNQ Attention Hadamard Group Size", gr.Slider, {"minimum": 4, "maximum": 1024, "step": 1}),
@@ -513,17 +514,17 @@ def create_settings(cmd_opts):
         "openvino_cache_path": OptionInfo('cache', "Folder for OpenVINO cache", folder=True),
         "onnx_cached_models_path": OptionInfo(os.path.join(paths.models_path, 'ONNX', 'cache'), "Folder for ONNX cached models", folder=True),
         "onnx_temp_dir": OptionInfo(os.path.join(paths.models_path, 'ONNX', 'temp'), "Folder for ONNX conversion", folder=True),
-        "dlss_pkg_path": OptionInfo('', "Folder with DLSS package", gr.Textbox, { "visible": False}),
     }))
 
-    # --- Image Options ---
-    options_templates.update(options_section(('saving-images', "Image Options"), {
-        "samples_save": OptionInfo(True, "Save all generated images"),
-        "keep_incomplete": OptionInfo(True, "Save interrupted images"),
-        "samples_format": OptionInfo('jpg', 'File format', gr.Dropdown, {"choices": ["jpg", "png", "webp", "tiff", "jp2", "jxl", "heif"]}),
+    # --- Media Options ---
+    options_templates.update(options_section(('saving-images', "Media Options"), {
+        "samples_save": OptionInfo(True, "Save all generated media"),
+        "keep_incomplete": OptionInfo(True, "Save interrupted media"),
+        "samples_format": OptionInfo('jpg', 'Image file format', gr.Dropdown, {"choices": ["jpg", "png", "webp", "tiff", "jp2", "jxl", "heif"]}),
         "jpeg_quality": OptionInfo(90, "Image quality", gr.Slider, {"minimum": 1, "maximum": 100, "step": 1}),
-        "img_max_size_mp": OptionInfo(1000, "Maximum image size (MP)", gr.Slider, {"minimum": 10, "maximum": 2000, "step": 1}),
-        "webp_lossless": OptionInfo(False, "WebP lossless compression"),
+        "img_max_size_mp": OptionInfo(1000, "Image maximum size (MP)", gr.Slider, {"minimum": 10, "maximum": 2000, "step": 1}),
+        "ui_video_convert": OptionInfo(False, "Videos convert for UI playback"),
+        "webp_lossless": OptionInfo(False, "Image WebP lossless compression"),
         "save_selected_only": OptionInfo(True, "UI save only saves selected image"),
         "include_mask": OptionInfo(False, "Include mask in outputs"),
         "samples_save_zip": OptionInfo(False, "Create ZIP archive for multiple images"),
@@ -559,8 +560,8 @@ def create_settings(cmd_opts):
         "image_watermark_image": OptionInfo('', "Image watermark file"),
     }))
 
-    # --- Image Paths ---
-    options_templates.update(options_section(('saving-paths', "Image Paths"), {
+    # --- Media Paths ---
+    options_templates.update(options_section(('saving-paths', "Media Paths"), {
         "saving_sep_images": OptionInfo("<h2>Save Options</h2>", "", gr.HTML),
         "save_images_add_number": OptionInfo(True, "Numbered filenames", component_args=hide_dirs),
         "use_original_name_batch": OptionInfo(True, "Batch uses original name"),
@@ -586,9 +587,11 @@ def create_settings(cmd_opts):
         "outdir_control_grids": OptionInfo("outputs/grids", 'Folder for control grids', component_args=hide_dirs, folder=True),
     }))
 
-    # --- Image Metadata ---
-    options_templates.update(options_section(('image-metadata', "Image Metadata"), {
+    # --- Media Metadata ---
+    options_templates.update(options_section(('image-metadata', "Media Metadata"), {
         "image_metadata": OptionInfo(True, "Save metadata in image"),
+        "add_model_hash": OptionInfo(True, "Add hash: Model"),
+        "add_lora_hash": OptionInfo(False, "Add hash: LoRA"),
         "save_txt": OptionInfo(False, "Save metadata to text file"),
         "save_log_fn": OptionInfo("", "Save metadata to JSON file", component_args=hide_dirs),
         "disable_apply_params": OptionInfo('', "Restore from metadata: skip params", gr.Textbox),
@@ -689,8 +692,6 @@ def create_settings(cmd_opts):
         "color_correction_method": OptionInfo("histogram", "Color correction method", gr.Radio, {"choices": ["histogram", "wavelet", "adain"]}),
         "mask_apply_overlay": OptionInfo(True, "Apply mask as overlay"),
         "img2img_background_color": OptionInfo("#ffffff", "Image transparent color fill", gr.ColorPicker, {}),
-        "inpainting_mask_weight": OptionInfo(1.0, "Inpainting conditioning mask strength", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.01}),
-        "initial_noise_multiplier": OptionInfo(1.0, "Noise multiplier for image processing", gr.Slider, {"minimum": 0.1, "maximum": 1.5, "step": 0.01, "visible": False}),
 
         "postprocessing_sep_detailer": OptionInfo("<h2>Detailer</h2>", "", gr.HTML),
         "detailer_unload": OptionInfo(False, "Move detailer model to CPU when complete"),
@@ -784,9 +785,6 @@ def create_settings(cmd_opts):
         "lora_stack_density": OptionInfo(0.5, "LoRA stack density", gr.Slider, {"minimum": 0.05, "maximum": 1.0, "step": 0.05}),
         "lora_stack_alpha": OptionInfo(0.0, "LoRA stack ramp", gr.Slider, {"minimum": 0.0, "maximum": 3.0, "step": 0.1}),
         "lora_stack_discrepancy": OptionInfo(0.5, "LoRA stack discrepancy", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.05}),
-
-        "lora_meta_sep": OptionInfo("<h2>Metadata</h2>", "", gr.HTML),
-        "lora_add_hashes_to_infotext": OptionInfo(False, "LoRA add hash info to metadata"),
     }))
 
     # --- Extensions ---

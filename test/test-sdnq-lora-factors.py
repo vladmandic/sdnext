@@ -18,11 +18,24 @@ for the per-model analyzer):
 - Multi-LoRA set transitions keep the base pristine: a layer that fell back
   to requantize (mixed factorable/non-factorable set) restores from backup
   before re-entering the factor path, layers targeted by only some of the
-  loaded networks stay independent, and untargeted quantized layers are not
-  flagged as requantized.
+  loaded networks stay independent, and untargeted quantized layers are
+  neither flagged as requantized nor counted as applied.
+- Pristine base: a weight-dependent set (DoRA here) is computed on the
+  layer's stored copy in backup mode, and fuse mode keeps such a copy for the
+  layers it touches and restores them on removal; a plain set keeps the marker.
+  A per-input DoRA split across the chunks of a fused weight shares one
+  column norm, read from every sibling's pristine weight, dequantized.
 - Robustness: factor removal restores onto the layer's current device after
   an offload-style move, and a shape-mismatched network stacked onto a
   factor-mode layer downgrades to the legacy path instead of raising.
+- Towers: a reference without tower tags leaves a second transformer tower
+  (Ideogram 4's unconditional one) pristine; named towers take the set, count
+  it and drop it again, in factor and fuse mode; two files split across the
+  towers stay on their own; and split DoRA groups are rebuilt for the tower's
+  layers.
+- References: several references to one file are separate clones through the
+  real network_load, so each keeps its own strength and tower, references on
+  the same layers add up, and select mode keeps their segments and pairs apart.
 - Hosting: on sub-8-bit layers, non-factorable sets ride the side-channel as
   a truncated svd of their calc_updown delta: low-rank content survives
   whole, dense content beats the requantize floor by a wide margin, int8
@@ -381,16 +394,19 @@ def test_backup_mode_clones_full_quant_state():
 
 
 def test_fuse_mode_marker_takes_no_memory():
-    """Fuse mode stores a boolean marker instead of tensors; guard forces backup on quantized models."""
+    """Fuse mode stores a boolean marker instead of tensors, except under a weight-dependent set; guard forces backup on quantized models."""
     from modules.lora.lora_apply import network_backup_weights
     from modules.lora import lora_overrides
     layer = build_layer('uint4')
     A, B, _D = make_delta()
     l_common.loaded_networks.clear()
-    l_common.loaded_networks.append(make_net('dora', layer, A, B, dora=True))
-    reported = network_backup_weights(layer, layer.network_layer_name, (('dora', 1.0, 1.0, None),), fuse=True)
+    l_common.loaded_networks.append(make_net('plain', layer, A, B))
+    reported = network_backup_weights(layer, layer.network_layer_name, (('plain', 1.0, 1.0, None),), fuse=True)
     assert layer.network_weights_backup is True and reported == 0
     assert not hasattr(layer, 'sdnq_dequantizer_backup')
+    l_common.loaded_networks[:] = [make_net('dora', layer, A, B, dora=True)]
+    reported = network_backup_weights(layer, layer.network_layer_name, (('dora', 1.0, 1.0, None),), fuse=True)
+    assert isinstance(layer.network_weights_backup, torch.Tensor) and reported > 0, 'a weight-dependent set keeps a copy in fuse mode'
 
     # the guard: a quantized component forces fuse off model-wide regardless of the option
     class MockCfg:
@@ -561,6 +577,73 @@ def test_partial_coverage_layers_stay_independent():
     return True
 
 
+def test_dropped_factors_do_not_count_as_applied():
+    """A layer the next set does not cover drops its factors bit-exact without counting as an applied weight."""
+    kept = build_layer('uint4')
+    dropped = build_layer('uint4', seed=7)
+    dropped.network_layer_name = 'lora_transformer_dropped'
+    A, B, _ = make_delta()
+    A2, B2, _ = make_delta(seed=5)
+    wide = make_net('wide', kept, A, B)
+    nw = network.NetworkWeights(network_key=dropped.network_layer_name, sd_key=dropped.network_layer_name, w={'lora_up.weight': B2.cpu(), 'lora_down.weight': A2.cpu()}, sd_module=dropped)
+    wide.modules[dropped.network_layer_name] = network_lora.NetworkModuleLora(wide, nw)
+    narrow = make_net('narrow', kept, A, B)
+
+    passes = []
+    real_finish = networks.finish_pass
+    def capture_finish(ctx, t0):
+        passes.append((ctx.applied_weight, list(networks.applied_layers)))
+        real_finish(ctx, t0)
+    networks.finish_pass = capture_finish
+    try:
+        with mock_model(lin=kept, other=dropped):
+            Wdq0 = dq(dropped)
+            activate(wide)
+            assert passes[-1][0] == 2 and hasattr(dropped, 'sdnq_lora_svd_stash'), f'both layers must take factors: {passes[-1]}'
+            activate(narrow)
+            assert not hasattr(dropped, 'sdnq_lora_svd_stash') and torch.equal(dq(dropped), Wdq0), 'uncovered layer must drop its factors bit-exact'
+            assert passes[-1] == (1, [kept.network_layer_name]), f'only the layer that took factors counts: {passes[-1]}'
+            activate()
+    finally:
+        networks.finish_pass = real_finish
+    return True
+
+
+def test_component_filter_leaves_other_layers_untouched():
+    """A network given components writes only their layers; a covered layer outside them takes no factors and is not counted."""
+    outside = build_layer('uint4')
+    te_layer = build_layer('uint4', seed=7)
+    te_layer.network_layer_name = 'lora_te_scoped'
+    A, B, _ = make_delta()
+    A2, B2, _ = make_delta(seed=5)
+    net = make_net('scoped', outside, A, B)
+    nw = network.NetworkWeights(network_key=te_layer.network_layer_name, sd_key=te_layer.network_layer_name, w={'lora_up.weight': B2.cpu(), 'lora_down.weight': A2.cpu()}, sd_module=te_layer)
+    net.modules[te_layer.network_layer_name] = network_lora.NetworkModuleLora(net, nw)
+    net.pending_config = {'te': 1.0, 'unet': [1.0] * 3, 'dyn': None, 'components': ('text_encoder',)}
+
+    passes = []
+    real_finish = networks.finish_pass
+    def capture_finish(ctx, t0):
+        passes.append((ctx.applied_weight, list(networks.applied_layers)))
+        real_finish(ctx, t0)
+    networks.finish_pass = capture_finish
+    try:
+        with mock_model(lin=outside):
+            from modules.modeldata import model_data
+            text_encoder = MockHolder()
+            text_encoder.lin = te_layer
+            model_data.sd_model.pipe.text_encoder = text_encoder
+            Wdq0 = dq(outside)
+            activate(net)
+            assert not hasattr(outside, 'sdnq_lora_svd_stash') and torch.equal(dq(outside), Wdq0), 'a layer outside the components must keep its weights and take no factors'
+            assert hasattr(te_layer, 'sdnq_lora_svd_stash'), 'the named component must take the set'
+            assert passes[-1] == (1, [te_layer.network_layer_name]), f'only the named component counts: {passes[-1]}'
+            activate()
+    finally:
+        networks.finish_pass = real_finish
+    return True
+
+
 def test_apply_restore_preserves_weight_storage():
     """Apply and restore write into the existing parameter storage: kernel selection is
     placement-sensitive, so a swapped-in Parameter shifts deterministic outputs bitwise."""
@@ -645,6 +728,529 @@ def test_fuse_change_then_remove_restores_pristine():
         rho2 = rho_of(resid, D)
         assert abs(rho2) < 0.05, f'rho={rho2:.3f} removal must subtract the strength that was applied'
         assert float(resid.abs().max()) < 2e-3, f'max={float(resid.abs().max()):.2e} removal must leave only rounding residue'
+    return True
+
+
+# ============================================================
+# Tests - the pristine base of weight-dependent deltas
+# ============================================================
+
+CAT_BASE = category('pristine-base')
+
+
+def plain_fixture(seed=0, name='base'):
+    """An unquantized fp32 Linear, so fuse stays allowed and the arithmetic is exact to rounding."""
+    torch.manual_seed(seed)
+    lin = torch.nn.Linear(64, 48).to(DEVICE)
+    lin.network_layer_name = f'lora_transformer_{name}'
+    lin.network_current_names = ()
+    return lin, lin.weight.detach().clone()
+
+
+def small_net(name, lin, dora=False):
+    return make_net(name, lin, torch.randn(4, 64, device=DEVICE) * 0.2, torch.randn(48, 4, device=DEVICE) * 0.2, dora=dora)
+
+
+def test_backup_mode_computes_dora_on_the_pristine_weight():
+    """Backup mode has no removal pass: a weight-dependent set applied after another must read the stored copy, not the live weight."""
+    lin, w0 = plain_fixture()
+    net_plain = small_net('base_plain', lin)
+    net_dora = small_net('base_dora', lin, dora=True)
+    want, _ = net_dora.modules[lin.network_layer_name].calc_updown(w0)
+    with mock_model(lin=lin):
+        activate(net_plain)
+        activate(net_dora)
+        got = lin.weight.detach() - w0
+    assert torch.allclose(got, want, atol=1e-5), f'max |got-want|={float((got - want).abs().max()):.2e}'
+    return True
+
+
+def test_fuse_mode_restores_a_weight_dependent_set_from_its_copy():
+    """Fuse mode keeps a copy of the layers a weight-dependent set touches and restores them on removal; a plain set keeps the marker."""
+    lin, w0 = plain_fixture()
+    net_dora = small_net('base_dora', lin, dora=True)
+    with mock_model(lin=lin):
+        shared.opts.lora_fuse_native = True
+        activate(net_dora)
+        assert isinstance(lin.network_weights_backup, torch.Tensor), 'a weight-dependent set must keep a copy in fuse mode'
+        assert float((lin.weight.detach() - w0).abs().max()) > 0.1, 'the set must have changed the weight'
+        l_common.previously_loaded_networks[:] = l_common.loaded_networks
+        l_common.loaded_networks.clear()
+        networks.network_deactivate()
+        networks.network_activate()
+        residue = float((lin.weight.detach() - w0).abs().max())
+        assert residue < 1e-6, f'residue={residue:.2e}'
+        activate(small_net('base_plain', lin))
+        assert lin.network_weights_backup is True, 'a plain set keeps the marker in fuse mode'
+    return True
+
+
+def request(*nets):
+    """One generation's native activation as extra_networks_lora runs it: remove the previous sets, then apply these."""
+    l_common.loaded_networks[:] = list(nets)
+    if len(l_common.previously_loaded_networks) > 0:
+        networks.network_deactivate()
+    networks.network_activate()
+    l_common.previously_loaded_networks[:] = l_common.loaded_networks
+
+
+def switch_fixture(dora=False):
+    """Two plain-weight sets on one layer and the delta the second makes on the pristine weight."""
+    lin, w0 = plain_fixture()
+    net_a = small_net('switch_a', lin, dora=dora)
+    net_b = small_net('switch_b', lin)
+    want_b, _ = net_b.modules[lin.network_layer_name].calc_updown(w0)
+    return lin, w0, net_a, net_b, want_b
+
+
+def check_switch(first_fuse, follow, dora=False):
+    """A set applied in one mode, then the option flipped before the next request, as a per-request override does."""
+    lin, w0, net_a, net_b, want_b = switch_fixture(dora)
+    with mock_model(lin=lin):
+        shared.opts.lora_fuse_native = first_fuse
+        request(net_a)
+        assert float((lin.weight.detach() - w0).abs().max()) > 0.1, 'the first set must have changed the weight'
+        shared.opts.lora_fuse_native = not first_fuse
+        if follow:
+            request(net_b)
+            err = float((lin.weight.detach() - w0 - want_b).abs().max())
+            assert err < 1e-5, f'max |got-want|={err:.2e}: the second set must land on the pristine weight'
+        request()
+        residue = float((lin.weight.detach() - w0).abs().max())
+        assert residue < 1e-5, f'residue={residue:.2e}: the switch left an earlier set in the weight'
+    return True
+
+
+def test_fuse_set_removed_after_switch_to_backup():
+    """A plain set fused under lora_fuse_native, then a request with the option off and no set: the fused delta must come out."""
+    return check_switch(first_fuse=True, follow=False)
+
+
+def test_fuse_set_removed_before_backup_set():
+    """The next request carries a set in backup mode: its copy must be taken from the weight with the fused set removed."""
+    return check_switch(first_fuse=True, follow=True)
+
+
+def test_fuse_weight_dependent_set_removed_after_switch_to_backup():
+    """A DoRA set restores from its fuse-mode copy even when the next request turns fuse off."""
+    return check_switch(first_fuse=True, follow=True, dora=True)
+
+
+def test_backup_set_removed_after_switch_to_fuse():
+    """The reverse switch: a backup-mode set is restored from its copy before a fuse-mode request applies."""
+    return check_switch(first_fuse=False, follow=True)
+
+
+def test_remove_takes_every_native_set_off():
+    """network_remove restores the pristine weight from either mode and forgets the removed sets."""
+    for fuse in (True, False):
+        lin, w0 = plain_fixture()
+        with mock_model(lin=lin):
+            shared.opts.lora_fuse_native = fuse
+            request(small_net('remove', lin))
+            networks.network_remove()
+            residue = float((lin.weight.detach() - w0).abs().max())
+            assert residue < 1e-5, f'fuse={fuse} residue={residue:.2e}'
+            assert len(l_common.previously_loaded_networks) == 0, f'fuse={fuse} removed sets must not be removed again'
+    return True
+
+
+def test_remove_runs_with_force_diffusers_on():
+    """A switch to the diffusers method still takes the fused native set off."""
+    lin, w0 = plain_fixture()
+    old = shared.opts.lora_force_diffusers
+    try:
+        with mock_model(lin=lin):
+            shared.opts.lora_fuse_native = True
+            request(small_net('remove_forced', lin))
+            shared.opts.lora_force_diffusers = True
+            networks.network_remove()
+            residue = float((lin.weight.detach() - w0).abs().max())
+            assert residue < 1e-5, f'residue={residue:.2e}'
+    finally:
+        shared.opts.lora_force_diffusers = old
+    return True
+
+
+def method_fixture(previous, model=None):
+    from modules.lora import extra_networks_lora
+    handler = extra_networks_lora.ExtraNetworkLora()
+    handler.method = (previous, model or shared.opts.sd_model_checkpoint)
+    shared.sd_model.pipe.loaded_loras = {'include=all:exclude=none': ['remove:1.0:1.0']}
+    return extra_networks_lora, handler
+
+
+def test_method_switch_removes_native_sets():
+    """native to diffusers: the native set comes off and the change cache is cleared, so the same tags apply again."""
+    lin, w0 = plain_fixture()
+    with mock_model(lin=lin):
+        shared.opts.lora_fuse_native = True
+        request(small_net('switch_native', lin))
+        _, handler = method_fixture('native')
+        handler.switch_method('diffusers')
+        residue = float((lin.weight.detach() - w0).abs().max())
+        assert residue < 1e-5, f'residue={residue:.2e}'
+        assert shared.sd_model.pipe.loaded_loras == {}, 'the change cache must not report the same tags as applied'
+        assert handler.method[0] == 'diffusers'
+    return True
+
+
+def test_method_switch_unloads_diffusers_adapters():
+    """diffusers to native: the adapters still attached from the previous request are unloaded once."""
+    lin, _ = plain_fixture()
+    with mock_model(lin=lin):
+        module, handler = method_fixture('diffusers')
+        calls = []
+        real_unload = module.unload_diffusers
+        module.unload_diffusers = lambda: calls.append('unload')
+        try:
+            module.lora_diffusers.diffuser_loaded[:] = ['adapter']
+            handler.switch_method('native')
+            assert calls == ['unload'], f'calls={calls}'
+            assert module.lora_diffusers.diffuser_loaded == [], 'the unloaded adapters must be forgotten'
+            handler.switch_method('native')
+            assert calls == ['unload'], 'a request under the same method must not unload again'
+        finally:
+            module.unload_diffusers = real_unload
+            module.lora_diffusers.diffuser_loaded.clear()
+    return True
+
+
+def test_method_switch_ignores_a_model_change():
+    """A different checkpoint means the previous method's sets went with the old model: nothing is removed from the new one."""
+    lin, w0 = plain_fixture()
+    with mock_model(lin=lin):
+        shared.opts.lora_fuse_native = True
+        request(small_net('switch_model', lin))
+        applied = lin.weight.detach().clone()
+        _, handler = method_fixture('native', model='another checkpoint')
+        handler.switch_method('diffusers')
+        assert torch.equal(lin.weight.detach(), applied), 'a set on the current model must not be touched by a stale method record'
+        assert float((applied - w0).abs().max()) > 0.1
+    return True
+
+
+def split_dora_net(name, layers, magnitude):
+    """One per-input DoRA over the fused weight of ``layers``, split in equal chunks that share the column norm."""
+    net = network.Network(name, MockNOD(name))
+    net.unet_multiplier = [1.0] * 3
+    torch.manual_seed(3)
+    down, up = torch.randn(4, layers[0].in_features) * 0.2, torch.randn(sum(layer.out_features for layer in layers), 4) * 0.2
+    group = network.DoraGroup()
+    for layer, up_rows in zip(layers, torch.chunk(up, len(layers))):
+        w = {'lora_up.weight': up_rows.contiguous(), 'lora_down.weight': down, 'dora_scale': magnitude}
+        nw = network.NetworkWeights(network_key=layer.network_layer_name, sd_key=layer.network_layer_name, w=w, sd_module=layer)
+        module = network_lora.NetworkModuleLora(net, nw)
+        group.add(module)
+        net.modules[layer.network_layer_name] = module
+    return net, up @ down
+
+
+def test_split_dora_group_reads_pristine_siblings_in_a_pass():
+    """Backup mode after a plain set: each chunk's norm comes from every sibling's stored copy, so the chunks add up to the DoRA on the fused weight."""
+    layers, w0 = zip(*[plain_fixture(seed=i, name=f'split{i}') for i in range(3)])
+    magnitude = torch.rand(1, 64) + 0.5
+    net_dora, delta = split_dora_net('split_dora', layers, magnitude)
+    fused = torch.cat(w0)
+    merged = fused + delta.to(DEVICE)
+    want = merged * (magnitude.to(DEVICE) / merged.norm(dim=0, keepdim=True)) - fused
+    with mock_model(**{f'split{i}': layer for i, layer in enumerate(layers)}):
+        activate(*[small_net(f'plain{i}', layer) for i, layer in enumerate(layers)])
+        activate(net_dora)
+        got = torch.cat([layer.weight.detach() - base for layer, base in zip(layers, w0)])
+    assert torch.allclose(got, want, atol=1e-5), f'max |got-want|={float((got - want).abs().max()):.2e}'
+    return True
+
+
+def test_split_dora_group_dequantizes_a_quantized_sibling():
+    """A sibling under SDNQ enters the shared column norm dequantized."""
+    plain = torch.nn.Linear(IN_F, OUT_F, bias=False, dtype=torch.bfloat16, device=DEVICE)
+    plain.network_layer_name = 'lora_transformer_mixq0'
+    quant = build_layer('int8', seed=1)
+    quant.network_layer_name = 'lora_transformer_mixq1'
+    magnitude = torch.rand(1, IN_F) + 0.5
+    net, delta = split_dora_net('mixq_dora', [plain, quant], magnitude)
+    member = net.modules[plain.network_layer_name]
+    delta = delta.to(DEVICE)
+    merged_plain = plain.weight.detach() + delta[:OUT_F].to(torch.bfloat16)
+    merged_quant = dq(quant).to(torch.bfloat16) + delta[OUT_F:].to(torch.bfloat16)
+    want = (network.column_norms(merged_plain.float()).square() + network.column_norms(merged_quant.float()).square()).sqrt()
+    got = member.dora_group.column_norms(member, merged_plain).float()
+    assert torch.allclose(got, want, rtol=1e-2), f'max rel err={float(((got - want).abs() / want).max()):.2e}'
+    return True
+
+
+# ============================================================
+# Tests - a second transformer tower (asymmetric CFG)
+# ============================================================
+
+CAT_TOWER = category('towers')
+
+
+def add_tower(*layers):
+    """Hang ``layers`` on an unconditional tower of the installed mock model and map every stamped layer by name."""
+    from modules.modeldata import model_data
+    sd = model_data.sd_model
+    tower = MockHolder()
+    for i, layer in enumerate(layers):
+        setattr(tower, f'lin{i}', layer)
+    sd.pipe.unconditional_transformer = tower
+    stamped = [m for m in list(sd.pipe.transformer.modules()) + list(tower.modules()) if getattr(m, 'network_layer_name', None)]
+    sd.network_layer_mapping = {m.network_layer_name: m for m in stamped}
+
+
+def tower_twin(layer, seed):
+    """A layer of the same shape on the unconditional tower, stamped with that tower's name for ``layer``."""
+    twin = build_layer('uint4', seed=seed)
+    twin.network_layer_name = 'lora_unconditional_transformer_' + layer.network_layer_name[len('lora_transformer_'):]
+    return twin
+
+
+def request_components(net, components):
+    net.pending_config = {'te': 1.0, 'unet': [1.0] * 3, 'dyn': None, 'components': components}
+    activate(net)
+
+
+def test_bare_reference_skips_the_unconditional_tower():
+    """A reference without tower tags applies to the conditional transformer only."""
+    cond = build_layer('uint4')
+    uncond = tower_twin(cond, seed=3)
+    A, B, D = make_delta()
+    net = make_net('tower_bare', cond, A, B)
+    with mock_model(lin=cond):
+        add_tower(uncond)
+        Wc, Wu = dq(cond), dq(uncond)
+        request_components(net, None)
+        rho = rho_of(dq(cond) - Wc, D)
+        assert rho > 0.99, f'rho={rho:.4f}'
+        assert torch.equal(dq(uncond), Wu) and not hasattr(uncond, 'sdnq_lora_svd_stash'), 'the unconditional tower must stay pristine'
+    return True
+
+
+def test_tower_tags_reach_the_named_towers():
+    """Each request applies the set to exactly the named towers, counts them, and leaves the others on their checkpoint weights."""
+    cond = build_layer('uint4')
+    uncond = tower_twin(cond, seed=3)
+    A, B, D = make_delta()
+    net = make_net('tower_tags', cond, A, B)
+    passes = []
+    real_finish = networks.finish_pass
+    def capture_finish(ctx, t0):
+        passes.append(ctx.applied_weight)
+        real_finish(ctx, t0)
+    networks.finish_pass = capture_finish
+    try:
+        with mock_model(lin=cond):
+            add_tower(uncond)
+            Wc, Wu = dq(cond), dq(uncond)
+            for components, on_cond, on_uncond in ((('unconditional_transformer',), False, True), (('transformer', 'unconditional_transformer'), True, True),
+                                                   (None, True, False), (('unconditional_transformer',), False, True)):
+                request_components(net, components)
+                for tag, layer, w0, on in (('cond', cond, Wc, on_cond), ('uncond', uncond, Wu, on_uncond)):
+                    if on:
+                        rho = rho_of(dq(layer) - w0, D)
+                        assert rho > 0.99, f'{components} {tag}: rho={rho:.4f}'
+                    else:
+                        assert torch.equal(dq(layer), w0), f'{components} {tag}: must be pristine'
+                assert passes[-1] == on_cond + on_uncond, f'{components}: weights={passes[-1]}'
+            activate()
+            assert torch.equal(dq(cond), Wc) and torch.equal(dq(uncond), Wu), 'unload must restore both towers bit-exact'
+    finally:
+        networks.finish_pass = real_finish
+    return True
+
+
+def test_fuse_mode_removes_the_tower_set():
+    """A set fused into the unconditional tower is subtracted from it when the next request drops the tag."""
+    cond, cw0 = plain_fixture(name='tower')
+    uncond, uw0 = plain_fixture(seed=1, name='tower')
+    uncond.network_layer_name = 'lora_unconditional_transformer_tower'
+    net = small_net('tower_fuse', cond)
+    want, _ = net.modules[cond.network_layer_name].calc_updown(cw0)
+    with mock_model(lin=cond):
+        add_tower(uncond)
+        shared.opts.lora_fuse_native = True
+        net.pending_config = {'te': 1.0, 'unet': [1.0] * 3, 'dyn': None, 'components': ('transformer', 'unconditional_transformer')}
+        request(net)
+        assert torch.allclose(uncond.weight.detach() - uw0, want, atol=1e-5), 'the tower must take the set'
+        net.pending_config = {'te': 1.0, 'unet': [1.0] * 3, 'dyn': None, 'components': None}
+        request(net)
+        residue = float((uncond.weight.detach() - uw0).abs().max())
+        assert residue < 1e-6, f'tower residue={residue:.2e}'
+        assert torch.allclose(cond.weight.detach() - cw0, want, atol=1e-5), 'the conditional transformer keeps the set'
+        request()
+        assert float((cond.weight.detach() - cw0).abs().max()) < 1e-6, 'unload must restore the conditional transformer'
+    return True
+
+
+def test_two_files_split_across_towers():
+    """One file on each tower applies each set to its own tower only, and swapping the tags swaps the towers."""
+    cond = build_layer('uint4')
+    uncond = tower_twin(cond, seed=3)
+    A1, B1, D1 = make_delta(seed=1)
+    A2, B2, D2 = make_delta(seed=2)
+    net_a = make_net('tower_a', cond, A1, B1)
+    net_b = make_net('tower_b', cond, A2, B2)
+    passes = []
+    real_finish = networks.finish_pass
+    def capture_finish(ctx, t0):
+        passes.append(ctx.applied_weight)
+        real_finish(ctx, t0)
+    networks.finish_pass = capture_finish
+    try:
+        with mock_model(lin=cond):
+            add_tower(uncond)
+            Wc, Wu = dq(cond), dq(uncond)
+            for a_tower, b_tower in (('transformer', 'unconditional_transformer'), ('unconditional_transformer', 'transformer')):
+                for net, tower in ((net_a, a_tower), (net_b, b_tower)):
+                    net.pending_config = {'te': 1.0, 'unet': [1.0] * 3, 'dyn': None, 'components': (tower,)}
+                activate(net_a, net_b)
+                on_cond, on_uncond = (D1, D2) if a_tower == 'transformer' else (D2, D1)
+                for tag, layer, w0, want, other in (('cond', cond, Wc, on_cond, on_uncond), ('uncond', uncond, Wu, on_uncond, on_cond)):
+                    got = dq(layer) - w0
+                    rho_want, rho_other = rho_of(got, want), rho_of(got, other)
+                    assert rho_want > 0.99 and abs(rho_other) < 0.1, f'a={a_tower} {tag}: rho own={rho_want:.4f} other={rho_other:.4f}'
+                assert passes[-1] == 2, f'a={a_tower}: weights={passes[-1]}'
+            activate()
+            assert torch.equal(dq(cond), Wc) and torch.equal(dq(uncond), Wu), 'unload must restore both towers bit-exact'
+    finally:
+        networks.finish_pass = real_finish
+    return True
+
+
+def test_tower_alias_rebuilds_dora_groups():
+    """Aliases of a split DoRA target the tower's layers and share a group of their own."""
+    layers = [build_layer('uint4', seed=i) for i in range(2)]
+    for i, layer in enumerate(layers):
+        layer.network_layer_name = f'lora_transformer_split{i}'
+    twins = [tower_twin(layer, seed=10 + i) for i, layer in enumerate(layers)]
+    net, _ = split_dora_net('tower_dora', layers, torch.rand(1, IN_F) + 0.5)
+    with mock_model(**{f'split{i}': layer for i, layer in enumerate(layers)}):
+        add_tower(*twins)
+        aliases = networks.tower_aliases(net, ('unconditional_transformer',))
+    assert set(aliases) == {twin.network_layer_name for twin in twins}, sorted(aliases)
+    group = aliases[twins[0].network_layer_name].dora_group
+    assert group is not net.modules[layers[0].network_layer_name].dora_group, 'aliases must not share the conditional group'
+    assert group.members == [aliases[twin.network_layer_name] for twin in twins], 'the alias group holds exactly the aliases'
+    assert [alias.sd_module for alias in group.members] == twins, 'aliases must point at the tower layers'
+    return True
+
+
+# ============================================================
+# Tests - several references to one file
+# ============================================================
+
+CAT_REFS = category('references')
+
+
+@contextmanager
+def cached_file(template):
+    """Serve ``template`` from the LoRA cache on the native method, as a file already loaded once is served."""
+    from modules.lora import lora_load, lora_overrides
+    saved_cache, saved_aliases, saved_method = dict(lora_load.lora_cache), dict(lora_load.available_network_aliases), lora_overrides.get_method
+    lora_load.lora_cache.clear()
+    lora_load.lora_cache[template.name] = template
+    lora_load.available_network_aliases[template.name] = template.network_on_disk
+    lora_overrides.get_method = lambda shorthash='': ('native', 'test')
+    try:
+        yield
+    finally:
+        lora_load.lora_cache.clear()
+        lora_load.lora_cache.update(saved_cache)
+        lora_load.available_network_aliases.clear()
+        lora_load.available_network_aliases.update(saved_aliases)
+        lora_overrides.get_method = saved_method
+
+
+def load_references(name, strengths, components):
+    """One request naming ``name`` once per strength, through the real network_load, then the activate pass."""
+    from modules.lora import lora_load
+    lora_load.network_load([name] * len(strengths), te_multipliers=list(strengths), unet_multipliers=[[s] * 3 for s in strengths],
+                           dyn_dims=[None] * len(strengths), lora_modules=list(components), activate=False)
+    networks.network_activate()
+    return list(l_common.loaded_networks)
+
+
+def test_one_file_on_both_towers_at_two_strengths():
+    """<lora:x:0.9:cond> <lora:x:0.4:uncond>: each reference applies its own strength to its own tower."""
+    cond = build_layer('uint4')
+    uncond = tower_twin(cond, seed=3)
+    A, B, D = make_delta()
+    template = make_net('two_refs', cond, A, B)
+    with mock_model(lin=cond), cached_file(template):
+        add_tower(uncond)
+        Wc, Wu = dq(cond), dq(uncond)
+        nets = load_references('two_refs', (0.9, 0.4), (['transformer'], ['unconditional_transformer']))
+        assert [n.key for n in nets] == ['two_refs', 'two_refs#2'] and nets[0] is not nets[1] and template not in nets, f'keys={[n.key for n in nets]}'
+        rho_cond, rho_uncond = rho_of(dq(cond) - Wc, D), rho_of(dq(uncond) - Wu, D)
+        assert abs(rho_cond - 0.9) < 0.01 and abs(rho_uncond - 0.4) < 0.01, f'retained cond={rho_cond:.4f} uncond={rho_uncond:.4f}, want 0.9 and 0.4'
+        assert template.pending_config is None and template.bound_modules is None, 'the cached template must stay untouched'
+        activate()
+        assert torch.equal(dq(cond), Wc) and torch.equal(dq(uncond), Wu), 'unload must restore both towers bit-exact'
+    return True
+
+
+def test_one_file_twice_sums_both_references():
+    """Two references on the same layers add up: 0.7 and 0.3 give the delta of one reference at 1.0."""
+    layer = build_layer('uint4')
+    A, B, D = make_delta()
+    template = make_net('summed', layer, A, B)
+    with mock_model(lin=layer), cached_file(template):
+        W0 = dq(layer)
+        load_references('summed', (1.0,), ([],))
+        single = dq(layer) - W0
+        load_references('summed', (0.7, 0.3), ([], []))
+        both = dq(layer) - W0
+        ratio = float(both.norm() / single.norm())
+        assert rho_of(both, D) > 0.99 and abs(ratio - 1.0) < 0.01, f'rho={rho_of(both, D):.4f} ratio={ratio:.4f}'
+        activate()
+        assert torch.equal(dq(layer), W0), 'unload must restore bit-exact'
+    return True
+
+
+def test_select_keeps_two_references_apart():
+    """Select mode with two references to one file: factor segments carry their own strengths, weight pairs their own keys."""
+    layer = build_layer('uint4')
+    A, B, _ = make_delta(seed=41, sigma=1e-2)
+    template = make_net('sel_refs', layer, A, B)
+    plain = torch.nn.Linear(IN_F, OUT_F, bias=False, dtype=torch.bfloat16, device=DEVICE)
+    with torch.no_grad():
+        plain.weight.copy_(torch.randn(OUT_F, IN_F, device=DEVICE) * 0.02)
+    plain.network_layer_name = 'lora_transformer_plainrefs'
+    plain.network_current_names = ()
+    Ap, Bp, Dp = make_delta(seed=61, sigma=1e-2)
+    plain_template = make_net('sel_plain', plain, Ap, Bp)
+    W0p = plain.weight.detach().float().clone()
+
+    def references(source, strengths):
+        nets = [source.clone() for _ in strengths]
+        for i, (net, strength) in enumerate(zip(nets, strengths)):
+            net.key = source.name if i == 0 else f'{source.name}#{i + 1}'
+            net.pending_config = {'te': strength, 'unet': [strength] * 3, 'dyn': None, 'components': None}
+        return nets
+
+    with mock_model(lin=layer, plain=plain), select_mode('klora', alpha=1.5):
+        activate(*references(template, (1.0, 0.25)))
+        entry = lora_stack.state['entries'].get(layer.network_layer_name)
+        assert entry is not None and entry['kind'] == 'factor', f'entry={entry}'
+        (a0, b0), (a1, b1), transposed = entry['segments']
+        up, down = layer.svd_up.float(), layer.svd_down.float()
+        segment = (lambda a, b: down[:, a:b] @ up[a:b, :]) if transposed else (lambda a, b: up[:, a:b] @ down[a:b, :])
+        ratio = float(segment(a1, b1).norm() / segment(a0, b0).norm())
+        assert abs(ratio - 0.25) < 0.01, f'second/first segment={ratio:.4f}, want 0.25'
+        activate(*references(plain_template, (1.0, 0.25)))
+        entry = lora_stack.state['entries'].get(plain.network_layer_name)
+        assert entry is not None and entry['kind'] == 'weight' and tuple(entry['nets']) == ('sel_plain', 'sel_plain#2'), f'entry nets={entry and entry["nets"]}'
+        total = 20
+        lora_stack.reset(total)
+        flips = [s for s, layers in lora_stack.state['flips'].items() if plain.network_layer_name in layers]
+        start = rho_of(plain.weight.detach().float() - W0p, Dp)
+        for step in range(total):
+            lora_stack.on_step(step)
+        end = rho_of(plain.weight.detach().float() - W0p, Dp)
+        assert len(flips) == 1, f'the pair must flip once on this ramp: {flips}'
+        assert {round(start, 2), round(end, 2)} == {1.0, 0.25}, f'the flip must move from one reference to the other at its own strength: {start:.4f} -> {end:.4f}'
+        activate()
     return True
 
 
@@ -2507,22 +3113,32 @@ def test_remove_factors_after_device_move():
 
 
 def dispatch_module_type(w):
-    """Pick a module type the way the generic loader does."""
+    """Bind one group through the native OFT loader, which tells OFT from BOFT by the rank of oft_blocks."""
+    import tempfile
+    import safetensors.torch
+    from modules.lora import native_adapter
     host = torch.nn.Linear(IN_F, OUT_F)
-    net = network.Network('typed', MockNOD('typed'))
-    nw = network.NetworkWeights(network_key='lora_unet_x', sd_key='lora_unet_x', w=w, sd_module=host)
-    for nettype in l_common.module_types:
-        mod = nettype.create_module(net, nw)
-        if mod is not None:
-            return mod
-    return None
+    key = 'lora_transformer_x'
+    fd, path = tempfile.mkstemp(suffix='.safetensors')
+    os.close(fd)
+    safetensors.torch.save_file({f'{key}.{k}': v.contiguous() for k, v in w.items()}, path)
+    real = native_adapter.resolve_mapping
+    native_adapter.resolve_mapping = lambda: {key: host}
+    try:
+        nod = MockNOD('typed')
+        nod.filename = path
+        net = native_adapter.try_load_oft('typed', nod, 1.0, resolve_targets=lambda prefix, base: [])
+    finally:
+        native_adapter.resolve_mapping = real
+        os.unlink(path)
+    return None if net is None else net.modules.get(key)
 
 
 def test_four_dim_oft_blocks_load_as_boft():
-    blocks4 = torch.zeros(2, 8, 64, 64) # (boft_m, block_num, block_size, block_size)
+    blocks4 = torch.zeros(2, 8, 64, 64) # (boft_m, block_num, block_size, block_size); 8 * 64 rows cover the 512-wide host
     mod = dispatch_module_type({'oft_blocks': blocks4, 'alpha': torch.tensor(1.0)})
     assert type(mod).__name__ == 'NetworkModuleBOFT', f'4-d oft_blocks must bind to boft, got {type(mod).__name__}'
-    blocks3 = torch.zeros(8, 64, 64) # (num_blocks, block_size, block_size)
+    blocks3 = torch.zeros(8, 64, 64) # (num_blocks, block_size, block_size); 8 * 64 rows cover the 512-wide host
     mod = dispatch_module_type({'oft_blocks': blocks3, 'alpha': torch.tensor(1.0)})
     assert type(mod).__name__ == 'NetworkModuleOFT', f'3-d oft_blocks must stay on oft, got {type(mod).__name__}'
     return True
@@ -2535,13 +3151,6 @@ def test_nunchaku_entries_carry_the_network_interface():
     assert len(net.modules) == 0, 'a composed set owns no modules: the reported method probes this to tell native from nunchaku'
     assert net.network_on_disk is nod, 'infotext reads the hash through network_on_disk'
     assert net.name == nod.name
-    return True
-
-
-def test_native_dispatch_archs_are_native_eligible():
-    from modules.lora import lora_load, lora_overrides
-    missing = sorted(set(lora_load.NATIVE_DISPATCH) - set(lora_overrides.allow_native))
-    assert not missing, f'an arch with a native loader that the method choice sends elsewhere never reaches it: {missing}'
     return True
 
 
@@ -3003,11 +3612,25 @@ def run_tests():
     for fn in [test_network_activate_roundtrip]:
         run_test(CAT_E2E, fn)
     log.warning('=== Set transitions ===')
-    for fn in [test_mixed_family_transition_restores_base, test_partial_coverage_layers_stay_independent,
+    for fn in [test_mixed_family_transition_restores_base, test_partial_coverage_layers_stay_independent, test_dropped_factors_do_not_count_as_applied, test_component_filter_leaves_other_layers_untouched,
                test_apply_restore_preserves_weight_storage, test_fuse_promote_applies_new_multiplier, test_fuse_change_then_remove_restores_pristine,
                test_mechanism_gate_declines_candidates, test_requantize_option_routes_to_legacy_path,
-               test_mechanism_flip_strips_attached_factors, test_mechanism_flip_restore_pass_strips]:
+               test_mechanism_flip_strips_attached_factors, test_mechanism_flip_restore_pass_strips,
+               test_fuse_set_removed_after_switch_to_backup, test_fuse_set_removed_before_backup_set,
+               test_fuse_weight_dependent_set_removed_after_switch_to_backup, test_backup_set_removed_after_switch_to_fuse,
+               test_remove_takes_every_native_set_off, test_remove_runs_with_force_diffusers_on, test_method_switch_removes_native_sets,
+               test_method_switch_unloads_diffusers_adapters, test_method_switch_ignores_a_model_change]:
         run_test(CAT_TRANS, fn)
+    log.warning('=== Pristine base ===')
+    for fn in [test_backup_mode_computes_dora_on_the_pristine_weight, test_fuse_mode_restores_a_weight_dependent_set_from_its_copy,
+               test_split_dora_group_reads_pristine_siblings_in_a_pass, test_split_dora_group_dequantizes_a_quantized_sibling]:
+        run_test(CAT_BASE, fn)
+    log.warning('=== Towers ===')
+    for fn in [test_bare_reference_skips_the_unconditional_tower, test_tower_tags_reach_the_named_towers, test_fuse_mode_removes_the_tower_set, test_two_files_split_across_towers, test_tower_alias_rebuilds_dora_groups]:
+        run_test(CAT_TOWER, fn)
+    log.warning('=== References ===')
+    for fn in [test_one_file_on_both_towers_at_two_strengths, test_one_file_twice_sums_both_references, test_select_keeps_two_references_apart]:
+        run_test(CAT_REFS, fn)
     log.warning('=== Hosting ===')
     for fn in [test_hosted_low_rank_delta_is_kept, test_hosted_dense_delta_beats_requant, test_hosted_skips_int8,
                test_hosted_disabled_by_option, test_hosted_transitions_and_rng_isolation,
@@ -3048,8 +3671,7 @@ def run_tests():
         run_test(CAT_COMPILE, fn)
     log.warning('=== Robustness ===')
     for fn in [test_remove_factors_after_device_move, test_stacked_shape_mismatch_falls_back, test_nunchaku_entries_carry_the_network_interface,
-               test_four_dim_oft_blocks_load_as_boft, test_aborted_pass_still_publishes_its_state,
-               test_native_dispatch_archs_are_native_eligible]:
+               test_four_dim_oft_blocks_load_as_boft, test_aborted_pass_still_publishes_its_state]:
         run_test(CAT_ROBUST, fn)
     log.warning('=== Block weights ===')
     for fn in [test_block_index_sd_unet_layout, test_block_index_sdxl_unet_layout, test_block_index_flux_chains_concatenate,

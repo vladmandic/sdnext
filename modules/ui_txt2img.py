@@ -36,7 +36,7 @@ def create_ui():
                 with gr.Group(elem_classes="settings-accordion"):
                     with gr.Accordion(open=False, label="Samplers", elem_classes=["small-accordion"], elem_id="txt2img_sampler_group"):
                         ui_sections.create_sampler_options('txt2img')
-                    seed, reuse_seed, subseed, reuse_subseed, subseed_strength, seed_resize_from_h, seed_resize_from_w = ui_sections.create_seed_inputs('txt2img')
+                    seed, reuse_seed = ui_sections.create_seed_inputs('txt2img')
                     cfg_name, cfg_scale, cfg_image, cfg_rescale, cfg_start, cfg_stop, cfg_true, cfg_adaptive = ui_guidance.create_guidance_inputs('txt2img')
                     vae_type, tiling, hidiffusion, clip_skip = ui_sections.create_advanced_inputs('txt2img')
                     grading_brightness, grading_contrast, grading_saturation, grading_hue, grading_gamma, grading_sharpness, grading_color_temp, grading_shadows, grading_midtones, grading_highlights, grading_clahe_clip, grading_clahe_grid, grading_shadows_tint, grading_highlights_tint, grading_split_tone_balance, grading_vignette, grading_grain, grading_lut_file, grading_lut_strength = ui_sections.create_color_inputs('txt2img')
@@ -50,8 +50,7 @@ def create_ui():
                     txt2img_script_inputs = modules.scripts_manager.scripts_txt2img.setup_ui(parent='txt2img', accordion=True)
 
             txt2img_gallery, txt2img_generation_info, txt2img_html_info, _txt2img_html_info_formatted, txt2img_html_log = ui_common.create_output_panel("txt2img", preview=True, prompt=txt2img_prompt)
-            ui_common.reuse_seed(seed, reuse_seed, subseed=False)
-            ui_common.reuse_seed(subseed, reuse_subseed, subseed=True)
+            ui_common.reuse_seed(seed, reuse_seed)
 
             dummy_component = gr.Textbox(visible=False, value='dummy')
 
@@ -64,7 +63,7 @@ def create_ui():
                 batch_count, batch_size,
                 cfg_name, cfg_scale, cfg_image, cfg_rescale, cfg_start, cfg_stop, cfg_true, cfg_adaptive,
                 clip_skip,
-                seed, subseed, subseed_strength, seed_resize_from_h, seed_resize_from_w,
+                seed,
                 height, width,
                 enable_hr, hr_denoising_strength,
                 hr_scale, hr_resize_mode, hr_resize_context, hr_upscaler, hr_force, hr_second_pass_steps, hr_resize_x, hr_resize_y,
@@ -115,8 +114,6 @@ def create_ui():
                 (batch_size, "Batch-2"),
                 # seed
                 (seed, "Seed"),
-                (subseed, "Variation seed"),
-                (subseed_strength, "Variation strength"),
                 # advanced
                 (clip_skip, "CLiP-skip"),
                 (vae_type, "VAE type"),
@@ -160,8 +157,6 @@ def create_ui():
                 (cfg_true, "CFG true"),
                 (cfg_adaptive, "CFG adaptive"),
                 # hidden
-                (seed_resize_from_w, "Seed resize from-1"),
-                (seed_resize_from_h, "Seed resize from-2"),
                 *modules.scripts_manager.scripts_txt2img.infotext_fields
             ]
             generation_parameters_copypaste.add_paste_fields("txt2img", None, txt2img_paste_fields, override_settings)

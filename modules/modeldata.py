@@ -93,6 +93,8 @@ def get_model_type(pipe):
         model_type = 'pixartsigma'
     elif "PixArtAlpha" in name:
         model_type = 'pixartalpha'
+    elif 'BriaFibo2' in name:
+        model_type = 'fibo2'
     elif 'Fibo' in name or 'FIBO' in name:
         model_type = 'fibo'
     elif "Bria" in name:
@@ -107,7 +109,7 @@ def get_model_type(pipe):
         model_type = 'qwen21'
     elif 'Qwen' in name:
         model_type = 'qwen'
-    elif 'MOSSImage' in name:
+    elif 'MOSSImage' in name or 'MossImage' in name:
         model_type = 'mossimage'
     elif 'MingImage' in name:
         model_type = 'mingimage'
@@ -119,7 +121,7 @@ def get_model_type(pipe):
         model_type = 'nextstep'
     elif 'XOmni' in name or 'X-Omni' in name:
         model_type = 'x-omni'
-    elif 'PRXPixel' in name or 'PRXPixelPipeline' in name:
+    elif 'PRXPixel' in name:
         model_type = 'prxpixel'
     elif 'Photoroom' in name:
         model_type = 'prx'
@@ -137,7 +139,7 @@ def get_model_type(pipe):
         model_type = 'ovis'
     elif 'Wan' in name:
         model_type = 'wanai'
-    elif 'BooguImage' in name or 'Boogu' in name:
+    elif 'Boogu' in name:
         model_type = 'boogu'
     elif 'ChronoEdit' in name:
         model_type = 'chrono'

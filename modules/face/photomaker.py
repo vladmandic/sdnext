@@ -37,7 +37,7 @@ def photo_maker(p: processing.StableDiffusionProcessing, app, model: str, input_
     # validate prompt
     if not p.all_prompts:
         processing.process_init(p)
-        p.init(p.all_prompts, p.all_seeds, p.all_subseeds)
+        p.init(p.all_prompts, p.all_seeds)
     trigger_ids = shared.sd_model.tokenizer.encode(trigger) + shared.sd_model.tokenizer_2.encode(trigger)
     prompt_ids1 = shared.sd_model.tokenizer.encode(p.all_prompts[0])
     prompt_ids2 = shared.sd_model.tokenizer_2.encode(p.all_prompts[0])

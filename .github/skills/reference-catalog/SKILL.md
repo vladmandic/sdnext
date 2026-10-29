@@ -28,6 +28,18 @@ Use this skill to audit and update SD.Next model reference catalogs using a phas
 - `data/reference-nunchaku.json`
 - `data/reference-community.json`
 
+## Base Model Wiki Reconciliation
+
+Whenever `data/reference-base.json` is in scope, reconcile every catalog record against both wiki pages. Do not limit this check to newly added or changed records.
+
+1. Use each record's display-name key, `path`, and `variant` (when present) to identify its model family and variant.
+2. In `wiki/Model-Support.md`, ensure the family is listed and the relevant version or variant is represented. A family-level entry may cover multiple catalog records only when its listed variants make that coverage explicit.
+3. In `wiki/Models.md`, ensure every catalog record maps to a row that names its model and version. A grouped row is acceptable only when it explicitly covers each mapped record.
+4. Add missing family entries or rows, and update incomplete or stale wiki entries instead of creating duplicates. Keep a record-to-wiki mapping during the audit so no `reference-base` entry is skipped.
+5. Use official links and verified metadata. The catalog's `size` and `date` can inform the matching row; verify architecture, parameter counts, text encoders, autoencoder, and license from reliable sources. Do not invent unavailable details.
+
+When `data/reference-base.json` is not in scope, these wiki checks are not required.
+
 ## Core Rules
 
 Priority 1 - data safety and category stability:
@@ -63,21 +75,26 @@ Priority 3 - assets and size backfill:
 - Resolve duplicates by keeping the most complete record in the correct category, then merge missing non-conflicting metadata from duplicate records.
 - Report category conflicts; only auto-fix when rules are explicit.
 
-4. Thumbnail alignment
+4. Base model wiki alignment (when `reference-base` is in scope)
+- Reconcile every record against both `wiki/Model-Support.md` and `wiki/Models.md`.
+- Confirm family and variant coverage, update missing or stale entries, and avoid duplicate entries.
+- Verify wiki metadata; report details that cannot be confirmed rather than guessing.
+
+5. Thumbnail alignment
 - Check expected thumbnail presence under `models/Reference`.
 - If missing and requested, create zero-byte placeholder only.
 - Never replace existing non-empty image assets with placeholders.
 
-5. Deterministic formatting
+6. Deterministic formatting
 - Keep formatting style consistent with nearby file conventions.
 - Avoid broad reformatting unrelated to edited records.
 
-6. Fields checks
+7. Fields checks
 - Detect missing or extra fields compared to similar entries.
 - Validate field value formats (e.g. size in GB, date format).
 - Ensure that all fields are consistent and not null, empty or contain zero values.  
 
-7. Size backfill checks (`size: 0`)
+8. Size backfill checks (`size: 0`)
 - Enumerate all entries with `"size": 0` across `data/reference*.json`.
 - For each Hugging Face repo-style path (`owner/name`), run `cli/hf-info.py`.
 - Parse `info.data.size` from tool output when present (format is MB string, e.g. `"23933.4MB"`).
@@ -90,10 +107,11 @@ Priority 3 - assets and size backfill:
 
 1. Identify target entries and category intent.
 2. Audit only relevant catalog files first.
-3. Run size backfill using `cli/hf-info.py`.
-4. Propose minimal edits (or apply when asked).
-5. Re-validate JSON and duplicate checks.
-6. Summarize exact changed records and rationale.
+3. When `reference-base` is in scope, map every record to its family/variant coverage on both wiki pages and note any missing or stale documentation.
+4. Run size backfill using `cli/hf-info.py`.
+5. Propose minimal edits (or apply when asked), including the required wiki corrections.
+6. Re-validate JSON, duplicate checks, and base-model wiki coverage.
+7. Summarize exact changed records and rationale.
 
 ## Common Failure Modes To Prevent
 
@@ -113,6 +131,7 @@ When using this skill, provide:
 - Files audited
 - Validation findings grouped by severity
 - Exact records changed (before/after summary)
+- For `reference-base`: record-to-entry coverage for `wiki/Model-Support.md` and `wiki/Models.md`, including wiki edits or unresolved metadata
 - Duplicate/conflict report across catalogs
 - Thumbnail sync result for `models/Reference`
 - `size: 0` backfill report: total candidates, updated count, unresolved count, unresolved reasons

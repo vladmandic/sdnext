@@ -30,10 +30,6 @@ class StableDiffusionProcessing:
                  prompt: str = "",
                  negative_prompt: str = "",
                  seed: int = -1,
-                 subseed: int = -1,
-                 subseed_strength: float = 0,
-                 seed_resize_from_h: int = -1,
-                 seed_resize_from_w: int = -1,
                  batch_size: int = 1,
                  n_iter: int = 1,
                  steps: int = 20,
@@ -60,7 +56,6 @@ class StableDiffusionProcessing:
                  vae_type: str = 'Full',
                  # other
                  hidiffusion: bool = False,
-                 do_not_reload_embeddings: bool = False,
                  # detailer
                  detailer_enabled: bool = False,
                  detailer_prompt: str = '',
@@ -91,7 +86,6 @@ class StableDiffusionProcessing:
                  img2img_fix_steps: bool | None = None,
                  mask_apply_overlay: bool | None = None,
                  include_mask: bool | None = None,
-                 inpainting_mask_weight: float | None = None,
                  # output and saving
                  samples_save: bool | None = None,
                  samples_format: str | None = None,
@@ -150,7 +144,6 @@ class StableDiffusionProcessing:
                  init_images: list | None = None,
                  init_control: list | None = None,
                  cfg_image: float | None = None,
-                 initial_noise_multiplier: float | None = None, # pylint: disable=unused-argument # a1111 compatibility
                  # resize
                  scale_by: float = 1,
                  selected_scale_tab: int = 0, # pylint: disable=unused-argument # a1111 compatibility
@@ -184,15 +177,12 @@ class StableDiffusionProcessing:
                  mask_for_overlay: Any = None,
                  mask_blur: int = 4,
                  paste_to: Any = None,
-                 inpainting_fill: int = 1, # obsolete
                  inpaint_full_res: bool = False,
                  inpaint_full_res_padding: int = 0,
                  inpainting_mask_invert: int = 0,
                  overlay_images: Any = None,
                  # refiner
                  enable_hr: bool = False,
-                 firstphase_width: int = 0,
-                 firstphase_height: int = 0,
                  hr_scale: float = 2.0,
                  hr_force: bool = False,
                  hr_resize_mode: int = 0,
@@ -245,15 +235,12 @@ class StableDiffusionProcessing:
                  eta_noise_seed_delta: int | None = None,
                  enable_batch_seeds: bool | None = None,
                  diffusers_generator_device: str | None = None,
-                 nan_skip: bool | None = None,
                  sequential_seed: bool | None = None,
                  # prompt/attention overrides
                  prompt_attention: str | None = None,
                  prompt_mean_norm: bool | None = None,
                  diffusers_zeros_prompt_pad: bool | None = None,
                  te_pooled_embeds: bool | None = None,
-                 te_complex_human_instruction: str | None = None,
-                 te_use_mask: bool | None = None,
                  # generation modifier overrides (hijack)
                  freeu_enabled: bool | None = None,
                  freeu_b1: float | None = None,
@@ -329,10 +316,6 @@ class StableDiffusionProcessing:
         # initializers
         self.prompt = prompt
         self.seed = int(seed)
-        self.subseed = int(subseed)
-        self.subseed_strength = subseed_strength
-        self.seed_resize_from_h = seed_resize_from_h
-        self.seed_resize_from_w = seed_resize_from_w
         self.batch_size = batch_size
         self.n_iter = n_iter
         self.steps = steps
@@ -344,7 +327,6 @@ class StableDiffusionProcessing:
         self.tiling = tiling
         self.vae_type = vae_type
         self.hidiffusion = hidiffusion
-        self.do_not_reload_embeddings = do_not_reload_embeddings
         self.detailer_enabled = detailer_enabled
         self.detailer_prompt = detailer_prompt
         self.detailer_negative = detailer_negative
@@ -373,7 +355,6 @@ class StableDiffusionProcessing:
         self.img2img_fix_steps = img2img_fix_steps
         self.mask_apply_overlay = mask_apply_overlay
         self.include_mask = include_mask
-        self.inpainting_mask_weight = inpainting_mask_weight
         self.samples_save = samples_save
         self.samples_format = samples_format
         self.save_images_before_highres_fix = save_images_before_highres_fix
@@ -403,13 +384,10 @@ class StableDiffusionProcessing:
         self.image_mask = mask # TODO processing: remove duplicate mask params
         self.latent_mask = latent_mask
         self.mask_blur = mask_blur
-        self.inpainting_fill = inpainting_fill
         self.inpaint_full_res_padding = inpaint_full_res_padding
         self.inpainting_mask_invert = inpainting_mask_invert
         self.overlay_images = overlay_images
         self.enable_hr = enable_hr
-        self.firstphase_width = firstphase_width
-        self.firstphase_height = firstphase_height
         # hires
         self.hr_scale = hr_scale
         self.hr_force = hr_force
@@ -483,11 +461,6 @@ class StableDiffusionProcessing:
         self.skip_processing = skip_processing
 
         # special handled items
-        if firstphase_width != 0 or firstphase_height != 0:
-            self.hr_upscale_to_x = self.width
-            self.hr_upscale_to_y = self.height
-            self.width = firstphase_width
-            self.height = firstphase_height
         self.sampler_name = sampler_name or processing_helpers.get_sampler_name(sampler_index, img=True)
         self.hr_sampler_name: str = hr_sampler_name if hr_sampler_name != 'Same as primary' else self.sampler_name
         self.inpaint_full_res = inpaint_full_res if isinstance(inpaint_full_res, bool) else self.inpaint_full_res
@@ -534,15 +507,12 @@ class StableDiffusionProcessing:
         self.eta_noise_seed_delta = eta_noise_seed_delta
         self.enable_batch_seeds = enable_batch_seeds
         self.diffusers_generator_device = diffusers_generator_device
-        self.nan_skip = nan_skip
         self.sequential_seed = sequential_seed
         # prompt/attention overrides
         self.prompt_attention = prompt_attention
         self.prompt_mean_norm = prompt_mean_norm
         self.diffusers_zeros_prompt_pad = diffusers_zeros_prompt_pad
         self.te_pooled_embeds = te_pooled_embeds
-        self.te_complex_human_instruction = te_complex_human_instruction
-        self.te_use_mask = te_use_mask
         # generation modifier overrides (hijack)
         self.freeu_enabled = freeu_enabled
         self.freeu_b1 = freeu_b1
@@ -571,9 +541,7 @@ class StableDiffusionProcessing:
         self.all_templates = []
         self.all_negative_templates = []
         self.seeds = []
-        self.subseeds = []
         self.all_seeds = []
-        self.all_subseeds = []
 
         # a1111 compatibility items
         self.seed_enable_extras: bool = True
@@ -587,7 +555,6 @@ class StableDiffusionProcessing:
         self.comments = {}
         self.sampler = None
         self.nmask = None
-        self.initial_noise_multiplier = initial_noise_multiplier if initial_noise_multiplier is not None else shared.opts.initial_noise_multiplier
         self.image_conditioning = None
         self.prompt_for_display: str = None
 
@@ -678,7 +645,7 @@ class StableDiffusionProcessing:
     def comment(self, text):
         self.comments[text] = 1
 
-    def init(self, all_prompts=None, all_seeds=None, all_subseeds=None):
+    def init(self, all_prompts=None, all_seeds=None):
         pass
 
     def close(self):
@@ -705,7 +672,7 @@ class StableDiffusionProcessingTxt2Img(StableDiffusionProcessing):
         debug(f'Process init: mode={self.__class__.__name__} kwargs={kwargs}') # pylint: disable=protected-access
         super().__init__(**kwargs)
 
-    def init(self, all_prompts=None, all_seeds=None, all_subseeds=None):
+    def init(self, all_prompts=None, all_seeds=None):
         shared.sd_model = sd_models.set_diffuser_pipe(self.sd_model, sd_models.DiffusersTaskType.TEXT_2_IMAGE)
         self.width = self.width or 1024
         self.height = self.height or 1024
@@ -713,8 +680,6 @@ class StableDiffusionProcessingTxt2Img(StableDiffusionProcessing):
             self.all_prompts = all_prompts
         if all_seeds is not None:
             self.all_seeds = all_seeds
-        if all_subseeds is not None:
-            self.all_subseeds = all_subseeds
 
     def init_hr(self, scale = None, upscaler = None, force = False): # pylint: disable=unused-argument
         scale = scale or self.hr_scale
@@ -740,7 +705,7 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
         debug(f'Process init: mode={self.__class__.__name__} kwargs={kwargs}') # pylint: disable=protected-access
         super().__init__(**kwargs)
 
-    def init(self, all_prompts=None, all_seeds=None, all_subseeds=None):
+    def init(self, all_prompts=None, all_seeds=None):
         if self.init_images is not None and len(self.init_images) > 0:
             vae_scale_factor = sd_vae.get_vae_scale_factor(init_image=True)
             if self.width is None or self.width == 0:
@@ -756,8 +721,6 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
             self.all_prompts = all_prompts
         if all_seeds is not None:
             self.all_seeds = all_seeds
-        if all_subseeds is not None:
-            self.all_subseeds = all_subseeds
         if self.image_mask is not None:
             self.ops.append('inpaint')
         elif self.init_images is not None and len(self.init_images) > 0:
@@ -825,8 +788,6 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
                 image = image.crop(crop_region)
                 if image.width != self.width or image.height != self.height:
                     image = images.resize_image(3, image, self.width, self.height, self.resize_name)
-            # if self.image_mask is not None and self.inpainting_fill != 1:
-            #     image = masking.fill(image, latent_mask)
             if add_color_corrections:
                 self.color_corrections.append(processing_helpers.setup_color_correction(image))
             processed_images.append(image)

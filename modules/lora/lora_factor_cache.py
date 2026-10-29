@@ -34,7 +34,7 @@ from modules.logger import log
 
 cache_root = os.path.join(paths.models_path, 'lora-factor-cache')
 state = {'wn': None, 'sig': None, 'path': None, 'store': {}, 'dirty': False, 'hits': 0, 'misses': 0}
-FMT = '5' # bump on entry-layout changes so older files recompute instead of replaying short
+FMT = '6' # bump on entry-layout or binding changes so older files recompute instead of replaying stale factors
 
 
 def budget_gb():
@@ -61,7 +61,7 @@ def signature(wanted_names):
     }
     from modules.lora import lora_blocks
     for name, te, unet, dyn in wanted_names:
-        net = next((n for n in l.loaded_networks if n.name == name), None)
+        net = next((n for n in l.loaded_networks if n.key == name), None)
         filename = getattr(getattr(net, 'network_on_disk', None), 'filename', None)
         try:
             st = os.stat(filename)
@@ -71,6 +71,8 @@ def signature(wanted_names):
         spec = lora_blocks.net_signature(net)
         if spec is not None: # appended only when set so existing cache files stay valid without block weights
             entry.append(spec)
+        if getattr(net, 'components', None):
+            entry.append('module=' + ','.join(net.components))
         parts['nets'].append(entry)
     return parts
 

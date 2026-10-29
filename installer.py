@@ -28,9 +28,9 @@ class Torch(dict):
 
 
 # target commit hashes for specific packages
-diffusers_target = 'b800f828f3951c4d206e154411bcbfa693cd322e' # diffusers commit hash == 0.41.0.dev0 == 10-17-2026
-transformers_target = 'b70d02fc724d04c916832ca4ead03ff05e8fb1ee' # transformers commit hash == 5.13.0.dev0 == 07-03-2026
-sdnq_target = '35337772cdd3ca160d8ab216d06b22461fa476dc' # sdnq commit hash == 0.2.9 == 10-16-2026
+diffusers_target = '06a9cfb86ae8aa69c6a220ba0da0f37b819dde6a' # diffusers commit hash == 0.42.0.dev == 10-27-2026
+transformers_target = 'c0d024fbc873ab0325e1b40fc1bd69069609de65' # transformers commit hash == 5.21.0.dev == 10-27-2026
+sdnq_target = '8bf23dffa1da84cbf1989bdec4a4fc2adc3e2e5f' # sdnq commit hash == 0.2.9.dev == 10-27-2026
 
 git_commit = "unknown"
 diffusers_commit = "unknown"
@@ -105,8 +105,9 @@ except Exception:
 
 @lru_cache
 def get_logfile():
+    from modules.logger import get_console_theme_file
     log_size = os.path.getsize(log_file) if os.path.exists(log_file) else 0
-    log.info(f'Logger: file="{os.path.abspath(log_file)}" level={logging.getLevelName(logging.DEBUG if args.debug else logging.INFO)} host="{hostname}" size={log_size} mode={"append" if not log_rolled else "create"}')
+    log.info(f'Logger: file="{os.path.abspath(log_file)}" theme="{get_console_theme_file()}" level={logging.getLevelName(logging.DEBUG if args.debug else logging.INFO)} host="{hostname}" size={log_size} mode={"append" if not log_rolled else "create"}')
     return log_file
 
 
@@ -267,8 +268,8 @@ def uv_info():
         uv_version = subprocess.check_output([uv_global, "--version"], text=True).strip()
         uv_cache_dir = subprocess.check_output([uv_global, "cache", "dir"], text=True).strip()
     uv_cache_disabled = os.environ.get("UV_NO_CACHE") == "1"
-    site = next(p for p in sys.path if p.endswith("site-packages"))
-    if uv_cache_dir and not uv_cache_disabled:
+    site = next((p for p in sys.path if p.endswith(("site-packages", "dist-packages"))), None)
+    if uv_cache_dir and not uv_cache_disabled and site:
         for root, _dirs, files in os.walk(site):
             for f in files:
                 full = os.path.join(root, f)
@@ -650,7 +651,7 @@ def check_transformers():
         return
     pkg_transformers = package_spec('transformers')
     pkg_tokenizers = package_spec('tokenizers')
-    target_tokenizers = '0.22.2'
+    target_tokenizers = '0.23.3'
     # Git commit-pinned version
     transformers_commit = package_commit(pkg_transformers)
     if args.reinstall or (pkg_transformers is None) or (pkg_transformers.version.startswith('4')) or (transformers_commit != transformers_target):
@@ -747,9 +748,10 @@ def install_rocm():
             if device_id < len(amd_gpus):
                 device = amd_gpus[device_id]
 
+    rocm_sdk_version = '10.1.0' if device is not None and device.gfx_version >= 0x1100 else '10.0.0'
     if sys.platform == "win32" and (not args.use_zluda) and (device is not None) and (device.therock is not None) and not installed("rocm"):
         check_python(supported_minors=[11, 12, 13], reason='ROCm-Windows: python==3.11/3.12/3.13 required')
-        install("rocm[devel,libraries]==10.0.0 --index-url https://stable.repo.amd.com/rocm/whl-next/")
+        install(f"rocm[devel,libraries]=={rocm_sdk_version} --index-url https://stable.repo.amd.com/rocm/whl-next/")
         rocm.refresh()
 
     msg = f'ROCm: version={rocm.version}'
@@ -785,7 +787,11 @@ def install_rocm():
             if device is not None and device.therock is not None:
                 check_python(supported_minors=[11, 12, 13], reason='ROCm-Windows: python==3.11/3.12/3.13 required')
                 # Use device-specific index for torch/torchvision, with root index as fallback for torchaudio and other packages
-                torch_command = os.environ.get('TORCH_COMMAND', f'"torch[device-{device.therock}]==2.13.0+rocm10.0.0" "torchvision[device-{device.therock}]==0.28.0+rocm10.0.0" "torchaudio==2.11.0+rocm10.0.0"  --index-url https://stable.repo.amd.com/rocm/whl-next/')
+                if rocm_sdk_version == '10.0.0':
+                    # The unpinned index resolves to ROCm 10.1 wheels, which are incompatible with gfx10 GPUs.
+                    torch_command = os.environ.get('TORCH_COMMAND', f'"torch[device-{device.therock}]==2.13.0+rocm10.0.0" "torchvision[device-{device.therock}]==0.28.0+rocm10.0.0" "torchaudio==2.11.0+rocm10.0.0" --index-url https://stable.repo.amd.com/rocm/whl-next/')
+                else:
+                    torch_command = os.environ.get('TORCH_COMMAND', f'"torch[device-{device.therock}]" torchvision torchaudio --index-url https://stable.repo.amd.com/rocm/whl-next/')
             elif isinstance(rocm.environment, rocm.PythonPackageEnvironment):
                 check_python(supported_minors=[11, 12, 13], reason='ROCm-Windows: python==3.11/3.12/3.13 required')
                 torch_command = os.environ.get('TORCH_COMMAND', 'torch torchvision torchaudio --index-url https://stable.repo.amd.com/rocm/whl-next/')
@@ -797,7 +803,7 @@ def install_rocm():
     else: # linux
         rocm_major, rocm_minor = (int(x) for x in rocm.version.split('.')) if rocm.version is not None else (0, 0)
         if args.use_nightly:
-            torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm10.0')
+            torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm10.1')
         else:
             if (rocm.version is None) or (rocm_major > 7): # assume the latest if version check fails
                 torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.14.1+rocm7.14 torchvision==0.29.1+rocm7.14 --index-url https://download.pytorch.org/whl/rocm7.14')
@@ -1421,7 +1427,9 @@ def install_requirements():
             if not installed(line, quiet=True) or args.reinstall:
                 if args.reinstall:
                     log.trace(f'Install: package="{line}" reinstall')
-                _res = install(line, reinstall=args.reinstall)
+                # reinstall only the listed package - dependencies were handled by the bulk pass above and
+                # force-reinstalling them would replace the backend torch build with a cpu one from pypi
+                _res = install(line, reinstall=args.reinstall, no_deps=args.reinstall)
     install_compel()
     install_pydantic()
     install_opencv()
@@ -1968,7 +1976,7 @@ def read_options():
 
 def ensure_base_requirements():
     t_start = time.time()
-    setuptools_version = '69.5.1'
+    setuptools_version = '77.0.3'
     if (args.uv or '--uv' in sys.argv) and (shutil.which('uv') is not None): # early enable uv
         args.uv = True # pylint: disable=attribute-defined-outside-init
         uv_info()
@@ -2020,6 +2028,7 @@ def ensure_base_requirements():
     install('rich==15.0.0', 'rich', quiet=True)
     install('psutil', 'psutil', quiet=True)
     install('requests==2.32.3', 'requests', quiet=True)
+    install('Pillow==13.0.0', 'Pillow', quiet=True)
     ts('base', t_start)
 
 

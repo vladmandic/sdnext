@@ -48,7 +48,8 @@ def load_flux(checkpoint_info, diffusers_load_config=None):
 
     # finally load transformer and text encoder if not already loaded
     if transformer is None:
-        transformer = generic.load_transformer(repo_id, cls_name=diffusers.FluxTransformer2DModel, load_config=diffusers_load_config)
+        from pipelines.native_transformer import make_default_spec
+        transformer = generic.load_transformer(repo_id, cls_name=diffusers.FluxTransformer2DModel, load_config=diffusers_load_config, native_spec=make_default_spec(diffusers.FluxTransformer2DModel))
     if text_encoder_2 is None:
         text_encoder_2 = generic.load_text_encoder(repo_id, cls_name=transformers.T5EncoderModel, load_config=diffusers_load_config)
 

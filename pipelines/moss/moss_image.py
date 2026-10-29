@@ -15,16 +15,6 @@ from diffusers.pipelines.pipeline_utils import ImagePipelineOutput
 from diffusers.utils.torch_utils import randn_tensor
 
 
-class MOSSImageRMSNorm(nn.Module):
-    def __init__(self, dim: int):
-        super().__init__()
-        self.weight = nn.Parameter(torch.ones(dim))
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        y = x.to(dtype=torch.float32) * torch.rsqrt(x.to(dtype=torch.float32).square().mean(-1, keepdim=True) + 1e-6)
-        return y.to(x.dtype) * self.weight
-
-
 def situ(hidden: torch.Tensor, gate: torch.Tensor) -> torch.Tensor:
     return (4.0 * torch.tanh(gate / 4.0) * torch.sigmoid(gate)) * (25.0 * torch.tanh(hidden / 25.0))
 
@@ -46,18 +36,18 @@ def rotate(x: torch.Tensor, rope: torch.Tensor) -> torch.Tensor:
 
 def attention(q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, rope: torch.Tensor, heads: int) -> torch.Tensor:
     shape = (*q.shape[:2], heads, q.shape[-1] // heads)
-    q = rotate(q.reshape(shape), rope).transpose(1, 2)
-    k = rotate(k.reshape(shape), rope).transpose(1, 2)
+    q = rotate(q.reshape(shape), rope).transpose(1, 2).to(dtype=v.dtype)
+    k = rotate(k.reshape(shape), rope).transpose(1, 2).to(dtype=v.dtype)
     v = v.reshape(shape).transpose(1, 2)
-    return F.scaled_dot_product_attention(q.to(v.dtype), k.to(v.dtype), v).transpose(1, 2).flatten(2)
+    return F.scaled_dot_product_attention(q, k, v).transpose(1, 2).flatten(2)
 
 
 class MOSSImageTextBlock(nn.Module):
     def __init__(self, dim: int, ffn_dim: int, heads: int):
         super().__init__()
         self.heads = heads
-        self.norm1, self.norm2 = MOSSImageRMSNorm(dim), MOSSImageRMSNorm(dim)
-        self.q_norm, self.k_norm = MOSSImageRMSNorm(dim // heads), MOSSImageRMSNorm(dim // heads)
+        self.norm1, self.norm2 = nn.RMSNorm(dim, eps=1e-6), nn.RMSNorm(dim, eps=1e-6)
+        self.q_norm, self.k_norm = nn.RMSNorm(dim // heads, eps=1e-6), nn.RMSNorm(dim // heads, eps=1e-6)
         self.qkv = nn.Linear(dim, 3 * dim)
         self.proj = nn.Linear(dim, dim)
         self.ffn_gate, self.ffn_up = nn.Linear(dim, ffn_dim), nn.Linear(dim, ffn_dim)
@@ -89,8 +79,8 @@ class MOSSImageBlock(nn.Module):
     def __init__(self, dim: int, ffn_dim: int, heads: int):
         super().__init__()
         self.heads = heads
-        self.norm1, self.norm2 = MOSSImageRMSNorm(dim), MOSSImageRMSNorm(dim)
-        self.q_norm, self.k_norm = MOSSImageRMSNorm(dim // heads), MOSSImageRMSNorm(dim // heads)
+        self.norm1, self.norm2 = nn.RMSNorm(dim, eps=1e-6), nn.RMSNorm(dim, eps=1e-6)
+        self.q_norm, self.k_norm = nn.RMSNorm(dim // heads, eps=1e-6), nn.RMSNorm(dim // heads, eps=1e-6)
         self.proj = nn.ModuleDict({name: nn.Linear(dim, dim, bias=False) for name in ('q', 'k', 'v', 'o')})
         self.proj['ffn_up_gate'] = nn.Linear(dim, 2 * ffn_dim, bias=False)
         self.proj['ffn_down'] = nn.Linear(ffn_dim, dim, bias=False)
@@ -118,8 +108,8 @@ class MOSSImageRoPE(nn.Module):
         self.register_buffer('bands', self.default_bands(torch.device('cpu')))
 
     def default_bands(self, device) -> torch.Tensor:
-        exponent = torch.arange(self.num_bands, device='cpu', dtype=torch.float32) / self.num_bands
-        return (1 / (self.base ** exponent)).to(device)
+        exponent = torch.arange(self.num_bands, device='cpu', dtype=torch.float32).div_(self.num_bands)
+        return torch.reciprocal(self.base ** exponent).to(device)
 
     def _apply(self, fn, recurse=True):
         super()._apply(fn, recurse=recurse)
@@ -158,15 +148,16 @@ class MOSSImageTransformer(ModelMixin, ConfigMixin):
         self.time_embedding = nn.Sequential(nn.Linear(freq_dim, dim), nn.SiLU(), nn.Linear(dim, dim))
         self.shared_block_modulation = nn.Linear(dim, 6 * dim)
         self.layers = nn.ModuleList([MOSSImageBlock(dim, ffn_dim, num_heads) for _ in range(num_layers)])
-        self.final_norm_video = MOSSImageRMSNorm(dim)
+        self.final_norm_video = nn.RMSNorm(dim, eps=1e-6)
         self.final_linear_video = nn.Linear(dim, latent_channels, bias=False)
         self.video_head_modulation = nn.Linear(dim, 2 * dim)
 
     def forward(self, hidden_states: torch.Tensor, timestep, encoder_hidden_states: torch.Tensor, encoder_attention_mask: torch.Tensor | None = None, return_dict: bool = True, skip_layers=None):
         dtype = self.dtype
         skip_layers = validate_skip_layers(skip_layers, len(self.layers))
-        if hidden_states.ndim != 4 or hidden_states.shape[1] != self.config['latent_channels']:
-            raise ValueError('hidden_states must be [B, latent_channels, H, W].')
+        latent_channels = self.config.get('latent_channels', self.config.get('in_channels'))
+        if hidden_states.ndim != 4 or hidden_states.shape[1] != latent_channels:
+            raise ValueError(f'hidden_states must be [B, {latent_channels}, H, W].')
         batch, _, height, width = hidden_states.shape
         if encoder_hidden_states.ndim != 3 or encoder_hidden_states.shape[0] != batch:
             raise ValueError('encoder_hidden_states must be [B, S, text_dim].')
@@ -177,7 +168,7 @@ class MOSSImageTransformer(ModelMixin, ConfigMixin):
             raise ValueError('encoder_attention_mask must be a [B, S] mask.')
         times = torch.as_tensor(timestep, device=hidden_states.device, dtype=torch.float32).reshape(-1).expand(batch)
         half = self.config['freq_dim'] // 2 # the sinusoid is computed in float64 and fed to the mlp in float32, as in training
-        freq = 10000 ** (-torch.arange(half, device=times.device, dtype=torch.float64) / half)
+        freq = 10000 ** torch.arange(half, device=times.device, dtype=torch.float64).div_(-half)
         phase = times.to(dtype=torch.float64).unsqueeze(1) * freq
         embedding = torch.cat((phase.cos(), phase.sin()), -1).to(dtype=dtype)
         time = self.time_embedding(embedding)
@@ -364,7 +355,10 @@ class MOSSImagePipeline(DiffusionPipeline):
                 negative_prompt_embeds, negative_prompt_attention_mask = self.encode_prompt(negatives, max_sequence_length)
             negative, negative_mask = prepare(negative_prompt_embeds, negative_prompt_attention_mask)
 
-        shape = (batch * num_images_per_prompt, self.transformer.config.latent_channels, height // 16, width // 16)
+        latent_channels = getattr(self.transformer.config, 'latent_channels', None)
+        if latent_channels is None:
+            latent_channels = self.transformer.config.in_channels
+        shape = (batch * num_images_per_prompt, latent_channels, height // 16, width // 16)
         if latents is None:
             latents = randn_tensor(shape, generator=generator, device=device, dtype=torch.float32) # fp32 noise: bf16 noise cannot be promoted back
         elif tuple(latents.shape) != shape:

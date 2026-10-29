@@ -525,7 +525,11 @@ def load_diffuser_force(detected_model_type: str, checkpoint_info: CheckpointInf
             from pipelines.model_chrono import load_chrono
             sd_model = load_chrono(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
-        elif model_type in ['Bria']:
+        elif model_type in ['BriaFibo2']:
+            from pipelines.model_bria import load_bria2
+            sd_model = load_bria2(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
+        elif model_type in ['BriaFibo']:
             from pipelines.model_bria import load_bria
             sd_model = load_bria(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
@@ -934,7 +938,6 @@ def set_defaults(sd_model, checkpoint_info: CheckpointInfo):
     sd_model.is_sd2 = hasattr(sd_model, 'cond_stage_model') and hasattr(sd_model.cond_stage_model, 'model') # a1111 compatibility item
     sd_model.is_sd1 = not sd_model.is_sd2 # a1111 compatibility item
     sd_model.logvar = sd_model.logvar.to(devices.device) if hasattr(sd_model, 'logvar') else None # fix for training
-    shared.opts.data["sd_checkpoint_hash"] = checkpoint_info.sha256
     if hasattr(sd_model, "set_progress_bar_config"):
         sd_model.set_progress_bar_config(bar_format='Progress {rate_fmt}{postfix} {bar:15} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining}', ncols=120, colour='#327fba')
 
@@ -1688,9 +1691,10 @@ def reload_model_weights(sd_model=None, info: CheckpointInfo | None = None, op='
 
 
 def clear_caches(full: bool = False):
-    from modules import prompt_parser_diffusers, memstats, sd_offload
+    from modules import prompt_parser_diffusers, memstats, sd_offload_state
     from modules.lora import lora_common, lora_load
     prompt_parser_diffusers.cache.clear()
+    sd_hijack_te.prompt_cache.cache.clear()
     memstats.reset_stats()
     lora_common.loaded_networks.clear()
     lora_common.previously_loaded_networks.clear()
@@ -1698,7 +1702,7 @@ def clear_caches(full: bool = False):
     fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
     log.debug(f'Cache clear: full={full} fn={fn}')
     if full:
-        sd_offload.offload_hook_instance = None
+        sd_offload_state.offload_hook_instance = None
 
 
 def unload_model_weights(op='model'):

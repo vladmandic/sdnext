@@ -45,10 +45,9 @@ def generation_step(runner, text_embeds_dict, cond_latents, temporal_overlap, de
         return [i.to(device, dtype=dtype) for i in x]
 
     # Memory optimization: Generate noise once and reuse to save VRAM
-    with torch.cuda.device(device):
-        base_noise = torch.randn_like(cond_latents[0], dtype=dtype)
-        noises = [base_noise]
-        aug_noises = [base_noise * 0.1 + torch.randn_like(base_noise) * 0.05]
+    base_noise = torch.randn_like(cond_latents[0], dtype=dtype)
+    noises = [base_noise]
+    aug_noises = [base_noise * 0.1 + torch.randn_like(base_noise) * 0.05]
 
     # Move tensors with adaptive dtype (optimized for FP8/FP16/BFloat16)
     noises, aug_noises, cond_latents = _move_to_cuda(noises), _move_to_cuda(aug_noises), _move_to_cuda(cond_latents)

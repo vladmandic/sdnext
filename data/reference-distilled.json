@@ -275,6 +275,14 @@
     "size": 23.79,
     "date": "2026 September"
   },
+  "Bria Fibo 2.0 Edit Turbo": {
+    "path": "briaai/Fibo-2.0-edit-turbo",
+    "preview": "briaai--Fibo-2.0-edit-turbo.jpg",
+    "desc": "BRIA FIBO 2.0 Edit Turbo is an 8.1-billion parameter distilled model for fast image editing with multi-reference conditioning, using a Qwen3-VL-4B text encoder and FLUX.2 VAE. Released under CC BY-NC 4.0.",
+    "extras": "sampler: Default, cfg_scale: 1.0, steps: 4",
+    "size": 23.74,
+    "date": "2026 October"
+  },
   "Qwen-Image-2.1 Turbo": {
     "path": "Qwen/Qwen-Image-2.1-Turbo",
     "preview": "Qwen--Qwen-Image-2.1-Turbo.jpg",

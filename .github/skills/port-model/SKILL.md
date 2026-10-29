@@ -1,6 +1,6 @@
 ---
 name: port-model
-description: "Port or add a model to SD.Next using a phased integration flow: select the least-new-code path that follows SD.Next conventions, then implement loader and routing updates, then validate."
+description: "Port or add a model to SD.Next using a phased integration flow: select the least-new-code path that follows SD.Next conventions, invoke port-pipeline when no upstream Diffusers implementation exists, then implement loader and routing updates and validate."
 argument-hint: "Describe the source model, target task, checkpoint format, and whether the model already has a Diffusers pipeline"
 ---
 
@@ -70,7 +70,16 @@ Do not guess this category. Use the user answer to decide which reference JSON f
 ## Mandatory Pipeline Question
 
 Before implementing a pipeline, explicitly ask the user if the model already has an upstream Diffusers pipeline that can be reused.
-If not, ask for URL or path to a reference implementation that can be structurally copied.
+If the desired model implementation does not already exist in upstream Diffusers, ask for the reference implementation's code path. A repository URL is acceptable when the code path is not yet available locally. Do not begin a custom pipeline port until the reference implementation is identified.
+
+## Custom Pipeline Handoff
+
+When no usable upstream Diffusers implementation exists:
+
+1. Collect the reference implementation code path, destination path in this repository, and target pipeline class name required by `port-pipeline`. Ask for any missing values before proceeding.
+2. Invoke the `port-pipeline` skill with the model task, artifact layout, components, source code path, destination path, target class name, and relevant findings already gathered. Do not ask the user to repeat known details.
+3. Let `port-pipeline` implement and validate the custom Diffusers pipeline, then return control to this `port-model` workflow. Continue the remaining SD.Next model integration and validation here.
+4. If `port-pipeline` was invoked from this `port-model` run, its final handoff must return to this run rather than invoke `port-model` again.
 
 ## Repo Files To Check
 
@@ -105,9 +114,11 @@ Use this path when the model already has a usable Diffusers pipeline and compone
 Implement:
 
 - `pipelines/model_<name>.py`
-- `modules/sd_models.py` dispatch branch
+- `modules/sd_models.py` dispatch branch in `load_diffuser_force`
 - `modules/sd_detect.py` filename autodetect branch if appropriate
 - `modules/modeldata.py` model type detection branch
+
+Every base-model family loader, whether upstream or custom, must be dispatched from an explicit detected-model-type branch in `modules/sd_models.py:load_diffuser_force`. Do not rely on `load_diffuser_folder` or another generic fallback to trigger a family loader.
 
 Reuse:
 
@@ -193,6 +204,15 @@ Reference catalog touchpoints are also required for model ports intended to appe
 
 If the model belongs to multiple categories, update each corresponding `data/reference*.json` file.
 
+When adding a new model in the user-confirmed `base` category, also update both wiki model pages:
+
+1. Add the model family to `wiki/Model-Support.md`, using the existing linked-name and variant style.
+2. Add one or more rows to `wiki/Models.md` for the new base model variants, following the existing table columns and formatting.
+3. Use official source links and verified architecture, parameter, encoder, size, license, and release-date details. Leave unavailable details blank or clearly unspecified; do not infer them.
+4. Check both pages for an existing entry first and update it instead of adding a duplicate.
+
+These wiki updates apply to new base models, not models added only to `cloud`, `quant`, `distilled`, `nunchaku`, or `community` categories.
+
 Possible extra integration points:
 
 - `diffusers.pipelines.auto_pipeline.AUTO_*_PIPELINES_MAPPING` when task switching matters
@@ -208,7 +228,10 @@ In `pipelines/model_<name>.py`:
 - Use `model_quant.get_dit_args(...)` for load args
 - Respect `devices.dtype`
 - Log meaningful loader details
-- Reuse `generic.load_transformer(...)` and `generic.load_text_encoder(...)` when possible
+- When using `generic.load_transformer(...)`, define a `TransformerSpec` for the model and pass it through the `native_spec=` argument. Put the spec in the model package or another appropriate shared module, and define the model's checkpoint prefixes, converter, and sibling handling as needed; do not omit the spec or rely on the generic single-file fallback.
+- Leave `allow_quant` at its loader default for `generic.load_transformer(...)` and `generic.load_text_encoder(...)` unless a verified model-specific constraint requires disabling or otherwise overriding quantization.
+- Explicitly preload only the transformer and text encoder through `generic.load_transformer(...)` and `generic.load_text_encoder(...)`. Let the pipeline's `from_pretrained(...)` load its processor, tokenizer, and other declared components unless a verified model-specific requirement calls for separate loading.
+- Reuse `generic.load_text_encoder(...)` when possible
 - Set `pipe.task_args = {'output_type': 'np'}` when the pipeline should default to numpy output for SD.Next
 - Clean up temporary references and call `devices.torch_gc(...)`
 

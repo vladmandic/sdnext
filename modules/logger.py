@@ -3,6 +3,7 @@ import re
 import sys
 import logging
 import socket
+import json
 from functools import partial, partialmethod
 from logging.handlers import RotatingFileHandler
 
@@ -39,6 +40,31 @@ def get_console():
 
 def get_log():
     return log
+
+
+def get_console_theme_file():
+    root = os.path.dirname(os.path.dirname(__file__))
+    theme_file = os.environ.get('SD_CONSOLE_THEME')
+    if not theme_file:
+        theme_file = os.path.join('data', 'console.json')
+    elif not os.path.isabs(theme_file):
+        theme_file = os.path.join(root, theme_file)
+    return theme_file
+
+
+def load_console_theme():
+    theme_file = get_console_theme_file()
+    if not os.path.isabs(theme_file):
+        theme_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), theme_file)
+    try:
+        with open(theme_file, encoding='utf-8') as file:
+            styles = json.load(file)
+        if not isinstance(styles, dict):
+            raise ValueError('console theme must be a JSON object')
+        return Theme(styles)
+    except Exception as e:
+        log.warning(f'Failed to load console theme: {e}')
+        return Theme()
 
 
 def install_traceback(suppress: list | None = None):
@@ -225,27 +251,7 @@ def setup_logging(debug=None, trace=None, filename=None):
     log.setLevel(logging.DEBUG) # log to file is always at level debug for facility `sd`
     log.print = rprint
 
-    # use only the 16 standard ANSI color names (+ dim/bold modifiers) so the theme renders correctly on basic 16-color terminals too
-    theme = Theme({
-        "traceback.border": "black",
-        "inspect.value.border": "black",
-        "traceback.border.syntax_error": "red",
-
-        "logging.level.trace": "dim cyan",
-        "logging.level.debug": "cyan",
-        "logging.level.info": "bright_cyan",
-        "logging.level.warning": "yellow",
-        "logging.level.error": "red",
-        "logging.level.critical": "bold bright_red",
-
-        "repr.attrib_name": "bright_white",
-        "repr.attrib_value": "cyan",
-        "repr.str": "bright_cyan",
-        "repr.none": "yellow",
-        "repr.number": "bright_yellow",
-        "repr.bool_true": "green",
-        "repr.bool_false": "bright_red",
-    })
+    theme = load_console_theme()
 
     Padding.__rich_console__ = override_padding
     box.ROUNDED = box.SIMPLE

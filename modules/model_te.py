@@ -3,7 +3,7 @@ import json
 import torch
 import transformers
 from safetensors.torch import load_file
-from modules import shared, devices, files_cache, errors, model_quant
+from modules import shared, devices, files_cache, errors, model_quant, sd_hijack_te
 from modules.logger import log
 
 
@@ -16,6 +16,7 @@ def load_t5(name=None, cache_dir=None):
     global loaded_te # pylint: disable=global-statement
     if name is None:
         return None
+    sd_hijack_te.prompt_cache.cache.clear()
     cache_dir = cache_dir or shared.opts.hfcache_dir
     offline_args = {'local_files_only': True} if shared.opts.offline_mode else {}
     from modules import modelloader
@@ -144,6 +145,7 @@ def load_vit_g():
 def set_clip(pipe):
     if loaded_te == shared.opts.sd_text_encoder:
         return
+    sd_hijack_te.prompt_cache.cache.clear()
     from modules.sd_models import move_model
     if 'vit-l' in shared.opts.sd_text_encoder.lower() and hasattr(shared.sd_model, 'text_encoder') and shared.sd_model.text_encoder.__class__.__name__ == 'CLIPTextModel':
         try:

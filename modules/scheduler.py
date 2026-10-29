@@ -518,9 +518,10 @@ def start_worker(diag: bool = False):
             scheduler_db.initialize()
         except Exception as e:
             _worker_start_failed = True
-            log.error('Scheduler disabled: database initialization failed')
-            from modules.errors import display
-            display(e, 'Scheduler')
+            log.error(f'Scheduler disabled: {str(e)}')
+            if debug:
+                from modules.errors import display
+                display(e, 'Scheduler')
             return None
         if diag:
             try:

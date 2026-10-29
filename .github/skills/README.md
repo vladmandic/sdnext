@@ -6,11 +6,11 @@ This folder contains repo-local Copilot skills for recurring SD.Next tasks.
 
 - `port-model`
   File: `port-model/SKILL.md`
-  Use when adding or porting a model family into SD.Next and Diffusers, including conditional flow-sampler and VAE-family registry updates.
+  Use when adding or porting a model family into SD.Next and Diffusers; invokes `port-pipeline` when no upstream implementation exists, and includes `TransformerSpec`/`native_spec` requirements for `generic.load_transformer`, explicit base-model dispatch through `load_diffuser_force`, conditional flow-sampler and VAE-family registry updates, and wiki updates for new base models.
 
 - `port-pipeline`
   File: `port-pipeline/SKILL.md`
-  Use when porting a custom pipeline implementation into a Diffusers pipeline class while preserving behavior and avoiding hard-coded runtime assumptions.
+  Use when assessing and porting a custom pipeline implementation into a Diffusers pipeline class; requires a scope/complexity summary and user confirmation before implementation, and invokes `port-model` afterward to complete applicable SD.Next model integration.
 
 - `debug-model`
   File: `debug-model/SKILL.md`
@@ -62,7 +62,7 @@ This folder contains repo-local Copilot skills for recurring SD.Next tasks.
 
 - `reference-catalog`
   File: `reference-catalog/SKILL.md`
-  Use when maintaining and validating model reference catalogs in `data/reference*.json`, including duplicate checks and thumbnail alignment.
+  Use when maintaining and validating model reference catalogs in `data/reference*.json`, including duplicate checks, thumbnail alignment, and checking every `reference-base` entry against `wiki/Model-Support.md` and `wiki/Models.md`.
 
 - `fix-lint`
   File: `fix-lint/SKILL.md`

@@ -2,7 +2,7 @@
 # docs: <https://github.com/vladmandic/sdnext/wiki/Docker>
 
 # base image
-FROM pytorch/pytorch:2.8.0-cuda12.8-cudnn9-runtime
+FROM pytorch/pytorch:2.14.1-cuda13.2-cudnn9-runtime
 
 # metadata
 LABEL org.opencontainers.image.vendor="SD.Next"
@@ -10,18 +10,33 @@ LABEL org.opencontainers.image.authors="vladmandic"
 LABEL org.opencontainers.image.url="https://github.com/vladmandic/sdnext/"
 LABEL org.opencontainers.image.documentation="https://github.com/vladmandic/sdnext/wiki/Docker"
 LABEL org.opencontainers.image.source="https://github.com/vladmandic/sdnext/"
-LABEL org.opencontainers.image.licenses="AGPL-3.0"
+LABEL org.opencontainers.image.licenses="Apache-2.0"
 LABEL org.opencontainers.image.title="SD.Next"
 LABEL org.opencontainers.image.description="SD.Next: Advanced Implementation of Stable Diffusion and other Diffusion-based generative image models"
-LABEL org.opencontainers.image.base.name="https://hub.docker.com/pytorch/pytorch:2.8.0-cuda12.8-cudnn9-runtime"
+LABEL org.opencontainers.image.base.name="https://hub.docker.com/pytorch/pytorch:2.14.1-cuda13.2-cudnn9-runtime"
 LABEL org.opencontainers.image.version="latest"
 
 # minimum install
-RUN ["apt-get", "-y", "update"]
-RUN ["apt-get", "-y", "install", "git", "build-essential", "google-perftools", "curl", "ffmpeg"]
+RUN apt-get update && \
+	apt-get install -y --no-install-recommends \
+	git \
+	build-essential \
+  software-properties-common \
+	google-perftools \
+  ca-certificates \
+  wget \
+	curl \
+  python3 \
+  python3-dev \
+  python3-venv \
+  python3-pip \
+	ffmpeg && \
+	apt-get clean && \
+	rm -rf /var/lib/apt/lists/*
+RUN ["bash", "-c", "curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh"]
+RUN ["/usr/sbin/ldconfig"]
 # optional if full cuda-dev is required by some downstream library
 # RUN ["apt-get", "-y", "nvidia-cuda-toolkit"]
-RUN ["/usr/sbin/ldconfig"]
 
 # copy sdnext
 COPY . /app
@@ -30,6 +45,9 @@ WORKDIR /app
 # stop pip and uv from caching
 ENV PIP_NO_CACHE_DIR=true
 ENV UV_NO_CACHE=true
+ENV UV_SYSTEM_PYTHON=1
+ENV UV_BREAK_SYSTEM_PACKAGES=1
+ENV PIP_BREAK_SYSTEM_PACKAGES=1
 ENV PIP_ROOT_USER_ACTION=ignore
 # disable model hashing for faster startup
 ENV SD_NOHASHING=true

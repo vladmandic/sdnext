@@ -145,17 +145,25 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
         if current_noise_pred is None:
             current_noise_pred = kwargs.get("predicted_image_embedding", None)
 
-        if hasattr(pipe, "_unpack_latents") and hasattr(pipe, "vae_scale_factor"): # FLUX.1
+        if pipe.__class__.__name__ == 'QwenImageLayeredPipeline':
+            pass
+        elif hasattr(pipe, "_unpack_latents") and hasattr(pipe, "vae_scale_factor"): # FLUX.1
             if p.hr_resize_mode > 0 and (p.hr_upscaler != 'None' or p.hr_resize_mode == 5) and p.is_hr_pass:
                 width = max(getattr(p, 'width', 0), getattr(p, 'hr_upscale_to_x', 0))
                 height = max(getattr(p, 'height', 0), getattr(p, 'hr_upscale_to_y', 0))
             else:
                 width = getattr(p, 'width', 1024)
                 height = getattr(p, 'height', 1024)
+            unpack_method = pipe._unpack_latents  # pylint: disable=protected-access
+            if pipe.__class__.__name__ in {'BriaFiboPipeline', 'BriaFiboEditPipeline'} and latents.ndim == 3:
+                vae_scale = pipe.vae_scale_factor
+                expected_no_patch_tokens = (height // vae_scale) * (width // vae_scale)
+                if latents.shape[1] == expected_no_patch_tokens and hasattr(pipe, '_unpack_latents_no_patch'):
+                    unpack_method = pipe._unpack_latents_no_patch  # pylint: disable=protected-access
             try:
-                shared.state.current_latent = pipe._unpack_latents(latents, height, width, pipe.vae_scale_factor) # pylint: disable=protected-access
+                shared.state.current_latent = unpack_method(latents, height, width, pipe.vae_scale_factor)
                 if current_noise_pred is not None:
-                    shared.state.current_noise_pred = pipe._unpack_latents(current_noise_pred, height, width, pipe.vae_scale_factor) # pylint: disable=protected-access
+                    shared.state.current_noise_pred = unpack_method(current_noise_pred, height, width, pipe.vae_scale_factor)
                 else:
                     shared.state.current_noise_pred = current_noise_pred
             except Exception:
@@ -164,6 +172,15 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
                     shared.state.current_noise_pred = pipe._unpack_latents(current_noise_pred, height, width) # pylint: disable=protected-access # pythoning ask-for-forgiveness if method does not support vae_scale_factor
                 else:
                     shared.state.current_noise_pred = current_noise_pred
+        elif getattr(pipe, 'texture_vae_name', None) == 'flux2' and hasattr(pipe, 'semantic_channels') and hasattr(pipe, '_unpatchify_latents'):
+            texture_latents = latents[:, pipe.semantic_channels:]
+            bn = pipe.vae.bn
+            eps = getattr(pipe.vae.config, 'batch_norm_eps', 1e-6)
+            mean = bn.running_mean.view(1, -1, 1, 1).to(device=texture_latents.device, dtype=texture_latents.dtype)
+            std = torch.sqrt(bn.running_var + eps).view(1, -1, 1, 1).to(device=texture_latents.device, dtype=texture_latents.dtype)
+            texture_latents = texture_latents * std + mean
+            shared.state.current_latent = pipe._unpatchify_latents(texture_latents) # pylint: disable=protected-access
+            shared.state.current_noise_pred = current_noise_pred
         elif hasattr(pipe, "_unpatchify_latents"): # FLUX.2 - unpack [B, seq, patch_ch] to [B, ch, H, W]
             vae_scale = getattr(pipe, 'vae_scale_factor', 8)
             if p.hr_resize_mode > 0 and (p.hr_upscaler != 'None' or p.hr_resize_mode == 5) and p.is_hr_pass:
@@ -172,7 +189,8 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
             else:
                 width = getattr(p, 'width', 1024)
                 height = getattr(p, 'height', 1024)
-            if len(latents.shape) == 4:
+            latent_channels = getattr(getattr(getattr(pipe, 'vae', None), 'config', None), 'latent_channels', None)
+            if (len(latents.shape) == 4) and (latent_channels is not None) and (latents.shape[1] == latent_channels * 4):
                 latents = pipe._unpatchify_latents(latents) # [B, C*4, h/2, w/2] -> [B, C, h, w] # pylint: disable=protected-access
             elif len(latents.shape) == 3:  # packed format [B, seq_len, patch_channels]
                 b, seq_len, patch_ch = latents.shape
@@ -253,8 +271,9 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
         if not warned:
             log.error(f'Callback: {e}')
             warned = True
-        # from modules import errors
-        # errors.display(e, 'Callback')
+            if debug:
+                from modules import errors
+                errors.display(e, 'Callback')
     if shared.cmd_opts.profile and shared.profiler is not None:
         shared.profiler.step()
 

@@ -5,13 +5,6 @@ import modules.lora.network as network
 from modules import devices
 
 
-class ModuleTypeLora(network.ModuleType):
-    def create_module(self, net: network.Network, weights: network.NetworkWeights):
-        if all(x in weights.w for x in ["lora_up.weight", "lora_down.weight"]):
-            return NetworkModuleLora(net, weights)
-        return None
-
-
 class NetworkModuleLora(network.NetworkModule):
 
     def __init__(self,  net: network.Network, weights: network.NetworkWeights):

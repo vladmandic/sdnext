@@ -72,6 +72,13 @@ BARE_DIFFUSERS_PREFIX_USED = "bare_diffusers"
 NETWORK_PREFIX_DEFAULT = "lora_transformer_"
 
 
+# Prefixes whose keys are flat module names with underscores for dots. A save that
+# leaves a dotted tail on some keys (the diffusers kohya export writes DoRA magnitudes as
+# ``lora_unet_..._attn1.to_k.lora_magnitude_vector`` beside ``..._attn1_to_k`` factors)
+# would otherwise split one module into two groups, so :func:`parse_key` flattens them.
+UNDERSCORE_PREFIXES = ("lora_unet_", "lora_transformer_", "lycoris_", "lora_te_", "lora_te1_", "lora_te2_", "lora_te3_")
+
+
 # Prefixes whose parsed ``base`` is normally already a network-key tail
 # (``arch_prefix + base.replace(".", "_")`` matches the stamped module name).
 # :func:`resolve_group_targets` binds them verbatim unless the arch's
@@ -95,6 +102,11 @@ def _resolve_prefix(network_prefix, prefix_used):
 SUFFIX_NORMALIZE = {
     "lora_A.weight": "lora_down.weight",
     "lora_B.weight": "lora_up.weight",
+    # diffusers training scripts: unet ``.lora.down.weight``, text encoder ``.lora_linear_layer.down.weight``
+    "lora.down.weight": "lora_down.weight",
+    "lora.up.weight": "lora_up.weight",
+    "lora_linear_layer.down.weight": "lora_down.weight",
+    "lora_linear_layer.up.weight": "lora_up.weight",
     # bare parameter names, saved by wrappers that hold the factors as nn.Parameter (alibaba-pai PDD files)
     "lora_down": "lora_down.weight",
     "lora_a": "lora_down.weight",
@@ -116,6 +128,7 @@ LORA_SUFFIXES = (
     ".lora_down",        ".lora_up",
     ".lora_a",           ".lora_b", # lowercase peft factor names without .weight (TaoLive adapters)
     ".lora_A",           ".lora_B", # peft factor names without .weight (custom adapter saves)
+    ".lora.down.weight", ".lora.up.weight", ".lora_linear_layer.down.weight", ".lora_linear_layer.up.weight",
     # diff_b: bias delta some saves pair with the weight LoRA, applied as ex_bias.
     # magnitude / lora_magnitude_vector: DoRA row norms (ai-toolkit / PEFT key
     # names); converted onto the dora_scale path by try_load_lora.
@@ -170,6 +183,9 @@ LORA_MARKERS = (
     ".lora_down", ".lora_up", ".lora_a", ".lora_b", # bare and .weight forms alike
     # bare, .weight and PEFT named-adapter (``.lora_A.<name>.weight``) forms alike
     ".lora_A", ".lora_B",
+    # attention-processor saves (XLabs ``qkv_lora1.down``, diffusers 2023 ``to_k_lora.down``); an arch grouper renames them
+    "_lora.down", "_lora1.down", "_lora2.down",
+    ".lora.down", ".lora_linear_layer.down", # diffusers training scripts
 )
 LOKR_MARKERS = (".lokr_w1", ".lokr_w2")
 LOHA_MARKERS = (".hada_w1_a", ".hada_w1_b", ".hada_w2_a", ".hada_w2_b")
@@ -199,8 +215,9 @@ class ChunkSpec:
     - Row reorder (``reorder``): the module lays out equal row blocks in a
       different order from the save; ``(1, 0)`` swaps the halves of a fused
       SwiGLU projection saved ``[gate; value]`` onto a ``[value; gate]``
-      module. Applied to the rows the slice selects. Only the LoRA family
-      permutes rows; the others skip a reordered target.
+      module. Applied to the rows the slice selects. LoRA permutes the up
+      rows; LoKr and LoHA permute their row factors for a pure reorder and
+      skip a reorder within a slice.
 
     Generic loaders check :attr:`is_equal_chunks` to decide between the two
     forms and select the appropriate ``NetworkModule*Chunk`` /
@@ -274,9 +291,18 @@ def strip_peft_adapter_name(key):
 # === Core helpers ===
 
 
+chain_unmapped: list[str] = [] # targets the family loaders could not find in the mapping; try_load_chain resets and reports it per file
+
+
+def note_unmapped(target):
+    """Record one target that names no live module; returns the count to add."""
+    chain_unmapped.append(target)
+    return 1
+
+
 def has_marker(state_dict, markers):
-    """Substring scan: does any key in ``state_dict`` contain any marker?"""
-    return any(any(m in k for m in markers) for k in state_dict)
+    """Substring scan: does any key in ``state_dict`` contain any marker? False for an unreadable file."""
+    return state_dict is not None and any(any(m in k for m in markers) for k in state_dict)
 
 
 def resolve_mapping():
@@ -370,7 +396,7 @@ def file_alpha(network_on_disk):
     return None
 
 
-def finalize_network(net, name, family, lora_scale, t0, unmapped=0, mismatch=0, skipped=0):
+def finalize_network(net, name, family, lora_scale, t0, unmapped=0, mismatch=0, skipped=0, expanded=0, trimmed=0):
     """Emit the standard debug log line and return the populated network (or ``None``).
 
     Returns ``None`` when no modules were bound. Records ``mismatch`` on the
@@ -391,7 +417,7 @@ def finalize_network(net, name, family, lora_scale, t0, unmapped=0, mismatch=0, 
         return None
     log.debug(
         f'Network load: type={family} name="{name}" native modules={len(net.modules)}'
-        f' unmapped={unmapped} mismatch={mismatch} skipped={skipped} scale={lora_scale}'
+        f' unmapped={unmapped} mismatch={mismatch} skipped={skipped} expanded={expanded} trimmed={trimmed} scale={lora_scale}'
     )
     l.timer.activate += time.time() - t0
     return net
@@ -404,6 +430,123 @@ def module_shape(sd_module):
     if hasattr(sd_module, "sdnq_dequantizer"):
         return tuple(sd_module.sdnq_dequantizer.original_shape)
     return tuple(sd_module.weight.shape)
+
+
+def widen_input(sd_module, w):
+    """Zero-pad the down factor's input columns when the module is a wider-input variant of the trained one.
+
+    Inpaint and pix2pix UNets widen ``conv_in`` from 4 to 9 channels and Flux Fill and
+    Control widen ``x_embedder``; the extra inputs are appended, so a delta trained on the
+    base model applies to the leading columns and leaves the rest untouched. Returns the
+    padded copy of ``w``, or None when the delta is not a narrower-input fit. A per-input
+    DoRA magnitude keeps its trained length; ``apply_weight_decompose`` fills the new columns.
+    """
+    mod_shape = module_shape(sd_module)
+    down, up = w.get("lora_down.weight"), w.get("lora_up.weight")
+    if mod_shape is None or len(mod_shape) < 2 or down is None or up is None or down.ndim < 2:
+        return None
+    if up.shape[0] != mod_shape[0] or down.shape[1] >= mod_shape[1]:
+        return None
+    pad = torch.zeros((down.shape[0], mod_shape[1] - down.shape[1], *down.shape[2:]), dtype=down.dtype, device=down.device)
+    out = dict(w)
+    out["lora_down.weight"] = torch.cat([down, pad], dim=1)
+    return out
+
+
+def narrow_input(sd_module, w):
+    """Drop the down factor's zero input columns past the module's width when a fused save padded the input.
+
+    ComfyUI pads a SwiGLU down projection's input to the fused w13 row count (Fibo 2: 9536 to
+    9728); the padded activations are zero, so a delta's trailing columns are inert. Returns the
+    trimmed copy of ``w``, or None unless every column past the module's width is zero. A
+    per-input DoRA magnitude saved at the padded width is trimmed with the factor.
+    """
+    mod_shape = module_shape(sd_module)
+    down, up = w.get("lora_down.weight"), w.get("lora_up.weight")
+    if mod_shape is None or len(mod_shape) < 2 or down is None or up is None or down.ndim < 2:
+        return None
+    if up.shape[0] != mod_shape[0] or down.shape[1] <= mod_shape[1] or torch.count_nonzero(down[:, mod_shape[1]:]).item():
+        return None
+    out = dict(w)
+    out["lora_down.weight"] = down[:, :mod_shape[1]].contiguous()
+    dora = w.get("dora_scale")
+    if dora is not None and dora.ndim >= 2 and dora.shape[1] == down.shape[1]:
+        out["dora_scale"] = dora[:, :mod_shape[1]].contiguous()
+    return out
+
+
+def widen_full(sd_module, w):
+    """:func:`widen_input` for a full-rank ``diff``: zero columns appended up to a widened module's input width."""
+    mod_shape = module_shape(sd_module)
+    diff = w.get("diff")
+    if mod_shape is None or diff is None or diff.ndim != len(mod_shape) or diff.ndim < 2:
+        return None
+    if diff.shape[0] != mod_shape[0] or diff.shape[1] >= mod_shape[1] or tuple(diff.shape[2:]) != tuple(mod_shape[2:]):
+        return None
+    pad = torch.zeros((diff.shape[0], mod_shape[1] - diff.shape[1], *diff.shape[2:]), dtype=diff.dtype, device=diff.device)
+    out = dict(w)
+    out["diff"] = torch.cat([diff, pad], dim=1)
+    return out
+
+
+def narrow_full(sd_module, w):
+    """:func:`narrow_input` for a full-rank ``diff``: zero columns past the module's input width dropped."""
+    mod_shape = module_shape(sd_module)
+    diff = w.get("diff")
+    if mod_shape is None or diff is None or diff.ndim != len(mod_shape) or diff.ndim < 2:
+        return None
+    if diff.shape[0] != mod_shape[0] or diff.shape[1] <= mod_shape[1] or tuple(diff.shape[2:]) != tuple(mod_shape[2:]):
+        return None
+    if torch.count_nonzero(diff[:, mod_shape[1]:]).item():
+        return None
+    out = dict(w)
+    out["diff"] = diff[:, :mod_shape[1]].contiguous()
+    return out
+
+
+def delta_fits(family, w, sd_module, chunk: ChunkSpec | None = None) -> bool:
+    """Whether a family's delta has the live module's shape, read from the stored factors.
+
+    Mirrors what each family's ``calc_updown`` produces: the delta must cover the
+    module's output rows, and its element count must equal the weight's, which is
+    what ``finalize_updown`` reshapes against. An equal-chunks ``chunk`` divides the
+    fused rows the way ``NetworkModuleHadaChunk`` slices them.
+    """
+    shape = module_shape(sd_module)
+    if shape is None:
+        return False
+    out, size = shape[0], math.prod(shape)
+    if family == "loha":
+        w1a, w1b = w["hada_w1_a"], w["hada_w1_b"]
+        if "hada_t1" in w:
+            return w1a.shape[1] == out and w1a.shape[1] * w1b.shape[1] * math.prod(w["hada_t1"].shape[2:]) == size
+        rows = w1a.shape[0]
+        if chunk is not None and chunk.is_equal_chunks:
+            if rows % chunk.total:
+                return False
+            rows //= chunk.total
+        return rows == out and rows * math.prod(w1b.shape[1:]) == size
+    if family == "oft":
+        blocks = w["oft_blocks"] if "oft_blocks" in w else w["oft_diag"]
+        if blocks.ndim == 4: # BOFT (boft_m, block_num, block_size, block_size)
+            return blocks.shape[1] * blocks.shape[2] == out
+        return blocks.shape[0] * blocks.shape[1] == out
+    if family == "ia3":
+        if len(shape) < 2:
+            return False
+        return w["weight"].numel() == (shape[1] if bool(w["on_input"].item()) else out)
+    if family == "glora":
+        if len(shape) not in (2, 4):
+            return False
+        inputs = shape[1]
+        a1, a2, b1, b2 = (w[k].reshape(w[k].shape[0], -1) for k in ("a1.weight", "a2.weight", "b1.weight", "b2.weight"))
+        return (b2.shape == (out, b1.shape[0]) and b1.shape[1] * out == size
+                and a2.shape == (inputs, a1.shape[0]) and a1.shape[1] == inputs)
+    if family == "norm":
+        return tuple(w["w_norm"].shape) == tuple(shape)
+    if family == "full":
+        return w["diff"].numel() == size and w["diff"].shape[0] == out
+    raise ValueError(family)
 
 
 def shapes_match(sd_module, down_w: torch.Tensor, up_w: torch.Tensor) -> bool:
@@ -484,6 +627,86 @@ def lokr_shapes_match(sd_module, kron_shape, chunk: ChunkSpec | None) -> bool:
     return (chunk.end - chunk.start) == mod_shape[0] and kron_out >= chunk.end
 
 
+# === Text-encoder routing ===
+#
+# Trainers name text-encoder keys by slot (kohya lora_te_/te1_/te2_/te3_, diffusers
+# text_encoder./text_encoder_2./text_encoder_3., OMI clip_l./clip_g./t5.), and the slot
+# for one encoder differs between arches: kohya writes the Flux T5 as lora_te3_ while
+# sdnext stamps it lora_te2_. Routing goes through the encoder's role instead, read from
+# the loaded component.
+
+TE_COMPONENTS = ("text_encoder", "text_encoder_2", "text_encoder_3")
+
+# parsed file prefix -> role it names; "single" is the one encoder of a single-encoder pipeline
+TE_PREFIX_ROLES = {
+    "lora_te_": "single", "lora_te1_": "clip_l", "lora_te2_": "clip_g", "lora_te3_": "t5",
+    "clip_l.": "clip_l", "clip_g.": "clip_g", "t5.": "t5",
+}
+
+# diffusers component prefixes name the component itself
+TE_PREFIX_COMPONENTS = {"text_encoder.": "text_encoder", "text_encoder_2.": "text_encoder_2", "text_encoder_3.": "text_encoder_3"}
+
+
+def text_encoder_role(component):
+    """clip_l, clip_g, clip_h or t5 from the component's structure; None for anything else."""
+    config = getattr(component, "config", None)
+    kind = component.__class__.__name__
+    if kind.startswith("T5") or getattr(config, "model_type", "") in ("t5", "umt5"):
+        return "t5"
+    if kind.startswith("CLIPText"):
+        hidden = getattr(config, "hidden_size", None)
+        return {768: "clip_l", 1024: "clip_h", 1280: "clip_g"}.get(hidden)
+    return None
+
+
+class TextEncoderRouter:
+    """Maps a parsed text-encoder prefix and base onto the stamped name of a loaded encoder."""
+
+    def __init__(self, pipe, mapping):
+        self.mapping = mapping
+        self.stamped = {} # component -> stamped prefix
+        self.roles = {} # role -> stamped prefix
+        for name in TE_COMPONENTS:
+            component = getattr(pipe, name, None)
+            prefix = getattr(component, "network_layer_name", None) if component is not None else None
+            if not prefix:
+                continue
+            self.stamped[name] = prefix
+            role = text_encoder_role(component)
+            if role is not None:
+                self.roles.setdefault(role, prefix)
+
+    def prefix(self, prefix_used):
+        """Stamped prefix for a parsed prefix, or None when no loaded encoder fills the role."""
+        component = TE_PREFIX_COMPONENTS.get(prefix_used)
+        if component is not None:
+            return self.stamped.get(component)
+        role = TE_PREFIX_ROLES.get(prefix_used)
+        if role is None:
+            return None
+        if role == "single":
+            return next(iter(self.stamped.values())) if len(self.stamped) == 1 else None
+        stamped = self.roles.get(role)
+        if stamped is None and role == "clip_l" and len(self.stamped) == 1:
+            stamped = next(iter(self.stamped.values())) # kohya also saves a lone encoder as lora_te1_
+        if stamped is None and prefix_used in self.stamped.values():
+            stamped = prefix_used # the slot names a stamped encoder of another role (sdnext Flux extracts write T5 as lora_te2_)
+        return stamped
+
+    def path(self, prefix_used, base):
+        """Underscored module path under the stamped prefix, adding or dropping the text_model wrapper to match the loaded tree."""
+        stamped = self.prefix(prefix_used)
+        if stamped is None:
+            return None
+        flat = base.replace(".", "_")
+        candidates = [flat]
+        if flat.startswith("text_model_"):
+            candidates.append(flat[len("text_model_"):]) # transformers >=5.6 flattened CLIPTextModel
+        else:
+            candidates.append("text_model_" + flat)
+        return next((c for c in candidates if stamped + c in self.mapping), None)
+
+
 # === Parsing primitives ===
 
 
@@ -527,6 +750,10 @@ def parse_key(key, suffixes, *, prefixes=KNOWN_PREFIXES_DEFAULT):
     base = stripped[:split_at]
     if not base:
         return None
+    if prefix_used in UNDERSCORE_PREFIXES:
+        base = base.replace(".", "_")
+    if prefix_used == "lycoris_":
+        base = base.lstrip("_") # a LyCORIS wrapper around the whole model writes its root children as lycoris__<name>
 
     suffix = SUFFIX_NORMALIZE.get(matched_suffix, matched_suffix)
     return prefix_used, base, suffix
@@ -595,7 +822,7 @@ def resolve_group_targets(resolve_targets, prefix_used, base):
 # DoRA on fused targets (LoRA/LoKR/LoHA): per-output dora_scale rows are
 # sliced with the chunk via slice_dora_scale (exact, row norms are
 # independent); per-input dora_scale couples the chunks through shared
-# column norms and the group is skipped with a warning.
+# column norms, which a network.DoraGroup computes over every chunk at apply time.
 #
 # Bias companions on fused targets: per-output diff_b deltas slice with the
 # chunk (LoRA only; no other family's save format pairs them). The legacy
@@ -638,8 +865,8 @@ def slice_dora_scale(w, chunk: ChunkSpec, fused_out):
     partition exactly with the fused weight, so the chunk slice preserves the
     DoRA math (row norms are independent across rows). ``wd_on_out=False``
     stores per-input magnitudes whose column norms span every fused row,
-    coupling the chunks; no exact per-chunk equivalent exists and the caller
-    must skip the group.
+    coupling the chunks; the caller shares the norm across them through a
+    ``network.DoraGroup``.
     """
     ds = w.get("dora_scale")
     if ds is None:
@@ -648,7 +875,26 @@ def slice_dora_scale(w, chunk: ChunkSpec, fused_out):
         out = dict(w)
         out["dora_scale"] = slice_chunk_rows(ds, chunk)
         return out
+    if not chunk.is_slice:
+        return w # a pure row reorder leaves the column norms of a per-input magnitude unchanged
     return None
+
+
+def reorder_factor_rows(w, keys, reorder):
+    """Copy of ``w`` with the row blocks of each named factor laid out in ``reorder``; None when a factor's rows do not split evenly.
+
+    Exact for families whose delta rows are row blocks of these factors: LoHA's
+    ``(w1a w1b) * (w2a w2b)`` takes its rows from ``w1a`` and ``w2a``, and LoKr's
+    ``kron(w1, w2)`` takes row block b from row block b of ``w1`` when ``w1`` splits evenly.
+    """
+    out = dict(w)
+    for key in keys:
+        if key not in w:
+            continue
+        if w[key].shape[0] % len(reorder):
+            return None
+        out[key] = slice_chunk_rows(w[key], ChunkSpec(reorder=reorder))
+    return out
 
 
 def slice_bias_delta(w, chunk: ChunkSpec, fused_out):
@@ -707,6 +953,8 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
     unmapped = 0
     mismatch = 0
     skipped = 0
+    expanded = 0
+    trimmed = 0
     for (prefix, base), w in groups.items():
         if "lora_down.weight" not in w or "lora_up.weight" not in w:
             continue
@@ -726,14 +974,16 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
                 w.pop(mag_key)
                 w["dora_scale"] = mag.reshape(-1, 1) if mag.ndim == 1 else mag
         arch_prefix = _resolve_prefix(network_prefix, prefix)
+        split_dora = None
         for diffusers_path, chunk in resolve_group_targets(resolve_targets, prefix, base):
             network_key = arch_prefix + diffusers_path.replace(".", "_")
             sd_module = mapping.get(network_key)
             if sd_module is None:
-                unmapped += 1
+                unmapped += note_unmapped(network_key)
                 continue
 
             target_w = w
+            group = None
             if chunk is not None:
                 if "bias_indices" in w or ("bias" in w and chunk.is_slice):
                     # Weight-shaped bias residuals (dense or LyCORIS sparse
@@ -743,11 +993,12 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
                     continue
                 fused_out = w["lora_up.weight"].shape[0]
                 target_w = slice_lora_chunk(w, chunk)
-                target_w = slice_dora_scale(target_w, chunk, fused_out)
-                if target_w is None:
-                    log.warning(f'Network load: type=LoRA name="{name}" arch={arch_name} key={network_key} per-input DoRA on fused target skipped (unsupported)')
-                    skipped += 1
-                    continue
+                sliced = slice_dora_scale(target_w, chunk, fused_out)
+                if sliced is None: # per-input magnitude: its column norm spans every chunk
+                    split_dora = split_dora or network.DoraGroup()
+                    group = split_dora
+                else:
+                    target_w = sliced
                 target_w = slice_bias_delta(target_w, chunk, fused_out)
                 if target_w is None:
                     log.warning(f'Network load: type=LoRA name="{name}" arch={arch_name} key={network_key} non-per-output diff_b on fused target skipped (unsupported)')
@@ -757,6 +1008,16 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
             if adapt_weights is not None:
                 target_w = adapt_weights(sd_module, network_key, target_w) or target_w
 
+            if not shapes_match(sd_module, target_w["lora_down.weight"], target_w["lora_up.weight"]):
+                widened = widen_input(sd_module, target_w)
+                if widened is not None:
+                    target_w = widened
+                    expanded += 1
+                else:
+                    narrowed = narrow_input(sd_module, target_w)
+                    if narrowed is not None:
+                        target_w = narrowed
+                        trimmed += 1
             if not shapes_match(sd_module, target_w["lora_down.weight"], target_w["lora_up.weight"]):
                 if l.debug:
                     _module = f'{getattr(sd_module, "weight", None).shape if hasattr(sd_module, "weight") else "?"}'
@@ -772,9 +1033,12 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
                 continue
 
             nw = network.NetworkWeights(network_key=network_key, sd_key=network_key, w=target_w, sd_module=sd_module)
-            net.modules[network_key] = network_lora.NetworkModuleLora(net, nw)
+            module = network_lora.NetworkModuleLora(net, nw)
+            if group is not None:
+                group.add(module)
+            net.modules[network_key] = module
 
-    return finalize_network(net, name, "LoRA", lora_scale, t0, unmapped=unmapped, mismatch=mismatch, skipped=skipped)
+    return finalize_network(net, name, "LoRA", lora_scale, t0, unmapped=unmapped, mismatch=mismatch, skipped=skipped, expanded=expanded, trimmed=trimmed)
 
 
 def try_load_lokr(name, network_on_disk, lora_scale, *,
@@ -813,11 +1077,12 @@ def try_load_lokr(name, network_on_disk, lora_scale, *,
             continue
         arch_prefix = _resolve_prefix(network_prefix, prefix)
         kron_shape = lokr_kron_shape(w)
+        split_dora = None
         for diffusers_path, chunk in resolve_group_targets(resolve_targets, prefix, base):
             network_key = arch_prefix + diffusers_path.replace(".", "_")
             sd_module = mapping.get(network_key)
             if sd_module is None:
-                unmapped += 1
+                unmapped += note_unmapped(network_key)
                 continue
             if not lokr_shapes_match(sd_module, kron_shape, chunk):
                 log.warning(
@@ -829,9 +1094,10 @@ def try_load_lokr(name, network_on_disk, lora_scale, *,
                 mismatch += 1
                 continue
             target_w = w
+            group = None
             if chunk is not None:
-                if chunk.reorder is not None:
-                    log.warning(f'Network load: type=LoKR name="{name}" arch={arch_name} key={network_key} row reorder on fused target skipped (unsupported)')
+                if chunk.reorder is not None and chunk.is_slice:
+                    log.warning(f'Network load: type=LoKR name="{name}" arch={arch_name} key={network_key} row reorder within a fused slice skipped (unsupported)')
                     skipped += 1
                     continue
                 if "bias" in w:
@@ -844,18 +1110,29 @@ def try_load_lokr(name, network_on_disk, lora_scale, *,
                 w2 = w.get("lokr_w2")
                 w1_rows = w1.shape[0] if w1 is not None else w["lokr_w1_a"].shape[0]
                 w2_rows = w2.shape[0] if w2 is not None else w["lokr_w2_a"].shape[0]
-                target_w = slice_dora_scale(w, chunk, fused_out=w1_rows * w2_rows)
-                if target_w is None:
-                    log.warning(f'Network load: type=LoKR name="{name}" arch={arch_name} key={network_key} per-input DoRA on fused target skipped (unsupported)')
-                    skipped += 1
-                    continue
+                sliced = slice_dora_scale(w, chunk, fused_out=w1_rows * w2_rows)
+                if sliced is None: # per-input magnitude: its column norm spans every chunk
+                    split_dora = split_dora or network.DoraGroup()
+                    group = split_dora
+                else:
+                    target_w = sliced
+                if chunk.reorder is not None:
+                    target_w = reorder_factor_rows(target_w, ("lokr_w1", "lokr_w1_a"), chunk.reorder)
+                    if target_w is None:
+                        log.warning(f'Network load: type=LoKR name="{name}" arch={arch_name} key={network_key} row reorder with uneven w1 rows skipped (unsupported)')
+                        skipped += 1
+                        continue
+                    chunk = None
             nw = network.NetworkWeights(network_key=network_key, sd_key=network_key, w=target_w, sd_module=sd_module)
             if chunk is None:
-                net.modules[network_key] = network_lokr.NetworkModuleLokr(net, nw)
+                module = network_lokr.NetworkModuleLokr(net, nw)
             elif chunk.is_equal_chunks:
-                net.modules[network_key] = network_lokr.NetworkModuleLokrChunk(net, nw, chunk.idx, chunk.total)
+                module = network_lokr.NetworkModuleLokrChunk(net, nw, chunk.idx, chunk.total)
             else:
-                net.modules[network_key] = network_lokr.NetworkModuleLokrSliceChunk(net, nw, chunk.start, chunk.end)
+                module = network_lokr.NetworkModuleLokrSliceChunk(net, nw, chunk.start, chunk.end)
+            if group is not None:
+                group.add(module)
+            net.modules[network_key] = module
 
     return finalize_network(net, name, "LoKR", lora_scale, t0, unmapped=unmapped, mismatch=mismatch, skipped=skipped)
 
@@ -887,6 +1164,7 @@ def try_load_loha(name, network_on_disk, lora_scale, *,
 
     unmapped = 0
     skipped = 0
+    mismatch = 0
     for (prefix, base), w in groups.items():
         if not all(k in w for k in ("hada_w1_a", "hada_w1_b", "hada_w2_a", "hada_w2_b")):
             continue
@@ -898,37 +1176,56 @@ def try_load_loha(name, network_on_disk, lora_scale, *,
             skipped += 1
             continue
         arch_prefix = _resolve_prefix(network_prefix, prefix)
+        split_dora = None
         for diffusers_path, chunk in targets:
             network_key = arch_prefix + diffusers_path.replace(".", "_")
             sd_module = mapping.get(network_key)
             if sd_module is None:
-                unmapped += 1
+                unmapped += note_unmapped(network_key)
                 continue
             target_w = w
+            group = None
             if chunk is not None:
-                if chunk.reorder is not None:
-                    log.warning(f'Network load: type=LoHA name="{name}" arch={arch_name} key={network_key} row reorder on fused target skipped (unsupported)')
+                if chunk.reorder is not None and chunk.is_slice:
+                    log.warning(f'Network load: type=LoHA name="{name}" arch={arch_name} key={network_key} row reorder within a fused slice skipped (unsupported)')
                     skipped += 1
                     continue
                 if "bias" in w:
                     log.warning(f'Network load: type=LoHA name="{name}" arch={arch_name} key={network_key} weight-shaped bias on fused target skipped (unsupported)')
                     skipped += 1
                     continue
-                target_w = slice_dora_scale(w, chunk, fused_out=w["hada_w1_a"].shape[0])
-                if target_w is None:
-                    log.warning(f'Network load: type=LoHA name="{name}" arch={arch_name} key={network_key} per-input DoRA on fused target skipped (unsupported)')
-                    skipped += 1
-                    continue
+                sliced = slice_dora_scale(w, chunk, fused_out=w["hada_w1_a"].shape[0])
+                if sliced is None: # per-input magnitude: its column norm spans every chunk
+                    split_dora = split_dora or network.DoraGroup()
+                    group = split_dora
+                else:
+                    target_w = sliced
+                if chunk.reorder is not None:
+                    target_w = reorder_factor_rows(target_w, ("hada_w1_a", "hada_w2_a"), chunk.reorder)
+                    if target_w is None:
+                        log.warning(f'Network load: type=LoHA name="{name}" arch={arch_name} key={network_key} row reorder with uneven rows skipped (unsupported)')
+                        skipped += 1
+                        continue
+                    chunk = None
+            if not delta_fits("loha", target_w, sd_module, chunk):
+                if l.debug:
+                    log.warning(f'Network load: type=LoHA name="{name}" arch={arch_name} key={network_key} module={module_shape(sd_module)} shape mismatch')
+                mismatch += 1
+                continue
             nw = network.NetworkWeights(network_key=network_key, sd_key=network_key, w=target_w, sd_module=sd_module)
             if chunk is None:
-                net.modules[network_key] = network_hada.NetworkModuleHada(net, nw)
+                module = network_hada.NetworkModuleHada(net, nw)
             elif chunk.is_equal_chunks:
-                net.modules[network_key] = network_hada.NetworkModuleHadaChunk(net, nw, chunk.idx, chunk.total)
+                module = network_hada.NetworkModuleHadaChunk(net, nw, chunk.idx, chunk.total)
             else:
                 log.warning(f'Network load: type=LoHA name="{name}" arch={arch_name} key={network_key} unequal fused chunks unsupported')
                 skipped += 1
+                continue
+            if group is not None:
+                group.add(module)
+            net.modules[network_key] = module
 
-    return finalize_network(net, name, "LoHA", lora_scale, t0, unmapped=unmapped, skipped=skipped)
+    return finalize_network(net, name, "LoHA", lora_scale, t0, unmapped=unmapped, mismatch=mismatch, skipped=skipped)
 
 
 def try_load_oft(name, network_on_disk, lora_scale, *,
@@ -964,6 +1261,7 @@ def try_load_oft(name, network_on_disk, lora_scale, *,
 
     unmapped = 0
     skipped = 0
+    mismatch = 0
     for (prefix, base), w in groups.items():
         if not ("oft_blocks" in w or "oft_diag" in w):
             continue
@@ -978,7 +1276,12 @@ def try_load_oft(name, network_on_disk, lora_scale, *,
             network_key = arch_prefix + diffusers_path.replace(".", "_")
             sd_module = mapping.get(network_key)
             if sd_module is None:
-                unmapped += 1
+                unmapped += note_unmapped(network_key)
+                continue
+            if not delta_fits("oft", w, sd_module):
+                if l.debug:
+                    log.warning(f'Network load: type=OFT name="{name}" arch={arch_name} key={network_key} module={module_shape(sd_module)} shape mismatch')
+                mismatch += 1
                 continue
             nw = network.NetworkWeights(network_key=network_key, sd_key=network_key, w=w, sd_module=sd_module)
             if is_boft:
@@ -986,7 +1289,7 @@ def try_load_oft(name, network_on_disk, lora_scale, *,
             else:
                 net.modules[network_key] = network_oft.NetworkModuleOFT(net, nw)
 
-    return finalize_network(net, name, "OFT", lora_scale, t0, unmapped=unmapped, skipped=skipped)
+    return finalize_network(net, name, "OFT", lora_scale, t0, unmapped=unmapped, mismatch=mismatch, skipped=skipped)
 
 
 def try_load_ia3(name, network_on_disk, lora_scale, *,
@@ -1021,6 +1324,7 @@ def try_load_ia3(name, network_on_disk, lora_scale, *,
 
     unmapped = 0
     skipped = 0
+    mismatch = 0
     for (prefix, base), w in groups.items():
         if not ("weight" in w and "on_input" in w):
             continue
@@ -1034,12 +1338,17 @@ def try_load_ia3(name, network_on_disk, lora_scale, *,
             network_key = arch_prefix + diffusers_path.replace(".", "_")
             sd_module = mapping.get(network_key)
             if sd_module is None:
-                unmapped += 1
+                unmapped += note_unmapped(network_key)
+                continue
+            if not delta_fits("ia3", w, sd_module):
+                if l.debug:
+                    log.warning(f'Network load: type=IA3 name="{name}" arch={arch_name} key={network_key} module={module_shape(sd_module)} shape mismatch')
+                mismatch += 1
                 continue
             nw = network.NetworkWeights(network_key=network_key, sd_key=network_key, w=w, sd_module=sd_module)
             net.modules[network_key] = network_ia3.NetworkModuleIa3(net, nw)
 
-    return finalize_network(net, name, "IA3", lora_scale, t0, unmapped=unmapped, skipped=skipped)
+    return finalize_network(net, name, "IA3", lora_scale, t0, unmapped=unmapped, mismatch=mismatch, skipped=skipped)
 
 
 def try_load_glora(name, network_on_disk, lora_scale, *,
@@ -1070,6 +1379,7 @@ def try_load_glora(name, network_on_disk, lora_scale, *,
 
     unmapped = 0
     skipped = 0
+    mismatch = 0
     for (prefix, base), w in groups.items():
         if not all(k in w for k in ("a1.weight", "a2.weight", "b1.weight", "b2.weight")):
             continue
@@ -1083,12 +1393,17 @@ def try_load_glora(name, network_on_disk, lora_scale, *,
             network_key = arch_prefix + diffusers_path.replace(".", "_")
             sd_module = mapping.get(network_key)
             if sd_module is None:
-                unmapped += 1
+                unmapped += note_unmapped(network_key)
+                continue
+            if not delta_fits("glora", w, sd_module):
+                if l.debug:
+                    log.warning(f'Network load: type=GLoRA name="{name}" arch={arch_name} key={network_key} module={module_shape(sd_module)} shape mismatch')
+                mismatch += 1
                 continue
             nw = network.NetworkWeights(network_key=network_key, sd_key=network_key, w=w, sd_module=sd_module)
             net.modules[network_key] = network_glora.NetworkModuleGLora(net, nw)
 
-    return finalize_network(net, name, "GLoRA", lora_scale, t0, unmapped=unmapped, skipped=skipped)
+    return finalize_network(net, name, "GLoRA", lora_scale, t0, unmapped=unmapped, mismatch=mismatch, skipped=skipped)
 
 
 def try_load_norm(name, network_on_disk, lora_scale, *,
@@ -1127,7 +1442,7 @@ def try_load_norm(name, network_on_disk, lora_scale, *,
             continue
         targets = resolve_group_targets(resolve_targets, prefix, base)
         if not targets:
-            unmapped += 1
+            unmapped += note_unmapped(base)
             continue
         arch_prefix = _resolve_prefix(network_prefix, prefix)
         for diffusers_path, chunk in targets:
@@ -1136,7 +1451,7 @@ def try_load_norm(name, network_on_disk, lora_scale, *,
             network_key = arch_prefix + diffusers_path.replace(".", "_")
             sd_module = mapping.get(network_key)
             if sd_module is None:
-                unmapped += 1
+                unmapped += note_unmapped(network_key)
                 continue
             if "b_norm" in w and not bias_delta_fits(sd_module, w["b_norm"]):
                 log.warning(
@@ -1148,6 +1463,11 @@ def try_load_norm(name, network_on_disk, lora_scale, *,
                 continue
             if not getattr(sd_module, "network_layer_name", None):
                 sd_module.network_layer_name = network_key
+            if not delta_fits("norm", w, sd_module):
+                if l.debug:
+                    log.warning(f'Network load: type=Norm name="{name}" arch={arch_name} key={network_key} module={module_shape(sd_module)} shape mismatch')
+                mismatch += 1
+                continue
             nw = network.NetworkWeights(network_key=network_key, sd_key=network_key, w=w, sd_module=sd_module)
             net.modules[network_key] = network_norm.NetworkModuleNorm(net, nw)
 
@@ -1195,7 +1515,14 @@ def try_load_full(name, network_on_disk, lora_scale, *,
             network_key = arch_prefix + diffusers_path.replace(".", "_")
             sd_module = mapping.get(network_key)
             if sd_module is None:
-                unmapped += 1
+                unmapped += note_unmapped(network_key)
+                continue
+            if not delta_fits("full", w, sd_module):
+                w = widen_full(sd_module, w) or narrow_full(sd_module, w) or w
+            if not delta_fits("full", w, sd_module):
+                if l.debug:
+                    log.warning(f'Network load: type=Full name="{name}" arch={arch_name} key={network_key} module={module_shape(sd_module)} shape mismatch')
+                mismatch += 1
                 continue
             if "diff_b" in w and not bias_delta_fits(sd_module, w["diff_b"]):
                 log.warning(
@@ -1220,6 +1547,16 @@ def try_load_full(name, network_on_disk, lora_scale, *,
 # === Per-arch umbrella ===
 
 
+def bundled_embeddings(state_dict):
+    """``{name: {key: tensor}}`` for textual-inversion vectors bundled as ``bundle_emb.<name>.<key>`` (the LyCORIS bundle format)."""
+    out = {}
+    for key, value in state_dict.items():
+        if key.startswith("bundle_emb."):
+            _, emb_name, vec_name = key.split(".", 2)
+            out.setdefault(emb_name, {})[vec_name] = value
+    return out
+
+
 def try_load_chain(name, network_on_disk, lora_scale, family_loaders):
     """Run each family loader in order and merge any non-None results.
 
@@ -1231,20 +1568,32 @@ def try_load_chain(name, network_on_disk, lora_scale, family_loaders):
     """
     from modules import sd_models_utils
     sd_models_utils.state_dict_cache.enable()
+    chain_unmapped.clear()
     net = None
     mismatch = 0
-    for try_fn in family_loaders:
-        sub = try_fn(name, network_on_disk, lora_scale)
-        if sub is None:
-            continue
-        mismatch += getattr(sub, 'mismatch', 0)
-        if net is None:
-            net = sub
-        else:
-            net.modules.update(sub.modules)
-            net.extras.update(sub.extras)
-    sd_models_utils.state_dict_cache.disable()
+    try:
+        for try_fn in family_loaders:
+            sub = try_fn(name, network_on_disk, lora_scale)
+            if sub is None:
+                continue
+            mismatch += getattr(sub, 'mismatch', 0)
+            if net is None:
+                net = sub
+            else:
+                for module in sub.modules.values():
+                    module.network = net # strength, dyn_dim and block weights are read from the network a module points at
+                net.modules.update(sub.modules)
+                net.extras.update(sub.extras)
+        if net is not None:
+            net.bundle_embeddings = bundled_embeddings(read_state_dict(network_on_disk.filename, what="network"))
+    finally:
+        sd_models_utils.state_dict_cache.disable()
     if net is not None and mismatch > 0: # applying only the layers that fit leaves the model in a state nothing was trained for
         log.error(f'Network load: type=LoRA name="{name}" modules={len(net.modules)} mismatch={mismatch} shapes do not match the loaded model')
         return None
+    if net is not None and chain_unmapped:
+        unmapped = sorted(set(chain_unmapped))
+        log.warning(f'Network load: type=LoRA name="{name}" native modules={len(net.modules)} unmapped={len(unmapped)}')
+        if l.debug:
+            log.trace(f'Network load: type=LoRA name="{name}" unmapped={unmapped}')
     return net

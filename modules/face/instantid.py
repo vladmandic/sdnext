@@ -66,7 +66,7 @@ def instant_id(p: processing.StableDiffusionProcessing, app, source_images, stre
     # pipeline specific args
     if not p.all_prompts:
         processing.process_init(p)
-        p.init(p.all_prompts, p.all_seeds, p.all_subseeds)
+        p.init(p.all_prompts, p.all_seeds)
     orig_prompt_attention = shared.opts.prompt_attention
     shared.opts.data['prompt_attention'] = 'fixed' # otherwise need to deal with class_tokens_mask
     p.task_args['image_embeds'] = face_embeds[0].shape # placeholder

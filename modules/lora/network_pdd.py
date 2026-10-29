@@ -385,8 +385,8 @@ def arch_spec():
     """The parallel-head spec of the loaded architecture's native loader module, or None."""
     import importlib
     from modules import shared
-    from modules.lora import lora_load
-    module_name = lora_load.NATIVE_DISPATCH.get(shared.sd_model_type)
+    from modules.lora import lora_overrides
+    module_name = lora_overrides.NATIVE_DISPATCH.get(shared.sd_model_type)
     if module_name is None:
         return None
     return getattr(importlib.import_module(module_name), 'PDD', None)

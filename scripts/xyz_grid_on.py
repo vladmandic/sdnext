@@ -282,7 +282,7 @@ class XYZGridScript(scripts_manager.Script):
         Image.MAX_IMAGE_PIXELS = None # disable check in Pillow and rely on check below to allow large custom image sizes
 
         def fix_axis_seeds(axis_opt, axis_list):
-            if axis_opt.label in ['[Param] Seed', '[Param] Variation seed']:
+            if axis_opt.label == '[Param] Seed':
                 return [int(random.randrange(4294967294)) if val is None or val == '' or val == -1 else val for val in axis_list]
             else:
                 return axis_list
@@ -362,7 +362,6 @@ class XYZGridScript(scripts_manager.Script):
                 pc.seed = -1
                 processing.fix_seed(pc)
                 pc.all_seeds = None
-                pc.all_subseeds = None
             x_opt.apply(pc, x, xs)
             y_opt.apply(pc, y, ys)
             z_opt.apply(pc, z, zs)
@@ -382,14 +381,14 @@ class XYZGridScript(scripts_manager.Script):
                 if x_opt.label != 'Nothing':
                     pc.extra_generation_params["X Type"] = x_opt.label
                     pc.extra_generation_params["X Values"] = x_values
-                    if x_opt.label in ["[Param] Seed", "[Param] Variation seed"] and not no_fixed_seeds:
+                    if x_opt.label == "[Param] Seed" and not no_fixed_seeds:
                         pc.extra_generation_params["Fixed X Values"] = ", ".join([str(x) for x in xs])
                 if y_opt.label != 'Nothing':
                     pc.extra_generation_params["Y Type"] = y_opt.label
                     pc.extra_generation_params["Y Values"] = y_values
-                    if y_opt.label in ["[Param] Seed", "[Param] Variation seed"] and not no_fixed_seeds:
+                    if y_opt.label == "[Param] Seed" and not no_fixed_seeds:
                         pc.extra_generation_params["Fixed Y Values"] = ", ".join([str(y) for y in ys])
-                info = processing.create_infotext(pc, pc.all_prompts, pc.all_seeds, pc.all_subseeds, grid=f'{len(xs)}x{len(ys)}')
+                info = processing.create_infotext(pc, pc.all_prompts, pc.all_seeds, grid=f'{len(xs)}x{len(ys)}')
                 grid_infotext.append(info)
 
             if ix == 0 and iy == 0 and iz == 0 and len(zs) > 1: # create main grid info text
@@ -397,9 +396,9 @@ class XYZGridScript(scripts_manager.Script):
                 if z_opt.label != 'Nothing':
                     pc.extra_generation_params["Z Type"] = z_opt.label
                     pc.extra_generation_params["Z Values"] = z_values
-                    if z_opt.label in ["[Param] Seed", "[Param] Variation seed"] and not no_fixed_seeds:
+                    if z_opt.label == "[Param] Seed" and not no_fixed_seeds:
                         pc.extra_generation_params["Fixed Z Values"] = ", ".join([str(z) for z in zs])
-                info = processing.create_infotext(pc, pc.all_prompts, pc.all_seeds, pc.all_subseeds, grid=f'{len(zs)}x{len(xs)}x{len(ys)}')
+                info = processing.create_infotext(pc, pc.all_prompts, pc.all_seeds, grid=f'{len(zs)}x{len(xs)}x{len(ys)}')
                 grid_infotext.insert(0, info)
 
             t1 = time.time()

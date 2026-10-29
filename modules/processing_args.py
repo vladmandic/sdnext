@@ -27,11 +27,15 @@ def task_modular_kwargs(p, model):
     p.ops.append('modular')
 
     processing_helpers.resize_init_images(p)
+    if model_cls == 'MingImageModularPipeline' and len(getattr(p, 'init_images', [])) > 0:
+        p.width = max(16, 16 * ((p.width + 8) // 16))
+        p.height = max(16, 16 * ((p.height + 8) // 16))
     task_args['width'] = p.width
     task_args['height'] = p.height
     if len(getattr(p, 'init_images', [])) > 0:
         task_args['image'] = p.init_images
-        task_args['strength'] = p.denoising_strength
+        if model_cls != 'MingImageModularPipeline':
+            task_args['strength'] = p.denoising_strength
         if (shared.sd_model_type == 'sdxl') and hasattr(model, 'register_to_config') and (model_cls not in sd_models.i2i_pipes):
             model.register_to_config(requires_aesthetics_score = False)
 
@@ -88,6 +92,9 @@ def task_specific_kwargs(p, model):
             'image': p.init_images,
             'strength': p.denoising_strength,
         }
+        mask_image = p.task_args.get('image_mask', None) or getattr(p, 'image_mask', None) or getattr(p, 'mask', None)
+        if (mask_image is not None) and sd_models.pipe_serves_task(model, sd_models.DiffusersTaskType.INPAINTING): # one class registered for every task keeps this branch for inpaint requests
+            task_args['mask_image'] = mask_image
         if model_cls == 'FluxImg2ImgPipeline' or model_cls == 'FluxKontextPipeline': # needs explicit width/height
             if torch.is_tensor(p.init_images[0]):
                 latent_scale = sd_vae.get_vae_scale_factor(model, patch=False) # pixels per latent
@@ -161,7 +168,7 @@ def task_specific_kwargs(p, model):
         p.ops.append('lcm')
         init_latents = [processing_vae.vae_encode(image, model=shared.sd_model).squeeze(dim=0) for image in p.init_images]
         init_latent = torch.stack(init_latents, dim=0).to(shared.device)
-        init_noise = p.denoising_strength * processing.create_random_tensors(init_latent.shape[1:], seeds=p.all_seeds, subseeds=p.all_subseeds, subseed_strength=p.subseed_strength, p=p)
+        init_noise = p.denoising_strength * processing.create_random_tensors(init_latent.shape[1:], seeds=p.all_seeds, p=p)
         init_latent = (1 - p.denoising_strength) * init_latent + init_noise
         task_args = {
             'latents': init_latent.to(model.dtype),
@@ -170,6 +177,7 @@ def task_specific_kwargs(p, model):
         }
     if ('WanVACEPipeline' in model_cls) and (p.init_images is not None) and (len(p.init_images) > 0):
         task_args['reference_images'] = p.init_images
+        task_args.pop('mask_image', None) # vace takes a mask only together with video
     if 'BlipDiffusionPipeline' in model_cls:
         if len(p.init_images) == 0:
             log.error('BLiP diffusion requires init image')
@@ -345,6 +353,10 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:l
     # model specific
     if 'Kandinsky' in model.__class__.__name__ or 'Cosmos2' in model.__class__.__name__ or 'OmniGen2' in model.__class__.__name__:
         kwargs['output_type'] = 'np' # only set latent if model has vae
+    if model.__class__.__name__.startswith('Wan') and 'video' not in p.ops:
+        # Image passes need decoded single frames, independent of the loading route.
+        kwargs['num_frames'] = 1
+        kwargs['output_type'] = 'np'
     if 'StableCascade' in model.__class__.__name__:
         kwargs.pop("num_inference_steps") # remove
         if 'prior_num_inference_steps' in possible:
@@ -446,6 +458,8 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:l
     task_kwargs.update(model_args or {})
     if ('image' in task_kwargs) and ('image' not in possible) and ('images' in possible): # JoyImageEditPlusPipeline and GoogleNanoBananaPipeline take the list as images
         task_kwargs['images'] = task_kwargs.pop('image')
+    if ('mask_image' in task_kwargs) and ('mask_image' not in possible) and ('mask' in possible): # BriaFibo2Pipeline takes the inpaint mask as mask
+        task_kwargs['mask'] = task_kwargs.pop('mask_image')
     if debug_enabled:
         debug_log(f'Process task args: {task_kwargs}')
     for k, v in task_kwargs.items():

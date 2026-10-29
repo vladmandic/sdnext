@@ -73,16 +73,17 @@ def wrap_gradio_gpu_call(func, extra_outputs=None, name=None):
     return wrap_gradio_call(f, extra_outputs=extra_outputs, add_stats=True, name=name)
 
 
-def wrap_gradio_call(func, extra_outputs=None, add_stats=False, name=None):
+def wrap_gradio_call(func, extra_outputs=None, add_stats=False, name=None, track_state=True):
     job_name = name if name is not None else func.__name__
     def f(*args, extra_outputs_array=extra_outputs, **kwargs):
         t = time.perf_counter()
         shared.mem_mon.reset()
-        if len(args) > 0 and type(args[0]) == str and args[0][0:5] == "task(" and args[0][-1] == ")":
-            task_id = args[0]
-        else:
-            task_id = 0
-        jobid = shared.state.begin(job_name, task_id=task_id)
+        if track_state:
+            if len(args) > 0 and type(args[0]) == str and args[0][0:5] == "task(" and args[0][-1] == ")":
+                task_id = args[0]
+            else:
+                task_id = 0
+            jobid = shared.state.begin(job_name, task_id=task_id)
         try:
             if shared.cmd_opts.profile:
                 errors.profile_stop()
@@ -104,7 +105,8 @@ def wrap_gradio_call(func, extra_outputs=None, add_stats=False, name=None):
             errors.display(e, 'gradio call')
             res = extra_outputs_array or []
             res.append(f"<div class='error'>{html.escape(type(e).__name__+': '+str(e))}</div>")
-        shared.state.end(jobid)
+        if track_state:
+            shared.state.end(jobid)
         if not add_stats:
             return tuple(res)
         elapsed = time.perf_counter() - t

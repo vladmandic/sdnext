@@ -73,7 +73,7 @@ pipelines = {
     'Anima': OnlinePipeline,
 
     # sdnext custom pipelines are dynamically imported and redefined later
-    'Bria': None,
+    'BriaFibo': None,
     'FLite': None,
     'FLEX': None,
     'HiDreamO1': None,

@@ -45,9 +45,11 @@ import rich.progress as rp
 from modules.errorlimiter import limit_errors
 from modules.lora import lora_blocks
 from modules.lora import lora_common as l
+from modules.lora import lora_convert
 from modules.lora import lora_overrides
 from modules.lora import lora_sdnq
 from modules.lora import lora_stack
+from modules.lora import network
 from modules.lora import network_pdd
 from modules.lora.lora_apply import network_apply_weights, network_apply_direct, network_backup_weights, network_calc_weights
 from modules import shared, devices, sd_models, errors
@@ -57,7 +59,7 @@ from modules.logger import log, console
 applied_layers: list[str] = []
 refused_writes: int = 0 # deltas the modules would not take on the last activate pass; infotext reports the network as partial
 native_active: bool = False
-default_components = ['text_encoder', 'text_encoder_2', 'text_encoder_3', 'text_encoder_4', 'unet', 'transformer', 'transformer_2', 'transformer_ref', 'llm_adapter']
+default_components = ['text_encoder', 'text_encoder_2', 'text_encoder_3', 'text_encoder_4', 'unet', 'transformer', 'transformer_2', 'transformer_ref', *lora_convert.TOWERS, 'llm_adapter']
 
 
 class ActivationPass:
@@ -73,8 +75,8 @@ class ActivationPass:
         self.sd_model = getattr(shared.sd_model, "pipe", shared.sd_model)
         self.fuse = fuse
         self.elimit = None # the error limiter, bound for the duration of the walk
-        self.wanted_names: tuple[tuple[str, float, list, int | None], ...] = tuple((x.name, x.te_multiplier, x.unet_multiplier, x.dyn_dim) for x in l.loaded_networks) if len(l.loaded_networks) > 0 else ()
-        self.stack_sig = lora_stack.signature() + lora_blocks.signature() + lora_sdnq.signature() # tracked beside network_current_names so stack-setting, block-weight and mechanism changes re-apply
+        self.wanted_names: tuple[tuple[str, float, list, int | None], ...] = tuple((x.key, x.te_multiplier, x.unet_multiplier, x.dyn_dim) for x in l.loaded_networks) if len(l.loaded_networks) > 0 else ()
+        self.stack_sig = lora_stack.signature() + lora_blocks.signature() + component_signature() + lora_sdnq.signature() # tracked beside network_current_names so stack-setting, block-weight, component and mechanism changes re-apply
         self.select_active = len(l.loaded_networks) > 0 and lora_stack.active_select(len(l.loaded_networks)) # restore-only walks have nothing to stack; the count warning would fire on every network-free generation
         self.component_wanted: tuple[tuple[str, float, list, int | None], ...] = ()
         self.device = None
@@ -102,9 +104,9 @@ class ActivationPass:
         else:
             self.pbar.update(self.task, advance=1, description=description)
 
-    def claim(self, module, network_layer_name, changed):
-        """Accept a layer one of the mechanisms took; only a layer whose weights changed counts as applied."""
-        if changed and self.component_wanted:
+    def claim(self, module, network_layer_name, applied):
+        """Accept a layer one of the mechanisms took; only a layer that took a delta counts as applied."""
+        if applied and self.component_wanted:
             applied_layers.append(network_layer_name)
             self.applied_weight += 1
         self.stamp(module)
@@ -154,7 +156,50 @@ def promote_pending():
             net.unet_multiplier = pending['unet']
             net.dyn_dim = pending['dyn']
             net.block_spec = pending.get('blocks', None)
+            net.components = pending.get('components', None)
+            net.select_layers(component_layers(net.components), tower_aliases(net, net.components)) # layers outside the components leave the walk instead of taking a zero delta
             net.pending_config = None # promotion is one-shot
+
+
+def tower_aliases(net, components):
+    """The network's transformer modules re-targeted onto every tower in ``components``, keyed by the tower's layer names."""
+    towers = [name for name in components or () if name in lora_convert.TOWERS]
+    mapping = getattr(shared.sd_model, 'network_layer_mapping', None) or {}
+    aliases = {}
+    for tower in towers:
+        sources, targets = {}, {}
+        for key, module in net.bound().items():
+            alias_key = f'lora_{tower}_' + key[len('lora_transformer_'):] if key.startswith('lora_transformer_') else None
+            if alias_key in mapping:
+                sources[alias_key], targets[alias_key] = module, mapping[alias_key]
+        copies = network.copy_modules(sources, net) # per tower, so a split DoRA group's column norm reads that tower's weights
+        for alias_key, alias in copies.items():
+            alias.sd_key = alias_key
+            alias.sd_module = targets[alias_key]
+            if hasattr(alias, 'org_module'):
+                alias.org_module = [targets[alias_key]]
+        aliases.update(copies)
+    return aliases
+
+
+def component_layers(components):
+    """Stamped layer names of the named pipeline components; None when the network applies to every component."""
+    if not components:
+        return None
+    sd_model = getattr(shared.sd_model, "pipe", shared.sd_model)
+    layers = set()
+    for name in components:
+        component = getattr(sd_model, name, None)
+        if hasattr(component, 'named_modules'):
+            layers.update(getattr(module, 'network_layer_name', None) for _, module in component.named_modules())
+    layers.discard(None)
+    return frozenset(layers)
+
+
+def component_signature():
+    """Identity suffix for the per-module apply stamp; empty while no loaded network names its components."""
+    specs = [f'{net.key}:{",".join(net.components)}' for net in l.loaded_networks if getattr(net, 'components', None)]
+    return '|module=' + ','.join(specs) if specs else ''
 
 
 def prepare_model_for_write(sd_model):
@@ -330,6 +375,7 @@ def finish_pass(ctx, t0):
     refused_writes = ctx.refused
     l.last_backup_size = ctx.backup_size
     l.last_mode = 'backup' if ctx.backup_size > 0 else ('fuse' if ctx.fuse else 'factor')
+    l.last_fuse = ctx.fuse
     l.timer.activate += time.time() - t0
     if ctx.refused > 0:
         log.error(f'Network load: type=LoRA networks={[n.name for n in l.loaded_networks]} weights={ctx.applied_weight} bias={ctx.applied_bias} refused={ctx.refused} network partially applied')
@@ -354,6 +400,7 @@ def network_activate(include=None, exclude=None):
     ctx = ActivationPass(lora_overrides.fuse_native()) # fuse resolved once: the backup, apply and restore paths must agree
     applied_layers.clear()
     lora_sdnq.reset_pass()
+    l.pass_token = object()
     modules = {}
     try:
         with limit_errors("network_activate") as elimit:
@@ -384,6 +431,7 @@ def network_activate(include=None, exclude=None):
                 if ctx.task is not None and len(applied_layers) == 0:
                     ctx.pbar.remove_task(ctx.task) # hide progress bar for no action
     finally:
+        l.pass_token = None
         finish_pass(ctx, t0)
         modules.clear()
 
@@ -400,13 +448,23 @@ def effective_mode():
     return 'fuse' if lora_overrides.fuse_native() else 'factor'
 
 
+def network_remove():
+    """Take every native set off the model: fused layers subtract, backed-up layers restore, attached factors drop."""
+    if len(l.previously_loaded_networks) == 0:
+        return
+    l.loaded_networks.clear()
+    network_deactivate()
+    network_activate()
+    l.previously_loaded_networks.clear()
+
+
 def network_deactivate(include=None, exclude=None):
     if exclude is None:
         exclude = []
     if include is None:
         include = []
-    fuse = lora_overrides.fuse_native() # must match network_activate: backup mode restores in its restore-only pass instead
-    if not fuse or shared.opts.lora_force_diffusers:
+    fuse = l.last_fuse or lora_overrides.fuse_native() # a fused set has no copy, so it is subtracted under the option it went in with; a fuse-mode pass would drop a backup-mode copy, so those layers restore here; backup to backup restores in the restore-only pass
+    if not fuse:
         return
     if len(l.previously_loaded_networks) == 0:
         return
@@ -431,6 +489,13 @@ def network_deactivate(include=None, exclude=None):
                     if group_offload and component not in group_stripped and group_will_mutate(module, network_layer_name, l.previously_loaded_networks):
                         device = group_offload_strip(sd_model, component, group_stripped)
                     if lora_sdnq.remove_factors(module): # exact inverse for factor-mode layers, weights were never touched
+                        applied_layers.append(network_layer_name)
+                        module.network_current_names = ()
+                        if task is not None:
+                            pbar.update(task, advance=1)
+                        continue
+                    if tensor_backup(module) is not None: # a weight-dependent delta recomputed on the fused weight is not the one applied; the copy restores the layer
+                        network_apply_weights(module, None, None, device=device)
                         applied_layers.append(network_layer_name)
                         module.network_current_names = ()
                         if task is not None:

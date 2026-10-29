@@ -295,6 +295,7 @@ def init():
     original_BlockContext_init = patches.patch(__name__, obj=gradio.blocks.BlockContext, field="__init__", replacement=BlockContext_init)
     original_Blocks_get_config_file = patches.patch(__name__, obj=gradio.blocks.Blocks, field="get_config_file", replacement=Blocks_get_config_file)
     patch_gradio()
+    gr_tempdir.patch_video_conversion()
     if not gradio.__version__.startswith('3.43'):
         patch_gradio_future()
     hijacked = True

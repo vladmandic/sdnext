@@ -1007,6 +1007,14 @@
     "size": 23.79,
     "date": "2026 September"
   },
+  "Bria Fibo 2.0 Dev": {
+    "path": "briaai/Fibo-2.0-dev",
+    "preview": "briaai--Fibo-2.0-dev.jpg",
+    "desc": "BRIA FIBO 2.0 Dev is an 8.1-billion parameter flow-matching model for text-to-image generation and image editing, using a Qwen3-VL-4B text encoder and FLUX.2 VAE. Released under CC BY-NC 4.0.",
+    "extras": "sampler: Default, cfg_scale: 5.0, steps: 30",
+    "size": 23.75,
+    "date": "2026 October"
+  },
   "Qwen-Image-2.1": {
     "path": "Qwen/Qwen-Image-2.1",
     "preview": "Qwen--Qwen-Image-2.1.jpg",

@@ -1398,6 +1398,273 @@ def test_ideogram4_converter_does_not_mutate_input():
 
 
 # ============================================================
+# MOSS-Image converter (fused outer-block QKV -> separate projections)
+# ============================================================
+
+def moss_converter():
+    from pipelines.moss import convert_moss_transformer_state_dict
+    return convert_moss_transformer_state_dict
+
+
+def test_moss_converter_splits_outer_qkv_and_preserves_text_qkv():
+    convert = moss_converter()
+    fused = torch.arange(48, dtype=torch.float32).reshape(12, 4)
+    text_qkv = torch.arange(48, dtype=torch.float32).reshape(12, 4)
+    out = convert({
+        'layers.0.proj.qkv.weight': fused,
+        'text_embedder.blocks.0.qkv.weight': text_qkv,
+        'layers.0.proj.o.weight': torch.zeros((4, 4)),
+    })
+    assert set(out) == {
+        'layers.0.proj.q.weight',
+        'layers.0.proj.k.weight',
+        'layers.0.proj.v.weight',
+        'text_embedder.blocks.0.qkv.weight',
+        'layers.0.proj.o.weight',
+    }
+    assert torch.equal(out['layers.0.proj.q.weight'], fused[0:4])
+    assert torch.equal(out['layers.0.proj.k.weight'], fused[4:8])
+    assert torch.equal(out['layers.0.proj.v.weight'], fused[8:12])
+    assert out['text_embedder.blocks.0.qkv.weight'] is text_qkv
+
+
+def test_moss_converter_rejects_bias_and_invalid_qkv_shapes():
+    convert = moss_converter()
+    try:
+        convert({'layers.0.proj.qkv.bias': torch.zeros(12)})
+        raise AssertionError('expected fused bias to be rejected')
+    except ValueError as e:
+        assert 'bias is unsupported' in str(e)
+    try:
+        convert({'layers.0.proj.qkv.weight': torch.zeros((10, 4))})
+        raise AssertionError('expected invalid fused weight shape to be rejected')
+    except ValueError as e:
+        assert 'three equal row groups' in str(e)
+
+
+def test_moss_converter_splits_comfy_sidecars():
+    convert = moss_converter()
+    fused = torch.randint(-128, 127, (12, 4), dtype=torch.int8)
+    rowwise = torch.arange(12, dtype=torch.float32).reshape(12, 1)
+    scalar = torch.tensor(0.5)
+    marker = comfy_marker('int8_tensorwise')
+    out = convert({
+        'layers.0.proj.qkv.weight': fused,
+        'layers.0.proj.qkv.weight_scale': rowwise,
+        'layers.0.proj.qkv.comfy_quant': marker,
+        'layers.1.proj.qkv.weight': fused,
+        'layers.1.proj.qkv.weight_scale': scalar,
+    })
+    for i, name in enumerate(('q', 'k', 'v')):
+        assert torch.equal(out[f'layers.0.proj.{name}.weight'], fused[i * 4:(i + 1) * 4])
+        assert torch.equal(out[f'layers.0.proj.{name}.weight_scale'], rowwise[i * 4:(i + 1) * 4])
+        assert out[f'layers.0.proj.{name}.comfy_quant'] is marker
+        assert out[f'layers.1.proj.{name}.weight_scale'] is scalar
+    assert not any('.qkv.' in key for key in out)
+
+
+MOSS_TINY = {'dim': 16, 'ffn_dim': 32, 'num_heads': 2, 'num_layers': 2, 'text_dim': 8, 'freq_dim': 8, 'latent_channels': 4}
+
+
+def test_load_moss_comfy_convrot_end_to_end():
+    """A ComfyUI ConvRot int8 MOSS file keeps the release's fused outer-block
+    qkv. It loads on the real transformer class with q/k/v as SDNQ hadamard
+    layers whose dequant is the matching rows of the fused reference, and the
+    model's output matches a float model built from the reference weights."""
+    import json as json_mod
+    from pipelines.moss import MOSS_SPEC
+    from pipelines.moss.moss_image import MOSSImageTransformer
+    torch.manual_seed(0)
+    group_size = 16
+    source = MOSSImageTransformer(**MOSS_TINY).state_dict()
+    marker = torch.tensor(list(json_mod.dumps({'format': 'int8_tensorwise', 'convrot': True, 'convrot_groupsize': group_size, 'per_row': True}).encode()), dtype=torch.uint8)
+    h = regular_hadamard(group_size)
+    raw, reference = {}, {}
+    for key, value in source.items():
+        if not key.startswith('layers.') or not key.endswith('.weight') or '.proj.' not in key:
+            raw[key] = value
+            reference[key] = value
+            continue
+        prefix, name = key[:-len('.weight')].rsplit('.', 1)
+        if name in ('k', 'v'):
+            continue
+        if name == 'q':
+            name, value = 'qkv', torch.cat([source[f'{prefix}.{n}.weight'] for n in ('q', 'k', 'v')])
+        q, scale = comfy_convrot_quantize(value, group_size)
+        raw[f'{prefix}.{name}.weight'] = q
+        raw[f'{prefix}.{name}.weight_scale'] = scale
+        raw[f'{prefix}.{name}.comfy_quant'] = marker.clone()
+        out_f, in_f = q.shape
+        dequant = ((q.float() * scale).reshape(out_f, -1, group_size) @ h.T).reshape(out_f, in_f)
+        if name == 'qkv':
+            for n, part in zip(('q', 'k', 'v'), dequant.chunk(3)):
+                reference[f'{prefix}.{n}.weight'] = part
+        else:
+            reference[f'{prefix}.{name}.weight'] = dequant
+    fd, path = tempfile.mkstemp(suffix='.safetensors')
+    try:
+        write_fixture(raw, fd, path)
+        with ComfyTestEnv(MOSS_TINY['dim']):
+            nt.fetch_component_config = lambda repo, sub: dict(MOSS_TINY)
+            transformer, _ = nt.load(local_file=path, repo_id='fake/repo', spec=MOSS_SPEC, diffusers_cfg={}, dtype=torch.float32)
+        for index in range(MOSS_TINY['num_layers']):
+            for name in ('q', 'k', 'v', 'o', 'ffn_up_gate', 'ffn_down'):
+                layer = transformer.layers[index].proj[name]
+                assert layer.__class__.__name__ == 'SDNQLinear', f'layers.{index}.proj.{name} is {layer.__class__.__name__}'
+                dq = layer.sdnq_dequantizer
+                assert dq.use_hadamard is True and dq.hadamard_group_size == group_size
+                dequantized = dq(layer.weight, layer.scale, zero_point=None, svd_up=None, svd_down=None).detach().cpu()
+                assert torch.allclose(dequantized, reference[f'layers.{index}.proj.{name}.weight'], atol=1e-5), f'layers.{index}.proj.{name} dequant diverges'
+        assert transformer.text_embedder.blocks[0].qkv.__class__ is torch.nn.Linear, 'the text blocks keep their own fused qkv'
+        expected = MOSSImageTransformer(**MOSS_TINY)
+        expected.load_state_dict(reference)
+        inputs = {'hidden_states': torch.randn(1, MOSS_TINY['latent_channels'], 2, 2), 'timestep': torch.tensor([500.0]), 'encoder_hidden_states': torch.randn(1, 3, MOSS_TINY['text_dim'])}
+        with torch.no_grad():
+            got = transformer(**inputs).sample
+            want = expected(**inputs).sample
+        assert torch.allclose(got, want, atol=1e-4), f'output diverges from the reference float model: {(got - want).abs().max():.3e}'
+    finally:
+        if os.path.exists(path):
+            os.unlink(path)
+
+
+# ============================================================
+# Bria FIBO 2 converter (ComfyUI fused layout -> diffusers)
+# ============================================================
+
+FIBO2_DIM = 48      # fibo2_ffn_width(48) == 128
+FIBO2_HIDDEN = 128
+FIBO2_PADDED = 256  # the ComfyUI export pads the FFN width to a multiple of 256
+
+
+def fibo2_converter():
+    from pipelines.bria import convert_fibo2_transformer_state_dict
+    return convert_fibo2_transformer_state_dict
+
+
+def fibo2_fused_ffn(w1_fill, w3_fill, w2_fill):
+    w13 = torch.zeros((2 * FIBO2_PADDED, FIBO2_DIM), dtype=torch.float32)
+    w13[:FIBO2_HIDDEN] = w1_fill
+    w13[FIBO2_PADDED:FIBO2_PADDED + FIBO2_HIDDEN] = w3_fill
+    w2 = torch.zeros((FIBO2_DIM, FIBO2_PADDED), dtype=torch.float32)
+    w2[:, :FIBO2_HIDDEN] = w2_fill
+    return w13, w2
+
+
+def test_fibo2_converter_splits_fused_projections():
+    convert = fibo2_converter()
+    qkv = torch.arange(36, dtype=torch.float32).reshape(12, 3)
+    kv = torch.arange(24, dtype=torch.float32).reshape(8, 3)
+    gate = torch.zeros(1)
+    out = convert({
+        'layers.0.attention.qkv.weight': qkv,
+        'layers.0.attention.out.weight': torch.zeros((4, 4)),
+        'layers.0.attention.q_norm.weight': torch.ones(2),
+        'layers.0.attention.k_norm.weight': torch.ones(2),
+        'layers.6.cross_attention.to_q.weight': torch.zeros((4, 4)),
+        'layers.6.cross_attention.to_kv.weight': kv,
+        'layers.6.cross_attention.to_out.weight': torch.zeros((4, 4)),
+        'layers.6.cross_attention.norm_q.weight': torch.ones(2),
+        'layers.6.cross_attn_gate': gate,
+        'perceiver.layers.0.self_attention.to_kv.weight': kv,
+        'perceiver.layers.0.self_attention.to_out.weight': torch.zeros((4, 4)),
+    })
+    assert set(out) == {
+        'layers.0.attention.to_q.weight',
+        'layers.0.attention.to_k.weight',
+        'layers.0.attention.to_v.weight',
+        'layers.0.attention.to_out.0.weight',
+        'layers.0.attention.norm_q.weight',
+        'layers.0.attention.norm_k.weight',
+        'layers.6.cross_attention.to_q.weight',
+        'layers.6.cross_attention.to_k.weight',
+        'layers.6.cross_attention.to_v.weight',
+        'layers.6.cross_attention.to_out.0.weight',
+        'layers.6.cross_attention.norm_q.weight',
+        'layers.6.cross_attn_gate',
+        'perceiver.layers.0.self_attention.to_k.weight',
+        'perceiver.layers.0.self_attention.to_v.weight',
+        'perceiver.layers.0.self_attention.to_out.0.weight',
+    }, f'keys: {sorted(out)}'
+    assert torch.equal(out['layers.0.attention.to_q.weight'], qkv[0:4])
+    assert torch.equal(out['layers.0.attention.to_k.weight'], qkv[4:8])
+    assert torch.equal(out['layers.0.attention.to_v.weight'], qkv[8:12])
+    assert torch.equal(out['layers.6.cross_attention.to_k.weight'], kv[0:4])
+    assert torch.equal(out['layers.6.cross_attention.to_v.weight'], kv[4:8])
+    assert torch.equal(out['perceiver.layers.0.self_attention.to_v.weight'], kv[4:8])
+    assert out['layers.6.cross_attn_gate'] is gate
+
+
+def test_fibo2_converter_unpads_fused_ffn():
+    convert = fibo2_converter()
+    w13, w2 = fibo2_fused_ffn(1.0, 3.0, 2.0)
+    out = convert({
+        'layers.0.feed_forward.w13.weight': w13,
+        'layers.0.feed_forward.w2.weight': w2,
+        'perceiver.layers.0.ffn.w13.weight': w13,
+        'perceiver.layers.0.ffn.w2.weight': w2,
+    })
+    for stem in ('layers.0.feed_forward', 'perceiver.layers.0.ffn'):
+        w1 = out[f'{stem}.w1.weight']
+        w3 = out[f'{stem}.w3.weight']
+        w2_out = out[f'{stem}.w2.weight']
+        assert tuple(w1.shape) == (FIBO2_HIDDEN, FIBO2_DIM) and torch.all(w1 == 1.0), f'{stem} w1 {tuple(w1.shape)}'
+        assert tuple(w3.shape) == (FIBO2_HIDDEN, FIBO2_DIM) and torch.all(w3 == 3.0), f'{stem} w3 {tuple(w3.shape)}'
+        assert tuple(w2_out.shape) == (FIBO2_DIM, FIBO2_HIDDEN) and torch.all(w2_out == 2.0), f'{stem} w2 {tuple(w2_out.shape)}'
+        assert f'{stem}.w13.weight' not in out
+
+
+def test_fibo2_converter_rejects_nonzero_padding():
+    convert = fibo2_converter()
+    w13, w2 = fibo2_fused_ffn(1.0, 3.0, 2.0)
+    w13[FIBO2_HIDDEN] = 0.5
+    try:
+        convert({'layers.0.feed_forward.w13.weight': w13})
+        raise AssertionError('expected non-zero w13 padding to be rejected')
+    except ValueError as e:
+        assert 'padding is not zero' in str(e)
+    w2[0, FIBO2_HIDDEN] = 0.5
+    try:
+        convert({'layers.0.feed_forward.w2.weight': w2})
+        raise AssertionError('expected non-zero w2 padding to be rejected')
+    except ValueError as e:
+        assert 'padding is not zero' in str(e)
+
+
+def test_fibo2_converter_passes_diffusers_layout_through():
+    convert = fibo2_converter()
+    sd = {
+        'layers.0.attention.to_q.weight': torch.zeros((4, 4)),
+        'layers.0.attention.to_out.0.weight': torch.zeros((4, 4)),
+        'layers.0.attention.norm_q.weight': torch.ones(2),
+        'layers.0.feed_forward.w1.weight': torch.zeros((FIBO2_HIDDEN, FIBO2_DIM)),
+        'layers.0.feed_forward.w2.weight': torch.zeros((FIBO2_DIM, FIBO2_HIDDEN)),
+        'layers.6.cross_attention.to_k.weight': torch.zeros((4, 8)),
+        'layers.6.cross_attention.to_out.0.weight': torch.zeros((4, 4)),
+        'final_layer.linear.weight': torch.zeros((4, 4)),
+    }
+    out = convert(sd)
+    assert set(out) == set(sd), f'keys: {sorted(out)}'
+    for key, value in sd.items():
+        assert out[key] is value, key
+
+
+def test_fibo2_converter_does_not_mutate_input():
+    convert = fibo2_converter()
+    w13, w2 = fibo2_fused_ffn(1.0, 3.0, 2.0)
+    sd = {
+        'layers.0.attention.qkv.weight': torch.zeros((12, 4)),
+        'layers.0.feed_forward.w13.weight': w13,
+        'layers.0.feed_forward.w2.weight': w2,
+        'x_embedder.weight': torch.zeros((4, 4)),
+    }
+    keys_before = set(sd.keys())
+    convert(sd)
+    assert set(sd.keys()) == keys_before
+    assert tuple(sd['layers.0.feed_forward.w2.weight'].shape) == (FIBO2_DIM, FIBO2_PADDED)
+
+
+# ============================================================
 # Integration: comfy_quant pre-quantized load
 # ============================================================
 # Same patching strategy as the plain load tests, plus pinned SDNQ opts so the
@@ -1945,6 +2212,46 @@ def test_load_transformer_syncs_loaded_unet():
         sd_unet.loaded_unet = orig_loaded
         if os.path.exists(path):
             os.unlink(path)
+
+
+def test_load_unet_hashes_only_a_kept_override():
+    """A transformer load that rejects the override resets sd_unet to Default
+    during the reload; load_unet then hashes nothing and warns nothing. An
+    override the reload keeps is hashed."""
+    import types
+    from modules import sd_unet, shared, sd_models, hashes
+
+    class Recorder:
+        def __init__(self):
+            self.warnings = []
+
+        def warning(self, msg, *args, **kwargs):
+            self.warnings.append(msg)
+
+        def info(self, *args, **kwargs):
+            pass
+
+        error = debug = info
+
+    hashed = []
+    orig = (shared.opts.sd_unet, sd_unet.loaded_unet, sd_unet.log, sd_models.reload_model_weights, hashes.sha256)
+    sd_unet.unet_dict['mock-unet-reset'] = '/nonexistent/mock-unet-reset.safetensors'
+    hashes.sha256 = lambda filename, title, **kwargs: hashed.append(title)
+    model = types.SimpleNamespace(transformer=object())
+    try:
+        for keep in (False, True):
+            recorder = Recorder()
+            sd_unet.log = recorder
+            hashed.clear()
+            shared.opts.data['sd_unet'] = 'mock-unet-reset'
+            sd_unet.loaded_unet = None
+            sd_models.reload_model_weights = lambda force=False, keep=keep: None if keep else shared.opts.data.update(sd_unet='Default')
+            sd_unet.load_unet(model)
+            assert not recorder.warnings, f'keep={keep} warned: {recorder.warnings}'
+            assert hashed == (['unet/mock-unet-reset'] if keep else []), f'keep={keep} hashed {hashed}'
+    finally:
+        sd_unet.unet_dict.pop('mock-unet-reset', None)
+        shared.opts.data['sd_unet'], sd_unet.loaded_unet, sd_unet.log, sd_models.reload_model_weights, hashes.sha256 = orig
 
 
 class MockFusedAttention(torch.nn.Module):
@@ -2497,6 +2804,7 @@ def run_all():
         test_load_comfy_convrot_end_to_end,
         test_load_comfy_convrot_nondivisible_falls_back,
         test_load_transformer_syncs_loaded_unet,
+        test_load_unet_hashes_only_a_kept_override,
         test_load_transformer_secondary_slot_syncs_tracker,
         test_build_component_comfy_preempts_sdnq_fresh_quant,
         test_build_component_comfy_skips_converter_when_not_quant_aware,
@@ -2517,6 +2825,27 @@ def run_all():
         test_load_fused_comfy_end_to_end,
         test_load_fused_bf16_end_to_end,
         test_load_fused_convrot_end_to_end,
+    ]:
+        run_test(cat, fn)
+
+    log.warning('=== moss image converter ===')
+    cat = category('moss')
+    for fn in [
+        test_moss_converter_splits_outer_qkv_and_preserves_text_qkv,
+        test_moss_converter_rejects_bias_and_invalid_qkv_shapes,
+        test_moss_converter_splits_comfy_sidecars,
+        test_load_moss_comfy_convrot_end_to_end,
+    ]:
+        run_test(cat, fn)
+
+    log.warning('=== bria fibo 2 converter ===')
+    cat = category('fibo2')
+    for fn in [
+        test_fibo2_converter_splits_fused_projections,
+        test_fibo2_converter_unpads_fused_ffn,
+        test_fibo2_converter_rejects_nonzero_padding,
+        test_fibo2_converter_passes_diffusers_layout_through,
+        test_fibo2_converter_does_not_mutate_input,
     ]:
         run_test(cat, fn)
 

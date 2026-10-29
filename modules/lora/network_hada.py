@@ -3,13 +3,6 @@ import modules.lora.lyco_helpers as lyco_helpers
 import modules.lora.network as network
 
 
-class ModuleTypeHada(network.ModuleType):
-    def create_module(self, net: network.Network, weights: network.NetworkWeights):
-        if all(x in weights.w for x in ["hada_w1_a", "hada_w1_b", "hada_w2_a", "hada_w2_b"]):
-            return NetworkModuleHada(net, weights)
-        return None
-
-
 class NetworkModuleHada(network.NetworkModule): # pylint: disable=abstract-method
     def __init__(self,  net: network.Network, weights: network.NetworkWeights):
         super().__init__(net, weights)

@@ -25,7 +25,7 @@ def create_latents(image, p, dtype=None, device=None):
     else:
         log.warning(f'Latents: input type: {type(image)} {image}')
         return image
-    noise = p.denoising_strength * create_random_tensors(latents.shape[1:], seeds=p.all_seeds, subseeds=p.all_subseeds, subseed_strength=p.subseed_strength, p=p)
+    noise = p.denoising_strength * create_random_tensors(latents.shape[1:], seeds=p.all_seeds, p=p)
     latents = (1 - p.denoising_strength) * latents + noise
     if dtype is not None:
         latents = latents.to(dtype=dtype)

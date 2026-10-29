@@ -81,6 +81,7 @@ def connect(db_path=None, timeout=5):
         uri = f'file:{quote(os.path.abspath(path), safe="/")}?vfs=unix-dotfile'
         connection = sqlite3.connect(uri, uri=True, timeout=timeout, isolation_level=None)
     connection.row_factory = sqlite3.Row
+    connection.execute('PRAGMA foreign_keys = ON')
     return connection
 
 
@@ -118,7 +119,7 @@ def _fail_on_restart(connection):
     connection.execute("UPDATE tasks SET status = 'failed' WHERE status NOT IN ('scheduled', 'paused', 'completed', 'failed')")
 
 def _initialize_db(connection):
-    t0 = time.time()
+    t0 = time.perf_counter()
     connection.executescript('''
         CREATE TABLE IF NOT EXISTS tasks (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -26,6 +26,7 @@ version_map = {
     "WanToVideo": "Wan",
     "WanVACE": "Wan",
     "Glm": "GLM-Image",
+    "BriaFibo2": "Bria Fibo 2",
     "Krea2": "Krea 2",
     "AnimaTextTo": "Anima",
     "Ideogram4": "Ideogram 4",

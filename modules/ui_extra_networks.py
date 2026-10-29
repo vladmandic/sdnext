@@ -1071,6 +1071,8 @@ def create_ui(container, button_parent: gr.Button, tabname: str, skip_indexing =
         ]
 
     def ui_refresh_click(title):
+        ExtraNetworksPage.find_preview.cache_clear()
+        ExtraNetworksPage.find_preview_file.cache_clear()
         pages = []
         for page in get_pages():
             if page.title != title:

@@ -3,12 +3,16 @@ import re
 import numpy as np
 from modules.lora import networks, lora_overrides, lora_load, lora_diffusers
 from modules.lora import lora_common as l
-from modules import extra_networks, shared, sd_models
+from modules import extra_networks, shared, sd_models, sd_hijack_te
 from modules.logger import log
 
 
 debug = os.environ.get('SD_LORA_DEBUG', None) is not None
 debug_log = log.trace if debug else lambda *args, **kwargs: None
+warned_components: set = set()
+TOWER_TAGS = {'cond': 'transformer', 'uncond': 'unconditional_transformer'} # asymmetric-CFG towers; a bare reference applies to the conditional one only
+COMPONENT_TAGS = {'high': 'transformer', 'low': 'transformer_2', **TOWER_TAGS}
+COMPONENT_ALIASES = {'te': 'text_encoder'} # module= names as lora_diffusers.load_per_module reads them
 
 
 def get_stepwise(param, step, steps): # from https://github.com/cheald/sd-webui-loractl/blob/master/loractl/lib/utils.py
@@ -75,7 +79,7 @@ def infotext(p):
         p.extra_generation_params["LoRA networks"] = ", ".join(names)
     if networks.refused_writes > 0: # the model took only part of what was loaded, so the names above do not describe what generated the image
         p.extra_generation_params["LoRA refused"] = networks.refused_writes
-    if shared.opts.lora_add_hashes_to_infotext:
+    if shared.opts.add_lora_hash:
         network_hashes = []
         for item in l.loaded_networks:
             if not item.network_on_disk.shorthash:
@@ -99,6 +103,7 @@ def parse(p, params_list, step=0):
     dyn_dims = []
     lora_modules = []
     block_specs = []
+    components = [] # explicit tags per kept reference, aligned with names; the native method reads these instead of lora_modules
     for params in params_list:
         name = params.positional[0]
 
@@ -133,14 +138,17 @@ def parse(p, params_list, step=0):
         unet_multipliers.append(unet_multiplier)
         dyn_dims.append(dyn_dim)
         block_specs.append(params.named.get('lbw', None)) # per-block strength; resolved per layer by lora_blocks
+        components.append(explicit_components(params) or None)
 
         lora_module = []
         name_lower = params.positional[0].lower()
         positional_lower = [str(p).lower() for p in params.positional]
-        if 'high' in positional_lower or '_high' in name_lower or 'high ' in name_lower:
+        staged = shared.sd_loaded and hasattr(shared.sd_model, 'transformer_2') # a stage word in the file name names a transformer only on a pipeline with a second stage
+        if 'high' in positional_lower or (staged and ('_high' in name_lower or 'high ' in name_lower)):
             lora_module.append('transformer')
-        if 'low' in positional_lower or '_low' in name_lower or 'low ' in name_lower:
+        if 'low' in positional_lower or (staged and ('_low' in name_lower or 'low ' in name_lower)):
             lora_module.append('transformer_2')
+        lora_module.extend(component for tag, component in TOWER_TAGS.items() if tag in positional_lower)
         if params.named.get('module', None) is not None:
             lora_module.append(params.named['module'].lower())
 
@@ -152,7 +160,38 @@ def parse(p, params_list, step=0):
 
         lora_modules.append(lora_module)
 
-    return names, te_multipliers, unet_multipliers, dyn_dims, lora_modules, block_specs
+    return names, te_multipliers, unet_multipliers, dyn_dims, lora_modules, block_specs, components
+
+
+def explicit_components(params):
+    """Components one reference names with a module= argument or a component tag; empty when it names none."""
+    given = [COMPONENT_TAGS[str(x).lower()] for x in params.positional[1:] if str(x).lower() in COMPONENT_TAGS]
+    if params.named.get('module', None) is not None:
+        module = str(params.named['module']).lower()
+        given.append(COMPONENT_ALIASES.get(module, module))
+    return given
+
+
+def requested_components(params_list):
+    """{name: components} over every reference that names a component, for the missing-component warning."""
+    requested = {}
+    for params in params_list:
+        for component in explicit_components(params):
+            listed = requested.setdefault(params.positional[0], [])
+            if component not in listed:
+                listed.append(component)
+    return requested
+
+
+def warn_missing_components(requested):
+    """Report once per network, component and pipeline a requested component the loaded pipeline lacks."""
+    sd_model = getattr(shared.sd_model, "pipe", shared.sd_model)
+    for name, components in requested.items():
+        for component in components:
+            key = (name, component, sd_model.__class__.__name__)
+            if not hasattr(getattr(sd_model, component, None), 'named_modules') and key not in warned_components:
+                warned_components.add(key)
+                log.warning(f'Network load: type=LoRA name="{name}" requested={component} missing')
 
 
 def unload_diffusers():
@@ -175,10 +214,31 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
         self.active = False
         self.model = None
         self.errors = {}
+        self.method = (None, None) # load method of the last activation and the checkpoint it ran on
 
-    def signature(self, names: list[str], te_multipliers: list, unet_multipliers: list, block_specs: list | None = None):
+    def switch_method(self, method: str):
+        """Take the previous method's sets off the model when this request loads with another; each method removes only its own, and the change cache keys on the tags alone."""
+        previous, model = self.method
+        self.method = (method, shared.opts.sd_model_checkpoint)
+        if previous is None or previous == method or model != shared.opts.sd_model_checkpoint:
+            return
+        if previous == 'native':
+            networks.network_remove()
+        elif previous == 'diffusers' and len(lora_diffusers.diffuser_loaded) > 0:
+            unload_diffusers()
+            lora_diffusers.diffuser_loaded.clear()
+            lora_diffusers.diffuser_scales.clear()
+            sd_models.set_diffuser_offload(shared.sd_model, op="model") # unload_lora_weights unwraps modules and detaches offload hooks
+        sd_model = getattr(shared.sd_model, 'pipe', shared.sd_model)
+        if sd_model is not None and hasattr(sd_model, 'loaded_loras'):
+            sd_model.loaded_loras.clear()
+        log.info(f'Network unload: type=LoRA method={previous} next={method} reason="method changed"')
+
+    def signature(self, names: list[str], te_multipliers: list, unet_multipliers: list, block_specs: list | None = None, components: list | None = None):
         specs = block_specs if block_specs else [None] * len(names)
-        return [f'{name}:{te}:{unet}' + (f':lbw={str(spec).strip().lower()}' if spec else '') for name, te, unet, spec in zip(names, te_multipliers, unet_multipliers, specs, strict=False)]
+        components = components if components else [None] * len(names)
+        return [f'{name}:{te}:{unet}' + (f':lbw={str(spec).strip().lower()}' if spec else '') + (f':module={",".join(given)}' if given else '')
+                for name, te, unet, spec, given in zip(names, te_multipliers, unet_multipliers, specs, components, strict=False)]
 
     def changed(self, requested: list[str], include: list[str] | None = None, exclude: list[str] | None = None) -> tuple[bool, str]:
         from modules.lora import lora_sdnq, lora_stack
@@ -223,11 +283,12 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
         if len(params_list) > 0 and not self.active: # activate patches once
             self.active = True
             self.model = shared.opts.sd_model_checkpoint
-        names, te_multipliers, unet_multipliers, dyn_dims, lora_modules, block_specs = parse(p, params_list, step)
-        requested = self.signature(names, te_multipliers, unet_multipliers, block_specs)
+        names, te_multipliers, unet_multipliers, dyn_dims, lora_modules, block_specs, components = parse(p, params_list, step)
+        requested = self.signature(names, te_multipliers, unet_multipliers, block_specs, components)
         reason = ''
 
         load_method, load_reason = lora_overrides.get_method()
+        self.switch_method(load_method)
         from modules.lora import lora_stack
         if load_method != 'native' and lora_stack.mode() != 'sum':
             log.warning(f'Network stack: mode={lora_stack.mode()} method={load_method} fallback=sum')
@@ -259,7 +320,8 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
             has_changed = lora_nunchaku.load_nunchaku(names, unet_multipliers)
 
         else: # native
-            lora_load.network_load(names, te_multipliers, unet_multipliers, dyn_dims, block_specs=block_specs, activate=False) # load only, activation below honors include/exclude
+            warn_missing_components(requested_components(params_list))
+            lora_load.network_load(names, te_multipliers, unet_multipliers, dyn_dims, lora_modules=components, block_specs=block_specs, activate=False) # load only, activation below honors include/exclude
             has_changed, reason = self.changed(requested, include, exclude)
             if has_changed:
                 jobid = shared.state.begin('LoRA')
@@ -272,12 +334,15 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
                     l.previously_loaded_networks = l.loaded_networks.copy()
                 shared.state.end(jobid)
 
+        if has_changed:
+            sd_hijack_te.prompt_cache.cache.clear()
+
         if len(l.loaded_networks) > 0 and (len(networks.applied_layers) > 0 or load_method=='diffusers' or load_method=='nunchaku') and step == 0:
             infotext(p)
             prompt(p)
             sd_model = shared.sd_model.pipe if hasattr(shared.sd_model, 'pipe') else shared.sd_model
             if len(include) == 0: # print only once
-                actual_method = 'native' if any(len(n.modules) > 0 for n in l.loaded_networks) else load_method
+                actual_method = 'native' if any(len(n.bound()) > 0 for n in l.loaded_networks) else load_method
                 stack = lora_stack.signature() if actual_method == 'native' else 'sum' # non-native paths always combine as sum
                 log.info(f'Network status: type=LoRA networks={[n.name for n in l.loaded_networks]} method={actual_method}({load_reason}) mode={networks.effective_mode()} stack={stack} te={te_multipliers} unet={unet_multipliers} time={l.timer.summary} changed={has_changed} reason="{reason}"')
 

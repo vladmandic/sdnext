@@ -209,9 +209,9 @@ def find_diffuser(name: str, full=False):
         suffix = '/'.join(parts[2:]) # subfolder
         if len(suffix) > 0:
             suffix = '/' + suffix
-    models = list(hf_api.list_models(model_name=name, filter="diffusers", full=True, limit=20, sort="downloads"))
+    models = list(hf_api.list_models(search=name, filter="diffusers", full=True, limit=20, sort="downloads"))
     if len(models) == 0:
-        models = list(hf_api.list_models(model_name=name, full=True, limit=20, sort="downloads")) # widen search
+        models = list(hf_api.list_models(search=name, full=True, limit=20, sort="downloads")) # widen search
     models = [m for m in models if m.id.startswith(name)] # filter exact
     log.debug(f'Search model: repo="{name}" {len(models) > 0}')
     if len(models) > 0:

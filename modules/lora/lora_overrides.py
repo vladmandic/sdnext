@@ -5,7 +5,6 @@ from modules.logger import log
 
 debug_log = log.trace if os.environ.get('SD_LORA_DEBUG', None) is not None else lambda *args, **kwargs: None
 
-
 force_hashes_diffusers = [ # forced always
     # '816d0eed49fd', # flash-sdxl
     # 'c2ec22757b46', # flash-sd15
@@ -26,26 +25,30 @@ force_hashes_diffusers = [ # forced always
     # '8cca3706050b', # hyper-sdxl-1step
 ]
 
-allow_native = [
-    'sd',
-    'sdxl',
-    'sd3',
-    'f1',
-    'f2',
-    'f3',
-    'chroma',
-    'zimage',
-    'anima',
-    'ernieimage',
-    'krea2',
-    'minimaxh3',
-    'qwen21',
-]
+# shared.sd_model_type -> dotted module path of the arch's native loader, which exposes ``try_load(name, network_on_disk, lora_scale)``; arches listed here load natively
+NATIVE_DISPATCH = {
+    'sd':         'pipelines.sd.sd_lora',
+    'sdxl':       'pipelines.sd.sd_lora',
+    'sd3':        'pipelines.sd3.sd3_lora',
+    'f1':         'pipelines.flux.flux1_lora',
+    'f2':         'pipelines.flux.flux2_lora',
+    'f3':         'pipelines.flux3.flux3_lora',
+    'anima':      'pipelines.anima.anima_lora',
+    'chroma':     'pipelines.chroma.chroma_lora',
+    'krea2':      'pipelines.krea2.krea2_lora',
+    'ernieimage': 'pipelines.ernie.ernie_lora',
+    'qwen21':     'pipelines.qwen.qwen21_lora',
+    'zimage':     'pipelines.z_image.zimage_lora',
+    'minimaxh3':  'pipelines.minimax.minimax_lora',
+    'mossimage':  'pipelines.moss.moss_lora',
+    'boogu':      'pipelines.boogu.boogu_lora',
+    'fibo2':      'pipelines.bria.fibo2_lora',
+    'ideogram4':  'pipelines.ideogram.ideogram_lora',
+}
 
+allow_native = list(NATIVE_DISPATCH)
 
-force_classes_diffusers = [ # forced always
-    'FluxKontextPipeline', 'FluxKontextInpaintPipeline',
-]
+force_classes_diffusers = [] # forced always
 
 fuse_ignore = [
     'hunyuanvideo',

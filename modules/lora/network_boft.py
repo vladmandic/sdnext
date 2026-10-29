@@ -11,14 +11,6 @@ import torch
 import modules.lora.network as network
 
 
-class ModuleTypeBOFT(network.ModuleType):
-    def create_module(self, net: network.Network, weights: network.NetworkWeights):
-        ob = weights.w.get("oft_blocks")
-        if ob is not None and ob.ndim == 4:
-            return NetworkModuleBOFT(net, weights)
-        return None
-
-
 class NetworkModuleBOFT(network.NetworkModule):  # pylint: disable=abstract-method
     """Butterfly-OFT module: cascade of orthogonal factors.
 
@@ -28,6 +20,7 @@ class NetworkModuleBOFT(network.NetworkModule):  # pylint: disable=abstract-meth
     re-derived via :func:`butterfly_factor`, which keeps loading deterministic
     even if the upstream factorization heuristic changes.
     """
+    weight_dependent = True
 
     def __init__(self, net: network.Network, weights: network.NetworkWeights):
         super().__init__(net, weights)

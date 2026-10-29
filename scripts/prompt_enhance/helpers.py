@@ -34,7 +34,7 @@ def is_thinking_model(model_name: str) -> bool:
     """Check if model supports thinking/reasoning mode."""
     if not model_name:
         return False
-    model_lower = model_name.lower()
+    model_lower = model_name.lower().replace('-', '')
     # Match VQA's detection patterns for consistency
     thinking_indicators = [
         'thinking',      # Qwen3-VL-*-Thinking models

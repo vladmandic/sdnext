@@ -81,10 +81,24 @@ shared_te_map = {
         'target_subfolder': 'text_encoder',
     },
 
+    'Qwen3.5 9B MOSS-Image SDNQ-UInt4': { # byte-identical to the base checkpoint, which adds the lm head and mtp layers
+        'cls': 'Qwen3_5TextModel', # by name: the qwen3_5 modeling module pulls optional linear-attention kernels on import
+        'identifier': ['MOSS_Image_SFT_sdnq_dynamic_4bit', 'MOSS_Image_Base_sdnq_dynamic_4bit'],
+        'target_repo': 'OzzyGT/MOSS_Image_Base_sdnq_dynamic_4bit',
+        'target_subfolder': 'text_encoder',
+    },
+
     'Qwen3.5 9B MOSS-Image': { # byte-identical to the base checkpoint, which adds the lm head and mtp layers
         'cls': 'Qwen3_5Model', # by name: the qwen3_5 modeling module pulls optional linear-attention kernels on import
         'identifier': ['moss-image', 'moss_image'],
         'target_repo': 'Qwen/Qwen3.5-9B',
+    },
+
+    'Qwen3-VL 4B SDNQ-UInt4': {  # Krea 2 base+turbo share one canonical 4B copy
+        'cls': transformers.Qwen3VLModel,
+        'identifier': 'uint4',
+        'target_repo': 'vladmandic/Krea-2-Turbo-sdnq-hadamard-uint4',
+        'target_subfolder': 'text_encoder',
     },
 
     'Qwen3-VL 4B Base': {  # Krea 2 base+turbo share one canonical 4B copy
@@ -138,6 +152,11 @@ shared_te_map = {
     'Qwen3-VL 4B Conditional FLUX.3': { # byte-identical to the base instruct checkpoint
         'cls': transformers.Qwen3VLForConditionalGeneration,
         'identifier': ['flux-3', 'flux3', 'flux_3'],
+        'target_repo': 'Qwen/Qwen3-VL-4B-Instruct',
+    },
+    'Qwen3-VL 4B Conditional FIBO 2': { # byte-identical to the base instruct checkpoint
+        'cls': transformers.Qwen3VLForConditionalGeneration,
+        'identifier': ['fibo-2', 'fibo2'],
         'target_repo': 'Qwen/Qwen3-VL-4B-Instruct',
     },
 

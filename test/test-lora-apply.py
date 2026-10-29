@@ -47,13 +47,13 @@ modules.cmd_args.parsed, _ = modules.cmd_args.parser.parse_known_args([])
 from modules.errors import log  # pylint: disable=wrong-import-position
 from modules import devices  # pylint: disable=wrong-import-position
 from modules.lora import lora_common as l  # pylint: disable=wrong-import-position
-from modules.lora.lora_apply import network_apply_direct, network_apply_weights, network_backup_weights  # pylint: disable=wrong-import-position
+from modules.lora.lora_apply import network_apply_direct, network_apply_weights, network_backup_weights, pristine_weight  # pylint: disable=wrong-import-position
 
 devices.device = torch.device('cpu')  # apply moves operands to devices.device; keep the suite off the gpu
 
 LAYER = 'lora_transformer_test'
 WANTED = (('test', 1.0, [1.0, 1.0, 1.0], None),)
-l.loaded_networks.append(types.SimpleNamespace(modules={LAYER: object()}))  # network_backup_weights only backs up layers a loaded network covers
+l.loaded_networks.append(types.SimpleNamespace(modules={LAYER: types.SimpleNamespace(depends_on_weight=lambda: False)}))  # network_backup_weights only backs up layers a loaded network covers
 
 
 # ============================================================
@@ -259,6 +259,42 @@ def test_backup_restore_without_delta():
     return True
 
 
+def test_backup_pristine_weight_is_the_stored_copy():
+    """The pristine weight comes from the backup, not from the live tensor the last set wrote."""
+    module, w0, _b0 = make_linear(32, 8)
+    stamp_backup(module)
+    network_apply_weights(module, torch.full_like(w0, 0.5), None, device=CPU)
+    assert_close(pristine_weight(module), w0, 'pristine')
+    return True
+
+
+def inpaint_conv_in():
+    """A 9-input conv_in as inpaint UNets carry it, with a copy of its weight."""
+    torch.manual_seed(0)
+    module = torch.nn.Conv2d(9, 32, 3, padding=1)
+    return module, module.weight.detach().clone()
+
+
+def test_fuse_inpaint_conv_in_takes_the_delta_as_given():
+    """A delta already shaped to a 9-input conv_in lands unpadded."""
+    module, w0 = inpaint_conv_in()
+    stamp_fuse(module)
+    weight_written, _ = network_apply_direct(module, torch.full_like(w0, 0.5), None, device=CPU)
+    assert weight_written, 'the target-shaped delta must be written'
+    assert_close(module.weight.detach(), w0 + 0.5, 'weight')
+    return True
+
+
+def test_backup_inpaint_conv_in_takes_the_delta_as_given():
+    """Backup mode writes the same target-shaped delta onto the cloned base."""
+    module, w0 = inpaint_conv_in()
+    stamp_backup(module)
+    weight_written, _ = network_apply_weights(module, torch.full_like(w0, 0.5), None, device=CPU)
+    assert weight_written, 'the target-shaped delta must be written'
+    assert_close(module.weight.detach(), w0 + 0.5, 'weight')
+    return True
+
+
 def run_tests():
     t0 = time.time()
     log.warning('=== fuse mode ===')
@@ -270,6 +306,7 @@ def run_tests():
         test_fuse_mismatched_bias_delta_is_refused,
         test_fuse_mismatched_weight_delta_is_refused,
         test_fuse_bias_delta_without_a_bias_is_refused,
+        test_fuse_inpaint_conv_in_takes_the_delta_as_given,
     ]:
         run_test(CAT_FUSE, fn)
 
@@ -278,6 +315,8 @@ def run_tests():
         test_backup_bias_delta_asymmetric,
         test_backup_reapply_is_not_cumulative,
         test_backup_restore_without_delta,
+        test_backup_pristine_weight_is_the_stored_copy,
+        test_backup_inpaint_conv_in_takes_the_delta_as_given,
     ]:
         run_test(CAT_BACKUP, fn)
 

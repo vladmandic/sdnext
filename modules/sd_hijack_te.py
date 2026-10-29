@@ -80,9 +80,9 @@ def hijack_encode_prompt(*args, **kwargs):
 
         if hasattr(shared.sd_model, 'before_prompt_encode'):
             log.debug('Encode: op=before')
-            res = shared.sd_model.before_prompt_encode(prompt)
+            prompt = shared.sd_model.before_prompt_encode(prompt)
             if patch_prompt:
-                args_copy[0] = res
+                args_copy[0] = prompt
 
         # cache key must include cfg-affecting kwargs since encode_prompt output may or may not include negative embeddings
         negative_prompt = kwargs.get('negative_prompt', None)

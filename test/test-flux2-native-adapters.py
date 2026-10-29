@@ -368,7 +368,7 @@ def sd_lokr_dora_fused_qkv(per_input=False):
     """Kohya LoKR on fused img_attn.qkv with a dora_scale companion.
 
     ``per_input=True`` stores the wd_on_out=False orientation ``(1, in)``,
-    which has no exact per-chunk split and must be skipped by the loader.
+    whose column norm spans every chunk; the chunks share it at apply time.
     """
     sd = dict(sd_lokr_kohya_qkv())
     if per_input:
@@ -989,10 +989,19 @@ def test_lokr_dora_fused_qkv_sliced():
     return True
 
 
-def test_dora_per_input_fused_skipped():
-    """wd_on_out=False dora_scale on a fused target cannot be split; the group is skipped."""
-    net = _load_via(F.try_load_lokr, sd_lokr_dora_fused_qkv(per_input=True))
-    assert net is None, f'expected no modules, got {net.modules if net else None}'
+def test_dora_per_input_fused_shared_norm():
+    """wd_on_out=False dora_scale on a fused target: each chunk equals its rows of the DoRA on the fused weight."""
+    sd = sd_lokr_dora_fused_qkv(per_input=True)
+    net = _load_via(F.try_load_lokr, sd)
+    assert net is not None and len(net.modules) == 3, f'got {net.modules if net else None}'
+    mods = [net.modules[f'lora_transformer_transformer_blocks_0_attn_to_{p}'] for p in 'qkv']
+    fused = torch.cat([mod.sd_module.weight.detach() for mod in mods])
+    merged = fused + torch.kron(sd['lora_unet_double_blocks_0_img_attn_qkv.lokr_w1'], sd['lora_unet_double_blocks_0_img_attn_qkv.lokr_w2'])
+    magnitude = sd['lora_unet_double_blocks_0_img_attn_qkv.dora_scale']
+    want = merged * (magnitude / merged.norm(dim=0, keepdim=True)) - fused
+    for mod, rows in zip(mods, torch.chunk(want, 3)):
+        updown, _ex_bias = mod.calc_updown(mod.sd_module.weight)
+        assert torch.allclose(updown, rows, atol=1e-4), f'{mod.network_key}: max |got-want|={float((updown - rows).abs().max()):.2e}'
     return True
 
 
@@ -1602,7 +1611,7 @@ def run_tests():
         test_lora_dora_threading,
         test_lora_dora_fused_qkv_sliced,
         test_lokr_dora_fused_qkv_sliced,
-        test_dora_per_input_fused_skipped,
+        test_dora_per_input_fused_shared_norm,
         test_lora_diff_b_fused_qkv_sliced,
         test_legacy_bias_fused_skipped,
         test_lora_aitk_magnitude_dora,

@@ -506,6 +506,9 @@ def webui(restart=False, _exit=False, profiler=None):
 
     start_common()
     app = start_ui()
+    if shared.cmd_opts.test:
+        from pipelines.generic_test import test_server_wiring
+        test_server_wiring(app)
     modules.script_callbacks.after_ui_callback()
 
     load_model()

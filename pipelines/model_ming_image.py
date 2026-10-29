@@ -20,7 +20,6 @@ def load_ming_image(checkpoint_info, diffusers_load_config=None):
 
     offline_args = {'local_files_only': True} if shared.opts.offline_mode else {}
     log.debug(f'Load model: type=MingImage repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype}')
-    sd_models.warn_group_offload(min_vram=20)
 
     from modules.modular_load import load_modular_pipe, missing_components
     from pipelines.ming.modular_blocks_ming_image import MingImageBlocks

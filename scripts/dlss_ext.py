@@ -1,6 +1,6 @@
 import os
 import gradio as gr
-from modules import processing, scripts_manager, scripts_postprocessing
+from modules import processing, scripts_manager, scripts_postprocessing, ui_common
 from modules.dlss import NR_PROFILES, VSR_PROFILES, FG_PROFILES
 from scripts.dlss.dlss_run import dlss_run # pylint: disable=no-name-in-module
 
@@ -8,7 +8,7 @@ from scripts.dlss.dlss_run import dlss_run # pylint: disable=no-name-in-module
 registered = False
 
 
-def create_ui(parent):
+def create_ui(parent, video_options=False):
     with gr.Accordion('nVidia DLSS', open=False, elem_id=f'{parent}_dlss_accordion'):
         with gr.Row():
             dlss_enabled = gr.Dropdown(label='DLSS Operations', choices=['NeuralRender', 'SuperRes', 'FrameGen'], value=[], multiselect=True, elem_id=f'{parent}_dlss_ops')
@@ -62,18 +62,40 @@ def create_ui(parent):
                 dlss_chunk = gr.Slider(label='DLSS chunk size', minimum=0, maximum=262144, step=16384, value=131072, elem_id=f'{parent}_dlss_chunk_tokens')
                 dlss_chunk.change(lambda x: os.environ.__setitem__("DLSS_CHUNK_TOKENS", str(x)))
 
+        with gr.Accordion('Video Options', open=False, elem_id=f'{parent}_dlss_video', visible=video_options):
+            from modules.video_models import video_codecs, video_utils
+            default_codec = 'libx264'
+
+            def on_codec_change(codec):
+                cfg = video_codecs.get_codec_dict(codec)
+                if not cfg:
+                    return gr.update(value='unknown codec'), gr.update(value='mp4'), gr.update(value='')
+                return gr.update(value=cfg['name']), gr.update(value=cfg['ext'], choices=cfg['allowed_exts']), gr.update(value=cfg['options'])
+
+            with gr.Row():
+                mp4_codec = gr.Dropdown(label="Video codec", choices=video_codecs.get_codec_list(), value=default_codec, type='value')
+                ui_common.create_refresh_button(mp4_codec, video_utils.get_codecs, elem_id="dlss_mp4_codec_refresh")
+                mp4_info = gr.Label(value=video_codecs.get_codec_name(default_codec), label='Codec info', elem_id='dlss_mp4_codec_label', show_label=False, elem_classes=['codec-label'])
+            with gr.Row():
+                mp4_ext = gr.Dropdown(label="Video format", choices=video_codecs.get_codec_allowed_exts(default_codec), value=video_codecs.get_codec_ext(default_codec), elem_id="dlss_mp4_ext")
+                mp4_pix = gr.Textbox(label="Pixel format", value='yuv420p', elem_id="dlss_mp4_pix")
+            with gr.Row():
+                mp4_opt = gr.Textbox(label="FFmpeg options", value=video_codecs.get_codec_options(default_codec), elem_id="dlss_mp4_opt")
+            mp4_codec.change(fn=on_codec_change, inputs=[mp4_codec], outputs=[mp4_info, mp4_ext, mp4_opt], show_progress='hidden')
+
     return [
         dlss_enabled, dlss_graph, dlss_chunk, dlss_full,
         nr_profile, nr_motion, nr_scale, nr_intensity, nr_blend, nr_detail, nr_colour, nr_radius, nr_threshold, nr_normalized, nr_local_tone, nr_local_structure, nr_skin_structure, nr_mask_structure,
         ss_profile, ss_scale, ss_detail, ss_colour, ss_radius, ss_threshold,
         fg_profile, fg_mode, fg_factor, fg_threshold,
+        mp4_codec, mp4_ext, mp4_pix, mp4_opt,
     ]
 
 
 class DLSSScript(scripts_manager.Script):
     def __init__(self):
         super().__init__()
-        self.video_capable = True
+        self.video_capable = scripts_manager.AlwaysVisible
         self.register()
 
     def title(self):
@@ -113,9 +135,17 @@ class DLSSScript(scripts_manager.Script):
         if p.xyz:
             pp = dlss_run(p, pp, *args, **kwargs)
 
+    def before_process(self, p: processing.StableDiffusionProcessing, *args):
+        dlss_enabled = args[0] if len(args) > 0 else []
+        if isinstance(dlss_enabled, list) and len(dlss_enabled) > 0:
+            p.dlss_do_not_save = p.do_not_save_samples
+            p.do_not_save_samples = True
+
     def postprocess(self, p: processing.StableDiffusionProcessing, pp: processing.Processed, *args, **kwargs): # pylint: disable=arguments-differ,unused-argument
         if p.xyz: # do not postprocessing when running in xyz mode
             return pp
+        if hasattr(p, 'dlss_do_not_save'):
+            p.do_not_save_samples = p.dlss_do_not_save
         _pp = dlss_run(p, pp, *args, **kwargs)
         # postprocess triggers after initial images have already been saved
         if _pp is not None and hasattr(_pp, 'images') and _pp.images is not None:
@@ -124,7 +154,7 @@ class DLSSScript(scripts_manager.Script):
             detailer_enabled = p.detailer_enabled
             p.detailer_enabled = False
             try:
-                out_images, out_infos = processing.process_samples(p, pp.images)
+                out_images, out_infos = processing.process_samples(p, pp.images, skip_postprocess_image=True)
             finally:
                 p.detailer_enabled = detailer_enabled
             pp.images = out_images
@@ -140,7 +170,7 @@ class DLSSPostprocessingScript(scripts_postprocessing.ScriptPostprocessing):
     order = 30000
 
     def ui(self):
-        dlss_enabled, dlss_graph, dlss_chunk, dlss_full, nr_profile, nr_motion, nr_scale, nr_intensity, nr_blend, nr_detail, nr_colour, nr_radius, nr_threshold, nr_normalized, nr_local_tone, nr_local_structure, nr_skin_structure, nr_mask_structure, ss_profile, ss_scale, ss_detail, ss_colour, ss_radius, ss_threshold, fg_profile, fg_mode, fg_factor, fg_threshold = create_ui('postprocess')
+        dlss_enabled, dlss_graph, dlss_chunk, dlss_full, nr_profile, nr_motion, nr_scale, nr_intensity, nr_blend, nr_detail, nr_colour, nr_radius, nr_threshold, nr_normalized, nr_local_tone, nr_local_structure, nr_skin_structure, nr_mask_structure, ss_profile, ss_scale, ss_detail, ss_colour, ss_radius, ss_threshold, fg_profile, fg_mode, fg_factor, fg_threshold, mp4_codec, mp4_ext, mp4_pix, mp4_opt = create_ui('postprocess', video_options=True)
         return {
             "dlss_enabled": dlss_enabled,
             "dlss_graph": dlss_graph,
@@ -170,6 +200,10 @@ class DLSSPostprocessingScript(scripts_postprocessing.ScriptPostprocessing):
             "fg_mode": fg_mode,
             "fg_factor": fg_factor,
             "fg_threshold": fg_threshold,
+            "mp4_codec": mp4_codec,
+            "mp4_ext": mp4_ext,
+            "mp4_pix": mp4_pix,
+            "mp4_opt": mp4_opt,
         }
 
     def process(self, pp: scripts_postprocessing.PostprocessedImage, *args, **kwargs):

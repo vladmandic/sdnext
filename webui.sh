@@ -112,12 +112,7 @@ fi
 # Add venv lib folder to PATH
 if [ -d "$(realpath "$venv_dir")/lib/" ] && [[ -z "${DISABLE_VENV_LIBS}" ]]
 then
-    if [ -z "${LD_LIBRARY_PATH+x}" ]
-    then
-      export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(realpath "$venv_dir")/lib/
-    else
-      export LD_LIBRARY_PATH=$(realpath "$venv_dir")/lib/
-    fi
+    export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}$(realpath "$venv_dir")/lib/"
 fi
 
 # Add ROCm to PATH if it's not already

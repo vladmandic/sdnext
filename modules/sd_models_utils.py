@@ -16,7 +16,7 @@ debug = log.trace if os.environ.get('SD_LOAD_DEBUG', None) is not None else lamb
 
 
 class StateDictCache:
-    _enabled: bool = True
+    _enabled: bool = False # on only inside native_adapter.try_load_chain; single-file converters pop from the dict they read
     _cache: dict[str, dict] = {}
 
     def get(self, key: str):

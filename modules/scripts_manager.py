@@ -136,7 +136,6 @@ class Script:
           - batch_number - index of current batch, from 0 to number of batches-1
           - prompts - list of prompts for current batch; you can change contents of this list but changing the number of entries will likely break things
           - seeds - list of seeds for current batch
-          - subseeds - list of subseeds for current batch
         """
         pass # pylint: disable=unnecessary-pass
 
@@ -147,7 +146,6 @@ class Script:
           - batch_number - index of current batch, from 0 to number of batches-1
           - prompts - list of prompts for current batch; you can change contents of this list but changing the number of entries will likely break things
           - seeds - list of seeds for current batch
-          - subseeds - list of subseeds for current batch
         """
         pass # pylint: disable=unnecessary-pass
 
@@ -176,7 +174,6 @@ class Script:
           - p.prompts
           - p.negative_prompts
           - p.seeds
-          - p.subseeds
         **kwargs will have same items as process_batch, and also:
           - batch_number - index of current batch, from 0 to number of batches-1
         """

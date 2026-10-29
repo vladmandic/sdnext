@@ -1,13 +1,6 @@
 import modules.lora.network as network
 
 
-class ModuleTypeNorm(network.ModuleType):
-    def create_module(self, net: network.Network, weights: network.NetworkWeights):
-        if all(x in weights.w for x in ["w_norm", "b_norm"]):
-            return NetworkModuleNorm(net, weights)
-        return None
-
-
 class NetworkModuleNorm(network.NetworkModule): # pylint: disable=abstract-method
     def __init__(self,  net: network.Network, weights: network.NetworkWeights):
         super().__init__(net, weights)

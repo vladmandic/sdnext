@@ -1,14 +1,11 @@
+import torch
 import modules.lora.network as network
 
 
-class ModuleTypeGLora(network.ModuleType):
-    def create_module(self, net: network.Network, weights: network.NetworkWeights):
-        if all(x in weights.w for x in ["a1.weight", "a2.weight", "alpha", "b1.weight", "b2.weight"]):
-            return NetworkModuleGLora(net, weights)
-        return None
-
 # adapted from https://github.com/KohakuBlueleaf/LyCORIS
 class NetworkModuleGLora(network.NetworkModule): # pylint: disable=abstract-method
+    weight_dependent = True
+
     def __init__(self,  net: network.Network, weights: network.NetworkWeights):
         super().__init__(net, weights)
 
@@ -26,6 +23,11 @@ class NetworkModuleGLora(network.NetworkModule): # pylint: disable=abstract-meth
         w1b = self.w1b.to(target.device, dtype=target.dtype)
         w2a = self.w2a.to(target.device, dtype=target.dtype)
         w2b = self.w2b.to(target.device, dtype=target.dtype)
+        if target.dim() > 2: # conv: a1/a2 are 1x1 and the target keeps its spatial axes, b1 carries the kernel
+            wb = (w2b.reshape(w2b.size(0), -1) @ w1b.reshape(w1b.size(0), -1)).reshape(target.shape)
+            wa = torch.einsum("o i ..., i j -> o j ...", target, w2a.reshape(w2a.size(0), -1))
+            wa = torch.einsum("o i ..., i j -> o j ...", wa, w1a.reshape(w1a.size(0), -1))
+            return self.finalize_updown(wb + wa, target, target.shape)
         output_shape = [w1a.size(0), w1b.size(1)]
         updown = (w2b @ w1b) + ((target @ w2a) @ w1a)
         return self.finalize_updown(updown, target, output_shape)

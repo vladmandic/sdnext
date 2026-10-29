@@ -1,6 +1,6 @@
 ---
 name: port-pipeline
-description: "Port custom model pipeline implementations to Diffusers using phased priorities: preserve behavior first, avoid new dependencies second, and keep device/attention handling configurable throughout. Use when migrating custom or non-Diffusers pipeline code into SD.Next repo-local pipeline files such as pipelines/model_<name>.py or pipelines/<model>/pipeline.py."
+description: "Assess and port custom model pipeline implementations to Diffusers: summarize scope and complexity and get user confirmation before implementation, preserve behavior, avoid new dependencies, and keep device/attention handling configurable. Always invoke port-model after the pipeline port to complete remaining SD.Next model integration. Use when migrating custom or non-Diffusers pipeline code into SD.Next repo-local pipeline files such as pipelines/model_<name>.py or pipelines/<model>/pipeline.py."
 argument-hint: "Provide source pipeline path, target SD.Next destination path, and target pipeline class name"
 ---
 
@@ -13,7 +13,7 @@ This skill targets SD.Next repo-local pipeline ports only.
 
 - A user has a custom pipeline implementation and wants it ported to Diffusers
 - Existing model code is runnable but not structured as a Diffusers pipeline
-- The destination is SD.Next pipeline code under `pipelines/model_*.py` or `pipelines/<model>/`
+- The destination is SD.Next pipeline code under `pipelines/model_*.py` for model loader and `pipelines/<model>/` for model-specific pipeline implementation
 - The task requires preserving generation behavior without introducing new dependencies
 - The task requires removing hard-coded runtime assumptions (device or attention backend)
 
@@ -65,38 +65,54 @@ Priority 3 - runtime configurability constraints:
 - Keep parameter names and behavior as close as possible to upstream conventions.
 - Identify any custom classes needed beyond the pipeline itself: transformer blocks, attention processors, custom schedulers, or output types. Plan a separate module file for each.
 
-4. Implement Supporting Classes
+4. Summarize Scope And Get Confirmation
+- Before writing or editing implementation files, summarize the proposed work for the user based on the source analysis and Diffusers interface mapping.
+- Include the expected files/classes and major components to port, behavior or compatibility risks, validation to run, and any unresolved assumptions.
+- Assign an overall complexity of **low**, **medium**, or **high**, with a concise rationale based on the amount of custom architecture, scheduler/prompt-processing work, and uncertainty.
+- Ask the user explicitly whether to proceed. Do not begin implementation until the user confirms. If they decline or request changes, stop or revise the proposed scope and obtain confirmation again.
+
+5. Implement Supporting Classes
 - If the pipeline requires custom model classes (e.g., a custom transformer block, attention module, or other model component), implement each in a **separate module** located in the **same directory** as the main pipeline file (e.g., `pipelines/<model>/transformer.py`, `pipelines/<model>/scheduler.py`).
 - If the pipeline requires a custom scheduler class, implement it in its own module (e.g., `pipelines/<model>/scheduler_<name>.py`) following Diffusers scheduler conventions (`step`, `add_noise`, `scale_model_input`, etc.).
 - Each supporting class module must be self-contained: no circular imports, no hidden global state, and no hard-coded device or attention assumptions.
 - Import supporting classes into the main pipeline module from their respective sibling modules.
 
-5. Implement Pipeline Class
+6. Implement Pipeline Class
 - Create the destination pipeline classes at the user-provided path.
 - Port logic in small, testable sections: initialization, input validation, prompt encoding, latent preparation, denoising loop, decoding, and output packaging.
 - Replace hard-coded device and attention logic with runtime-configurable behavior.
 - Keep imports limited to existing project and Diffusers dependencies.
 
-6. Lint And Fix
+7. Lint And Fix
 - Activate the project venv: `source venv/bin/activate`
 - Run `ruff` on all newly written files: `pnpm ruff` (or `ruff check <file> --fix` for targeted runs).
 - Run `pylint` on all newly written files: `pnpm pylint` (or `pylint <file>` for targeted runs).
 - Fix every reported error or warning that is not explicitly marked with a `TODO` suppression comment in the source.
 - Re-run both linters after fixes to confirm a clean result before proceeding.
 
-7. Validate Behavior Parity
+8. Validate Behavior Parity
 - Compare source and ported implementations for input-output shape handling, dtype flow, scheduler step ordering, and guidance behavior.
 - Run focused checks or smoke tests if available in the workspace.
 - Call out any known differences that were required for Diffusers compatibility.
 
-8. Report Results
+9. Complete SD.Next Model Integration
+- After the pipeline implementation and its focused validation are complete, always invoke the `port-model` skill. Do not treat this handoff as optional or merely recommend it as a follow-up.
+- If `port-pipeline` was itself invoked by an active `port-model` run, return the implementation and validation context to that caller instead of starting another `port-model` run.
+- Pass the source and destination paths, pipeline class name, model/task details, artifact format, components, implementation decisions, validation results, and any unresolved assumptions already collected. Do not ask the user to repeat information they have provided.
+- Let `port-model` complete and validate all remaining applicable model integration, including the loader entry point, explicit model dispatch, detection and model-type registration, conditional runtime registries, and reference/wiki updates when applicable.
+- Follow `port-model`'s required clarification and access gates. If a required integration detail remains unknown, ask for it there; if a gate blocks the work, report the blocker and do not claim the integration is complete.
+- Continue to the final report only after `port-model` completes, or after clearly identifying a blocking gate that prevents completion.
+
+10. Report Results
 - Summarize what was ported and where.
+- Summarize the SD.Next integration completed by `port-model` and identify any remaining items that were blocked or not applicable.
 - List any unresolved assumptions, risks, or TODOs.
 - Provide minimal follow-up steps for integration and testing.
 
 ## Review Checklist
 
 - Required inputs were collected before edits
+- Scope and complexity were summarized and the user confirmed before implementation
 - No new dependency was introduced
 - No hard-coded device or attention backend remains
 - Core components from source pipeline were fully mapped

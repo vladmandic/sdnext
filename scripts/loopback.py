@@ -41,7 +41,6 @@ class LoopbackScript(scripts_manager.Script):
         grids = []
         all_images = []
         initial_init_images = p.init_images
-        original_inpainting_fill = p.inpainting_fill
         state.job_count = loops * initial_batch_count
         history = []
 
@@ -94,7 +93,6 @@ class LoopbackScript(scripts_manager.Script):
             if (initial_batch_count > 1) and (not state.skipped) and (not state.interrupted):
                 history.append(last_image)
                 all_images.append(last_image)
-            p.inpainting_fill = original_inpainting_fill
             if state.interrupted:
                 break
 

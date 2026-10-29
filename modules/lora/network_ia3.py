@@ -1,13 +1,8 @@
 import modules.lora.network as network
 
-class ModuleTypeIa3(network.ModuleType):
-    def create_module(self, net: network.Network, weights: network.NetworkWeights):
-        if all(x in weights.w for x in ["weight"]):
-            return NetworkModuleIa3(net, weights)
-        return None
-
-
 class NetworkModuleIa3(network.NetworkModule): # pylint: disable=abstract-method
+    weight_dependent = True
+
     def __init__(self,  net: network.Network, weights: network.NetworkWeights):
         super().__init__(net, weights)
         self.w = weights.w["weight"]

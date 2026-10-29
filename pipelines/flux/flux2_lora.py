@@ -308,7 +308,7 @@ def apply_lora_alphas(state_dict):
     ``lora_down``/``lora_up``) keys. Kohya-format LoRAs store per-layer alpha
     values as separate ``.alpha`` keys that the converter does not consume,
     causing a ``ValueError`` on leftover keys. This matches the approach used
-    by ``_convert_kohya_flux_lora_to_diffusers`` for Flux 1.
+    by the diffusers kohya Flux converter.
     """
     alpha_keys = [k for k in state_dict if k.endswith(".alpha")]
     if not alpha_keys:

@@ -1523,6 +1523,8 @@ class VQA:
             log.error(f'LLM: type=vlm model="{model_name}" unknown')
             shared.state.end(jobid)
             return f'Error: Unknown model "{model_name}".'
+        if isinstance(image, str):
+            image = Image.open(image)
         if isinstance(image, Image.Image) and not uses_qwen_handler(vqa_model) and (image.width > 768 or image.height > 768):  # Qwen processors resize to their own max_pixels budget
             image.thumbnail((768, 768), Image.Resampling.LANCZOS)
         if self.model is None or self.loaded != vqa_model:

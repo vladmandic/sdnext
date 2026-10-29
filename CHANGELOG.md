@@ -1,13 +1,132 @@
 # Change Log for SD.Next
 
-## Update for 2026-10-19
+## Update for 2026-10-29
 
+### Highlights for 2026-10-29
+
+*What's new in this release?*
+- New base model: **Bria FIBO 2.0** and improvements to **MOSS-Image** and **Ming-Image** workflows
+- Major improvements to **Prompt Enhance** functionality to make it more versatile and cover usage in new structured/json based prompts
+- New playground feature **Story Mode**
+- Expanded native **LoRA** support with compatibility for multiple model types
+- Updates to **AI Coding** instructions and skills: try your favorite model/tool on SD.Next, you might be surprised how quickly it adapts and performs
+- Codebase cleanup: removed deprecated options that were left as legacy remnants
+- And many more smaller improvements and fixes...
+
+> [!IMPORTANT]
+> Python 3.10 is end-of-life as of October 2026!
+
+See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) below for full details...
+
+[Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
+
+### Details for 2026-10-29
+
+- **Models**
+  - [Bria FIBO 2.0](https://huggingface.co/briaai/Fibo-2.0-dev) *Dev* base and *Edit Turbo* distilled variants  
+    *architecture*: 8.1B flow-matching transformer with Qwen3-VL-4B text-encoder  
+    *note*: this is a [gated model](https://vladmandic.github.io/sdnext-docs/Gated)  
+    *note*: BriaFIBO is designed to work with highly structured [JSON prompts](https://docs.bria.ai/vgl#5-schema-reference)  
+    a plain string prompt is read as a short description, a form the model was also trained on, but a structured caption gives far more control  
+    *note*: single-file transformers in the ComfyUI layout load through the UNET selector and LoRAs load through the native loader  
+  - [OpenMOSS MOSS-Image](https://huggingface.co/OpenMOSS-Team/MOSS-Image-Base) add *sdnq-uint4* pre-quants and add *image2image* and *inpaint* workflows  
+    *note*: model is trained with highly shifted sigma, so its not ideal for i2i workflows  
+    *note*: this also unlocks use in hires/refine/detailer workflows  
+  - [lodestones Kromoss](https://huggingface.co/lodestones/Kromoss) fine-tune of MOSS-Image  
+  - [inclusionAI Ming-Image Design 0.1](https://huggingface.co/OzzyGT/ming_image_0_1_design_diffusers) add *ref-image* workflow  
+    *note*: model is not a true image edit model, but this gives it some editing capabilities  
+- **Coding**  
+  expand ai/ml instructions and skills  
+  see [instructions](https://github.com/vladmandic/sdnext/blob/dev/.github/copilot-instructions.md) and [skills readme](https://github.com/vladmandic/sdnext/blob/dev/.github/skills/README.md) for details  
+- **Prompt Enhance**
+  - add presets for different prompt styles: *Standard, Simple, Detailed, Creative, Structured, JSON, Tag*  
+    use different presets depending on the desired prompt style and model's preferred input format  
+    added as more and more models require highly structured and/or json-based prompts  
+  - set [Qwen-3.5-4B sdnq-uint8](https://huggingface.co/SD-Next/Qwen-3.5-4B-sdnq-uint8) as default model for all prompt enhance and caption tasks  
+  - improve all system prompts
+  - improve thinking mode
+- **Story Mode**
+  - new story mode feature for generating multiple slides in a sequence  
+    in *extras -> story mode*  
+    provide input image and use base prompt to write a short story  
+    the system will use llm of choice to caption the image and define prompt for each slide of the story  
+    works best with edit-models, but can be used in text-to-image and image-to-image modes as well  
+    *note*: this is a playground thing, dont expect full cartoon level quality in a single shot  
+- **LoRA**
+  - major cleanup of older lora code and full switch to *native-dispatcher* introduced last month
+  - native dispatcher: *sd, sdxl, sd3, f1, f2, f3, chroma, zimage, ernieimage, anima, krea2, minimaxh3, qwen21, moss, boogu, fibo2, ideogram4*
+- **Metadata**
+  - improve model hash info for all models
+  - add unet hash if using custom unet/dit
+  - add prompt from style to metadata template field
+- **DLSS**
+  - use streaming for DLSS video processing  
+    allows near-infinite video length without excessive memory usage  
+  - allow custom video codecs and options
+- **MicroDecoder**
+  - add support for additional vae families  
+    supported: *sd, sdxl, sd3, f1, f2, hy, dcae, mage, qwen, qwen21, wan21, wan22, minimaxh3, cog, sefi*  
+    too see how different vae families map to different models, see <https://huggingface.co/SD-Next/MicroDecoder>  
+- **Video**
+  - add option in *Settings -> Media Options -> Videos convert for UI playback*  
+    depencing on choice of codec and settings some generated videos may not be playable in browser  
+    this allows sdnext to convert generated video to a temporary copy for ui playback  
+- **Wiki**
+  - updates to: `Scheduler`, `Models`, `Model-Support`, `Docker`, `AMD-ROCm`, `AMD-MIOpen`, `Detailer`, `LoRA`, `LoRA-Technical`
+- **Docker**
+  - update `Dockerfile` for all supported platforms
+  - [SD.Next CUDA docker image](https://hub.docker.com/repository/docker/vladmandic/sdnext-cuda) rebuild and update
+- **Logging**
+  - customizable logging theme  
+    see `data/console.json` for defaults and specify custom file using env variable `SDNEXT_CONSOLE_THEME`  
+- **Internal**
+  - end-of-life for `python==3.10`  
+    see [Python 3.10 EOL](https://endoflife.ai/article-python-310-eol) for details  
+  - update major requirements
+  - update `setuptools`, thanks @wbkearly
+  - expand `--test` behavior
+  - infer transformers `native_spec` everywhere where its not explicitly set
+  - remove number of params from codebase as obsolete and no-op for over a year:  
+    *note*: this may cause breakage in extensions that rely on obsolete params  
+    removed: `subseed, subseed_strength, seed_resize_from_h/w, do_not_reload_embeddings, nan_skip, inpainting_mask_weigtht, initial_noise_multiplier, inpainting_fill, te_complex_human_instruction, te_use_mask, firstphase_width, firstphase_height`  
 - **Fixes**
-  - ui: fallback template load method when running on older server
+  - api: return complete set in GET /sdapi/v1/options, thanks @Jackmeson1
+  - bria: fibo 2 inpaint masks reach the pipeline, caption text draws with the repo fonts, the text encoder is shared with qwen3-vl-4b
+  - caption: get/set attention fallbacks
+  - cogview: support offloading
+  - dlss: save once when running as extras
+  - dlss: do not run other postprocess again
+  - krea2: use prequant text-encoder when loading pre-quant model
+  - launch: dont overwrite existing LD_LIBRARY_PATH
   - lora: bias deltas no longer refused when the model is quantized or native fuse is off
+  - lora: resolve a/b peft keys, thanks @li-lizhe
+  - lora: trim zero-padded input columns of fused-layout deltas to the module width
   - mageflow: load single-file transformers, including low-rank modulation checkpoints (MageTrail 0.3+)
+  - microdecoder: improve error handling
+  - microdecoder: warn once on errors
+  - moss: downloaded moss-image models appear in the model list
+  - moss: performance optimizations
+  - moss: single-file model loading support
+  - network preview: handle unets
+  - network preview: fix stale cache
+  - offload: balanced offload clear stale state on unload, thanks @Jackmeson1
   - offload: group offload keeps text encoder layers whole, so qwen3.5 encoders run with causal-conv1d installed
   - offload: group offload recognizes vae encode and decode entry points with current diffusers
+  - prompt encode: expand simple str-to-json handling for models that require json
+  - prompt encode: invalidate cache on te or lora change, thanks @Jackmeson1
+  - prompt enhance: autodetext txt vs img llms
+  - rocm: add explicit support for gfx1030, thanks @resonantsky
+  - rocm: remove obsolete switches from rocm script, thanks @resonantsky
+  - scheduler: delete orphan records on record deletion
+  - sdnq: attention dtype and mask fixes
+  - seedvr: unblock usage on non-cuda devices
+  - state: race condition when settings are changed while generate is running
+  - styles: json prompts keep their braces when extra-network tags follow them
+  - ui: fallback template load method when running on older server
+  - ui: autohide panels
+  - unet: hash on first load
+  - video: gradio do not recode video in-place
+  - wan: loading route changes video frame count, thanks @Jackmeson1
 
 ## Update for 2026-10-18
 

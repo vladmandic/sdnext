@@ -560,7 +560,6 @@ class Detailer():
         p.all_prompts = [p.detailer_prompt or '']
         p.all_negative_prompts = [p.detailer_negative or '']
         p.all_seeds = [seed]
-        p.all_subseeds = [-1]
         p.scripts = None
         p.is_control = False
         p.do_not_save_samples = True

@@ -43,7 +43,8 @@ def load_lumina2(checkpoint_info, diffusers_load_config=None):
         diffusers.Lumina2Transformer2DModel.forward = teacache.teacache_lumina2_forward # patch must be done before transformer is loaded
 
     log.debug(f'Load model: type=Lumina2 repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={diffusers_load_config}')
-    transformer = generic.load_transformer(repo_id, cls_name=diffusers.Lumina2Transformer2DModel, load_config=diffusers_load_config)
+    from pipelines.native_transformer import make_default_spec
+    transformer = generic.load_transformer(repo_id, cls_name=diffusers.Lumina2Transformer2DModel, load_config=diffusers_load_config, native_spec=make_default_spec(diffusers.Lumina2Transformer2DModel))
     text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.Gemma2Model, load_config=diffusers_load_config)
 
     if repo_id is None or repo_id.lower() == 'none':

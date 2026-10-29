@@ -183,5 +183,14 @@
     "desc": "Krea 2 Turbo pre-merged with several LoRAs and quantized to uint4 using SDNQ with Hadamard.",
     "size": 10.54,
     "date": "2026 July"
+  },
+  "lodestones Kromoss": {
+    "path": "lodestones/Kromoss",
+    "preview": "lodestones--Kromoss.jpg",
+    "desc": "5B-parameter full fine-tune of MOSS-Image-Base using the same single-stream DiT, Qwen3.5-9B text encoder, and FLUX.2 small VAE. Includes optional 8-step DMD and DMD2 LoRAs. Apache 2.0 license.",
+    "extras": "sampler: FlowMatch Euler, steps: 50, cfg_scale: 3.0",
+    "size": 27.22,
+    "tags": "community, MOSS-Image",
+    "date": "2026 October"
   }
 }

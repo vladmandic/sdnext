@@ -7,6 +7,69 @@ from modules.logger import log
 from pipelines import generic
 
 
+FIBO2_FONTS = ('Aileron-Regular.otf', 'DejaVuSans.ttf') # fallback fonts the caption text images were drawn with in training
+
+
+def fibo2_fonts(repo_id):
+    """Paths of the repo's fallback fonts the pipeline draws caption text with; empty when they cannot be fetched."""
+    from huggingface_hub import hf_hub_download
+    try:
+        return [hf_hub_download(repo_id, name, subfolder='fonts', cache_dir=shared.opts.diffusers_dir) for name in FIBO2_FONTS]
+    except Exception as e:
+        log.warning(f'Load model: type=BriaFibo2 fonts="{repo_id}/fonts" {e}')
+        return []
+
+
+def load_bria2(checkpoint_info, diffusers_load_config=None):
+    if diffusers_load_config is None:
+        diffusers_load_config = {}
+    repo_id = sd_models.path_to_repo(checkpoint_info)
+    sd_models.hf_auth_check(checkpoint_info)
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
+
+    load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, allow_quant=False)
+    log.debug(f'Load model: type=BriaFibo2 repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
+
+    from pipelines.bria import BRIA_FIBO2_SPEC
+    transformer = generic.load_transformer(
+        repo_id,
+        cls_name=diffusers.BriaFibo2Transformer2DModel,
+        load_config=diffusers_load_config,
+        native_spec=BRIA_FIBO2_SPEC,
+    )
+    text_encoder = generic.load_text_encoder(
+        repo_id,
+        cls_name=transformers.Qwen3VLForConditionalGeneration,
+        load_config=diffusers_load_config,
+    )
+    cls = diffusers.BriaFibo2Pipeline
+    diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING['fibo2'] = cls
+    diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING['fibo2'] = cls
+    diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING['fibo2'] = cls
+    generic.set_pipeline('BriaFibo2', cls)
+
+    pipe = cls.from_pretrained(
+        repo_id,
+        transformer=transformer,
+        text_encoder=text_encoder,
+        cache_dir=shared.opts.diffusers_dir,
+        **load_args,
+    )
+    # the pipeline reads a plain prompt as the trained short-description or edit-instruction form, so no str-to-json wrapping
+    pipe.max_condition_images = 4
+
+    generic.load_vae_override(pipe, diffusers_load_config)
+    pipe.task_args = {'output_type': 'np', 'fonts': fibo2_fonts(repo_id)}
+
+    del text_encoder
+    del transformer
+    sd_hijack_te.init_hijack(pipe)
+    sd_hijack_vae.init_hijack(pipe)
+    devices.torch_gc()
+    return pipe
+
+
 def load_bria(checkpoint_info, diffusers_load_config=None):
     if diffusers_load_config is None:
         diffusers_load_config = {}
@@ -44,7 +107,7 @@ def load_bria(checkpoint_info, diffusers_load_config=None):
         else:
             cls = diffusers.BriaFiboPipeline
             diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING['bria-fibo'] = cls
-        generic.set_pipeline('Bria', cls)
+        generic.set_pipeline('BriaFibo', cls)
 
         if repo_id is None or repo_id.lower() == 'none':
             return None
@@ -75,7 +138,7 @@ def load_bria(checkpoint_info, diffusers_load_config=None):
         from pipelines.bria import BRIA_SPEC
         transformer = generic.load_transformer(repo_id, cls_name=BriaTransformer2DModel, load_config=diffusers_load_config, native_spec=BRIA_SPEC)
         text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.T5EncoderModel, load_config=diffusers_load_config)
-        generic.set_pipeline('Bria', BriaPipeline)
+        generic.set_pipeline('BriaFibo', BriaPipeline)
 
         if repo_id is None or repo_id.lower() == 'none':
             return None

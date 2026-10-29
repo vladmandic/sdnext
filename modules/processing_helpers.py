@@ -213,45 +213,7 @@ def get_sampler_index(sampler_name: str) -> int:
     return sampler_index
 
 
-def slerp(val, lo, hi): # from https://discuss.pytorch.org/t/help-regarding-slerp-function-for-generative-model-sampling/32475/3
-    lo_norm = lo / torch.norm(lo, dim=1, keepdim=True)
-    hi_norm = hi / torch.norm(hi, dim=1, keepdim=True)
-    dot = (lo_norm * hi_norm).sum(1)
-    dot_mean = dot.mean()
-    if dot_mean > 0.9999: # simplifies slerp to lerp if vectors are nearly parallel
-        return lo * (1 - val) + hi * val
-    if dot_mean < 0.0001: # also simplifies slerp to lerp to avoid division-by-zero later on
-        return lo * (1.0 - val) + hi * val
-    omega = torch.acos(dot)
-    so = torch.sin(omega)
-    lo_res = (torch.sin((1.0 - val) * omega) / so).unsqueeze(1)
-    hi_res = (torch.sin(val * omega) / so).unsqueeze(1)
-    # lo_res[lo_res != lo_res] = 0 # replace nans with zeros, but should not happen with dot_mean filtering
-    # hi_res[hi_res != hi_res] = 0
-    res = lo * lo_res + hi * hi_res
-    return res
-
-
-def slerp_alt(val, lo, hi): # from https://discuss.pytorch.org/t/help-regarding-slerp-function-for-generative-model-sampling/32475/3
-    lo_norm = lo / torch.linalg.norm(lo, dim=1, keepdim=True)
-    hi_norm = hi / torch.linalg.norm(hi, dim=1, keepdim=True)
-    dot = (lo_norm * hi_norm).sum(1)
-    dot_mean = dot.mean().abs()
-    if dot_mean > 0.9999: # simplifies slerp to lerp if vectors are nearly parallel
-        lerp_val = lo * (1 - val) + hi * val
-        return lerp_val / torch.linalg.norm(lerp_val) * torch.sqrt(torch.linalg.norm(hi_norm) * torch.linalg.norm(lo_norm))
-    if dot_mean < 0.0001: # also simplifies slerp to lerp to avoid division-by-zero later on
-        lerp_val = lo * (1.0 - val) + hi * val
-        return lerp_val / torch.linalg.norm(lerp_val) * torch.sqrt(torch.linalg.norm(hi_norm) * torch.linalg.norm(lo_norm))
-    omega = torch.acos(dot)
-    so = torch.sin(omega)
-    lo_res = (torch.sin((1.0 - val) * omega) / so).unsqueeze(1)
-    hi_res = (torch.sin(val * omega) / so).unsqueeze(1)
-    res = lo * lo_res + hi * hi_res
-    return res
-
-
-def create_random_tensors(shape, seeds, subseeds=None, subseed_strength=0.0, seed_resize_from_h=0, seed_resize_from_w=0, p=None):
+def create_random_tensors(shape, seeds, p=None):
     eta_noise_seed_delta = (getattr(p, 'eta_noise_seed_delta', None) if p is not None else None)
     if eta_noise_seed_delta is None:
         eta_noise_seed_delta = shared.opts.eta_noise_seed_delta or 0
@@ -267,37 +229,18 @@ def create_random_tensors(shape, seeds, subseeds=None, subseed_strength=0.0, see
         sampler_noises = [[] for _ in range(p.sampler.number_of_needed_noises(p))]
     else:
         sampler_noises = None
-    for i, seed in enumerate(seeds):
-        noise_shape = shape if seed_resize_from_h <= 0 or seed_resize_from_w <= 0 else (shape[0], seed_resize_from_h//8, seed_resize_from_w//8)
-        subnoise = None
-        if subseeds is not None:
-            subseed = 0 if i >= len(subseeds) else subseeds[i]
-            subnoise = devices.randn(subseed, noise_shape)
+    for seed in seeds:
         # randn results depend on device; gpu and cpu get different results for same seed;
         # the way I see it, it's better to do this on CPU, so that everyone gets same result;
         # but the original script had it like this, so I do not dare change it for now because
         # it will break everyone's seeds.
-        noise = devices.randn(seed, noise_shape)
-        if subnoise is not None:
-            noise = slerp(subseed_strength, noise, subnoise)
-        if noise_shape != shape:
-            x = devices.randn(seed, shape)
-            dx = (shape[2] - noise_shape[2]) // 2
-            dy = (shape[1] - noise_shape[1]) // 2
-            w = noise_shape[2] if dx >= 0 else noise_shape[2] + 2 * dx
-            h = noise_shape[1] if dy >= 0 else noise_shape[1] + 2 * dy
-            tx = 0 if dx < 0 else dx
-            ty = 0 if dy < 0 else dy
-            dx = max(-dx, 0)
-            dy = max(-dy, 0)
-            x[:, ty:ty+h, tx:tx+w] = noise[:, dy:dy+h, dx:dx+w]
-            noise = x
+        noise = devices.randn(seed, shape)
         if sampler_noises is not None:
             cnt = p.sampler.number_of_needed_noises(p)
             if eta_noise_seed_delta > 0:
                 torch.manual_seed(seed + eta_noise_seed_delta)
             for j in range(cnt):
-                sampler_noises[j].append(devices.randn_without_seed(tuple(noise_shape)))
+                sampler_noises[j].append(devices.randn_without_seed(tuple(shape)))
         xs.append(noise)
     if sampler_noises is not None:
         p.sampler.sampler_noises = [torch.stack(n).to(shared.device) for n in sampler_noises]
@@ -335,17 +278,11 @@ def get_fixed_seed(seed):
 
 def fix_seed(p):
     p.seed = get_fixed_seed(p.seed)
-    p.subseed = get_fixed_seed(p.subseed)
     if p.all_seeds is None or len(p.all_seeds) == 0:
         p.all_seeds = [p.seed]
     else:
         for i in range(len(p.all_seeds)):
             p.all_seeds[i] = get_fixed_seed(p.all_seeds[i])
-    if p.all_subseeds is None or len(p.all_subseeds) == 0:
-        p.all_subseeds = [p.subseed]
-    else:
-        for i in range(len(p.all_subseeds)):
-            p.all_subseeds[i] = get_fixed_seed(p.all_subseeds[i])
 
 
 def old_hires_fix_first_pass_dimensions(width, height):
@@ -620,7 +557,7 @@ def save_intermediate(p, latents, suffix):
         items = latents if isinstance(latents, list) else ([latents[j] for j in range(latents.shape[0])] if hasattr(latents, 'shape') else [latents])
         decoded = [convert.to_pil(img) if not hasattr(img, 'width') else img for img in items]
     for i in range(len(decoded)):
-        info = create_infotext(p, p.all_prompts, p.all_seeds, p.all_subseeds, [], iteration=p.iteration, position_in_batch=i)
+        info = create_infotext(p, p.all_prompts, p.all_seeds, [], iteration=p.iteration, position_in_batch=i)
         images.save_image(decoded[i], path=p.outpath_samples, basename="", seed=p.seeds[i], prompt=p.prompts[i], extension=shared.opts.samples_format, info=info, p=p, suffix=suffix)
 
 

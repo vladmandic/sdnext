@@ -3,15 +3,6 @@ import modules.lora.lyco_helpers as lyco_helpers
 import modules.lora.network as network
 
 
-class ModuleTypeLokr(network.ModuleType):
-    def create_module(self, net: network.Network, weights: network.NetworkWeights):
-        has_1 = "lokr_w1" in weights.w or ("lokr_w1_a" in weights.w and "lokr_w1_b" in weights.w)
-        has_2 = "lokr_w2" in weights.w or ("lokr_w2_a" in weights.w and "lokr_w2_b" in weights.w)
-        if has_1 and has_2:
-            return NetworkModuleLokr(net, weights)
-        return None
-
-
 def make_kron(orig_shape, w1, w2):
     if len(w2.shape) == 4:
         w1 = w1.unsqueeze(2).unsqueeze(2)

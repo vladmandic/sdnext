@@ -1,4 +1,5 @@
 import os
+import copy
 import enum
 import json
 from collections import namedtuple
@@ -177,13 +178,16 @@ class NetworkOnDisk:
 class Network:  # LoraModule
     def __init__(self, name, network_on_disk: NetworkOnDisk):
         self.name = name
+        self.key = name # per-reference identity: the name for the first reference to a file, name#N for the Nth
         self.network_on_disk = network_on_disk
         self.te_multiplier = 1.0
         self.unet_multiplier = [1.0] * 3
         self.dyn_dim = None
         self.block_spec = None # raw lbw= value; per-layer factors resolve through lora_blocks
+        self.components = None # module= and high/low components; None applies the network to every component
         self.pending_config = None # staged multipliers; network_activate promotes them after the removal pass so fuse removal subtracts the delta that was applied
-        self.modules = {}
+        self.modules = {} # what the current request applies, keyed by layer name; select_layers narrows it to the requested components
+        self.bound_modules = None # every module the file bound, kept once select_layers has run
         self.extras = {} # non-delta payloads a family carries, e.g. parallel heads
         self.mismatch = 0 # deltas dropped for not fitting their target module; try_load_chain refuses the file when non-zero
         self.bundle_embeddings = {}
@@ -192,13 +196,81 @@ class Network:  # LoraModule
         self.tags = None
         """the text that was used to add the network to prompt - can be either name or an alias"""
 
+    def bound(self):
+        """Every module the file bound, whichever layers the current request applies."""
+        return self.modules if self.bound_modules is None else self.bound_modules
 
-class ModuleType:
-    def create_module(self, net: Network, weights: NetworkWeights) -> Network | None: # pylint: disable=W0613
-        return None
+    def select_layers(self, layers, aliases=None):
+        """Apply only the bound modules on ``layers``, plus ``aliases`` re-targeted onto other layers; None applies every bound module."""
+        self.bound_modules = self.bound()
+        self.modules = self.bound_modules if layers is None else {key: module for key, module in self.bound_modules.items() if key in layers}
+        if aliases:
+            self.modules = {**self.modules, **aliases}
+
+    def clone(self):
+        """A copy for one reference to the file: shares the bound weights, owns its settings, component view and identity."""
+        net = copy.copy(self)
+        net.pending_config = None
+        net.components = None
+        net.bound_modules = None
+        net.modules = copy_modules(self.bound(), net)
+        return net
+
+
+def copy_modules(modules, net):
+    """Shallow copies of ``modules`` bound to ``net``, sharing the weights; split DoRA groups are rebuilt from the copies."""
+    groups = {}
+    copies = {}
+    for key, module in modules.items():
+        twin = copy.copy(module)
+        twin.network = net
+        if getattr(module, 'dora_group', None) is not None:
+            groups.setdefault(id(module.dora_group), DoraGroup()).add(twin)
+        copies[key] = twin
+    return copies
+
+
+def column_norms(merged):
+    """Norm of every input column over the remaining axes, as ``(in,)``."""
+    return merged.transpose(0, 1).reshape(merged.shape[1], -1).norm(dim=1)
+
+
+class DoraGroup:
+    """The modules of one fused weight that share a per-input DoRA magnitude.
+
+    The magnitude rescales each input column of the fused weight, so its norm
+    runs over the rows of every member. The first member asked in a pass sums
+    the squared column norms of all members' merged weights; the rest reuse it.
+    """
+
+    def __init__(self):
+        self.members = []
+        self.token = None
+        self.norms = None
+
+    def add(self, module):
+        module.dora_group = self
+        self.members.append(module)
+
+    def column_norms(self, member, merged):
+        from modules.lora import lora_common as l
+        if l.pass_token is not None and self.token is l.pass_token:
+            return self.norms.to(merged.device, merged.dtype)
+        from modules.lora.lora_apply import pristine_weight
+        total = column_norms(merged.float()).square()
+        for other in self.members:
+            if other is member:
+                continue
+            base = pristine_weight(other.sd_module).to(merged.device, merged.dtype)
+            total += column_norms((base + other.scaled_delta(base).reshape(base.shape)).float()).square()
+        self.norms = total.sqrt().to(merged.dtype)
+        self.token = l.pass_token
+        return self.norms
 
 
 class NetworkModule:
+    weight_dependent = False # the family's delta is a function of the target weight
+
     def __init__(self, net: Network, weights: NetworkWeights):
         self.network = net
         self.network_key = weights.network_key
@@ -226,10 +298,12 @@ class NetworkModule:
         self.scale = weights.w["scale"].item() if "scale" in weights.w else None
         self.dora_scale = weights.w.get("dora_scale", None)
         self.dora_norm_dims = (len(self.shape) - 1) if self.shape is not None else None
+        self.dora_group = None # set by DoraGroup.add when a per-input magnitude is shared across split targets
+        self.decompose = True # off while scaled_delta reads the delta ahead of the decomposition
 
     def multiplier(self):
-        unet_multiplier = 3 * [self.network.unet_multiplier] if not isinstance(self.network.unet_multiplier, list) else self.network.unet_multiplier
-        if self.sd_key.startswith('lora_te') or 'transformer' in self.sd_key[:20]:
+        unet_multiplier =3 * [self.network.unet_multiplier] if not isinstance(self.network.unet_multiplier, list) else self.network.unet_multiplier
+        if self.sd_key.startswith('lora_te'):
             base = self.network.te_multiplier
         elif "down_blocks" in self.sd_key:
             base = unet_multiplier[0]
@@ -243,6 +317,19 @@ class NetworkModule:
             return base
         from modules.lora import lora_blocks
         return base * lora_blocks.factor(self.sd_key, self.network)
+
+    def depends_on_weight(self):
+        """True when the delta is a function of the target weight; apply and removal then need the pristine one."""
+        return self.weight_dependent or self.dora_scale is not None
+
+    def scaled_delta(self, target):
+        """The delta with alpha applied, before decomposition and strength."""
+        self.decompose = False
+        try:
+            updown, _ = self.calc_updown(target)
+        finally:
+            self.decompose = True
+        return updown
 
     def calc_scale(self):
         if self.scale is not None:
@@ -296,13 +383,10 @@ class NetworkModule:
             )
         else:
             # Per-input: norm along all non-input axes; result broadcasts as (1, in, ...).
-            merged_scale1_norm = (
-                merged_scale1.transpose(0, 1)
-                .reshape(merged_scale1.shape[1], -1)
-                .norm(dim=1, keepdim=True)
-                .reshape(merged_scale1.shape[1], *[1] * self.dora_norm_dims)
-                .transpose(0, 1)
-            )
+            norms = column_norms(merged_scale1) if self.dora_group is None else self.dora_group.column_norms(self, merged_scale1)
+            merged_scale1_norm = norms.reshape(in_dim, *[1] * self.dora_norm_dims).transpose(0, 1)
+            if dora_scale.ndim == merged_scale1_norm.ndim and dora_scale.shape[1] < in_dim: # widened input: added columns take their own norm and stay unchanged
+                dora_scale = torch.cat([dora_scale, merged_scale1_norm[:, dora_scale.shape[1]:]], dim=1)
 
         dora_merged = merged_scale1 * (dora_scale / merged_scale1_norm)
         final_updown = dora_merged - orig_weight
@@ -319,15 +403,17 @@ class NetworkModule:
             updown = updown.reshape(orig_weight.shape)
         if ex_bias is not None:
             ex_bias = ex_bias * self.multiplier()
+        updown = updown * self.calc_scale()
+        if not self.decompose:
+            return updown, ex_bias
         if self.dora_scale is not None:
             # LyCORIS/ComfyUI convention: alpha/rank is baked into the diff
             # before the decompose norm. The multiplier then lerps the full
             # merged delta (ComfyUI semantics: 0 disables, 1 equals the
             # trainer's output; LyCORIS weight-mode ratio interpolation is
             # not used since it leaves the diff applied at multiplier 0).
-            updown = self.apply_weight_decompose(updown * self.calc_scale(), orig_weight)
-            return updown * self.multiplier(), ex_bias
-        return updown * self.calc_scale() * self.multiplier(), ex_bias
+            updown = self.apply_weight_decompose(updown, orig_weight)
+        return updown * self.multiplier(), ex_bias
 
     def calc_updown(self, target):
         raise NotImplementedError

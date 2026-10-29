@@ -1,4 +1,5 @@
 import os
+import time
 import dataclasses
 import torch
 from modules.logger import log
@@ -57,12 +58,13 @@ def _do_move_to_cpu(model, op_label, size):
     debug_move(f'Offload: type=aux op={op_label} size={size:.3f}')
 
 
-def move_aux_to_gpu(name: str) -> None:
+def move_aux_to_gpu(name: str) -> float:
+    t0 = time.perf_counter()
     entry = aux_models.get(name)
     if entry is None or entry.model is None:
-        return
+        return 0.0
     if hasattr(entry.model, 'device') and devices.same_device(entry.model.device, devices.device):
-        return
+        return 0.0
     # 1. Evict other auxiliary models first
     evict_aux(exclude=name, reason='pre')
     # 2. If balanced offload active, evict diffusers pipeline modules if memory is tight
@@ -79,18 +81,23 @@ def move_aux_to_gpu(name: str) -> None:
         move_stream.synchronize()
     else:
         entry.model.to(devices.device)
-    debug_move(f'Offload: type=aux op=to_gpu name={name} size={entry.size:.3f}')
+    t1 = time.perf_counter()
+    debug_move(f'Offload: type=aux op=to_gpu name={name} size={entry.size:.3f} time={t1-t0:.3f}')
+    return t1 - t0
 
 
-def offload_aux(name: str) -> None:
+def offload_aux(name: str) -> float:
+    t0 = time.perf_counter()
     if not shared.opts.caption_offload:
-        return
+        return 0.0
     entry = aux_models.get(name)
     if entry is None or entry.model is None:
-        return
+        return 0.0
     if hasattr(entry.model, 'device') and devices.same_device(entry.model.device, devices.cpu):
-        return
+        return 0.0
     _do_move_to_cpu(entry.model, f'post:{name}', entry.size)
+    t1 = time.perf_counter()
+    return t1 - t0
 
 
 def get_aux_model(name: str) -> torch.nn.Module | None:

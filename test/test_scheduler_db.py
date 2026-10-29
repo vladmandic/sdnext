@@ -177,6 +177,20 @@ class TestSchedulerDatabase(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'Invalid scheduler task mode'):
             scheduler_db.create_task({}, mode='invalid', db_path=self.db_path)
 
+    def test_foreign_keys_are_enabled_on_each_connection(self):
+        task_id = scheduler_db.create_task({'prompt': 'test'}, [b'image-bytes'], db_path=self.db_path)
+
+        connection = scheduler_db.connect(self.db_path)
+        try:
+            self.assertEqual(connection.execute('PRAGMA foreign_keys').fetchone()[0], 1)
+        finally:
+            connection.close()
+
+        self.assertTrue(scheduler_db.delete_task(task_id, db_path=self.db_path))
+        stats, _ = scheduler_db.diagnostics(self.db_path)
+        self.assertEqual(stats['task_images'], 0)
+        self.assertEqual(stats['foreign_key_errors'], [])
+
     def test_diagnostics_reports_database_health_and_task_statistics(self):
         scheduler_db.create_task({'prompt': 'test'}, [b'image-bytes'], db_path=self.db_path)
 

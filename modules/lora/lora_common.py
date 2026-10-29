@@ -1,23 +1,13 @@
 import os
 from modules.lora import lora_timers
-from modules.lora import network_lora, network_hada, network_ia3, network_oft, network_boft, network_lokr, network_full, network_norm, network_glora
 
 
 timer = lora_timers.Timer()
 debug = os.environ.get('SD_LORA_DEBUG', None) is not None
-module_types = [
-    network_lora.ModuleTypeLora(),
-    network_hada.ModuleTypeHada(),
-    network_ia3.ModuleTypeIa3(),
-    network_boft.ModuleTypeBOFT(), # ahead of oft, which claims any oft_blocks key without checking its rank
-    network_oft.ModuleTypeOFT(),
-    network_lokr.ModuleTypeLokr(),
-    network_full.ModuleTypeFull(),
-    network_norm.ModuleTypeNorm(),
-    network_glora.ModuleTypeGLora(),
-]
 loaded_networks: list = [] # no type due to circular import
 previously_loaded_networks: list = [] # no type due to circular import
 extra_network_lora = None # initialized in extra_networks.py
 last_backup_size: int = 0 # bytes of weight backups the last activate pass held
 last_mode: str = '' # how that pass left the weights: backup, fuse or factor
+last_fuse: bool = False # whether that pass fused; its sets come out by subtraction even after the option changes
+pass_token = None # identity of the running activate walk; per-pass caches key on it and stay cold outside one
