@@ -349,7 +349,7 @@ def pip(arg: str, ignore: bool = False, quiet: bool = True, *, uv = True, constr
         log.debug(f'Running: {pipCmd}="{" ".join(all_args)}"')
 
     if uv:
-        result, output = run("uv", "pip", *all_args)
+        result, output = run("uv", "pip", *all_args, f'--python "{sys.executable}"')
     else:
         result, output = run(sys.executable, "-m", pipCmd, *all_args)
 
@@ -1986,7 +1986,7 @@ def ensure_base_requirements():
         global setuptools, distutils # pylint: disable=global-statement
         # python may ship with incompatible setuptools
         if args.uv:
-            subprocess.run(f'uv pip install setuptools=={setuptools_version} wheel', shell=True, check=False, env=os.environ, capture_output=True)
+            subprocess.run(f'uv pip install setuptools=={setuptools_version} wheel --python "{sys.executable}"', shell=True, check=False, env=os.environ, capture_output=True)
         else:
             subprocess.run(f'"{sys.executable}" -m pip install setuptools=={setuptools_version} wheel', shell=True, check=False, env=os.environ, capture_output=True)
         # need to delete all references to modules to be able to reload them otherwise python will use cached version
