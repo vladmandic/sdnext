@@ -98,13 +98,15 @@ def main(options: argparse.Namespace) -> None:
     else:
         model_cls = transformers.AutoModelForCausalLM
     console.print(f"Load(repo='{options.repo}' loader={model_cls.__name__})")
-    model = model_cls.from_pretrained(
+    model, info = model_cls.from_pretrained(
         options.repo,
         torch_dtype="auto",
         trust_remote_code=True,
         low_cpu_mem_usage=True,
+        output_loading_info=True,
     )
     console.print(f"Model(cls={model.__class__.__name__})")
+    console.print(f"Model(info={info})")
     tokenizer = transformers.AutoTokenizer.from_pretrained(options.repo, trust_remote_code=True)
     console.print(f"Tokenizer(cls={tokenizer.__class__.__name__})")
     size_before = model_size(model)
@@ -117,6 +119,7 @@ def main(options: argparse.Namespace) -> None:
         use_codebook=options.method == "codebook",
         use_dynamic_quantization=options.dynamic,
         dynamic_loss_threshold=options.loss,
+        quant_embedding=options.embeddings,
         quantization_device=quantization_device,
     )
     console.print(f'SDNQConfig({quant_config})')
@@ -184,6 +187,7 @@ if __name__ == "__main__":
     parser.add_argument("--quant", choices=QUANT_CHOICES, default="uint4", help="SDNQ weights_dtype")
     parser.add_argument("--dynamic", action=argparse.BooleanOptionalAction, default=True, help="Enable dynamic quantization")
     parser.add_argument("--loss", type=float, default=None, help="Dynamic quantization loss threshold (default: SDNQ auto)")
+    parser.add_argument("--embeddings", action="store_true", help="Quantize embedding layers")
     args = parser.parse_args()
     console.print(f'Args({args})')
     t0 = time.perf_counter()

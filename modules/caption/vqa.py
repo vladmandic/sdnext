@@ -9,7 +9,7 @@ import torch
 import transformers
 import transformers.dynamic_module_utils
 from PIL import Image
-from modules import shared, devices, errors, model_quant, sd_models, sd_models_compile
+from modules import shared, devices, errors, model_quant, sd_models, sd_models_compile, sd_hijack_te
 from modules.sd_offload_aux import register_aux, deregister_aux, move_aux_to_gpu, offload_aux
 from modules.logger import log, console
 from modules.caption import vqa_detection, helpers, toriigate
@@ -1442,6 +1442,7 @@ class VQA:
         response = return_dict["prediction"]  # the text format answer
         return response
 
+    @sd_hijack_te.with_compile_stance('LLM')
     def caption(
         self,
         question: str = "",
