@@ -4,9 +4,10 @@ import os
 import re
 import time
 import copy
+from collections import defaultdict
 import gradio as gr
 from PIL import Image
-from modules import scripts_manager, shared, processing
+from modules import scripts_manager, shared, processing, extra_networks
 from modules.logger import log
 from scripts.prompt_enhance.options import Options
 from scripts.prompt_enhance.helpers import is_vision_model, get_model_repo_from_display
@@ -131,16 +132,15 @@ class StoryScript(scripts_manager.Script):
         stage = 'validate'
         try:
             if not hasattr(p, 'story_mode_source_prompt'):
-                story_prompt = p.prompt
-                if p.styles:
-                    story_prompt = shared.prompt_styles.apply_styles_to_prompt(story_prompt, p.styles)
-                    p.negative_prompt = shared.prompt_styles.apply_negative_styles_to_prompt(p.negative_prompt, p.styles)
-                    shared.prompt_styles.apply_styles_to_extra(p)
-                    p.prompt = story_prompt
-                    p.styles = []
+                story_prompt = p.all_prompts[0] if isinstance(p.all_prompts, list) and p.all_prompts else p.prompt
+                if isinstance(p.all_negative_prompts, list) and p.all_negative_prompts:
+                    p.negative_prompt = p.all_negative_prompts[0]
+                p.styles = []
                 p.story_mode_source_prompt = story_prompt
             story_prompt = p.story_mode_source_prompt
             story_prompt = story_prompt.strip() if isinstance(story_prompt, str) else ''
+            story_networks = [match.group(0) for match in extra_networks.re_extra_net.finditer(story_prompt)]
+            story_prompt = extra_networks.re_extra_net.sub('', story_prompt).strip(', ')
             slide_count = int(slide_count)
             if slide_count < 2 or slide_count > 99:
                 raise ValueError('Story: Number of slides must be between 2 and 99')
@@ -192,31 +192,52 @@ class StoryScript(scripts_manager.Script):
             # generate story prompts
             stage = 'story'
             is_edit_model = getattr(shared.sd_model, 'max_condition_images', None) is not None
-            if is_edit_model and use_reference and control_image is not None:
-                story_system = (
+            # prefix
+            story_system = (
+                    f'Define overall story structure and key moments before detailing individual frames. '
+                    f'Define overall story style as <style>. '
+                    f'Identify key subject of the story as <subject>. Entire description of the subject should be self-contained. '
                     f'Break this story into exactly {slide_count} ordered consecutive frames. '
-                    f'For each frame, write one concise, fully standalone image-edit instruction describing only the changes needed to show that story moment in the supplied reference image. '
-                    f'Treat the supplied image as the visual baseline. Identify existing subjects unambiguously, but do not restate their unchanged appearance, clothing, setting, or style in detail. '
-                    f'Focus on relevant changes to action, pose, expression, interaction, or visible objects. Preserve all unmentioned content and the source image\'s artistic medium and rendering style. '
-                    f'Each instruction is applied independently to the original reference image, not to a previous slide. Do not refer to other frames or rely on previous prompts. '
-                    f'Return only a JSON array of {slide_count} strings, with no titles, descriptions, markdown, or commentary.'
+                    f'Preserve identifiable subjects, style, artistic medium, and rendering details across all {slide_count} frame prompts. '
+            )
+            # mode: edit vs img2img vs txt2img
+            if is_edit_model and use_reference and control_image is not None:
+                story_system += (
+                    'For each frame, write one concise, fully standalone image-edit instruction describing only the changes needed to show that story moment in the supplied reference image. '
+                    'Treat the supplied image as the visual baseline. Identify existing subjects unambiguously, but do not restate their unchanged appearance, clothing, setting, or style in detail. '
+                    'Focus on relevant changes to action, pose, expression, interaction, or visible objects. Preserve all unmentioned content and the source image\'s artistic medium and rendering style. '
+                    'Each instruction is applied independently to the original reference image, not to a previous slide. '
+                )
+            elif not is_edit_model and use_reference and control_image is not None:
+                story_system += (
+                    'Use the supplied reference image as visual context for the story. '
+                    'For each frame, write one short, fully standalone image-generation prompt describing the main visible moment. '
+                    'Preserve continuity by explicitly repeating each visible subject\'s identity, defining physical appearance, clothing, and other relevant traits in every prompt. '
                 )
             else:
-                story_system = (
-                    f'Break this story into exactly {slide_count} ordered consecutive frames. '
-                    f'For each frame, write one short, fully standalone image-generation prompt describing the main visible moment. '
-                    f'Preserve continuity by explicitly repeating each visible subject\'s identity, defining physical appearance, clothing, and other relevant traits in every prompt. '
-                    f'Restate the setting and visual style details needed to generate that frame independently. '
-                    f'When a source image description is provided, preserve its artistic medium and rendering style in every frame. '
-                    f'Never refer to another frame or use shorthand such as "the same person", "same character", "again", "still", "as before", or "previous frame". '
-                    f'Do not use pronouns or vague phrases in place of explicitly describing the subject. '
-                    f'Return only a JSON array of {slide_count} prompt strings, with no titles, descriptions, markdown, or commentary.'
-                )
-            if use_reference and control_image is not None and not is_edit_model:
                 story_system += (
-                    f'Use the supplied reference image as visual context for the story. '
-                    f'Preserve its identifiable subjects, style, artistic medium, and rendering details across all {slide_count} frame prompts.'
+                    'For each frame, write one short, fully standalone image-generation prompt describing the main visible moment. '
+                    'Preserve continuity by explicitly repeating each visible subject\'s identity, defining physical appearance, clothing, and other relevant traits in every prompt. '
                 )
+            # have image
+            if use_reference:
+                story_system += (
+                    'Preserve artistic medium and rendering style found in reference image in every frame. '
+                )
+            # suffix
+            story_system += (
+                    f'Append overall story style to each frame. '
+                    f'Do not refer to other frames or previous prompts. '
+                    f'Do not use shorthand such as "the same person", "same character", "again", "still", "as before", "she", "previous frame" or similar. '
+                    f'Do not include temporal terms like "now", "progresses", "transitions", "conclusion" or similar. '
+                    f'Do not use pronouns or vague phrases in place of explicitly describing the subject. '
+                    f'Restate the subject description and story style for each frame explicitly. '
+                    f'Return only a JSON array of {slide_count} strings, with no titles, descriptions, markdown, or commentary. '
+            )
+            story_system += (
+                'Example output format: ["subject description, action description, frame description, style description"] '
+            )
+
             debug_log(f'Story: system="{story_system}"')
             story_max_tokens = min(8192, 256 + slide_count * 128)
             enhanced_story = enhancer.enhance(
@@ -241,7 +262,7 @@ class StoryScript(scripts_manager.Script):
             for index, frame_prompt in enumerate(story_prompts, start=1):
                 if use_enhance:
                     stage = f'prompt-{index}'
-                    debug_log(f'Story: generating detailed prompt frame={index}/{slide_count}')
+                    debug_log(f'Story: enhancing frame={index}/{slide_count} prompt="{frame_prompt}"')
                     prompt = enhancer.enhance(
                         prompt=(
                             f'Expand this short frame prompt into one detailed image-generation prompt for frame {index} of '
@@ -263,6 +284,8 @@ class StoryScript(scripts_manager.Script):
                     prompt = prompt.strip()
                 else:
                     prompt = frame_prompt
+                if story_networks:
+                    prompt = f'{prompt} {" ".join(story_networks)}'.strip()
                 prompts.append(prompt)
                 debug_log(f'Story: slide={index} total={slide_count} prompt="{prompt}"')
         except Exception as e:
@@ -324,6 +347,10 @@ class StoryScript(scripts_manager.Script):
                 slide_p.all_prompts = []
                 slide_p.all_negative_prompts = []
                 slide_p.all_seeds = []
+                slide_p.all_templates = []
+                slide_p.all_negative_templates = []
+                slide_p.extra_generation_params = copy.deepcopy(p.extra_generation_params)
+                slide_p.network_data = defaultdict(list, copy.deepcopy(p.network_data))
                 slide_p.do_not_save_samples = True
                 slide_p.do_not_save_grid = True
                 if p.story_mode_reference is not None:
@@ -357,7 +384,7 @@ class StoryScript(scripts_manager.Script):
                 p,
                 all_images,
                 seed,
-                slide_error or '',
+                all_infotexts[0] if all_infotexts else slide_error or '',
                 all_prompts=all_prompts,
                 all_negative_prompts=all_negative_prompts,
                 all_seeds=all_seeds,
