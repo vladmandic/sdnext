@@ -54,7 +54,7 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
     *note*: this is a playground thing, dont expect full cartoon level quality in a single shot  
 - **LoRA**
   - major cleanup of older lora code and full switch to *native-dispatcher* introduced last month
-  - native dispatcher: *sd, sdxl, sd3, f1, f2, f3, chroma, zimage, ernieimage, anima, krea2, minimaxh3, qwen21, moss, boogu, fibo2*
+  - native dispatcher: *sd, sdxl, sd3, f1, f2, f3, chroma, zimage, ernieimage, anima, krea2, minimaxh3, qwen21, moss, boogu, fibo2, ideogram4*
 - **Metadata**
   - improve model hash info for all models
   - add unet hash if using custom unet/dit
