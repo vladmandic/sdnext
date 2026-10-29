@@ -34,6 +34,39 @@ def save_video_frames(video_writer, frames):
         video_writer.write(img)
 
 
+class VideoWriter:
+    def __init__(self, av, container, stream):
+        self.av = av
+        self.container = container
+        self.stream = stream
+        self.frame_index = 0
+        self.closed = False
+
+    def write(self, image):
+        if self.closed:
+            return
+        try:
+            frame = self.av.VideoFrame.from_ndarray(image, format='bgr24')
+            frame = frame.reformat(width=self.stream.width, height=self.stream.height, format=self.stream.pix_fmt)
+            frame.pts = self.frame_index
+            self.frame_index += 1
+            for packet in self.stream.encode(frame):
+                self.container.mux_one(packet)
+        except Exception:
+            self.release()
+            raise
+
+    def release(self):
+        if self.closed:
+            return
+        self.closed = True
+        try:
+            for packet in self.stream.encode():
+                self.container.mux_one(packet)
+        finally:
+            self.container.close()
+
+
 def save_video_atomic(images,
                       filename,
                       video_type: str = 'none',
@@ -45,7 +78,21 @@ def save_video_atomic(images,
                       change: float = 0.3,
                       stream: bool = False,
                       frames_hint: int = 0,
-                     ) -> cv2.VideoWriter | None:
+                      metadata: dict | None = None,
+                      mp4_codec: str = 'mpeg4',
+                      mp4_pix: str = 'yuv420p',
+                      mp4_opt: str = '',
+                     ) -> VideoWriter | None:
+    parsed_options = {}
+    if mp4_opt:
+        from modules.video_models.video_save import parse_options, rejected_options
+        parsed_options = parse_options(mp4_opt)
+        rejected = rejected_options(mp4_opt)
+        if rejected:
+            log.error(f'Video: options={rejected} not allowed')
+            return None
+    if str(mp4_codec).lower() == 'libx265':
+        parsed_options['x265-params'] = 'log-level=error'
     savejob = shared.state.begin('Save video')
     os.makedirs(os.path.dirname(filename), exist_ok=True)
     video_writer = None
@@ -66,18 +113,47 @@ def save_video_atomic(images,
         log.info(f'Save video: file="{filename}" frames={num_frames} duration={duration} loop={loop} size={os.path.getsize(filename)}')
     elif video_type.lower() != 'none':
         frames = interpolate_frames(images, count=interpolate, scale=scale, pad=pad, change=change)
-        fourcc = "mp4v"
         h, w, _c = frames[0].shape
         num_frames = frames_hint if frames_hint > 0 else len(frames)
         fps = max(1.0, num_frames / duration) if duration > 0 else 30.0
-        video_writer = cv2.VideoWriter(filename, fourcc=cv2.VideoWriter_fourcc(*fourcc), fps=fps, frameSize=(w, h))
-        save_video_frames(video_writer, frames)
-        if not stream:
-            video_writer.release()
-            video_writer = None
-        hint = 'stream=True' if stream else f'size={os.path.getsize(filename)}'
-        log.info(f'Save video: file="{filename}" frames={num_frames} duration={duration} fps={fps:.2f} resolution={(w ,h)} fourcc={fourcc} {hint}')
-        frames.clear()
+        from fractions import Fraction
+        from modules.video_models.video_utils import check_av
+        container = None
+        try:
+            av = check_av()
+            if av is None:
+                log.error('Video: ffmpeg/av not available')
+            else:
+                container = av.open(filename, mode='w')
+                for key, value in (metadata or {}).items():
+                    if value is not None:
+                        container.metadata[str(key)] = str(value)
+                video_stream = container.add_stream(mp4_codec, rate=Fraction(fps).limit_denominator(), options=parsed_options)
+                video_stream.width = w
+                video_stream.height = h
+                video_stream.pix_fmt = mp4_pix
+                video_writer = VideoWriter(av, container, video_stream)
+                save_video_frames(video_writer, frames)
+                if not stream:
+                    video_writer.release()
+                    video_writer = None
+                hint = 'stream=True' if stream else f'size={os.path.getsize(filename)}'
+                log.info(f'Save video: file="{filename}" frames={num_frames} duration={duration} fps={fps:.2f} resolution={(w ,h)} codec={mp4_codec} fmt={mp4_pix} options={parsed_options} {hint}')
+                frames.clear()
+        except Exception as e:
+            if video_writer is not None:
+                try:
+                    video_writer.release()
+                except Exception as cleanup_error:
+                    log.error(f'Save video: cleanup failed: {cleanup_error}')
+                video_writer = None
+            elif container is not None:
+                try:
+                    container.close()
+                except Exception as cleanup_error:
+                    log.error(f'Save video: cleanup failed: {cleanup_error}')
+            log.error(f'Save video: file="{filename}" {e}')
+            errors.display(e, 'Video')
     shared.state.end(savejob)
     return video_writer
 
@@ -95,6 +171,11 @@ def save_video(p,
                sync: bool = False,
                stream: bool = False,
                frames_hint: int = 0,
+               metadata: dict | None = None,
+               mp4_codec: str = 'mpeg4',
+               mp4_ext: str | None = None,
+               mp4_pix: str = 'yuv420p',
+               mp4_opt: str = '',
               ):
     if (video_type is None) or (video_type.lower() == 'none') or (images is None) or (len(images) < 1):
         return None
@@ -111,19 +192,27 @@ def save_video(p,
     if filename is None:
         filename = namegen.apply(shared.opts.samples_filename_pattern if shared.opts.samples_filename_pattern and len(shared.opts.samples_filename_pattern) > 0 else "[seq]-[prompt_words]")
         filename = os.path.join(base_path, filename)
-        filename = namegen.sequence(filename)
     else:
         if os.path.sep not in filename:
             filename = os.path.join(base_path, filename)
-    ext = video_type.lower().split('/')[0] if '/' in video_type else video_type.lower()
-    if not filename.lower().endswith(ext):
-        filename += f'.{ext}'
+    filename = namegen.sequence(filename)
+    if mp4_ext is not None and video_type.lower() not in ['gif', 'png']:
+        ext = mp4_ext.lower().lstrip('.')
+        if not filename.lower().endswith(f'.{ext}'):
+            root, current_ext = os.path.splitext(filename)
+            filename = f'{root if current_ext else filename}.{ext}'
+    else:
+        ext = video_type.lower().split('/')[0] if '/' in video_type else video_type.lower()
+        if not filename.lower().endswith(ext):
+            filename += f'.{ext}'
     filename = namegen.sanitize(filename)
     shared.state.outputs(filename)
+    from modules.video_models.video_save import create_video_metadata
+    metadata = create_video_metadata(p, metadata, filename)
     if not sync:
-        threading.Thread(target=save_video_atomic, args=(images, filename, video_type, duration, loop, interpolate, scale, pad, change)).start()
+        threading.Thread(target=save_video_atomic, args=(images, filename, video_type, duration, loop, interpolate, scale, pad, change), kwargs={'metadata': metadata, 'mp4_codec': mp4_codec, 'mp4_pix': mp4_pix, 'mp4_opt': mp4_opt}).start()
     else:
-        video_writer = save_video_atomic(images, filename, video_type, duration, loop, interpolate, scale, pad, change, stream, frames_hint)
+        video_writer = save_video_atomic(images, filename, video_type, duration, loop, interpolate, scale, pad, change, stream, frames_hint, metadata, mp4_codec, mp4_pix, mp4_opt)
         if stream and video_writer is not None:
             return filename, video_writer
     return filename

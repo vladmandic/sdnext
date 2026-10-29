@@ -516,14 +516,15 @@ def create_settings(cmd_opts):
         "onnx_temp_dir": OptionInfo(os.path.join(paths.models_path, 'ONNX', 'temp'), "Folder for ONNX conversion", folder=True),
     }))
 
-    # --- Image Options ---
-    options_templates.update(options_section(('saving-images', "Image Options"), {
-        "samples_save": OptionInfo(True, "Save all generated images"),
-        "keep_incomplete": OptionInfo(True, "Save interrupted images"),
-        "samples_format": OptionInfo('jpg', 'File format', gr.Dropdown, {"choices": ["jpg", "png", "webp", "tiff", "jp2", "jxl", "heif"]}),
+    # --- Media Options ---
+    options_templates.update(options_section(('saving-images', "Media Options"), {
+        "samples_save": OptionInfo(True, "Save all generated media"),
+        "keep_incomplete": OptionInfo(True, "Save interrupted media"),
+        "samples_format": OptionInfo('jpg', 'Image file format', gr.Dropdown, {"choices": ["jpg", "png", "webp", "tiff", "jp2", "jxl", "heif"]}),
         "jpeg_quality": OptionInfo(90, "Image quality", gr.Slider, {"minimum": 1, "maximum": 100, "step": 1}),
-        "img_max_size_mp": OptionInfo(1000, "Maximum image size (MP)", gr.Slider, {"minimum": 10, "maximum": 2000, "step": 1}),
-        "webp_lossless": OptionInfo(False, "WebP lossless compression"),
+        "img_max_size_mp": OptionInfo(1000, "Image maximum size (MP)", gr.Slider, {"minimum": 10, "maximum": 2000, "step": 1}),
+        "ui_video_convert": OptionInfo(False, "Videos convert for UI playback"),
+        "webp_lossless": OptionInfo(False, "Image WebP lossless compression"),
         "save_selected_only": OptionInfo(True, "UI save only saves selected image"),
         "include_mask": OptionInfo(False, "Include mask in outputs"),
         "samples_save_zip": OptionInfo(False, "Create ZIP archive for multiple images"),
@@ -559,8 +560,8 @@ def create_settings(cmd_opts):
         "image_watermark_image": OptionInfo('', "Image watermark file"),
     }))
 
-    # --- Image Paths ---
-    options_templates.update(options_section(('saving-paths', "Image Paths"), {
+    # --- Media Paths ---
+    options_templates.update(options_section(('saving-paths', "Media Paths"), {
         "saving_sep_images": OptionInfo("<h2>Save Options</h2>", "", gr.HTML),
         "save_images_add_number": OptionInfo(True, "Numbered filenames", component_args=hide_dirs),
         "use_original_name_batch": OptionInfo(True, "Batch uses original name"),
@@ -586,8 +587,8 @@ def create_settings(cmd_opts):
         "outdir_control_grids": OptionInfo("outputs/grids", 'Folder for control grids', component_args=hide_dirs, folder=True),
     }))
 
-    # --- Image Metadata ---
-    options_templates.update(options_section(('image-metadata', "Image Metadata"), {
+    # --- Media Metadata ---
+    options_templates.update(options_section(('image-metadata', "Media Metadata"), {
         "image_metadata": OptionInfo(True, "Save metadata in image"),
         "add_model_hash": OptionInfo(True, "Add hash: Model"),
         "add_lora_hash": OptionInfo(False, "Add hash: LoRA"),

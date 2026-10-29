@@ -1,4 +1,5 @@
 import os
+import shutil
 import tempfile
 from collections import namedtuple
 from pathlib import Path
@@ -14,6 +15,39 @@ debug = log.trace if os.environ.get('SD_PATH_DEBUG', None) is not None else lamb
 def register_tmp_file(gradio, filename):
     if hasattr(gradio, 'temp_file_sets'):
         gradio.temp_file_sets[0] = gradio.temp_file_sets[0] | {os.path.abspath(filename)}
+
+
+def patch_video_conversion():
+    try:
+        import gradio.processing_utils as processing_utils
+        original_convert = processing_utils.convert_video_to_playable_mp4
+        if getattr(original_convert, '_sdnext_preserve_original', False):
+            return
+
+        def convert_video_to_playable_mp4(video_path):
+            if not shared.opts.ui_video_convert:
+                return video_path
+            video_path = os.fspath(video_path)
+            temp_dir = shared.opts.temp_dir or os.path.join(paths.temp_dir, 'gradio')
+            os.makedirs(temp_dir, exist_ok=True)
+            with tempfile.NamedTemporaryFile(delete=False, suffix=Path(video_path).suffix or '.mp4', dir=temp_dir) as tmp:
+                temp_path = tmp.name
+            try:
+                shutil.copy2(video_path, temp_path)
+                converted_path = original_convert(temp_path)
+                log.debug(f'Video conversion: original="{video_path}" converted="{converted_path}"')
+                return converted_path
+            except Exception:
+                try:
+                    os.remove(temp_path)
+                except OSError:
+                    pass
+                raise
+
+        convert_video_to_playable_mp4._sdnext_preserve_original = True # pylint: disable=protected-access
+        processing_utils.convert_video_to_playable_mp4 = convert_video_to_playable_mp4
+    except Exception as e:
+        log.error(f'Video conversion: {e}')
 
 
 def check_tmp_file(gradio, filename):

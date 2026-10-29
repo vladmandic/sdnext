@@ -71,6 +71,9 @@ def create_video_metadata(p: processing.StableDiffusionProcessingVideo | None, m
     metadata = metadata.copy() if metadata is not None else {}
     if not shared.opts.image_metadata:
         return metadata
+    title = os.path.basename(filename) if filename else 'SD.Next video'
+    metadata.setdefault('title', title)
+    metadata.setdefault('encoder', 'SD.Next')
     if p is None:
         return metadata
     try:
@@ -82,9 +85,6 @@ def create_video_metadata(p: processing.StableDiffusionProcessingVideo | None, m
         info = getattr(p, 'prompt', '') or ''
     if len(info) == 0:
         return metadata
-    title = os.path.basename(filename) if filename else 'SD.Next video'
-    metadata.setdefault('title', title)
-    metadata.setdefault('encoder', 'SD.Next')
     metadata.setdefault('comment', info)
     metadata.setdefault('description', info)
     return metadata

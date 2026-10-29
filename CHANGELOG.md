@@ -62,10 +62,15 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
 - **DLSS**
   - use streaming for DLSS video processing  
     allows near-infinite video length without excessive memory usage  
+  - allow custom video codecs and options
 - **MicroDecoder**
   - add support for additional vae families  
     supported: *sd, sdxl, sd3, f1, f2, hy, dcae, mage, qwen, qwen21, wan21, wan22, minimaxh3, cog, sefi*  
     too see how different vae families map to different models, see <https://huggingface.co/SD-Next/MicroDecoder>  
+- **Video**
+  - add option in *Settings -> Media Options -> Videos convert for UI playback*  
+    depencing on choice of codec and settings some generated videos may not be playable in browser  
+    this allows sdnext to convert generated video to a temporary copy for ui playback  
 - **Wiki**
   - updates to: `Scheduler`, `Models`, `Model-Support`, `Docker`, `AMD-ROCm`, `AMD-MIOpen`, `Detailer`, `LoRA`, `LoRA-Technical`
 - **Docker**
@@ -120,6 +125,7 @@ See [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) belo
   - ui: fallback template load method when running on older server
   - ui: autohide panels
   - unet: hash on first load
+  - video: gradio do not recode video in-place
   - wan: loading route changes video frame count, thanks @Jackmeson1
 
 ## Update for 2026-10-18

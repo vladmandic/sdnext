@@ -59,7 +59,7 @@ def dlss_run(p: StableDiffusionProcessing | None,
         log.warning('DLSS run called with no additional arguments')
         return None
     elif len(args) > 0: # called with positional arguments from generate / pp=Processed
-        dlss_enabled, dlss_graph, dlss_chunk, dlss_full, nr_profile, nr_motion, nr_scale, nr_intensity, nr_blend, nr_detail, nr_colour, nr_radius, nr_threshold, nr_normalized, nr_local_tone, nr_local_structure, nr_skin_structure, nr_mask_structure, ss_profile, ss_scale, ss_detail, ss_colour, ss_radius, ss_threshold, fg_profile, fg_mode, fg_factor, fg_threshold = args
+        dlss_enabled, dlss_graph, dlss_chunk, dlss_full, nr_profile, nr_motion, nr_scale, nr_intensity, nr_blend, nr_detail, nr_colour, nr_radius, nr_threshold, nr_normalized, nr_local_tone, nr_local_structure, nr_skin_structure, nr_mask_structure, ss_profile, ss_scale, ss_detail, ss_colour, ss_radius, ss_threshold, fg_profile, fg_mode, fg_factor, fg_threshold, mp4_codec, mp4_ext, mp4_pix, mp4_opt = args
     elif len(kwargs) > 0: # called with keyword arguments from postprocess / pp=PostprocessedImage
         dlss_enabled = kwargs.get("dlss_enabled", [])
         dlss_graph = kwargs.get("dlss_graph", False)
@@ -89,6 +89,10 @@ def dlss_run(p: StableDiffusionProcessing | None,
         fg_mode = kwargs.get("fg_mode", "fps")
         fg_factor = kwargs.get("fg_factor", 2)
         fg_threshold = kwargs.get("fg_threshold", 0.4)
+        mp4_codec = kwargs.get("mp4_codec", "libx264")
+        mp4_ext = kwargs.get("mp4_ext", "mp4")
+        mp4_pix = kwargs.get("mp4_pix", "yuv420p")
+        mp4_opt = kwargs.get("mp4_opt", "")
     else:
         log.warning('DLSS run called with unexpected argument structure')
         return None
@@ -252,6 +256,7 @@ def dlss_run(p: StableDiffusionProcessing | None,
 
         jobid = shared.state.begin('DLSS')
 
+        filename = None
         video_writter = None
         use_stream = has_video and(len(raw_inputs) > 0) and (raw_inputs[0] is None)
         num_frames = len(raw_inputs)
@@ -264,6 +269,9 @@ def dlss_run(p: StableDiffusionProcessing | None,
         if use_stream:
             raw_inputs = video.read_generator(pp.video) # use read generator instead of bulk read
 
+        if isinstance(pp.video, str):
+            filename = os.path.splitext(os.path.basename(pp.video))[0]
+
         with pbar:
             video_initialized = False
             total_produced_frames = []
@@ -271,7 +279,23 @@ def dlss_run(p: StableDiffusionProcessing | None,
                 current_frames = process_frame(raw_input)
                 if use_stream:
                     if not video_initialized:
-                        pp.video, video_writter = video.save_video(p, current_frames, video_type='mp4', duration=duration, sync=True, stream=True, frames_hint=output_frames_hint)
+                        metadata = {
+                            'description': f'SD.Next video {mp4_codec}',
+                            'comment': f'DLSS:{", ".join(enabled_ops)}',
+                        }
+                        pp.video, video_writter = video.save_video(p,
+                                                                   current_frames,
+                                                                   filename=filename,
+                                                                   metadata=metadata,
+                                                                   video_type='mp4',
+                                                                   duration=duration,
+                                                                   sync=True,
+                                                                   stream=True,
+                                                                   frames_hint=output_frames_hint,
+                                                                   mp4_codec=mp4_codec,
+                                                                   mp4_ext=mp4_ext,
+                                                                   mp4_pix=mp4_pix,
+                                                                   mp4_opt=mp4_opt)
                         video_initialized = True
                     else:
                         video.save_video_frames(video_writter, current_frames)
@@ -293,11 +317,17 @@ def dlss_run(p: StableDiffusionProcessing | None,
         elif has_image:
             pp.image = output_images[0] if output_images else None
         elif has_video:
-            pp.video = video.save_video(p, output_images, video_type='mp4', duration=duration, sync=True)
+            pp.video = video.save_video(p, output_images, video_type='mp4', duration=duration, sync=True, mp4_codec=mp4_codec, mp4_ext=mp4_ext, mp4_pix=mp4_pix, mp4_opt=mp4_opt)
 
         t2 = time.perf_counter()
         log.debug(f'DLSS output: frames={len(output_images)} init={t1 - t0:.4f} time={t2 - t1:.4f} its={len(output_images) / (t2 - t1):.4f}')
         output_images.clear()
+
+        if debug:
+            log.trace(f'Video file: {pp.video}')
+            log.trace(f'Video info: {video.get_video_info(pp.video)}')
+            log.trace(f'Video params: {video.get_video_params(pp.video)}')
+            log.trace(f'Video metadata: {video.get_video_metadata(pp.video)}')
         shared.state.end(jobid)
 
     finally:
