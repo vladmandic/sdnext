@@ -624,6 +624,8 @@ class PromptEnhanceScript(scripts_manager.Script):
             response = response[0]
         raw_response = raw_response[0] if isinstance(raw_response, list) else raw_response
         thinking_output, answer = self.extract_thinking(raw_response)
+        debug_log(f'Prompt enhance: thinking="{thinking_output}"')
+        debug_log(f'Prompt enhance: answer="{answer}"')
         if thinking_output:
             for token in self.tokenizer.all_special_tokens:
                 answer = answer.replace(token, '')
