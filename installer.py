@@ -249,7 +249,7 @@ def uninstall(package, quiet = False):
         if installed(p, p, quiet=True):
             if not quiet:
                 log.warning(f'Package: {p} uninstall')
-            _result, _txt = pip(f"uninstall {p} --yes --quiet", ignore=True, quiet=True, uv=False)
+            _result, _txt = pip(f"uninstall {p} --yes --quiet", ignore=True, quiet=True)
             txt += _txt
     ts('uninstall', t_start)
     return txt
@@ -381,7 +381,7 @@ def install(package, friendly: str | None = None, ignore: bool = False, reinstal
         deps = '' if not no_deps else '--no-deps '
         isolation = '' if not no_build_isolation else '--no-build-isolation '
         cmd = f"install{' --upgrade' if not args.uv else ''}{' --force-reinstall' if force else ''} {deps}{isolation}{package}"
-        res = pip(cmd, ignore=ignore, uv=package != "uv" and not package.startswith('git+'))
+        res = pip(cmd, ignore=ignore, uv=package != "uv")
     ts('install', t_start)
     return res
 
@@ -635,10 +635,10 @@ def check_diffusers():
             log.info(f'Install: package="diffusers" commit={diffusers_target}')
         else:
             log.info(f'Update: package="diffusers" current={pkg.version} commit={diffusers_commit} target={diffusers_target}')
-            pip('uninstall --yes diffusers', ignore=True, quiet=True, uv=False)
+            pip('uninstall --yes diffusers', ignore=True, quiet=True)
         if args.skip_git:
             log.warning('Git: marked as not available but required for diffusers installation')
-        pip(f'install git+https://github.com/huggingface/diffusers@{diffusers_target}', ignore=False, quiet=True, uv=False)
+        pip(f'install git+https://github.com/huggingface/diffusers@{diffusers_target}', ignore=False, quiet=True)
         diffusers_commit = diffusers_target
     ts('diffusers', t_start)
 
