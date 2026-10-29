@@ -290,12 +290,14 @@ def run(cmd: str, *nargs: str, **kwargs):
     options = {
         "check": False,
         "env": os.environ,
+        "stdout": subprocess.PIPE,
+        "stderr": subprocess.PIPE,
     }
     options |= kwargs  # Override defaults with passed kwargs
     argstr = " ".join(nargs)
-    result = subprocess.run(f'"{cmd}" {argstr}', **options, shell=True, capture_output=True, text=True)
-    result.stdout = result.stdout.strip()
-    result.stderr = result.stderr.strip()
+    result = subprocess.run(f'"{cmd}" {argstr}', **options, shell=True, text=True)
+    result.stdout = (result.stdout or '').strip()
+    result.stderr = (result.stderr or '').strip()
     txt = result.stdout
     if result.stderr:
         # Put newline between outputs only if stdout isn't empty
@@ -323,6 +325,52 @@ def cleanup_broken_packages():
         pass
 
 
+def install_progress() -> bool:
+    """Live progress needs the log console on a terminal; SD_INSTALL_DEBUG keeps full capture instead"""
+    if os.environ.get('SD_INSTALL_DEBUG', None) is not None:
+        return False
+    try:
+        from modules.logger import console
+        return console is not None and console.is_terminal
+    except Exception:
+        return False
+
+
+def pip_raw_progress() -> bool:
+    """pip 24.1 added --progress-bar raw"""
+    try:
+        major, minor = (package_version('pip') or '0.0').split('.')[:2]
+        return (int(major), int(minor)) >= (24, 1)
+    except Exception:
+        return False
+
+
+def pip_progress(cmdline: str, label: str) -> tuple[subprocess.CompletedProcess, str]:
+    """Run pip with raw progress on a pipe and draw it as a download bar on the log console"""
+    from rich.progress import Progress, TextColumn, BarColumn, DownloadColumn, TransferSpeedColumn, TimeRemainingColumn
+    from modules.logger import console
+    lines = []
+    with subprocess.Popen(cmdline, shell=True, env=os.environ, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors='replace', bufsize=1) as proc:
+        with Progress(TextColumn('[cyan]{task.description}'), BarColumn(bar_width=None), DownloadColumn(), TransferSpeedColumn(), TimeRemainingColumn(), console=console, transient=True) as progress:
+            task = progress.add_task(description=f'Install: {label[:48]}', total=None)
+            for line in proc.stdout:
+                line = line.strip()
+                if line.startswith('Progress '): # raw mode prints "Progress <done> of <total>" per chunk
+                    parts = line.split()
+                    if len(parts) == 4 and parts[1].isdigit() and parts[3].isdigit():
+                        progress.update(task, completed=int(parts[1]), total=int(parts[3]))
+                    continue
+                lines.append(line)
+                phase = line.split(' (')[0]
+                if phase.startswith('Downloading '): # wheel name without python and platform tags
+                    phase = 'Downloading ' + '-'.join(os.path.basename(phase[12:]).split('-')[:2])
+                if phase.startswith(('Collecting ', 'Downloading ', 'Building wheel for ', 'Cloning ', 'Installing collected packages')):
+                    progress.update(task, description=phase[:48])
+        returncode = proc.wait()
+    result = subprocess.CompletedProcess(cmdline, returncode, stdout='\n'.join(lines), stderr='')
+    return result, result.stdout
+
+
 def pip(arg: str, ignore: bool = False, quiet: bool = True, *, uv = True, constraints = True) -> tuple[subprocess.CompletedProcess | None, str]:
     t_start = time.time()
     originalArg = arg
@@ -348,17 +396,19 @@ def pip(arg: str, ignore: bool = False, quiet: bool = True, *, uv = True, constr
     if not quiet:
         log.debug(f'Running: {pipCmd}="{" ".join(all_args)}"')
 
+    progress = install_progress()
     if uv:
-        result, output = run("uv", "pip", *all_args, f'--python "{sys.executable}"')
+        result, output = run("uv", "pip", *all_args, f'--python "{sys.executable}"', stderr=None if progress else subprocess.PIPE) # uv draws its own progress when stderr is the terminal
+    elif progress and arg.startswith('install') and pip_raw_progress():
+        result, output = pip_progress(f'"{sys.executable}" -m pip {" ".join(all_args)} --progress-bar raw', package)
     else:
         result, output = run(sys.executable, "-m", pipCmd, *all_args)
 
-    if len(result.stderr) > 0:
-        if uv and result.returncode != 0:
-            log.warning(f'Install: cmd="{pipCmd}" args="{" ".join(all_args)}" cannot use uv, fallback to pip')
-            debug(f'Install: uv pip error: {result.stderr}')
-            cleanup_broken_packages()
-            return pip(originalArg, ignore, quiet, uv=False)
+    if uv and result.returncode != 0:
+        log.warning(f'Install: cmd="{pipCmd}" args="{" ".join(all_args)}" cannot use uv, fallback to pip')
+        debug(f'Install: uv pip error: {output}')
+        cleanup_broken_packages()
+        return pip(originalArg, ignore, quiet, uv=False)
     if os.environ.get('SD_INSTALL_DEBUG', None) is not None:
         log.debug(f'PIP cmd="{pipCmd}": {output}')
     if result.returncode != 0 and not ignore:
