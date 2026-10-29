@@ -1442,6 +1442,92 @@ def test_moss_converter_rejects_bias_and_invalid_qkv_shapes():
         assert 'three equal row groups' in str(e)
 
 
+def test_moss_converter_splits_comfy_sidecars():
+    convert = moss_converter()
+    fused = torch.randint(-128, 127, (12, 4), dtype=torch.int8)
+    rowwise = torch.arange(12, dtype=torch.float32).reshape(12, 1)
+    scalar = torch.tensor(0.5)
+    marker = comfy_marker('int8_tensorwise')
+    out = convert({
+        'layers.0.proj.qkv.weight': fused,
+        'layers.0.proj.qkv.weight_scale': rowwise,
+        'layers.0.proj.qkv.comfy_quant': marker,
+        'layers.1.proj.qkv.weight': fused,
+        'layers.1.proj.qkv.weight_scale': scalar,
+    })
+    for i, name in enumerate(('q', 'k', 'v')):
+        assert torch.equal(out[f'layers.0.proj.{name}.weight'], fused[i * 4:(i + 1) * 4])
+        assert torch.equal(out[f'layers.0.proj.{name}.weight_scale'], rowwise[i * 4:(i + 1) * 4])
+        assert out[f'layers.0.proj.{name}.comfy_quant'] is marker
+        assert out[f'layers.1.proj.{name}.weight_scale'] is scalar
+    assert not any('.qkv.' in key for key in out)
+
+
+MOSS_TINY = {'dim': 16, 'ffn_dim': 32, 'num_heads': 2, 'num_layers': 2, 'text_dim': 8, 'freq_dim': 8, 'latent_channels': 4}
+
+
+def test_load_moss_comfy_convrot_end_to_end():
+    """A ComfyUI ConvRot int8 MOSS file keeps the release's fused outer-block
+    qkv. It loads on the real transformer class with q/k/v as SDNQ hadamard
+    layers whose dequant is the matching rows of the fused reference, and the
+    model's output matches a float model built from the reference weights."""
+    import json as json_mod
+    from pipelines.moss import MOSS_SPEC
+    from pipelines.moss.moss_image import MOSSImageTransformer
+    torch.manual_seed(0)
+    group_size = 16
+    source = MOSSImageTransformer(**MOSS_TINY).state_dict()
+    marker = torch.tensor(list(json_mod.dumps({'format': 'int8_tensorwise', 'convrot': True, 'convrot_groupsize': group_size, 'per_row': True}).encode()), dtype=torch.uint8)
+    h = regular_hadamard(group_size)
+    raw, reference = {}, {}
+    for key, value in source.items():
+        if not key.startswith('layers.') or not key.endswith('.weight') or '.proj.' not in key:
+            raw[key] = value
+            reference[key] = value
+            continue
+        prefix, name = key[:-len('.weight')].rsplit('.', 1)
+        if name in ('k', 'v'):
+            continue
+        if name == 'q':
+            name, value = 'qkv', torch.cat([source[f'{prefix}.{n}.weight'] for n in ('q', 'k', 'v')])
+        q, scale = comfy_convrot_quantize(value, group_size)
+        raw[f'{prefix}.{name}.weight'] = q
+        raw[f'{prefix}.{name}.weight_scale'] = scale
+        raw[f'{prefix}.{name}.comfy_quant'] = marker.clone()
+        out_f, in_f = q.shape
+        dequant = ((q.float() * scale).reshape(out_f, -1, group_size) @ h.T).reshape(out_f, in_f)
+        if name == 'qkv':
+            for n, part in zip(('q', 'k', 'v'), dequant.chunk(3)):
+                reference[f'{prefix}.{n}.weight'] = part
+        else:
+            reference[f'{prefix}.{name}.weight'] = dequant
+    fd, path = tempfile.mkstemp(suffix='.safetensors')
+    try:
+        write_fixture(raw, fd, path)
+        with ComfyTestEnv(MOSS_TINY['dim']):
+            nt.fetch_component_config = lambda repo, sub: dict(MOSS_TINY)
+            transformer, _ = nt.load(local_file=path, repo_id='fake/repo', spec=MOSS_SPEC, diffusers_cfg={}, dtype=torch.float32)
+        for index in range(MOSS_TINY['num_layers']):
+            for name in ('q', 'k', 'v', 'o', 'ffn_up_gate', 'ffn_down'):
+                layer = transformer.layers[index].proj[name]
+                assert layer.__class__.__name__ == 'SDNQLinear', f'layers.{index}.proj.{name} is {layer.__class__.__name__}'
+                dq = layer.sdnq_dequantizer
+                assert dq.use_hadamard is True and dq.hadamard_group_size == group_size
+                dequantized = dq(layer.weight, layer.scale, zero_point=None, svd_up=None, svd_down=None).detach().cpu()
+                assert torch.allclose(dequantized, reference[f'layers.{index}.proj.{name}.weight'], atol=1e-5), f'layers.{index}.proj.{name} dequant diverges'
+        assert transformer.text_embedder.blocks[0].qkv.__class__ is torch.nn.Linear, 'the text blocks keep their own fused qkv'
+        expected = MOSSImageTransformer(**MOSS_TINY)
+        expected.load_state_dict(reference)
+        inputs = {'hidden_states': torch.randn(1, MOSS_TINY['latent_channels'], 2, 2), 'timestep': torch.tensor([500.0]), 'encoder_hidden_states': torch.randn(1, 3, MOSS_TINY['text_dim'])}
+        with torch.no_grad():
+            got = transformer(**inputs).sample
+            want = expected(**inputs).sample
+        assert torch.allclose(got, want, atol=1e-4), f'output diverges from the reference float model: {(got - want).abs().max():.3e}'
+    finally:
+        if os.path.exists(path):
+            os.unlink(path)
+
+
 # ============================================================
 # Bria FIBO 2 converter (ComfyUI fused layout -> diffusers)
 # ============================================================
@@ -2706,6 +2792,8 @@ def run_all():
     for fn in [
         test_moss_converter_splits_outer_qkv_and_preserves_text_qkv,
         test_moss_converter_rejects_bias_and_invalid_qkv_shapes,
+        test_moss_converter_splits_comfy_sidecars,
+        test_load_moss_comfy_convrot_end_to_end,
     ]:
         run_test(cat, fn)
 

@@ -4,14 +4,15 @@ import re
 
 from pipelines.moss.moss_image import MOSSImageTransformer
 from pipelines.moss.moss_transformer_2d import MOSSImageTransformer2DModel
-from pipelines.native_transformer import TransformerSpec
+from pipelines.native_transformer import TransformerSpec, split_fused_rows
 
 
-MOSS_QKV_RE = re.compile(r"^(layers\.\d+)\.proj\.qkv\.(weight|bias)$")
+MOSS_QKV_RE = re.compile(r"^(layers\.\d+\.proj)\.qkv\.(.+)$")
+MOSS_QKV_TARGETS = ('q', 'k', 'v')
 
 
 def convert_moss_transformer_state_dict(state_dict: dict) -> dict:
-    """Split fused outer-block QKV weights into the transformer's q/k/v projections."""
+    """Split fused outer-block QKV layers, comfy_quant sidecars included, into the transformer's q/k/v projections."""
     converted = {}
     for key, value in state_dict.items():
         match = MOSS_QKV_RE.match(key)
@@ -19,20 +20,18 @@ def convert_moss_transformer_state_dict(state_dict: dict) -> dict:
             converted[key] = value
             continue
         prefix, suffix = match.groups()
-        if suffix != 'weight':
+        if suffix == 'bias':
             raise ValueError(f'MOSS outer-block fused QKV bias is unsupported: {key}')
-        if value.ndim != 2 or value.shape[0] % 3 != 0:
+        if suffix == 'weight' and (value.ndim != 2 or value.shape[0] % 3 != 0):
             raise ValueError(f'MOSS outer-block fused QKV weight must have three equal row groups: {key} {tuple(value.shape)}')
-        query, key_weight, value_weight = value.chunk(3, dim=0)
-        converted[f'{prefix}.proj.q.weight'] = query
-        converted[f'{prefix}.proj.k.weight'] = key_weight
-        converted[f'{prefix}.proj.v.weight'] = value_weight
+        converted.update(split_fused_rows(state_dict, f'{prefix}.qkv', suffix, tuple(f'{prefix}.{name}' for name in MOSS_QKV_TARGETS)))
     return converted
 
 
 MOSS_SPEC = TransformerSpec(
     cls=MOSSImageTransformer,
     converter=convert_moss_transformer_state_dict,
+    converter_handles_quant=True,
 )
 
 MOSS_SDNQ_SPEC = TransformerSpec(
