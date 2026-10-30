@@ -2,6 +2,7 @@ import os
 import sys
 import time
 import inspect
+import threading
 import importlib.util
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -54,9 +55,14 @@ def supports_last_frame(model):
     return not getattr(getattr(model, 'config', None), 'expand_timesteps', False)
 
 
+av_install_lock = threading.Lock()
+HARDWARE_CAPABILITIES = 0x40000 | 0x80000 # AV_CODEC_CAP_HARDWARE, AV_CODEC_CAP_HYBRID
+
+
 def check_av():
     """The av module, or None when it is unavailable; callers guard on the None."""
-    install('av')
+    with av_install_lock: # saves that start together on a fresh install would each run pip
+        install('av')
     try:
         import av
         av.logging.set_level(av.logging.ERROR) # pylint: disable=c-extension-no-member
@@ -64,6 +70,27 @@ def check_av():
         log.error(f'av package: {e}')
         return None
     return av
+
+
+def is_hardware_codec(codec) -> bool:
+    """Encoder backed by a device or driver: present in any av build, opens only with that hardware."""
+    return bool(codec.capabilities & HARDWARE_CAPABILITIES)
+
+
+def open_failure_reason(av, codec_name: str, pix_fmt: str, e: Exception) -> str:
+    """Why an encoder did not open, in terms the user can act on; libav's own last log line when nothing more specific applies."""
+    try:
+        codec = av.Codec(codec_name, mode='w')
+    except Exception:
+        return f'encoder {codec_name} is not in this av build'
+    formats = [f.name for f in (codec.video_formats or [])]
+    if formats and pix_fmt not in formats:
+        return f'pixel format {pix_fmt} not supported, {codec_name} accepts {", ".join(formats)}'
+    entry = getattr(e, 'log', None)
+    reason = entry[2].strip() if entry and len(entry) > 2 and entry[2] else str(e)
+    if is_hardware_codec(codec):
+        reason += '; hardware encoder, device or driver unavailable'
+    return reason
 
 
 def has_torchaudio():
@@ -179,7 +206,7 @@ def get_codecs():
                     codecs.append(c)
         except Exception:
             pass
-    hw_codecs = [c for c in codecs if (c.capabilities & 0x40000 > 0) or (c.capabilities & 0x80000 > 0)]
+    hw_codecs = [c for c in codecs if is_hardware_codec(c)]
     sw_codecs = [c for c in codecs if c not in hw_codecs]
     log.debug(f'Video codecs enum: hardware={len(hw_codecs)} software={len(sw_codecs)} rejected={rejected}')
     """

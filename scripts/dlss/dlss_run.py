@@ -45,6 +45,16 @@ def _to_ndarray_rgb_float(img) -> np.ndarray:
     return arr.astype(np.float32) / 255.0
 
 
+def resolve_video_options(codec: str | None, ext: str | None, pix: str | None, opt: str | None) -> tuple[str, str, str, str]:
+    """The UI's video defaults for any control a caller left unset; API and Enso jobs pass None for controls they lack."""
+    from modules.video_models import video_codecs
+    codec = 'libx264' if codec is None else codec
+    ext = (video_codecs.get_codec_ext(codec) or 'mp4') if ext is None else ext
+    pix = 'yuv420p' if pix is None else pix
+    opt = video_codecs.get_codec_options(codec) if opt is None else opt
+    return codec, ext, pix, opt
+
+
 def dlss_run(p: StableDiffusionProcessing | None,
              pp: Processed | PostprocessedImage,
              *args,
@@ -89,13 +99,14 @@ def dlss_run(p: StableDiffusionProcessing | None,
         fg_mode = kwargs.get("fg_mode", "fps")
         fg_factor = kwargs.get("fg_factor", 2)
         fg_threshold = kwargs.get("fg_threshold", 0.4)
-        mp4_codec = kwargs.get("mp4_codec", "libx264")
-        mp4_ext = kwargs.get("mp4_ext", "mp4")
-        mp4_pix = kwargs.get("mp4_pix", "yuv420p")
-        mp4_opt = kwargs.get("mp4_opt", "")
+        mp4_codec = kwargs.get("mp4_codec")
+        mp4_ext = kwargs.get("mp4_ext")
+        mp4_pix = kwargs.get("mp4_pix")
+        mp4_opt = kwargs.get("mp4_opt")
     else:
         log.warning('DLSS run called with unexpected argument structure')
         return None
+    mp4_codec, mp4_ext, mp4_pix, mp4_opt = resolve_video_options(mp4_codec, mp4_ext, mp4_pix, mp4_opt)
     if p is not None: # override load args from processing object
         if hasattr(p, 'nr_profile'):
             nr_profile = getattr(p, 'nr_profile', nr_profile)
@@ -147,6 +158,8 @@ def dlss_run(p: StableDiffusionProcessing | None,
     dtype = torch.float32 if dlss_full else torch.float16
 
     active_pipelines = []
+    jobid = None
+    video_writter = None
     try:
         t0 = time.perf_counter()
         active_chain = []
@@ -257,7 +270,6 @@ def dlss_run(p: StableDiffusionProcessing | None,
         jobid = shared.state.begin('DLSS')
 
         filename = None
-        video_writter = None
         use_stream = has_video and(len(raw_inputs) > 0) and (raw_inputs[0] is None)
         num_frames = len(raw_inputs)
         framegen_factor = 1
@@ -295,7 +307,8 @@ def dlss_run(p: StableDiffusionProcessing | None,
                                                                    mp4_codec=mp4_codec,
                                                                    mp4_ext=mp4_ext,
                                                                    mp4_pix=mp4_pix,
-                                                                   mp4_opt=mp4_opt)
+                                                                   mp4_opt=mp4_opt,
+                                                                   source=pp.video)
                         video_initialized = True
                     else:
                         video.save_video_frames(video_writter, current_frames)
@@ -317,7 +330,7 @@ def dlss_run(p: StableDiffusionProcessing | None,
         elif has_image:
             pp.image = output_images[0] if output_images else None
         elif has_video:
-            pp.video = video.save_video(p, output_images, video_type='mp4', duration=duration, sync=True, mp4_codec=mp4_codec, mp4_ext=mp4_ext, mp4_pix=mp4_pix, mp4_opt=mp4_opt)
+            pp.video = video.save_video(p, output_images, video_type='mp4', duration=duration, sync=True, mp4_codec=mp4_codec, mp4_ext=mp4_ext, mp4_pix=mp4_pix, mp4_opt=mp4_opt, source=pp.video)
 
         t2 = time.perf_counter()
         log.debug(f'DLSS output: frames={len(output_images)} init={t1 - t0:.4f} time={t2 - t1:.4f} its={len(output_images) / (t2 - t1):.4f}')
@@ -328,9 +341,15 @@ def dlss_run(p: StableDiffusionProcessing | None,
             log.trace(f'Video info: {video.get_video_info(pp.video)}')
             log.trace(f'Video params: {video.get_video_params(pp.video)}')
             log.trace(f'Video metadata: {video.get_video_metadata(pp.video)}')
-        shared.state.end(jobid)
 
     finally:
+        if video_writter is not None:
+            try:
+                video_writter.release() # no-op after a normal finish; closes the file when processing raised
+            except Exception as e:
+                log.warning(f'DLSS: video writer release: {e}')
+        if jobid is not None:
+            shared.state.end(jobid)
         for pipe in active_pipelines:
             try:
                 pipe.device = devices.cpu

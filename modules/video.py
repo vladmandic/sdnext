@@ -34,6 +34,10 @@ def save_video_frames(video_writer, frames):
         video_writer.write(img)
 
 
+class VideoWriteError(RuntimeError):
+    """A video save was refused or failed; the message is the reason shown to the user."""
+
+
 class VideoWriter:
     def __init__(self, av, container, stream):
         self.av = av
@@ -61,10 +65,39 @@ class VideoWriter:
             return
         self.closed = True
         try:
-            for packet in self.stream.encode():
-                self.container.mux_one(packet)
+            if self.stream.codec_context.is_open: # flushing an encoder that never opened crashes libav
+                for packet in self.stream.encode():
+                    self.container.mux_one(packet)
         finally:
             self.container.close()
+
+
+def open_video_writer(av, filename: str, width: int, height: int, fps: float, codec: str, pix_fmt: str, options: dict, metadata: dict | None = None) -> VideoWriter:
+    """Open the container and the encoder before any frame, so a refusal leaves no partial file."""
+    from fractions import Fraction
+    from modules.video_models.video_utils import open_failure_reason
+    existed = os.path.exists(filename)
+    container = None
+    try:
+        container = av.open(filename, mode='w')
+        for key, value in (metadata or {}).items():
+            if value is not None:
+                container.metadata[str(key)] = str(value)
+        stream = container.add_stream(codec, rate=Fraction(fps).limit_denominator(), options=options)
+        stream.width = width
+        stream.height = height
+        stream.pix_fmt = pix_fmt
+        container.start_encoding()
+    except Exception as e:
+        if container is not None:
+            try:
+                container.close()
+            except Exception:
+                pass
+        if not existed and os.path.exists(filename):
+            os.remove(filename)
+        raise VideoWriteError(f'codec={codec} pix_fmt={pix_fmt}: {open_failure_reason(av, codec, pix_fmt, e)}') from e
+    return VideoWriter(av, container, stream)
 
 
 def save_video_atomic(images,
@@ -83,6 +116,9 @@ def save_video_atomic(images,
                       mp4_pix: str = 'yuv420p',
                       mp4_opt: str = '',
                      ) -> VideoWriter | None:
+    """Write the clip; with stream=True the open writer is returned for more frames.
+
+    Raises VideoWriteError when the save is refused or fails, after logging the reason once."""
     parsed_options = {}
     if mp4_opt:
         from modules.video_models.video_save import parse_options, rejected_options
@@ -90,72 +126,67 @@ def save_video_atomic(images,
         rejected = rejected_options(mp4_opt)
         if rejected:
             log.error(f'Video: options={rejected} not allowed')
-            return None
+            raise VideoWriteError(f'options {rejected} not allowed')
     if str(mp4_codec).lower() == 'libx265':
         parsed_options['x265-params'] = 'log-level=error'
     savejob = shared.state.begin('Save video')
-    os.makedirs(os.path.dirname(filename), exist_ok=True)
     video_writer = None
-    if video_type.lower() in ['gif', 'png']:
-        append = images.copy()
-        image = append.pop(0)
-        if loop:
-            append += append[::-1]
-        num_frames=len(append) + 1
-        image.save(
-            filename,
-            save_all = True,
-            append_images = append,
-            optimize = False,
-            duration = 1000.0 * duration / num_frames,
-            loop = 0 if loop else 1,
-        )
-        log.info(f'Save video: file="{filename}" frames={num_frames} duration={duration} loop={loop} size={os.path.getsize(filename)}')
-    elif video_type.lower() != 'none':
-        frames = interpolate_frames(images, count=interpolate, scale=scale, pad=pad, change=change)
-        h, w, _c = frames[0].shape
-        num_frames = frames_hint if frames_hint > 0 else len(frames)
-        fps = max(1.0, num_frames / duration) if duration > 0 else 30.0
-        from fractions import Fraction
-        from modules.video_models.video_utils import check_av
-        container = None
-        try:
+    try:
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        if video_type.lower() in ['gif', 'png']:
+            append = images.copy()
+            image = append.pop(0)
+            if loop:
+                append += append[::-1]
+            num_frames=len(append) + 1
+            image.save(
+                filename,
+                save_all = True,
+                append_images = append,
+                optimize = False,
+                duration = 1000.0 * duration / num_frames,
+                loop = 0 if loop else 1,
+            )
+            log.info(f'Save video: file="{filename}" frames={num_frames} duration={duration} loop={loop} size={os.path.getsize(filename)}')
+        elif video_type.lower() != 'none':
+            frames = interpolate_frames(images, count=interpolate, scale=scale, pad=pad, change=change)
+            h, w, _c = frames[0].shape
+            num_frames = frames_hint if frames_hint > 0 else len(frames)
+            fps = max(1.0, num_frames / duration) if duration > 0 else 30.0
+            from modules.video_models.video_utils import check_av
             av = check_av()
             if av is None:
-                log.error('Video: ffmpeg/av not available')
-            else:
-                container = av.open(filename, mode='w')
-                for key, value in (metadata or {}).items():
-                    if value is not None:
-                        container.metadata[str(key)] = str(value)
-                video_stream = container.add_stream(mp4_codec, rate=Fraction(fps).limit_denominator(), options=parsed_options)
-                video_stream.width = w
-                video_stream.height = h
-                video_stream.pix_fmt = mp4_pix
-                video_writer = VideoWriter(av, container, video_stream)
-                save_video_frames(video_writer, frames)
-                if not stream:
-                    video_writer.release()
-                    video_writer = None
-                hint = 'stream=True' if stream else f'size={os.path.getsize(filename)}'
-                log.info(f'Save video: file="{filename}" frames={num_frames} duration={duration} fps={fps:.2f} resolution={(w ,h)} codec={mp4_codec} fmt={mp4_pix} options={parsed_options} {hint}')
-                frames.clear()
-        except Exception as e:
-            if video_writer is not None:
-                try:
-                    video_writer.release()
-                except Exception as cleanup_error:
-                    log.error(f'Save video: cleanup failed: {cleanup_error}')
+                raise VideoWriteError('av package not available')
+            video_writer = open_video_writer(av, filename, w, h, fps, mp4_codec, mp4_pix, parsed_options, metadata)
+            save_video_frames(video_writer, frames)
+            if not stream:
+                video_writer.release()
                 video_writer = None
-            elif container is not None:
-                try:
-                    container.close()
-                except Exception as cleanup_error:
-                    log.error(f'Save video: cleanup failed: {cleanup_error}')
-            log.error(f'Save video: file="{filename}" {e}')
-            errors.display(e, 'Video')
-    shared.state.end(savejob)
+            hint = 'stream=True' if stream else f'size={os.path.getsize(filename)}'
+            log.info(f'Save video: file="{filename}" frames={num_frames} duration={duration} fps={fps:.2f} resolution={(w ,h)} codec={mp4_codec} fmt={mp4_pix} options={parsed_options} {hint}')
+            frames.clear()
+    except Exception as e:
+        if video_writer is not None:
+            try:
+                video_writer.release()
+            except Exception as cleanup_error:
+                log.error(f'Save video: cleanup failed: {cleanup_error}')
+            video_writer = None
+        log.error(f'Save video: file="{filename}" {e}')
+        if isinstance(e, VideoWriteError):
+            raise
+        errors.display(e, 'Video')
+        raise VideoWriteError(str(e)) from e
+    finally:
+        shared.state.end(savejob)
     return video_writer
+
+
+def save_video_thread(*args, **kwargs):
+    try:
+        save_video_atomic(*args, **kwargs)
+    except VideoWriteError:
+        pass # logged by save_video_atomic
 
 
 def save_video(p,
@@ -176,7 +207,16 @@ def save_video(p,
                mp4_ext: str | None = None,
                mp4_pix: str = 'yuv420p',
                mp4_opt: str = '',
+               *,
+               source: str | None = None,
               ):
+    """Save frames as a video named by the output pattern.
+
+    sync: returns the filename, or None when the save is refused or fails.
+    stream: returns (filename, writer) for more frames, or raises VideoWriteError with the reason.
+    otherwise: encodes in a thread and returns the filename at once; the file is registered before the thread runs and a failure is only logged.
+    source: the input being processed; a save that would overwrite it is refused.
+    """
     if (video_type is None) or (video_type.lower() == 'none') or (images is None) or (len(images) < 1):
         return None
     if interpolate > 0 and getattr(p, 'video_interpolated', False):
@@ -206,15 +246,27 @@ def save_video(p,
         if not filename.lower().endswith(ext):
             filename += f'.{ext}'
     filename = namegen.sanitize(filename)
-    shared.state.outputs(filename)
+    if source is not None and os.path.realpath(filename) == os.path.realpath(source):
+        reason = f'output would overwrite the input "{source}"'
+        log.error(f'Save video: file="{filename}" {reason}')
+        if stream:
+            raise VideoWriteError(reason)
+        return None
     from modules.video_models.video_save import create_video_metadata
     metadata = create_video_metadata(p, metadata, filename)
     if not sync:
-        threading.Thread(target=save_video_atomic, args=(images, filename, video_type, duration, loop, interpolate, scale, pad, change), kwargs={'metadata': metadata, 'mp4_codec': mp4_codec, 'mp4_pix': mp4_pix, 'mp4_opt': mp4_opt}).start()
-    else:
+        shared.state.outputs(filename)
+        threading.Thread(target=save_video_thread, args=(images, filename, video_type, duration, loop, interpolate, scale, pad, change), kwargs={'metadata': metadata, 'mp4_codec': mp4_codec, 'mp4_pix': mp4_pix, 'mp4_opt': mp4_opt}).start()
+        return filename
+    try:
         video_writer = save_video_atomic(images, filename, video_type, duration, loop, interpolate, scale, pad, change, stream, frames_hint, metadata, mp4_codec, mp4_pix, mp4_opt)
-        if stream and video_writer is not None:
-            return filename, video_writer
+    except VideoWriteError:
+        if stream:
+            raise
+        return None
+    shared.state.outputs(filename)
+    if stream:
+        return filename, video_writer
     return filename
 
 
@@ -359,5 +411,11 @@ def get_video_metadata(video):
         return {}
     from modules.video_models.video_utils import check_av
     av = check_av()
-    with av.open(video, mode="r") as container:
-        return dict(container.metadata)
+    if av is None:
+        return {}
+    try:
+        with av.open(video, mode="r") as container:
+            return dict(container.metadata)
+    except Exception as e:
+        log.warning(f'Video metadata: file="{video}" {e}')
+        return {}

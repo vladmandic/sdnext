@@ -127,8 +127,10 @@ class ScriptPostprocessingRunner:
                 for (name, _component), value in zip(script.controls.items(), script_args, strict=False):
                     process_kwargs[name] = value
             log.debug(f'Process: script="{script.name}" args={process_args} kwargs={process_kwargs}')
-            script.process(pp, *process_args, **process_kwargs)
-            shared.state.end(jobid)
+            try:
+                script.process(pp, *process_args, **process_kwargs)
+            finally:
+                shared.state.end(jobid)
 
     def create_args_for_run(self, scripts_args):
         if not self.ui_created:

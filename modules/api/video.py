@@ -265,6 +265,7 @@ class APIVideo:
     def get_video_codecs(self):
         """List the encoder presets video saves accept and which of them the installed av package provides; no encoder is opened."""
         from modules.video_models.video_codecs import codecs_config
+        from modules.video_models.video_utils import is_hardware_codec
         try:
             import av
         except Exception:
@@ -275,7 +276,7 @@ class APIVideo:
             hardware = None
             if available:
                 try:
-                    hardware = bool(av.Codec(name, 'w').capabilities & (0x40000 | 0x80000)) # AV_CODEC_CAP_HARDWARE, AV_CODEC_CAP_HYBRID
+                    hardware = is_hardware_codec(av.Codec(name, 'w'))
                 except Exception:
                     hardware = None
             items.append(ItemVideoCodec(
