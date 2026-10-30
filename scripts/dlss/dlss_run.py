@@ -76,7 +76,7 @@ def dlss_run(p: StableDiffusionProcessing | None,
         dlss_chunk = kwargs.get("dlss_chunk", 131072)
         dlss_full = kwargs.get("dlss_full", False)
         nr_profile = kwargs.get("nr_profile", "None")
-        nr_motion = kwargs.get("nr_motion", "flow")
+        nr_motion = kwargs.get("nr_motion", "Medium")
         nr_scale = kwargs.get("nr_scale", 1.0)
         nr_intensity = kwargs.get("nr_intensity", 1.0)
         nr_blend = kwargs.get("nr_blend", 0.73974609375)
