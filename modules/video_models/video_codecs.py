@@ -151,32 +151,6 @@ codecs_config = {
         'pix_fmt': 'yuv420p',
     },
 
-    # --- Hardware Accelerated: Linux (VAAPI) ---
-    'h264_vaapi': {
-        'name': 'H.264 (VAAPI Linux)',
-        'desc': 'Hardware encoding via Linux VAAPI.',
-        'ext': 'mp4',
-        'allowed_exts': ['mp4', 'mkv', 'mov'],
-        'options': 'qp=20',
-        'pix_fmt': 'vaapi',
-    },
-    'hevc_vaapi': {
-        'name': 'HEVC / H.265 (VAAPI Linux)',
-        'desc': 'Hardware HEVC encoding via Linux VAAPI.',
-        'ext': 'mp4',
-        'allowed_exts': ['mp4', 'mkv', 'mov'],
-        'options': 'qp=25',
-        'pix_fmt': 'vaapi',
-    },
-    'av1_vaapi': {
-        'name': 'AV1 (VAAPI Linux)',
-        'desc': 'Hardware AV1 encoding via Linux VAAPI.',
-        'ext': 'mp4',
-        'allowed_exts': ['mp4', 'mkv', 'webm'],
-        'options': 'qp=28',
-        'pix_fmt': 'vaapi',
-    },
-
     # --- Professional / Editing / Archival ---
     'prores_ks': {
         'name': 'Apple ProRes (iCodec)',
