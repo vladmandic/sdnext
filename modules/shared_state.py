@@ -150,15 +150,15 @@ class State:
                 return job
         return None
 
-    def history(self, op: str, task_id: str | None = None, results: list | None = None):
+    def history(self, op: str, task_id: str | None = None, results: list | None = None, title: str | None = None, timestamp: float | None = None, duration: float | None = None):
         if results is None:
             results = []
         job = {
             'id': task_id or self.id,
-            'job': self.job.lower(),
+            'job': (self.job if title is None else title).lower(),
             'op': op.lower(),
-            'timestamp': self.time_start,
-            'duration': self.duration,
+            'timestamp': self.time_start if timestamp is None else timestamp,
+            'duration': self.duration if duration is None else duration,
             'outputs': results,
          }
         self.state_history.append(job)
@@ -167,6 +167,10 @@ class State:
             del self.state_history[0]
         if debug_history:
             log.trace(f'State history: jobs={l} {job}')
+
+    def record(self, title: str) -> 'Record':
+        """Side job such as a save: history entries under its own id, the running job is left as it is."""
+        return Record(self, title)
 
     def outputs(self, results):
         if isinstance(results, list):
@@ -199,7 +203,7 @@ class State:
     def begin(self, title="", task_id=0, api=None) -> str:
         import modules.devices
         self.clear()
-        self.interrupted = self.interrupted if title.startswith('Save') else False
+        self.interrupted = False
         self.skipped = False
         self.job_history += 1
         self.total_jobs += 1
@@ -317,3 +321,21 @@ class State:
         self.current_image = image
         self.id_live_preview += 1
         self.preview_job = -1
+
+
+class Record:
+    """History entries of a side job; call end() once, with the written files in outputs."""
+
+    def __init__(self, state: State, title: str):
+        self.state = state
+        self.title = title
+        self.id = state.get_id()
+        self.timestamp = time.time()
+        self.outputs: list[str] = []
+        state.history('begin', self.id, title=title, timestamp=self.timestamp)
+
+    def end(self):
+        if len(self.outputs) > 0:
+            self.state.history('output', self.id, results=self.outputs, title=self.title, timestamp=self.timestamp)
+        now = time.time()
+        self.state.history('end', self.id, title=self.title, timestamp=now, duration=round(now - self.timestamp, 3))

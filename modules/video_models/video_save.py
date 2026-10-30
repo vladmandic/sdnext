@@ -233,7 +233,7 @@ def atomic_save_video(
     pix_fmt = resolve_pix_fmt(codec, pix_fmt)
     crop_w, crop_h = chroma_crop_size(pix_fmt, width, height)
     rate = video_rate(fps)
-    savejob = shared.state.begin('Save video')
+    savejob = shared.state.record('Save video')
     try:
         parsed_options = parse_options(options)
         log.info(f'Video: file="{filename}" codec={codec} pix_fmt={pix_fmt} frames={frames} width={crop_w} height={crop_h} fps={rate} audio={audio is not None} sample_rate={sample_rate} options={parsed_options}')
@@ -276,9 +276,9 @@ def atomic_save_video(
                 add_audio_packets(container, audio_stream, audio)
             for packet in stream.encode():
                 container.mux_one(packet)
-        shared.state.outputs(filename)
+        savejob.outputs.append(filename)
     finally:
-        shared.state.end(savejob)
+        savejob.end()
     return True
 
 
@@ -401,7 +401,7 @@ def save_video(
         audio_txt = None
     log.debug(f'Video: encode={t} tensor={pixels.shape} bytes={size} {audio_txt} fps={mp4_fps} codec={mp4_codec} ext={mp4_ext} options="{mp4_opt}"')
     try:
-        preparejob = shared.state.begin('Prepare video')
+        preparejob = shared.state.record('Prepare video')
         if stream is not None:
             stream.output_queue.push(('progress', (None, 'Saving video...')))
 
@@ -422,7 +422,7 @@ def save_video(
             fn = f'{output_filename}.safetensors'
             log.info(f'Video export: file="{fn}" type=savetensors shape={x.shape}')
             from safetensors.torch import save_file
-            shared.state.outputs(fn)
+            preparejob.outputs.append(fn)
             save_file({ 'frames': x }, fn, metadata={'format': 'video', 'frames': str(t), 'width': str(w), 'height': str(h), 'fps': str(mp4_fps), 'codec': mp4_codec, 'options': mp4_opt, 'ext': mp4_ext, 'interpolate': str(mp4_interpolate)})
 
         if mp4_frames:
@@ -430,10 +430,10 @@ def save_video(
             for i in range(t):
                 image = cv2.cvtColor(x[i].numpy(), cv2.COLOR_RGB2BGR)
                 fn = f'{output_filename}-{i:05d}.jpg'
-                shared.state.outputs(fn)
+                preparejob.outputs.append(fn)
                 cv2.imwrite(fn, image)
 
-        shared.state.end(preparejob)
+        preparejob.end()
 
         if mp4_video and (mp4_codec != 'none'):
             target = f'{output_filename}.{mp4_ext}'

@@ -169,7 +169,7 @@ def save_video_atomic(images,
             raise VideoWriteError(f'options {rejected} not allowed')
     if str(mp4_codec).lower() == 'libx265':
         parsed_options['x265-params'] = 'log-level=error'
-    savejob = shared.state.begin('Save video')
+    savejob = shared.state.record('Save video')
     video_writer = None
     try:
         os.makedirs(os.path.dirname(filename), exist_ok=True)
@@ -227,7 +227,7 @@ def save_video_atomic(images,
         errors.display(e, 'Video')
         raise VideoWriteError(str(e)) from e
     finally:
-        shared.state.end(savejob)
+        savejob.end()
     return video_writer
 
 

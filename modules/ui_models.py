@@ -3,7 +3,7 @@ import inspect
 from html import escape
 from typing import cast
 import gradio as gr
-from modules import errors, sd_models, sd_vae, extras, sd_samplers, ui_symbols, modelstats
+from modules import errors, shared, sd_models, sd_vae, extras, sd_samplers, ui_symbols, modelstats
 from modules.ui_components import ToolButton
 from modules.ui_common import create_refresh_button
 from modules.call_queue import wrap_gradio_gpu_call
@@ -139,6 +139,13 @@ def create_ui():
                     html = create_modules_table(model.modules)
                     return [html, meta]
 
+                def save_model(name, path, shard, overwrite):
+                    jobid = shared.state.begin('Save model')
+                    try:
+                        return sd_models.save_model(name, path, shard, overwrite)
+                    finally:
+                        shared.state.end(jobid)
+
                 with gr.Row():
                     model_analyze = gr.Button(value="Analyze model", variant='primary')
                 with gr.Row():
@@ -155,7 +162,7 @@ def create_ui():
                         save_result = gr.HTML(value="", elem_id="model_save_outcome")
                     with gr.Row():
                         model_save = gr.Button(value="Save model", variant='primary')
-                        model_save.click(fn=sd_models.save_model, inputs=[save_name, save_path, save_shard, save_overwrite], outputs=[save_result])
+                        model_save.click(fn=save_model, inputs=[save_name, save_path, save_shard, save_overwrite], outputs=[save_result])
                 with gr.Accordion(label="Metadata", open=False):
                     model_meta = gr.JSON(label="Metadata", value={}, elem_id="model_meta")
 

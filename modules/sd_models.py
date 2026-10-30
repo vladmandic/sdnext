@@ -1783,7 +1783,6 @@ def save_model(name: str, path: str | None = None, shard: str = "5GB", overwrite
         torch.cuda.synchronize()
     except Exception:
         pass
-    jobid = shared.state.begin('Save model')
     try:
         t0 = time.time()
         log.info(f'Save model: path="{model_name}" cls={shared.sd_model.__class__.__name__} start')
@@ -1806,7 +1805,6 @@ def save_model(name: str, path: str | None = None, shard: str = "5GB", overwrite
     finally:
         if 'save_pretrained' in vars(shared.sd_model):
             del shared.sd_model.save_pretrained # drop the instance shadow, restoring the class method
-        shared.state.end(jobid)
 
 
 def list_hfcache():

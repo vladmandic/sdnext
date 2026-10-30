@@ -36,7 +36,7 @@ def atomically_save_image():
     Image.MAX_IMAGE_PIXELS = None # disable check in Pillow and rely on check below to allow large custom image sizes
     while True:
         image, filename, extension, params, exifinfo, filename_txt, is_grid = save_queue.get()
-        jobid = shared.state.begin('Save image')
+        savejob = shared.state.record('Save image')
         shared.state.image_history += 1
         if len(exifinfo) > 2:
             with open(paths.params_path, "w", encoding="utf8") as file:
@@ -124,7 +124,7 @@ def atomically_save_image():
         size = os.path.getsize(fn) if os.path.exists(fn) else 0
         what = 'grid' if is_grid else 'image'
         log.info(f'Save: {what}="{fn}" type={image_format} width={image.width} height={image.height} size={size}')
-        shared.state.outputs(fn)
+        savejob.outputs.append(fn)
 
         if shared.opts.save_log_fn != '' and len(exifinfo) > 0:
             fn = os.path.join(paths.data_path, shared.opts.save_log_fn)
@@ -138,7 +138,7 @@ def atomically_save_image():
             entries.append(entry)
             writefile(entries, fn, mode='w', silent=True)
             log.info(f'Save: json="{fn}" records={len(entries)}')
-        shared.state.end(jobid)
+        savejob.end()
         save_queue.task_done()
 
 
