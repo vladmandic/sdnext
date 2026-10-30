@@ -2212,6 +2212,26 @@ def test_iter_frames_skip_and_limit():
     return True
 
 
+def test_ltx_condition_frames_keep_frame_zero():
+    """LTX condition video with skip 1: frames 0, 2, 4 reach the condition, the same rule as the Control tab input."""
+    if need_av():
+        return need_av()
+    from modules.ltx import ltx_util
+    frames = [np.full((64, 64, 3), 16 + 18 * i, dtype=np.uint8) for i in range(12)]
+    fn = encode_reader_fixture(out_path('ltx_indexed.mp4'), frames, codec='libx264rgb', pix_fmt='rgb24', options={'crf': '0', 'preset': 'ultrafast'})
+
+    class Recorder:
+        def __init__(self, video=None, frame_index=0, strength=1.0, **kwargs):
+            self.video = video
+
+    with patched(ltx_util, '_condition_cls', lambda family: Recorder):
+        conditions = ltx_util.get_conditions(64, 64, 1.0, None, None, fn, 3, 1, family='0.9')
+    indices = [int(round((np.asarray(f)[32, 32, 0] - 16) / 18)) for f in conditions[0].video] if conditions else []
+    verdict('test_ltx_condition_frames_keep_frame_zero', 'PASS', indices=indices)
+    assert indices == [0, 2, 4], f'condition frames {indices}'
+    return True
+
+
 def test_first_frame_equals_read_video_first():
     """get_video_params(capture=True) returns the same first frame read_video does."""
     if need_av():
@@ -2908,7 +2928,7 @@ GROUPS = [
     ('defaults', [test_legacy_default_is_h264_yuv420p, test_legacy_default_quality_matches_old_writer, test_explicit_mpeg4_gets_table_preset, test_legacy_labels_map_to_codecs, test_legacy_labels_encode, test_odd_size_under_default, test_none_codec_kwargs_give_default]),
     ('rate', [test_video_rate_fractions, test_mpeg4_opens_at_dlss_long_rate, test_video_tab_keeps_fractional_rate, test_fps_zero_refused_by_name, test_dlss_output_fps_rule, test_video_tab_returns_none_video_on_failure]),
     ('colour', [test_default_outputs_are_tagged_bt709, test_legacy_default_colour_720, test_legacy_default_colour_512, test_video_tab_default_colour, test_rgb_pix_fmt_tagged_full_and_exact, test_prores_tagged_and_within_oracle, test_mpeg4_in_mp4_carries_colr]),
-    ('readers', [test_readers_agree_on_h264_fixture, test_readers_fractional_rate, test_readers_per_container, test_reader_codec_names, test_count_frames_without_header_or_duration, test_frames_estimate_ignores_trailing_audio, test_reader_decodes_with_stream_tags, test_reader_rotation_follows_display_matrix, test_params_without_capture_read_headers_only, test_iter_frames_skip_and_limit, test_first_frame_equals_read_video_first, test_get_video_info_exact_keys, test_unreadable_file_contracts, test_corrupt_stream_stops_with_warning, test_frames_are_contiguous, test_unchanged_callers, test_reader_decode_speed_measured]),
+    ('readers', [test_readers_agree_on_h264_fixture, test_readers_fractional_rate, test_readers_per_container, test_reader_codec_names, test_count_frames_without_header_or_duration, test_frames_estimate_ignores_trailing_audio, test_reader_decodes_with_stream_tags, test_reader_rotation_follows_display_matrix, test_params_without_capture_read_headers_only, test_iter_frames_skip_and_limit, test_ltx_condition_frames_keep_frame_zero, test_first_frame_equals_read_video_first, test_get_video_info_exact_keys, test_unreadable_file_contracts, test_corrupt_stream_stops_with_warning, test_frames_are_contiguous, test_unchanged_callers, test_reader_decode_speed_measured]),
     ('audio', [test_video_tab_muxes_audio_tensor, test_video_tab_muxes_audio_packets]),
     ('metadata', [test_metadata_roundtrip]),
     ('gradio', [test_option_off_does_not_probe_or_convert, test_option_on_converts_without_binaries, test_option_on_serves_playable_as_is, test_option_on_converts_unplayable_h264, test_preview_audio_passthrough_and_drop, test_preview_unopenable_file_served_as_is, test_preview_av_import_failure_does_not_raise, test_cli_fallback_leaves_no_copy, test_cleanup_tmpdr_removes_all_video_extensions]),

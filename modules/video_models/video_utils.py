@@ -3,7 +3,6 @@ import time
 import inspect
 import importlib.util
 from contextlib import contextmanager
-from PIL import Image
 from modules import shared, sd_models, timer, errors, devices
 from modules.logger import log
 from modules.video_models.video_codecs import codecs_config
@@ -164,22 +163,3 @@ def get_codecs():
         log.trace(f'codec={c.name} cname="{c.canonical_name}" decs="{c.long_name}" intra={c.intra_only} lossy={c.lossy} lossless={c.lossless} capabilities={c.capabilities} hw=False')
     """
     return ['none'] + [c.name for c in hw_codecs + sw_codecs]
-
-
-def get_video_frames(fn: str, num_frames: int = -1, skip_frames: int = 0) -> list[Image.Image]:
-    """Frames of a video as PIL images, [] when it cannot be read.
-
-    With skip_frames=s the frames kept are 2s, then every (2s + 1)th: each kept frame follows s pairs of dropped ones."""
-    from modules.video_models.video_reader import iter_frames
-    frames = []
-    try:
-        for index, frame in enumerate(iter_frames(fn)):
-            if index < 2 * skip_frames or (index - 2 * skip_frames) % (2 * skip_frames + 1) != 0:
-                continue
-            frames.append(Image.fromarray(frame))
-            if len(frames) >= num_frames > 0:
-                break
-        log.debug(f'Video open: file="{fn}" frames={len(frames)} skip={skip_frames}')
-    except Exception as e:
-        log.error(f'Video open: file="{fn}" {e}')
-    return frames

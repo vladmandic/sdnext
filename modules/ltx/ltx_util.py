@@ -225,9 +225,9 @@ def get_conditions(width, height, condition_strength, condition_images, conditio
             conditions.append(make_condition(condition_cls, family, batch_images, condition_strength, is_video=True))
             log.debug(f'Video condition: family={family} files={len(batch_images)} size={batch_images[0].size} strength={condition_strength}')
     if condition_video is not None:
-        from modules.video_models.video_utils import get_video_frames
+        from modules.video_models.video_reader import read_frames
         try:
-            condition_frames = get_video_frames(condition_video, num_frames=condition_video_frames, skip_frames=condition_video_skip)
+            condition_frames = read_frames(condition_video, num_frames=condition_video_frames, skip_frames=condition_video_skip, as_pil=True)
             condition_frames = [f.convert('RGB').resize((width, height), resample=Image.Resampling.LANCZOS) for f in condition_frames]
             if len(condition_frames) > 0:
                 conditions.append(make_condition(condition_cls, family, condition_frames, condition_strength, is_video=True))
