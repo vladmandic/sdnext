@@ -1,5 +1,23 @@
 # Change Log for SD.Next
 
+## Update for 2026-10-30
+
+- **Video**
+  - a video save whose encoder refuses to open fails with the reason instead of crashing the server
+  - legacy video default is *h264* with its codec preset instead of *mpeg4* without options  
+    codec part of *Video format* selects the encoder, saved values and api arguments keep working
+  - per-codec pixel format in codec presets, odd frame sizes cropped for 4:2:0 formats
+  - bt.709 colour conversion with colour tags, fractional frame rates kept
+  - *Videos convert for UI playback* is on by default and converts through *pyav*, no ffmpeg binary needed
+  - *av* installs with the core requirements instead of on the first video save
+  - dlss: api and enso jobs use the ui codec defaults, slow-motion output plays slower
+  - remove *vaapi* codec presets, pypi *av* builds ship no vaapi encoders
+  - new endpoint `GET /sdapi/v1/video/codecs`
+- **Fixes**
+  - process: show why a video run failed, report a missing input video
+  - save: configured output folder kept as given, only generated folder and file names are sanitized
+  - ui: refresh buttons call their method once per click
+
 ## Update for 2026-10-29
 
 ### Highlights for 2026-10-29
