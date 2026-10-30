@@ -94,6 +94,10 @@ from modules import shared, devices  # pylint: disable=wrong-import-position
 from modules.logger import log  # pylint: disable=wrong-import-position
 from modules import video  # pylint: disable=wrong-import-position
 from modules.video_models import video_save, video_codecs, video_utils  # pylint: disable=wrong-import-position
+try:
+    from modules.video_models import video_writer  # pylint: disable=wrong-import-position
+except ImportError:  # trees before the shared writer keep its helpers in video_save
+    video_writer = video_save
 from modules import gr_tempdir  # pylint: disable=wrong-import-position
 
 devices.torch_gc = lambda *args, **kwargs: None  # state.begin/end call it; nothing here holds device memory
@@ -916,7 +920,7 @@ def test_presets_open():
             fn = out_path(f'preset_{name}.{cfg["ext"]}')
             t0 = time.time()
             try:
-                encode_frames(fn, name, 'yuv420p', video_save.parse_options(cfg['options']), 24, frames, threads=None)
+                encode_frames(fn, name, 'yuv420p', video_writer.parse_options(cfg['options']), 24, frames, threads=None)
                 info = stream_info(fn)
                 entry['open'] = 'ok'
                 entry['stored_pix_fmt'] = info['pix_fmt']
@@ -1006,7 +1010,7 @@ def test_quality_fixture_guard():
     if 'quality_margin' not in FLOOR:
         return 'quality floor not measured'
     frames = pan()
-    fn = encode_frames(out_path('control_av_x264_preset.mp4'), 'libx264', 'yuv420p', video_save.parse_options(video_codecs.get_codec_options('libx264')), 24, frames)
+    fn = encode_frames(out_path('control_av_x264_preset.mp4'), 'libx264', 'yuv420p', video_writer.parse_options(video_codecs.get_codec_options('libx264')), 24, frames)
     p_x264 = mean_psnr(decode_rgb(fn), frames)
     fn2 = out_path('control_av_mpeg4_noopts.mp4')
     p_mpeg4 = mean_psnr(decode_rgb(fn2), frames) if os.path.isfile(fn2) else mean_psnr(decode_rgb(encode_frames(fn2, 'mpeg4', 'yuv420p', {}, 24, frames)), frames)
@@ -1045,7 +1049,7 @@ def test_colour_floor():
     if need_av():
         return need_av()
     img, centres = chart('720')
-    fn = encode_frames(out_path('control_chart_bt709_x264.mp4'), 'libx264', 'yuv420p', video_save.parse_options(video_codecs.get_codec_options('libx264')), 24, [img] * 12, convert='bt709', tags=STREAM_TAGS['bt709'])
+    fn = encode_frames(out_path('control_chart_bt709_x264.mp4'), 'libx264', 'yuv420p', video_writer.parse_options(video_codecs.get_codec_options('libx264')), 24, [img] * 12, convert='bt709', tags=STREAM_TAGS['bt709'])
     info = stream_info(fn)
     assert not is_untagged(info), f'control encode lost its tags: {tags_of(info)}'
     measured = sample_patches(decode_yuv(fn)[0], centres)
@@ -1083,7 +1087,7 @@ def test_colour_negative_controls():
     if 'colour' not in FLOOR:
         return 'colour floor not measured'
     img, centres = chart('720')
-    options = video_save.parse_options(video_codecs.get_codec_options('libx264'))
+    options = video_writer.parse_options(video_codecs.get_codec_options('libx264'))
     fn_untagged = encode_frames(out_path('control_chart_untagged_601_x264.mp4'), 'libx264', 'yuv420p', options, 24, [img] * 12, convert='bt601')
     ok_untagged, reason_untagged, _ = colour_verdict(stream_info(fn_untagged), decode_yuv(fn_untagged)[0], centres)
     fn_lying = encode_frames(out_path('control_chart_lying_601_as_709.mp4'), 'libx264', 'yuv420p', options, 24, [img] * 12, convert='bt601', tags=STREAM_TAGS['bt709'])
@@ -1302,13 +1306,91 @@ def test_mid_encode_exception_returns_none():
     if need_av():
         return need_av()
     frames = small_frames(6)
-    frames[3] = np.zeros((144, 256, 3), dtype=np.float32)  # passes cvtColor, refused by av as bgr24; a 2-D frame does not fail, cvtColor expands it
+    frames[3] = np.zeros((144, 256, 3), dtype=np.float32)  # refused by av as an rgb24 frame
     with capture_log() as logs:
         res, err = call_and_catch(legacy_save, frames, 'fail_mid_encode.mp4', mp4_codec='libx264')
-    verdict('test_mid_encode_exception_returns_none', 'PASS', returned=res, raised=repr(err) if err else None, errors=logs.find('fail_mid_encode', level=logging.ERROR)[:1])
+    partial = out_path('fail_mid_encode.mp4')
+    partial_frames = len(decode_rgb(partial)) if os.path.isfile(partial) else None
+    verdict('test_mid_encode_exception_returns_none', 'PASS', returned=res, raised=repr(err) if err else None, errors=logs.find('fail_mid_encode', level=logging.ERROR)[:1], partial_frames=partial_frames)
     assert err is None, f'sync save raised {err!r}'
     assert res is None, f'sync save returned {res!r} after a frame failed mid-encode'
     assert logs.find('fail_mid_encode', level=logging.ERROR), 'no error line names the file'
+    assert partial_frames == 3, f'the frames written before the failure: {partial_frames}'
+    return True
+
+
+def video_packets(fn: str) -> list[bytes]:
+    with av.open(fn) as container:
+        return [bytes(packet) for packet in container.demux(container.streams.video[0]) if packet.size]
+
+
+def test_both_paths_write_the_same_stream():
+    """The legacy writer, the Video tab writer and a direct BT.709 encode of the same RGB frames with the same options give identical packets; repeat encodes are packet-identical, so the floor is 0."""
+    if need_av():
+        return need_av()
+    frames = small_frames(12)
+    preset = video_codecs.get_codec_options('libx264')
+    legacy, legacy_err = call_and_catch(legacy_save, frames, 'paths_legacy.mp4', mp4_codec='libx264', mp4_opt=preset)
+    tab = out_path('paths_tab.mp4')
+    _res, tab_err = call_and_catch(video_save.atomic_save_video, tab, tensor_of(frames), fps=24, codec='libx264', options=preset)
+    ref = encode_frames(out_path('paths_ref.mp4'), 'libx264', 'yuv420p', video_writer.parse_options(preset), 24, frames, convert='bt709', tags=STREAM_TAGS['bt709'], threads=None)
+    assert legacy_err is None and legacy, f'legacy save: returned {legacy!r} raised {legacy_err!r}'
+    assert tab_err is None and os.path.isfile(tab), f'Video tab save raised {tab_err!r}'
+    packets = {name: video_packets(fn) for name, fn in (('legacy', legacy), ('video_tab', tab), ('reference', ref))}
+    first_diff = {name: next((i for i, (a, b) in enumerate(zip(packets[name], packets['reference'])) if a != b), None) for name in ('legacy', 'video_tab')}
+    measure('both_paths', **{name: len(value) for name, value in packets.items()}, first_differing_packet=str(first_diff))
+    verdict('test_both_paths_write_the_same_stream', 'PASS', packets={name: len(value) for name, value in packets.items()}, first_differing_packet=first_diff)
+    assert packets['video_tab'] == packets['reference'], f'Video tab packets differ from the reference from packet {first_diff["video_tab"]}'
+    assert packets['legacy'] == packets['reference'], f'legacy packets differ from the reference from packet {first_diff["legacy"]}'
+    return True
+
+
+def test_legacy_save_accepts_grayscale_frames():
+    """A clip of 2-D frames (grayscale images) encodes as the same frames repeated over three channels."""
+    if need_av():
+        return need_av()
+    gray = [np.full((144, 256), 16 + 18 * i, dtype=np.uint8) for i in range(6)]
+    rgb = [np.repeat(frame[:, :, None], 3, axis=2) for frame in gray]
+    res_gray, err_gray = call_and_catch(legacy_save, gray, 'gray_2d.mp4', mp4_codec='libx264')
+    res_rgb, err_rgb = call_and_catch(legacy_save, rgb, 'gray_rgb.mp4', mp4_codec='libx264')
+    verdict('test_legacy_save_accepts_grayscale_frames', 'PASS', gray_returned=res_gray, gray_raised=repr(err_gray) if err_gray else None, rgb_returned=res_rgb)
+    assert err_gray is None and res_gray and os.path.isfile(res_gray), f'2-D frames: returned {res_gray!r} raised {err_gray!r}'
+    assert err_rgb is None and res_rgb, f'control: returned {res_rgb!r} raised {err_rgb!r}'
+    assert video_packets(res_gray) == video_packets(res_rgb), 'the 2-D clip differs from the same frames as RGB'
+    return True
+
+
+def test_stream_writer_failure_leaves_partial_file():
+    """Stream mode (DLSS): a frame that fails mid-stream releases the writer and leaves a file holding the frames written before it."""
+    if need_av():
+        return need_av()
+    frames = small_frames(4)
+    res, err = call_and_catch(legacy_save, frames[:1], 'stream_partial.mp4', stream=True, mp4_codec='libx264')
+    assert err is None and isinstance(res, tuple), f'stream open: returned {res!r} raised {err!r}'
+    fn, writer = res
+    video.save_video_frames(writer, frames[1:3])
+    _res, write_err = call_and_catch(video.save_video_frames, writer, [np.zeros((144, 256, 3), dtype=np.float32)])
+    _res, release_err = call_and_catch(writer.release)
+    decoded = len(decode_rgb(fn)) if os.path.isfile(fn) else None
+    verdict('test_stream_writer_failure_leaves_partial_file', 'PASS', write_raised=type(write_err).__name__ if write_err else None, release_raised=repr(release_err) if release_err else None, decoded=decoded)
+    assert write_err is not None, 'a float frame was accepted'
+    assert release_err is None, f'release after the failure raised {release_err!r}'
+    assert decoded == 3, f'partial file holds {decoded} frames, 3 were written'
+    return True
+
+
+def test_write_audio_without_stream_refused():
+    """Audio needs its stream declared when the writer opens, before the header; a writer opened without one refuses audio by name."""
+    if need_av():
+        return need_av()
+    open_writer = need(video_writer, 'open_video_writer')
+    writer = open_writer(out_path('no_audio_stream.mp4'), 256, 144, 24, 'libx264')
+    try:
+        _res, err = call_and_catch(writer.write_audio, np.zeros((2, 2400), dtype=np.float32), 24000)
+    finally:
+        writer.release()
+    verdict('test_write_audio_without_stream_refused', 'PASS', raised=f'{type(err).__name__}: {err}' if err else None)
+    assert type(err).__name__ == 'VideoWriteError' and 'audio' in str(err), f'raised {err!r}'
     return True
 
 
@@ -1624,7 +1706,7 @@ def test_none_codec_kwargs_give_default():
 # ============================================================
 
 def test_video_rate_fractions():
-    video_rate = need(video_save, 'video_rate')
+    video_rate = need(video_writer, 'video_rate')
     assert video_rate(29.97002997) == Fraction(30000, 1001), video_rate(29.97002997)
     assert video_rate(24) == Fraction(24, 1)
     assert video_rate(Fraction(24000, 1001)) == Fraction(24000, 1001)
@@ -2356,7 +2438,7 @@ def test_clips_written():
     call_and_catch(video_save.atomic_save_video, fn, tensor_of([img720] * 24), fps=24)
     copy('chart_videotab_default', fn if os.path.isfile(fn) else None)
     copy('chart_bt709_ffmpeg', ffmpeg_cli_bt709(out_path('clip_chart_bt709_ffmpeg.mp4'), img720, 24))
-    options = video_save.parse_options(video_codecs.get_codec_options('libx264'))
+    options = video_writer.parse_options(video_codecs.get_codec_options('libx264'))
     copy('pan_bt709_x264', encode_frames(out_path('clip_pan_bt709_x264.mp4'), 'libx264', 'yuv420p', options, 24, pan(), convert='bt709', tags=STREAM_TAGS['bt709']))
     copy('chart_untagged_601_720', encode_frames(out_path('clip_chart_untagged_601_720.mp4'), 'libx264', 'yuv420p', options, 24, [img720] * 24, convert='bt601'))
     copy('chart_untagged_601_576', encode_frames(out_path('clip_chart_untagged_601_576.mp4'), 'libx264', 'yuv420p', options, 24, [img576] * 24, convert='bt601'))
@@ -2388,7 +2470,7 @@ def test_clips_written():
 GROUPS = [
     ('platform', [test_versions, test_presets_open]),
     ('floor', [test_log_capture_sees_writer_lines, test_quality_floor, test_quality_negative_control, test_quality_fixture_guard, test_colour_floor, test_colour_positive_control, test_colour_negative_controls, test_lossless_rgb_roundtrip]),
-    ('writer failure', [test_sync_unknown_codec_returns_none, test_stream_rejected_pix_fmt_raises_with_reason, test_container_refusing_codec_removes_its_file, test_av_missing_sync_returns_none_stream_raises, test_zero_byte_mp4_metadata_is_empty, test_output_equal_to_source_refused, test_dlss_none_kwargs_resolve_to_ui_values, test_gif_failure_returns_none, test_mid_encode_exception_returns_none, test_sync_success_registers_after_open, test_threaded_save_joined]),
+    ('writer failure', [test_sync_unknown_codec_returns_none, test_stream_rejected_pix_fmt_raises_with_reason, test_container_refusing_codec_removes_its_file, test_av_missing_sync_returns_none_stream_raises, test_zero_byte_mp4_metadata_is_empty, test_output_equal_to_source_refused, test_dlss_none_kwargs_resolve_to_ui_values, test_gif_failure_returns_none, test_mid_encode_exception_returns_none, test_sync_success_registers_after_open, test_threaded_save_joined, test_both_paths_write_the_same_stream, test_legacy_save_accepts_grayscale_frames, test_stream_writer_failure_leaves_partial_file, test_write_audio_without_stream_refused]),
     ('pixel format', [test_presets_declare_pix_fmt, test_table_pix_fmt_opens_in_legacy_loop, test_table_pix_fmt_opens_in_video_tab_loop, test_rejected_pix_fmt_names_the_list, test_empty_pix_fmt_refused_naming_default, test_out_of_table_codec_defaults_yuv420p, test_ext_none_follows_codec_when_container_refuses, test_odd_size_cropped_under_yuv420p_legacy, test_odd_size_cropped_under_yuv420p_video_tab, test_odd_size_kept_without_subsampling]),
     ('defaults', [test_legacy_default_is_h264_yuv420p, test_legacy_default_quality_matches_old_writer, test_explicit_mpeg4_gets_table_preset, test_legacy_labels_map_to_codecs, test_legacy_labels_encode, test_odd_size_under_default, test_none_codec_kwargs_give_default]),
     ('rate', [test_video_rate_fractions, test_mpeg4_opens_at_dlss_long_rate, test_video_tab_keeps_fractional_rate, test_fps_zero_refused_by_name, test_dlss_output_fps_rule, test_video_tab_returns_none_video_on_failure]),

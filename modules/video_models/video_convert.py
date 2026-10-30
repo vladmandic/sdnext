@@ -35,7 +35,7 @@ def convert_for_preview(av, path: str, temp_dir: str) -> str:
 
     AAC audio is copied, other audio is dropped. On failure the partial copy is removed and the source path returned."""
     from modules.video_models.video_codecs import stream_colour, chroma_crop_size
-    from modules.video_models.video_save import video_rate
+    from modules.video_models.video_writer import video_rate
     target = os.path.join(temp_dir, f'{uuid.uuid4().hex}.mp4')
     t0 = time.time()
     frames = 0

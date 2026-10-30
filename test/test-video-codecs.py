@@ -43,7 +43,7 @@ modules.cmd_args.parsed, _ = modules.cmd_args.parser.parse_known_args([])
 
 from modules.errors import log                                       # pylint: disable=wrong-import-position
 from modules.video_models.video_codecs import codecs_config          # pylint: disable=wrong-import-position
-from modules.video_models.video_save import parse_options            # pylint: disable=wrong-import-position
+from modules.video_models.video_writer import parse_options          # pylint: disable=wrong-import-position
 
 
 results: dict[str, dict] = {}

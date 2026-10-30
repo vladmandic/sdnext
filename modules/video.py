@@ -7,6 +7,7 @@ from modules import shared, errors
 from modules.logger import log
 from modules.image.namegen import FilenameGenerator # pylint: disable=unused-import
 from modules.paths import resolve_output_path
+from modules.video_models.video_writer import VideoWriteError, VideoWriter, open_video_writer, rejected_options
 
 os.environ.setdefault('OPENCV_FFMPEG_LOGLEVEL', '8') # fatal only; OpenCV reads it once, at its first capture
 
@@ -28,17 +29,10 @@ def interpolate_frames(images, count: int = 0, scale: float = 1.0, pad: int = 1,
     return [np.array(image) for image in images]
 
 
-def save_video_frames(video_writer, frames):
-    for i in range(len(frames)):
-        frame = frames[i]
-        if frame.ndim == 3 and frame.shape[2] == 4: # RGBA from PIL; video has no alpha
-            frame = frame[:, :, :3]
-        img = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-        video_writer.write(img)
-
-
-class VideoWriteError(RuntimeError):
-    """A video save was refused or failed; the message is the reason shown to the user."""
+def save_video_frames(video_writer: VideoWriter, frames):
+    """RGB frames into an open writer; DLSS calls it per chunk in stream mode."""
+    for frame in frames:
+        video_writer.write(frame)
 
 
 DEFAULT_VIDEO_CODEC = 'libx264'
@@ -67,75 +61,6 @@ def resolve_codec(video_type: str, mp4_codec: str | None, mp4_opt: str | None) -
     return codec, mp4_opt
 
 
-class VideoWriter:
-    def __init__(self, av, container, stream, reformat_args: dict | None = None):
-        self.av = av
-        self.container = container
-        self.stream = stream
-        self.reformat_args = reformat_args or {} # colour matrix and range for the RGB to YUV conversion
-        self.frame_index = 0
-        self.closed = False
-
-    def write(self, image):
-        if self.closed:
-            return
-        try:
-            if image.shape[0] > self.stream.height or image.shape[1] > self.stream.width: # chroma crop: drop rows or columns, never rescale
-                image = np.ascontiguousarray(image[:self.stream.height, :self.stream.width])
-            frame = self.av.VideoFrame.from_ndarray(image, format='bgr24')
-            frame = frame.reformat(width=self.stream.width, height=self.stream.height, format=self.stream.pix_fmt, **self.reformat_args)
-            frame.pts = self.frame_index
-            self.frame_index += 1
-            for packet in self.stream.encode(frame):
-                self.container.mux_one(packet)
-        except Exception:
-            self.release()
-            raise
-
-    def release(self):
-        if self.closed:
-            return
-        self.closed = True
-        try:
-            if self.stream.codec_context.is_open: # flushing an encoder that never opened crashes libav
-                for packet in self.stream.encode():
-                    self.container.mux_one(packet)
-        finally:
-            self.container.close()
-
-
-def open_video_writer(av, filename: str, width: int, height: int, fps: float, codec: str, pix_fmt: str, options: dict, metadata: dict | None = None) -> VideoWriter:
-    """Open the container and the encoder before any frame, so a refusal leaves no partial file."""
-    from modules.video_models.video_utils import open_failure_reason
-    from modules.video_models.video_save import video_rate
-    from modules.video_models.video_codecs import stream_colour
-    existed = os.path.exists(filename)
-    container = None
-    try:
-        container = av.open(filename, mode='w')
-        for key, value in (metadata or {}).items():
-            if value is not None:
-                container.metadata[str(key)] = str(value)
-        stream = container.add_stream(codec, rate=video_rate(fps), options=options)
-        stream.width = width
-        stream.height = height
-        stream.pix_fmt = pix_fmt
-        tags, reformat_args = stream_colour(pix_fmt)
-        for key, value in tags.items(): # read by the encoder at open: x264 writes them as VUI, the mp4 muxer as a colr box
-            setattr(stream.codec_context, key, value)
-        container.start_encoding()
-    except Exception as e:
-        if container is not None:
-            try:
-                container.close()
-            except Exception:
-                pass
-        if not existed and os.path.exists(filename):
-            os.remove(filename)
-        raise VideoWriteError(f'codec={codec} pix_fmt={pix_fmt}: {open_failure_reason(av, codec, pix_fmt, e)}') from e
-    return VideoWriter(av, container, stream, reformat_args)
-
-
 def save_video_atomic(images,
                       filename,
                       video_type: str = 'none',
@@ -159,16 +84,10 @@ def save_video_atomic(images,
     fps: output rate; None derives it from the frame count and duration.
     Raises VideoWriteError when the save is refused or fails, after logging the reason once."""
     mp4_codec, mp4_opt = resolve_codec(video_type, mp4_codec, mp4_opt)
-    parsed_options = {}
-    if mp4_opt:
-        from modules.video_models.video_save import parse_options, rejected_options
-        parsed_options = parse_options(mp4_opt)
-        rejected = rejected_options(mp4_opt)
-        if rejected:
-            log.error(f'Video: options={rejected} not allowed')
-            raise VideoWriteError(f'options {rejected} not allowed')
-    if str(mp4_codec).lower() == 'libx265':
-        parsed_options['x265-params'] = 'log-level=error'
+    rejected = rejected_options(mp4_opt)
+    if rejected:
+        log.error(f'Video: options={rejected} not allowed')
+        raise VideoWriteError(f'options {rejected} not allowed')
     savejob = shared.state.record('Save video')
     video_writer = None
     try:
@@ -190,29 +109,18 @@ def save_video_atomic(images,
             log.info(f'Save video: file="{filename}" frames={num_frames} duration={duration} loop={loop} size={os.path.getsize(filename)}')
         elif video_type.lower() != 'none':
             frames = interpolate_frames(images, count=interpolate, scale=scale, pad=pad, change=change)
-            h, w, _c = frames[0].shape
+            h, w = frames[0].shape[:2]
             num_frames = frames_hint if frames_hint > 0 else len(frames)
             if fps is None:
                 fps = max(1.0, num_frames / duration) if duration > 0 else 30.0
-            from modules.video_models.video_utils import check_av
-            from modules.video_models.video_codecs import resolve_pix_fmt, chroma_crop_size
-            av = check_av()
-            if av is None:
-                raise VideoWriteError('av package not available')
-            try:
-                pix_fmt = resolve_pix_fmt(mp4_codec, mp4_pix)
-                crop_w, crop_h = chroma_crop_size(pix_fmt, w, h)
-            except ValueError as e:
-                raise VideoWriteError(f'codec={mp4_codec} pix_fmt={mp4_pix}: {e}') from e
-            if (crop_w, crop_h) != (w, h):
-                log.warning(f'Video: file="{filename}" size={w}x{h} cropped to {crop_w}x{crop_h} for pix_fmt={pix_fmt}')
-            video_writer = open_video_writer(av, filename, crop_w, crop_h, fps, mp4_codec, pix_fmt, parsed_options, metadata)
-            save_video_frames(video_writer, frames)
+            writer = open_video_writer(filename, w, h, fps, mp4_codec, mp4_pix, mp4_opt, metadata)
+            video_writer = writer
+            save_video_frames(writer, frames)
             if not stream:
-                video_writer.release()
+                writer.release()
                 video_writer = None
             hint = 'stream=True' if stream else f'size={os.path.getsize(filename)}'
-            log.info(f'Save video: file="{filename}" frames={num_frames} duration={duration} fps={fps:.2f} resolution={(crop_w, crop_h)} codec={mp4_codec} fmt={pix_fmt} options={parsed_options} {hint}')
+            log.info(f'Save video: file="{filename}" frames={num_frames} duration={duration} fps={fps:.2f} resolution={(writer.width, writer.height)} codec={writer.codec} fmt={writer.pix_fmt} options={writer.options} {hint}')
             frames.clear()
     except Exception as e:
         if video_writer is not None:
