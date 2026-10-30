@@ -170,8 +170,8 @@ def save_video(p,
             mp4_opt = get_codec_options(mp4_codec)
     image = images[0]
     if p is not None:
-        seed = p.all_seeds[0] if getattr(p, 'all_seeds', None) is not None else p.seed
-        prompt = p.all_prompts[0] if getattr(p, 'all_prompts', None) is not None else p.prompt
+        seed = p.all_seeds[0] if getattr(p, 'all_seeds', None) else p.seed # empty until the job is processed; the XYZ grid saves with its unprocessed outer job
+        prompt = p.all_prompts[0] if getattr(p, 'all_prompts', None) else p.prompt
         namegen = FilenameGenerator(p, seed=seed, prompt=prompt, image=image)
     else:
         namegen = FilenameGenerator(None, seed=0, prompt='', image=image)

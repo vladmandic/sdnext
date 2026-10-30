@@ -2848,6 +2848,20 @@ def test_output_folder_kept_as_configured():
     return True
 
 
+def test_unprocessed_job_names_its_video():
+    """A video saved with a job that was never processed (the XYZ grid's outer job: all_seeds and all_prompts still empty) is named from the job's own seed and prompt."""
+    if need_av():
+        return need_av()
+    from modules import processing
+    p = processing.StableDiffusionProcessingTxt2Img(prompt='unprocessed probe', seed=7, width=256, height=144)
+    with opts(samples_filename_pattern='[seed]-[prompt_words]'):
+        res, err = call_and_catch(video.save_video, p, [Image.fromarray(f) for f in small_frames(4)], video_type='libx264', duration=4 / 24.0, sync=True)  # the scripts pass PIL images
+    verdict('test_unprocessed_job_names_its_video', 'PASS', all_seeds=str(p.all_seeds), returned=os.path.basename(res) if res else None, raised=repr(err) if err else None)
+    assert err is None and res and os.path.isfile(res), f'returned {res!r} raised {err!r}'
+    assert os.path.basename(res).startswith('7-unprocessed probe'), f'named {os.path.basename(res)}'
+    return True
+
+
 def test_frame_export_to_non_ascii_folder():
     """The Video tab frames export writes every frame into a folder named with non-ASCII characters, in RGB order."""
     frames = small_frames(4)
@@ -3046,7 +3060,7 @@ GROUPS = [
     ('metadata', [test_metadata_roundtrip]),
     ('gradio', [test_option_off_does_not_probe_or_convert, test_option_on_converts_without_binaries, test_option_on_serves_playable_as_is, test_option_on_converts_unplayable_h264, test_preview_audio_passthrough_and_drop, test_preview_unopenable_file_served_as_is, test_preview_av_import_failure_does_not_raise, test_cli_fallback_leaves_no_copy, test_cleanup_tmpdr_removes_all_video_extensions]),
     ('process', [test_process_missing_video_reports_reason, test_process_tab_shows_failure_text_whole]),
-    ('paths', [test_non_ascii_output_path, test_long_path_truncation, test_output_folder_kept_as_configured, test_video_tab_numbers_in_the_sanitized_folder, test_legacy_numbers_in_the_sanitized_folder, test_frame_export_to_non_ascii_folder]),
+    ('paths', [test_non_ascii_output_path, test_long_path_truncation, test_output_folder_kept_as_configured, test_video_tab_numbers_in_the_sanitized_folder, test_legacy_numbers_in_the_sanitized_folder, test_frame_export_to_non_ascii_folder, test_unprocessed_job_names_its_video]),
     ('clips', [test_clips_written]),
 ]
 
