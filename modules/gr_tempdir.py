@@ -17,12 +17,37 @@ def register_tmp_file(gradio, filename):
         gradio.temp_file_sets[0] = gradio.temp_file_sets[0] | {os.path.abspath(filename)}
 
 
+ffprobe_warned = False
+
+
 def patch_video_conversion():
+    """Route gradio's video preview probe and conversion through av; its ffmpeg and ffprobe CLI calls remain only for when av cannot be imported.
+
+    gradio's Video component looks the three functions up on processing_utils at call time and probes only when ffmpeg_installed() is true."""
     try:
         import gradio.processing_utils as processing_utils
+        original_probe = processing_utils.video_is_playable
         original_convert = processing_utils.convert_video_to_playable_mp4
         if getattr(original_convert, '_sdnext_preserve_original', False):
             return
+        from modules.video_models import video_convert
+        from modules.video_models.video_utils import check_av
+
+        def ffmpeg_installed():
+            return bool(shared.opts.ui_video_convert)
+
+        def video_is_playable(video_path):
+            global ffprobe_warned # pylint: disable=global-statement
+            av = check_av()
+            if av is not None:
+                return video_convert.is_playable(av, os.fspath(video_path))
+            try:
+                return original_probe(video_path)
+            except Exception as e: # ffmpy raises FFExecutableNotFoundError for a missing ffprobe, which gradio does not catch
+                if not ffprobe_warned:
+                    log.warning(f'Video conversion: av unavailable and ffprobe failed, previews shown as saved: {e}')
+                    ffprobe_warned = True
+                return True
 
         def convert_video_to_playable_mp4(video_path):
             if not shared.opts.ui_video_convert:
@@ -30,21 +55,25 @@ def patch_video_conversion():
             video_path = os.fspath(video_path)
             temp_dir = shared.opts.temp_dir or os.path.join(paths.temp_dir, 'gradio')
             os.makedirs(temp_dir, exist_ok=True)
+            av = check_av()
+            if av is not None:
+                return video_convert.convert_for_preview(av, video_path, temp_dir)
             with tempfile.NamedTemporaryFile(delete=False, suffix=Path(video_path).suffix or '.mp4', dir=temp_dir) as tmp:
                 temp_path = tmp.name
+            converted_path = temp_path
             try:
                 shutil.copy2(video_path, temp_path)
                 converted_path = original_convert(temp_path)
                 log.debug(f'Video conversion: original="{video_path}" converted="{converted_path}"')
                 return converted_path
-            except Exception:
-                try:
+            finally:
+                if converted_path != temp_path and os.path.exists(temp_path): # the converter writes beside the copy
                     os.remove(temp_path)
-                except OSError:
-                    pass
-                raise
 
-        convert_video_to_playable_mp4._sdnext_preserve_original = True # pylint: disable=protected-access
+        for fn in (ffmpeg_installed, video_is_playable, convert_video_to_playable_mp4):
+            fn._sdnext_preserve_original = True # pylint: disable=protected-access
+        processing_utils.ffmpeg_installed = ffmpeg_installed
+        processing_utils.video_is_playable = video_is_playable
         processing_utils.convert_video_to_playable_mp4 = convert_video_to_playable_mp4
     except Exception as e:
         log.error(f'Video conversion: {e}')
@@ -144,11 +173,13 @@ def cleanup_tmpdr():
         return
     removed = 0
     if shared.opts.clean_temp_dir_at_start:
+        from modules.video_models.video_codecs import codecs_config
+        extensions = {".png", ".jpg", ".webp", ".jxl", ".heic", ".heif", ".mp4", ".webm"} | {f'.{ext}' for cfg in codecs_config.values() for ext in cfg['allowed_exts']} # preview copies keep the source container
         for root, _dirs, files in os.walk(temp_dir, topdown=False):
             for name in files:
                 try:
                     _, extension = os.path.splitext(name)
-                    if extension not in {".png", ".jpg", ".webp", ".jxl", ".heic", ".heif", ".mp4", ".webm"}:
+                    if extension not in extensions:
                         continue
                     filename = os.path.join(root, name)
                     os.remove(filename)

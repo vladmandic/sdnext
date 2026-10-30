@@ -774,6 +774,17 @@ def stream_info(fn: str) -> dict:
     return info
 
 
+def same_timing(src: str, res: str) -> tuple[bool, str]:
+    def timing(fn: str) -> tuple[int, float]:
+        with av.open(fn) as container:
+            frames = sum(1 for _ in container.decode(video=0))
+            return frames, (float(container.duration) / 1000000) if container.duration is not None else 0.0
+    (src_frames, src_duration), (res_frames, res_duration) = timing(src), timing(res)
+    period = src_duration / max(src_frames, 1)
+    ok = res_frames == src_frames and abs(res_duration - src_duration) <= period
+    return ok, f'frames {res_frames}/{src_frames} duration {res_duration:.3f}/{src_duration:.3f}s'
+
+
 def decode_rgb(fn: str) -> list[np.ndarray]:
     with av.open(fn) as container:
         return [f.to_ndarray(format='rgb24') for f in container.decode(video=0)]
@@ -2037,6 +2048,7 @@ def test_option_on_converts_without_binaries():
         return need_av()
     src = preview_sources()
     out = {}
+    timings = {}
     with opts(ui_video_convert=True, temp_dir=temp_dir), binaries_absent():
         for label in ('mkv_ffv1', 'mov_prores'):
             fn = src.get(label)
@@ -2047,7 +2059,8 @@ def test_option_on_converts_without_binaries():
             with capture_log() as logs:
                 res, err = call_and_catch(simulate_format_video, fn)
             info = stream_info(res) if res and os.path.isfile(res) and err is None else {}
-            out[label] = {'converted': res != fn, 'in_temp': bool(res) and os.path.realpath(os.path.dirname(res)) == os.path.realpath(temp_dir), 'ext': os.path.splitext(res or '')[1], 'codec': info.get('codec'), 'pix_fmt': info.get('pix_fmt'), 'tags': tags_of(info) if info else None, 'source_unchanged': (file_hash(fn), os.path.getmtime(fn)) == before, 'raised': repr(err) if err else None, 'log': logs.find('preview', level=logging.INFO)[:1]}
+            timings[label] = same_timing(fn, res) if info else (False, 'no preview')
+            out[label] = {'converted': res != fn, 'same_timing': timings[label][0], 'in_temp': bool(res) and os.path.realpath(os.path.dirname(res)) == os.path.realpath(temp_dir), 'ext': os.path.splitext(res or '')[1], 'codec': info.get('codec'), 'pix_fmt': info.get('pix_fmt'), 'tags': tags_of(info) if info else None, 'source_unchanged': (file_hash(fn), os.path.getmtime(fn)) == before, 'raised': repr(err) if err else None, 'log': logs.find('preview', level=logging.INFO)[:1]}
     verdict('test_option_on_converts_without_binaries', 'PASS', **{k: str(v) for k, v in out.items()})
     for label, v in out.items():
         if v == 'unavailable':
@@ -2056,6 +2069,7 @@ def test_option_on_converts_without_binaries():
         assert v['converted'] and v['in_temp'] and v['ext'] == '.mp4', f'{label}: not converted into the temp dir: {v}'
         assert v['codec'] == 'h264' and v['pix_fmt'] == 'yuv420p' and v['tags'] == STREAM_TAGS['bt709'], f'{label}: preview is {v["codec"]} {v["pix_fmt"]} {v["tags"]}'
         assert v['source_unchanged'], f'{label}: the source was modified'
+        assert v['same_timing'], f'{label}: preview timing differs from the source: {timings[label][1]}'
     return True
 
 
@@ -2084,15 +2098,18 @@ def test_option_on_converts_unplayable_h264():
         return need_av()
     src = preview_sources()
     out = {}
+    timings = {}
     with opts(ui_video_convert=True, temp_dir=temp_dir), binaries_absent():
         for label in ('mp4_x264rgb', 'mp4_h264_444'):
             fn = src[label]
             res, err = call_and_catch(simulate_format_video, fn)
             info = stream_info(res) if res and os.path.isfile(res) and err is None else {}
-            out[label] = {'converted': res != fn, 'pix_fmt': info.get('pix_fmt'), 'raised': repr(err) if err else None}
+            timings[label] = same_timing(fn, res) if info else (False, 'no preview')
+            out[label] = {'converted': res != fn, 'same_timing': timings[label][0], 'pix_fmt': info.get('pix_fmt'), 'raised': repr(err) if err else None}
     verdict('test_option_on_converts_unplayable_h264', 'PASS', **{k: str(v) for k, v in out.items()})
     for label, v in out.items():
         assert v['raised'] is None and v['converted'] and v['pix_fmt'] == 'yuv420p', f'{label}: {v}'
+        assert v['same_timing'], f'{label}: preview timing differs from the source: {timings[label][1]}'
     return True
 
 

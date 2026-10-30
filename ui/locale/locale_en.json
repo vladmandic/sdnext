@@ -2094,6 +2094,7 @@
     {"id": "", "label": "Video save video", "localized": "", "hint": "Export final generated sequence as encoded video file", "ui": "video"},
     {"id": "", "label": "Video scale", "localized": "", "hint": "Spatial magnification scale factor for video upscaling pass"},
     {"id": "", "label": "Video Upscaler", "localized": "", "hint": "Neural upscaler model used to enlarge video frames"},
+    {"id": "", "label": "Videos convert for UI playback", "localized": "", "hint": "Video previews the browser cannot play (ProRes, FFV1, MPEG-4 Part 2, H.264 4:4:4 or RGB) are shown through an H.264 copy in the temp folder, made with the bundled av libraries; the saved file is not changed. Previews that already play are shown as saved.", "ui": "settings"},
     {"id": "", "label": "Vignette", "localized": "", "hint": "Applies radial edge darkening that draws focus toward the center of the image.<br>Higher values produce a stronger falloff from center to corners.<br><br>Set to 0 to disable. Simulates the natural light falloff seen in vintage and cinematic lenses.", "ui": "txt2img"},
     {"id": "", "label": "VLM", "localized": "", "hint": "Visual Language Model architecture configuration and prompt templates", "ui": "caption"},
     {"id": "", "label": "VLM Analyze", "localized": "", "hint": "Interactive visual analysis and question-answering interface"},
