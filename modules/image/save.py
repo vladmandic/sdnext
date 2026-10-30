@@ -124,6 +124,7 @@ def atomically_save_image():
         size = os.path.getsize(fn) if os.path.exists(fn) else 0
         what = 'grid' if is_grid else 'image'
         log.info(f'Save: {what}="{fn}" type={image_format} width={image.width} height={image.height} size={size}')
+        shared.state.outputs(fn)
 
         if shared.opts.save_log_fn != '' and len(exifinfo) > 0:
             fn = os.path.join(paths.data_path, shared.opts.save_log_fn)
@@ -137,7 +138,6 @@ def atomically_save_image():
             entries.append(entry)
             writefile(entries, fn, mode='w', silent=True)
             log.info(f'Save: json="{fn}" records={len(entries)}')
-        shared.state.outputs(filename)
         shared.state.end(jobid)
         save_queue.task_done()
 
