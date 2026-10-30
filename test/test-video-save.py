@@ -61,7 +61,7 @@ for env_name in ('SD_DATADIR', 'SD_CONFIG'):
         sys.exit(2)
 
 import tempfile  # pylint: disable=wrong-import-position
-work_dir = flags.work_dir or tempfile.mkdtemp(prefix='sdnext-video-save-', suffix='-work') # namegen.sanitize strips a trailing '_' from directory names
+work_dir = flags.work_dir or tempfile.mkdtemp(prefix='sdnext-video-save-')
 os.environ['GRADIO_TEMP_DIR'] = os.path.join(work_dir, 'gradio-default')
 os.environ['SD_INSTALL_QUIET'] = '1'
 
@@ -2279,6 +2279,22 @@ def test_long_path_truncation():
     return True
 
 
+def test_output_folder_kept_as_configured():
+    if need_av():
+        return need_av()
+    folder = os.path.join(work_dir, 'configured_')
+    pixels = (tensor_of(small_frames(4)).float() / 127.5 - 1.0).permute(3, 0, 1, 2).unsqueeze(0)  # 1 c t h w in [-1, 1]
+    with opts(outdir_video=folder, outdir_samples='', save_to_dirs=False, save_txt=False):
+        legacy, legacy_err = call_and_catch(video.save_video, None, small_frames(4), filename='folder_legacy.mp4', video_type='mp4', duration=4 / 24.0, sync=True, mp4_codec='libx264')
+        tab, tab_err = call_and_catch(video_save.save_video, None, pixels=pixels, mp4_codec='libx264', mp4_thumb=False, mp4_fps=24)
+    tab_video = tab[1] if tab is not None else None
+    verdict('test_output_folder_kept_as_configured', 'PASS', legacy=legacy, legacy_raised=repr(legacy_err) if legacy_err else None, video_tab=tab_video, video_tab_raised=repr(tab_err) if tab_err else None)
+    for res, err in ((legacy, legacy_err), (tab_video, tab_err)):
+        assert err is None and res and os.path.isfile(res), f'returned {res!r} raised {err!r}'
+        assert os.path.dirname(res) == folder, f'saved to "{res}", configured "{folder}"'
+    return True
+
+
 # ============================================================
 # browser gate clips
 # ============================================================
@@ -2391,7 +2407,7 @@ GROUPS = [
     ('metadata', [test_metadata_roundtrip]),
     ('gradio', [test_option_off_does_not_probe_or_convert, test_option_on_converts_without_binaries, test_option_on_serves_playable_as_is, test_option_on_converts_unplayable_h264, test_preview_audio_passthrough_and_drop, test_preview_unopenable_file_served_as_is, test_preview_av_import_failure_does_not_raise, test_cli_fallback_leaves_no_copy, test_cleanup_tmpdr_removes_all_video_extensions]),
     ('process', [test_process_missing_video_reports_reason, test_process_tab_shows_failure_text_whole]),
-    ('paths', [test_non_ascii_output_path, test_long_path_truncation]),
+    ('paths', [test_non_ascii_output_path, test_long_path_truncation, test_output_folder_kept_as_configured]),
     ('clips', [test_clips_written]),
 ]
 

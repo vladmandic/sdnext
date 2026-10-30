@@ -39,7 +39,7 @@ def get_video_filename(p:processing.StableDiffusionProcessingVideo):
         os.makedirs(dirname, exist_ok=True)
     filename = os.path.join(dirname, filename)
     filename = namegen.sequence(filename)
-    filename = namegen.sanitize(filename)
+    filename = namegen.sanitize(filename, base=base_path)
     return filename
 
 

@@ -306,7 +306,7 @@ def save_video(p,
                 ext = get_codec_ext(mp4_codec)
         if not filename.lower().endswith(ext):
             filename += f'.{ext}'
-    filename = namegen.sanitize(filename)
+    filename = namegen.sanitize(filename, base=base_path)
     if source is not None and os.path.realpath(filename) == os.path.realpath(source):
         reason = f'output would overwrite the input "{source}"'
         log.error(f'Save video: file="{filename}" {reason}')
