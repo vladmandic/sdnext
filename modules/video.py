@@ -102,8 +102,8 @@ class VideoWriter:
 
 def open_video_writer(av, filename: str, width: int, height: int, fps: float, codec: str, pix_fmt: str, options: dict, metadata: dict | None = None) -> VideoWriter:
     """Open the container and the encoder before any frame, so a refusal leaves no partial file."""
-    from fractions import Fraction
     from modules.video_models.video_utils import open_failure_reason
+    from modules.video_models.video_save import video_rate
     existed = os.path.exists(filename)
     container = None
     try:
@@ -111,7 +111,7 @@ def open_video_writer(av, filename: str, width: int, height: int, fps: float, co
         for key, value in (metadata or {}).items():
             if value is not None:
                 container.metadata[str(key)] = str(value)
-        stream = container.add_stream(codec, rate=Fraction(fps).limit_denominator(), options=options)
+        stream = container.add_stream(codec, rate=video_rate(fps), options=options)
         stream.width = width
         stream.height = height
         stream.pix_fmt = pix_fmt
@@ -143,9 +143,12 @@ def save_video_atomic(images,
                       mp4_codec: str | None = None,
                       mp4_pix: str | None = None,
                       mp4_opt: str | None = None,
+                      *,
+                      fps: float | None = None,
                      ) -> VideoWriter | None:
     """Write the clip; with stream=True the open writer is returned for more frames.
 
+    fps: output rate; None derives it from the frame count and duration.
     Raises VideoWriteError when the save is refused or fails, after logging the reason once."""
     mp4_codec, mp4_opt = resolve_codec(video_type, mp4_codec, mp4_opt)
     parsed_options = {}
@@ -181,7 +184,8 @@ def save_video_atomic(images,
             frames = interpolate_frames(images, count=interpolate, scale=scale, pad=pad, change=change)
             h, w, _c = frames[0].shape
             num_frames = frames_hint if frames_hint > 0 else len(frames)
-            fps = max(1.0, num_frames / duration) if duration > 0 else 30.0
+            if fps is None:
+                fps = max(1.0, num_frames / duration) if duration > 0 else 30.0
             from modules.video_models.video_utils import check_av
             from modules.video_models.video_codecs import resolve_pix_fmt, chroma_crop_size
             av = check_av()
@@ -246,11 +250,13 @@ def save_video(p,
                mp4_opt: str | None = None,
                *,
                source: str | None = None,
+               fps: float | None = None,
               ):
     """Save frames as a video named by the output pattern.
 
     mp4_codec: None takes the codec half of video_type (MP4/AVC1), else libx264. mp4_opt: None takes the codec's preset, '' means no options.
     mp4_pix: None takes the codec's table value. mp4_ext: None takes the video_type extension when the codec fits that container, else the codec's own.
+    fps: output rate; None derives it from the frame count and duration.
     sync: returns the filename, or None when the save is refused or fails.
     stream: returns (filename, writer) for more frames, or raises VideoWriteError with the reason.
     otherwise: encodes in a thread and returns the filename at once; the file is registered before the thread runs and a failure is only logged.
@@ -303,10 +309,10 @@ def save_video(p,
     metadata = create_video_metadata(p, metadata, filename)
     if not sync:
         shared.state.outputs(filename)
-        threading.Thread(target=save_video_thread, args=(images, filename, video_type, duration, loop, interpolate, scale, pad, change), kwargs={'metadata': metadata, 'mp4_codec': mp4_codec, 'mp4_pix': mp4_pix, 'mp4_opt': mp4_opt}).start()
+        threading.Thread(target=save_video_thread, args=(images, filename, video_type, duration, loop, interpolate, scale, pad, change), kwargs={'metadata': metadata, 'mp4_codec': mp4_codec, 'mp4_pix': mp4_pix, 'mp4_opt': mp4_opt, 'fps': fps}).start()
         return filename
     try:
-        video_writer = save_video_atomic(images, filename, video_type, duration, loop, interpolate, scale, pad, change, stream, frames_hint, metadata, mp4_codec, mp4_pix, mp4_opt)
+        video_writer = save_video_atomic(images, filename, video_type, duration, loop, interpolate, scale, pad, change, stream, frames_hint, metadata, mp4_codec, mp4_pix, mp4_opt, fps=fps)
     except VideoWriteError:
         if stream:
             raise

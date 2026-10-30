@@ -202,6 +202,14 @@ def rejected_options(options) -> list[str]:
     return sorted(set(parse_options(options)) - allowed)
 
 
+def video_rate(fps) -> Fraction:
+    """Frame rate as a fraction whose time base fits a 16-bit denominator, the mpeg4 limit; rates such as 30000/1001 come through exact."""
+    value = fps if isinstance(fps, Fraction) else Fraction(fps)
+    if value <= 0:
+        raise ValueError(f'fps must be positive, got {fps}')
+    return 1 / (1 / value).limit_denominator(65535)
+
+
 def atomic_save_video(
     filename: str,
     tensor: torch.Tensor,
@@ -220,54 +228,55 @@ def atomic_save_video(
     av = check_av()
     if av is None:
         log.error('Video: ffmpeg/av not available')
-        return
+        return False
     frames, height, width, _channels = tensor.shape
     pix_fmt = resolve_pix_fmt(codec, pix_fmt)
     crop_w, crop_h = chroma_crop_size(pix_fmt, width, height)
+    rate = video_rate(fps)
     savejob = shared.state.begin('Save video')
-    rate = round(fps)
-    parsed_options = parse_options(options)
-    log.info(f'Video: file="{filename}" codec={codec} pix_fmt={pix_fmt} frames={frames} width={crop_w} height={crop_h} fps={rate} audio={audio is not None} sample_rate={sample_rate} options={parsed_options}')
-    video_array = torch.as_tensor(tensor, dtype=torch.uint8).numpy(force=True)
-    if (crop_w, crop_h) != (width, height):
-        log.warning(f'Video: file="{filename}" size={width}x{height} cropped to {crop_w}x{crop_h} for pix_fmt={pix_fmt}')
-        video_array = np.ascontiguousarray(video_array[:, :crop_h, :crop_w])
-    task = pbar.add_task('encoding', total=frames) if pbar is not None else None
-    if task is not None:
-        pbar.update(task, description='video encoding')
+    try:
+        parsed_options = parse_options(options)
+        log.info(f'Video: file="{filename}" codec={codec} pix_fmt={pix_fmt} frames={frames} width={crop_w} height={crop_h} fps={rate} audio={audio is not None} sample_rate={sample_rate} options={parsed_options}')
+        video_array = torch.as_tensor(tensor, dtype=torch.uint8).numpy(force=True)
+        if (crop_w, crop_h) != (width, height):
+            log.warning(f'Video: file="{filename}" size={width}x{height} cropped to {crop_w}x{crop_h} for pix_fmt={pix_fmt}')
+            video_array = np.ascontiguousarray(video_array[:, :crop_h, :crop_w])
+        task = pbar.add_task('encoding', total=frames) if pbar is not None else None
+        if task is not None:
+            pbar.update(task, description='video encoding')
 
-    with av.open(filename, mode="w") as container:
-        for k, v in metadata.items():
-            container.metadata[k] = v
-        stream: av.VideoStream = container.add_stream(codec, rate=rate, options=parsed_options)
-        stream.width = video_array.shape[2]
-        stream.height = video_array.shape[1]
-        stream.pix_fmt = pix_fmt
-        stream.time_base = Fraction(1, rate)
-        audio_stream = None
-        has_audio = (audio is not None) and ((torch.is_tensor(audio) or isinstance(audio, np.ndarray)) or (isinstance(audio, dict) and len(audio.get('frames', [])) > 0))
-        if has_audio:
-            sr = sample_rate if not isinstance(audio, dict) else audio.get("sr", sample_rate)
-            layout = "stereo" if not isinstance(audio, dict) else audio.get("layout", "stereo")
-            audio_stream = container.add_stream("aac", rate=sr)
-            audio_stream.layout = layout
-            audio_stream.time_base = Fraction(1, sr)
-        for i, img in enumerate(video_array):
-            frame = av.VideoFrame.from_ndarray(img, format="rgb24")
-            frame.pts = i
-            for packet in stream.encode_lazy(frame):
+        with av.open(filename, mode="w") as container:
+            for k, v in metadata.items():
+                container.metadata[k] = v
+            stream: av.VideoStream = container.add_stream(codec, rate=rate, options=parsed_options)
+            stream.width = video_array.shape[2]
+            stream.height = video_array.shape[1]
+            stream.pix_fmt = pix_fmt
+            audio_stream = None
+            has_audio = (audio is not None) and ((torch.is_tensor(audio) or isinstance(audio, np.ndarray)) or (isinstance(audio, dict) and len(audio.get('frames', [])) > 0))
+            if has_audio:
+                sr = sample_rate if not isinstance(audio, dict) else audio.get("sr", sample_rate)
+                layout = "stereo" if not isinstance(audio, dict) else audio.get("layout", "stereo")
+                audio_stream = container.add_stream("aac", rate=sr)
+                audio_stream.layout = layout
+                audio_stream.time_base = Fraction(1, sr)
+            for i, img in enumerate(video_array):
+                frame = av.VideoFrame.from_ndarray(img, format="rgb24")
+                frame.pts = i
+                for packet in stream.encode_lazy(frame):
+                    container.mux_one(packet)
+                if task is not None:
+                    pbar.update(task, advance=1)
+            if (audio is not None) and (torch.is_tensor(audio) or isinstance(audio, np.ndarray)):
+                add_audio_tensor(container, audio_stream, audio, sample_rate)
+            elif (audio is not None) and isinstance(audio, dict) and len(audio.get('frames', [])) > 0:
+                add_audio_packets(container, audio_stream, audio)
+            for packet in stream.encode():
                 container.mux_one(packet)
-            if task is not None:
-                pbar.update(task, advance=1)
-        if (audio is not None) and (torch.is_tensor(audio) or isinstance(audio, np.ndarray)):
-            add_audio_tensor(container, audio_stream, audio, sample_rate)
-        elif (audio is not None) and isinstance(audio, dict) and len(audio.get('frames', [])) > 0:
-            add_audio_packets(container, audio_stream, audio)
-        for packet in stream.encode():
-            container.mux_one(packet)
-
-    shared.state.outputs(filename)
-    shared.state.end(savejob)
+        shared.state.outputs(filename)
+    finally:
+        shared.state.end(savejob)
+    return True
 
 
 def save_thumbnail(video_path, tensor=None):
@@ -293,7 +302,7 @@ def save_video(
     pixels: torch.Tensor | None = None,
     audio: torch.Tensor | None = None,
     binary: bytes | None = None,
-    mp4_fps: int = 24,
+    mp4_fps: float = 24,
     mp4_codec: str = "libx264",
     mp4_opt: str = "",
     mp4_ext: str = "mp4",
@@ -424,10 +433,11 @@ def save_video(
         shared.state.end(preparejob)
 
         if mp4_video and (mp4_codec != 'none'):
-            output_video = f'{output_filename}.{mp4_ext}'
+            target = f'{output_filename}.{mp4_ext}'
             metadata = create_video_metadata(p, metadata, output_filename)
-            atomic_save_video(output_video, tensor=x, audio=audio, fps=mp4_fps, codec=mp4_codec, options=mp4_opt, sample_rate=aac_sample_rate, metadata=metadata, pbar=pbar)
-            if stream is not None:
+            if atomic_save_video(target, tensor=x, audio=audio, fps=mp4_fps, codec=mp4_codec, options=mp4_opt, sample_rate=aac_sample_rate, metadata=metadata, pbar=pbar):
+                output_video = target
+            if stream is not None and output_video is not None:
                 stream.output_queue.push(('progress', (None, f'Video {os.path.basename(output_video)} | Codec {mp4_codec} | Size {w}x{h}x{t} | FPS {mp4_fps}')))
                 stream.output_queue.push(('file', output_video))
         else:

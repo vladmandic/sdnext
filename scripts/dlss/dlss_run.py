@@ -56,6 +56,13 @@ def resolve_video_options(codec: str | None, ext: str | None, pix: str | None, o
     return codec, ext, pix, opt
 
 
+def dlss_output_fps(fps_in: float, framegen_factor: int, fg_mode: str) -> float:
+    """Output frame rate: FrameGen in fps mode multiplies the input rate, slow motion keeps it so the clip plays longer."""
+    if framegen_factor > 1 and fg_mode == 'fps':
+        return fps_in * framegen_factor
+    return fps_in
+
+
 def dlss_run(p: StableDiffusionProcessing | None,
              pp: Processed | PostprocessedImage,
              *args,
@@ -141,7 +148,11 @@ def dlss_run(p: StableDiffusionProcessing | None,
         raw_inputs = [pp.image]
     elif has_video:
         from modules import video
+        from modules.video_models import video_utils
         frames, fps, duration, w, h, codec, _frame = video.get_video_params(pp.video)
+        probe = video_utils.probe_media(pp.video, 'video')
+        if probe is not None and probe.fps:
+            fps = probe.fps # cv2 rounds the rate to two decimals
         log.info(f'DLSS video: file="{pp.video}" frames={frames} fps={fps} duration={duration} w={w} h={h} codec={codec}')
         # raw_inputs = video.read_video(pp.video)
         raw_inputs = [None] * frames
@@ -278,6 +289,7 @@ def dlss_run(p: StableDiffusionProcessing | None,
             if stage_name == 'fg':
                 framegen_factor *= session.options.factor
         output_frames_hint = 1 + (num_frames - 1) * framegen_factor
+        output_fps = dlss_output_fps(fps, framegen_factor, fg_mode) if has_video and fps else None
 
         if use_stream:
             raw_inputs = video.read_generator(pp.video) # use read generator instead of bulk read
@@ -309,7 +321,8 @@ def dlss_run(p: StableDiffusionProcessing | None,
                                                                    mp4_ext=mp4_ext,
                                                                    mp4_pix=mp4_pix,
                                                                    mp4_opt=mp4_opt,
-                                                                   source=pp.video)
+                                                                   source=pp.video,
+                                                                   fps=output_fps)
                         video_initialized = True
                     else:
                         video.save_video_frames(video_writter, current_frames)
@@ -331,7 +344,7 @@ def dlss_run(p: StableDiffusionProcessing | None,
         elif has_image:
             pp.image = output_images[0] if output_images else None
         elif has_video:
-            pp.video = video.save_video(p, output_images, video_type='mp4', duration=duration, sync=True, mp4_codec=mp4_codec, mp4_ext=mp4_ext, mp4_pix=mp4_pix, mp4_opt=mp4_opt, source=pp.video)
+            pp.video = video.save_video(p, output_images, video_type='mp4', duration=duration, sync=True, mp4_codec=mp4_codec, mp4_ext=mp4_ext, mp4_pix=mp4_pix, mp4_opt=mp4_opt, source=pp.video, fps=output_fps)
 
         t2 = time.perf_counter()
         log.debug(f'DLSS output: frames={len(output_images)} init={t1 - t0:.4f} time={t2 - t1:.4f} its={len(output_images) / (t2 - t1):.4f}')

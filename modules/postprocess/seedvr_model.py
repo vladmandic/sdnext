@@ -230,7 +230,7 @@ class UpscalerSeedVR(Upscaler):
             frames = []
             width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
             height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-            self.fps = int(cap.get(cv2.CAP_PROP_FPS))
+            self.fps = float(cap.get(cv2.CAP_PROP_FPS))
             while True:
                 ret, frame = cap.read()
                 if not ret:

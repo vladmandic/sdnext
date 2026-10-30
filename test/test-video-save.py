@@ -1428,7 +1428,7 @@ def test_table_pix_fmt_opens_in_video_tab_loop():
     verdict('test_table_pix_fmt_opens_in_video_tab_loop', 'PASS', raised=repr(err) if err else None, stored=info.get('pix_fmt'))
     assert err is None, f'atomic_save_video(pix_fmt=None) raised {err!r}'
     assert info.get('codec') == 'prores', f'stored {info}'
-    assert res is None or res == fn, f'returned {res!r}'
+    assert res in (None, True), f'returned {res!r}'  # True once the loop reports success, None before
     return True
 
 
