@@ -1,5 +1,6 @@
 import gradio as gr
 from modules import video, scripts_postprocessing
+from modules.video_models.video_codecs import get_video_type_choices
 
 
 class ScriptPostprocessingVideo(scripts_postprocessing.ScriptPostprocessing):
@@ -11,16 +12,16 @@ class ScriptPostprocessingVideo(scripts_postprocessing.ScriptPostprocessing):
                 return [
                     gr.update(visible=video_type != 'None'),
                     gr.update(visible=video_type == 'GIF' or video_type == 'PNG'),
-                    gr.update(visible=video_type == 'MP4'),
-                    gr.update(visible=video_type == 'MP4'),
-                    gr.update(visible=video_type == 'MP4'),
-                    gr.update(visible=video_type == 'MP4'),
+                    gr.update(visible=video_type not in ['None', 'GIF', 'PNG']),
+                    gr.update(visible=video_type not in ['None', 'GIF', 'PNG']),
+                    gr.update(visible=video_type not in ['None', 'GIF', 'PNG']),
+                    gr.update(visible=video_type not in ['None', 'GIF', 'PNG']),
                 ]
 
             with gr.Row():
                 gr.HTML("<span>&nbsp Create video from generated images</span><br>")
             with gr.Row():
-                video_type = gr.Dropdown(label='Video file', choices=['None', 'GIF', 'PNG', 'MP4'], value='None', elem_id="extras_video_type")
+                video_type = gr.Dropdown(label='Video codec', choices=get_video_type_choices(), value='None', elem_id="extras_video_type")
                 duration = gr.Slider(label='Duration', minimum=0.25, maximum=10, step=0.25, value=2, visible=False, elem_id="extras_video_duration")
             with gr.Row():
                 loop = gr.Checkbox(label='Loop', value=True, visible=False, elem_id="extras_video_loop")

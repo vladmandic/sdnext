@@ -1771,6 +1771,31 @@ def test_codec_name_saves_in_its_container():
     return True
 
 
+def test_video_type_dropdowns_list_the_codec_presets():
+    """The scripts' and Control tab's dropdown and the Create Video dropdown offer None, GIF, PNG and every codec preset under the Video tab's label for a codec list; every choice resolves without a warning."""
+    import gradio as gr
+    from modules import ui_sections
+    from scripts import postprocessing_video
+    expected = ['None', 'GIF', 'PNG'] + list(video_codecs.codecs_config)
+    with gr.Blocks():
+        scripts_dropdown = ui_sections.create_video_inputs('suite')[0]
+        create_video = postprocessing_video.ScriptPostprocessingVideo().ui()['video_type']
+    got = {}
+    for name, dropdown in (('scripts', scripts_dropdown), ('create_video', create_video)):
+        choices = [c[0] if isinstance(c, (tuple, list)) else c for c in dropdown.choices]
+        got[name] = {'label': dropdown.label, 'choices': choices, 'value': dropdown.value}
+    with capture_log() as logs:
+        for choice in expected:
+            video_codecs.resolve_video_type(choice)
+    verdict('test_video_type_dropdowns_list_the_codec_presets', 'PASS', **{k: str({x: y for x, y in v.items() if x != 'choices'}) for k, v in got.items()})
+    for name, o in got.items():
+        assert o['label'] == 'Video codec', f'{name}: label {o["label"]}'
+        assert o['choices'] == expected, f'{name}: choices {o["choices"]}'
+    assert got['scripts']['value'] == 'libx264' and got['create_video']['value'] == 'None', f'defaults {got["scripts"]["value"]} {got["create_video"]["value"]}'
+    assert not logs.messages(level=logging.WARNING), f'a choice warned: {logs.messages(level=logging.WARNING)[:2]}'
+    return True
+
+
 def test_odd_size_under_default():
     if need_av():
         return need_av()
@@ -3013,7 +3038,7 @@ GROUPS = [
     ('floor', [test_log_capture_sees_writer_lines, test_quality_floor, test_quality_negative_control, test_quality_fixture_guard, test_colour_floor, test_colour_positive_control, test_colour_negative_controls, test_lossless_rgb_roundtrip]),
     ('writer failure', [test_sync_unknown_codec_returns_none, test_stream_rejected_pix_fmt_raises_with_reason, test_container_refusing_codec_removes_its_file, test_av_missing_sync_returns_none_stream_raises, test_zero_byte_mp4_metadata_is_empty, test_output_equal_to_source_refused, test_dlss_none_kwargs_resolve_to_ui_values, test_gif_failure_returns_none, test_mid_encode_exception_returns_none, test_sync_success_registers_after_open, test_threaded_save_joined, test_both_paths_write_the_same_stream, test_legacy_save_accepts_grayscale_frames, test_stream_writer_failure_leaves_partial_file, test_write_audio_without_stream_refused]),
     ('pixel format', [test_presets_declare_pix_fmt, test_table_pix_fmt_opens_in_legacy_loop, test_table_pix_fmt_opens_in_video_tab_loop, test_rejected_pix_fmt_names_the_list, test_empty_pix_fmt_refused_naming_default, test_out_of_table_codec_defaults_yuv420p, test_ext_none_follows_codec_when_container_refuses, test_odd_size_cropped_under_yuv420p_legacy, test_odd_size_cropped_under_yuv420p_video_tab, test_odd_size_kept_without_subsampling]),
-    ('defaults', [test_legacy_default_is_h264_yuv420p, test_legacy_default_quality_matches_old_writer, test_explicit_mpeg4_gets_table_preset, test_legacy_labels_map_to_codecs, test_legacy_labels_encode, test_odd_size_under_default, test_none_codec_kwargs_give_default, test_resolve_video_type_aliases, test_explicit_codec_overrides_label_container, test_extension_rule, test_codec_name_saves_in_its_container]),
+    ('defaults', [test_legacy_default_is_h264_yuv420p, test_legacy_default_quality_matches_old_writer, test_explicit_mpeg4_gets_table_preset, test_legacy_labels_map_to_codecs, test_legacy_labels_encode, test_odd_size_under_default, test_none_codec_kwargs_give_default, test_resolve_video_type_aliases, test_explicit_codec_overrides_label_container, test_extension_rule, test_codec_name_saves_in_its_container, test_video_type_dropdowns_list_the_codec_presets]),
     ('rate', [test_video_rate_fractions, test_mpeg4_opens_at_dlss_long_rate, test_video_tab_keeps_fractional_rate, test_fps_zero_refused_by_name, test_dlss_output_fps_rule, test_video_tab_returns_none_video_on_failure]),
     ('colour', [test_default_outputs_are_tagged_bt709, test_legacy_default_colour_720, test_legacy_default_colour_512, test_video_tab_default_colour, test_rgb_pix_fmt_tagged_full_and_exact, test_prores_tagged_and_within_oracle, test_mpeg4_in_mp4_carries_colr]),
     ('readers', [test_readers_agree_on_h264_fixture, test_readers_fractional_rate, test_readers_per_container, test_reader_codec_names, test_count_frames_without_header_or_duration, test_frames_estimate_ignores_trailing_audio, test_reader_decodes_with_stream_tags, test_reader_rotation_follows_display_matrix, test_params_without_capture_read_headers_only, test_iter_frames_skip_and_limit, test_ltx_condition_frames_keep_frame_zero, test_first_frame_equals_read_video_first, test_get_video_info_exact_keys, test_unreadable_file_contracts, test_corrupt_stream_stops_with_warning, test_frames_are_contiguous, test_unchanged_callers, test_reader_decode_speed_measured]),

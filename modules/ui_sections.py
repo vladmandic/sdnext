@@ -4,6 +4,7 @@ from modules import shared, modelloader, ui_symbols, ui_common, sd_samplers
 from modules.logger import log
 from modules.ui_components import ToolButton
 from modules.caption import caption
+from modules.video_models.video_codecs import DEFAULT_VIDEO_CODEC, get_video_type_choices
 
 
 _save_timer = None
@@ -128,8 +129,7 @@ def create_video_inputs(tab:str, show_always:bool=False):
             gr.update(visible=video_type not in ['None', 'GIF', 'PNG'] or show_always),
         ]
     with gr.Row():
-        video_codecs = ['None', 'GIF', 'PNG', 'MP4/MP4V', 'MP4/AVC1', 'MP4/JVT3', 'MKV/H264', 'AVI/DIVX', 'AVI/RGBA', 'MJPEG/MJPG', 'MPG/MPG1', 'AVR/AVR1']
-        video_type = gr.Dropdown(label='Video format', choices=video_codecs, value='MP4/AVC1', elem_id=f"{tab}_video_type")
+        video_type = gr.Dropdown(label='Video codec', choices=get_video_type_choices(), value=DEFAULT_VIDEO_CODEC, elem_id=f"{tab}_video_type")
     with gr.Row():
         video_duration = gr.Slider(label='Video duration', minimum=0.25, maximum=300, step=0.25, value=2, visible=show_always, elem_id=f"{tab}_video_duration")
         video_loop = gr.Checkbox(label='Loop video', value=True, visible=show_always, elem_id=f"{tab}_video_loop")

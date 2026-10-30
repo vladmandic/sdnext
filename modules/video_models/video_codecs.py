@@ -201,6 +201,10 @@ codecs_config = {
 def get_codec_list():
     return ['none'] + list(codecs_config.keys())
 
+def get_video_type_choices():
+    """The scripts', Control tab and Create Video codec dropdown: no video, the two animations, then every codec preset."""
+    return ['None', 'GIF', 'PNG'] + list(codecs_config.keys())
+
 def get_codec_name(codec_name):
     codec_info = codecs_config.get(codec_name)
     if codec_info is None:
