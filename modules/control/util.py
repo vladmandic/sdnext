@@ -1,5 +1,4 @@
 import os
-import sys
 import random
 import cv2
 import numpy as np
@@ -156,11 +155,3 @@ def blend(images):
         y = cv2.add(y, img.astype(np.float32))
     y = y.clip(0, 255).astype(np.uint8)
     return y
-
-
-def decode_fourcc(cc):
-    if cc is None:
-        return None
-    cc_bytes = int(cc).to_bytes(4, byteorder=sys.byteorder) # convert code to a bytearray
-    cc_str = cc_bytes.decode() # decode byteaarray to a string
-    return cc_str

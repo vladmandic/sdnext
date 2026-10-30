@@ -2,14 +2,11 @@ import os
 import threading
 import numpy as np
 from PIL import Image
-import cv2
 from modules import shared, errors
 from modules.logger import log
 from modules.image.namegen import FilenameGenerator # pylint: disable=unused-import
 from modules.paths import resolve_output_path
 from modules.video_models.video_writer import VideoWriteError, VideoWriter, open_video_writer, rejected_options
-
-os.environ.setdefault('OPENCV_FFMPEG_LOGLEVEL', '8') # fatal only; OpenCV reads it once, at its first capture
 
 
 def interpolate_frames(images, count: int = 0, scale: float = 1.0, pad: int = 1, change: float = 0.3):
@@ -239,66 +236,41 @@ def save_video(p,
     return filename
 
 
-def read_video(filepath: str):
-    video = cv2.VideoCapture(filepath)
-    if not video.isOpened():
-        msg = f'Video open failed: path="{filepath}"'
-        log.error(msg)
-        raise RuntimeError(msg)
-    frames = []
-    while True:
-        ok, frame = video.read()
-        if not ok or frame is None:
-            break
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        frames.append(frame)
-    video.release()
-    return frames
+def read_video(filepath: str) -> list[np.ndarray]:
+    """Every frame as HxWx3 uint8 RGB in display orientation; raises RuntimeError when the file cannot be opened."""
+    from modules.video_models.video_reader import read_frames
+    return read_frames(filepath)
 
 
 def read_generator(filepath: str):
-    video = cv2.VideoCapture(filepath)
-    if not video.isOpened():
-        msg = f'Video open failed: path="{filepath}"'
-        log.error(msg)
-        raise RuntimeError(msg)
-    frames = []
-    while True:
-        ok, frame = video.read()
-        if not ok or frame is None:
-            break
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        yield frame
-    video.release()
-    return frames
+    """read_video one frame at a time; the file stays open until the generator is exhausted or closed."""
+    from modules.video_models.video_reader import iter_frames
+    return iter_frames(filepath)
 
 
 def get_video_params(filepath: str, capture: bool = False):
-    from modules.control.util import decode_fourcc
-    video = cv2.VideoCapture(filepath)
-    if not video.isOpened():
-        msg = f'Video open failed: path="{filepath}"'
-        log.error(msg)
-        raise RuntimeError(msg)
-    frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
-    fps = round(video.get(cv2.CAP_PROP_FPS), 2)
-    if fps > 0:
-        duration = round(float(frames) / fps, 2)
+    """(frames, fps, duration, width, height, codec, first frame as a PIL image when capture), numbers never None.
+
+    Width and height are the display size. Without capture only headers are read, unless the installed av cannot report the display rotation
+    from them (before av 19). Logs and raises RuntimeError when the file cannot be opened."""
+    from modules.video_models.video_reader import probe_header, probe_video, count_frames, display_size
+    first = None
+    probe = None if capture else probe_header(filepath)
+    if probe is None or probe.rotation is None:
+        probe, first = probe_video(filepath)
+    frames = probe.frames or count_frames(filepath)
+    fps = probe.fps or 0.0
+    duration = probe.duration or (frames / fps if frames and fps else 0.0)
+    if first is not None:
+        h, w = first.shape[:2]
     else:
-        duration = 0
-    w, h = int(video.get(cv2.CAP_PROP_FRAME_WIDTH)), int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    codec = decode_fourcc(video.get(cv2.CAP_PROP_FOURCC))
-    frame = None
-    if capture:
-        ok, raw = video.read()
-        if ok and raw is not None:
-            frame = Image.fromarray(cv2.cvtColor(raw, cv2.COLOR_BGR2RGB))
-    video.release()
-    return frames, fps, duration, w, h, codec, frame
+        w, h = display_size(probe)
+    frame = Image.fromarray(first) if capture and first is not None else None
+    return frames, fps, duration, w, h, probe.codec or '', frame
 
 
-def get_video_info(filepath: str):
-    from modules.control.util import decode_fourcc
+def get_video_info(filepath: str) -> dict:
+    """File, stream and audio properties for display; 'error' when the file cannot be opened as a video."""
     try:
         info = {
             'file': os.path.basename(filepath),
@@ -308,71 +280,36 @@ def get_video_info(filepath: str):
     except Exception as e:
         log.error(f'Video probe failed: path="{filepath}" {e}')
         return {}
-
-    def get_prop(video, name: str, label: str | None, cast: type = float):
-        prop_id = getattr(cv2, name, None)
-        if prop_id is None:
-            return None
-        try:
-            value = video.get(prop_id)
-            if value is None:
-                return None
-            value = cast(value)
-            if value == 0:
-                return None
-            if label is not None:
-                info[label] = value
-            return value
-        except Exception:
-            return None
-
-    video = cv2.VideoCapture(filepath)
+    from modules.video_models.video_reader import probe_video, count_frames
     try:
-        if not video.isOpened():
-            msg = f'Video open failed: path="{filepath}"'
-            info['error'] = msg
-            log.error(msg)
-            return info
-        try:
-            backend = video.getBackendName()
-            if backend:
-                info['backend'] = backend
-        except Exception:
-            pass
-
-        frames = get_prop(video, 'CAP_PROP_FRAME_COUNT', 'frames', int) or 0
-        fps = get_prop(video, 'CAP_PROP_FPS', 'fps', float) or 0
-        _width = get_prop(video, 'CAP_PROP_FRAME_WIDTH', 'width', int) or 0
-        _height = get_prop(video, 'CAP_PROP_FRAME_HEIGHT', 'height', int) or 0
-        _bitrate = get_prop(video, 'CAP_PROP_BITRATE', 'bitrate_kbps', float)
-        _orientation = get_prop(video, 'CAP_PROP_ORIENTATION_META', 'rotation', float)
-
-        if frames > 0 and fps > 0:
-            info['duration'] = round(float(frames) / fps, 3)
-
-        fourcc = get_prop(video, 'CAP_PROP_FOURCC', None, int) or 0
-        info['codec'] = decode_fourcc(fourcc)
-
-        pix = get_prop(video, 'CAP_PROP_CODEC_PIXEL_FORMAT', None, int) or 0
-        info['format'] = decode_fourcc(pix)
-
-        sar_num = get_prop(video, 'CAP_PROP_SAR_NUM', None, int) or 1
-        sar_den = get_prop(video, 'CAP_PROP_SAR_DEN', None, int) or 1
-        if (sar_num > 0 and sar_den > 0) and (sar_num != 1 or sar_den != 1):
-            info['sar'] = f'{sar_num}/{sar_den}'
-
-        audio_streams = get_prop(video, 'CAP_PROP_AUDIO_TOTAL_STREAMS', 'audio_streams', int) or 0
-        audio_channels = get_prop(video, 'CAP_PROP_AUDIO_TOTAL_CHANNELS', 'audio_channels', int) or 0
-        audio_sample_rate = get_prop(video, 'CAP_PROP_AUDIO_SAMPLES_PER_SECOND', 'audio_sample_rate', int) or 0
-        if audio_streams > 0 or audio_channels > 0 or audio_sample_rate > 0:
-            info['audio'] = f'{audio_streams}x{audio_channels}x{audio_sample_rate}'
-
+        probe, first = probe_video(filepath)
+    except RuntimeError as e:
+        info['error'] = str(e)
         return info
-    except Exception as e:
-        log.error(f'Video probe failed: path="{filepath}" {e}')
-        return info
-    finally:
-        video.release()
+    frames = probe.frames or count_frames(filepath)
+    if first is not None:
+        height, width = first.shape[:2]
+    else:
+        width, height = probe.width, probe.height
+    values = {
+        'frames': frames,
+        'fps': probe.fps,
+        'width': width,
+        'height': height,
+        'duration': round(probe.duration or (frames / probe.fps if frames and probe.fps else 0), 3),
+        'codec': probe.codec,
+        'format': probe.pix_fmt,
+        'bitrate_kbps': round(probe.bit_rate / 1000) if probe.bit_rate else None,
+        'rotation': probe.rotation,
+        'sar': probe.sar,
+        'audio_streams': probe.audio_streams,
+        'audio_channels': probe.channels,
+        'audio_sample_rate': probe.sample_rate,
+    }
+    info.update({key: value for key, value in values.items() if value}) # zero and unknown values are left out
+    if probe.audio_streams:
+        info['audio'] = f'{probe.audio_streams}x{probe.channels or 0}x{probe.sample_rate or 0}'
+    return info
 
 
 def get_video_metadata(video):

@@ -57,6 +57,7 @@ from PIL import Image  # pylint: disable=wrong-import-position
 from modules.errors import log  # pylint: disable=wrong-import-position
 from modules import shared  # pylint: disable=wrong-import-position,unused-import
 from modules.video_models import video_utils  # pylint: disable=wrong-import-position
+from modules.video_models import video_reader  # pylint: disable=wrong-import-position
 from modules.minimax import minimax_references as refs  # pylint: disable=wrong-import-position
 
 
@@ -388,7 +389,7 @@ def test_probe_reads_video_headers():
     fn = make_mp4('probe.mp4', frames=20)
     if fn is None:
         return 'no h264 encoder to build a fixture'
-    probe = video_utils.probe_media(fn, 'video')
+    probe = video_reader.probe_media(fn, 'video')
     assert probe is not None, 'probe returned nothing'
     assert abs(probe.fps - 24.0) < 0.01, f'fps={probe.fps}'
     assert (probe.width, probe.height) == (64, 64), f'{probe.width}x{probe.height}'
@@ -398,7 +399,7 @@ def test_probe_reads_video_headers():
 def test_probe_reads_audio_headers():
     if not has_av():
         return 'av not installed'
-    probe = video_utils.probe_media(make_wav('probe.wav', seconds=0.5, rate=44100), 'audio')
+    probe = video_reader.probe_media(make_wav('probe.wav', seconds=0.5, rate=44100), 'audio')
     assert probe is not None, 'probe returned nothing'
     assert probe.sample_rate == 44100, f'rate={probe.sample_rate}'
     assert probe.channels == 1, f'channels={probe.channels}'
@@ -407,7 +408,7 @@ def test_probe_reads_audio_headers():
 def test_probe_returns_nothing_for_an_unreadable_file():
     if not has_av():
         return 'av not installed'
-    assert video_utils.probe_media(touch('broken.mp4'), 'video') is None, 'an empty container probed clean'
+    assert video_reader.probe_media(touch('broken.mp4'), 'video') is None, 'an empty container probed clean'
 
 
 def test_unreadable_video_is_rejected():
@@ -445,7 +446,7 @@ def test_audio_channels_over_stereo_are_rejected():
     if not has_av():
         return 'av not installed'
     fn = make_wav('surround.wav', seconds=0.5, channels=6)
-    probe = video_utils.probe_media(fn, 'audio')
+    probe = video_reader.probe_media(fn, 'audio')
     if probe is None or probe.channels != 6:
         return 'no six channel probe available'
     return expect_error(lambda: refs.check_audio_probe(caps(), 1, probe), 'too many audio channels')
@@ -482,7 +483,7 @@ def test_matching_rate_needs_no_torchaudio():
     if not has_av():
         return 'av not installed'
     fn = make_wav('onrate.wav', seconds=0.5, rate=32000)
-    probe = video_utils.probe_media(fn, 'audio')
+    probe = video_reader.probe_media(fn, 'audio')
     assert probe is not None, 'probe returned nothing'
     original = video_utils.has_torchaudio
     video_utils.has_torchaudio = lambda: False

@@ -222,25 +222,16 @@ class UpscalerSeedVR(Upscaler):
 
     def read_video(self, video_path: str):
         try:
-            import cv2
-            cap = cv2.VideoCapture(video_path)
-            if not cap.isOpened():
-                log.error(f'Upscaler: name="SeedVR2" video="{video_path}" failed to open')
-                return None, None, None
-            frames = []
-            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-            self.fps = float(cap.get(cv2.CAP_PROP_FPS))
-            while True:
-                ret, frame = cap.read()
-                if not ret:
-                    break
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                frames.append(frame)
-            cap.release()
+            from modules import video
+            from modules.video_models.video_reader import probe_media
+            frames = video.read_video(video_path)
             if len(frames) == 0:
                 log.error(f'Upscaler: name="SeedVR2" video="{video_path}" no frames read')
                 return None, None, None
+            probe = probe_media(video_path, 'video')
+            if probe is not None and probe.fps:
+                self.fps = probe.fps
+            height, width = frames[0].shape[:2] # display size, after any rotation
             tensor = torch.from_numpy(np.array(frames)).to(device=devices.device, dtype=devices.dtype) / 255.0
             self.frames = tensor.shape[0]
             return tensor, width, height

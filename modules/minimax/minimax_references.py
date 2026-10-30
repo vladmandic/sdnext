@@ -108,11 +108,11 @@ def check_audio_probe(caps: ReferenceCaps, label: int, probe):
 def preflight_probe(caps: ReferenceCaps, items: list):
     """Header checks for the file entries, each one standing in for a failure that would otherwise
     land after the model load. A container that reports no duration is decoded unbounded."""
-    from modules.video_models import video_utils
+    from modules.video_models import video_reader
     for label, kind, entry in items:
         if kind == 'image':
             continue
-        probe = video_utils.probe_media(entry, kind)
+        probe = video_reader.probe_media(entry, kind)
         if probe is None:
             raise reference_error(f'reference {label} unreadable: file="{entry}"')
         debug(f'Video: op=reference probe={label} kind={kind} file="{entry}" fps={probe.fps} frames={probe.frames} seconds={probe.duration} channels={probe.channels} rate={probe.sample_rate}')

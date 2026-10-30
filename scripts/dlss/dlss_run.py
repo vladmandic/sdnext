@@ -148,11 +148,7 @@ def dlss_run(p: StableDiffusionProcessing | None,
         raw_inputs = [pp.image]
     elif has_video:
         from modules import video
-        from modules.video_models import video_utils
         frames, fps, duration, w, h, codec, _frame = video.get_video_params(pp.video)
-        probe = video_utils.probe_media(pp.video, 'video')
-        if probe is not None and probe.fps:
-            fps = probe.fps # cv2 rounds the rate to two decimals
         log.info(f'DLSS video: file="{pp.video}" frames={frames} fps={fps} duration={duration} w={w} h={h} codec={codec}')
         # raw_inputs = video.read_video(pp.video)
         raw_inputs = [None] * frames
@@ -172,6 +168,7 @@ def dlss_run(p: StableDiffusionProcessing | None,
     active_pipelines = []
     jobid = None
     video_writter = None
+    reader = None
     try:
         t0 = time.perf_counter()
         active_chain = []
@@ -292,7 +289,8 @@ def dlss_run(p: StableDiffusionProcessing | None,
         output_fps = dlss_output_fps(fps, framegen_factor, fg_mode) if has_video and fps else None
 
         if use_stream:
-            raw_inputs = video.read_generator(pp.video) # use read generator instead of bulk read
+            reader = video.read_generator(pp.video) # use read generator instead of bulk read
+            raw_inputs = reader
 
         if hasattr(pp, 'video') and isinstance(pp.video, str):
             filename = os.path.splitext(os.path.basename(pp.video))[0]
@@ -357,6 +355,8 @@ def dlss_run(p: StableDiffusionProcessing | None,
             log.trace(f'Video metadata: {video.get_video_metadata(pp.video)}')
 
     finally:
+        if reader is not None:
+            reader.close() # the input stays open until then, and Windows refuses to rename or remove an open file
         if video_writter is not None:
             try:
                 video_writter.release() # no-op after a normal finish; closes the file when processing raised

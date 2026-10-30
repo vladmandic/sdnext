@@ -1,10 +1,8 @@
 import os
 import sys
-import cv2
 from PIL import Image
 from modules.logger import log
 from modules import devices, shared, errors, processing, sd_models, sd_vae, scripts_manager, masking
-from modules.control import util # helper functions
 from modules.control import unit # control units
 from modules.control import processors # image preprocessors
 from modules.control import tile # tiling module
@@ -20,6 +18,7 @@ from modules.api import script
 from modules.generation_parameters_copypaste import create_override_settings_dict
 from modules.paths import resolve_output_path
 from modules import video as video_module  # alias avoids shadow by local `video` cv2 capture name at control_run:584
+from modules.video_models import video_reader
 
 
 debug = os.environ.get('SD_CONTROL_DEBUG', None) is not None
@@ -655,7 +654,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
     index = 0
     frames = 0
     blended_image = None
-    cap = None
+    video_frames = None # decoded frames of a video input, closed when the run ends
 
     # set pipeline
     if pipe is None:
@@ -678,35 +677,34 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                         log.warning('Control: separate init video not support for video input')
                         input_type = 1
                 try:
-                    cap = cv2.VideoCapture(inputs)
-                    if not cap.isOpened():
+                    probe = video_reader.probe_media(inputs, 'video')
+                    if probe is None or probe.width is None:
                         if is_generator:
                             yield terminate(f'Video open failed: path={inputs}')
                         return terminate(f'Video open failed: path={inputs}')
-                    frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-                    fps = int(cap.get(cv2.CAP_PROP_FPS))
-                    w, h = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                    codec = util.decode_fourcc(cap.get(cv2.CAP_PROP_FOURCC))
-                    status, frame = cap.read()
+                    frames = probe.frames or video_reader.count_frames(inputs)
+                    video_frames = video_reader.iter_frames(inputs)
+                    frame = next(video_frames, None)
+                    status = frame is not None
                     if status:
                         shared.state.frame_count = 1 + frames // (video_skip_frames + 1)
-                        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    log.debug(f'Control: input video: path={inputs} frames={frames} fps={fps} size={w}x{h} codec={codec}')
+                    h, w = frame.shape[:2] if status else (probe.height, probe.width)
+                    log.debug(f'Control: input video: path={inputs} frames={frames} fps={probe.fps} size={w}x{h} codec={probe.codec}')
                 except Exception as e:
                     if is_generator:
                         yield terminate(f'Video open failed: path={inputs} {e}')
                     return terminate(f'Video open failed: path={inputs} {e}')
 
-            condition_set = cap is None and isinstance(inputs, list) and len(inputs) > 1 and all(isinstance(image, Image.Image) for image in inputs) and sd_models.takes_condition_set(pipe) # a multi-image pipeline takes every input in one run
+            condition_set = video_frames is None and isinstance(inputs, list) and len(inputs) > 1 and all(isinstance(image, Image.Image) for image in inputs) and sd_models.takes_condition_set(pipe) # a multi-image pipeline takes every input in one run
             while status:
                 processed_image = None
                 if frame is not None:
-                    inputs = [Image.fromarray(frame)] # cv2 to pil
+                    inputs = [Image.fromarray(frame)] # decoded frame to pil
                 for i, input_image in enumerate(inputs): # loop per-input, but with early-break
                     if condition_set and i > 0: # the set ran with the first input
                         break
                     if pipe is None: # pipe may have been reset externally
-                        if cap is None:
+                        if video_frames is None:
                             break # non-video: pipeline was consumed, no need to re-process remaining inputs
                         pipe = set_pipe(p, has_models, unit_type, selected_models, active_model, active_strength, active_units, control_conditioning, control_guidance_start, control_guidance_end, inits)
                         debug_log(f'Control pipeline reinit: class={pipe.__class__.__name__}')
@@ -753,7 +751,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                         init_image = inits[i % len(inits)]
                     else:
                         init_image = None
-                    if cap is not None and index % (video_skip_frames + 1) != 0:
+                    if video_frames is not None and index % (video_skip_frames + 1) != 0:
                         index += 1
                         continue
                     index += 1
@@ -817,26 +815,25 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                                 if processed_image is not None and isinstance(processed_image, Image.Image):
                                     output_images.append(processed_image)
 
-                            if is_generator and frame is not None and cap is not None:
+                            if is_generator and frame is not None and video_frames is not None:
                                 image_txt = f'{output_image.width}x{output_image.height}' if output_image is not None else 'None'
                                 msg = f'Control output | {index} of {frames} skip {video_skip_frames} | Frame {image_txt}'
                                 yield (output_image, blended_image, msg) # result is control_output, proces_output
 
-                if cap is not None and frame is not None:
-                    status, frame = cap.read()
-                    if status:
-                        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    debug_log(f'Control: video frame={index} frames={frames} status={status} skip={index % (video_skip_frames + 1)} progress={index/frames:.2f}')
+                if video_frames is not None and frame is not None:
+                    frame = next(video_frames, None)
+                    status = frame is not None
+                    debug_log(f'Control: video frame={index} frames={frames} status={status} skip={index % (video_skip_frames + 1)} progress={index / frames if frames else 0:.2f}')
                 else:
                     status = False
-
-            if cap is not None:
-                cap.release()
 
             debug_log(f'Control: pipeline units={len(active_model)} process={len(active_process)} outputs={len(output_images)}')
     except Exception as e:
         log.error(f'Generate: {e}')
         errors.display(e, 'Generate')
+    finally:
+        if video_frames is not None:
+            video_frames.close() # an open input cannot be renamed or removed on Windows
 
     if len(output_images) == 0:
         output_images = None

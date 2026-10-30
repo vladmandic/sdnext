@@ -98,6 +98,10 @@ try:
     from modules.video_models import video_writer  # pylint: disable=wrong-import-position
 except ImportError:  # trees before the shared writer keep its helpers in video_save
     video_writer = video_save
+try:
+    from modules.video_models import video_reader  # pylint: disable=wrong-import-position
+except ImportError:  # trees before the reader had its own module keep probe_media in video_utils
+    video_reader = video_utils
 from modules import gr_tempdir  # pylint: disable=wrong-import-position
 
 devices.torch_gc = lambda *args, **kwargs: None  # state.begin/end call it; nothing here holds device memory
@@ -677,7 +681,7 @@ def patch_errors(measured: dict[str, np.ndarray], predicted: dict[str, np.ndarra
 
 def colour_constants():
     from av.video.reformatter import Colorspace, ColorRange
-    return {'bt709': (Colorspace.ITU709, ColorRange.MPEG), 'bt601': (Colorspace.ITU601, ColorRange.MPEG), 'bt601_full': (Colorspace.ITU601, ColorRange.JPEG)}
+    return {'bt709': (Colorspace.ITU709, ColorRange.MPEG), 'bt709_full': (Colorspace.ITU709, ColorRange.JPEG), 'bt601': (Colorspace.ITU601, ColorRange.MPEG), 'bt601_full': (Colorspace.ITU601, ColorRange.JPEG)}
 
 
 STREAM_TAGS = {'bt709': {'colorspace': 1, 'color_range': 1, 'color_primaries': 1, 'color_trc': 1}, 'rgb': {'colorspace': 0, 'color_range': 2, 'color_primaries': 1, 'color_trc': 1}}
@@ -1907,7 +1911,7 @@ def test_readers_agree_on_h264_fixture():
     info = video.get_video_info(fn)
     decoded = video.read_video(fn)
     streamed = sum(1 for _ in video.read_generator(fn))
-    probe = video_utils.probe_media(fn, 'video')
+    probe = video_reader.probe_media(fn, 'video')
     out = {'params': [frames, fps, duration, w, h, codec, frame is None], 'info': {k: info.get(k) for k in ('frames', 'fps', 'width', 'height', 'codec', 'format', 'duration', 'backend')}, 'read_video': [len(decoded), list(decoded[0].shape) if decoded else None], 'read_generator': streamed, 'probe': [probe.fps, probe.frames, probe.width, probe.height, probe.duration] if probe else None}
     measure('readers_h264', **{k: str(v) for k, v in out.items()})
     verdict('test_readers_agree_on_h264_fixture', 'PASS', **{k: str(v) for k, v in out.items()})
@@ -1924,49 +1928,455 @@ def test_readers_fractional_rate():
         return need_av()
     fn = encode_frames(out_path('reader_23976.mp4'), 'libx264', 'yuv420p', {'crf': '18'}, Fraction(24000, 1001), small_frames(24))
     _frames, fps, duration, _w, _h, _codec, _frame = video.get_video_params(fn)
-    probe = video_utils.probe_media(fn, 'video')
+    probe = video_reader.probe_media(fn, 'video')
     cap = cv2.VideoCapture(fn)
     raw_fps = cap.get(cv2.CAP_PROP_FPS)
     cap.release()
     measure('readers_fractional_rate', get_video_params_fps=fps, get_video_params_duration=duration, probe_fps=probe.fps if probe else None, cv2_raw_fps=raw_fps, int_truncation=int(raw_fps))
     verdict('test_readers_fractional_rate', 'PASS', get_video_params_fps=fps, probe_fps=probe.fps if probe else None)
-    assert abs(fps - 23.976) < 0.01, f'get_video_params fps {fps}'
-    assert probe is not None and abs(probe.fps - 24000 / 1001) < 1e-3, f'probe fps {probe.fps if probe else None}'
+    assert abs(fps - 24000 / 1001) < 1e-9, f'get_video_params fps {fps}'
+    assert probe is not None and abs(probe.fps - 24000 / 1001) < 1e-9, f'probe fps {probe.fps if probe else None}'
     return True
 
 
+def encode_reader_fixture(fn: str, frames: list[np.ndarray], codec: str = 'libx264', pix_fmt: str = 'yuv420p', options: dict | None = None, rate=24,
+                          container_format: str | None = None, live: bool = False, rotation: int | None = None, tags: dict | None = None, convert: str | None = None, audio_seconds: float = 0.0) -> str:
+    """Test-local encode with what the readers must handle: no cues or duration (live), raw streams, display rotation, a soundtrack longer than the video."""
+    open_args = {}
+    if container_format:
+        open_args['format'] = container_format
+    if live:
+        open_args['options'] = {'live': '1'}
+    container = av.open(fn, mode='w', **open_args)
+    try:
+        stream = container.add_stream(codec, rate=rate, options=dict(options or {}))
+        stream.width, stream.height = frames[0].shape[1], frames[0].shape[0]
+        stream.pix_fmt = pix_fmt
+        for key, value in (tags or {}).items():
+            setattr(stream.codec_context, key, value)
+        if rotation is not None:
+            stream.set_display_rotation(rotation)
+        audio = None
+        if audio_seconds:
+            audio = container.add_stream('aac', rate=24000)
+            audio.layout = 'mono'
+        reformat = {}
+        if convert is not None:
+            space, crange = colour_constants()[convert]
+            reformat = {'dst_colorspace': space, 'dst_color_range': crange}
+        for i, rgb in enumerate(frames):
+            frame = av.VideoFrame.from_ndarray(rgb, format='rgb24').reformat(format=pix_fmt, **reformat)
+            frame.pts = i
+            for packet in stream.encode(frame):
+                container.mux(packet)
+        for packet in stream.encode():
+            container.mux(packet)
+        if audio is not None:
+            samples = (0.1 * np.sin(np.arange(int(24000 * audio_seconds)) * 2 * np.pi * 440 / 24000)).astype(np.float32)
+            video_writer.add_audio_tensor(container, audio, samples, 24000)
+    finally:
+        container.close()
+    return fn
+
+
+VP9_FAST = {'crf': '30', 'b': '0', 'deadline': 'realtime', 'cpu-used': '8'}
+
+
 def test_readers_per_container():
+    """Frame counts in each container the writers produce: the header count (mp4, mov, avi), the video stream's own duration (ts), the packets (mkv, webm); never the container duration."""
     if need_av():
         return need_av()
-    cases = [('mp4', 'libx264', {}), ('mkv', 'libx264', {}), ('mov', 'libx264', {}), ('ts', 'libx264', {}), ('avi', 'mpeg4', {})]
+    rate = Fraction(24000, 1001)
+    frames = pan_frames(48, 320, 192)
+    cases = [('mp4', 'libx264', {}, 'header'), ('mov', 'libx264', {}, 'header'), ('avi', 'mpeg4', {}, 'header'), ('ts', 'libx264', {}, 'duration'), ('mkv', 'libx264', {}, None)]
     if 'libvpx-vp9' in av.codecs_available:
-        cases.append(('webm', 'libvpx-vp9', {'crf': '30', 'b': '0'}))
+        cases.append(('webm', 'libvpx-vp9', VP9_FAST, None))
     out = {}
-    for ext, codec, options in cases:
-        fn = out_path(f'reader_container.{ext}')
-        try:
-            encode_frames(fn, codec, 'yuv420p', options, 24, small_frames(6), threads=None)
-        except Exception as e:  # pylint: disable=broad-except
-            out[ext] = {'encode': f'{type(e).__name__}: {e}'}
-            continue
+    for ext, codec, options, source in cases:
+        fn = encode_reader_fixture(out_path(f'reader_container.{ext}'), frames, codec=codec, options=options, rate=rate)
+        with av.open(fn) as container:
+            stream = container.streams.video[0]
+            header = {'stream_frames': stream.frames, 'stream_duration': stream.duration}
         cap = cv2.VideoCapture(fn)
-        cv2_ok = cap.isOpened()
-        cv2_frames = 0
-        backend = cap.getBackendName() if cv2_ok else None
-        while cv2_ok:
-            ok, _ = cap.read()
+        cv2_count = cap.get(cv2.CAP_PROP_FRAME_COUNT) if cap.isOpened() else None
+        cap.release()
+        probe = video_reader.probe_media(fn, 'video')
+        out[ext] = {**header, 'frames_source': probe.frames_source, 'probe_frames': probe.frames, 'read': len(video.read_video(fn)), 'params': video.get_video_params(fn)[0], 'cv2_count': cv2_count, 'expected_source': source}
+    measure('readers_per_container', **{k: str(v) for k, v in out.items()})
+    verdict('test_readers_per_container', 'PASS', **{k: str({x: y for x, y in v.items() if x != 'cv2_count'}) for k, v in out.items()})
+    for ext, o in out.items():
+        if o['expected_source'] != 'header':
+            assert o['stream_frames'] == 0, f'{ext}: fixture carries a frame count {o["stream_frames"]}, the estimate path is not exercised'
+        if o['expected_source'] is None:
+            assert o['stream_duration'] is None, f'{ext}: fixture carries a stream duration {o["stream_duration"]}'
+        assert o['frames_source'] == o['expected_source'], f'{ext}: frames from {o["frames_source"]}, expected {o["expected_source"]}'
+        assert o['read'] == 48, f'{ext}: read {o["read"]} of 48 frames'
+        assert o['params'] == 48, f'{ext}: get_video_params reports {o["params"]} frames'
+    return True
+
+
+def test_reader_codec_names():
+    """Codec and pixel format are the libav names (vp9, mpeg4, yuv420p), not fourcc codes."""
+    if need_av():
+        return need_av()
+    cases = [('mp4', 'libx264', {}, 'h264'), ('avi', 'mpeg4', {}, 'mpeg4')]
+    if 'libvpx-vp9' in av.codecs_available:
+        cases.append(('webm', 'libvpx-vp9', VP9_FAST, 'vp9'))
+    out = {}
+    for ext, codec, options, name in cases:
+        fn = encode_reader_fixture(out_path(f'reader_codec.{ext}'), small_frames(6), codec=codec, options=options)
+        info = video.get_video_info(fn)
+        out[ext] = {'params': video.get_video_params(fn)[5], 'info': info.get('codec'), 'format': info.get('format'), 'expected': name}
+    verdict('test_reader_codec_names', 'PASS', **{k: str(v) for k, v in out.items()})
+    for ext, o in out.items():
+        assert o['params'] == o['expected'] and o['info'] == o['expected'], f'{ext}: codec {o}'
+        assert o['format'] == 'yuv420p', f'{ext}: format {o["format"]}'
+    return True
+
+
+def test_count_frames_without_header_or_duration():
+    """A clip with no frame count and no duration (a live matroska or webm, a raw h264 stream) is counted from its packets; every number get_video_params returns is finite and formats."""
+    if need_av():
+        return need_av()
+    count_frames = need(video_reader, 'count_frames')
+    frames = small_frames(12)
+    fixtures = {
+        'live_mkv': encode_reader_fixture(out_path('live.mkv'), frames, live=True),
+        'raw_h264': encode_reader_fixture(out_path('raw.h264'), frames, container_format='h264'),
+    }
+    if 'libvpx-vp9' in av.codecs_available:
+        fixtures['live_webm'] = encode_reader_fixture(out_path('live.webm'), frames, codec='libvpx-vp9', options=VP9_FAST, live=True)
+    out = {}
+    for name, fn in fixtures.items():
+        probe = video_reader.probe_media(fn, 'video')
+        params = video.get_video_params(fn)
+        out[name] = {'probe_frames': probe.frames, 'probe_duration': probe.duration, 'counted': count_frames(fn), 'params': params[:6]}
+    verdict('test_count_frames_without_header_or_duration', 'PASS', **{k: str(v) for k, v in out.items()})
+    for name, o in out.items():
+        assert o['probe_frames'] is None and o['probe_duration'] is None, f'{name}: fixture has a count or duration in its header: {o}'
+        assert o['counted'] == 12, f'{name}: counted {o["counted"]} of 12'
+        frames_, fps, duration = o['params'][:3]
+        assert frames_ == 12, f'{name}: get_video_params frames {frames_}'
+        assert all(isinstance(v, (int, float)) and math.isfinite(v) for v in o['params'][:5]), f'{name}: {o["params"]}'
+        assert fps > 0 and 0 < duration < 1, f'{name}: fps {fps} duration {duration}'
+        assert f'{fps:.2f} {duration:.2f}' and 1 + frames_ // 2 == 7  # the gallery's format and the Control tab's frame_count arithmetic
+    return True
+
+
+def test_frames_estimate_ignores_trailing_audio():
+    """A matroska clip whose soundtrack outlasts its 12 frames: the count comes from the packets, not from the container duration, which includes the audio."""
+    if need_av():
+        return need_av()
+    fn = encode_reader_fixture(out_path('trailing_audio.mkv'), small_frames(12), audio_seconds=2.0)
+    with av.open(fn) as container:
+        stream = container.streams.video[0]
+        fixture = {'stream_frames': stream.frames, 'stream_duration': stream.duration, 'container_seconds': container.duration / 1000000 if container.duration else None}
+    probe = video_reader.probe_media(fn, 'video')
+    params = video.get_video_params(fn)
+    measure('trailing_audio', container_estimate=round((fixture['container_seconds'] or 0) * 24), **{k: str(v) for k, v in fixture.items()})
+    verdict('test_frames_estimate_ignores_trailing_audio', 'PASS', probe_frames=probe.frames, params_frames=params[0])
+    assert fixture['stream_frames'] == 0 and fixture['stream_duration'] is None, f'fixture carries a count or a stream duration: {fixture}'
+    assert (fixture['container_seconds'] or 0) > 1.5, f'fixture soundtrack is not longer than the video: {fixture}'
+    assert probe.frames is None, f'probe estimated {probe.frames} frames from the container duration'
+    assert params[0] == 12, f'get_video_params reports {params[0]} frames for 12'
+    return True
+
+
+def block_mean(img: np.ndarray, centre: tuple[int, int], radius: int = 4) -> np.ndarray:
+    cx, cy = centre
+    return img[cy - radius:cy + radius + 1, cx - radius:cx + radius + 1].reshape(-1, img.shape[-1]).astype(np.float64).mean(axis=0)
+
+
+def test_reader_decodes_with_stream_tags():
+    """The reader converts each stream with its own matrix and range tags. Oracle: the numpy conversion of the same decoded planes, so encoder loss cancels; floor: the reader's error on the BT.709 clip; the other reading must miss by more than floor + 1 on the patches it moves. RGB streams round trip exactly."""
+    if need_av():
+        return need_av()
+    img, centres = chart('720')
+    frames = [img] * 2
+    fixtures = {
+        'bt709_tagged': (encode_reader_fixture(out_path('tags_bt709.mp4'), frames, convert='bt709', tags=STREAM_TAGS['bt709']), ('bt709', False), ('bt601', False)),
+        'bt601_untagged': (encode_reader_fixture(out_path('tags_untagged.mp4'), frames, convert='bt601'), ('bt601', False), ('bt709', False)),
+    }
+    if 'libvpx-vp9' in av.codecs_available:
+        full_tags = {'colorspace': 1, 'color_range': 2, 'color_primaries': 1, 'color_trc': 1}
+        fixtures['bt709_full_vp9'] = (encode_reader_fixture(out_path('tags_full.webm'), frames, codec='libvpx-vp9', options={'crf': '10', 'b': '0', 'deadline': 'realtime', 'cpu-used': '8'}, convert='bt709_full', tags=full_tags), ('bt709', True), ('bt709', False))
+    out = {}
+    for name, (fn, right, wrong) in fixtures.items():
+        decoded = video.read_video(fn)[0]
+        with av.open(fn) as container:
+            ycc = frame_yuv444(next(container.decode(video=0))).transpose(1, 2, 0)
+        oracle, other = ycbcr_to_rgb(ycc, *right), ycbcr_to_rgb(ycc, *wrong)
+        out[name] = {
+            'error': {patch: float(np.max(np.abs(block_mean(decoded, c) - block_mean(oracle, c)))) for patch, c in centres.items()},
+            'error_other': {patch: float(np.max(np.abs(block_mean(decoded, c) - block_mean(other, c)))) for patch, c in centres.items()},
+            'separation': {patch: float(np.max(np.abs(block_mean(oracle, c) - block_mean(other, c)))) for patch, c in centres.items()},
+        }
+    floor = max(out['bt709_tagged']['error'].values())
+    bar = floor + 1
+    rgb_fn = encode_reader_fixture(out_path('tags_rgb.mp4'), frames, codec='libx264rgb', pix_fmt='rgb24', options={'crf': '0', 'preset': 'ultrafast'})
+    rgb_exact = np.array_equal(video.read_video(rgb_fn)[0], img)
+    measure('reader_colour', floor=round(floor, 2), **{k: str({x: round(y, 2) for x, y in v['error'].items()}) for k, v in out.items()})
+    verdict('test_reader_decodes_with_stream_tags', 'PASS', floor=round(floor, 2), rgb_exact=rgb_exact, fixtures=sorted(out))
+    assert floor <= 3, f'reader is {floor:.2f} levels off the oracle on the BT.709 clip, beyond rounding'
+    for name, o in out.items():
+        assert max(o['error'].values()) <= bar, f'{name}: {o["error"]} against floor {floor:.2f} + 1'
+        moved = [patch for patch, sep in o['separation'].items() if sep > 3 * bar]
+        assert len(moved) >= 2, f'{name}: the other reading moves only {moved}, the fixture cannot tell them apart'
+        assert all(o['error_other'][patch] > bar for patch in moved), f'{name}: the other reading also fits on {moved}: {o["error_other"]}'
+    assert rgb_exact, 'libx264rgb clip does not round trip exactly'
+    return True
+
+
+def rotation_fixture() -> np.ndarray:
+    """192x320 grey with three different corners, so every rotation and flip is distinguishable."""
+    img = np.full((192, 320, 3), 128, dtype=np.uint8)
+    img[:48, :64] = (220, 40, 40)
+    img[:48, -64:] = (40, 200, 60)
+    img[-48:, :64] = (40, 60, 220)
+    return img
+
+
+def test_reader_rotation_follows_display_matrix():
+    """A clip with a display rotation reads upright, the way players show it, and every reported size is the displayed one."""
+    if need_av():
+        return need_av()
+    if not hasattr(av.video.stream.VideoStream, 'set_display_rotation'):
+        return f'av {av.__version__} cannot write a display rotation for the fixture'
+    src = rotation_fixture()
+    out = {}
+    for angle in (90, 180, 270):
+        for ext in ('mp4', 'mkv'):
+            fn = encode_reader_fixture(out_path(f'rotated_{angle}.{ext}'), [src] * 3, codec='libx264rgb', pix_fmt='rgb24', options={'crf': '0', 'preset': 'ultrafast'}, rotation=angle)
+            expected = np.rot90(src, k=angle // 90)
+            frames = video.read_video(fn)
+            params = video.get_video_params(fn, capture=True)
+            headers = video.get_video_params(fn)
+            info = video.get_video_info(fn)
+            display = (expected.shape[1], expected.shape[0])
+            out[f'{ext}_{angle}'] = {
+                'frame': bool(frames) and np.array_equal(frames[0], expected),
+                'contiguous': bool(frames) and frames[0].flags['C_CONTIGUOUS'],
+                'params_size': (params[3], params[4]) == display,
+                'params_size_without_capture': (headers[3], headers[4]) == display,
+                'info_size': (info.get('width'), info.get('height')) == display,
+                'capture': params[6] is not None and np.array_equal(np.asarray(params[6]), expected),
+            }
+    verdict('test_reader_rotation_follows_display_matrix', 'PASS', **{k: str(v) for k, v in out.items()})
+    failed = {k: [check for check, ok in v.items() if not ok] for k, v in out.items() if not all(v.values())}
+    assert not failed, f'rotation checks failed: {failed}'
+    return True
+
+
+def test_params_without_capture_read_headers_only():
+    """get_video_params without capture decodes nothing where av reports the display rotation from the header (the gallery's case of a thumbnail already on disk), and its sizes still follow the rotation."""
+    if need_av():
+        return need_av()
+    if not hasattr(av.video.stream.VideoStream, 'set_display_rotation'):
+        return f'av {av.__version__} cannot write a display rotation for the fixture'
+    need(video_reader, 'probe_video')
+    fn = encode_reader_fixture(out_path('headers_only.mp4'), [rotation_fixture()] * 3, rotation=90)
+    with av.open(fn) as container:
+        header_side_data = hasattr(container.streams.video[0].codec_context, 'coded_side_data')
+    if not header_side_data:
+        return f'av {av.__version__} reports the display rotation on decoded frames only'
+
+    def decode_refused(*args, **kwargs):
+        raise AssertionError('a frame was decoded')
+
+    with patched(video_reader, 'probe_video', decode_refused):
+        params, err = call_and_catch(video.get_video_params, fn)
+    verdict('test_params_without_capture_read_headers_only', 'PASS', raised=repr(err) if err else None, size=(params[3], params[4]) if params else None)
+    assert err is None, f'get_video_params raised {err!r}'
+    assert (params[3], params[4]) == (192, 320), f'size {params[3]}x{params[4]}'
+    assert params[0] == 3 and params[6] is None, f'{params[:6]}'
+    return True
+
+
+def test_iter_frames_skip_and_limit():
+    """skip_frames keeps frame 0 and every (skip + 1)th after it; num_frames stops after that many kept frames. Each frame carries its index as its level."""
+    if need_av():
+        return need_av()
+    iter_frames = need(video_reader, 'iter_frames')
+    frames = [np.full((64, 64, 3), 16 + 18 * i, dtype=np.uint8) for i in range(12)]
+    fn = encode_reader_fixture(out_path('indexed.mp4'), frames, codec='libx264rgb', pix_fmt='rgb24', options={'crf': '0', 'preset': 'ultrafast'})
+
+    def indices(**kwargs):
+        return [int(round((int(frame[32, 32, 0]) - 16) / 18)) for frame in iter_frames(fn, **kwargs)]
+
+    out = {'all': indices(), 'skip1': indices(skip_frames=1), 'skip1_n3': indices(num_frames=3, skip_frames=1), 'n4': indices(num_frames=4)}
+    verdict('test_iter_frames_skip_and_limit', 'PASS', **{k: str(v) for k, v in out.items()})
+    assert out['all'] == list(range(12)), out['all']
+    assert out['skip1'] == [0, 2, 4, 6, 8, 10], out['skip1']
+    assert out['skip1_n3'] == [0, 2, 4], out['skip1_n3']
+    assert out['n4'] == [0, 1, 2, 3], out['n4']
+    return True
+
+
+def test_first_frame_equals_read_video_first():
+    """get_video_params(capture=True) returns the same first frame read_video does."""
+    if need_av():
+        return need_av()
+    fn = reader_fixture()
+    params = video.get_video_params(fn, capture=True)
+    first = video.read_video(fn)[0]
+    verdict('test_first_frame_equals_read_video_first', 'PASS', captured=params[6] is not None)
+    assert params[6] is not None and np.array_equal(np.asarray(params[6]), first), 'captured frame differs from the first decoded frame'
+    return True
+
+
+GET_VIDEO_INFO_KEYS = {'file', 'size', 'container', 'frames', 'fps', 'width', 'height', 'duration', 'codec', 'format', 'bitrate_kbps', 'audio_streams', 'audio_channels', 'audio_sample_rate', 'audio'}
+
+
+def test_get_video_info_exact_keys():
+    """The info panel's keys for an h264 clip with an aac soundtrack, with their values."""
+    if need_av():
+        return need_av()
+    fn = encode_reader_fixture(out_path('info_keys.mp4'), small_frames(24), audio_seconds=1.0)
+    info = video.get_video_info(fn)
+    verdict('test_get_video_info_exact_keys', 'PASS', keys=sorted(info))
+    assert set(info) == GET_VIDEO_INFO_KEYS, f'missing {sorted(GET_VIDEO_INFO_KEYS - set(info))} extra {sorted(set(info) - GET_VIDEO_INFO_KEYS)}'
+    assert (info['frames'], info['width'], info['height'], info['codec'], info['format']) == (24, 256, 144, 'h264', 'yuv420p'), info
+    assert abs(info['fps'] - 24) < 1e-9 and info['duration'] == 1.0, info
+    assert (info['audio_streams'], info['audio_channels'], info['audio_sample_rate'], info['audio']) == (1, 1, 24000, '1x1x24000'), info
+    return True
+
+
+def test_unreadable_file_contracts():
+    """An empty file and an mp4 cut before its index: probe None, get_video_params logs and raises naming the path, get_video_info reports the error, the frame readers raise."""
+    if need_av():
+        return need_av()
+    read_frames = need(video_reader, 'read_frames')
+    empty = out_path('unreadable_empty.mp4')
+    with open(empty, 'wb'):
+        pass
+    whole = reader_fixture()
+    cut = out_path('unreadable_cut.mp4')
+    with open(whole, 'rb') as src, open(cut, 'wb') as dst:
+        dst.write(src.read()[:os.path.getsize(whole) * 2 // 5])
+    out = {}
+    for name, fn in (('empty', empty), ('cut', cut)):
+        with capture_log() as logs:
+            _res, params_err = call_and_catch(video.get_video_params, fn)
+        _res, read_err = call_and_catch(video.read_video, fn)
+        _res, frames_err = call_and_catch(read_frames, fn)
+        out[name] = {'probe': video_reader.probe_media(fn, 'video'), 'params': repr(params_err), 'logged': bool(logs.find(os.path.basename(fn), level=logging.ERROR)), 'info_error': 'error' in video.get_video_info(fn), 'read_video': type(read_err).__name__, 'read_frames': type(frames_err).__name__}
+    verdict('test_unreadable_file_contracts', 'PASS', **{k: str(v) for k, v in out.items()})
+    for name, o in out.items():
+        assert o['probe'] is None, f'{name}: probe {o["probe"]}'
+        assert 'RuntimeError' in o['params'] and 'unreadable' in o['params'], f'{name}: get_video_params {o["params"]}'
+        assert o['logged'], f'{name}: no error line names the file'
+        assert o['info_error'], f'{name}: get_video_info has no error'
+        assert o['read_video'] == 'RuntimeError' and o['read_frames'] == 'RuntimeError', f'{name}: readers {o}'
+    return True
+
+
+def test_corrupt_stream_stops_with_warning():
+    """A stream damaged part way: the reader returns the frames before the damage and logs a warning instead of raising."""
+    if need_av():
+        return need_av()
+    rng = np.random.default_rng(1)
+    frames = [rng.integers(0, 255, (128, 160, 3), dtype=np.uint8) for _ in range(48)]
+    clean = encode_reader_fixture(out_path('corrupt_src.avi'), frames, codec='mpeg4')
+    with open(clean, 'rb') as f:
+        data = f.read()
+    damaged, decodable = None, None
+    for seed in range(1, 9):  # the first corruption that makes libav itself raise
+        r = np.random.default_rng(seed)
+        bad = bytearray(data)
+        for k in r.integers(len(bad) * 2 // 5, len(bad) * 7 // 10, 400):
+            bad[k] = int(r.integers(0, 255))
+        fn = out_path(f'corrupt_{seed}.avi')
+        with open(fn, 'wb') as f:
+            f.write(bad)
+        count = 0
+        try:
+            with av.open(fn) as container:
+                for _ in container.decode(video=0):
+                    count += 1
+        except av.error.FFmpegError:
+            damaged, decodable = fn, count
+            break
+    if damaged is None:
+        return 'no corruption of the fixture made libav raise'
+    with capture_log() as logs:
+        read, err = call_and_catch(video.read_video, damaged)
+    warned = logs.find(os.path.basename(damaged), level=logging.WARNING)
+    verdict('test_corrupt_stream_stops_with_warning', 'PASS', decodable=decodable, read=len(read) if read is not None else None, raised=repr(err) if err else None, warned=bool(warned))
+    assert err is None, f'reader raised {err!r}'
+    assert len(read) == decodable, f'reader returned {len(read)} frames, {decodable} decode before the damage'
+    assert warned, 'no warning names the damaged file'
+    return True
+
+
+def test_frames_are_contiguous():
+    """Frames come out C-contiguous at widths whose decoded rows are padded, so torch.from_numpy takes them."""
+    if need_av():
+        return need_av()
+    import torch
+    fn = encode_reader_fixture(out_path('width98.mp4'), flat_frames(3, 98, 64, step=9))
+    frames = video.read_video(fn)
+    _res, err = call_and_catch(torch.from_numpy, frames[0])
+    verdict('test_frames_are_contiguous', 'PASS', contiguous=[f.flags['C_CONTIGUOUS'] for f in frames], from_numpy=repr(err) if err else None)
+    assert all(f.flags['C_CONTIGUOUS'] for f in frames), 'a frame is not contiguous'
+    assert err is None, f'torch.from_numpy refused the frame: {err!r}'
+    return True
+
+
+def test_unchanged_callers():
+    """Callers of get_video_params keep working on a rotated clip: the Civitai and Video tab thumbnails are upright and the Control input line names the displayed size."""
+    if need_av():
+        return need_av()
+    if not hasattr(av.video.stream.VideoStream, 'set_display_rotation'):
+        return f'av {av.__version__} cannot write a display rotation for the fixture'
+    from modules.civitai import video_helper
+    from modules import ui_control_helpers
+    fn = encode_reader_fixture(out_path('callers_rotated.mp4'), [rotation_fixture()] * 3, codec='libx264rgb', pix_fmt='rgb24', options={'crf': '0', 'preset': 'ultrafast'}, rotation=90)
+    civitai_frame = video_helper.save_video_frame(fn)
+    civitai_thumb = os.path.splitext(fn)[0] + '.thumb.jpg'
+    civitai_size = Image.open(civitai_thumb).size if os.path.isfile(civitai_thumb) else None
+    os.remove(civitai_thumb)
+    tab_thumb = video_save.save_thumbnail(fn)
+    tab_size = Image.open(tab_thumb).size if tab_thumb and os.path.isfile(tab_thumb) else None
+    message = ui_control_helpers.get_video(fn)
+    verdict('test_unchanged_callers', 'PASS', civitai=civitai_size, video_tab=tab_size, control=message)
+    assert civitai_frame is not None and civitai_size == (192, 320), f'Civitai thumbnail {civitai_size}'
+    assert tab_size == (192, 320), f'Video tab thumbnail {tab_size}'
+    assert 'Size 192x320' in message, f'Control input line: {message}'
+    return True
+
+
+def test_reader_decode_speed_measured():
+    """Measurement only: decode time per 1080p frame, reader against cv2, five warm repeats after a discarded first run."""
+    if need_av():
+        return need_av()
+    fn = encode_reader_fixture(out_path('speed_1080.mp4'), flat_frames(24, 1920, 1080, step=5), options={'preset': 'ultrafast'})
+
+    def reader_run():
+        return len(video.read_video(fn))
+
+    def cv2_run():
+        cap = cv2.VideoCapture(fn)
+        count = 0
+        while True:
+            ok, frame = cap.read()
             if not ok:
                 break
-            cv2_frames += 1
+            cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            count += 1
         cap.release()
-        try:
-            av_frames = len(decode_rgb(fn))
-        except Exception as e:  # pylint: disable=broad-except
-            av_frames = f'{type(e).__name__}: {e}'
-        out[ext] = {'cv2_opened': cv2_ok, 'cv2_backend': backend, 'cv2_frames': cv2_frames, 'av_frames': av_frames}
-    measure('readers_per_container', **{k: str(v) for k, v in out.items()})
-    verdict('test_readers_per_container', 'PASS', **{k: str(v) for k, v in out.items()})
-    assert out['mp4'].get('cv2_frames') == 6 and out['mp4'].get('av_frames') == 6, f'mp4 {out["mp4"]}'
+        return count
+
+    result = {}
+    for name, run in (('reader', reader_run), ('cv2', cv2_run)):
+        times = []
+        for _ in range(6):
+            t0 = time.perf_counter()
+            count = run()
+            times.append((time.perf_counter() - t0) * 1000 / max(1, count))
+        warm = sorted(times[1:])
+        result[name] = {'min': round(warm[0], 2), 'median': round(warm[len(warm) // 2], 2), 'max': round(warm[-1], 2), 'frames': count}
+    measure('reader_decode_speed_1080', **{k: str(v) for k, v in result.items()})
+    verdict('test_reader_decode_speed_measured', 'PASS')
     return True
 
 
@@ -2498,7 +2908,7 @@ GROUPS = [
     ('defaults', [test_legacy_default_is_h264_yuv420p, test_legacy_default_quality_matches_old_writer, test_explicit_mpeg4_gets_table_preset, test_legacy_labels_map_to_codecs, test_legacy_labels_encode, test_odd_size_under_default, test_none_codec_kwargs_give_default]),
     ('rate', [test_video_rate_fractions, test_mpeg4_opens_at_dlss_long_rate, test_video_tab_keeps_fractional_rate, test_fps_zero_refused_by_name, test_dlss_output_fps_rule, test_video_tab_returns_none_video_on_failure]),
     ('colour', [test_default_outputs_are_tagged_bt709, test_legacy_default_colour_720, test_legacy_default_colour_512, test_video_tab_default_colour, test_rgb_pix_fmt_tagged_full_and_exact, test_prores_tagged_and_within_oracle, test_mpeg4_in_mp4_carries_colr]),
-    ('readers', [test_readers_agree_on_h264_fixture, test_readers_fractional_rate, test_readers_per_container]),
+    ('readers', [test_readers_agree_on_h264_fixture, test_readers_fractional_rate, test_readers_per_container, test_reader_codec_names, test_count_frames_without_header_or_duration, test_frames_estimate_ignores_trailing_audio, test_reader_decodes_with_stream_tags, test_reader_rotation_follows_display_matrix, test_params_without_capture_read_headers_only, test_iter_frames_skip_and_limit, test_first_frame_equals_read_video_first, test_get_video_info_exact_keys, test_unreadable_file_contracts, test_corrupt_stream_stops_with_warning, test_frames_are_contiguous, test_unchanged_callers, test_reader_decode_speed_measured]),
     ('audio', [test_video_tab_muxes_audio_tensor, test_video_tab_muxes_audio_packets]),
     ('metadata', [test_metadata_roundtrip]),
     ('gradio', [test_option_off_does_not_probe_or_convert, test_option_on_converts_without_binaries, test_option_on_serves_playable_as_is, test_option_on_converts_unplayable_h264, test_preview_audio_passthrough_and_drop, test_preview_unopenable_file_served_as_is, test_preview_av_import_failure_does_not_raise, test_cli_fallback_leaves_no_copy, test_cleanup_tmpdr_removes_all_video_extensions]),
