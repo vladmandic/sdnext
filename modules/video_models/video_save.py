@@ -1,7 +1,6 @@
 import os
 import re
 import time
-import cv2
 import numpy as np
 import torch
 import einops
@@ -311,10 +310,9 @@ def save_video(
         if mp4_frames:
             log.info(f'Video frames: files="{output_filename}-00000.jpg" frames={t} width={w} height={h}')
             for i in range(t):
-                image = cv2.cvtColor(x[i].numpy(), cv2.COLOR_RGB2BGR)
                 fn = f'{output_filename}-{i:05d}.jpg'
+                Image.fromarray(x[i].numpy()).save(fn, quality=95) # cv2.imwrite fails without an error on non-ASCII paths on Windows
                 preparejob.outputs.append(fn)
-                cv2.imwrite(fn, image)
 
         preparejob.end()
 

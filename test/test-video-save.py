@@ -2305,6 +2305,29 @@ def test_output_folder_kept_as_configured():
     return True
 
 
+def test_frame_export_to_non_ascii_folder():
+    """The Video tab frames export writes every frame into a folder named with non-ASCII characters, in RGB order."""
+    frames = small_frames(4)
+    pixels = (tensor_of(frames).float() / 127.5 - 1.0).permute(3, 0, 1, 2).unsqueeze(0)  # 1 c t h w in [-1, 1]
+    folder = os.path.join(work_dir, 'кадры_帧')
+    with opts(outdir_video=folder, outdir_samples='', save_to_dirs=False, save_txt=False, samples_filename_pattern='frames'):
+        _res, err = call_and_catch(video_save.save_video, None, pixels=pixels, mp4_video=False, mp4_frames=True, mp4_thumb=False, mp4_fps=24)
+    written = sorted(f for f in os.listdir(folder) if f.endswith('.jpg')) if os.path.isdir(folder) else []
+    control = []
+    for frame in frames:  # the same frame through an in-memory jpeg at the export's quality
+        buffer = io.BytesIO()
+        Image.fromarray(frame).save(buffer, format='JPEG', quality=95)
+        control.append(float(np.abs(np.asarray(Image.open(buffer).convert('RGB'), dtype=np.int16) - frame).mean()))
+    bar = 3 * max(control) + 1
+    errors_ = [float(np.abs(np.asarray(Image.open(os.path.join(folder, f)).convert('RGB'), dtype=np.int16) - frame).mean()) for f, frame in zip(written, frames)]
+    measure('frame_export', control_mean_error=[round(e, 2) for e in control], export_mean_error=[round(e, 2) for e in errors_], bar=round(bar, 2))
+    verdict('test_frame_export_to_non_ascii_folder', 'PASS', raised=repr(err) if err else None, written=len(written))
+    assert err is None, f'raised {err!r}'
+    assert len(written) == len(frames), f'{len(written)} of {len(frames)} frames written to "{folder}"'
+    assert all(e <= bar for e in errors_), f'exported frames differ from the source: {errors_} against {bar:.2f}'
+    return True
+
+
 ORDER_FOLDERS = (('control', 'cat', 'cat'), ('case', 'cat#1', 'cat_1')) # (label, generated folder, as sanitized); the control is a name sanitize keeps
 
 
@@ -2480,7 +2503,7 @@ GROUPS = [
     ('metadata', [test_metadata_roundtrip]),
     ('gradio', [test_option_off_does_not_probe_or_convert, test_option_on_converts_without_binaries, test_option_on_serves_playable_as_is, test_option_on_converts_unplayable_h264, test_preview_audio_passthrough_and_drop, test_preview_unopenable_file_served_as_is, test_preview_av_import_failure_does_not_raise, test_cli_fallback_leaves_no_copy, test_cleanup_tmpdr_removes_all_video_extensions]),
     ('process', [test_process_missing_video_reports_reason, test_process_tab_shows_failure_text_whole]),
-    ('paths', [test_non_ascii_output_path, test_long_path_truncation, test_output_folder_kept_as_configured, test_video_tab_numbers_in_the_sanitized_folder, test_legacy_numbers_in_the_sanitized_folder]),
+    ('paths', [test_non_ascii_output_path, test_long_path_truncation, test_output_folder_kept_as_configured, test_video_tab_numbers_in_the_sanitized_folder, test_legacy_numbers_in_the_sanitized_folder, test_frame_export_to_non_ascii_folder]),
     ('clips', [test_clips_written]),
 ]
 
