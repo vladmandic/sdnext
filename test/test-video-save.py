@@ -1285,6 +1285,21 @@ def test_zero_byte_mp4_metadata_is_empty():
     return True
 
 
+def test_process_missing_video_reports_reason():
+    """The Process tab with a video path that does not exist returns no video and says why in info."""
+    from modules import postprocessing
+    missing = out_path('process_missing_input.mp4')
+    with capture_log() as logs:
+        res, err = call_and_catch(postprocessing.run_postprocessing, 3, None, [], '', '', missing, False)
+    _outputs, video_out, info, _params = res if res is not None else (None, None, None, None)
+    verdict('test_process_missing_video_reports_reason', 'PASS', raised=repr(err) if err else None, video=video_out, info=info, unpack_error=bool(logs.find('unpack')))
+    assert err is None, f'run_postprocessing raised {err!r}'
+    assert video_out is None, f'returned video {video_out!r} for a missing input'
+    assert info and 'not found' in info, f'info {info!r} does not name the missing file'
+    assert not logs.find('unpack'), f'logged {logs.find("unpack")[:1]}'
+    return True
+
+
 def test_output_equal_to_source_refused():
     if need_av():
         return need_av()
@@ -2357,6 +2372,7 @@ GROUPS = [
     ('audio', [test_video_tab_muxes_audio_tensor, test_video_tab_muxes_audio_packets]),
     ('metadata', [test_metadata_roundtrip]),
     ('gradio', [test_option_off_does_not_probe_or_convert, test_option_on_converts_without_binaries, test_option_on_serves_playable_as_is, test_option_on_converts_unplayable_h264, test_preview_audio_passthrough_and_drop, test_preview_unopenable_file_served_as_is, test_preview_av_import_failure_does_not_raise, test_cli_fallback_leaves_no_copy, test_cleanup_tmpdr_removes_all_video_extensions]),
+    ('process', [test_process_missing_video_reports_reason]),
     ('paths', [test_non_ascii_output_path, test_long_path_truncation]),
     ('clips', [test_clips_written]),
 ]
