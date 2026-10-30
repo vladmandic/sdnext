@@ -163,6 +163,14 @@ def test_every_preset_keeps_its_key_count():
         assert len(parsed) == len(segments), f'{name}="{options}" parsed to {parsed}'
 
 
+def test_every_preset_names_a_pixel_format():
+    # the writers take the preset's pixel format when none is given; yuv420p is refused by the RGB, 4:2:2 and JPEG-range encoders
+    missing = [name for name, cfg in codecs_config.items() if not isinstance(cfg.get('pix_fmt'), str) or not cfg['pix_fmt'].strip()]
+    assert not missing, f'presets without pix_fmt: {missing}'
+    for name, expected in {'libx264rgb': 'rgb24', 'huffyuv': 'rgb24', 'prores_ks': 'yuv422p10le', 'mjpeg': 'yuvj420p'}.items():
+        assert codecs_config[name]['pix_fmt'] == expected, f'{name} pix_fmt={codecs_config[name]["pix_fmt"]}'
+
+
 # ============================================================
 # shipped defaults
 # ============================================================
@@ -193,6 +201,7 @@ def run_all():
         test_no_preset_key_is_numeric,
         test_no_preset_sets_a_degenerate_bitrate,
         test_every_preset_keeps_its_key_count,
+        test_every_preset_names_a_pixel_format,
     ]:
         run_test(cat, fn)
     cat = category('defaults')

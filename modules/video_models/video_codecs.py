@@ -6,6 +6,7 @@ codecs_config = {
         'ext': 'mp4',
         'allowed_exts': ['mp4', 'mkv', 'mov', 'ts'],
         'options': 'crf=18:preset=medium',
+        'pix_fmt': 'yuv420p',
     },
     'libx264rgb': {
         'name': 'H.264 Lossless RGB',
@@ -13,6 +14,7 @@ codecs_config = {
         'ext': 'mp4',
         'allowed_exts': ['mp4', 'mkv', 'mov'],
         'options': 'crf=0:preset=fast',
+        'pix_fmt': 'rgb24',
     },
     'libx265': {
         'name': 'HEVC / H.265',
@@ -20,6 +22,7 @@ codecs_config = {
         'ext': 'mp4',
         'allowed_exts': ['mp4', 'mkv', 'mov', 'ts'],
         'options': 'crf=22:preset=medium',
+        'pix_fmt': 'yuv420p',
     },
     'libvpx': {
         'name': 'VP8 Video',
@@ -27,6 +30,7 @@ codecs_config = {
         'ext': 'webm',
         'allowed_exts': ['webm', 'mkv'],
         'options': 'crf=10:b=0',
+        'pix_fmt': 'yuv420p',
     },
     'libvpx-vp9': {
         'name': 'VP9 Video',
@@ -34,6 +38,7 @@ codecs_config = {
         'ext': 'webm',
         'allowed_exts': ['webm', 'mkv'],
         'options': 'crf=23:b=0',
+        'pix_fmt': 'yuv420p',
     },
     'libsvtav1': {
         'name': 'AV1 (SVT-AV1)',
@@ -41,6 +46,7 @@ codecs_config = {
         'ext': 'mp4',
         'allowed_exts': ['mp4', 'mkv', 'webm'],
         'options': 'preset=5:crf=26',
+        'pix_fmt': 'yuv420p',
     },
     'mpeg4': {
         'name': 'MPEG-4 Part 2',
@@ -48,6 +54,7 @@ codecs_config = {
         'ext': 'mp4',
         'allowed_exts': ['mp4', 'avi', 'mkv'],
         'options': 'qmin=3:qmax=3',
+        'pix_fmt': 'yuv420p',
     },
     'mjpeg': {
         'name': 'Motion JPEG',
@@ -55,6 +62,7 @@ codecs_config = {
         'ext': 'avi',
         'allowed_exts': ['avi', 'mov', 'mkv'],
         'options': 'qmin=3:qmax=3',
+        'pix_fmt': 'yuvj420p',
     },
 
     # --- Hardware Accelerated: NVIDIA NVENC ---
@@ -64,6 +72,7 @@ codecs_config = {
         'ext': 'mp4',
         'allowed_exts': ['mp4', 'mkv', 'mov', 'ts'],
         'options': 'rc=constqp:qp=19:preset=p5',
+        'pix_fmt': 'yuv420p',
     },
     'hevc_nvenc': {
         'name': 'HEVC / H.265 (NVIDIA)',
@@ -71,6 +80,7 @@ codecs_config = {
         'ext': 'mp4',
         'allowed_exts': ['mp4', 'mkv', 'mov', 'ts'],
         'options': 'rc=constqp:qp=23:preset=p5',
+        'pix_fmt': 'yuv420p',
     },
     'av1_nvenc': {
         'name': 'AV1 (NVIDIA)',
@@ -78,6 +88,7 @@ codecs_config = {
         'ext': 'mp4',
         'allowed_exts': ['mp4', 'mkv', 'webm'],
         'options': 'rc=constqp:qp=26:preset=p5',
+        'pix_fmt': 'yuv420p',
     },
 
     # --- Hardware Accelerated: Intel QSV ---
@@ -87,6 +98,7 @@ codecs_config = {
         'ext': 'mp4',
         'allowed_exts': ['mp4', 'mkv', 'mov', 'ts'],
         'options': 'global_quality=20:preset=medium',
+        'pix_fmt': 'nv12',
     },
     'hevc_qsv': {
         'name': 'HEVC / H.265 (Intel QuickSync)',
@@ -94,6 +106,7 @@ codecs_config = {
         'ext': 'mp4',
         'allowed_exts': ['mp4', 'mkv', 'mov', 'ts'],
         'options': 'global_quality=23:preset=medium',
+        'pix_fmt': 'nv12',
     },
     'av1_qsv': {
         'name': 'AV1 (Intel QuickSync)',
@@ -101,6 +114,7 @@ codecs_config = {
         'ext': 'mp4',
         'allowed_exts': ['mp4', 'mkv', 'webm'],
         'options': 'global_quality=26:preset=medium',
+        'pix_fmt': 'nv12',
     },
     'vp9_qsv': {
         'name': 'VP9 (Intel QuickSync)',
@@ -108,6 +122,7 @@ codecs_config = {
         'ext': 'webm',
         'allowed_exts': ['webm', 'mkv'],
         'options': 'global_quality=24',
+        'pix_fmt': 'nv12',
     },
 
     # --- Hardware Accelerated: AMD AMF (Windows) ---
@@ -117,6 +132,7 @@ codecs_config = {
         'ext': 'mp4',
         'allowed_exts': ['mp4', 'mkv', 'mov', 'ts'],
         'options': 'rc=cqp:qp_i=18:qp_p=18:quality=balanced',
+        'pix_fmt': 'yuv420p',
     },
     'hevc_amf': {
         'name': 'HEVC / H.265 (AMD AMF)',
@@ -124,6 +140,7 @@ codecs_config = {
         'ext': 'mp4',
         'allowed_exts': ['mp4', 'mkv', 'mov', 'ts'],
         'options': 'rc=cqp:qp_i=22:qp_p=22:quality=balanced',
+        'pix_fmt': 'yuv420p',
     },
     'av1_amf': {
         'name': 'AV1 (AMD AMF)',
@@ -131,6 +148,7 @@ codecs_config = {
         'ext': 'mp4',
         'allowed_exts': ['mp4', 'mkv', 'webm'],
         'options': 'rc=cqp:qp_i=26:qp_p=26:quality=balanced',
+        'pix_fmt': 'yuv420p',
     },
 
     # --- Hardware Accelerated: Linux (VAAPI) ---
@@ -140,6 +158,7 @@ codecs_config = {
         'ext': 'mp4',
         'allowed_exts': ['mp4', 'mkv', 'mov'],
         'options': 'qp=20',
+        'pix_fmt': 'vaapi',
     },
     'hevc_vaapi': {
         'name': 'HEVC / H.265 (VAAPI Linux)',
@@ -147,6 +166,7 @@ codecs_config = {
         'ext': 'mp4',
         'allowed_exts': ['mp4', 'mkv', 'mov'],
         'options': 'qp=25',
+        'pix_fmt': 'vaapi',
     },
     'av1_vaapi': {
         'name': 'AV1 (VAAPI Linux)',
@@ -154,6 +174,7 @@ codecs_config = {
         'ext': 'mp4',
         'allowed_exts': ['mp4', 'mkv', 'webm'],
         'options': 'qp=28',
+        'pix_fmt': 'vaapi',
     },
 
     # --- Professional / Editing / Archival ---
@@ -163,6 +184,7 @@ codecs_config = {
         'ext': 'mov',
         'allowed_exts': ['mov', 'mkv'],
         'options': 'profile=3',  # 3 = ProRes 422 HQ
+        'pix_fmt': 'yuv422p10le',
     },
     'ffv1': {
         'name': 'Lossless Archival (FFV1)',
@@ -170,6 +192,7 @@ codecs_config = {
         'ext': 'mkv',
         'allowed_exts': ['mkv', 'avi'],
         'options': 'level=3:coder=1:context=1:slices=16',
+        'pix_fmt': 'yuv420p',
     },
     'huffyuv': {
         'name': 'HuffYUV Lossless',
@@ -177,6 +200,7 @@ codecs_config = {
         'ext': 'avi',
         'allowed_exts': ['avi', 'mkv'],
         'options': '',
+        'pix_fmt': 'rgb24',
     },
     'utvideo': {
         'name': 'Ut Video Lossless',
@@ -184,6 +208,7 @@ codecs_config = {
         'ext': 'avi',
         'allowed_exts': ['avi', 'mkv', 'mov'],
         'options': 'pred=left',
+        'pix_fmt': 'yuv420p',
     },
     'magicyuv': {
         'name': 'MagicYUV Lossless',
@@ -191,6 +216,7 @@ codecs_config = {
         'ext': 'avi',
         'allowed_exts': ['avi', 'mkv'],
         'options': '',
+        'pix_fmt': 'yuv420p',
     },
 }
 
@@ -221,6 +247,33 @@ def get_codec_allowed_exts(codec_name):
     if codec_info is None:
         return []
     return codec_info['allowed_exts']
+
+def get_codec_pix_fmt(codec_name):
+    codec_info = codecs_config.get(codec_name)
+    if codec_info is None:
+        return ''
+    return codec_info['pix_fmt']
+
+def resolve_pix_fmt(codec_name: str, pix_fmt: str | None) -> str:
+    """Pixel format for an encode: the codec's table value when unset, yuv420p for a codec outside the table."""
+    default = get_codec_pix_fmt(codec_name)
+    if pix_fmt is None:
+        if default:
+            return default
+        from modules.logger import log
+        log.warning(f'Video: codec={codec_name} is not in the codec table, using pix_fmt=yuv420p')
+        return 'yuv420p'
+    if not pix_fmt.strip():
+        raise ValueError(f'pixel format is empty, {codec_name} uses {default or "yuv420p"}')
+    return pix_fmt.strip()
+
+def chroma_crop_size(pix_fmt: str, width: int, height: int) -> tuple[int, int]:
+    """Largest size within width x height that the pixel format's chroma subsampling can represent."""
+    import av
+    fmt = av.VideoFormat(pix_fmt)
+    factor_w = 16 // max(1, fmt.chroma_width(16))
+    factor_h = 16 // max(1, fmt.chroma_height(16))
+    return width - width % max(1, factor_w), height - height % max(1, factor_h)
 
 def get_codec_dict(codec_name):
     codec_info = codecs_config.get(codec_name)

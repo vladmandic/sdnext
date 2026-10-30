@@ -208,24 +208,30 @@ def atomic_save_video(
     audio: torch.Tensor | None = None,
     fps: float = 24,
     codec: str = "libx264",
-    pix_fmt: str = "yuv420p",
+    pix_fmt: str | None = None,
     options: str = "",
     sample_rate: int = 24000,
     metadata: dict | None = None,
     pbar=None,
 ):
+    from modules.video_models.video_codecs import resolve_pix_fmt, chroma_crop_size
     if metadata is None:
         metadata = {}
     av = check_av()
     if av is None:
         log.error('Video: ffmpeg/av not available')
         return
-    savejob = shared.state.begin('Save video')
     frames, height, width, _channels = tensor.shape
+    pix_fmt = resolve_pix_fmt(codec, pix_fmt)
+    crop_w, crop_h = chroma_crop_size(pix_fmt, width, height)
+    savejob = shared.state.begin('Save video')
     rate = round(fps)
     parsed_options = parse_options(options)
-    log.info(f'Video: file="{filename}" codec={codec} frames={frames} width={width} height={height} fps={rate} audio={audio is not None} sample_rate={sample_rate} options={parsed_options}')
+    log.info(f'Video: file="{filename}" codec={codec} pix_fmt={pix_fmt} frames={frames} width={crop_w} height={crop_h} fps={rate} audio={audio is not None} sample_rate={sample_rate} options={parsed_options}')
     video_array = torch.as_tensor(tensor, dtype=torch.uint8).numpy(force=True)
+    if (crop_w, crop_h) != (width, height):
+        log.warning(f'Video: file="{filename}" size={width}x{height} cropped to {crop_w}x{crop_h} for pix_fmt={pix_fmt}')
+        video_array = np.ascontiguousarray(video_array[:, :crop_h, :crop_w])
     task = pbar.add_task('encoding', total=frames) if pbar is not None else None
     if task is not None:
         pbar.update(task, description='video encoding')

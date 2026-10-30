@@ -1418,6 +1418,7 @@
     {"id": "", "label": "Pin offload memory", "localized": "", "hint": "Pins offloaded weights in non-pageable CPU RAM for faster CUDA stream transfer, at the cost of higher RAM usage.<br><br>Applies to <b>group</b> offloading with <b><i>Prefetch with streams</i></b> enabled. Enabled by default.", "ui": "settings_offload"},
     {"id": "", "label": "Pin transformers to VRAM", "localized": "", "hint": "Keep transformer attention weights pinned in GPU VRAM"},
     {"id": "", "label": "Pipeline Modifiers", "localized": "", "hint": "Additional functionality that can be enabled during generate"},
+    {"id": "", "label": "Pixel format", "localized": "", "hint": "Pixel layout handed to the encoder, set by the codec preset.<br><b>yuv420p</b> plays in browsers; RGB and 4:4:4 formats keep full colour detail but most browsers will not play them. With 4:2:0 an odd width or height is cropped by one pixel.", "ui": "control"},
     {"id": "", "label": "Pixel Perfect", "localized": "", "hint": "Automatically calculate preprocessor resolution matching generation dimensions"},
     {"id": "", "label": "PixelArt", "localized": "", "hint": "PixelArt downsampling and color quantization filter settings", "ui": "extras"},
     {"id": "", "label": "PixelArt block size", "localized": "", "hint": "Pixel block resolution for pixel art downsampling", "ui": "extras"},

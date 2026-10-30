@@ -69,8 +69,8 @@ def create_ui(parent, video_options=False):
             def on_codec_change(codec):
                 cfg = video_codecs.get_codec_dict(codec)
                 if not cfg:
-                    return gr.update(value='unknown codec'), gr.update(value='mp4'), gr.update(value='')
-                return gr.update(value=cfg['name']), gr.update(value=cfg['ext'], choices=cfg['allowed_exts']), gr.update(value=cfg['options'])
+                    return gr.update(value='unknown codec'), gr.update(value='mp4'), gr.update(value=''), gr.update(value='yuv420p')
+                return gr.update(value=cfg['name']), gr.update(value=cfg['ext'], choices=cfg['allowed_exts']), gr.update(value=cfg['options']), gr.update(value=cfg['pix_fmt'])
 
             with gr.Row():
                 mp4_codec = gr.Dropdown(label="Video codec", choices=video_codecs.get_codec_list(), value=default_codec, type='value')
@@ -78,10 +78,10 @@ def create_ui(parent, video_options=False):
                 mp4_info = gr.Label(value=video_codecs.get_codec_name(default_codec), label='Codec info', elem_id=f'{parent}_dlss_mp4_codec_label', show_label=False, elem_classes=['codec-label'])
             with gr.Row():
                 mp4_ext = gr.Dropdown(label="Video format", choices=video_codecs.get_codec_allowed_exts(default_codec), value=video_codecs.get_codec_ext(default_codec), elem_id=f"{parent}_dlss_mp4_ext")
-                mp4_pix = gr.Textbox(label="Pixel format", value='yuv420p', elem_id=f"{parent}_dlss_mp4_pix")
+                mp4_pix = gr.Textbox(label="Pixel format", value=video_codecs.get_codec_pix_fmt(default_codec), elem_id=f"{parent}_dlss_mp4_pix")
             with gr.Row():
                 mp4_opt = gr.Textbox(label="FFmpeg options", value=video_codecs.get_codec_options(default_codec), elem_id=f"{parent}_dlss_mp4_opt")
-            mp4_codec.change(fn=on_codec_change, inputs=[mp4_codec], outputs=[mp4_info, mp4_ext, mp4_opt], show_progress='hidden')
+            mp4_codec.change(fn=on_codec_change, inputs=[mp4_codec], outputs=[mp4_info, mp4_ext, mp4_opt, mp4_pix], show_progress='hidden')
 
     return [
         dlss_enabled, dlss_graph, dlss_chunk, dlss_full,

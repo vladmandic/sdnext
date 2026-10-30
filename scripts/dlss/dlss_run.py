@@ -45,12 +45,13 @@ def _to_ndarray_rgb_float(img) -> np.ndarray:
     return arr.astype(np.float32) / 255.0
 
 
-def resolve_video_options(codec: str | None, ext: str | None, pix: str | None, opt: str | None) -> tuple[str, str, str, str]:
-    """The UI's video defaults for any control a caller left unset; API and Enso jobs pass None for controls they lack."""
+def resolve_video_options(codec: str | None, ext: str | None, pix: str | None, opt: str | None) -> tuple[str, str, str | None, str]:
+    """The UI's video defaults for any control a caller left unset; API and Enso jobs pass None for controls they lack.
+
+    An unset pixel format stays None and the writer takes the codec's table value."""
     from modules.video_models import video_codecs
     codec = 'libx264' if codec is None else codec
     ext = (video_codecs.get_codec_ext(codec) or 'mp4') if ext is None else ext
-    pix = 'yuv420p' if pix is None else pix
     opt = video_codecs.get_codec_options(codec) if opt is None else opt
     return codec, ext, pix, opt
 

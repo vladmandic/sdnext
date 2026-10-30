@@ -50,6 +50,8 @@ class VideoWriter:
         if self.closed:
             return
         try:
+            if image.shape[0] > self.stream.height or image.shape[1] > self.stream.width: # chroma crop: drop rows or columns, never rescale
+                image = np.ascontiguousarray(image[:self.stream.height, :self.stream.width])
             frame = self.av.VideoFrame.from_ndarray(image, format='bgr24')
             frame = frame.reformat(width=self.stream.width, height=self.stream.height, format=self.stream.pix_fmt)
             frame.pts = self.frame_index
@@ -113,7 +115,7 @@ def save_video_atomic(images,
                       frames_hint: int = 0,
                       metadata: dict | None = None,
                       mp4_codec: str = 'mpeg4',
-                      mp4_pix: str = 'yuv420p',
+                      mp4_pix: str | None = None,
                       mp4_opt: str = '',
                      ) -> VideoWriter | None:
     """Write the clip; with stream=True the open writer is returned for more frames.
@@ -154,16 +156,24 @@ def save_video_atomic(images,
             num_frames = frames_hint if frames_hint > 0 else len(frames)
             fps = max(1.0, num_frames / duration) if duration > 0 else 30.0
             from modules.video_models.video_utils import check_av
+            from modules.video_models.video_codecs import resolve_pix_fmt, chroma_crop_size
             av = check_av()
             if av is None:
                 raise VideoWriteError('av package not available')
-            video_writer = open_video_writer(av, filename, w, h, fps, mp4_codec, mp4_pix, parsed_options, metadata)
+            try:
+                pix_fmt = resolve_pix_fmt(mp4_codec, mp4_pix)
+                crop_w, crop_h = chroma_crop_size(pix_fmt, w, h)
+            except ValueError as e:
+                raise VideoWriteError(f'codec={mp4_codec} pix_fmt={mp4_pix}: {e}') from e
+            if (crop_w, crop_h) != (w, h):
+                log.warning(f'Video: file="{filename}" size={w}x{h} cropped to {crop_w}x{crop_h} for pix_fmt={pix_fmt}')
+            video_writer = open_video_writer(av, filename, crop_w, crop_h, fps, mp4_codec, pix_fmt, parsed_options, metadata)
             save_video_frames(video_writer, frames)
             if not stream:
                 video_writer.release()
                 video_writer = None
             hint = 'stream=True' if stream else f'size={os.path.getsize(filename)}'
-            log.info(f'Save video: file="{filename}" frames={num_frames} duration={duration} fps={fps:.2f} resolution={(w ,h)} codec={mp4_codec} fmt={mp4_pix} options={parsed_options} {hint}')
+            log.info(f'Save video: file="{filename}" frames={num_frames} duration={duration} fps={fps:.2f} resolution={(crop_w, crop_h)} codec={mp4_codec} fmt={pix_fmt} options={parsed_options} {hint}')
             frames.clear()
     except Exception as e:
         if video_writer is not None:
@@ -205,13 +215,14 @@ def save_video(p,
                metadata: dict | None = None,
                mp4_codec: str = 'mpeg4',
                mp4_ext: str | None = None,
-               mp4_pix: str = 'yuv420p',
+               mp4_pix: str | None = None,
                mp4_opt: str = '',
                *,
                source: str | None = None,
               ):
     """Save frames as a video named by the output pattern.
 
+    mp4_pix: None takes the codec's table value. mp4_ext: None takes the video_type extension when the codec fits that container, else the codec's own.
     sync: returns the filename, or None when the save is refused or fails.
     stream: returns (filename, writer) for more frames, or raises VideoWriteError with the reason.
     otherwise: encodes in a thread and returns the filename at once; the file is registered before the thread runs and a failure is only logged.
@@ -243,6 +254,12 @@ def save_video(p,
             filename = f'{root if current_ext else filename}.{ext}'
     else:
         ext = video_type.lower().split('/')[0] if '/' in video_type else video_type.lower()
+        if video_type.lower() not in ['gif', 'png']:
+            from modules.video_models.video_codecs import get_codec_allowed_exts, get_codec_ext
+            allowed = get_codec_allowed_exts(mp4_codec)
+            if allowed and ext not in allowed:
+                log.warning(f'Video: codec={mp4_codec} does not fit container={ext}, using {get_codec_ext(mp4_codec)}')
+                ext = get_codec_ext(mp4_codec)
         if not filename.lower().endswith(ext):
             filename += f'.{ext}'
     filename = namegen.sanitize(filename)
