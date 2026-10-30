@@ -74,13 +74,13 @@ def create_ui(parent, video_options=False):
 
             with gr.Row():
                 mp4_codec = gr.Dropdown(label="Video codec", choices=video_codecs.get_codec_list(), value=default_codec, type='value')
-                ui_common.create_refresh_button(mp4_codec, video_utils.get_codecs, elem_id="dlss_mp4_codec_refresh")
-                mp4_info = gr.Label(value=video_codecs.get_codec_name(default_codec), label='Codec info', elem_id='dlss_mp4_codec_label', show_label=False, elem_classes=['codec-label'])
+                ui_common.create_refresh_button(mp4_codec, video_utils.get_codecs, elem_id=f"{parent}_dlss_mp4_codec_refresh")
+                mp4_info = gr.Label(value=video_codecs.get_codec_name(default_codec), label='Codec info', elem_id=f'{parent}_dlss_mp4_codec_label', show_label=False, elem_classes=['codec-label'])
             with gr.Row():
-                mp4_ext = gr.Dropdown(label="Video format", choices=video_codecs.get_codec_allowed_exts(default_codec), value=video_codecs.get_codec_ext(default_codec), elem_id="dlss_mp4_ext")
-                mp4_pix = gr.Textbox(label="Pixel format", value='yuv420p', elem_id="dlss_mp4_pix")
+                mp4_ext = gr.Dropdown(label="Video format", choices=video_codecs.get_codec_allowed_exts(default_codec), value=video_codecs.get_codec_ext(default_codec), elem_id=f"{parent}_dlss_mp4_ext")
+                mp4_pix = gr.Textbox(label="Pixel format", value='yuv420p', elem_id=f"{parent}_dlss_mp4_pix")
             with gr.Row():
-                mp4_opt = gr.Textbox(label="FFmpeg options", value=video_codecs.get_codec_options(default_codec), elem_id="dlss_mp4_opt")
+                mp4_opt = gr.Textbox(label="FFmpeg options", value=video_codecs.get_codec_options(default_codec), elem_id=f"{parent}_dlss_mp4_opt")
             mp4_codec.change(fn=on_codec_change, inputs=[mp4_codec], outputs=[mp4_info, mp4_ext, mp4_opt], show_progress='hidden')
 
     return [
