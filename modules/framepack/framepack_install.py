@@ -1,7 +1,7 @@
 import os
 import shutil
 import git as gitpython
-from installer import install, git
+from installer import git
 from modules.logger import log
 
 
@@ -14,10 +14,6 @@ def rename(src:str, dst:str):
             shutil.move(src, dst)
         else:
             raise e
-
-
-def install_requirements():
-    install('av')
 
 
 def git_clone(git_repo:str, git_dir:str, tmp_dir:str):

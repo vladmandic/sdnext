@@ -4,6 +4,7 @@ wheel
 
 # standard
 anyio
+av
 filetype
 future
 GitPython

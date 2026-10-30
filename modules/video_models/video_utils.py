@@ -2,12 +2,10 @@ import os
 import sys
 import time
 import inspect
-import threading
 import importlib.util
 from contextlib import contextmanager
 from dataclasses import dataclass
 from PIL import Image
-from installer import install
 from modules import shared, sd_models, timer, errors, devices
 from modules.logger import log
 from modules.video_models.video_codecs import codecs_config
@@ -55,14 +53,11 @@ def supports_last_frame(model):
     return not getattr(getattr(model, 'config', None), 'expand_timesteps', False)
 
 
-av_install_lock = threading.Lock()
 HARDWARE_CAPABILITIES = 0x40000 | 0x80000 # AV_CODEC_CAP_HARDWARE, AV_CODEC_CAP_HYBRID
 
 
 def check_av():
     """The av module, or None when it is unavailable; callers guard on the None."""
-    with av_install_lock: # saves that start together on a fresh install would each run pip
-        install('av')
     try:
         import av
         av.logging.set_level(av.logging.ERROR) # pylint: disable=c-extension-no-member

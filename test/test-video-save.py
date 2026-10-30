@@ -23,14 +23,12 @@ Covers:
 - the gradio preview hook: probe and convert behaviour with and without ffmpeg on PATH
 
 Cases for symbols the checked-out tree does not have yet report ABSENT, not FAIL. A returned
-string is a skip reason. av is never installed by hand: with ``--allow-install`` the first encode
-case lets ``video_utils.check_av()`` install it through sdnext's own installer, from two threads at
-once, and records how many pip runs that took.
+string is a skip reason; without av every case that encodes skips.
 
 No running server required.
 
 Usage:
-    python test/test-video-save.py [--report PATH] [--clips DIR] [--allow-install] [--keep]
+    python test/test-video-save.py [--report PATH] [--clips DIR] [--keep]
 """
 
 import os
@@ -40,7 +38,6 @@ import argparse
 cli = argparse.ArgumentParser(description='video save regression suite')
 cli.add_argument('--report', default=os.environ.get('SD_TEST_REPORT', ''), help='write the JSON report here')
 cli.add_argument('--clips', default=os.environ.get('SD_TEST_CLIPS', ''), help='write the browser gate clips here')
-cli.add_argument('--allow-install', action='store_true', default=os.environ.get('SD_TEST_ALLOW_INSTALL', '') != '', help='let check_av() install av through the installer')
 cli.add_argument('--keep', action='store_true', help='keep the temporary directory')
 cli.add_argument('--spawn', action='store_true', default=os.environ.get('SD_TEST_SPAWN', '') != '', help='run cases in spawned interpreters instead of forked children (always on where fork is missing)')
 cli.add_argument('--child-start', type=int, default=-1, help=argparse.SUPPRESS)
@@ -105,8 +102,6 @@ try:
     import av
 except Exception:  # pylint: disable=broad-except
     av = None
-if av is None and not flags.allow_install:
-    installer.opts['offline_mode'] = True
 
 
 class Absent(Exception):
@@ -127,7 +122,7 @@ def need_param(fn, name: str):
 
 def need_av():
     if av is None:
-        return 'av missing: pass --allow-install or let sdnext install it at the first video save'
+        return 'av missing: it installs with the requirements at startup'
     return None
 
 
@@ -261,19 +256,6 @@ def apply_outcome(cat: str, name: str, outcome: dict):
         record(cat, True, name)
 
 
-def ensure_av():
-    """Children import av themselves; the platform child may have installed it after the parent started."""
-    global av  # pylint: disable=global-statement
-    if av is None:
-        import importlib
-        importlib.invalidate_caches()
-        try:
-            import av as av_module
-            av = av_module
-        except Exception:  # pylint: disable=broad-except
-            av = None
-
-
 CASES: list[tuple[str, object]] = []  # (group, case), filled from GROUPS at the end of the file
 SPAWN = flags.spawn or not hasattr(os, 'fork')
 SPAWN_STARTUP = int(os.environ.get('SD_TEST_SPAWN_STARTUP', '180'))  # a spawned child imports torch and modules.shared before its first case
@@ -283,7 +265,6 @@ def run_cases_here(start: int, results_path: str):
     """Child side: run every case from `start`, appending one JSON line per finished case to `results_path`."""
     import faulthandler
     faulthandler.enable()
-    ensure_av()
     group = None
     with open(results_path, 'a', encoding='utf8') as out:
         for index in range(start, len(CASES)):
@@ -342,8 +323,6 @@ class SpawnedChild:
         with open(state_path, 'w', encoding='utf8') as f:
             json.dump({'FLOOR': FLOOR, 'PRESET_OPEN': PRESET_OPEN, 'platform': report['platform']}, f, default=str)
         cmd = [sys.executable, '-X', 'faulthandler', script_file, '--work-dir', work_dir, '--child-start', str(start), '--child-results', results_path, '--child-state', state_path]
-        if flags.allow_install:
-            cmd.append('--allow-install')
         if flags.clips:
             cmd += ['--clips', os.path.abspath(flags.clips)]
         self.proc = subprocess.Popen(cmd, cwd=script_dir)  # pylint: disable=consider-using-with
@@ -918,51 +897,6 @@ def test_versions():
     return True
 
 
-def test_install_av_through_sdnext():
-    """With av absent and --allow-install, two concurrent check_av() calls install it through the installer."""
-    global av  # pylint: disable=global-statement
-    if av is not None:
-        return 'av already importable'
-    if not flags.allow_install:
-        return 'av missing and --allow-install not given'
-    pip_calls = []
-    original_pip = installer.pip
-
-    def counting_pip(arg, *args, **kwargs):
-        pip_calls.append(arg)
-        return original_pip(arg, *args, **kwargs)
-
-    outcomes = {}
-
-    def worker(tag):
-        outcomes[tag] = video_utils.check_av()
-
-    t0 = time.time()
-    with patched(installer, 'pip', counting_pip):
-        threads = [threading.Thread(target=worker, args=(tag,)) for tag in ('a', 'b')]
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
-    elapsed = time.time() - t0
-    import importlib
-    importlib.invalidate_caches()
-    try:
-        import av as av_module
-    except Exception as e:  # pylint: disable=broad-except
-        av_module = None
-        detail = f'{type(e).__name__}: {e}'
-    else:
-        detail = ''
-    av = av_module
-    measure('install', seconds=round(elapsed, 2), pip_calls=len(pip_calls), pip_args=pip_calls, version=getattr(av, '__version__', None))
-    verdict('test_install_av_through_sdnext', 'PASS', pip_calls=len(pip_calls), both_returned_module=all(v is not None for v in outcomes.values()))
-    assert av is not None, f'av not importable after install: {detail}'
-    assert all(v is not None for v in outcomes.values()), f'check_av returned None in a thread: {outcomes}'
-    assert len(pip_calls) <= 1, f'{len(pip_calls)} pip runs for one package from two threads: {pip_calls}'
-    return True
-
-
 def test_presets_open():
     """Every codecs_config preset opened for real with the DLSS default pixel format; the result is the report."""
     if need_av():
@@ -1201,11 +1135,9 @@ def call_and_catch(fn, *args, **kwargs):
 
 @contextlib.contextmanager
 def av_missing():
-    """Make `import av` fail and keep the installer from reinstalling it."""
+    """Make `import av` fail."""
     saved = sys.modules.get('av', None)
-    saved_offline = installer.opts.get('offline_mode', None)
     sys.modules['av'] = None
-    installer.opts['offline_mode'] = True
     try:
         yield
     finally:
@@ -1213,10 +1145,6 @@ def av_missing():
             sys.modules.pop('av', None)
         else:
             sys.modules['av'] = saved
-        if saved_offline is None:
-            installer.opts.pop('offline_mode', None)
-        else:
-            installer.opts['offline_mode'] = saved_offline
 
 
 def test_sync_unknown_codec_returns_none():
@@ -2395,7 +2323,7 @@ def test_clips_written():
 # ============================================================
 
 GROUPS = [
-    ('platform', [test_versions, test_install_av_through_sdnext, test_presets_open]),
+    ('platform', [test_versions, test_presets_open]),
     ('floor', [test_log_capture_sees_writer_lines, test_quality_floor, test_quality_negative_control, test_quality_fixture_guard, test_colour_floor, test_colour_positive_control, test_colour_negative_controls, test_lossless_rgb_roundtrip]),
     ('writer failure', [test_sync_unknown_codec_returns_none, test_stream_rejected_pix_fmt_raises_with_reason, test_container_refusing_codec_removes_its_file, test_av_missing_sync_returns_none_stream_raises, test_zero_byte_mp4_metadata_is_empty, test_output_equal_to_source_refused, test_dlss_none_kwargs_resolve_to_ui_values, test_gif_failure_returns_none, test_mid_encode_exception_returns_none, test_sync_success_registers_after_open, test_threaded_save_joined]),
     ('pixel format', [test_presets_declare_pix_fmt, test_table_pix_fmt_opens_in_legacy_loop, test_table_pix_fmt_opens_in_video_tab_loop, test_rejected_pix_fmt_names_the_list, test_empty_pix_fmt_refused_naming_default, test_out_of_table_codec_defaults_yuv420p, test_ext_none_follows_codec_when_container_refuses, test_odd_size_cropped_under_yuv420p_legacy, test_odd_size_cropped_under_yuv420p_video_tab, test_odd_size_kept_without_subsampling]),
@@ -2433,9 +2361,9 @@ def run_all():
     (the child deadlocks on inherited state; av 19.0.2 with ffmpeg 9.0.2), and an encoder that fails to open can
     take its process down, so every case runs in a child and a dead or silent child is replaced from the next case."""
     log.warning('=== Video save layer ===')
-    log.info(f'work dir: {work_dir} av={getattr(av, "__version__", None)} allow_install={flags.allow_install} runner={"spawn" if SPAWN else "fork"}')
+    log.info(f'work dir: {work_dir} av={getattr(av, "__version__", None)} runner={"spawn" if SPAWN else "fork"}')
     report['platform']['runner'] = {'mode': 'spawn' if SPAWN else 'fork', 'case_timeout_s': CASE_TIMEOUT}
-    report['platform']['flags'] = {'allow_install': flags.allow_install, 'clips': bool(flags.clips)}
+    report['platform']['flags'] = {'clips': bool(flags.clips)}
     if not SPAWN:
         pan()  # numpy fixtures built once and inherited by every forked child
         chart('720')

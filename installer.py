@@ -1432,7 +1432,6 @@ def install_optional():
     install('addict')
     install('yapf')
     install('--no-build-isolation git+https://github.com/Disty0/BasicSR@23c1fb6f5c559ef5ce7ad657f2fa56e41b121754', 'basicsr', ignore=True, quiet=True)
-    install('av', ignore=True, quiet=True)
     install('beautifulsoup4', ignore=True, quiet=True)
     install('clean-fid', ignore=True, quiet=True)
     install('clip_interrogator==0.6.0', ignore=True, quiet=True)

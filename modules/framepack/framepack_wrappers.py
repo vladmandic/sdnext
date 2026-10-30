@@ -8,7 +8,6 @@ from PIL import Image
 from modules import shared, processing, timer, paths, extra_networks, progress, ui_video_vlm, call_queue
 from modules.logger import log
 from modules.video_models.video_utils import check_av
-from modules.framepack import framepack_install # pylint: disable=wrong-import-order
 from modules.framepack import framepack_load # pylint: disable=wrong-import-order
 from modules.framepack import framepack_worker # pylint: disable=wrong-import-order
 from modules.framepack import framepack_hijack # pylint: disable=wrong-import-order
@@ -95,7 +94,6 @@ def load_model(variant):
     global loaded_variant # pylint: disable=global-statement
     if (shared.sd_model_type != 'hunyuanvideo') or (loaded_variant != variant):
         yield gr.update(), gr.update(), 'Verifying FramePack'
-        framepack_install.install_requirements()
         # framepack_install.git_clone(git_repo=git_repo, git_dir=git_dir, tmp_dir=tmp_dir)
         # framepack_install.git_update(git_dir=git_dir, git_commit=git_commit)
         # sys.path.append(git_dir)
