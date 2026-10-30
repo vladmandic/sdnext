@@ -30,7 +30,10 @@ def interpolate_frames(images, count: int = 0, scale: float = 1.0, pad: int = 1,
 
 def save_video_frames(video_writer, frames):
     for i in range(len(frames)):
-        img = cv2.cvtColor(frames[i], cv2.COLOR_RGB2BGR)
+        frame = frames[i]
+        if frame.ndim == 3 and frame.shape[2] == 4: # RGBA from PIL; video has no alpha
+            frame = frame[:, :, :3]
+        img = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
         video_writer.write(img)
 
 
@@ -65,10 +68,11 @@ def resolve_codec(video_type: str, mp4_codec: str | None, mp4_opt: str | None) -
 
 
 class VideoWriter:
-    def __init__(self, av, container, stream):
+    def __init__(self, av, container, stream, reformat_args: dict | None = None):
         self.av = av
         self.container = container
         self.stream = stream
+        self.reformat_args = reformat_args or {} # colour matrix and range for the RGB to YUV conversion
         self.frame_index = 0
         self.closed = False
 
@@ -79,7 +83,7 @@ class VideoWriter:
             if image.shape[0] > self.stream.height or image.shape[1] > self.stream.width: # chroma crop: drop rows or columns, never rescale
                 image = np.ascontiguousarray(image[:self.stream.height, :self.stream.width])
             frame = self.av.VideoFrame.from_ndarray(image, format='bgr24')
-            frame = frame.reformat(width=self.stream.width, height=self.stream.height, format=self.stream.pix_fmt)
+            frame = frame.reformat(width=self.stream.width, height=self.stream.height, format=self.stream.pix_fmt, **self.reformat_args)
             frame.pts = self.frame_index
             self.frame_index += 1
             for packet in self.stream.encode(frame):
@@ -104,6 +108,7 @@ def open_video_writer(av, filename: str, width: int, height: int, fps: float, co
     """Open the container and the encoder before any frame, so a refusal leaves no partial file."""
     from modules.video_models.video_utils import open_failure_reason
     from modules.video_models.video_save import video_rate
+    from modules.video_models.video_codecs import stream_colour
     existed = os.path.exists(filename)
     container = None
     try:
@@ -115,6 +120,9 @@ def open_video_writer(av, filename: str, width: int, height: int, fps: float, co
         stream.width = width
         stream.height = height
         stream.pix_fmt = pix_fmt
+        tags, reformat_args = stream_colour(pix_fmt)
+        for key, value in tags.items(): # read by the encoder at open: x264 writes them as VUI, the mp4 muxer as a colr box
+            setattr(stream.codec_context, key, value)
         container.start_encoding()
     except Exception as e:
         if container is not None:
@@ -125,7 +133,7 @@ def open_video_writer(av, filename: str, width: int, height: int, fps: float, co
         if not existed and os.path.exists(filename):
             os.remove(filename)
         raise VideoWriteError(f'codec={codec} pix_fmt={pix_fmt}: {open_failure_reason(av, codec, pix_fmt, e)}') from e
-    return VideoWriter(av, container, stream)
+    return VideoWriter(av, container, stream, reformat_args)
 
 
 def save_video_atomic(images,

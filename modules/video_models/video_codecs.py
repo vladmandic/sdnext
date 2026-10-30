@@ -275,6 +275,19 @@ def chroma_crop_size(pix_fmt: str, width: int, height: int) -> tuple[int, int]:
     factor_h = 16 // max(1, fmt.chroma_height(16))
     return width - width % max(1, factor_w), height - height % max(1, factor_h)
 
+def stream_colour(pix_fmt: str) -> tuple[dict, dict]:
+    """Colour tags for the codec context and reformat() arguments for converting RGB frames into pix_fmt.
+
+    YUV is BT.709 limited range, JPEG-range yuvj is BT.601 full range, RGB needs no matrix. All four tags are set
+    because browsers differ in which ones they read."""
+    import av
+    from av.video.reformatter import Colorspace, ColorRange # pylint: disable=no-name-in-module
+    if av.VideoFormat(pix_fmt).is_rgb:
+        return {'colorspace': 0, 'color_range': 2, 'color_primaries': 1, 'color_trc': 1}, {}
+    if pix_fmt.startswith('yuvj'):
+        return {'colorspace': 6, 'color_range': 2, 'color_primaries': 1, 'color_trc': 1}, {'dst_colorspace': Colorspace.ITU601, 'dst_color_range': ColorRange.JPEG}
+    return {'colorspace': 1, 'color_range': 1, 'color_primaries': 1, 'color_trc': 1}, {'dst_colorspace': Colorspace.ITU709, 'dst_color_range': ColorRange.MPEG}
+
 def get_codec_dict(codec_name):
     codec_info = codecs_config.get(codec_name)
     if codec_info is None:

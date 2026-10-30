@@ -222,7 +222,7 @@ def atomic_save_video(
     metadata: dict | None = None,
     pbar=None,
 ):
-    from modules.video_models.video_codecs import resolve_pix_fmt, chroma_crop_size
+    from modules.video_models.video_codecs import resolve_pix_fmt, chroma_crop_size, stream_colour
     if metadata is None:
         metadata = {}
     av = check_av()
@@ -252,6 +252,9 @@ def atomic_save_video(
             stream.width = video_array.shape[2]
             stream.height = video_array.shape[1]
             stream.pix_fmt = pix_fmt
+            tags, reformat_args = stream_colour(pix_fmt)
+            for key, value in tags.items():
+                setattr(stream.codec_context, key, value)
             audio_stream = None
             has_audio = (audio is not None) and ((torch.is_tensor(audio) or isinstance(audio, np.ndarray)) or (isinstance(audio, dict) and len(audio.get('frames', [])) > 0))
             if has_audio:
@@ -261,7 +264,7 @@ def atomic_save_video(
                 audio_stream.layout = layout
                 audio_stream.time_base = Fraction(1, sr)
             for i, img in enumerate(video_array):
-                frame = av.VideoFrame.from_ndarray(img, format="rgb24")
+                frame = av.VideoFrame.from_ndarray(img, format="rgb24").reformat(format=pix_fmt, **reformat_args) # encode() alone converts with BT.601
                 frame.pts = i
                 for packet in stream.encode_lazy(frame):
                     container.mux_one(packet)
