@@ -523,7 +523,7 @@ def create_settings(cmd_opts):
         "samples_format": OptionInfo('jpg', 'Image file format', gr.Dropdown, {"choices": ["jpg", "png", "webp", "tiff", "jp2", "jxl", "heif"]}),
         "jpeg_quality": OptionInfo(90, "Image quality", gr.Slider, {"minimum": 1, "maximum": 100, "step": 1}),
         "img_max_size_mp": OptionInfo(1000, "Image maximum size (MP)", gr.Slider, {"minimum": 10, "maximum": 2000, "step": 1}),
-        "ui_video_convert": OptionInfo(False, "Videos convert for UI playback"),
+        "ui_video_convert": OptionInfo(True, "Videos convert for UI playback"),
         "webp_lossless": OptionInfo(False, "Image WebP lossless compression"),
         "save_selected_only": OptionInfo(True, "UI save only saves selected image"),
         "include_mask": OptionInfo(False, "Include mask in outputs"),
