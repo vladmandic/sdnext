@@ -2079,7 +2079,7 @@
     {"id": "", "label": "Video engine", "localized": "", "hint": "Video synthesis backend engine (e.g. <b>Diffusers</b>, <b>WanAI</b>, <b>LTX</b>)", "ui": "video"},
     {"id": "", "label": "Video file", "localized": "", "hint": "Path to input video file for frame-by-frame postprocessing", "ui": "extras"},
     {"id": "", "label": "Video File", "localized": "", "hint": "Source video file path to load into the node processing pipeline", "ui": "chainner"},
-    {"id": "", "label": "Video format", "localized": "", "hint": "Container format and codec for the output video file.<br>Pick a format your downstream tools understand. <b>MP4/MP4V</b> is broadly compatible with most players and editors. Other choices trade off file size, quality, and player support.<br><br>Default MP4/MP4V.", "ui": "script_video"},
+    {"id": "", "label": "Video format", "localized": "", "hint": "Container format and codec for the output video file.<br>The right format depends on the tools that read the file. <b>MP4/AVC1</b> is H.264, which plays in browsers and most players and editors; <b>MP4/MP4V</b> is MPEG-4 Part 2, which browsers do not play. Other choices trade off file size, quality, and player support.<br><br>Default MP4/AVC1.", "ui": "script_video"},
     {"id": "", "label": "Video FPS", "localized": "", "hint": "Playback frame rate for encoded video output files"},
     {"id": "", "label": "Video guidance scale", "localized": "", "hint": "Classifier-free guidance scale specifically for temporal video attention"},
     {"id": "", "label": "Video interpolation", "localized": "", "hint": "Frame interpolation model used to smooth video motion", "ui": "video"},

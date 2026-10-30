@@ -38,6 +38,32 @@ class VideoWriteError(RuntimeError):
     """A video save was refused or failed; the message is the reason shown to the user."""
 
 
+DEFAULT_VIDEO_CODEC = 'libx264'
+VIDEO_TYPE_CODECS = {'mp4v': 'mpeg4', 'divx': 'mpeg4', 'avc1': 'libx264', 'h264': 'libx264', 'jvt3': 'libx264', 'mjpg': 'mjpeg'} # codec half of the "Video format" labels
+
+
+def codec_from_video_type(video_type: str) -> str:
+    """Encoder named by the codec half of a "Video format" label such as MP4/AVC1; the default when the label has none."""
+    label = str(video_type or '')
+    if '/' not in label:
+        return DEFAULT_VIDEO_CODEC
+    half = label.split('/', 1)[1].strip().lower()
+    codec = VIDEO_TYPE_CODECS.get(half)
+    if codec is None:
+        log.warning(f'Video: format="{label}" codec={half} has no encoder, using {DEFAULT_VIDEO_CODEC}')
+        return DEFAULT_VIDEO_CODEC
+    return codec
+
+
+def resolve_codec(video_type: str, mp4_codec: str | None, mp4_opt: str | None) -> tuple[str, str]:
+    """Encoder and options for a save: an explicit codec wins over the label; unset options take the codec's preset, '' means none."""
+    codec = mp4_codec if mp4_codec is not None else codec_from_video_type(video_type)
+    if mp4_opt is None:
+        from modules.video_models.video_codecs import get_codec_options
+        mp4_opt = get_codec_options(codec)
+    return codec, mp4_opt
+
+
 class VideoWriter:
     def __init__(self, av, container, stream):
         self.av = av
@@ -114,13 +140,14 @@ def save_video_atomic(images,
                       stream: bool = False,
                       frames_hint: int = 0,
                       metadata: dict | None = None,
-                      mp4_codec: str = 'mpeg4',
+                      mp4_codec: str | None = None,
                       mp4_pix: str | None = None,
-                      mp4_opt: str = '',
+                      mp4_opt: str | None = None,
                      ) -> VideoWriter | None:
     """Write the clip; with stream=True the open writer is returned for more frames.
 
     Raises VideoWriteError when the save is refused or fails, after logging the reason once."""
+    mp4_codec, mp4_opt = resolve_codec(video_type, mp4_codec, mp4_opt)
     parsed_options = {}
     if mp4_opt:
         from modules.video_models.video_save import parse_options, rejected_options
@@ -213,15 +240,16 @@ def save_video(p,
                stream: bool = False,
                frames_hint: int = 0,
                metadata: dict | None = None,
-               mp4_codec: str = 'mpeg4',
+               mp4_codec: str | None = None,
                mp4_ext: str | None = None,
                mp4_pix: str | None = None,
-               mp4_opt: str = '',
+               mp4_opt: str | None = None,
                *,
                source: str | None = None,
               ):
     """Save frames as a video named by the output pattern.
 
+    mp4_codec: None takes the codec half of video_type (MP4/AVC1), else libx264. mp4_opt: None takes the codec's preset, '' means no options.
     mp4_pix: None takes the codec's table value. mp4_ext: None takes the video_type extension when the codec fits that container, else the codec's own.
     sync: returns the filename, or None when the save is refused or fails.
     stream: returns (filename, writer) for more frames, or raises VideoWriteError with the reason.
@@ -232,6 +260,8 @@ def save_video(p,
         return None
     if interpolate > 0 and getattr(p, 'video_interpolated', False):
         interpolate = 0
+    if video_type.lower() not in ['gif', 'png']:
+        mp4_codec, mp4_opt = resolve_codec(video_type, mp4_codec, mp4_opt)
     image = images[0]
     if p is not None:
         seed = p.all_seeds[0] if getattr(p, 'all_seeds', None) is not None else p.seed
