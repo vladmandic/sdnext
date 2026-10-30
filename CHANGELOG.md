@@ -5,7 +5,7 @@
 - **Video**
   - a video save whose encoder refuses to open fails with the reason instead of crashing the server
   - legacy video default is *h264* with its codec preset instead of *mpeg4* without options  
-    codec part of *Video format* selects the encoder, saved values and api arguments keep working
+    codec part of legacy *Video format* labels selects the encoder, api arguments keep working
   - per-codec pixel format in codec presets, odd frame sizes cropped for 4:2:0 formats
   - bt.709 colour conversion with colour tags, fractional frame rates kept
   - *Videos convert for UI playback* is on by default and converts through *pyav*, no ffmpeg binary needed
@@ -13,10 +13,16 @@
   - dlss: api and enso jobs use the ui codec defaults, slow-motion output plays slower
   - remove *vaapi* codec presets, pypi *av* builds ship no vaapi encoders
   - new endpoint `GET /sdapi/v1/video/codecs`
+  - one *pyav* path: both video writers share one encoder and every video reader decodes through *pyav* instead of *opencv*  
+    bt.709 clips read with the right colours on windows, rotated clips read upright, frame rates exact, clips without a frame count read
+  - *Video codec* in scripts, control and create video lists the codec presets, the container follows the codec  
+    settings saved under the old *Video format* labels reset to the default
+  - ltx condition video: skipping frames keeps the first frame
 - **Fixes**
   - process: show why a video run failed, report a missing input video
   - save: configured output folder kept as given, only generated folder and file names are sanitized
   - ui: refresh buttons call their method once per click
+  - video: output folder sanitized before numbering, video tab frames export writes on non-ascii paths on windows, xyz grid *Create video* saves again
 
 ## Update for 2026-10-29
 
