@@ -35,11 +35,10 @@ def get_video_filename(p:processing.StableDiffusionProcessingVideo):
         dirname = os.path.join(base_path, dirname, dirfile)
     else:
         dirname = base_path
-    if not os.path.exists(dirname):
-        os.makedirs(dirname, exist_ok=True)
     filename = os.path.join(dirname, filename)
+    filename = namegen.sanitize(filename, base=base_path) # before numbering and folder creation, so both see the folder that is used
     filename = namegen.sequence(filename)
-    filename = namegen.sanitize(filename, base=base_path)
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
     return filename
 
 

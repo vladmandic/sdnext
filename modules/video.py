@@ -290,7 +290,6 @@ def save_video(p,
     else:
         if os.path.sep not in filename:
             filename = os.path.join(base_path, filename)
-    filename = namegen.sequence(filename)
     if mp4_ext is not None and video_type.lower() not in ['gif', 'png']:
         ext = mp4_ext.lower().lstrip('.')
         if not filename.lower().endswith(f'.{ext}'):
@@ -306,7 +305,8 @@ def save_video(p,
                 ext = get_codec_ext(mp4_codec)
         if not filename.lower().endswith(ext):
             filename += f'.{ext}'
-    filename = namegen.sanitize(filename, base=base_path)
+    filename = namegen.sanitize(filename, base=base_path) # before numbering, so the scan sees the folder that is used
+    filename = namegen.sequence(filename)
     if source is not None and os.path.realpath(filename) == os.path.realpath(source):
         reason = f'output would overwrite the input "{source}"'
         log.error(f'Save video: file="{filename}" {reason}')

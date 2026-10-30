@@ -2223,6 +2223,69 @@ def test_output_folder_kept_as_configured():
     return True
 
 
+ORDER_FOLDERS = (('control', 'cat', 'cat'), ('case', 'cat#1', 'cat_1')) # (label, generated folder, as sanitized); the control is a name sanitize keeps
+
+
+def numbered_save(base: str, sanitized: str, save):
+    """Seed <base>/<sanitized>/00001-probe.mp4, restart the process-wide numbering, save once.
+
+    Returns (result, raised, seed path, seed intact)."""
+    from modules.image import namegen
+    folder = os.path.join(base, sanitized)
+    os.makedirs(folder, exist_ok=True)
+    seed = os.path.join(folder, '00001-probe.mp4')
+    with open(seed, 'wb') as f:
+        f.write(b'seed')
+    with patched(namegen, 'seq', 0):
+        res, err = call_and_catch(save)
+    with open(seed, 'rb') as f:
+        intact = f.read() == b'seed'
+    return res, err, seed, intact
+
+
+def check_numbered_saves(name: str, out: dict, bases: dict):
+    verdict(name, 'PASS', **{label: str(o) for label, o in out.items()})
+    for label, generated, sanitized in ORDER_FOLDERS:
+        o = out[label]
+        res = o['returned']
+        assert o['raised'] is None and res and os.path.isfile(res), f'{label}: returned {res!r} raised {o["raised"]}'
+        assert os.path.dirname(res) == os.path.join(bases[label], sanitized), f'{label}: saved to "{res}"'
+        assert o['seed_intact'], f'{label}: numbering restarted and the save overwrote "{o["seed"]}"'
+        assert not o['unsanitized_made'], f'{label}: created the unsanitized folder "{generated}"'
+    return True
+
+
+def test_video_tab_numbers_in_the_sanitized_folder():
+    """The generated folder is sanitized before the file is numbered and the folder created, so numbering scans the folder the file lands in and no unsanitized sibling is made."""
+    if need_av():
+        return need_av()
+    pixels = (tensor_of(small_frames(4)).float() / 127.5 - 1.0).permute(3, 0, 1, 2).unsqueeze(0)  # 1 c t h w in [-1, 1]
+    out, bases = {}, {}
+    for label, generated, sanitized in ORDER_FOLDERS:
+        base = bases[label] = os.path.join(work_dir, f'order_tab_{label}')
+        def save(base=base, generated=generated):
+            with opts(outdir_video=base, outdir_samples='', save_to_dirs=True, directories_filename_pattern=generated, samples_filename_pattern='[seq]-probe', save_txt=False):
+                return video_save.save_video(None, pixels=pixels, mp4_codec='libx264', mp4_thumb=False, mp4_fps=24)[1]
+        res, err, seed, intact = numbered_save(base, sanitized, save)
+        out[label] = {'returned': res, 'raised': repr(err) if err else None, 'seed': seed, 'seed_intact': intact, 'unsanitized_made': generated != sanitized and os.path.isdir(os.path.join(base, generated))}
+    return check_numbered_saves('test_video_tab_numbers_in_the_sanitized_folder', out, bases)
+
+
+def test_legacy_numbers_in_the_sanitized_folder():
+    """The legacy writer sanitizes the name before numbering it, so a pattern with a folder sanitize renames cannot restart at 00001 over an existing file."""
+    if need_av():
+        return need_av()
+    out, bases = {}, {}
+    for label, generated, sanitized in ORDER_FOLDERS:
+        base = bases[label] = os.path.join(work_dir, f'order_legacy_{label}')
+        def save(base=base, generated=generated):
+            with opts(outdir_video=base, outdir_samples='', samples_filename_pattern=f'{generated}/[seq]-probe'):
+                return video.save_video(None, small_frames(4), video_type='mp4', duration=4 / 24.0, sync=True, mp4_codec='libx264')
+        res, err, seed, intact = numbered_save(base, sanitized, save)
+        out[label] = {'returned': res, 'raised': repr(err) if err else None, 'seed': seed, 'seed_intact': intact, 'unsanitized_made': generated != sanitized and os.path.isdir(os.path.join(base, generated))}
+    return check_numbered_saves('test_legacy_numbers_in_the_sanitized_folder', out, bases)
+
+
 # ============================================================
 # browser gate clips
 # ============================================================
@@ -2335,7 +2398,7 @@ GROUPS = [
     ('metadata', [test_metadata_roundtrip]),
     ('gradio', [test_option_off_does_not_probe_or_convert, test_option_on_converts_without_binaries, test_option_on_serves_playable_as_is, test_option_on_converts_unplayable_h264, test_preview_audio_passthrough_and_drop, test_preview_unopenable_file_served_as_is, test_preview_av_import_failure_does_not_raise, test_cli_fallback_leaves_no_copy, test_cleanup_tmpdr_removes_all_video_extensions]),
     ('process', [test_process_missing_video_reports_reason, test_process_tab_shows_failure_text_whole]),
-    ('paths', [test_non_ascii_output_path, test_long_path_truncation, test_output_folder_kept_as_configured]),
+    ('paths', [test_non_ascii_output_path, test_long_path_truncation, test_output_folder_kept_as_configured, test_video_tab_numbers_in_the_sanitized_folder, test_legacy_numbers_in_the_sanitized_folder]),
     ('clips', [test_clips_written]),
 ]
 
