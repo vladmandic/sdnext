@@ -111,6 +111,7 @@ class Api:
         self.add_api_route("/sdapi/v1/extra-network-details", endpoints.get_extra_network_details, methods=["GET"], response_model=models.ResExtraNetworkDetails, tags=["Enumerators"])
         self.add_api_route("/sdapi/v1/unets", endpoints.get_unets, methods=["GET"], response_model=list[models.ItemUNet], tags=["Enumerators"])
         self.add_api_route("/sdapi/v1/video/models", self.video.get_video_models, methods=["GET"], response_model=list[video.ItemVideoModel], tags=["Enumerators"])
+        self.add_api_route("/sdapi/v1/video/codecs", self.video.get_video_codecs, methods=["GET"], response_model=list[video.ItemVideoCodec], tags=["Enumerators"])
 
         # functional api
         self.add_api_route("/sdapi/v1/file", endpoints.get_file, methods=["GET"], tags=["Functional"])

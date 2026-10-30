@@ -79,6 +79,18 @@ class ItemVideoModel(BaseModel):
     loaded: bool = Field(default=False, title="Loaded", description="Currently loaded through the video registry")
 
 
+class ItemVideoCodec(BaseModel):
+    name: str = Field(title="Name", description="Encoder name; pass as mp4_codec")
+    title: str = Field(title="Title", description="Display name")
+    description: str = Field(default="", title="Description", description="Short description of the encoder")
+    ext: str = Field(title="Extension", description="Default container extension; pass as mp4_ext")
+    allowed_exts: list[str] = Field(default=[], title="Allowed extensions", description="Containers the encoder can be written to")
+    options: str = Field(default="", title="Options", description="Default encoder options, key=value pairs separated by ':'")
+    pix_fmt: str | None = Field(default=None, title="Pixel format", description="Pixel format used when none is given; null when the preset names none")
+    hardware: bool | None = Field(default=None, title="Hardware", description="Encoder runs on a GPU or other device and opens only where that hardware and its driver are present; null when the encoder is not available")
+    available: bool | None = Field(default=None, title="Available", description="Encoder is compiled into the installed av package; null when av is not installed")
+
+
 def model_mode(m: models_def.Model) -> str:
     return models_def.dispatch_mode(m)
 
@@ -248,6 +260,35 @@ class APIVideo:
                     base=m.base,
                     loaded=(m.name == video_load.loaded_model),
                 ))
+        return items
+
+    def get_video_codecs(self):
+        """List the encoder presets video saves accept and which of them the installed av package provides; no encoder is opened."""
+        from modules.video_models.video_codecs import codecs_config
+        try:
+            import av
+        except Exception:
+            av = None
+        items = []
+        for name, cfg in codecs_config.items():
+            available = (name in av.codecs_available) if av is not None else None
+            hardware = None
+            if available:
+                try:
+                    hardware = bool(av.Codec(name, 'w').capabilities & (0x40000 | 0x80000)) # AV_CODEC_CAP_HARDWARE, AV_CODEC_CAP_HYBRID
+                except Exception:
+                    hardware = None
+            items.append(ItemVideoCodec(
+                name=name,
+                title=cfg.get('name', name),
+                description=cfg.get('desc', ''),
+                ext=cfg.get('ext', ''),
+                allowed_exts=cfg.get('allowed_exts', []),
+                options=cfg.get('options', ''),
+                pix_fmt=cfg.get('pix_fmt'),
+                hardware=hardware,
+                available=available,
+            ))
         return items
 
     def get_video_file(self, file: str):
