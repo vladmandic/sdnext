@@ -1683,6 +1683,94 @@ def test_legacy_labels_encode():
     return True
 
 
+RESOLVED_VIDEO_TYPES = {
+    # video_type: (kind, codec, ext, warns)
+    'None': ('none', None, None, False),
+    'GIF': ('gif', None, 'gif', False),
+    'PNG': ('png', None, 'png', False),
+    'MP4': ('video', 'libx264', 'mp4', False),
+    'mp4': ('video', 'libx264', 'mp4', False),
+    'LIBX264': ('video', 'libx264', 'mp4', False),
+    'MP4/MP4V': ('video', 'mpeg4', 'mp4', False),
+    'MP4/AVC1': ('video', 'libx264', 'mp4', False),
+    'MP4/JVT3': ('video', 'libx264', 'mp4', False),
+    'MKV/H264': ('video', 'libx264', 'mkv', False),
+    'AVI/DIVX': ('video', 'mpeg4', 'avi', False),
+    'AVI/RGBA': ('video', 'libx264', 'mp4', True),
+    'MJPEG/MJPG': ('video', 'mjpeg', 'avi', True),
+    'MPG/MPG1': ('video', 'libx264', 'mp4', True),
+    'AVR/AVR1': ('video', 'libx264', 'mp4', True),
+}
+
+
+def test_resolve_video_type_aliases():
+    """Every "Video format" value a saved setting, an API caller or a queued task can hold: codec keys in any case, bare containers, the legacy EXT/FOURCC labels."""
+    resolve = need(video_codecs, 'resolve_video_type')
+    expected = dict(RESOLVED_VIDEO_TYPES)
+    expected.update({key: ('video', key, cfg['ext'], False) for key, cfg in video_codecs.codecs_config.items()})
+    got = {}
+    for value in expected:
+        with capture_log() as logs:
+            target = resolve(value)
+        got[value] = (target.kind, target.codec, target.ext, bool(logs.messages(level=logging.WARNING)))
+    wrong = {value: (got[value], expected[value]) for value in expected if got[value] != expected[value]}
+    verdict('test_resolve_video_type_aliases', 'PASS', resolved={k: str(v) for k, v in got.items()})
+    assert not wrong, f'resolved differently: {wrong}'
+    return True
+
+
+def test_explicit_codec_overrides_label_container():
+    """An explicit codec is checked against the container the label names, and an explicit extension is used as given."""
+    resolve = need(video_codecs, 'resolve_video_type')
+    cases = {
+        ('mp4', 'ffv1', None): ('ffv1', 'mkv'),
+        ('MP4/AVC1', 'mpeg4', 'avi'): ('mpeg4', 'avi'),
+        ('libvpx-vp9', 'libx264', None): ('libx264', 'mp4'),
+        ('MKV/H264', 'libvpx-vp9', None): ('libvpx-vp9', 'mkv'),
+    }
+    got = {}
+    for (value, codec, ext), _expected in cases.items():
+        with capture_log() as logs:
+            target = resolve(value, codec, ext)
+        got[(value, codec, ext)] = (target.codec, target.ext)
+        assert not logs.find('has no encoder'), f'{value} with an explicit codec warned about its label'
+    verdict('test_explicit_codec_overrides_label_container', 'PASS', resolved={str(k): str(v) for k, v in got.items()})
+    assert got == cases, f'{got}'
+    return True
+
+
+def test_extension_rule():
+    """One extension rule, with and without an explicit extension: the container's extension is appended unless the name already ends with it."""
+    if need_av():
+        return need_av()
+    names = {'ext_rule_a.mp4': 'ext_rule_a.mp4', 'ext_rule_b.MP4': 'ext_rule_b.MP4', 'ext_rule_v1.5': 'ext_rule_v1.5.mp4', 'ext_rule_c': 'ext_rule_c.mp4'}
+    got = {}
+    for mp4_ext in (None, 'mp4'):
+        for name in names:
+            res, err = call_and_catch(legacy_save, small_frames(2), name, mp4_codec='libx264', mp4_ext=mp4_ext)
+            got[f'{name}|{mp4_ext}'] = os.path.basename(res) if res else repr(err)
+    verdict('test_extension_rule', 'PASS', **got)
+    wrong = {key: value for key, value in got.items() if value != names[key.split('|')[0]]}
+    assert not wrong, f'names differ: {wrong}'
+    return True
+
+
+def test_codec_name_saves_in_its_container():
+    """A codec key as the "Video format" writes that codec in its own container."""
+    if need_av():
+        return need_av()
+    cases = {'prores_ks': ('prores', '.mov')}
+    if 'libvpx-vp9' in av.codecs_available:
+        cases['libvpx-vp9'] = ('vp9', '.webm')
+    got = {}
+    for value in cases:
+        res, err = call_and_catch(legacy_save, small_frames(4), f'codec_name_{value}', video_type=value)
+        got[value] = (stream_info(res)['codec'], os.path.splitext(res)[1]) if res and not err else f'returned {res!r} raised {err!r}'
+    verdict('test_codec_name_saves_in_its_container', 'PASS', **{k: str(v) for k, v in got.items()})
+    assert got == cases, f'{got}'
+    return True
+
+
 def test_odd_size_under_default():
     if need_av():
         return need_av()
@@ -2925,7 +3013,7 @@ GROUPS = [
     ('floor', [test_log_capture_sees_writer_lines, test_quality_floor, test_quality_negative_control, test_quality_fixture_guard, test_colour_floor, test_colour_positive_control, test_colour_negative_controls, test_lossless_rgb_roundtrip]),
     ('writer failure', [test_sync_unknown_codec_returns_none, test_stream_rejected_pix_fmt_raises_with_reason, test_container_refusing_codec_removes_its_file, test_av_missing_sync_returns_none_stream_raises, test_zero_byte_mp4_metadata_is_empty, test_output_equal_to_source_refused, test_dlss_none_kwargs_resolve_to_ui_values, test_gif_failure_returns_none, test_mid_encode_exception_returns_none, test_sync_success_registers_after_open, test_threaded_save_joined, test_both_paths_write_the_same_stream, test_legacy_save_accepts_grayscale_frames, test_stream_writer_failure_leaves_partial_file, test_write_audio_without_stream_refused]),
     ('pixel format', [test_presets_declare_pix_fmt, test_table_pix_fmt_opens_in_legacy_loop, test_table_pix_fmt_opens_in_video_tab_loop, test_rejected_pix_fmt_names_the_list, test_empty_pix_fmt_refused_naming_default, test_out_of_table_codec_defaults_yuv420p, test_ext_none_follows_codec_when_container_refuses, test_odd_size_cropped_under_yuv420p_legacy, test_odd_size_cropped_under_yuv420p_video_tab, test_odd_size_kept_without_subsampling]),
-    ('defaults', [test_legacy_default_is_h264_yuv420p, test_legacy_default_quality_matches_old_writer, test_explicit_mpeg4_gets_table_preset, test_legacy_labels_map_to_codecs, test_legacy_labels_encode, test_odd_size_under_default, test_none_codec_kwargs_give_default]),
+    ('defaults', [test_legacy_default_is_h264_yuv420p, test_legacy_default_quality_matches_old_writer, test_explicit_mpeg4_gets_table_preset, test_legacy_labels_map_to_codecs, test_legacy_labels_encode, test_odd_size_under_default, test_none_codec_kwargs_give_default, test_resolve_video_type_aliases, test_explicit_codec_overrides_label_container, test_extension_rule, test_codec_name_saves_in_its_container]),
     ('rate', [test_video_rate_fractions, test_mpeg4_opens_at_dlss_long_rate, test_video_tab_keeps_fractional_rate, test_fps_zero_refused_by_name, test_dlss_output_fps_rule, test_video_tab_returns_none_video_on_failure]),
     ('colour', [test_default_outputs_are_tagged_bt709, test_legacy_default_colour_720, test_legacy_default_colour_512, test_video_tab_default_colour, test_rgb_pix_fmt_tagged_full_and_exact, test_prores_tagged_and_within_oracle, test_mpeg4_in_mp4_carries_colr]),
     ('readers', [test_readers_agree_on_h264_fixture, test_readers_fractional_rate, test_readers_per_container, test_reader_codec_names, test_count_frames_without_header_or_duration, test_frames_estimate_ignores_trailing_audio, test_reader_decodes_with_stream_tags, test_reader_rotation_follows_display_matrix, test_params_without_capture_read_headers_only, test_iter_frames_skip_and_limit, test_ltx_condition_frames_keep_frame_zero, test_first_frame_equals_read_video_first, test_get_video_info_exact_keys, test_unreadable_file_contracts, test_corrupt_stream_stops_with_warning, test_frames_are_contiguous, test_unchanged_callers, test_reader_decode_speed_measured]),

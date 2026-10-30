@@ -1,3 +1,6 @@
+from dataclasses import dataclass
+
+
 codecs_config = {
     # --- Modern / Standard Distribution (CPU) ---
     'libx264': {
@@ -267,3 +270,54 @@ def get_codec_dict(codec_name):
     if codec_info is None:
         return {}
     return codec_info
+
+
+DEFAULT_VIDEO_CODEC = 'libx264'
+VIDEO_TYPE_CODECS = {'mp4v': 'mpeg4', 'divx': 'mpeg4', 'avc1': 'libx264', 'h264': 'libx264', 'jvt3': 'libx264', 'mjpg': 'mjpeg'} # codec half of the legacy EXT/FOURCC labels
+
+
+@dataclass
+class VideoTarget:
+    kind: str # 'none', 'gif', 'png' or 'video'
+    codec: str | None = None
+    ext: str | None = None
+
+
+def resolve_video_type(video_type: str | None, mp4_codec: str | None = None, mp4_ext: str | None = None) -> VideoTarget:
+    """What a "Video format" value saves: nothing, an animated gif or png, or a video with its encoder and container.
+
+    video_type: a codecs_config key (any case), a bare container such as MP4, or a legacy EXT/FOURCC label such as MP4/AVC1.
+    mp4_codec wins over the codec video_type names; mp4_ext is used as given. Otherwise a container the codec cannot be written to
+    is replaced by the codec's own, with a warning."""
+    from modules.logger import log
+    label = str(video_type or 'none').strip()
+    lower = label.lower()
+    if lower in ('', 'none'):
+        return VideoTarget('none')
+    if lower in ('gif', 'png'):
+        return VideoTarget(lower, ext=lower)
+    keys = {key.lower(): key for key in codecs_config}
+    if lower in keys:
+        named, ext = keys[lower], get_codec_ext(keys[lower])
+    elif '/' in label:
+        container, half = label.split('/', 1)
+        ext = container.strip().lower()
+        named = VIDEO_TYPE_CODECS.get(half.strip().lower()) if mp4_codec is None else None
+        if named is None and mp4_codec is None:
+            log.warning(f'Video: format="{label}" codec={half.strip().lower()} has no encoder, using {DEFAULT_VIDEO_CODEC}')
+            named = DEFAULT_VIDEO_CODEC
+    else:
+        named, ext = DEFAULT_VIDEO_CODEC, lower
+    codec = mp4_codec if mp4_codec is not None else named
+    if mp4_ext is not None:
+        return VideoTarget('video', codec, mp4_ext.lower().lstrip('.'))
+    allowed = get_codec_allowed_exts(codec)
+    if allowed and ext not in allowed:
+        log.warning(f'Video: codec={codec} does not fit container={ext}, using {get_codec_ext(codec)}')
+        ext = get_codec_ext(codec)
+    return VideoTarget('video', codec, ext)
+
+
+def codec_from_video_type(video_type: str | None) -> str:
+    """Encoder a "Video format" value names; the default for none, gif and png."""
+    return resolve_video_type(video_type).codec or DEFAULT_VIDEO_CODEC

@@ -6,6 +6,7 @@ from modules import shared, errors
 from modules.logger import log
 from modules.image.namegen import FilenameGenerator # pylint: disable=unused-import
 from modules.paths import resolve_output_path
+from modules.video_models.video_codecs import codec_from_video_type, get_codec_options, resolve_video_type
 from modules.video_models.video_writer import VideoWriteError, VideoWriter, open_video_writer, rejected_options
 
 
@@ -32,28 +33,10 @@ def save_video_frames(video_writer: VideoWriter, frames):
         video_writer.write(frame)
 
 
-DEFAULT_VIDEO_CODEC = 'libx264'
-VIDEO_TYPE_CODECS = {'mp4v': 'mpeg4', 'divx': 'mpeg4', 'avc1': 'libx264', 'h264': 'libx264', 'jvt3': 'libx264', 'mjpg': 'mjpeg'} # codec half of the "Video format" labels
-
-
-def codec_from_video_type(video_type: str) -> str:
-    """Encoder named by the codec half of a "Video format" label such as MP4/AVC1; the default when the label has none."""
-    label = str(video_type or '')
-    if '/' not in label:
-        return DEFAULT_VIDEO_CODEC
-    half = label.split('/', 1)[1].strip().lower()
-    codec = VIDEO_TYPE_CODECS.get(half)
-    if codec is None:
-        log.warning(f'Video: format="{label}" codec={half} has no encoder, using {DEFAULT_VIDEO_CODEC}')
-        return DEFAULT_VIDEO_CODEC
-    return codec
-
-
 def resolve_codec(video_type: str, mp4_codec: str | None, mp4_opt: str | None) -> tuple[str, str]:
     """Encoder and options for a save: an explicit codec wins over the label; unset options take the codec's preset, '' means none."""
     codec = mp4_codec if mp4_codec is not None else codec_from_video_type(video_type)
     if mp4_opt is None:
-        from modules.video_models.video_codecs import get_codec_options
         mp4_opt = get_codec_options(codec)
     return codec, mp4_opt
 
@@ -167,20 +150,24 @@ def save_video(p,
               ):
     """Save frames as a video named by the output pattern.
 
-    mp4_codec: None takes the codec half of video_type (MP4/AVC1), else libx264. mp4_opt: None takes the codec's preset, '' means no options.
-    mp4_pix: None takes the codec's table value. mp4_ext: None takes the video_type extension when the codec fits that container, else the codec's own.
+    video_type: none, GIF, PNG, a codecs_config key, a bare container (MP4) or a legacy EXT/FOURCC label (MP4/AVC1); see resolve_video_type.
+    mp4_codec: None takes the codec video_type names, else libx264. mp4_opt: None takes the codec's preset, '' means no options.
+    mp4_pix: None takes the codec's table value. mp4_ext: None takes the video_type container when the codec fits it, else the codec's own.
     fps: output rate; None derives it from the frame count and duration.
     sync: returns the filename, or None when the save is refused or fails.
     stream: returns (filename, writer) for more frames, or raises VideoWriteError with the reason.
     otherwise: encodes in a thread and returns the filename at once; the file is registered before the thread runs and a failure is only logged.
     source: the input being processed; a save that would overwrite it is refused.
     """
-    if (video_type is None) or (video_type.lower() == 'none') or (images is None) or (len(images) < 1):
+    target = resolve_video_type(video_type, mp4_codec, mp4_ext)
+    if target.kind == 'none' or (images is None) or (len(images) < 1):
         return None
     if interpolate > 0 and getattr(p, 'video_interpolated', False):
         interpolate = 0
-    if video_type.lower() not in ['gif', 'png']:
-        mp4_codec, mp4_opt = resolve_codec(video_type, mp4_codec, mp4_opt)
+    if target.kind == 'video':
+        mp4_codec = target.codec
+        if mp4_opt is None:
+            mp4_opt = get_codec_options(mp4_codec)
     image = images[0]
     if p is not None:
         seed = p.all_seeds[0] if getattr(p, 'all_seeds', None) is not None else p.seed
@@ -195,21 +182,8 @@ def save_video(p,
     else:
         if os.path.sep not in filename:
             filename = os.path.join(base_path, filename)
-    if mp4_ext is not None and video_type.lower() not in ['gif', 'png']:
-        ext = mp4_ext.lower().lstrip('.')
-        if not filename.lower().endswith(f'.{ext}'):
-            root, current_ext = os.path.splitext(filename)
-            filename = f'{root if current_ext else filename}.{ext}'
-    else:
-        ext = video_type.lower().split('/')[0] if '/' in video_type else video_type.lower()
-        if video_type.lower() not in ['gif', 'png']:
-            from modules.video_models.video_codecs import get_codec_allowed_exts, get_codec_ext
-            allowed = get_codec_allowed_exts(mp4_codec)
-            if allowed and ext not in allowed:
-                log.warning(f'Video: codec={mp4_codec} does not fit container={ext}, using {get_codec_ext(mp4_codec)}')
-                ext = get_codec_ext(mp4_codec)
-        if not filename.lower().endswith(ext):
-            filename += f'.{ext}'
+    if not filename.lower().endswith(f'.{target.ext}'): # appended, never replaced: a name such as v1.5 keeps its dot
+        filename = f'{filename}.{target.ext}'
     filename = namegen.sanitize(filename, base=base_path) # before numbering, so the scan sees the folder that is used
     filename = namegen.sequence(filename)
     if source is not None and os.path.realpath(filename) == os.path.realpath(source):
