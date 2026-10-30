@@ -23,6 +23,7 @@
   - save: configured output folder kept as given, only generated folder and file names are sanitized
   - ui: refresh buttons call their method once per click
   - video: output folder sanitized before numbering, video tab frames export writes on non-ascii paths on windows, xyz grid *Create video* saves again
+  - minimax: quantized *H3* repos decode again, their video vae loads through the diffusers class
 
 ## Update for 2026-10-29
 

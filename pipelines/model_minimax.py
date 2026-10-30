@@ -22,6 +22,9 @@ def load_minimax(checkpoint_info, diffusers_load_config = None, workflow: str | 
         if transformer is not None:
             loaded['transformer'] = transformer
         repo_id = 'OzzyGT/MiniMax_H3_sdnq_dynamic_4bit' # nunchaku repo does not contain non-transformer modules
+    from modules.modular_load import modular_cache_dir
+    from pipelines.minimax.minimax_vae import load_vae
+    loaded['vae'] = load_vae(repo_id, modular_cache_dir(True), offline_args=offline_args)
 
     sd_models.warn_group_offload(min_vram=20)
     repo_cls = diffusers.MiniMaxH3ModularPipeline
@@ -43,9 +46,6 @@ def load_minimax(checkpoint_info, diffusers_load_config = None, workflow: str | 
         pipe.sdnext_supported_min_frames = int(pipe.min_duration * pipe.fps) # fresh pipes report the true floor; still mode gates per instance
 
     video_load.loaded_model = None # image-path load invalidates the video tab's name cache
-    if hasattr(pipe, 'vae'):
-        import torch
-        pipe.vae = pipe.vae.to(torch.float16) # minimax loads vae in float32
     if hasattr(pipe, 'vae') and hasattr(pipe.vae, 'enable_tiling'):
         pipe.vae.enable_tiling()
 

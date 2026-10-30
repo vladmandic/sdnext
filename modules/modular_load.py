@@ -102,6 +102,11 @@ def missing_components(pipe, workflow: str | None) -> list:
     return [name for name in names if getattr(pipe, name, None) is None]
 
 
+def modular_cache_dir(base: bool) -> str:
+    """Cache folder of a modular repo: base models live in the diffusers folder so the model scan lists them; video-only models stay out of the dropdown."""
+    return shared.opts.diffusers_dir if base else shared.opts.hfcache_dir
+
+
 def load_modular_pipe(repo_cls,
                       repo: str,
                       workflow: str | None = None,
@@ -118,7 +123,7 @@ def load_modular_pipe(repo_cls,
         log.error(f'Load modular: repo="{repo}" cls="{repo_cls}" pipeline class not found: diffusers too old')
         return None
     offline_args = offline_args or {}
-    cache_dir = shared.opts.diffusers_dir if base else shared.opts.hfcache_dir # base models live in the diffusers folder so the model scan lists them; video-only models stay out of the dropdown
+    cache_dir = modular_cache_dir(base)
     try:
         t0 = time.time()
         log.debug(f'Load modular: repo="{repo}" cls={repo_cls.__name__} blocks={blocks.__class__.__name__ if blocks is not None else None} workflow={workflow} base={base}')

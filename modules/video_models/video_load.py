@@ -137,8 +137,12 @@ def load_model(selected: models_def.Model):
     # model
     try:
         if selected.workflow is not None or modular_load.is_modular(selected.repo_cls):
-            from modules.modular_load import load_modular_pipe
-            shared.sd_model = load_modular_pipe(selected.repo_cls, selected.repo, workflow=selected.workflow, revision=selected.repo_revision, offline_args=offline_args, base=selected.base)
+            from modules.modular_load import load_modular_pipe, modular_cache_dir
+            loaded = {}
+            if getattr(selected.repo_cls, '__name__', '') == 'MiniMaxH3ModularPipeline':
+                from pipelines.minimax.minimax_vae import load_vae
+                loaded['vae'] = load_vae(selected.repo, modular_cache_dir(selected.base), revision=selected.repo_revision, offline_args=offline_args)
+            shared.sd_model = load_modular_pipe(selected.repo_cls, selected.repo, workflow=selected.workflow, revision=selected.repo_revision, offline_args=offline_args, base=selected.base, loaded=loaded)
         elif selected.repo_cls is None:
             shared.sd_model = load_custom(selected.repo)
         else:
