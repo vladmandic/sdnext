@@ -38,6 +38,9 @@ def submit_process(job_id, tab_index, extras_image, image_batch, extras_batch_in
 
     gr_result_image = gr.update(value=result_images, visible=tab_index != 3)
     gr_result_video = gr.update(value=result_video, visible=tab_index == 3)
+    if tab_index == 3 and result_video is None: # geninfo holds the failure reason, which is not infotext
+        from html import escape
+        return gr_result_image, gr_result_video, geninfo, f'<p><b>Error:</b> {escape(geninfo)}</p>'
     return gr_result_image, gr_result_video, geninfo, infotext_to_html(geninfo)
 
 

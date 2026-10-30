@@ -1300,6 +1300,24 @@ def test_process_missing_video_reports_reason():
     return True
 
 
+def test_process_tab_shows_failure_text_whole():
+    """A failed Process video run shows its error text as written; parsed as infotext it lost the codec and accepted formats."""
+    import html
+    from modules import postprocessing, ui_postprocessing
+    reason = 'codec=libx264rgb pix_fmt=yuv420p: pixel format yuv420p not supported, libx264rgb accepts bgr0, bgr24, rgb24'
+    original = postprocessing.run_postprocessing
+    postprocessing.run_postprocessing = lambda *args, **kwargs: ([], None, reason, {})
+    try:
+        res, err = call_and_catch(ui_postprocessing.submit_process, 'task(video-save-test)', 3, None, [], '', '', out_path('process_refused.mp4'), False, True)
+    finally:
+        postprocessing.run_postprocessing = original
+    shown = res[3] if res is not None else ''
+    verdict('test_process_tab_shows_failure_text_whole', 'PASS', raised=repr(err) if err else None, whole=html.escape(reason) in shown)
+    assert err is None, f'submit_process raised {err!r}'
+    assert html.escape(reason) in shown, f'shown {shown!r}'
+    return True
+
+
 def test_output_equal_to_source_refused():
     if need_av():
         return need_av()
@@ -2372,7 +2390,7 @@ GROUPS = [
     ('audio', [test_video_tab_muxes_audio_tensor, test_video_tab_muxes_audio_packets]),
     ('metadata', [test_metadata_roundtrip]),
     ('gradio', [test_option_off_does_not_probe_or_convert, test_option_on_converts_without_binaries, test_option_on_serves_playable_as_is, test_option_on_converts_unplayable_h264, test_preview_audio_passthrough_and_drop, test_preview_unopenable_file_served_as_is, test_preview_av_import_failure_does_not_raise, test_cli_fallback_leaves_no_copy, test_cleanup_tmpdr_removes_all_video_extensions]),
-    ('process', [test_process_missing_video_reports_reason]),
+    ('process', [test_process_missing_video_reports_reason, test_process_tab_shows_failure_text_whole]),
     ('paths', [test_non_ascii_output_path, test_long_path_truncation]),
     ('clips', [test_clips_written]),
 ]
