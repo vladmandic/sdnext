@@ -433,9 +433,9 @@ def create_output_panel(tabname, preview=True, prompt=None, height=None, transfe
 
 def create_refresh_button(refresh_component, refresh_method, refreshed_args = None, elem_id = None, visible: bool = True):
     def refresh():
-        refresh_method()
+        result = refresh_method()
         if refreshed_args is None:
-            args = {"choices": refresh_method()} # pylint: disable=unnecessary-lambda-assignment
+            args = {"choices": result}
         elif callable(refreshed_args):
             args = refreshed_args()
         else:

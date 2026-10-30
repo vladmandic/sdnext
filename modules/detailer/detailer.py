@@ -611,7 +611,7 @@ class Detailer():
             with gr.Row():
                 detailers = gr.Dropdown(label="Detailer models", elem_id=f"{tab}_detailers", choices=list(self.list), value=shared.opts.detailer_models, multiselect=True, visible=True)
                 detailers_text = gr.Textbox(label="Detailer list", elem_id=f"{tab}_detailers_text", placeholder="Comma separated list of detailer models", lines=2, visible=False, interactive=True)
-                refresh_btn = ui_common.create_refresh_button(detailers, self.enumerate, lambda: {"choices": self.enumerate()}, 'yolo_models_refresh')
+                refresh_btn = ui_common.create_refresh_button(detailers, self.enumerate, elem_id='yolo_models_refresh')
                 ui_mode = ui_components.ToolButton(value=ui_symbols.view, elem_id=f'{tab}_yolo_models_list')
                 ui_mode.click(fn=self.change_mode, inputs=[detailers, detailers_text], outputs=[detailers, detailers_text, refresh_btn])
             with gr.Row():

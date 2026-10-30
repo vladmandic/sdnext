@@ -274,7 +274,7 @@ def create_ui():
                 with gr.Tab("OpenCLiP", elem_id='tab_openclip'):
                     with gr.Row():
                         clip_model = gr.Dropdown([], value=shared.opts.caption_openclip_model, label='CLiP Model', elem_id='clip_clip_model')
-                        ui_common.create_refresh_button(clip_model, openclip.refresh_clip_models, lambda: {"choices": openclip.refresh_clip_models()}, 'clip_models_refresh')
+                        ui_common.create_refresh_button(clip_model, openclip.refresh_clip_models, elem_id='clip_models_refresh')
                         blip_model = gr.Dropdown(list(openclip.caption_models), value=shared.opts.caption_openclip_blip_model, label='Caption Model', elem_id='btN_clip_blip_model')
                         clip_mode = gr.Dropdown(openclip.caption_types, label='CLiP Mode', value='fast', elem_id='clip_clip_mode')
                     with gr.Accordion(label='Caption: Advanced Options', open=False, visible=True):
