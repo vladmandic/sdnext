@@ -175,6 +175,7 @@ def save_image(image,
         return None, None, None
     if path is None or path == '': # set default path to avoid errors when functions are triggered manually or via api and param is not set
         path = paths.resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_save)
+    base = path
     namegen = FilenameGenerator(p, seed, prompt, image, grid=grid)
     suffix = suffix if suffix is not None else ''
     basename = '' if basename is None else basename
@@ -210,12 +211,12 @@ def save_image(image,
     image = set_watermark(image, wm_text, wm_image)
 
     params = script_callbacks.ImageSaveParams(image, p, filename, pnginfo)
-    params.filename = namegen.sanitize(filename)
+    params.filename = namegen.sanitize(filename, base=base)
     dirname = os.path.dirname(params.filename)
     if dirname is not None and len(dirname) > 0:
         os.makedirs(dirname, exist_ok=True)
     params.filename = namegen.sequence(params.filename)
-    params.filename = namegen.sanitize(params.filename)
+    params.filename = namegen.sanitize(params.filename, base=base)
     # callbacks
     script_callbacks.before_image_saved_callback(params)
     exifinfo = params.pnginfo.get('UserComment', '')

@@ -216,11 +216,11 @@ def save_files(js_data, files, html_info, index):
         if 'name' in filedata and (paths.temp_dir not in filedata['name']) and os.path.isfile(filedata['name']):
             fullfn = filedata['name']
             fullfns.append(fullfn)
-            destination = paths.resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_save)
+            base = paths.resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_save)
             namegen = images.FilenameGenerator(p, seed=p.all_seeds[i], prompt=p.all_prompts[i], image=None)  # pylint: disable=no-member
             dirname = namegen.apply(shared.opts.directories_filename_pattern or "[prompt_words]").lstrip(' ').rstrip('\\ /')
-            destination = os.path.join(destination, dirname)
-            destination = namegen.sanitize(destination)
+            destination = os.path.join(base, dirname)
+            destination = namegen.sanitize(destination, base=base)
             os.makedirs(destination, exist_ok = True)
             tgt_filename = os.path.join(destination, os.path.basename(fullfn))
             relfn = os.path.relpath(tgt_filename, paths.resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_save))

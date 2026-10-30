@@ -193,8 +193,9 @@ class FilenameGenerator:
         debug_log(f'Prompt sanitize: input="{prompt}" output="{sanitized}"')
         return sanitized
 
-    def sanitize(self, filename):
+    def sanitize(self, filename, base: str | None = None):
         # starting reference: <https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file>
+        # base is a configured output folder: kept as given, only the path below it is sanitized
         invalid_chars = (
             "#<>\"'`"                         # ASCII quote and backtick
             "’‚‛\u2018\u2019\u201B"           # smart single quotes and variants # noqa: RUF001
@@ -206,26 +207,29 @@ class FilenameGenerator:
         invalid_files = ['CON', 'PRN', 'AUX', 'NUL', 'NULL', 'COM0', 'COM1', 'LPT0', 'LPT1']
         invalid_prefix = ', '
         invalid_suffix = '.,_ '
-        fn, ext = os.path.splitext(unicodedata.normalize('NFKC', filename))
+        prefix = os.path.join(base, '') if base else ''
+        if not filename.startswith(prefix):
+            prefix = ''
+        fn, ext = os.path.splitext(unicodedata.normalize('NFKC', filename[len(prefix):]))
         fn = fn.strip()
         ext = ext.strip()
         parts = Path(fn).parts
         newparts = []
         for i, part in enumerate(parts):
             part = part.translate({ ord(x): '_' for x in invalid_chars })
-            if i > 0 or (len(part) >= 2 and part[1] != invalid_folder): # skip drive, otherwise remove
+            if prefix or i > 0 or (len(part) >= 2 and part[1] != invalid_folder): # skip drive, otherwise remove
                 part = part.translate({ ord(x): '_' for x in invalid_folder })
             part = part.lstrip(invalid_prefix).rstrip(invalid_suffix)
             if part in invalid_files: # reserved names
                 [part := part.replace(word, '_') for word in invalid_files] # pylint: disable=expression-not-assigned
             newparts.append(part)
         fn = str(Path(*newparts))
-        fn = fn.replace('  ', ' ').strip()
+        fn = prefix + fn.replace('  ', ' ').strip()
         max_length = max(256 - len(ext), os.statvfs(__file__).f_namemax - 32 if hasattr(os, 'statvfs') else 256 - len(ext))
         while len(os.path.abspath(fn)) > max_length:
             fn = fn[:-1]
         fn += ext
-        debug_log(f'Filename sanitize: input="{filename}" parts={parts} output="{fn}" ext={ext} max={max_length} len={len(fn)}')
+        debug_log(f'Filename sanitize: input="{filename}" base="{base}" parts={parts} output="{fn}" ext={ext} max={max_length} len={len(fn)}')
         return fn
 
     def safe_int(self, s):
