@@ -525,6 +525,9 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
                 samples = process_diffusers(p)
             timer.process.record('process')
 
+            if shared.state.error: # the live preview is a user interrupt's partial result, not a failed pass's
+                log.debug(f'Process: batch={n+1}/{p.n_iter} failed')
+                break
             if shared.state.interrupted:
                 log.debug(f'Process: batch={n+1}/{p.n_iter} interrupted')
                 _keep = get_opt(p, 'keep_incomplete')

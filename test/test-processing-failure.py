@@ -3,9 +3,9 @@
 Offline unit tests for a generation pass that fails, against a user interrupt.
 
 A pass that raises records its message on ``State.error`` and stops the job through ``interrupted``,
-so the job reports ``failed`` and the video routes answer 500 with the message; a user interrupt
-reports ``interrupted`` and the video routes answer 499. The pipeline is a stub that raises or
-interrupts during its call.
+so the job reports ``failed``, returns and saves no images, and the video routes answer 500 with the
+message; a user interrupt reports ``interrupted``, keeps its last live preview, and the video routes
+answer 499. The pipeline is a stub that leaves a preview, then raises or interrupts during its call.
 
 Covers:
 
@@ -226,6 +226,14 @@ def test_failed_pass_reports_failed_with_the_message():
     return True
 
 
+def test_failed_pass_returns_and_saves_no_preview():
+    out = generate('fail')
+    assert out['status'] == 'failed', out
+    assert out['images'] == [], f'failed pass returned its live preview: {out}'
+    assert out['saved'] == [], f'failed pass saved its live preview: {out}'
+    return True
+
+
 def test_user_interrupt_keeps_the_preview():
     out = generate('interrupt')
     assert out['error'] == '' and out['status'] == 'interrupted', out
@@ -239,6 +247,12 @@ def test_user_interrupt_keeps_the_preview():
 def test_video_failed_pass_answers_500_with_the_message():
     out = generate_video('fail', preview=False)
     assert out == {'code': 500, 'message': 'stub pipeline failure'}, out
+    return True
+
+
+def test_video_failed_pass_with_a_preview_answers_500():
+    out = generate_video('fail')
+    assert out == {'code': 500, 'message': 'stub pipeline failure'}, f'failed pass returned its live preview as a video: {out}'
     return True
 
 
@@ -261,12 +275,14 @@ def run_all():
     cat = category('processing')
     for fn in [
         test_failed_pass_reports_failed_with_the_message,
+        test_failed_pass_returns_and_saves_no_preview,
         test_user_interrupt_keeps_the_preview,
     ]:
         run_test(cat, fn)
     cat = category('video')
     for fn in [
         test_video_failed_pass_answers_500_with_the_message,
+        test_video_failed_pass_with_a_preview_answers_500,
         test_video_user_interrupt_answers_499,
     ]:
         run_test(cat, fn)
