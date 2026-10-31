@@ -13,6 +13,7 @@ Covers:
 - a threaded legacy video save that finishes after the next job began
 - ``save_model`` called inside a caller's job
 - ``State.begin`` resetting ``interrupted`` for every title
+- an image save that fails leaving the save thread running for the next save
 
 No running server required.
 
@@ -46,7 +47,7 @@ installer.add_args(modules.cmd_args.parser)
 modules.cmd_args.parsed, _ = modules.cmd_args.parser.parse_known_args([])
 
 from PIL import Image                                                # pylint: disable=wrong-import-position
-from modules import shared, devices                                  # pylint: disable=wrong-import-position
+from modules import shared, devices, paths                           # pylint: disable=wrong-import-position
 from modules.errors import log                                       # pylint: disable=wrong-import-position
 
 devices.torch_gc = lambda *args, **kwargs: None  # begin/end call it; nothing here holds device memory
@@ -262,6 +263,35 @@ def test_model_save_leaves_callers_job():
     assert state.state_history[mark:] == [], f'entries {state.state_history[mark:]}'
 
 
+def test_failed_save_keeps_the_save_thread():
+    """save_image waits on the save thread; a save that raises there must still be marked done."""
+    from modules.image.save import save_image
+
+    def save(name: str) -> tuple[bool, str | None]:
+        out = {}
+        worker = threading.Thread(target=lambda: out.setdefault('fn', save_image(Image.new('RGB', (8, 8)), path=work_dir, forced_filename=name, extension='png', info='probe parameters')[0]), daemon=True)
+        worker.start()
+        worker.join(30)
+        return worker.is_alive(), out.get('fn')
+
+    blocked = os.path.join(work_dir, 'params-blocked')
+    os.makedirs(blocked)
+    previous = (paths.params_path, shared.opts.data.get('save_to_dirs', None))
+    paths.params_path = blocked # every save with metadata writes it; a folder makes the open fail
+    shared.opts.data['save_to_dirs'] = False
+    try:
+        hung, _fn = save('failed')
+        assert not hung, 'save_image did not return after a save that failed on the save thread'
+    finally:
+        paths.params_path = previous[0]
+    try:
+        hung, fn = save('after-failed')
+    finally:
+        shared.opts.data['save_to_dirs'] = previous[1]
+    assert not hung, 'the save after a failed one did not return'
+    assert fn is not None and os.path.isfile(fn), f'next save wrote no file: "{fn}"'
+
+
 def run_all():
     log.warning('=== Save jobs ===')
     cat = category('state')
@@ -277,6 +307,7 @@ def run_all():
         test_legacy_save_registers_with_running_job,
         test_threaded_legacy_save_leaves_next_job,
         test_model_save_leaves_callers_job,
+        test_failed_save_keeps_the_save_thread,
     ]:
         run_test(cat, fn)
 

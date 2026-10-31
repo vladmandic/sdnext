@@ -68,102 +68,107 @@ def atomically_save_image():
     while True:
         image, filename, extension, params, exifinfo, filename_txt, is_grid = save_queue.get()
         savejob = shared.state.record('Save image')
-        shared.state.image_history += 1
-        if len(exifinfo) > 2:
-            with open(paths.params_path, "w", encoding="utf8") as file:
-                file.write(exifinfo)
-        fn = filename + extension
-        filename = filename.strip()
-        if extension[0] != '.': # add dot if missing
-            extension = '.' + extension
         try:
-            image_format = Image.registered_extensions()[extension]
-        except Exception:
-            log.warning(f'Save: unknown image format: {extension}')
-            image_format = 'JPEG'
-        exifinfo = (exifinfo or "") if shared.opts.image_metadata else ""
-        # additional metadata saved in files
-        if shared.opts.save_txt and len(exifinfo) > 0:
+            shared.state.image_history += 1
+            if len(exifinfo) > 2:
+                with open(paths.params_path, "w", encoding="utf8") as file:
+                    file.write(exifinfo)
+            fn = filename + extension
+            filename = filename.strip()
+            if extension[0] != '.': # add dot if missing
+                extension = '.' + extension
             try:
-                with open(filename_txt, "w", encoding="utf8") as file:
-                    file.write(f"{exifinfo}\n")
-                log.info(f'Save: text="{filename_txt}" len={len(exifinfo)}')
-            except Exception as e:
-                log.warning(f'Save failed: description={filename_txt} {e}')
+                image_format = Image.registered_extensions()[extension]
+            except Exception:
+                log.warning(f'Save: unknown image format: {extension}')
+                image_format = 'JPEG'
+            exifinfo = (exifinfo or "") if shared.opts.image_metadata else ""
+            # additional metadata saved in files
+            if shared.opts.save_txt and len(exifinfo) > 0:
+                try:
+                    with open(filename_txt, "w", encoding="utf8") as file:
+                        file.write(f"{exifinfo}\n")
+                    log.info(f'Save: text="{filename_txt}" len={len(exifinfo)}')
+                except Exception as e:
+                    log.warning(f'Save failed: description={filename_txt} {e}')
 
-        # actual save
-        exifinfo_dump = piexif.helper.UserComment.dump(exifinfo, encoding="unicode")
-        if image_format == 'PNG':
-            pnginfo_data = PngImagePlugin.PngInfo()
-            for k, v in params.pnginfo.items():
-                pnginfo_data.add_text(k, str(v))
-            debug_save(f'Save pnginfo: {params.pnginfo.items()}')
-            save_args = {
-                'compress_level': 6,
-                'pnginfo': pnginfo_data if shared.opts.image_metadata else None,
-            }
-        elif image_format == 'JPEG':
-            if image.mode == 'RGBA':
-                log.warning('Save: removing alpha channel')
-                image = image.convert("RGB")
-            elif image.mode == 'I;16':
-                image = image.point(lambda p: p * 0.0038910505836576).convert("L")
-            save_args = {
-                'optimize': True,
-                'quality': shared.opts.jpeg_quality,
-            }
-            if shared.opts.image_metadata:
-                debug_save(f'Save exif: {exifinfo}')
-                save_args['exif'] = piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: exifinfo_dump } })
-        elif image_format == 'WEBP':
-            if image.mode == 'I;16':
-                image = image.point(lambda p: p * 0.0038910505836576).convert("RGB")
-            save_args = {
-                'optimize': True,
-                'quality': shared.opts.jpeg_quality,
-                'lossless': shared.opts.webp_lossless,
-            }
-            if shared.opts.image_metadata:
-                debug_save(f'Save exif: {exifinfo}')
-                save_args['exif'] = piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: exifinfo_dump } })
-        elif image_format == 'JXL':
-            if image.mode == 'I;16':
-                image = image.point(lambda p: p * 0.0038910505836576).convert("RGB")
-            elif image.mode not in {"RGB", "RGBA"}:
-                image = image.convert("RGBA")
-            save_args = {
-                'optimize': True,
-                'quality': shared.opts.jpeg_quality,
-                'lossless': shared.opts.webp_lossless,
-            }
-            if shared.opts.image_metadata:
-                debug_save(f'Save exif: {exifinfo}')
-                save_args['exif'] = piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: exifinfo_dump } })
-        elif image_format == 'HEIF':
-            save_args = { 'quality': shared.opts.jpeg_quality }
-            if shared.opts.image_metadata:
-                debug_save(f'Save exif: {exifinfo}')
-                save_args['exif'] = piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: exifinfo_dump } })
-        else:
-            save_args = { 'quality': shared.opts.jpeg_quality }
-        try:
-            debug_save(f'Save args: {save_args}')
-            image.save(fn, format=image_format, **save_args)
-        except Exception as e:
-            log.error(f'Save failed: file="{fn}" format={image_format} args={save_args} {e}')
+            # actual save
+            exifinfo_dump = piexif.helper.UserComment.dump(exifinfo, encoding="unicode")
+            if image_format == 'PNG':
+                pnginfo_data = PngImagePlugin.PngInfo()
+                for k, v in params.pnginfo.items():
+                    pnginfo_data.add_text(k, str(v))
+                debug_save(f'Save pnginfo: {params.pnginfo.items()}')
+                save_args = {
+                    'compress_level': 6,
+                    'pnginfo': pnginfo_data if shared.opts.image_metadata else None,
+                }
+            elif image_format == 'JPEG':
+                if image.mode == 'RGBA':
+                    log.warning('Save: removing alpha channel')
+                    image = image.convert("RGB")
+                elif image.mode == 'I;16':
+                    image = image.point(lambda p: p * 0.0038910505836576).convert("L")
+                save_args = {
+                    'optimize': True,
+                    'quality': shared.opts.jpeg_quality,
+                }
+                if shared.opts.image_metadata:
+                    debug_save(f'Save exif: {exifinfo}')
+                    save_args['exif'] = piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: exifinfo_dump } })
+            elif image_format == 'WEBP':
+                if image.mode == 'I;16':
+                    image = image.point(lambda p: p * 0.0038910505836576).convert("RGB")
+                save_args = {
+                    'optimize': True,
+                    'quality': shared.opts.jpeg_quality,
+                    'lossless': shared.opts.webp_lossless,
+                }
+                if shared.opts.image_metadata:
+                    debug_save(f'Save exif: {exifinfo}')
+                    save_args['exif'] = piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: exifinfo_dump } })
+            elif image_format == 'JXL':
+                if image.mode == 'I;16':
+                    image = image.point(lambda p: p * 0.0038910505836576).convert("RGB")
+                elif image.mode not in {"RGB", "RGBA"}:
+                    image = image.convert("RGBA")
+                save_args = {
+                    'optimize': True,
+                    'quality': shared.opts.jpeg_quality,
+                    'lossless': shared.opts.webp_lossless,
+                }
+                if shared.opts.image_metadata:
+                    debug_save(f'Save exif: {exifinfo}')
+                    save_args['exif'] = piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: exifinfo_dump } })
+            elif image_format == 'HEIF':
+                save_args = { 'quality': shared.opts.jpeg_quality }
+                if shared.opts.image_metadata:
+                    debug_save(f'Save exif: {exifinfo}')
+                    save_args['exif'] = piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: exifinfo_dump } })
+            else:
+                save_args = { 'quality': shared.opts.jpeg_quality }
+            try:
+                debug_save(f'Save args: {save_args}')
+                image.save(fn, format=image_format, **save_args)
+            except Exception as e:
+                log.error(f'Save failed: file="{fn}" format={image_format} args={save_args} {e}')
+                errors.display(e, 'Image save')
+            size = os.path.getsize(fn) if os.path.exists(fn) else 0
+            what = 'grid' if is_grid else 'image'
+            log.info(f'Save: {what}="{fn}" type={image_format} width={image.width} height={image.height} size={size}')
+            savejob.outputs.append(fn)
+
+            if shared.opts.save_log_fn != '' and len(exifinfo) > 0:
+                try:
+                    append_save_log(filename, exifinfo)
+                except Exception as e:
+                    log.error(f'Save failed: json="{shared.opts.save_log_fn}" {e}')
+        except Exception as e: # one failed save must not stop the thread every later save waits on
+            log.error(f'Save failed: file="{filename}{extension}" {e}')
             errors.display(e, 'Image save')
-        size = os.path.getsize(fn) if os.path.exists(fn) else 0
-        what = 'grid' if is_grid else 'image'
-        log.info(f'Save: {what}="{fn}" type={image_format} width={image.width} height={image.height} size={size}')
-        savejob.outputs.append(fn)
-
-        if shared.opts.save_log_fn != '' and len(exifinfo) > 0:
-            try:
-                append_save_log(filename, exifinfo)
-            except Exception as e:
-                log.error(f'Save failed: json="{shared.opts.save_log_fn}" {e}')
-        savejob.end()
-        save_queue.task_done()
+        finally:
+            savejob.end()
+            save_queue.task_done()
 
 
 save_queue: queue.Queue[tuple[Image.Image, str, str, script_callbacks.ImageSaveParams, str, str | None, bool]] = queue.Queue()
