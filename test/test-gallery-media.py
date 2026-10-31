@@ -3,12 +3,13 @@
 Offline tests for gallery media: which files the gallery treats as video.
 
 Every container a codec preset writes gets a video thumbnail from ``/sdapi/v1/browser/thumb``
-and the video preview in the Gradio gallery.
+and the video preview in the Gradio gallery, and the frontend lists it.
 
 Covers:
 
 - the thumb route, called as the server registers it, on one clip per container, plus an image and an uppercase extension
 - ``ui_gallery.read_media`` taking the video branch for every container (only ts reached the image branch before)
+- the frontend's extension list in ``ui/gallery.ts`` naming every container
 - ``gr_tempdir.cleanup_tmpdr`` removing preview copies of every container and nothing else
 - ``video_codecs.is_video_file`` on extensions, cases and paths
 
@@ -19,6 +20,7 @@ Usage:
 """
 
 import os
+import re
 import sys
 import json
 import time
@@ -248,6 +250,22 @@ def test_read_media_every_container():
 
 
 # ============================================================
+# frontend list
+# ============================================================
+
+def test_frontend_lists_every_container():
+    source = open(os.path.join(script_dir, 'ui', 'gallery.ts'), encoding='utf8').read()
+    match = re.search(r'const SUPPORTED_EXTENSIONS(?::[^=]+)?\s*=\s*\[([^\]]*)\]', source, re.DOTALL)
+    assert match is not None, 'SUPPORTED_EXTENSIONS array literal not found in ui/gallery.ts'
+    tokens = [t.strip() for t in match.group(1).split(',') if t.strip()]
+    malformed = [t for t in tokens if not re.fullmatch(r"""['"][a-z0-9]+['"]""", t)]
+    assert not malformed, f'SUPPORTED_EXTENSIONS holds entries that are not plain extension strings: {malformed}'
+    listed = {t[1:-1] for t in tokens}
+    missing = sorted(set(CONTAINERS) - listed)
+    assert not missing, f'ui/gallery.ts does not list {missing}'
+
+
+# ============================================================
 # temp cleanup
 # ============================================================
 
@@ -301,6 +319,8 @@ def run_all():
         run_test(cat, fn)
     cat = category('preview')
     run_test(cat, test_read_media_every_container)
+    cat = category('frontend')
+    run_test(cat, test_frontend_lists_every_container)
     cat = category('cleanup')
     run_test(cat, test_cleanup_removes_every_container)
     cat = category('helper')

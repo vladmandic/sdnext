@@ -58,7 +58,7 @@ const icons = {
 // eslint-disable-next-line @stylistic/max-len, @stylistic/quotes
 const loadingSvg = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet"><g><circle cx="50" cy="50" r="12" stroke="%233b82f6" stroke-width="3" stroke-dasharray="55 25" fill="none"><animateTransform attributeName="transform" type="rotate" repeatCount="indefinite" dur="0.8s" values="0 50 50;360 50 50"/></circle></g></svg>`;
 
-const SUPPORTED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'tiff', 'jp2', 'jxl', 'gif', 'mp4', 'mkv', 'avi', 'mjpeg', 'mpg', 'avr', 'heif', 'heic', 'mov', 'ts'];
+const SUPPORTED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'tiff', 'jp2', 'jxl', 'gif', 'heif', 'heic', 'mp4', 'mkv', 'mov', 'ts', 'webm', 'avi'];
 
 const gallerySorter = {
   nameA: { name: 'Name Ascending', func: (a, b) => a.name.localeCompare(b.name) },
