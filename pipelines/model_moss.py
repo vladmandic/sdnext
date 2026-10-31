@@ -95,7 +95,7 @@ def load_moss_image_modular(checkpoint_info, diffusers_load_config=None):
     offline_args = {'local_files_only': True} if shared.opts.offline_mode else {}
     log.debug(f'Load model: type=MossImage repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype}')
 
-    from modules.modular_load import load_modular_pipe, missing_components
+    from modules.modular_load import load_modular_pipe
     from pipelines.moss.modular_blocks_moss_image import MOSSImageBlocks
     blocks = MOSSImageBlocks(components_repo=repo_id, trust_components_code=True)
     pipe = load_modular_pipe(
@@ -111,9 +111,6 @@ def load_moss_image_modular(checkpoint_info, diffusers_load_config=None):
     if pipe is None:
         return None
 
-    missing = missing_components(pipe, workflow=None)
-    if missing:
-        raise RuntimeError(f'MOSS-Image components failed to load: {missing}')
     pipe.task_args = {'output_type': 'np'} # pylint: disable=attribute-defined-outside-init
     pipe.sd_checkpoint_info = checkpoint_info # pylint: disable=attribute-defined-outside-init
     sd_hijack_te.init_hijack(pipe)

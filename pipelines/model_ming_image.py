@@ -21,7 +21,7 @@ def load_ming_image(checkpoint_info, diffusers_load_config=None):
     offline_args = {'local_files_only': True} if shared.opts.offline_mode else {}
     log.debug(f'Load model: type=MingImage repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype}')
 
-    from modules.modular_load import load_modular_pipe, missing_components
+    from modules.modular_load import load_modular_pipe
     from pipelines.ming.modular_blocks_ming_image import MingImageBlocks
     blocks = MingImageBlocks(components_repo=repo_id)
     pipe = load_modular_pipe(
@@ -37,9 +37,6 @@ def load_ming_image(checkpoint_info, diffusers_load_config=None):
     if pipe is None:
         return None
 
-    missing = missing_components(pipe, workflow=None)
-    if missing:
-        raise RuntimeError(f'Ming-Image components failed to load: {missing}')
     pipe.task_args = {'output_type': 'np'} # pylint: disable=attribute-defined-outside-init
     pipe.sd_checkpoint_info = checkpoint_info # pylint: disable=attribute-defined-outside-init
     sd_hijack_te.init_hijack(pipe)

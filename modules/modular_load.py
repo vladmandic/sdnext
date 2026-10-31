@@ -159,13 +159,13 @@ def load_modular_pipe(repo_cls,
         loaded = [name for name, component in pipe.components.items() if component is not None]
         empty = [name for name, component in pipe.components.items() if component is None]
         missing = missing_components(pipe, workflow)
-        pipe.sdnext_missing_components = missing # a caller that can recover a component clears its own entry
         pipe.sdnext_video_workflow = workflow # the workflow this pipe was loaded for, which is what the reference-workflow guard reads; the executed task is chosen per request
         log.info(f'Load modular: cls={pipe.__class__.__name__} workflow={workflow} components={loaded} empty={empty} time={time.time()-t0:.2f}')
         if missing:
             # load_components builds each component in its own try/except and reports a failure as a warning on the
             # diffusers logger, so the reason is in the log above this line rather than in the exception path
             log.error(f'Load modular: cls={pipe.__class__.__name__} workflow={workflow} missing={missing} components the workflow requires did not load')
+            return None
 
         sd_hijack_modular.install_state_hook(pipe)
         sd_hijack_modular.register_callbacks(pipe)
