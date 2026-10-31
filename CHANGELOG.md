@@ -39,6 +39,7 @@
   - processing: a negative prompt the pipeline takes no input for is reported once per job instead of dropped silently
   - models: gated repo access check sends the token stored by *hf auth login*, no more *401* error on each load while downloads authenticate
   - preview: live previews of v-prediction models use the v-prediction estimate instead of the epsilon one
+  - samplers: *Euler SGM* and *DC Solver* use the model's prediction type instead of forcing *sample* and *epsilon*, *DPM++ Cosine* no longer fails on its first step
 
 ## Update for 2026-10-29
 
