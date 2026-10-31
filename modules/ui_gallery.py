@@ -5,6 +5,7 @@ from PIL import Image
 from modules import ui_symbols, ui_common, images, video, modelstats
 from modules.logger import log
 from modules.ui_components import ToolButton
+from modules.video_models.video_codecs import is_video_file
 
 
 def read_media(fn):
@@ -13,9 +14,7 @@ def read_media(fn):
         log.error(f'Gallery not found: file="{fn}"')
         return [[], None, '', '', f'Media not found: {fn}']
     stat_size, stat_mtime = modelstats.stat(fn)
-    # Treat common containers as video for preview; Gradio/HTML5 will handle codec support.
-    video_exts = ('.mp4', '.webm', '.mkv', '.avi', '.mov', '.mpg', '.mpeg', '.mjpeg')
-    if fn.lower().endswith(video_exts):
+    if is_video_file(fn):
         geninfo = ''
         try:
             frames, fps, duration, w, h, codec, _frame = video.get_video_params(fn)

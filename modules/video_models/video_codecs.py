@@ -1,3 +1,4 @@
+import os
 from dataclasses import dataclass
 
 
@@ -196,7 +197,11 @@ codecs_config = {
         'pix_fmt': 'yuv420p',
     },
 }
+VIDEO_EXTENSIONS = frozenset(ext for cfg in codecs_config.values() for ext in cfg['allowed_exts']) # every container a preset writes
 
+
+def is_video_file(fn: str) -> bool:
+    return os.path.splitext(fn)[1].lower().lstrip('.') in VIDEO_EXTENSIONS
 
 def get_codec_list():
     return ['none'] + list(codecs_config.keys())

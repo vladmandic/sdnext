@@ -11,6 +11,7 @@ from PIL import Image
 from modules import shared, images, files_cache, modelstats
 from modules.logger import log
 from modules.paths import resolve_output_path
+from modules.video_models.video_codecs import is_video_file
 
 
 debug = log.debug if os.environ.get('SD_BROWSER_DEBUG', None) is not None else lambda *args, **kwargs: None
@@ -228,7 +229,7 @@ def register_api(api): # register api
         try:
             from modules.api import helpers
             fn = helpers.validate_path(file, shared.demo.allowed_paths)
-            if fn.lower().endswith('.mp4'):
+            if is_video_file(fn):
                 return JSONResponse(content=get_video_thumbnail(fn))
             else:
                 return JSONResponse(content=get_image_thumbnail(fn, exif))

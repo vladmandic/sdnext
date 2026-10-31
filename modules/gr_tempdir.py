@@ -173,8 +173,8 @@ def cleanup_tmpdr():
         return
     removed = 0
     if shared.opts.clean_temp_dir_at_start:
-        from modules.video_models.video_codecs import codecs_config
-        extensions = {".png", ".jpg", ".webp", ".jxl", ".heic", ".heif", ".mp4", ".webm"} | {f'.{ext}' for cfg in codecs_config.values() for ext in cfg['allowed_exts']} # preview copies keep the source container
+        from modules.video_models.video_codecs import VIDEO_EXTENSIONS
+        extensions = {".png", ".jpg", ".webp", ".jxl", ".heic", ".heif"} | {f'.{ext}' for ext in VIDEO_EXTENSIONS} # preview copies keep the source container
         for root, _dirs, files in os.walk(temp_dir, topdown=False):
             for name in files:
                 try:
