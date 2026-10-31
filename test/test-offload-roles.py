@@ -496,6 +496,32 @@ def test_ondemand_offload_hands_back_the_loaded_tensors():
     return True
 
 
+def test_hook_removal_hands_an_onloaded_module_back():
+    device = accelerator()
+    if device is None:
+        return True
+    module = BridgeModule()
+    sd_offload_group.apply_group_offload_ondemand(module)
+    loaded = {name: p.data for name, p in module.named_parameters()}
+    pipe = FakePipe({'vae': module})
+    pipe.sdnext_ondemand_modules = ['vae']
+    allocated = torch.cuda.memory_allocated(device)
+    orig_device = sd_offload_group.devices.device
+    sd_offload_group.devices.device = device
+    try:
+        module._hf_hook.pre_forward(module, torch.zeros(1, 4)) # pylint: disable=protected-access # a decode that raises after its entry hook leaves the module onloaded with its record
+        sd_offload_group.remove_group_offload(pipe) # an unload removes the hooks, then moves the module to meta
+        module.to('meta')
+    finally:
+        sd_offload_group.devices.device = orig_device
+    leaked = torch.cuda.memory_allocated(device) - allocated
+    assert leaked == 0, f'{leaked} bytes stay on the accelerator after the meta move'
+    assert getattr(module, 'sdnext_loaded', None) is None, 'the record must not outlive the hook'
+    for name, tensor in loaded.items():
+        assert tensor.device.type == 'cpu', f'{name} record entry is not the cpu tensor'
+    return True
+
+
 def test_group_offload_hands_back_the_loaded_tensors():
     from diffusers.hooks.group_offloading import _GROUP_OFFLOADING
     device = accelerator()
@@ -827,6 +853,7 @@ def run_all():
         test_ondemand_apply_leaves_weights_on_cpu,
         test_resident_placement_clears_the_ondemand_stamp,
         test_ondemand_offload_hands_back_the_loaded_tensors,
+        test_hook_removal_hands_an_onloaded_module_back,
         test_group_offload_hands_back_the_loaded_tensors,
         test_no_split_units_are_the_outermost_declared_layers,
         test_group_offload_keeps_no_split_units_whole,

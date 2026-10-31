@@ -137,6 +137,7 @@ def remove_group_offload_component(module) -> bool:
 
 
 def remove_group_offload(sd_model):
+    offload_ondemand(sd_model, reason='remove') # a call that raised after its entry hook leaves the module onloaded; its record holds the old parameters through a meta move
     removed = []
     for module_name in get_module_names(sd_model):
         module = getattr(sd_model, module_name, None)
@@ -146,6 +147,7 @@ def remove_group_offload(sd_model):
         module = getattr(sd_model, module_name, None)
         if module is not None:
             module.sdnext_ondemand = False
+            module.sdnext_loaded = None
             if hasattr(module, '_hf_hook'):
                 module = accelerate.hooks.remove_hook_from_module(module, recurse=True)
             removed.append(f'{module_name}:ondemand')
