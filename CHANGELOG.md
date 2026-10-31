@@ -32,6 +32,7 @@
   - minimax: webm, mkv and ts files accepted as reference videos
   - save: *Save metadata to JSON file* appends one line per image to a json lines file instead of rewriting the whole log, an existing *.json* log is left as it is
   - save: an image save that fails no longer stops every later save
+  - save: a generated folder or file name starting with a letter and a colon stays inside the output folder on windows
 
 ## Update for 2026-10-29
 

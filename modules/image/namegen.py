@@ -314,7 +314,7 @@ class FilenameGenerator:
                     res += text + str(replacement).replace('/', '-').replace('\\', '-')
                     continue
                 res += text + f'[{pattern}]' # reinsert unknown pattern
-        return res
+        return res.replace(':', '_') # callers join this to the output folder; on windows a letter and a colon start a drive and os.path.join drops the folder
 
 
 def get_next_sequence_number(path, basename): # pylint: disable=unused-argument

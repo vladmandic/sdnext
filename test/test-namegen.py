@@ -12,6 +12,7 @@ Covers:
 - ``..``, trailing dots, ``:`` and reserved names in generated components
 - calls without a base, and paths outside the base, sanitized whole
 - ``save_image`` writing into a configured folder whose name ends in ``_``
+- generated names carrying no ``:``, so a pattern starting with a letter and a colon cannot become a Windows drive
 
 No running server required.
 
@@ -23,6 +24,7 @@ import os
 import sys
 import shutil
 import tempfile
+from types import SimpleNamespace
 
 script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, script_dir)
@@ -86,6 +88,11 @@ def run_test(cat: str, fn):
         record(cat, False, name, f'exception: {e}')
 
 
+def stub_p():
+    """What FilenameGenerator reads from a processing object for the tokens these tests use."""
+    return SimpleNamespace(all_seeds=[1234], seed=1234, all_prompts=['a cat'], prompt='a cat', width=64, height=64)
+
+
 def components(path: str) -> list[str]:
     return path.replace('\\', '/').split('/')
 
@@ -144,6 +151,34 @@ def test_save_image_sanitizes_generated_dir():
     assert os.path.isfile(filename), f'missing "{filename}"'
 
 
+# ============================================================
+# apply
+# ============================================================
+
+def test_generated_names_carry_no_colon():
+    """Literal pattern text and token values both reach the name; a letter and a colon at the start of a component is a drive on Windows."""
+    generator = FilenameGenerator(stub_p(), seed=1234, prompt='a cat', image=None)
+    names = {pattern: generator.apply(pattern) for pattern in ('a: [seed]', 'x:[seed]/b:y', '[seed]-c:')}
+    colons = {pattern: name for pattern, name in names.items() if ':' in name}
+    assert not colons, f'names with a colon: {colons}'
+    assert names['a: [seed]'] == 'a_ 1234', f"literal text changed beyond the colon: {names['a: [seed]']!r}"
+
+
+def test_save_image_pattern_with_drive_letter():
+    """On Windows a folder pattern starting "a:" dropped the output folder and saved relative to drive A; the file must land below the configured folder."""
+    from modules.image.save import save_image
+    folder = os.path.join(work_dir, 'drive')
+    keys = ('save_to_dirs', 'directories_filename_pattern', 'samples_filename_pattern')
+    previous = {k: shared.opts.data.get(k, None) for k in keys}
+    shared.opts.data.update({'save_to_dirs': True, 'directories_filename_pattern': 'a: [seed]', 'samples_filename_pattern': 'b: [seed]'})
+    try:
+        filename, _txt, _exif = save_image(Image.new('RGB', (8, 8)), path=folder, seed=1234, prompt='a cat', extension='png')
+    finally:
+        shared.opts.data.update(previous)
+    assert os.path.commonpath([os.path.abspath(filename), os.path.abspath(folder)]) == os.path.abspath(folder), f'saved to "{filename}", configured "{folder}"'
+    assert os.path.isfile(filename), f'missing "{filename}"'
+
+
 def run_all():
     log.warning('=== Output path sanitize ===')
     cat = category('sanitize')
@@ -154,10 +189,13 @@ def run_all():
         test_path_outside_base_sanitized_whole,
     ]:
         run_test(cat, fn)
+    cat = category('apply')
+    run_test(cat, test_generated_names_carry_no_colon)
     cat = category('save')
     for fn in [
         test_save_image_into_folder_ending_in_underscore,
         test_save_image_sanitizes_generated_dir,
+        test_save_image_pattern_with_drive_letter,
     ]:
         run_test(cat, fn)
 
