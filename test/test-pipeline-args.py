@@ -7,7 +7,7 @@ Covers:
 - a resized hires pass on a modular pipeline that takes condition images, called at the hires size
 - a negative prompt the pipeline takes no input for, warned once per job, through process_images on stub pipelines
 - ``get_guidance_params`` on standard and modular pipelines, with and without a guider, and ``set_guider`` building the same guider
-- the FLUX.3 live-preview unpack sized for the pass that runs, hires or base
+- the FLUX.3 live-preview unpack and the standard preview callback sized for the pass that runs, hires or base
 
 No running server required.
 
@@ -295,6 +295,32 @@ def test_flux3_preview_unpack_at_pass_size():
     assert shapes == {'hires': (1, 32, 96, 96), 'base': (1, 32, 64, 64)}, f'unpacked {shapes}'
 
 
+def test_preview_callback_at_pass_size():
+    """Guard for the shared pass_size: the standard callback unpacks FLUX.1-style packed latents at the hires size on a hires pass."""
+    from modules import processing_callbacks
+
+    class Flux1Shaped:
+        vae_scale_factor = 8
+        num_timesteps = 4
+
+        def __init__(self):
+            self.sizes = []
+
+        def _unpack_latents(self, latents, height, width, vae_scale_factor):  # pylint: disable=unused-argument
+            self.sizes.append((width, height))
+            return latents
+
+    previous = processing_callbacks.p
+    pipe = Flux1Shaped()
+    try:
+        for p in (hires_p(width=512, height=512, hr_upscale_to_x=768, hr_upscale_to_y=768, cfg_stop=1.0), hires_p(width=512, height=512, is_hr_pass=False, cfg_stop=1.0)):
+            processing_callbacks.p = p
+            processing_callbacks.diffusers_callback(pipe, step=4, timestep=1, kwargs={'latents': torch.zeros(1, 16, 64)}) # the last step, where the correction pass is skipped
+    finally:
+        processing_callbacks.p = previous
+    assert pipe.sizes == [(768, 768), (512, 512)], f'unpacked at {pipe.sizes}'
+
+
 def run_all():
     log.warning('=== Pipeline args ===')
     cat = category('size')
@@ -319,6 +345,7 @@ def run_all():
         run_test(cat, fn)
     cat = category('preview')
     run_test(cat, test_flux3_preview_unpack_at_pass_size)
+    run_test(cat, test_preview_callback_at_pass_size)
 
     log.warning('=== Results ===')
     total = {'passed': 0, 'failed': 0, 'skipped': 0}

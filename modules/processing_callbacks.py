@@ -141,6 +141,7 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
                 if tensor is not None and hasattr(tensor, "chunk") and tensor.shape[0] % 2 == 0:
                     kwargs[key] = tensor.chunk(2)[-1]
     try:
+        from modules import processing_helpers
         current_noise_pred = kwargs.get("noise_pred", None)
         if current_noise_pred is None:
             current_noise_pred = kwargs.get("predicted_image_embedding", None)
@@ -148,12 +149,7 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
         if pipe.__class__.__name__ == 'QwenImageLayeredPipeline':
             pass
         elif hasattr(pipe, "_unpack_latents") and hasattr(pipe, "vae_scale_factor"): # FLUX.1
-            if p.hr_resize_mode > 0 and (p.hr_upscaler != 'None' or p.hr_resize_mode == 5) and p.is_hr_pass:
-                width = max(getattr(p, 'width', 0), getattr(p, 'hr_upscale_to_x', 0))
-                height = max(getattr(p, 'height', 0), getattr(p, 'hr_upscale_to_y', 0))
-            else:
-                width = getattr(p, 'width', 1024)
-                height = getattr(p, 'height', 1024)
+            width, height = processing_helpers.pass_size(p)
             unpack_method = pipe._unpack_latents  # pylint: disable=protected-access
             if pipe.__class__.__name__ in {'BriaFiboPipeline', 'BriaFiboEditPipeline'} and latents.ndim == 3:
                 vae_scale = pipe.vae_scale_factor
@@ -183,12 +179,7 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
             shared.state.current_noise_pred = current_noise_pred
         elif hasattr(pipe, "_unpatchify_latents"): # FLUX.2 - unpack [B, seq, patch_ch] to [B, ch, H, W]
             vae_scale = getattr(pipe, 'vae_scale_factor', 8)
-            if p.hr_resize_mode > 0 and (p.hr_upscaler != 'None' or p.hr_resize_mode == 5) and p.is_hr_pass:
-                width = max(getattr(p, 'width', 0), getattr(p, 'hr_upscale_to_x', 0))
-                height = max(getattr(p, 'height', 0), getattr(p, 'hr_upscale_to_y', 0))
-            else:
-                width = getattr(p, 'width', 1024)
-                height = getattr(p, 'height', 1024)
+            width, height = processing_helpers.pass_size(p)
             latent_channels = getattr(getattr(getattr(pipe, 'vae', None), 'config', None), 'latent_channels', None)
             if (len(latents.shape) == 4) and (latent_channels is not None) and (latents.shape[1] == latent_channels * 4):
                 latents = pipe._unpatchify_latents(latents) # [B, C*4, h/2, w/2] -> [B, C, h, w] # pylint: disable=protected-access
