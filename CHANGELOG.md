@@ -27,6 +27,7 @@
   - processing: a generation that fails reports *failed* with its error instead of *interrupted* and no longer returns or saves its last live preview, video api answers 500 with the error instead of 499
   - offload: a job that fails inside the vae no longer leaves the vae on the gpu, after the job or after an unload
   - gallery: thumbnails and previews for webm, mkv, mov, avi and ts videos, not only mp4, webm videos listed
+  - api: ts video files served as *video/mp2t*
 
 ## Update for 2026-10-29
 

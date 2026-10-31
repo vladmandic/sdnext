@@ -12,6 +12,7 @@ Covers:
 - the frontend's extension list in ``ui/gallery.ts`` naming every container
 - ``gr_tempdir.cleanup_tmpdr`` removing preview copies of every container and nothing else
 - ``video_codecs.is_video_file`` on extensions, cases and paths
+- every container served with a video media type once ``api.mime`` registered its types
 
 No running server required.
 
@@ -306,6 +307,20 @@ def test_is_video_file():
     assert not wrong, f'misclassified: {wrong}'
 
 
+# ============================================================
+# media types
+# ============================================================
+
+def test_every_container_has_a_video_media_type():
+    import mimetypes
+    from modules.api import mime
+    mime.register()
+    types = {ext: mimetypes.guess_type(f'clip.{ext}')[0] for ext in CONTAINERS}
+    wrong = {ext: t for ext, t in types.items() if not (t or '').startswith('video/')}
+    assert not wrong, f'containers without a video media type: {wrong}'
+    assert types['ts'] == 'video/mp2t', f"ts served as {types['ts']}"
+
+
 def run_all():
     log.warning('=== Gallery media ===')
     reason = make_clips()
@@ -325,6 +340,8 @@ def run_all():
     run_test(cat, test_cleanup_removes_every_container)
     cat = category('helper')
     run_test(cat, test_is_video_file)
+    cat = category('mime')
+    run_test(cat, test_every_container_has_a_video_media_type)
 
     log.warning('=== Results ===')
     total = {'passed': 0, 'failed': 0, 'skipped': 0}
