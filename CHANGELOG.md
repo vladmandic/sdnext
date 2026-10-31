@@ -37,6 +37,7 @@
   - hdr: the 16-bit hdr image saves on windows paths with non-ascii characters
   - processing: hires on modular pipelines that take condition images (*FLUX.3 Klein*) runs at the hires size instead of the base size, with live previews at that size
   - processing: a negative prompt the pipeline takes no input for is reported once per job instead of dropped silently
+  - models: gated repo access check sends the token stored by *hf auth login*, no more *401* error on each load while downloads authenticate
 
 ## Update for 2026-10-29
 

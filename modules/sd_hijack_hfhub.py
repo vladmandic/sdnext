@@ -65,11 +65,15 @@ def xet_get_hijack(*args, **kwargs):
     return res
 
 
-def build_hf_headers_hijack(*args, **kwargs):
+def resolve_token():
     from huggingface_hub import get_token
+    return os.environ.get("HF_TOKEN") or get_token() # HF_HUB_DISABLE_IMPLICIT_TOKEN is set, so hub calls send only what sdnext passes
+
+
+def build_hf_headers_hijack(*args, **kwargs):
     token = kwargs.get('token', None)
     if token is None or token is True:
-        token = os.environ.get("HF_TOKEN") or get_token()
+        token = resolve_token()
         kwargs['token'] = token
     headers = orig_build_hf_headers(*args, **kwargs)
     headers = clean_user_agent(headers)

@@ -1755,7 +1755,7 @@ def hf_auth_check(checkpoint_info: CheckpointInfo | str, force:bool=False):
     auth_ok = False
     try:
         login = modelloader.hf_login()
-        token = os.environ.get('HF_TOKEN', None)
+        token = sd_hijack_hfhub.resolve_token()
         hf.auth_check(repo_id, write=False, token=token)
         auth_ok = True
     except Exception as e:
