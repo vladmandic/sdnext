@@ -40,6 +40,7 @@
   - models: gated repo access check sends the token stored by *hf auth login*, no more *401* error on each load while downloads authenticate
   - preview: live previews of v-prediction models use the v-prediction estimate instead of the epsilon one
   - samplers: *Euler SGM* and *DC Solver* use the model's prediction type instead of forcing *sample* and *epsilon*, *DPM++ Cosine* no longer fails on its first step
+  - preview: live previews of video and *Qwen-Image 2.1* latents no longer fail on a step read while the callback reduced the latent to one frame
 
 ## Update for 2026-10-29
 

@@ -147,7 +147,7 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
             current_noise_pred = kwargs.get("predicted_image_embedding", None)
 
         if pipe.__class__.__name__ == 'QwenImageLayeredPipeline':
-            pass
+            preview_latent, preview_noise_pred = shared.state.current_latent, shared.state.current_noise_pred
         elif hasattr(pipe, "_unpack_latents") and hasattr(pipe, "vae_scale_factor"): # FLUX.1
             width, height = processing_helpers.pass_size(p)
             unpack_method = pipe._unpack_latents  # pylint: disable=protected-access
@@ -157,17 +157,17 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
                 if latents.shape[1] == expected_no_patch_tokens and hasattr(pipe, '_unpack_latents_no_patch'):
                     unpack_method = pipe._unpack_latents_no_patch  # pylint: disable=protected-access
             try:
-                shared.state.current_latent = unpack_method(latents, height, width, pipe.vae_scale_factor)
+                preview_latent = unpack_method(latents, height, width, pipe.vae_scale_factor)
                 if current_noise_pred is not None:
-                    shared.state.current_noise_pred = unpack_method(current_noise_pred, height, width, pipe.vae_scale_factor)
+                    preview_noise_pred = unpack_method(current_noise_pred, height, width, pipe.vae_scale_factor)
                 else:
-                    shared.state.current_noise_pred = current_noise_pred
+                    preview_noise_pred = current_noise_pred
             except Exception:
-                shared.state.current_latent = pipe._unpack_latents(latents, height, width) # pylint: disable=protected-access # pythoning ask-for-forgiveness if method does not support vae_scale_factor
+                preview_latent = pipe._unpack_latents(latents, height, width) # pylint: disable=protected-access # pythoning ask-for-forgiveness if method does not support vae_scale_factor
                 if current_noise_pred is not None:
-                    shared.state.current_noise_pred = pipe._unpack_latents(current_noise_pred, height, width) # pylint: disable=protected-access # pythoning ask-for-forgiveness if method does not support vae_scale_factor
+                    preview_noise_pred = pipe._unpack_latents(current_noise_pred, height, width) # pylint: disable=protected-access # pythoning ask-for-forgiveness if method does not support vae_scale_factor
                 else:
-                    shared.state.current_noise_pred = current_noise_pred
+                    preview_noise_pred = current_noise_pred
         elif getattr(pipe, 'texture_vae_name', None) == 'flux2' and hasattr(pipe, 'semantic_channels') and hasattr(pipe, '_unpatchify_latents'):
             texture_latents = latents[:, pipe.semantic_channels:]
             bn = pipe.vae.bn
@@ -175,8 +175,8 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
             mean = bn.running_mean.view(1, -1, 1, 1).to(device=texture_latents.device, dtype=texture_latents.dtype)
             std = torch.sqrt(bn.running_var + eps).view(1, -1, 1, 1).to(device=texture_latents.device, dtype=texture_latents.dtype)
             texture_latents = texture_latents * std + mean
-            shared.state.current_latent = pipe._unpatchify_latents(texture_latents) # pylint: disable=protected-access
-            shared.state.current_noise_pred = current_noise_pred
+            preview_latent = pipe._unpatchify_latents(texture_latents) # pylint: disable=protected-access
+            preview_noise_pred = current_noise_pred
         elif hasattr(pipe, "_unpatchify_latents"): # FLUX.2 - unpack [B, seq, patch_ch] to [B, ch, H, W]
             vae_scale = getattr(pipe, 'vae_scale_factor', 8)
             width, height = processing_helpers.pass_size(p)
@@ -193,7 +193,7 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
                 # [B, h*w, C*4] -> [B, h, w, C, 2, 2] -> [B, C, h, 2, w, 2] -> [B, C, H, W]
                 latents = latents.view(b, h_patches, w_patches, channels, 2, 2)
                 latents = latents.permute(0, 3, 1, 4, 2, 5).reshape(b, channels, h_patches * 2, w_patches * 2)
-            shared.state.current_latent = latents
+            preview_latent = latents
             if current_noise_pred is not None and len(current_noise_pred.shape) == 3:
                 b, seq_len, patch_ch = current_noise_pred.shape
                 channels = patch_ch // 4
@@ -203,10 +203,10 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
                     h_patches = w_patches = int(seq_len ** 0.5)
                 current_noise_pred = current_noise_pred.view(b, h_patches, w_patches, channels, 2, 2)
                 current_noise_pred = current_noise_pred.permute(0, 3, 1, 4, 2, 5).reshape(b, channels, h_patches * 2, w_patches * 2)
-            shared.state.current_noise_pred = current_noise_pred
+            preview_noise_pred = current_noise_pred
         elif callable(getattr(pipe, 'unpack_latents', None)) and latents.ndim == 4: # the pipeline maps its own latents into the vae latent space
-            shared.state.current_latent = pipe.unpack_latents(latents)
-            shared.state.current_noise_pred = pipe.unpack_latents(current_noise_pred, offset=False) if current_noise_pred is not None else None
+            preview_latent = pipe.unpack_latents(latents)
+            preview_noise_pred = pipe.unpack_latents(current_noise_pred, offset=False) if current_noise_pred is not None else None
         elif 'Ideogram4' in pipe.__class__.__name__:  # packed normalized [B, seq, 128] -> Flux.2 latent space for TAE FLUX.2
             if latents.ndim == 3:
                 b, seq_len, packed_ch = latents.shape
@@ -222,21 +222,23 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
                 z = latents.float() * std + mean
                 ae_ch = packed_ch // (patch * patch)
                 z = z.view(b, grid_h, grid_w, patch, patch, ae_ch).permute(0, 5, 1, 3, 2, 4).reshape(b, ae_ch, grid_h * patch, grid_w * patch)
-                shared.state.current_latent = z
+                preview_latent = z
             else:
-                shared.state.current_latent = latents
-            shared.state.current_noise_pred = current_noise_pred
+                preview_latent = latents
+            preview_noise_pred = current_noise_pred
         else:
-            shared.state.current_latent = latents
-            shared.state.current_noise_pred = current_noise_pred
+            preview_latent = latents
+            preview_noise_pred = current_noise_pred
 
         # Video latent preview: extract middle frame from 5D [B,C,T,H,W] to 4D [B,C,H,W]
-        if shared.state.current_latent is not None and shared.state.current_latent.ndim == 5:
-            _b, _c, t, _h, _w = shared.state.current_latent.shape
-            shared.state.current_latent = shared.state.current_latent[:, :, t // 2, :, :]
-        if shared.state.current_noise_pred is not None and shared.state.current_noise_pred.ndim == 5:
-            _b, _c, t, _h, _w = shared.state.current_noise_pred.shape
-            shared.state.current_noise_pred = shared.state.current_noise_pred[:, :, t // 2, :, :]
+        if preview_latent is not None and preview_latent.ndim == 5:
+            _b, _c, t, _h, _w = preview_latent.shape
+            preview_latent = preview_latent[:, :, t // 2, :, :]
+        if preview_noise_pred is not None and preview_noise_pred.ndim == 5:
+            _b, _c, t, _h, _w = preview_noise_pred.shape
+            preview_noise_pred = preview_noise_pred[:, :, t // 2, :, :]
+        shared.state.current_latent = preview_latent # each set once per step: preview readers run on other threads
+        shared.state.current_noise_pred = preview_noise_pred
 
         if hasattr(pipe, "scheduler") and hasattr(pipe.scheduler, "sigmas") and hasattr(pipe.scheduler, "step_index") and pipe.scheduler.step_index is not None:
             try:

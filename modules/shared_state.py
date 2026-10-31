@@ -297,18 +297,18 @@ class State:
             self.assign_current_image(last_image)
             return True
 
-        if self.current_latent is not None:
+        sample, noise_pred = self.current_latent, self.current_noise_pred # read once, the step callback replaces both from another thread
+        if sample is not None:
             try:
                 self.preview_job = self.job_no
-                sample = self.current_latent
                 self.current_image_sampling_step = self.sampling_step
                 try: # sigma correction
-                    if (self.current_noise_pred is not None) and (self.current_sigma is not None) and (self.current_sigma_next is not None) and (self.current_noise_pred.shape == sample.shape):
-                        original_sample = sample - (self.current_noise_pred * (self.current_sigma_next-self.current_sigma))
+                    if (noise_pred is not None) and (self.current_sigma is not None) and (self.current_sigma_next is not None) and (noise_pred.shape == sample.shape):
+                        original_sample = sample - (noise_pred * (self.current_sigma_next-self.current_sigma))
                         if self.prediction_type in {"epsilon", "flow_prediction"}:
-                            sample = original_sample - (self.current_noise_pred * self.current_sigma)
+                            sample = original_sample - (noise_pred * self.current_sigma)
                         elif self.prediction_type == "v_prediction":
-                            sample = self.current_noise_pred * (-self.current_sigma / (self.current_sigma**2 + 1) ** 0.5) + (original_sample / (self.current_sigma**2 + 1)) # pylint: disable=invalid-unary-operand-type
+                            sample = noise_pred * (-self.current_sigma / (self.current_sigma**2 + 1) ** 0.5) + (original_sample / (self.current_sigma**2 + 1)) # pylint: disable=invalid-unary-operand-type
                 except Exception:
                     pass # ignore sigma errors
                 image = sd_samplers_common.samples_decode(sample)

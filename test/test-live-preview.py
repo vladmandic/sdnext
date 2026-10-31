@@ -10,6 +10,8 @@ Covers:
 - a v-prediction scheduler: the preview of a step run after the stage's ``begin`` uses the v-prediction estimate
 - an epsilon scheduler: the preview equals the scheduler's own ``pred_original_sample`` for the step
 - a flow-match scheduler: the preview equals ``x_t - sigma * v`` for the step
+- a pipeline that unpacks to a 5D latent: the callback publishes only its 4D middle frame, once per step
+- the preview reads the published latent and model output once
 
 Real diffusers schedulers drive the step; the pipeline is a stub and the decode returns the latent. No running server.
 
@@ -160,6 +162,86 @@ def test_flow_preview_matches_definition():
     return True
 
 
+class UnpackPipe:
+    """Unpacks to a 5D video latent of three frames, the middle one equal to the input, as Qwen-Image 2.1 does with one frame."""
+    vae_scale_factor = 8
+    num_timesteps = steps
+
+    def _unpack_latents(self, latents, height, width, vae_scale_factor):  # pylint: disable=unused-argument
+        return torch.stack([latents - 1, latents, latents + 1], dim=2)
+
+
+def test_video_latent_published_once_as_4d():
+    """Red before the fix: the callback published the unpacked 5D latent, then its middle frame, so a reader between the two writes got 5D."""
+    writes = []
+
+    class RecordingState(type(shared.state)):
+        def __setattr__(self, name, value):
+            if name in ('current_latent', 'current_noise_pred'):
+                writes.append((name, None if value is None else tuple(value.shape)))
+            super().__setattr__(name, value)
+
+    gen = torch.Generator().manual_seed(42)
+    latents, noise_pred = torch.randn(1, 4, 8, 8, generator=gen), torch.randn(1, 4, 8, 8, generator=gen)
+    p = processing()
+    p.width, p.height = 64, 64
+    state_cls = type(shared.state)
+    try:
+        processing_callbacks.set_callbacks_p(p)
+        shared.state.begin('Inference')
+        shared.state.__class__ = RecordingState
+        processing_callbacks.diffusers_callback(UnpackPipe(), step=step_index, timestep=500, kwargs={'latents': latents, 'noise_pred': noise_pred})
+        shared.state.__class__ = state_cls
+        published_latent, published_noise_pred = shared.state.current_latent, shared.state.current_noise_pred
+        shared.state.end()
+    finally:
+        shared.state.__class__ = state_cls
+        processing_callbacks.set_callbacks_p(None)
+    assert writes == [('current_latent', (1, 4, 8, 8)), ('current_noise_pred', (1, 4, 8, 8))], f'writes {writes}'
+    assert torch.equal(published_latent, latents) and torch.equal(published_noise_pred, noise_pred), 'published values are not the middle frame'
+    return True
+
+
+def test_preview_reads_published_values_once():
+    """Red before the fix: the preview read the latent twice and the model output four times, each read a point where the callback can swap it."""
+    reads = {'current_latent': 0, 'current_noise_pred': 0}
+
+    class CountingState(type(shared.state)):
+        def __getattribute__(self, name):
+            if name in reads:
+                reads[name] += 1
+            return super().__getattribute__(name)
+
+    decoded = []
+    gen = torch.Generator().manual_seed(42)
+    state_cls = type(shared.state)
+    saved_decode = sd_samplers_common.samples_decode
+    saved_opts = {k: shared.opts.data.get(k, None) for k in ('live_preview_force', 'show_progress_type')}
+    try:
+        sd_samplers_common.samples_decode = lambda latents, *args, **kwargs: latents
+        shared.opts.data['live_preview_force'] = False
+        shared.opts.data['show_progress_type'] = 'Approximate'
+        shared.state.begin('Inference')
+        shared.state.assign_current_image = decoded.append
+        shared.state.current_latent, shared.state.current_noise_pred = torch.randn(1, 4, 8, 8, generator=gen), torch.randn(1, 4, 8, 8, generator=gen)
+        shared.state.current_sigma, shared.state.current_sigma_next = torch.tensor(2.0), torch.tensor(1.5)
+        shared.state.prediction_type = 'epsilon'
+        shared.state.preview_job = -1
+        shared.state.__class__ = CountingState
+        shared.state.do_set_current_image()
+        shared.state.__class__ = state_cls
+        del shared.state.assign_current_image
+        shared.state.end()
+    finally:
+        shared.state.__class__ = state_cls
+        shared.state.__dict__.pop('assign_current_image', None)
+        sd_samplers_common.samples_decode = saved_decode
+        shared.opts.data.update(saved_opts)
+    assert len(decoded) == 1, f'expected one preview, got {len(decoded)}'
+    assert reads == {'current_latent': 1, 'current_noise_pred': 1}, f'reads {reads}'
+    return True
+
+
 def run_all():
     log.warning('=== Live preview sigma correction ===')
     cat = category('prediction')
@@ -167,6 +249,14 @@ def run_all():
         test_v_prediction_preview_after_stage_begin,
         test_epsilon_preview_matches_scheduler,
         test_flow_preview_matches_definition,
+    ]:
+        run_test(cat, fn)
+
+    log.warning('=== Live preview publishing ===')
+    cat = category('publish')
+    for fn in [
+        test_video_latent_published_once_as_4d,
+        test_preview_reads_published_values_once,
     ]:
         run_test(cat, fn)
 
