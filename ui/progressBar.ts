@@ -40,7 +40,7 @@ export function checkPaused(state) {
 }
 
 export function setProgress(res?: any) {
-  const elements = ['txt2img_generate', 'img2img_generate', 'extras_generate', 'control_generate', 'video_generate', 'framepack_generate', 'ltx_generate', 'minimax_generate'];
+  const elements = ['txt2img_generate', 'img2img_generate', 'extras_generate', 'control_generate', 'video_generate', 'framepack_generate', 'ltx_generate', 'minimax_generate', 'chat_generate'];
   const progress = res?.progress || 0;
   const job = res?.textinfo || res?.job || ''; // stage label when the backend reports one, job name otherwise
   let perc: string;
@@ -79,7 +79,8 @@ export function setProgress(res?: any) {
     const el = document.getElementById(elId);
     if (!el) continue;
     const jobLabel = (res ? `${job} ${perc}${eta}` : 'Generate').trim();
-    el.innerText = jobLabel;
+    const label = elId === 'chat_generate' ? el.querySelector('span') : el;
+    if (label) label.innerText = jobLabel;
     el.title = hint.length > 0 ? hint : jobLabel;
     if (!window.waitForUiReady) {
       const gradient = perc !== '' ? perc : '100%';

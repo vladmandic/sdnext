@@ -11096,7 +11096,7 @@ function checkPaused(state) {
   if (v_el) v_el.innerText = lastState.paused ? "Resume" : "Pause";
 }
 function setProgress(res) {
-  const elements = ["txt2img_generate", "img2img_generate", "extras_generate", "control_generate", "video_generate", "framepack_generate", "ltx_generate", "minimax_generate"];
+  const elements = ["txt2img_generate", "img2img_generate", "extras_generate", "control_generate", "video_generate", "framepack_generate", "ltx_generate", "minimax_generate", "chat_generate"];
   const progress = res?.progress || 0;
   const job = res?.textinfo || res?.job || "";
   let perc;
@@ -11135,7 +11135,8 @@ function setProgress(res) {
     const el3 = document.getElementById(elId);
     if (!el3) continue;
     const jobLabel = (res ? `${job} ${perc}${eta}` : "Generate").trim();
-    el3.innerText = jobLabel;
+    const label = elId === "chat_generate" ? el3.querySelector("span") : el3;
+    if (label) label.innerText = jobLabel;
     el3.title = hint.length > 0 ? hint : jobLabel;
     if (!window.waitForUiReady) {
       const gradient = perc !== "" ? perc : "100%";

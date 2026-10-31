@@ -1,4 +1,5 @@
 import datetime as dt
+from importlib import reload
 import os
 import pathlib
 import sqlite3
@@ -169,6 +170,21 @@ class TestSchedulerDatabase(unittest.TestCase):
         task = scheduler_db.get_task(task_id, db_path=self.db_path)
         self.assertEqual(task['process_stats'], {})
         self.assertEqual(task['infotexts'], [])
+
+    def test_initialization_log_reports_integrity_and_recovered_tasks(self):
+        scheduler_db.initialize(self.db_path)
+        scheduler_db.create_task({'prompt': 'test'}, db_path=self.db_path)
+        scheduler_db.claim_next_task(db_path=self.db_path)
+
+        with patch.object(scheduler_db.log, 'info') as log_info:
+            reload(scheduler_db)
+            scheduler_db.initialize(self.db_path)
+
+        message = log_info.call_args[0][0]
+        self.assertIn('integrity=ok recovered=1', message)
+        fields = ['db=', 'path=', 'schema=', 'user=', 'size=', 'journal=', 'stat=', 'mode=', 'time=', 'integrity=', 'recovered=']
+        positions = [message.index(field) for field in fields]
+        self.assertEqual(positions, sorted(positions))
 
     def test_task_mode_is_persisted_and_validated(self):
         task_id = scheduler_db.create_task({'video': {'surface': 'video'}}, mode='video', db_path=self.db_path)

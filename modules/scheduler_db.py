@@ -116,7 +116,7 @@ def _get_sqlite_stat1(connection):
 
 
 def _fail_on_restart(connection):
-    connection.execute("UPDATE tasks SET status = 'failed' WHERE status NOT IN ('scheduled', 'paused', 'completed', 'failed')")
+    return connection.execute("UPDATE tasks SET status = 'failed' WHERE status NOT IN ('scheduled', 'paused', 'completed', 'failed')").rowcount
 
 def _initialize_db(connection):
     t0 = time.perf_counter()
@@ -163,9 +163,10 @@ def _initialize_db(connection):
     pg_count = connection.execute('PRAGMA page_count').fetchone()[0]
     pg_size = connection.execute('PRAGMA page_size').fetchone()[0]
     stat = _get_sqlite_stat1(connection)
-    _fail_on_restart(connection)
+    recovered = _fail_on_restart(connection)
+    integrity = connection.execute('PRAGMA integrity_check').fetchone()[0]
     t1 = time.perf_counter()
-    log.info(f'Scheduler: db={db[1]} path="{db[2]}" schema={schema_ver} user={user_ver} size={pg_count*pg_size} journal={journal} stat={stat} mode={"open" if exists else "create"} time={t1 - t0:.3f}')
+    log.info(f'Scheduler: db={db[1]} path="{db[2]}" schema={schema_ver} user={user_ver} size={pg_count*pg_size} journal={journal} stat={stat} mode={"open" if exists else "create"} time={t1 - t0:.3f} integrity={integrity} recovered={recovered}')
 
 
 def initialize(db_path=None):

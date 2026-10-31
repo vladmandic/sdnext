@@ -471,6 +471,7 @@ def create_settings(cmd_opts):
     # --- Server Settings ---
     options_templates.update(options_section(('server', "Server Settings"), {
         "server_listen": OptionInfo(False, "Listen on all interfaces", gr.Checkbox),
+        "chat_enabled": OptionInfo(False, "Enable Chat feature", gr.Checkbox),
         "server_status": OptionInfo(120, "Automatic server status monitor rate", gr.Number, {"minimum": 0, "maximum": 1000, "step": 1}),
         "server_monitor": OptionInfo(0, "Automatic server memory monitor rate", gr.Number, {"minimum": 0, "maximum": 1000, "step": 1}),
         "server_rate_limit": OptionInfo(300, "API base rate limit rate", gr.Number, {"minimum": 0, "maximum": 1000, "step": 1}),
@@ -496,6 +497,7 @@ def create_settings(cmd_opts):
         "embeddings_dir": OptionInfo(os.path.join(paths.models_path, 'embeddings'), "Folder with textual inversion embeddings", folder=True),
         "control_dir": OptionInfo(os.path.join(paths.models_path, 'control'), "Folder with Control models", folder=True),
         "yolo_dir": OptionInfo(os.path.join(paths.models_path, 'yolo'), "Folder with Yolo models", folder=True),
+        "chat_dir": OptionInfo(os.path.join(paths.models_path, 'chat'), "Folder for chat database", folder=True),
         "scheduler_dir": OptionInfo(os.path.join(paths.models_path, 'scheduler'), "Folder for scheduler database", folder=True),
         "esrgan_models_path": OptionInfo(os.path.join(paths.models_path, 'ESRGAN'), "Folder with ESRGAN models", folder=True),
         "bsrgan_models_path": OptionInfo(os.path.join(paths.models_path, 'BSRGAN'), "Folder with BSRGAN models", folder=True),
