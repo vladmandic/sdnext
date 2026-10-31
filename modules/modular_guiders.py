@@ -83,25 +83,26 @@ def set_args(guidance_name: str):
     return args
 
 
+def guider_class(model, guidance_name: str = 'Default'):
+    """The guider class set_guider builds for a guidance choice: the pipeline's own guider for Default."""
+    if not hasattr(model, 'default_guider'): # store default guider
+        guider_info = model.get_component_spec("guider")
+        model.default_guider = guider_info.type_hint if hasattr(guider_info, 'type_hint') else type(guider_info)
+    if guidance_name == 'Default':
+        return model.default_guider
+    return guiders.get(guidance_name, {}).get('cls', None)
+
+
 def set_guider(p: processing.StableDiffusionProcessing, phase: str | None = None):
     guidance_name = p.cfg_name or 'Default'
     if guidance_name not in guiders:
         return
 
-    if not hasattr(shared.sd_model, 'default_guider'): # store default guider
-        guider_info = shared.sd_model.get_component_spec("guider")
-        guider_cls = guider_info.type_hint if hasattr(guider_info, 'type_hint') else type(guider_info)
-        shared.sd_model.default_guider = guider_cls
-
+    guider_cls = guider_class(shared.sd_model, guidance_name)
     if guidance_name == 'None':
         shared.sd_model.update_components(guider=None) # breaks the pipeline
         log.info(f'Pipeline: guidance="{guidance_name}"')
         return
-    elif guidance_name == 'Default':
-        guider_cls = shared.sd_model.default_guider
-    else:
-        guider_info = guiders[guidance_name]
-        guider_cls = guider_info['cls']
 
     guider_args = set_args(guidance_name)
     possible = inspect.signature(guider_cls.__init__).parameters if guider_cls is not None else []

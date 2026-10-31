@@ -6,6 +6,7 @@ Covers:
 
 - a resized hires pass on a modular pipeline that takes condition images, called at the hires size
 - a negative prompt the pipeline takes no input for, warned once per job, through process_images on stub pipelines
+- ``get_guidance_params`` on standard and modular pipelines, with and without a guider, and ``set_guider`` building the same guider
 
 No running server required.
 
@@ -156,6 +157,28 @@ def generate(pipe, negative_prompt: str) -> list[str]:
     return captured.messages(logging.WARNING)
 
 
+class GuidancePipeline(NoNegativePipeline):
+    def __call__(self, prompt=None, negative_prompt=None, guidance_scale=4.0, guidance_rescale=0.0, num_inference_steps=4, **kwargs):  # pylint: disable=unused-argument
+        return SimpleNamespace(images=[Image.new('RGB', (64, 64))])
+
+
+class StubModularPipeline:
+    """A modular pipeline as the accessors read it: block inputs, an optional guider and its component spec."""
+
+    def __init__(self, inputs: list[str], guider_cls=None):
+        self.blocks = SimpleNamespace(inputs=[SimpleNamespace(name=name) for name in inputs])
+        self.guider = guider_cls() if guider_cls is not None else None
+        self.guider_cls = guider_cls
+        self.updates: list[dict] = []
+
+    def get_component_spec(self, name: str):
+        assert name == 'guider', f'component spec asked for {name}'
+        return SimpleNamespace(type_hint=self.guider_cls)
+
+    def update_components(self, **kwargs):
+        self.updates.append(kwargs)
+
+
 def hires_p(**overrides):
     values = {
         'ops': [], 'task_args': {}, 'width': 704, 'height': 1280, 'denoising_strength': 0.5,
@@ -209,6 +232,46 @@ def test_used_or_empty_negative_prompt_is_quiet():
     assert not warnings, f'warned for an empty negative prompt: {warnings}'
 
 
+# ============================================================
+# guidance
+# ============================================================
+
+def test_guidance_params_standard_pipeline():
+    from modules import processing_args
+    assert processing_args.get_guidance_params(GuidancePipeline()) == {'guidance_scale', 'guidance_rescale', 'negative_prompt'}
+    assert processing_args.get_guidance_params(NoNegativePipeline()) == set()
+
+
+def test_guidance_params_modular_with_guider():
+    """A modular pipeline's block inputs carry no guidance settings; the guider set_guider builds takes them."""
+    from modules import processing_args
+    model = StubModularPipeline(['prompt', 'negative_prompt', 'num_inference_steps'], diffusers.ClassifierFreeGuidance)
+    got = processing_args.get_guidance_params(model)
+    assert got == {'guidance_scale', 'guidance_rescale', 'start', 'stop', 'negative_prompt'}, f'default guider: {sorted(got)}'
+    got = processing_args.get_guidance_params(model, 'FDG: FrequencyDecoupledGuidance')
+    assert got == {'guidance_rescale', 'start', 'stop', 'negative_prompt'}, f'FDG takes guidance_scales, not guidance_scale: {sorted(got)}'
+
+
+def test_guidance_params_modular_without_guider():
+    from modules import processing_args
+    model = StubModularPipeline(['prompt', 'num_inference_steps'])
+    assert processing_args.get_guidance_params(model) == set()
+
+
+def test_set_guider_builds_default_guider():
+    """Guard for the shared guider_class: set_guider still builds the pipeline's own guider with the job's settings."""
+    from modules import modular_guiders
+    model = StubModularPipeline(['prompt'], diffusers.ClassifierFreeGuidance)
+    shared.sd_model = model
+    p = SimpleNamespace(cfg_name='Default', cfg_scale=4.0, cfg_image=-1.0, cfg_rescale=0.25, cfg_start=0.1, cfg_stop=0.9)
+    modular_guiders.set_guider(p)
+    assert len(model.updates) == 1, f'update_components calls: {model.updates}'
+    guider = model.updates[0]['guider']
+    assert isinstance(guider, diffusers.ClassifierFreeGuidance), f'guider {type(guider).__name__}'
+    got = (guider.guidance_scale, guider.guidance_rescale, guider._start, guider._stop) # pylint: disable=protected-access
+    assert got == (4.0, 0.25, 0.1, 0.9), f'guider settings {got}'
+
+
 def run_all():
     log.warning('=== Pipeline args ===')
     cat = category('size')
@@ -221,6 +284,14 @@ def run_all():
     for fn in [
         test_dropped_negative_prompt_warns_once,
         test_used_or_empty_negative_prompt_is_quiet,
+    ]:
+        run_test(cat, fn)
+    cat = category('guidance')
+    for fn in [
+        test_guidance_params_standard_pipeline,
+        test_guidance_params_modular_with_guider,
+        test_guidance_params_modular_without_guider,
+        test_set_guider_builds_default_guider,
     ]:
         run_test(cat, fn)
 

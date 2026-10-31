@@ -214,6 +214,19 @@ def get_params(model):
     return possible
 
 
+def get_guidance_params(model, guidance_name: str = 'Default') -> set[str]:
+    """Guidance parameters that reach the pipeline: guidance_scale, true_cfg_scale, guidance_rescale and negative_prompt among its call
+    parameters, plus on a modular pipeline with a guider the guidance_scale, guidance_rescale, start and stop the chosen guider takes."""
+    from modules import modular
+    params = set(get_params(model)) & {'guidance_scale', 'true_cfg_scale', 'guidance_rescale', 'negative_prompt'}
+    if modular.is_modular(model) and modular.is_guider(model):
+        from modules import modular_guiders
+        guider_cls = modular_guiders.guider_class(model, guidance_name)
+        if guider_cls is not None:
+            params |= set(inspect.signature(guider_cls.__init__).parameters) & {'guidance_scale', 'guidance_rescale', 'start', 'stop'}
+    return params
+
+
 def get_defaults(model, kwargs):
     remove = ['return_dict', 'output_type', 'num_images_per_prompt', 'callback', 'callback_on_step_end_tensor_inputs']
     default_cfg = 0
