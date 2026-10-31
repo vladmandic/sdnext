@@ -12,6 +12,7 @@ Covers:
 - ``State.fail``: error text, the stop flag, the reported status, cleared by ``begin`` only
 - ``process_images`` with a failing and an interrupted pipeline
 - ``video_run.run`` with a failing and an interrupted pipeline
+- an on-demand component returned to cpu when the pass raises inside its entry point
 
 No running server required.
 
@@ -44,7 +45,9 @@ finally:
 installer.add_args(modules.cmd_args.parser)
 modules.cmd_args.parsed, _ = modules.cmd_args.parser.parse_known_args([])
 
+import torch                                                         # pylint: disable=wrong-import-position
 import diffusers                                                     # pylint: disable=wrong-import-position
+from diffusers.utils.accelerate_utils import apply_forward_hook      # pylint: disable=wrong-import-position
 from PIL import Image                                                # pylint: disable=wrong-import-position
 from modules import shared, devices                                  # pylint: disable=wrong-import-position
 from modules.modeldata import model_data                             # pylint: disable=wrong-import-position
@@ -110,6 +113,7 @@ class StubPipeline(diffusers.DiffusionPipeline):
 
     def __init__(self, mode: str, preview: bool = True):
         super().__init__()
+        self.register_to_config(_name_or_path='stub')
         self.mode = mode
         self.preview = preview
         self.sd_checkpoint_info = SimpleNamespace(name='stub', title='stub', filename='stub.safetensors', hash=None, sha256=None, shorthash=None, model_name='stub', type='diffusers')
@@ -120,9 +124,23 @@ class StubPipeline(diffusers.DiffusionPipeline):
             state.current_image = Image.new('RGB', (64, 64), PREVIEW)
         if self.mode == 'fail':
             raise RuntimeError('stub pipeline failure')
+        if self.mode == 'fail-decode':
+            self.audio_vae.decode(torch.zeros(1, 4, device=devices.device))
+            raise RuntimeError('stub decode failure')
         if self.mode == 'interrupt':
             state.interrupt()
         return SimpleNamespace(images=[Image.new('RGB', (64, 64), RESULT)])
+
+
+class BridgeDecoder(torch.nn.Module):
+    """Component entered through decode, the shape the group engine gives an on-demand hook."""
+    def __init__(self):
+        super().__init__()
+        self.proj = torch.nn.Linear(4, 4)
+
+    @apply_forward_hook
+    def decode(self, x):
+        return self.proj(x)
 
 
 class WanPipeline(StubPipeline):  # validate_pipeline and resolve_model match video pipelines by class name
@@ -138,10 +156,14 @@ def files() -> set:
     return {os.path.relpath(os.path.join(d, f), work_dir) for d, _, fs in os.walk(work_dir) for f in fs}
 
 
-def generate(mode: str, preview: bool = True) -> dict:
+def generate(mode: str, preview: bool = True, ondemand: torch.nn.Module | None = None) -> dict:
     """One txt2img job on the stub; what it returned, saved and reported."""
     from modules.processing import StableDiffusionProcessingTxt2Img, process_images
-    shared.sd_model = StubPipeline(mode, preview)
+    pipe = StubPipeline(mode, preview)
+    if ondemand is not None:
+        pipe.audio_vae = ondemand
+        pipe.sdnext_ondemand_modules = ['audio_vae']
+    shared.sd_model = pipe
     before = files()
     p = StableDiffusionProcessingTxt2Img(prompt='stub', steps=4, width=64, height=64, n_iter=1, batch_size=1, seed=1)
     p.scripts = None
@@ -242,6 +264,25 @@ def test_user_interrupt_keeps_the_preview():
     return True
 
 
+def test_failed_decode_returns_the_ondemand_component():
+    if not torch.cuda.is_available():
+        return 'no accelerator for the on-demand onload'
+    from modules import sd_offload_group
+    decoder = BridgeDecoder()
+    sd_offload_group.apply_group_offload_ondemand(decoder)
+    mode = shared.opts.diffusers_offload_mode
+    shared.opts.data['diffusers_offload_mode'] = 'group' # the engine that places on-demand components; balanced seams would re-hook the stub
+    try:
+        out = generate('fail-decode', preview=False, ondemand=decoder)
+    finally:
+        shared.opts.data['diffusers_offload_mode'] = mode
+    assert out['error'] == 'stub decode failure', out
+    device = next(decoder.parameters()).device
+    assert device.type == 'cpu', f'failed decode left the on-demand component on {device}'
+    assert getattr(decoder, 'sdnext_loaded', None) is None, 'the onload record must not outlive the job'
+    return True
+
+
 # --- Video ---
 
 def test_video_failed_pass_answers_500_with_the_message():
@@ -277,6 +318,7 @@ def run_all():
         test_failed_pass_reports_failed_with_the_message,
         test_failed_pass_returns_and_saves_no_preview,
         test_user_interrupt_keeps_the_preview,
+        test_failed_decode_returns_the_ondemand_component,
     ]:
         run_test(cat, fn)
     cat = category('video')

@@ -25,6 +25,7 @@
   - video: output folder sanitized before numbering, video tab frames export writes on non-ascii paths on windows, xyz grid *Create video* saves again
   - minimax: quantized *H3* repos decode again, their video vae loads through the diffusers class
   - processing: a generation that fails reports *failed* with its error instead of *interrupted* and no longer returns or saves its last live preview, video api answers 500 with the error instead of 499
+  - offload: a job that fails inside the vae no longer leaves the vae on the gpu, after the job or after an unload
 
 ## Update for 2026-10-29
 

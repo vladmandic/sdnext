@@ -233,6 +233,8 @@ def process_images(p: StableDiffusionProcessing) -> Processed | None:
 
     finally:
         attention_context.end()
+        if shared.sd_loaded:
+            sd_models.offload_ondemand(shared.sd_model, reason='end') # a pass that raised or was interrupted inside an entry point skipped the seam that returns its component
         script_callbacks.after_process_callback(p)
 
         if p.override_settings_restore_afterwards: # restore opts to original state
