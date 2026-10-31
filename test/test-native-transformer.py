@@ -1990,9 +1990,9 @@ def nvfp4_fixture(dim: int, with_marker: bool = True) -> tuple[dict, torch.Tenso
 
 def test_load_comfy_nvfp4_end_to_end():
     """Full pipeline on an nvfp4 container: packed uint8 weights survive with
-    swapped nibble order, block scales unswizzle and fold with the global
-    scale into fp32 grouped scales, and the dequantized weight matches the
-    format reference exactly."""
+    swapped nibble order, block scales unswizzle into e4m3 grouped scales
+    beside the fp32 global scale as ``scale_2``, and the dequantized weight
+    matches the format reference exactly."""
     fd, path = tempfile.mkstemp(suffix='.safetensors')
     try:
         dim = 32
@@ -2018,10 +2018,13 @@ def test_load_comfy_nvfp4_end_to_end():
         assert dq.re_quantize_for_matmul is True
         assert in_proj.weight.dtype == torch.uint8
         assert tuple(in_proj.weight.shape) == (dim, dim // 2)
-        assert in_proj.scale.dtype == torch.float32
+        assert dq.scale_dtype == 'float8_e4m3fn'
+        assert in_proj.scale.dtype == torch.float8_e4m3fn
         assert tuple(in_proj.scale.shape) == (dim, dim // 16, 1)
+        assert in_proj.scale_2.dtype == torch.float32
+        assert in_proj.scale_2.numel() == 1
 
-        dequantized = dq(in_proj.weight, in_proj.scale, zero_point=None, svd_up=None, svd_down=None)
+        dequantized = dq(in_proj.weight, in_proj.scale, scale_2=in_proj.scale_2, zero_point=None, svd_up=None, svd_down=None)
         assert torch.equal(dequantized.detach().cpu(), reference)
 
         x = torch.randn(2, dim)
@@ -2058,7 +2061,7 @@ def test_load_comfy_nvfp4_metadata_form():
         in_proj = transformer.in_proj
         assert in_proj.__class__.__name__ == 'SDNQLinear'
         assert in_proj.sdnq_dequantizer.weights_dtype == 'float4_e2m1fn'
-        dequantized = in_proj.sdnq_dequantizer(in_proj.weight, in_proj.scale, zero_point=None, svd_up=None, svd_down=None)
+        dequantized = in_proj.sdnq_dequantizer(in_proj.weight, in_proj.scale, scale_2=in_proj.scale_2, zero_point=None, svd_up=None, svd_down=None)
         assert torch.equal(dequantized.detach().cpu(), reference)
     finally:
         if os.path.exists(path):

@@ -642,8 +642,8 @@ def adopt_nvfp4_layer(sd: dict, name: str, linear: torch.nn.Linear, component_na
 
     Slices tile-alignment padding off the packed weight, swaps the nibble
     order (the container packs the even element into the high nibble, SDNQ
-    unpacks low-first), unswizzles the e4m3 block scales, and folds the fp32
-    global scale into them as ``[out, groups, 1]`` fp32 grouped scales.
+    unpacks low-first), unswizzles the e4m3 block scales into ``[out, groups, 1]``
+    grouped scales, and keeps the fp32 global scale as ``scale_2``.
     """
     out_features, in_features = linear.out_features, linear.in_features
     if in_features % NVFP4_GROUP_SIZE != 0:
@@ -847,11 +847,11 @@ def build_component_prequantized(
     ``[out, in]``); convrot layers map onto SDNQ's Hadamard support, whose
     identical regular Hadamard construction lets the dequantizer undo the
     stored rotation; nvfp4 layers keep their packed 4-bit codes (nibble order
-    swapped once) and land on SDNQ's grouped quantization with the block and
-    global scales folded into fp32 per-group scales.
+    swapped once) and land on SDNQ's grouped quantization with e4m3 group
+    scales and the fp32 global scale as ``scale_2``.
     The file dictates which layers are quantized, independent of the user's
     quantization settings, and floating-point SDNQ params are not cast to the
-    target dtype (the fp32 scales must survive). Layers are assembled in
+    target dtype (the e4m3 and fp32 scales must survive). Layers are assembled in
     canonical dequant layout; ``apply_sdnq_options_to_model`` then applies
     the user's quantized-matmul settings, matching
     ``sdnq.loader.load_sdnq_model``.
