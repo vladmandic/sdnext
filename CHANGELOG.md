@@ -38,6 +38,7 @@
   - processing: hires on modular pipelines that take condition images (*FLUX.3 Klein*) runs at the hires size instead of the base size, with live previews at that size
   - processing: a negative prompt the pipeline takes no input for is reported once per job instead of dropped silently
   - models: gated repo access check sends the token stored by *hf auth login*, no more *401* error on each load while downloads authenticate
+  - preview: live previews of v-prediction models use the v-prediction estimate instead of the epsilon one
 
 ## Update for 2026-10-29
 

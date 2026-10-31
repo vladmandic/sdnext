@@ -240,6 +240,7 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
 
         if hasattr(pipe, "scheduler") and hasattr(pipe.scheduler, "sigmas") and hasattr(pipe.scheduler, "step_index") and pipe.scheduler.step_index is not None:
             try:
+                shared.state.prediction_type = 'flow_prediction' if 'flow' in pipe.scheduler.__class__.__name__.lower() else (getattr(pipe.scheduler.config, 'prediction_type', None) or 'epsilon')
                 shared.state.current_sigma = pipe.scheduler.sigmas[pipe.scheduler.step_index-1]
                 shared.state.current_sigma_next = pipe.scheduler.sigmas[pipe.scheduler.step_index]
                 _sigma_adjust = getattr(p, 'schedulers_sigma_adjust', None) if p is not None else None

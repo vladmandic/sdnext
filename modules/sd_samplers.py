@@ -67,10 +67,6 @@ def restore_default(model, requested="Default"):
             model.prior_pipe.scheduler = copy.deepcopy(model.default_scheduler)
             model.prior_pipe.scheduler.config.clip_sample = False
     config = {k: v for k, v in model.scheduler.config.items() if not k.startswith('_')}
-    if "flow" in model.scheduler.__class__.__name__.lower():
-        shared.state.prediction_type = "flow_prediction"
-    elif hasattr(model.scheduler, "config") and hasattr(model.scheduler.config, "prediction_type"):
-        shared.state.prediction_type = model.scheduler.config.prediction_type
     if requested != "Default":
         log.warning(f'Sampler: requested="{requested}" set="Default" cls={model.scheduler.__class__.__name__} config={config}')
     else:
@@ -163,10 +159,6 @@ def create_sampler(name, model, scheduler_overrides=None):
         if hasattr(model, "prior_pipe") and hasattr(model.prior_pipe, "scheduler"):
             model.prior_pipe.scheduler = sampler.sampler
             model.prior_pipe.scheduler.config.clip_sample = False
-        if "flow" in model.scheduler.__class__.__name__.lower():
-            shared.state.prediction_type = "flow_prediction"
-        elif hasattr(model.scheduler, "config") and hasattr(model.scheduler.config, "prediction_type"):
-            shared.state.prediction_type = model.scheduler.config.prediction_type
         clean_config = {k: v for k, v in model.scheduler.config.items() if not k.startswith('_') and v is not None and v is not False}
         cls = model.scheduler.__class__.__name__
     else:
