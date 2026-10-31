@@ -26,12 +26,14 @@ def task_modular_kwargs(p, model):
     task_args = {}
     p.ops.append('modular')
 
-    processing_helpers.resize_init_images(p)
+    width, height = processing_helpers.resize_init_images(p)
     if model_cls == 'MingImageModularPipeline' and len(getattr(p, 'init_images', [])) > 0:
         p.width = max(16, 16 * ((p.width + 8) // 16))
         p.height = max(16, 16 * ((p.height + 8) // 16))
     task_args['width'] = p.width
     task_args['height'] = p.height
+    if (sd_models.get_max_condition_images(model) > 0) and (len(getattr(p, 'init_images', [])) > 0): # a resized hires pass returns the hires size and leaves p.width and p.height at the base size
+        task_args['width'], task_args['height'] = width, height
     if len(getattr(p, 'init_images', [])) > 0:
         task_args['image'] = p.init_images
         if model_cls != 'MingImageModularPipeline':
