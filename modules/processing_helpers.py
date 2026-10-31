@@ -356,6 +356,14 @@ def decode_images(image):
     return None
 
 
+def pass_size(p) -> tuple[int, int]:
+    """Width and height the current pass outputs: the hires target on a resized hires pass, else the request size."""
+    width, height = getattr(p, 'width', 1024), getattr(p, 'height', 1024)
+    if getattr(p, 'is_hr_pass', False) and getattr(p, 'hr_resize_mode', 0) > 0 and (getattr(p, 'hr_upscaler', 'None') != 'None' or p.hr_resize_mode == 5):
+        width, height = max(width, getattr(p, 'hr_upscale_to_x', 0)), max(height, getattr(p, 'hr_upscale_to_y', 0))
+    return width, height
+
+
 def resize_init_images(p):
     try:
         if getattr(p, 'image', None) is not None and getattr(p, 'init_images', None) is None:

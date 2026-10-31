@@ -3,9 +3,8 @@ import diffusers
 
 def unpack_latents(latents, components: diffusers.modular_pipelines.ModularPipeline, state: diffusers.modular_pipelines.BlockState):
     # based on methods from diffusers/modular_pipelines/flux3/decoders.py
-    from modules import processing_callbacks
-    width = getattr(processing_callbacks.p, 'width', 1024)
-    height = getattr(processing_callbacks.p, 'height', 1024)
+    from modules import processing_callbacks, processing_helpers
+    width, height = processing_helpers.pass_size(processing_callbacks.p) # a hires pass runs at its own size, not the request's
 
     # unpack: (batch_size, latent_height * latent_width, num_channels) -> (batch_size, num_channels, latent_height, latent_width)
     latent_width = width // (components.vae_scale_factor * 2)

@@ -7,6 +7,7 @@ Covers:
 - a resized hires pass on a modular pipeline that takes condition images, called at the hires size
 - a negative prompt the pipeline takes no input for, warned once per job, through process_images on stub pipelines
 - ``get_guidance_params`` on standard and modular pipelines, with and without a guider, and ``set_guider`` building the same guider
+- the FLUX.3 live-preview unpack sized for the pass that runs, hires or base
 
 No running server required.
 
@@ -39,6 +40,7 @@ finally:
 installer.add_args(modules.cmd_args.parser)
 modules.cmd_args.parsed, _ = modules.cmd_args.parser.parse_known_args([])
 
+import torch                                                         # pylint: disable=wrong-import-position
 import diffusers                                                     # pylint: disable=wrong-import-position
 from PIL import Image                                                # pylint: disable=wrong-import-position
 from modules import shared, devices                                  # pylint: disable=wrong-import-position
@@ -272,6 +274,27 @@ def test_set_guider_builds_default_guider():
     assert got == (4.0, 0.25, 0.1, 0.9), f'guider settings {got}'
 
 
+# ============================================================
+# preview
+# ============================================================
+
+def test_flux3_preview_unpack_at_pass_size():
+    """Packed latents carry no size; a hires pass on FLUX.3 runs at the hires size, so the preview unpack must not use the request's."""
+    from modules import processing_callbacks
+    from pipelines.flux3 import flux3_latents
+    components = SimpleNamespace(vae_scale_factor=8)
+    previous = processing_callbacks.p
+    shapes = {}
+    try:
+        for name, p, tokens in (('hires', hires_p(width=512, height=512, hr_upscale_to_x=768, hr_upscale_to_y=768), 48 * 48), ('base', hires_p(width=512, height=512, is_hr_pass=False), 32 * 32)):
+            processing_callbacks.p = p
+            latents = torch.zeros(1, tokens, 128)
+            shapes[name] = tuple(flux3_latents.unpack_latents(latents, components, SimpleNamespace(latents=latents)).shape)
+    finally:
+        processing_callbacks.p = previous
+    assert shapes == {'hires': (1, 32, 96, 96), 'base': (1, 32, 64, 64)}, f'unpacked {shapes}'
+
+
 def run_all():
     log.warning('=== Pipeline args ===')
     cat = category('size')
@@ -294,6 +317,8 @@ def run_all():
         test_set_guider_builds_default_guider,
     ]:
         run_test(cat, fn)
+    cat = category('preview')
+    run_test(cat, test_flux3_preview_unpack_at_pass_size)
 
     log.warning('=== Results ===')
     total = {'passed': 0, 'failed': 0, 'skipped': 0}
