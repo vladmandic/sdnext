@@ -5,6 +5,7 @@ Offline tests for the call arguments modules.processing_args builds for a pipeli
 Covers:
 
 - a resized hires pass on a modular pipeline that takes condition images, called at the hires size
+- a negative prompt the pipeline takes no input for, warned once per job, through process_images on stub pipelines
 
 No running server required.
 
@@ -15,6 +16,8 @@ Usage:
 import os
 import sys
 import time
+import logging
+import contextlib
 from types import SimpleNamespace
 
 script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -35,12 +38,16 @@ finally:
 installer.add_args(modules.cmd_args.parser)
 modules.cmd_args.parsed, _ = modules.cmd_args.parser.parse_known_args([])
 
+import diffusers                                                     # pylint: disable=wrong-import-position
 from PIL import Image                                                # pylint: disable=wrong-import-position
-from modules import shared                                           # pylint: disable=wrong-import-position
+from modules import shared, devices                                  # pylint: disable=wrong-import-position
 from modules.errors import log                                       # pylint: disable=wrong-import-position
 from modules.modeldata import model_data                             # pylint: disable=wrong-import-position
 
 model_data.locked = False  # webui.py unlocks it at startup
+devices.torch_gc = lambda *args, **kwargs: None  # begin/end call it; nothing here holds device memory
+shared.opts.data['sd_model_checkpoint'] = 'None'  # an empty slot must not trigger a model load
+shared.opts.data['sd_model_refiner'] = 'None'
 results: dict[str, dict] = {}
 
 
@@ -88,6 +95,67 @@ class ConditionModularPipeline:
     patch_size = None
 
 
+class LogCapture(logging.Handler):
+    def __init__(self):
+        super().__init__(level=logging.DEBUG)
+        self.records: list[logging.LogRecord] = []
+
+    def emit(self, record):  # pylint: disable=redefined-outer-name
+        self.records.append(record)
+
+    def messages(self, level: int = logging.DEBUG) -> list[str]:
+        return [r.getMessage() for r in self.records if r.levelno >= level]
+
+
+@contextlib.contextmanager
+def capture_log():
+    handler = LogCapture()
+    logger = logging.getLogger('sd')
+    logger.addHandler(handler)
+    try:
+        yield handler
+    finally:
+        logger.removeHandler(handler)
+
+
+class NoNegativePipeline(diffusers.DiffusionPipeline):
+    """A guidance-distilled pipeline: no negative prompt among its call parameters."""
+
+    def __init__(self):
+        super().__init__()
+        self.register_to_config(_name_or_path='stub')
+        self.sd_checkpoint_info = SimpleNamespace(name='stub', title='stub', filename='stub.safetensors', hash=None, sha256=None, shorthash=None, model_name='stub', type='diffusers')
+        self.sd_model_hash = None
+        self.calls: list[dict] = []
+
+    def __call__(self, prompt=None, num_inference_steps=4, width=64, height=64, generator=None, output_type='pil', num_images_per_prompt=1, **kwargs):  # pylint: disable=unused-argument
+        self.calls.append({'prompt': prompt, **kwargs})
+        return SimpleNamespace(images=[Image.new('RGB', (64, 64))])
+
+
+class NegativePipeline(NoNegativePipeline):
+    def __call__(self, prompt=None, negative_prompt=None, num_inference_steps=4, width=64, height=64, generator=None, output_type='pil', num_images_per_prompt=1, **kwargs):  # pylint: disable=unused-argument
+        self.calls.append({'prompt': prompt, 'negative_prompt': negative_prompt, **kwargs})
+        return SimpleNamespace(images=[Image.new('RGB', (64, 64))])
+
+
+def generate(pipe, negative_prompt: str) -> list[str]:
+    """One txt2img job on a stub pipeline; the warnings it logged."""
+    from modules.processing import StableDiffusionProcessingTxt2Img, process_images
+    shared.sd_model = pipe
+    p = StableDiffusionProcessingTxt2Img(prompt='a cat', negative_prompt=negative_prompt, steps=4, width=64, height=64, n_iter=2, batch_size=1, seed=1)
+    p.scripts = None
+    p.do_not_save_samples = True
+    p.do_not_save_grid = True
+    jobid = shared.state.begin('API-TXT', api=True)
+    try:
+        with capture_log() as captured:
+            process_images(p)
+    finally:
+        shared.state.end(jobid)
+    return captured.messages(logging.WARNING)
+
+
 def hires_p(**overrides):
     values = {
         'ops': [], 'task_args': {}, 'width': 704, 'height': 1280, 'denoising_strength': 0.5,
@@ -120,12 +188,39 @@ def test_modular_base_pass_at_request_size():
     assert (args.get('width'), args.get('height')) == (704, 1280), f"base call sized {args.get('width')}x{args.get('height')}"
 
 
+# ============================================================
+# negative prompt
+# ============================================================
+
+def test_dropped_negative_prompt_warns_once():
+    pipe = NoNegativePipeline()
+    warnings = [m for m in generate(pipe, 'blurry, watermark') if 'negative prompt' in m]
+    assert len(pipe.calls) == 2, f'pipeline called {len(pipe.calls)} times for two images'
+    assert len(warnings) == 1 and 'NoNegativePipeline' in warnings[0], f'warnings for a dropped negative prompt over two images: {warnings}'
+
+
+def test_used_or_empty_negative_prompt_is_quiet():
+    """Controls: a pipeline that takes the negative prompt, and an empty negative prompt on one that does not."""
+    pipe = NegativePipeline()
+    warnings = [m for m in generate(pipe, 'blurry, watermark') if 'negative prompt' in m]
+    assert pipe.calls and pipe.calls[0].get('negative_prompt'), f'negative prompt not passed: {pipe.calls[:1]}'
+    assert not warnings, f'warned with the negative prompt passed: {warnings}'
+    warnings = [m for m in generate(NoNegativePipeline(), '') if 'negative prompt' in m]
+    assert not warnings, f'warned for an empty negative prompt: {warnings}'
+
+
 def run_all():
     log.warning('=== Pipeline args ===')
     cat = category('size')
     for fn in [
         test_modular_hires_pass_at_hires_size,
         test_modular_base_pass_at_request_size,
+    ]:
+        run_test(cat, fn)
+    cat = category('negative')
+    for fn in [
+        test_dropped_negative_prompt_warns_once,
+        test_used_or_empty_negative_prompt_is_quiet,
     ]:
         run_test(cat, fn)
 

@@ -401,6 +401,9 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:l
                 args[key] = args[key][0] if len(args[key]) > 0 else ''
         if not args.get('negative_prompt', None):
             args.pop('negative_prompt', None) # an empty negative is omitted, the base text encoder warns about one it will not use
+    if any(isinstance(n, str) and n.strip() for n in (negative_prompts or [])) and not any(k.startswith('negative_prompt') for k in args) and not getattr(p, 'negative_warned', False):
+        log.warning(f'Pipeline: cls={model.__class__.__name__} negative prompt ignored, the pipeline takes none')
+        p.negative_warned = True
 
     # set callbacks
     if 'prior_callback_steps' in possible:  # Wuerstchen / Cascade

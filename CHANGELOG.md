@@ -36,6 +36,7 @@
   - save: *[datetime<format>]* and *[hasprompt<...>]* filename tokens apply their arguments again instead of being written as typed
   - hdr: the 16-bit hdr image saves on windows paths with non-ascii characters
   - processing: hires on modular pipelines that take condition images (*FLUX.3 Klein*) runs at the hires size instead of the base size
+  - processing: a negative prompt the pipeline takes no input for is reported once per job instead of dropped silently
 
 ## Update for 2026-10-29
 
