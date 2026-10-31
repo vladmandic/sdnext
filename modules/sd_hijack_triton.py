@@ -215,7 +215,7 @@ def run_hook(orig):
                         seen = f'{name}:{config}:{spills}'
                         if seen not in status['reported']:
                             status['reported'].add(seen)
-                            log.warning(f'Kernel autotune: kernel={name} register spill config="{config}" regs={regs} spills={spills}')
+                            log.debug(f'Kernel autotune: kernel={name} register spill config="{config}" regs={regs} spills={spills}')
                     elif regs is not None:
                         log.debug(f'Kernel autotune: kernel={name} regs={regs} spills=0')
                 except Exception as e:
