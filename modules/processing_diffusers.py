@@ -273,7 +273,7 @@ def process_base(p: processing.StableDiffusionProcessing):
     except AssertionError as e:
         log.info(e)
     except ValueError as e:
-        shared.state.interrupted = True
+        shared.state.fail(e)
         err_args = base_args.copy()
         for k, v in base_args.items():
             if isinstance(v, torch.Tensor):
@@ -281,7 +281,7 @@ def process_base(p: processing.StableDiffusionProcessing):
         log.error(f'Processing: args={err_args} {e}')
         errors.display(e, 'Processing')
     except RuntimeError as e:
-        shared.state.interrupted = True
+        shared.state.fail(e)
         err_args = base_args.copy()
         for k, v in base_args.items():
             if isinstance(v, torch.Tensor):
@@ -428,7 +428,7 @@ def process_hires(p: processing.StableDiffusionProcessing, output):
             except AssertionError as e:
                 log.info(e)
             except RuntimeError as e:
-                shared.state.interrupted = True
+                shared.state.fail(e)
                 log.error(f'Processing step=hires: args={hires_args} {e}')
                 errors.display(e, 'Processing')
                 modelstats.analyze()
@@ -507,7 +507,7 @@ def process_refine(p: processing.StableDiffusionProcessing, output):
             except AssertionError as e:
                 log.info(e)
             except RuntimeError as e:
-                shared.state.interrupted = True
+                shared.state.fail(e)
                 log.error(f'Processing step=refine: args={refiner_args} {e}')
                 errors.display(e, 'Processing')
                 modelstats.analyze()

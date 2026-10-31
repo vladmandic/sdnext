@@ -403,8 +403,9 @@ def run(model: str, *,
                 else:
                     processed = processing.process_images(p)
                     if processed is None or processed.images is None or len(processed.images) == 0:
-                        # process_images swallows the interrupt assertion, so an empty result is the
-                        # only place a cancel and a genuine failure are still distinguishable
+                        # process_images swallows pass errors and the interrupt assertion; state.error tells them apart
+                        if shared.state.error:
+                            reject(shared.state.error, 500)
                         if shared.state.interrupted or shared.state.skipped:
                             reject('interrupted', 499)
                         reject('process_images returned no frames', 500)

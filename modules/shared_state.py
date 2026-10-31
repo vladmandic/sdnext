@@ -22,6 +22,7 @@ class State:
     results = []
     skipped = False
     interrupted = False
+    error = ''
     paused = False
     job = ""
     job_no = 0
@@ -59,6 +60,7 @@ class State:
         status = ' '
         status += 'skipped ' if self.skipped else ''
         status += 'interrupted ' if self.interrupted else ''
+        status += 'failed ' if self.error else ''
         status += 'paused ' if self.paused else ''
         status += 'restart ' if self.need_restart else ''
         status += 'oom ' if self.oom else ''
@@ -82,6 +84,11 @@ class State:
 
     def interrupt(self):
         log.debug('State: interrupt requested')
+        self.interrupted = True
+
+    def fail(self, e: Exception | str):
+        """Stop the job on an error; error tells a failed pass from a user interrupt."""
+        self.error = str(e) or type(e).__name__
         self.interrupted = True
 
     def pause(self):
@@ -136,6 +143,8 @@ class State:
         res.eta = round(predicted - res.elapsed, 2) if predicted is not None else None
         if self.paused:
             res.status = 'paused'
+        elif self.error:
+            res.status = 'failed'
         elif self.interrupted:
             res.status = 'interrupted'
         elif self.skipped:
@@ -204,6 +213,7 @@ class State:
         import modules.devices
         self.clear()
         self.interrupted = False
+        self.error = ''
         self.skipped = False
         self.job_history += 1
         self.total_jobs += 1
