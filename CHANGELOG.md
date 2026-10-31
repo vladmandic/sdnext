@@ -29,6 +29,7 @@
   - gallery: thumbnails and previews for webm, mkv, mov, avi and ts videos, not only mp4, webm videos listed
   - api: ts video files served as *video/mp2t*
   - minimax: webm, mkv and ts files accepted as reference videos
+  - save: *Save metadata to JSON file* appends one line per image to a json lines file instead of rewriting the whole log, an existing *.json* log is left as it is
 
 ## Update for 2026-10-29
 

@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 import queue
 import datetime as dt
 import threading
@@ -7,7 +8,6 @@ import piexif.helper
 from PIL import Image, PngImagePlugin
 from modules import shared, script_callbacks, errors, paths
 from modules.logger import log
-from modules.json_helpers import writefile
 from modules.image.grid import check_grid_size
 from modules.image.namegen import FilenameGenerator
 from modules.image.watermark import set_watermark
@@ -30,6 +30,37 @@ def sanitize_filename_part(text, replace_spaces=True):
     text = text.lstrip(invalid_filename_prefix)[:max_filename_part_length]
     text = text.rstrip(invalid_filename_postfix)
     return text
+
+
+save_log_state: dict[str, tuple[int, int]] = {} # log path: next id, file size after the last append
+
+
+def append_save_log(filename: str, exifinfo: str):
+    """One JSON object per line; ids are line numbers, recounted when the file changed outside this process."""
+    fn = os.path.join(paths.data_path, shared.opts.save_log_fn)
+    root, ext = os.path.splitext(fn)
+    fn = (root if ext.lower() in ('.json', '.jsonl') else fn) + '.jsonl'
+    size = os.path.getsize(fn) if os.path.isfile(fn) else 0
+    idx, known = save_log_state.get(fn, (0, -1))
+    prefix = b''
+    if size != known:
+        idx, last = 0, b'\n'
+        if size > 0:
+            with open(fn, 'rb') as f:
+                for chunk in iter(lambda: f.read(1 << 20), b''):
+                    idx += chunk.count(b'\n')
+                    last = chunk[-1:]
+        if last != b'\n': # a torn last line stays a line of its own
+            prefix = b'\n'
+            idx += 1
+    entry = { 'id': idx, 'filename': filename, 'time': dt.datetime.now().isoformat(), 'info': exifinfo }
+    line = prefix + json.dumps(entry).encode('utf8') + b'\n'
+    with open(fn, 'ab') as f:
+        f.write(line)
+        f.flush()
+        os.fsync(f.fileno())
+    save_log_state[fn] = (idx + 1, size + len(line))
+    log.info(f'Save: json="{fn}" records={idx + 1}')
 
 
 def atomically_save_image():
@@ -127,17 +158,10 @@ def atomically_save_image():
         savejob.outputs.append(fn)
 
         if shared.opts.save_log_fn != '' and len(exifinfo) > 0:
-            fn = os.path.join(paths.data_path, shared.opts.save_log_fn)
-            if not fn.endswith('.json'):
-                fn += '.json'
-            entries = shared.readfile(fn, silent=True)
-            if not isinstance(entries, list):
-                entries = []
-            idx = len(entries)
-            entry = { 'id': idx, 'filename': filename, 'time': dt.datetime.now().isoformat(), 'info': exifinfo }
-            entries.append(entry)
-            writefile(entries, fn, mode='w', silent=True)
-            log.info(f'Save: json="{fn}" records={len(entries)}')
+            try:
+                append_save_log(filename, exifinfo)
+            except Exception as e:
+                log.error(f'Save failed: json="{shared.opts.save_log_fn}" {e}')
         savejob.end()
         save_queue.task_done()
 

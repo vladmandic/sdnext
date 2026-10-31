@@ -1648,7 +1648,7 @@
     {"id": "", "label": "Save metadata", "localized": "", "hint": "Write parameter dictionaries and provenance metadata into output files", "ui": "models_merge_tab"},
     {"id": "", "label": "Save metadata in image", "localized": "", "hint": "Embed generation parameters and prompt metadata directly into image headers", "ui": "settings_image-metadata"},
     {"id": "", "label": "Save metadata in text file", "localized": "", "hint": "Write generation parameters to a matching <code>.txt</code> file alongside images"},
-    {"id": "", "label": "Save metadata to JSON file", "localized": "", "hint": "Write comprehensive generation logs and parameters to a JSON log file", "ui": "settings_image-metadata"},
+    {"id": "", "label": "Save metadata to JSON file", "localized": "", "hint": "Log file that receives the generation parameters of every saved image as one JSON object per line. A <code>.json</code> name is written as <code>.jsonl</code>, a relative path is inside the data folder, and an empty value disables the log. Nothing is logged while <i>Save metadata in image</i> is off", "ui": "settings_image-metadata"},
     {"id": "", "label": "Save metadata to text file", "localized": "", "hint": "Write generation parameters to a matching <code>.txt</code> file alongside images", "ui": "settings_image-metadata"},
     {"id": "component-5595", "label": "Save model", "localized": "", "hint": "Export and save currently loaded model checkpoint to disk", "ui": "models_current_tab"},
     {"id": "", "label": "Save Options", "localized": "", "hint": "Output file naming, numbering, and subdirectory organization options", "ui": "settings_saving-paths"},
