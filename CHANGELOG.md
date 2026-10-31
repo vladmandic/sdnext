@@ -18,6 +18,7 @@
   - *Video codec* in scripts, control and create video lists the codec presets, the container follows the codec  
     settings saved under the old *Video format* labels reset to the default
   - ltx condition video: skipping frames keeps the first frame
+  - mkv and webm frame counts read from each track's duration tag instead of a pass over the file, faster gallery thumbnails of long clips
 - **Fixes**
   - process: show why a video run failed, report a missing input video
   - save: configured output folder kept as given, only generated folder and file names are sanitized

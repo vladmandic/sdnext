@@ -2096,14 +2096,14 @@ VP9_FAST = {'crf': '30', 'b': '0', 'deadline': 'realtime', 'cpu-used': '8'}
 
 
 def test_readers_per_container():
-    """Frame counts in each container the writers produce: the header count (mp4, mov, avi), the video stream's own duration (ts), the packets (mkv, webm); never the container duration."""
+    """Frame counts in each container the writers produce: the header count (mp4, mov, avi), the video stream's own duration (ts from the stream, mkv and webm from their per-track DURATION tag); never the container duration."""
     if need_av():
         return need_av()
     rate = Fraction(24000, 1001)
     frames = pan_frames(48, 320, 192)
-    cases = [('mp4', 'libx264', {}, 'header'), ('mov', 'libx264', {}, 'header'), ('avi', 'mpeg4', {}, 'header'), ('ts', 'libx264', {}, 'duration'), ('mkv', 'libx264', {}, None)]
+    cases = [('mp4', 'libx264', {}, 'header'), ('mov', 'libx264', {}, 'header'), ('avi', 'mpeg4', {}, 'header'), ('ts', 'libx264', {}, 'duration'), ('mkv', 'libx264', {}, 'duration')]
     if 'libvpx-vp9' in av.codecs_available:
-        cases.append(('webm', 'libvpx-vp9', VP9_FAST, None))
+        cases.append(('webm', 'libvpx-vp9', VP9_FAST, 'duration'))
     out = {}
     for ext, codec, options, source in cases:
         fn = encode_reader_fixture(out_path(f'reader_container.{ext}'), frames, codec=codec, options=options, rate=rate)
@@ -2120,8 +2120,6 @@ def test_readers_per_container():
     for ext, o in out.items():
         if o['expected_source'] != 'header':
             assert o['stream_frames'] == 0, f'{ext}: fixture carries a frame count {o["stream_frames"]}, the estimate path is not exercised'
-        if o['expected_source'] is None:
-            assert o['stream_duration'] is None, f'{ext}: fixture carries a stream duration {o["stream_duration"]}'
         assert o['frames_source'] == o['expected_source'], f'{ext}: frames from {o["frames_source"]}, expected {o["expected_source"]}'
         assert o['read'] == 48, f'{ext}: read {o["read"]} of 48 frames'
         assert o['params'] == 48, f'{ext}: get_video_params reports {o["params"]} frames'
@@ -2177,7 +2175,7 @@ def test_count_frames_without_header_or_duration():
 
 
 def test_frames_estimate_ignores_trailing_audio():
-    """A matroska clip whose soundtrack outlasts its 12 frames: the count comes from the packets, not from the container duration, which includes the audio."""
+    """A matroska clip whose soundtrack outlasts its 12 frames: the count comes from the video track's own DURATION tag, not from the container duration, which includes the audio."""
     if need_av():
         return need_av()
     fn = encode_reader_fixture(out_path('trailing_audio.mkv'), small_frames(12), audio_seconds=2.0)
@@ -2187,10 +2185,11 @@ def test_frames_estimate_ignores_trailing_audio():
     probe = video_reader.probe_media(fn, 'video')
     params = video.get_video_params(fn)
     measure('trailing_audio', container_estimate=round((fixture['container_seconds'] or 0) * 24), **{k: str(v) for k, v in fixture.items()})
-    verdict('test_frames_estimate_ignores_trailing_audio', 'PASS', probe_frames=probe.frames, params_frames=params[0])
+    verdict('test_frames_estimate_ignores_trailing_audio', 'PASS', probe_frames=probe.frames, frames_source=probe.frames_source, probe_seconds=probe.duration, params_frames=params[0])
     assert fixture['stream_frames'] == 0 and fixture['stream_duration'] is None, f'fixture carries a count or a stream duration: {fixture}'
     assert (fixture['container_seconds'] or 0) > 1.5, f'fixture soundtrack is not longer than the video: {fixture}'
-    assert probe.frames is None, f'probe estimated {probe.frames} frames from the container duration'
+    assert probe.frames == 12 and probe.frames_source == 'duration', f'probe reports {probe.frames} frames from {probe.frames_source}'
+    assert probe.duration is not None and probe.duration < 1, f'probe duration {probe.duration} s is not the video track\'s own'
     assert params[0] == 12, f'get_video_params reports {params[0]} frames for 12'
     return True
 
@@ -2198,6 +2197,43 @@ def test_frames_estimate_ignores_trailing_audio():
 def block_mean(img: np.ndarray, centre: tuple[int, int], radius: int = 4) -> np.ndarray:
     cx, cy = centre
     return img[cy - radius:cy + radius + 1, cx - radius:cx + radius + 1].reshape(-1, img.shape[-1]).astype(np.float64).mean(axis=0)
+
+
+def test_tag_duration_parses_matroska_tags():
+    """The per-track DURATION tag: HH:MM:SS.fraction to seconds; anything else is no duration."""
+    tag_duration = need(video_reader, 'tag_duration')
+
+    def stream(tags: dict):
+        return type('Stream', (), {'metadata': tags})()
+
+    cases = {'00:00:00.501000000': 0.501, '00:01:00.000000000': 60.0, '01:02:03.5': 3723.5}
+    got = {value: tag_duration(stream({'DURATION': value})) for value in cases}
+    wrong = {value: seconds for value, seconds in got.items() if seconds is None or abs(seconds - cases[value]) > 1e-9}
+    assert not wrong, f'parsed {wrong}'
+    for tags in ({}, {'DURATION': ''}, {'DURATION': 'garbage'}, {'DURATION': '1:2'}, {'DURATION': None}, {'DURATION': '00:00:nan'}, {'DURATION': '00:00:inf'}, {'DURATION': '-01:00:00'}, {'DURATION': '00:00:00.000'}, {'DURATION-eng': '00:00:01.000'}):
+        assert tag_duration(stream(tags)) is None, f'{tags} parsed as {tag_duration(stream(tags))}'
+    return True
+
+
+def test_tagged_matroska_not_demuxed():
+    """mkv and webm files tag each track with its duration, so their frame count needs no pass over the packets."""
+    if need_av():
+        return need_av()
+    fixtures = {'mkv': encode_reader_fixture(out_path('tagged.mkv'), small_frames(12))}
+    if 'libvpx-vp9' in av.codecs_available:
+        fixtures['webm'] = encode_reader_fixture(out_path('tagged.webm'), small_frames(12), codec='libvpx-vp9', options=VP9_FAST)
+    calls = []
+    counted = video_reader.count_frames
+    out = {}
+    with patched(video_reader, 'count_frames', lambda fn: calls.append(fn) or counted(fn)):
+        for name, fn in fixtures.items():
+            params = video.get_video_params(fn, capture=True)
+            out[name] = {'frames': params[0], 'demuxed': fn in calls}
+    verdict('test_tagged_matroska_not_demuxed', 'PASS', **{k: str(v) for k, v in out.items()})
+    demuxed = [name for name, o in out.items() if o['demuxed']]
+    assert not demuxed, f'frame count demuxed: {demuxed}'
+    assert all(o['frames'] == 12 for o in out.values()), f'frames {out}'
+    return True
 
 
 def test_reader_decodes_with_stream_tags():
@@ -3055,7 +3091,7 @@ GROUPS = [
     ('defaults', [test_legacy_default_is_h264_yuv420p, test_legacy_default_quality_matches_old_writer, test_explicit_mpeg4_gets_table_preset, test_legacy_labels_map_to_codecs, test_legacy_labels_encode, test_odd_size_under_default, test_none_codec_kwargs_give_default, test_resolve_video_type_aliases, test_explicit_codec_overrides_label_container, test_extension_rule, test_codec_name_saves_in_its_container, test_video_type_dropdowns_list_the_codec_presets]),
     ('rate', [test_video_rate_fractions, test_mpeg4_opens_at_dlss_long_rate, test_video_tab_keeps_fractional_rate, test_fps_zero_refused_by_name, test_dlss_output_fps_rule, test_video_tab_returns_none_video_on_failure]),
     ('colour', [test_default_outputs_are_tagged_bt709, test_legacy_default_colour_720, test_legacy_default_colour_512, test_video_tab_default_colour, test_rgb_pix_fmt_tagged_full_and_exact, test_prores_tagged_and_within_oracle, test_mpeg4_in_mp4_carries_colr]),
-    ('readers', [test_readers_agree_on_h264_fixture, test_readers_fractional_rate, test_readers_per_container, test_reader_codec_names, test_count_frames_without_header_or_duration, test_frames_estimate_ignores_trailing_audio, test_reader_decodes_with_stream_tags, test_reader_rotation_follows_display_matrix, test_params_without_capture_read_headers_only, test_iter_frames_skip_and_limit, test_ltx_condition_frames_keep_frame_zero, test_first_frame_equals_read_video_first, test_get_video_info_exact_keys, test_unreadable_file_contracts, test_corrupt_stream_stops_with_warning, test_frames_are_contiguous, test_unchanged_callers, test_reader_decode_speed_measured]),
+    ('readers', [test_readers_agree_on_h264_fixture, test_readers_fractional_rate, test_readers_per_container, test_reader_codec_names, test_count_frames_without_header_or_duration, test_frames_estimate_ignores_trailing_audio, test_tag_duration_parses_matroska_tags, test_tagged_matroska_not_demuxed, test_reader_decodes_with_stream_tags, test_reader_rotation_follows_display_matrix, test_params_without_capture_read_headers_only, test_iter_frames_skip_and_limit, test_ltx_condition_frames_keep_frame_zero, test_first_frame_equals_read_video_first, test_get_video_info_exact_keys, test_unreadable_file_contracts, test_corrupt_stream_stops_with_warning, test_frames_are_contiguous, test_unchanged_callers, test_reader_decode_speed_measured]),
     ('audio', [test_video_tab_muxes_audio_tensor, test_video_tab_muxes_audio_packets]),
     ('metadata', [test_metadata_roundtrip]),
     ('gradio', [test_option_off_does_not_probe_or_convert, test_option_on_converts_without_binaries, test_option_on_serves_playable_as_is, test_option_on_converts_unplayable_h264, test_preview_audio_passthrough_and_drop, test_preview_unopenable_file_served_as_is, test_preview_av_import_failure_does_not_raise, test_cli_fallback_leaves_no_copy, test_cleanup_tmpdr_removes_all_video_extensions]),

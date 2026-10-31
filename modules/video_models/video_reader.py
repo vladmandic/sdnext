@@ -46,6 +46,16 @@ def header_rotation(stream) -> int | None:
     return round(-math.degrees(math.atan2(m[1] / scale_y, m[0] / scale_x)))
 
 
+def tag_duration(stream) -> float | None:
+    """Seconds from the DURATION tag the matroska and webm muxers write per track, the stream's own length; None when absent or malformed."""
+    try:
+        hours, minutes, seconds = stream.metadata['DURATION'].split(':')
+        value = int(hours) * 3600 + int(minutes) * 60 + float(seconds)
+    except (KeyError, AttributeError, ValueError):
+        return None
+    return value if math.isfinite(value) and value > 0 else None
+
+
 def display_size(probe: MediaProbe) -> tuple[int, int]:
     """Width and height as players show the clip: the coded size, swapped for a quarter turn."""
     width, height = probe.width or 0, probe.height or 0
@@ -67,7 +77,7 @@ def probe_container(container, kind: str) -> MediaProbe:
         sar = stream.sample_aspect_ratio
         if sar is not None and sar.numerator > 0 and sar.numerator != sar.denominator:
             probe.sar = f'{sar.numerator}/{sar.denominator}'
-        stream_duration = float(stream.duration * stream.time_base) if stream.duration is not None and stream.time_base is not None else None # stream durations are in time_base units
+        stream_duration = float(stream.duration * stream.time_base) if stream.duration is not None and stream.time_base is not None else tag_duration(stream) # stream durations are in time_base units; matroska leaves them unset and tags each track instead
         if stream.frames: # 0 means the container carries no count, not an empty file
             probe.frames, probe.frames_source = stream.frames, 'header'
         elif stream_duration and probe.fps: # the container duration is not used: a longer soundtrack inflates it
