@@ -855,13 +855,15 @@ def install_rocm():
         if args.use_nightly:
             torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm10.1')
         else:
-            if (rocm.version is None) or (rocm_major > 7): # assume the latest if version check fails
-                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.14.1+rocm7.14 torchvision==0.29.1+rocm7.14 --index-url https://download.pytorch.org/whl/rocm7.14')
+            if (rocm.version is None) or (rocm_major > 10): # assume the latest if version check fails
+                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.15.0+rocm10.0 torchvision==0.29.2+rocm10.0 --index-url https://download.pytorch.org/whl/rocm10.0')
             else:
                 match rocm_major:
+                    case 10: # amd skipped from 7 to 10
+                        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.15.0+rocm10.0 torchvision==0.29.2+rocm10.0 --index-url https://download.pytorch.org/whl/rocm10.0')
                     case 7:
-                        if rocm_minor >= 2: # latest supported rocm 7.x
-                            torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.14.1+rocm7.14 torchvision==0.29.1+rocm7.14 --index-url https://download.pytorch.org/whl/rocm7.14')
+                        if rocm_minor > 2: # amd skipped from 7.2 to 7.14
+                            torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.15.0+rocm7.14 torchvision==0.29.2+rocm7.14 --index-url https://download.pytorch.org/whl/rocm7.14')
                         else:
                             match rocm_minor:
                                 case 2:
