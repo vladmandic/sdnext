@@ -13,6 +13,7 @@ Covers:
 - calls without a base, and paths outside the base, sanitized whole
 - ``save_image`` writing into a configured folder whose name ends in ``_``
 - generated names carrying no ``:``, so a pattern starting with a letter and a colon cannot become a Windows drive
+- tokens with ``<argument>`` forms, ``[datetime<format><zone>]`` and ``[hasprompt<a|default>]``
 
 No running server required.
 
@@ -21,7 +22,9 @@ Usage:
 """
 
 import os
+import re
 import sys
+import datetime as dt
 import shutil
 import tempfile
 from types import SimpleNamespace
@@ -164,6 +167,16 @@ def test_generated_names_carry_no_colon():
     assert names['a: [seed]'] == 'a_ 1234', f"literal text changed beyond the colon: {names['a: [seed]']!r}"
 
 
+def test_tokens_with_arguments():
+    generator = FilenameGenerator(stub_p(), seed=1234, prompt='a cat on a mat', image=None)
+    year = str(dt.datetime.now().year)
+    names = {pattern: generator.apply(pattern) for pattern in ('[datetime<%Y>]', '[datetime<%H:%M><UTC>]', '[hasprompt<cat><dog|nodog>]', '[nosuch<x>]')}
+    assert names['[datetime<%Y>]'] == year, f'datetime with a format: {names}'
+    assert re.fullmatch(r'\d\d_\d\d', names['[datetime<%H:%M><UTC>]']), f'datetime with a format and zone: {names}'
+    assert names['[hasprompt<cat><dog|nodog>]'] == 'catnodog', f'hasprompt: {names}'
+    assert names['[nosuch<x>]'] == '[nosuch<x>]', f'unknown token not kept: {names}'
+
+
 def test_save_image_pattern_with_drive_letter():
     """On Windows a folder pattern starting "a:" dropped the output folder and saved relative to drive A; the file must land below the configured folder."""
     from modules.image.save import save_image
@@ -191,6 +204,7 @@ def run_all():
         run_test(cat, fn)
     cat = category('apply')
     run_test(cat, test_generated_names_carry_no_colon)
+    run_test(cat, test_tokens_with_arguments)
     cat = category('save')
     for fn in [
         test_save_image_into_folder_ending_in_underscore,

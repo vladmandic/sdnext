@@ -33,6 +33,7 @@
   - save: *Save metadata to JSON file* appends one line per image to a json lines file instead of rewriting the whole log, an existing *.json* log is left as it is
   - save: an image save that fails no longer stops every later save
   - save: a generated folder or file name starting with a letter and a colon stays inside the output folder on windows
+  - save: *[datetime<format>]* and *[hasprompt<...>]* filename tokens apply their arguments again instead of being written as typed
 
 ## Update for 2026-10-29
 

@@ -290,7 +290,7 @@ class FilenameGenerator:
                 _pattern, arg = m.groups()
                 pattern_args.insert(0, arg)
 
-            fun = self.replacements.get(pattern.lower(), None)
+            fun = self.replacements.get(_pattern.lower(), None)
             if fun is not None:
                 try:
                     replacement = fun(self, *pattern_args)
