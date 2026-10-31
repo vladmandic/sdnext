@@ -42,6 +42,7 @@
   - samplers: *Euler SGM* and *DC Solver* use the model's prediction type instead of forcing *sample* and *epsilon*, *DPM++ Cosine* no longer fails on its first step
   - preview: live previews of video and *Qwen-Image 2.1* latents no longer fail on a step read while the callback reduced the latent to one frame
   - models: *FLUX.3*, *MiniMax-H3* and modular video models fail the load when a component the workflow requires does not load, instead of keeping the incomplete model until generation fails
+  - processing: a text encoder failure fails the job with its own error instead of a misleading *not enough values to unpack* from the pipeline
 
 ## Update for 2026-10-29
 

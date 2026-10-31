@@ -3,7 +3,7 @@ import time
 import contextlib
 from functools import wraps
 import torch
-from modules import shared, errors, timer, sd_models
+from modules import shared, timer, sd_models
 from modules.logger import log
 from modules.attention import context as attention_context
 
@@ -87,7 +87,6 @@ def hijack_encode_prompt(*args, **kwargs):
             prompt = args_copy[0]
             patch_prompt = True
         prompt = [p.strip(", \n") if isinstance(p, str) else p for p in prompt] if isinstance(prompt, list) else prompt
-        res = prompt
 
         if hasattr(shared.sd_model, 'before_prompt_encode'):
             log.debug('Encode: op=before')
@@ -120,16 +119,13 @@ def hijack_encode_prompt(*args, **kwargs):
         if hasattr(shared.sd_model, 'after_prompt_encode'):
             log.debug('Encode: op=after')
             res = shared.sd_model.after_prompt_encode(res)
-
-    except Exception as e:
-        log.error(f'Encode prompt: {e}')
-        errors.display(e, 'Encode prompt')
-    t1 = time.time()
-    timer.process.add('te', t1-t0)
-    if t1 - t0 > 10:
-        log.warning(f'Encode: time={t1-t0:.3f} long encode prompt')
-    shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
-    shared.state.end(jobid)
+    finally: # an encode failure propagates: the pipeline has no embeddings to continue with
+        t1 = time.time()
+        timer.process.add('te', t1-t0)
+        if t1 - t0 > 10:
+            log.warning(f'Encode: time={t1-t0:.3f} long encode prompt')
+        shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
+        shared.state.end(jobid)
     # from modules import memstats
     # log.debug(f'Encode: memory={memstats.memory_stats()}')
     return res
