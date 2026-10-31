@@ -9,6 +9,18 @@ from modules.processing import get_processed
 from modules.shared import opts, state
 
 
+def save_hdr_png(fn: str, hdr) -> bool:
+    """16-bit PNG through cv2.imencode and a Python file write; cv2.imwrite writes nothing on a non-ASCII path on Windows."""
+    ok, data = cv2.imencode('.png', hdr)
+    if not ok:
+        log.error(f'Save failed: image="{fn}" type=PNG mode=HDR encode failed')
+        return False
+    with open(fn, 'wb') as f:
+        f.write(data.tobytes())
+    log.debug(f'Save: image="{fn}" type=PNG mode=HDR channels=16 size={os.path.getsize(fn)}')
+    return True
+
+
 class HDRScript(scripts_manager.Script):
     def title(self):
         return "HDR: High Dynamic Range"
@@ -89,8 +101,7 @@ class HDRScript(scripts_manager.Script):
                 saved_fn, _txt, _exif = images.save_image(img, shared.opts.outdir_save, "", p.seed, p.prompt, opts.grid_format, info=processed.info, p=p)
                 fn = os.path.splitext(saved_fn)[0] + '-hdr.png'
                 # cv2.imwrite(fn, hdr, [cv2.IMWRITE_PNG_COMPRESSION, 6, cv2.IMWRITE_PNG_STRATEGY, cv2.IMWRITE_PNG_STRATEGY_HUFFMAN_ONLY, cv2.IMWRITE_HDR_COMPRESSION, cv2.IMWRITE_HDR_COMPRESSION_RLE])
-                cv2.imwrite(fn, hdr)
-                log.debug(f'Save: image="{fn}" type=PNG mode=HDR channels=16 size={os.path.getsize(fn)}')
+                save_hdr_png(fn, hdr)
             # if opts.grid_save:
             #    images.save_image(grid, p.outpath_grids, "grid", p.seed, p.prompt, opts.grid_format, info=processed.info, grid=True, p=p)
             grid = [images.image_grid(imgs, rows=1)] if opts.return_grid else []

@@ -34,6 +34,7 @@
   - save: an image save that fails no longer stops every later save
   - save: a generated folder or file name starting with a letter and a colon stays inside the output folder on windows
   - save: *[datetime<format>]* and *[hasprompt<...>]* filename tokens apply their arguments again instead of being written as typed
+  - hdr: the 16-bit hdr image saves on windows paths with non-ascii characters
 
 ## Update for 2026-10-29
 

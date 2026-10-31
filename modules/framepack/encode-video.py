@@ -6,6 +6,7 @@ import argparse
 import cv2
 import torch
 import torchvision
+from PIL import Image
 from safetensors.torch import safe_open
 from tqdm.rich import trange
 
@@ -38,8 +39,7 @@ if __name__ == "__main__":
         log.info(f'export: folder="{args.export}" prefix="{fn}" frames={n} width={w} height={h}')
         os.makedirs(args.export, exist_ok=True)
         for i in trange(n):
-            image = cv2.cvtColor(frames[i].numpy(), cv2.COLOR_RGB2BGR)
-            cv2.imwrite(os.path.join(args.export, f'{fn}-{i:05d}.jpg'), image)
+            Image.fromarray(frames[i].numpy()).save(os.path.join(args.export, f'{fn}-{i:05d}.jpg'), quality=95) # cv2.imwrite writes nothing on a non-ASCII path on Windows
 
     if args.cv2:
         log.info(f'encode: file={args.cv2} frames={n} width={w} height={h} fps={args.fps} method=cv2')
