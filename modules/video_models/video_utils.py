@@ -5,13 +5,13 @@ import importlib.util
 from contextlib import contextmanager
 from modules import shared, sd_models, timer, errors, devices
 from modules.logger import log
-from modules.video_models.video_codecs import codecs_config
+from modules.video_models.video_codecs import codecs_config, VIDEO_EXTENSIONS
 
 
 debug = log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None else lambda *args, **kwargs: None
 MEDIA_EXTENSIONS = {
     'image': ('.png', '.jpg', '.jpeg', '.webp'),
-    'video': ('.mp4', '.mov', '.avi'),
+    'video': tuple(sorted(f'.{ext}' for ext in VIDEO_EXTENSIONS)),
     'audio': ('.wav', '.mp3', '.flac', '.aac'),
 }
 

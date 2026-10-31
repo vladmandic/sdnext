@@ -28,6 +28,7 @@
   - offload: a job that fails inside the vae no longer leaves the vae on the gpu, after the job or after an unload
   - gallery: thumbnails and previews for webm, mkv, mov, avi and ts videos, not only mp4, webm videos listed
   - api: ts video files served as *video/mp2t*
+  - minimax: webm, mkv and ts files accepted as reference videos
 
 ## Update for 2026-10-29
 

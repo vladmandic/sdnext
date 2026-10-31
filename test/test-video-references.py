@@ -252,6 +252,15 @@ def test_unknown_extension_has_no_kind():
     assert video_utils.classify_extension('notes.txt') is None, 'txt classified as media'
 
 
+def test_every_preset_container_classifies_as_video():
+    from modules.video_models.video_codecs import codecs_config
+    containers = sorted({ext for cfg in codecs_config.values() for ext in cfg['allowed_exts']})
+    wrong = {ext: video_utils.classify_extension(f'clip.{ext}') for ext in containers}
+    wrong = {ext: kind for ext, kind in wrong.items() if kind != 'video'}
+    assert not wrong, f'preset containers not classified as video: {wrong}'
+    assert video_utils.classify_extension('clip.mjpeg') is None, 'raw mjpeg carries no timing and is not a reference video'
+
+
 def test_decoded_image_classifies_without_a_file():
     items = refs.classify_entries([image()])
     assert [kind for _label, kind, _entry in items] == ['image'], f'{items}'
@@ -684,6 +693,7 @@ def run_all():
             test_every_supported_extension_classifies,
             test_classification_ignores_case,
             test_unknown_extension_has_no_kind,
+            test_every_preset_container_classifies_as_video,
             test_decoded_image_classifies_without_a_file,
             test_paths_classify_by_extension,
             test_unsupported_extension_is_rejected,
