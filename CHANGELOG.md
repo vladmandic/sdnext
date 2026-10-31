@@ -8,7 +8,7 @@
     codec part of legacy *Video format* labels selects the encoder, api arguments keep working
   - per-codec pixel format in codec presets, odd frame sizes cropped for 4:2:0 formats
   - bt.709 colour conversion with colour tags, fractional frame rates kept
-  - *Videos convert for UI playback* is on by default and converts through *pyav*, no ffmpeg binary needed
+  - *Videos convert for UI playback* converts through *pyav*, no ffmpeg binary needed
   - *av* installs with the core requirements instead of on the first video save
   - dlss: api and enso jobs use the ui codec defaults, slow-motion output plays slower
   - remove *vaapi* codec presets, pypi *av* builds ship no vaapi encoders
