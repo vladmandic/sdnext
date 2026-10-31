@@ -72,9 +72,9 @@ def record(cat: str, passed: bool, name: str, detail: str = ''):
     if detail:
         msg += f' ({detail})'
     if passed:
-        log.info(msg)
+        log.info(msg, extra={'markup': False}) # details quote [token] patterns, which the console would take for markup
     else:
-        log.error(msg)
+        log.error(msg, extra={'markup': False})
 
 
 def run_test(cat: str, fn):
@@ -178,7 +178,7 @@ def test_tokens_with_arguments():
 
 
 def test_save_image_pattern_with_drive_letter():
-    """On Windows a folder pattern starting "a:" dropped the output folder and saved relative to drive A; the file must land below the configured folder."""
+    """On Windows a folder or file pattern starting with a letter and a colon dropped the output folder and saved relative to that drive; the file must land below the configured folder."""
     from modules.image.save import save_image
     folder = os.path.join(work_dir, 'drive')
     keys = ('save_to_dirs', 'directories_filename_pattern', 'samples_filename_pattern')
