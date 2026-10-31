@@ -3,14 +3,17 @@
 Offline unit tests for a generation pass that fails, against a user interrupt.
 
 A pass that raises records its message on ``State.error`` and stops the job through ``interrupted``,
-so the job reports ``failed``, returns and saves no images, and the video routes answer 500 with the
-message; a user interrupt reports ``interrupted``, keeps its last live preview, and the video routes
-answer 499. The pipeline is a stub that leaves a preview, then raises or interrupts during its call.
+so the job reports ``failed``, returns and saves no images, and the v1 and video routes answer 500 with
+the message; a user interrupt reports ``interrupted``, keeps its last live preview, the v1 routes answer
+200 with it and the video routes 499. The pipeline is a stub that leaves a preview, then raises or
+interrupts during its call.
 
 Covers:
 
 - ``State.fail``: error text, the stop flag, the reported status, cleared by ``begin`` only
 - ``process_images`` with a failing and an interrupted pipeline
+- v1 ``txt2img``, ``img2img`` and ``control`` route handlers with a failing, a succeeding and an interrupted
+  pipeline, and a later batch that fails after the first returned
 - ``video_run.run`` with a failing and an interrupted pipeline
 - an on-demand component returned to cpu when the pass raises inside its entry point
 
@@ -116,13 +119,15 @@ class StubPipeline(diffusers.DiffusionPipeline):
         self.register_to_config(_name_or_path='stub')
         self.mode = mode
         self.preview = preview
+        self.calls = 0
         self.sd_checkpoint_info = SimpleNamespace(name='stub', title='stub', filename='stub.safetensors', hash=None, sha256=None, shorthash=None, model_name='stub', type='diffusers')
         self.sd_model_hash = None
 
     def __call__(self, prompt=None, negative_prompt=None, num_inference_steps=4, width=64, height=64, generator=None, output_type='pil', num_images_per_prompt=1, **kwargs):  # pylint: disable=unused-argument
+        self.calls += 1
         if self.preview:
             state.current_image = Image.new('RGB', (64, 64), PREVIEW)
-        if self.mode == 'fail':
+        if self.mode == 'fail' or (self.mode == 'fail-second' and self.calls > 1):
             raise RuntimeError('stub pipeline failure')
         if self.mode == 'fail-decode':
             self.audio_vae.decode(torch.zeros(1, 4, device=devices.device))
@@ -150,6 +155,18 @@ class WanPipeline(StubPipeline):  # validate_pipeline and resolve_model match vi
 class StubRunner:
     def run(self, p, *args):  # pylint: disable=unused-argument
         return None
+
+
+class ApiRunner:
+    """Script runner for the v1 routes: one placeholder script, so the routes skip script discovery, and none runs."""
+    scripts = [SimpleNamespace(args_from=0, args_to=1, is_img2img=False, ui=lambda is_img2img: None)]
+    selectable_scripts = []
+
+    def run(self, p, *args):  # pylint: disable=unused-argument
+        return None
+
+    def after(self, p, processed, *args):  # pylint: disable=unused-argument
+        return processed
 
 
 def files() -> set:
@@ -197,6 +214,43 @@ def generate_video(mode: str, preview: bool = True) -> dict:
         return {'code': e.code, 'message': str(e)}
     finally:
         state.end(jobid)
+
+
+def call_v1(route: str, mode: str, n_iter: int = 1, preview: bool = False) -> dict:
+    """One v1 txt2img or img2img request on the stub through the real route handler; the response or the HTTP error it raised."""
+    import threading
+    import base64
+    import io
+    from fastapi.exceptions import HTTPException
+    from modules import scripts_manager, sd_samplers
+    from modules.api import models
+    from modules.api.generate import APIGenerate
+    sd_samplers.list_samplers() # the route validates the sampler name against the list ui startup fills
+    shared.sd_model = StubPipeline(mode, preview)
+    api = APIGenerate(threading.Lock())
+    api.default_script_arg_txt2img = [0]
+    api.default_script_arg_img2img = [0]
+    saved = scripts_manager.scripts_txt2img, scripts_manager.scripts_img2img, scripts_manager.scripts_control
+    scripts_manager.scripts_txt2img = scripts_manager.scripts_img2img = scripts_manager.scripts_control = ApiRunner()
+    common = {'prompt': 'stub', 'sampler_name': 'Default', 'steps': 4, 'width': 64, 'height': 64, 'n_iter': n_iter, 'batch_size': 1, 'seed': 1, 'save_images': False, 'send_images': True}
+    try:
+        if route == 'txt2img':
+            res = api.post_text2img(models.ReqTxt2Img(**common))
+        elif route == 'control':
+            from modules.api.control import APIControl, ReqControl
+            res = APIControl(threading.Lock()).post_control(ReqControl(**common))
+        else:
+            buf = io.BytesIO()
+            Image.new('RGB', (64, 64), (0, 255, 0)).save(buf, format='PNG')
+            res = api.post_img2img(models.ReqImg2Img(**common, init_images=[base64.b64encode(buf.getvalue()).decode()], denoising_strength=0.5))
+        out = {'code': 200, 'images': len(res.images or [])}
+        if hasattr(res, 'error'):
+            out['error'] = res.error
+        return out
+    except HTTPException as e:
+        return {'code': e.status_code, 'detail': e.detail}
+    finally:
+        scripts_manager.scripts_txt2img, scripts_manager.scripts_img2img, scripts_manager.scripts_control = saved
 
 
 # --- State ---
@@ -283,6 +337,53 @@ def test_failed_decode_returns_the_ondemand_component():
     return True
 
 
+# --- v1 API ---
+
+def test_v1_txt2img_failed_pass_answers_500_with_the_message():
+    """Red before the fix: 200 with an empty image list."""
+    out = call_v1('txt2img', 'fail')
+    assert out == {'code': 500, 'detail': 'stub pipeline failure'}, out
+    return True
+
+
+def test_v1_img2img_failed_pass_answers_500_with_the_message():
+    """Red before the fix: 200 with an empty image list."""
+    out = call_v1('img2img', 'fail')
+    assert out == {'code': 500, 'detail': 'stub pipeline failure'}, out
+    return True
+
+
+def test_v1_control_failed_pass_answers_500_with_the_message():
+    """Red before the fix: 200 with an empty image list."""
+    out = call_v1('control', 'fail')
+    assert out == {'code': 500, 'detail': 'stub pipeline failure'}, out
+    return True
+
+
+def test_v1_control_success_answers_200():
+    out = call_v1('control', 'ok')
+    assert out['code'] == 200 and out['images'] == 1, out
+    return True
+
+
+def test_v1_txt2img_success_answers_200():
+    out = call_v1('txt2img', 'ok')
+    assert out['code'] == 200 and out['images'] == 1, out
+    return True
+
+
+def test_v1_txt2img_user_interrupt_answers_200_with_the_preview():
+    out = call_v1('txt2img', 'interrupt', preview=True)
+    assert out['code'] == 200 and out['images'] == 1, f'an interrupt is not a failure: {out}'
+    return True
+
+
+def test_v1_txt2img_later_batch_failure_keeps_the_first_batch():
+    out = call_v1('txt2img', 'fail-second', n_iter=2)
+    assert out['code'] == 200 and out['images'] == 1, out
+    return True
+
+
 # --- Video ---
 
 def test_video_failed_pass_answers_500_with_the_message():
@@ -319,6 +420,17 @@ def run_all():
         test_failed_pass_returns_and_saves_no_preview,
         test_user_interrupt_keeps_the_preview,
         test_failed_decode_returns_the_ondemand_component,
+    ]:
+        run_test(cat, fn)
+    cat = category('v1')
+    for fn in [
+        test_v1_txt2img_failed_pass_answers_500_with_the_message,
+        test_v1_img2img_failed_pass_answers_500_with_the_message,
+        test_v1_control_failed_pass_answers_500_with_the_message,
+        test_v1_control_success_answers_200,
+        test_v1_txt2img_success_answers_200,
+        test_v1_txt2img_user_interrupt_answers_200_with_the_preview,
+        test_v1_txt2img_later_batch_failure_keeps_the_first_batch,
     ]:
         run_test(cat, fn)
     cat = category('video')

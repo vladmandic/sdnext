@@ -1,6 +1,7 @@
 from typing import Optional, TYPE_CHECKING
 from threading import Lock
 import time
+from fastapi.exceptions import HTTPException
 from pydantic import BaseModel, Field # pylint: disable=no-name-in-module
 from modules import errors, shared, processing_helpers
 from modules.logger import log
@@ -310,11 +311,14 @@ class APIControl:
                     output_info += item
                 else:
                     pass
+            error = shared.state.error # read under the lock: the next job's begin clears it
             shared.state.end(jobid, api=False)
             from modules.ui_control import return_stats
             stats = return_stats(started)
 
         # return
+        if error and len(output_images) == 0:
+            raise HTTPException(status_code=500, detail=error)
         b64images = list(map(helpers.encode_pil_to_base64, output_images)) if send_images else []
         b64processed = list(map(helpers.encode_pil_to_base64, output_processed)) if send_images else []
         saved_images = list(dict.fromkeys(

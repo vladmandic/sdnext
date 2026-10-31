@@ -1,4 +1,5 @@
 from threading import Lock
+from fastapi.exceptions import HTTPException
 from fastapi.responses import JSONResponse
 from modules import errors, shared, scripts_manager
 from modules.api import models, script, helpers
@@ -120,8 +121,11 @@ class APIGenerate:
                 processed = process_images(p)
             processed = scripts_manager.scripts_txt2img.after(p, processed, *script_args)
             p.close()
+            error = shared.state.error # read under the lock: the next job's begin clears it
             shared.state.end(jobid, api=False)
         if processed is None or processed.images is None or len(processed.images) == 0:
+            if error:
+                raise HTTPException(status_code=500, detail=error)
             b64images = []
         else:
             b64images = list(map(helpers.encode_pil_to_base64, processed.images)) if send_images else []
@@ -173,8 +177,11 @@ class APIGenerate:
                 processed = process_images(p)
             processed = scripts_manager.scripts_img2img.after(p, processed, *script_args)
             p.close()
+            error = shared.state.error # read under the lock: the next job's begin clears it
             shared.state.end(jobid, api=False)
         if processed is None or processed.images is None or len(processed.images) == 0:
+            if error:
+                raise HTTPException(status_code=500, detail=error)
             b64images = []
         else:
             b64images = list(map(helpers.encode_pil_to_base64, processed.images)) if send_images else []
