@@ -238,6 +238,30 @@ class FilenameGenerator:
         except (ValueError, TypeError):
             return 0
 
+    def collision(self, filename, include_txt=False):
+        """Suffix an occupied generated name, including its text sidecar when requested.
+
+        The caller must serialize name selection and writing within this process.
+        """
+        directory, name = os.path.split(filename)
+        stem, extension = os.path.splitext(name)
+        candidate = filename
+        index = 0
+        limit = None
+        while os.path.lexists(candidate) or (include_txt and os.path.lexists(os.path.splitext(candidate)[0] + '.txt')):
+            if limit is None:
+                limit = os.statvfs(directory or '.').f_namemax if hasattr(os, 'statvfs') else 255
+            index += 1
+            suffix = f'-{index}'
+            # Keep complete Unicode characters and leave room for the suffix and extension.
+            name = stem
+            while len(os.fsencode(name + suffix + extension)) > limit:
+                if not name:
+                    raise ValueError(f'No room for a collision suffix: {filename}')
+                name = name[:-1]
+            candidate = os.path.join(directory, name + suffix + extension)
+        return candidate
+
     def sequence(self, fn):
         global seq # pylint: disable=global-statement
         x = fn

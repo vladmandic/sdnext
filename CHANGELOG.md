@@ -20,6 +20,7 @@
   - ltx condition video: skipping frames keeps the first frame
   - mkv and webm frame counts read from each track's duration tag instead of a pass over the file, faster gallery thumbnails of long clips
 - **Fixes**
+  - save: colliding generated image names get a numeric suffix instead of overwriting images or metadata sidecars, including concurrent saves; sequence numbering settings and explicit forced filenames are unchanged
   - process: show why a video run failed, report a missing input video
   - save: configured output folder kept as given, only generated folder and file names are sanitized
   - ui: refresh buttons call their method once per click

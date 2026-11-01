@@ -172,6 +172,7 @@ def atomically_save_image():
 
 
 save_queue: queue.Queue[tuple[Image.Image, str, str, script_callbacks.ImageSaveParams, str, str | None, bool]] = queue.Queue()
+save_lock = threading.RLock() # serialize generated-name selection through completion of the queued write
 save_thread = threading.Thread(target=atomically_save_image, daemon=True)
 save_thread.start()
 
@@ -244,17 +245,22 @@ def save_image(image,
     dirname = os.path.dirname(params.filename)
     if dirname is not None and len(dirname) > 0:
         os.makedirs(dirname, exist_ok=True)
-    params.filename = namegen.sequence(params.filename)
-    params.filename = namegen.sanitize(params.filename, base=base)
-    # callbacks
-    script_callbacks.before_image_saved_callback(params)
-    exifinfo = params.pnginfo.get('UserComment', '')
-    exifinfo = exifinfo + ', ' if len(exifinfo) > 0 else ''
-    exifinfo += params.pnginfo.get(pnginfo_section_name, '')
-    filename, extension = os.path.splitext(params.filename)
-    filename_txt = f"{filename}.txt" if shared.opts.save_txt and len(exifinfo) > 0 else None
-    save_queue.put((params.image, filename, extension, params, exifinfo, filename_txt, grid)) # actual save is executed in a thread that polls data from queue
-    save_queue.join()
+    with save_lock:
+        params.filename = namegen.sequence(params.filename)
+        params.filename = namegen.sanitize(params.filename, base=base)
+        if forced_filename is None:
+            params.filename = namegen.collision(params.filename)
+        script_callbacks.before_image_saved_callback(params)
+        exifinfo = params.pnginfo.get('UserComment', '')
+        exifinfo = exifinfo + ', ' if len(exifinfo) > 0 else ''
+        exifinfo += params.pnginfo.get(pnginfo_section_name, '')
+        save_txt = shared.opts.save_txt and len(exifinfo) > 0
+        if forced_filename is None:
+            params.filename = namegen.collision(params.filename, include_txt=save_txt) # a callback may have changed the destination
+        filename, extension = os.path.splitext(params.filename)
+        filename_txt = f"{filename}.txt" if save_txt else None
+        save_queue.put((params.image, filename, extension, params, exifinfo, filename_txt, grid)) # actual save is executed in a thread that polls data from queue
+        save_queue.join()
     if not hasattr(params.image, 'already_saved_as'):
         debug(f'Image marked: "{params.filename}"')
         params.image.already_saved_as = params.filename
