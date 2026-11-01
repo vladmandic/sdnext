@@ -498,6 +498,7 @@ def create_settings(cmd_opts):
         "control_dir": OptionInfo(os.path.join(paths.models_path, 'control'), "Folder with Control models", folder=True),
         "yolo_dir": OptionInfo(os.path.join(paths.models_path, 'yolo'), "Folder with Yolo models", folder=True),
         "chat_dir": OptionInfo(os.path.join(paths.models_path, 'chat'), "Folder for chat database", folder=True),
+        "chat_upload_dir": OptionInfo("", "Folder for chat artifacts; leave empty for default", folder=True),
         "scheduler_dir": OptionInfo(os.path.join(paths.models_path, 'scheduler'), "Folder for scheduler database", folder=True),
         "esrgan_models_path": OptionInfo(os.path.join(paths.models_path, 'ESRGAN'), "Folder with ESRGAN models", folder=True),
         "bsrgan_models_path": OptionInfo(os.path.join(paths.models_path, 'BSRGAN'), "Folder with BSRGAN models", folder=True),

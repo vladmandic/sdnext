@@ -14550,6 +14550,20 @@ function closeModal(evt, force = false) {
   thumbnails[0].focus();
 }
 function modalImageSwitch(offset) {
+  const chatModalImage = gradioApp().getElementById("modalImage");
+  if (chatModalImage.dataset.chatArtifactId) {
+    const viewer = window.chatImageViewer;
+    if (!viewer) return;
+    viewer.navigate(chatModalImage.dataset.chatArtifactId, offset).then((image) => {
+      if (!image) return;
+      chatModalImage.dataset.chatArtifactId = image.artifactId;
+      chatModalImage.src = image.src;
+      if (chatModalImage.style.display === "none") {
+        gradioApp().getElementById("lightboxModal").style.setProperty("background-image", `url(${image.src})`);
+      }
+    }).catch((err) => log("chatImageViewer.navigate", err));
+    return;
+  }
   const negmod = (n, m) => (n % m + m) % m;
   const galleryButtons = all_gallery_buttons();
   if (galleryButtons.length > 1) {
@@ -14584,6 +14598,13 @@ function modalImageSwitch(offset) {
   }
 }
 function modalSaveImage(event2) {
+  const modalImage = gradioApp().getElementById("modalImage");
+  if (modalImage.dataset.chatArtifactId) {
+    const viewer = window.chatImageViewer;
+    if (viewer) viewer.download(modalImage.dataset.chatArtifactId).catch((err) => log("chatImageViewer.download", err));
+    event2?.stopPropagation();
+    return;
+  }
   const tabName = getENActiveTab();
   const saveBtn = gradioApp().getElementById(`save_${tabName}`);
   log("modalSaveImage", tabName, saveBtn);
@@ -14656,6 +14677,8 @@ function showModal(event2) {
     modalPreviewZone.focus();
     if (opts.viewer_show_metadata) displayExif(modalImage);
   };
+  if (source.dataset.chatArtifactId) modalImage.dataset.chatArtifactId = source.dataset.chatArtifactId;
+  else delete modalImage.dataset.chatArtifactId;
   modalImage.src = source.src;
   if (modalImage.style.display === "none") lb.style.setProperty("background-image", `url(${source.src})`);
   lb.style.display = "flex";
@@ -14663,6 +14686,12 @@ function showModal(event2) {
   event2.stopPropagation();
 }
 function modalDownloadImage() {
+  const modalImage = gradioApp().getElementById("modalImage");
+  if (modalImage.dataset.chatArtifactId) {
+    const viewer = window.chatImageViewer;
+    if (viewer) viewer.download(modalImage.dataset.chatArtifactId).catch((err) => log("chatImageViewer.download", err));
+    return;
+  }
   const link = document.createElement("a");
   link.style.display = "none";
   link.href = gradioApp().getElementById("modalImage").src;

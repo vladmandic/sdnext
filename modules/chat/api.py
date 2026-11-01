@@ -40,6 +40,7 @@ class ReqSessionUpdate(BaseModel):
     drafts: dict[str, dict[str, Any]] | None = Field(default=None, title='Context drafts')
     last_generation_prompt: str | None = Field(default=None, title='Last generation prompt')
     last_generation_snapshot: dict[str, Any] | None = Field(default=None, title='Last generation snapshot')
+    selected_image_id: str | None = Field(default=None, title='Selected image artifact')
 
 
 class ResSession(BaseModel):
@@ -111,10 +112,6 @@ class ReqChatMessageUpdate(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
-class ReqArtifactDelete(BaseModel):
-    confirm: bool = False
-
-
 class ResChatAction(BaseModel):
     kind: Literal['text', 'operation', 'schedule', 'endpoint', 'error']
     text: str = ''
@@ -135,6 +132,17 @@ def _public_artifacts(session_id: str) -> list[dict[str, Any]]:
     return [artifacts.public_artifact(item) for item in db.list_artifacts(session_id)]
 
 
+def _log_chat_error(operation: str, exc: Exception | None = None) -> None:
+    detail = f': {type(exc).__name__}: {exc}' if exc is not None else ''
+    log.error(f'Chat: {operation}{detail}')
+
+
+def _chat_error_result(result: dict[str, Any]) -> str:
+    if (result.get('message_metadata') or {}).get('format') == 'html':
+        return 'Imported file command failed'
+    return result.get('text') or 'Unknown error'
+
+
 _IMAGE_PAYLOAD_FIELDS = {'image', 'images', 'inputs', 'inits', 'mask', 'init_images', 'init_control', 'control', 'ip_adapter', 'face'}
 
 
@@ -148,54 +156,77 @@ def _store_image_results(session_id: str, message_id: str, images: list, saved_i
         if not isinstance(image_data, str):
             continue
         saved_path = saved_images[index] if index < len(saved_images) and isinstance(saved_images[index], str) else None
+        display_name = artifacts.safe_display_name(saved_path) if saved_path else f'generated-{index + 1}.png'
         try:
             artifact = artifacts.create_generated_artifact(
                 session_id,
                 message_id,
                 image_data,
-                f'generated-{index + 1}.png',
+                display_name,
                 saved_path=saved_path,
                 source_artifact_id=source_artifact_id,
             )
             stored.append(artifact)
         except Exception as exc:
-            log.warning(f'Chat: image artifact could not be stored: {type(exc).__name__}')
+            _log_chat_error('image artifact could not be stored', exc)
     return stored
 
 
 def get_sessions(limit: int = Query(default=50, ge=1, le=100), offset: int = Query(default=0, ge=0)):
-    return db.list_sessions(limit=limit, offset=offset)
+    try:
+        return db.list_sessions(limit=limit, offset=offset)
+    except Exception as exc:
+        _log_chat_error('session listing failed', exc)
+        raise
 
 
 def create_session(req: ReqSessionCreate):
     try:
         return db.create_session(title=req.title, context=req.context)
     except ValueError as exc:
+        _log_chat_error('session creation failed', exc)
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        _log_chat_error('session creation failed', exc)
+        raise
 
 
 def get_session(session_id: str):
-    session = db.get_session(session_id)
+    try:
+        session = db.get_session(session_id)
+    except Exception as exc:
+        _log_chat_error('session lookup failed', exc)
+        raise
     if session is None:
+        _log_chat_error('session lookup failed: session not found')
         raise HTTPException(status_code=404, detail='Chat session not found')
-    return ResSessionDetail(
-        session=session,
-        messages=db.list_messages(session_id),
-        operations=db.list_operations(session_id),
-        artifacts=_public_artifacts(session_id),
-    )
+    try:
+        return ResSessionDetail(
+            session=session,
+            messages=db.list_messages(session_id),
+            operations=db.list_operations(session_id),
+            artifacts=_public_artifacts(session_id),
+        )
+    except Exception as exc:
+        _log_chat_error('session detail retrieval failed', exc)
+        raise
 
 
 def restore_session(session_id: str):
-    session = db.get_session(session_id)
+    try:
+        session = db.get_session(session_id)
+    except Exception as exc:
+        _log_chat_error('session restore failed', exc)
+        raise
     if session is None:
+        _log_chat_error('session restore failed: session not found')
         raise HTTPException(status_code=404, detail='Chat session not found')
     restore_errors = commands.restore_session_state(session_id)
-    restore_errors.extend(
-        f'Image unavailable: {item["display_name"]}'
-        for item in _public_artifacts(session_id)
-        if not item['available']
-    )
+    for item in _public_artifacts(session_id):
+        if not item['available']:
+            error = f'Image unavailable: {item["display_name"]}'
+            restore_errors.append(error)
+            _log_chat_error(f'session restore failed: {error}')
     return ResSessionDetail(
         session=db.get_session(session_id),
         messages=db.list_messages(session_id),
@@ -211,8 +242,11 @@ def _execute_chat_operation(session_id: str, user_message: dict[str, Any], resul
     if data.get('alias') != 'generate' or not isinstance(descriptors, list) or len(descriptors) != 1:
         raise ValueError('Invalid chat generation descriptor')
     operation_command = data.get('command', 'generate')
-    if operation_command not in {'generate', 'again'}:
+    if operation_command not in {'generate', 'again', 'run'}:
         raise ValueError('Invalid chat operation command')
+    run_count = data.get('run_count', 1)
+    if not isinstance(run_count, int) or not 1 <= run_count <= 100:
+        raise ValueError('Invalid chat run count')
     descriptor = descriptors[0]
     if not isinstance(descriptor, dict) or descriptor.get('method') != 'POST':
         raise ValueError('Invalid chat generation endpoint')
@@ -226,6 +260,8 @@ def _execute_chat_operation(session_id: str, user_message: dict[str, Any], resul
     session = db.get_session(session_id)
     if context is None or session is None or session['context'] != context:
         raise ValueError('Chat generation endpoint does not match the session context')
+    if run_count > 1 and context != 'image':
+        raise ValueError('Repeated runs are supported only in image context')
     arguments = descriptor.get('arguments')
     if not isinstance(arguments, dict):
         raise ValueError('Invalid chat generation arguments')
@@ -243,25 +279,37 @@ def _execute_chat_operation(session_id: str, user_message: dict[str, Any], resul
             control_api_instance = getattr(api_instance, 'control', None)
             if control_api_instance is None:
                 raise RuntimeError('The control generation API is unavailable')
-            request = api_control.ReqControl.model_validate(arguments)
-            response = control_api_instance.post_control(request)
-            images = response.images or []
-            info = response.info or ''
-            saved_images = getattr(response, 'saved_images', []) or []
-            parameters = _safe_operation_values(response.params or {})
+            responses = [
+                control_api_instance.post_control(api_control.ReqControl.model_validate(arguments))
+                for _ in range(run_count)
+            ]
+            images = [image for response in responses for image in (response.images or [])]
+            info = '\n'.join(response.info for response in responses if response.info)
+            stats = '\n'.join(response.stats for response in responses if getattr(response, 'stats', ''))
+            saved_images = [path for response in responses for path in (getattr(response, 'saved_images', []) or [])]
+            parameters = _safe_operation_values(responses[-1].params or {})
             stored_artifacts = _store_image_results(
                 session_id, user_message['id'], images, saved_images, session.get('selected_image_id'),
             )
             completion_text = f'Generated {len(images)} image(s)'
             if info:
                 completion_text += f'\n{info}'
+            if stats:
+                completion_text += stats
             output_data = {
                 'images': images,
                 'info': info,
+                'stats': stats,
                 'parameters': parameters,
                 'artifacts': [artifacts.public_artifact(item) for item in stored_artifacts],
             }
-            saved_result = {'image_count': len(images), 'info': info, 'parameters': parameters}
+            saved_result = {
+                'image_count': len(images),
+                'run_count': run_count,
+                'info': info,
+                'stats': stats,
+                'parameters': parameters,
+            }
             message_metadata = {'image_count': len(images), 'format': 'html'}
         elif context == 'video':
             from modules.api.video import ReqVideo
@@ -337,7 +385,7 @@ def _execute_chat_operation(session_id: str, user_message: dict[str, Any], resul
             },
         })
     except Exception as exc:
-        log.error(f'Chat: {context} operation failed: {type(exc).__name__}: {exc}')
+        _log_chat_error(f'{context} operation failed', exc)
         db.update_operation(operation_id, 'failed', error=str(exc))
         result.update({
             'text': f'{context.capitalize()} operation failed: {exc}',
@@ -416,7 +464,8 @@ def _import_staged_file(session_id: str, user_message: dict[str, Any], imported:
                 session_id, user_message['id'], imported['path'], imported['display_name'], role='input',
             )
             db.set_selected_image(session_id, artifact['id'])
-        except Exception:
+        except Exception as exc:
+            _log_chat_error('image import failed', exc)
             from pathlib import Path
             Path(imported['path']).unlink(missing_ok=True)
             raise ValueError('Image file could not be imported') from None
@@ -435,6 +484,7 @@ def _import_staged_file(session_id: str, user_message: dict[str, Any], imported:
     progress_job = f'Chat file import: {imported["display_name"]}'
     owns_progress = not shared.state.job
     previous_textinfo = shared.state.textinfo
+    progress_updates = []
     if owns_progress:
         shared.state.job = progress_job
     try:
@@ -447,7 +497,9 @@ def _import_staged_file(session_id: str, user_message: dict[str, Any], imported:
                 if not shared.state.job:
                     shared.state.job = progress_job
                 if shared.state.job == progress_job:
-                    shared.state.textinfo = f'Processing... line {line_number}/{line_count}: {line}'
+                    update = f'line {line_number}/{line_count}: {line}'
+                    progress_updates.append(f'Processing... {update}' if not progress_updates else update)
+                    shared.state.textinfo = '\n'.join(progress_updates)
             line_result = _execute_chat_command(
                 session_id, user_message, line, None, api_instance, import_depth=depth + 1,
             )
@@ -465,7 +517,7 @@ def _import_staged_file(session_id: str, user_message: dict[str, Any], imported:
             else:
                 rendered_result = escape(line_text)
             label = escape(f'{imported["display_name"]}:{line_number}')
-            results.append(f'<div><span class="chat-file-line">{label}</span> <code>{rendered_result}</code></div>')
+            results.append(f'<div><span class="chat-file-line">{label}</span> {rendered_result}</div>')
             if line_result.get('kind') == 'error':
                 break
     finally:
@@ -475,12 +527,12 @@ def _import_staged_file(session_id: str, user_message: dict[str, Any], imported:
             shared.state.textinfo = previous_textinfo
     if not results:
         label = escape(imported['display_name'])
-        results.append(f'<div><span class="chat-file-line">{label}</span> <code>No commands found</code></div>')
+        results.append(f'<div><span class="chat-file-line">{label}</span> No commands found</div>')
     public_artifacts = _public_artifacts(session_id)
     kind = 'error' if failed else 'text'
     return {
         'kind': kind,
-        'text': '\n'.join(results),
+        'text': ''.join(results),
         'data': {'artifacts': public_artifacts},
         'message_metadata': {'kind': kind, 'format': 'html', 'data': {'artifacts': public_artifacts}},
     }
@@ -536,130 +588,322 @@ def _selected_image_for_command(session: dict[str, Any], content: str, fallback:
 
 
 def _finish_submission(session_id: str, user_message: dict[str, Any], result: dict[str, Any]):
-    metadata = result.get('message_metadata', {
-        'kind': result.get('kind', 'text'),
-        'data': result.get('data', {}),
-    })
-    if result.get('sections'):
-        metadata['sections'] = result['sections']
-    assistant_message = db.create_message(
-        session_id,
-        'assistant',
-        result.get('text', ''),
-        metadata=metadata,
-    )
-    return ResChatSubmission(
-        session=db.get_session(session_id),
-        user_message=user_message,
-        assistant_message=assistant_message,
-        result=result,
-        artifacts=_public_artifacts(session_id),
-    )
+    try:
+        metadata = result.get('message_metadata', {
+            'kind': result.get('kind', 'text'),
+            'data': result.get('data', {}),
+        })
+        if result.get('sections'):
+            metadata['sections'] = result['sections']
+        assistant_message = db.create_message(
+            session_id,
+            'assistant',
+            result.get('text', ''),
+            metadata=metadata,
+        )
+        return ResChatSubmission(
+            session=db.get_session(session_id),
+            user_message=user_message,
+            assistant_message=assistant_message,
+            result=result,
+            artifacts=_public_artifacts(session_id),
+        )
+    except Exception as exc:
+        _log_chat_error('message persistence failed', exc)
+        raise
 
 
 async def upload_chat_file(session_id: str, upload: UploadFile, api_instance=None):
-    session = db.get_session(session_id)
+    try:
+        session = db.get_session(session_id)
+    except Exception as exc:
+        _log_chat_error('file upload session lookup failed', exc)
+        raise
     if session is None:
+        _log_chat_error('file upload failed: session not found')
         raise HTTPException(status_code=404, detail='Chat session not found')
     try:
         imported = await artifacts.stage_upload(upload)
     except ValueError as exc:
+        _log_chat_error('file upload rejected', exc)
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
-        log.error(f'Chat: upload failed: {type(exc).__name__}')
+        _log_chat_error('file upload failed', exc)
         raise HTTPException(status_code=400, detail='File could not be imported') from None
     finally:
         await upload.close()
-    user_message = db.create_message(
-        session_id,
-        'user',
-        f'Imported file: {imported["display_name"]}',
-        metadata={'source': 'file-upload'},
-    )
+    try:
+        user_message = db.create_message(
+            session_id,
+            'user',
+            f'Imported file: {imported["display_name"]}',
+            metadata={'source': 'file-upload'},
+        )
+    except Exception as exc:
+        _log_chat_error('file upload message creation failed', exc)
+        raise
     try:
         result = _import_staged_file(session_id, user_message, imported, api_instance)
     except Exception as exc:
-        log.error(f'Chat: imported file processing failed: {type(exc).__name__}')
+        _log_chat_error('imported file processing failed', exc)
         result = {'kind': 'error', 'text': 'File could not be imported', 'data': {}}
         staged_path = imported.get('path')
         if imported['kind'] == 'image' and staged_path:
             from pathlib import Path
             Path(staged_path).unlink(missing_ok=True)
+    else:
+        if result.get('kind') == 'error':
+            _log_chat_error(f'file processing failed: {_chat_error_result(result)}')
     return _finish_submission(session_id, user_message, result)
 
 
 def post_message(session_id: str, req: ReqChatMessage, api_instance=None):
-    session = db.get_session(session_id)
+    try:
+        session = db.get_session(session_id)
+    except Exception as exc:
+        _log_chat_error('message session lookup failed', exc)
+        raise
     if session is None:
+        _log_chat_error('message submission failed: session not found')
         raise HTTPException(status_code=404, detail='Chat session not found')
     content = req.content.strip()
     if not content:
+        _log_chat_error('message submission failed: message is empty')
         raise HTTPException(status_code=422, detail='Chat message cannot be empty')
     command_word = content.split(maxsplit=1)[0].casefold()
     is_private_path_command = command_word in {'use', 'file'}
-    if session['title'] == 'New chat' and command_word != 'title' and not is_private_path_command and not db.list_messages(session_id, limit=1):
-        title = content.splitlines()[0][:64]
-        db.update_session(session_id, title=title)
-    transcript_content = 'Server file import' if is_private_path_command else content
-    user_message = db.create_message(session_id, 'user', transcript_content)
+    try:
+        if session['title'] == 'New chat' and command_word != 'title' and not is_private_path_command and not db.list_messages(session_id, limit=1):
+            title = content.splitlines()[0][:64]
+            db.update_session(session_id, title=title)
+        transcript_content = 'Server file import' if is_private_path_command else content
+        user_message = db.create_message(session_id, 'user', transcript_content)
+    except Exception as exc:
+        _log_chat_error('message persistence failed', exc)
+        raise
     try:
         image = _selected_image_for_command(session, content, req.image)
         result = _execute_chat_command(session_id, user_message, content, image, api_instance)
     except Exception as exc:  # Keep a command failure in the persisted conversation.
-        log.error(f'Chat: command failed: {type(exc).__name__}')
+        _log_chat_error('command failed', exc)
         result = {'kind': 'error', 'text': 'Command failed. Check the server log.', 'data': {}}
+    else:
+        if result.get('kind') == 'error':
+            _log_chat_error(f'command failed: {_chat_error_result(result)}')
     return _finish_submission(session_id, user_message, result)
 
 
 def get_chat_artifact_content(session_id: str, artifact_id: str):
-    artifact = db.get_artifact(session_id, artifact_id)
+    try:
+        artifact = db.get_artifact(session_id, artifact_id)
+    except Exception as exc:
+        _log_chat_error('image content lookup failed', exc)
+        raise
     if artifact is None or not artifacts.public_artifact(artifact)['available']:
+        _log_chat_error('image content request failed: artifact not found or unavailable')
         raise HTTPException(status_code=404, detail='Chat image artifact not found or unavailable')
-    return FileResponse(
-        artifact['storage_ref'],
-        media_type=artifact['media_type'],
-        filename=artifact['display_name'],
-    )
+    try:
+        return FileResponse(
+            artifact['storage_ref'],
+            media_type=artifact['media_type'],
+            filename=artifact['display_name'],
+        )
+    except Exception as exc:
+        _log_chat_error('image content request failed', exc)
+        raise
 
 
-def delete_chat_artifact(session_id: str, artifact_id: str, request: ReqArtifactDelete):
-    if not request.confirm:
-        raise HTTPException(status_code=400, detail='Image deletion requires confirmation')
-    artifact = db.get_artifact(session_id, artifact_id)
-    if artifact is None:
+def _get_available_chat_image(session_id: str, artifact_id: str):
+    try:
+        artifact = db.get_artifact(session_id, artifact_id)
+    except Exception as exc:
+        _log_chat_error('image operation lookup failed', exc)
+        raise
+    if artifact is None or not artifact['media_type'].startswith('image/') \
+            or not artifacts.public_artifact(artifact)['available']:
+        _log_chat_error('image operation failed: artifact not found or unavailable')
+        raise HTTPException(status_code=404, detail='Chat image artifact not found or unavailable')
+    return artifact
+
+
+def open_chat_artifact_folder(session_id: str, artifact_id: str):
+    artifact = _get_available_chat_image(session_id, artifact_id)
+    import os
+    import platform
+    import shutil
+    import subprocess
+    from pathlib import Path
+    if shared.cmd_opts.hide_ui_dir_config:
+        return {'opened': False}
+    folder = Path(artifact['storage_ref']).parent
+    if not folder.is_dir():
+        _log_chat_error(f'image folder open failed: folder unavailable: {folder}')
+        raise HTTPException(status_code=404, detail='Chat image folder is unavailable')
+    system = platform.system()
+    try:
+        if system == 'Windows':
+            os.startfile(str(folder))  # pylint: disable=no-member
+        elif system == 'Darwin':
+            subprocess.Popen(['open', str(folder)])  # pylint: disable=consider-using-with
+        elif 'microsoft-standard-WSL2' in platform.uname().release:
+            opener = 'wslview' if shutil.which('wslview') is not None else 'wsl-open'
+            subprocess.Popen([opener, str(folder)])  # pylint: disable=consider-using-with
+        else:
+            subprocess.Popen(['xdg-open', str(folder)])  # pylint: disable=consider-using-with
+    except Exception as exc:
+        _log_chat_error('image folder open failed', exc)
+        raise HTTPException(status_code=500, detail='Chat image folder could not be opened') from exc
+    return {'opened': True}
+
+
+def save_chat_artifact(session_id: str, artifact_id: str):
+    artifact = _get_available_chat_image(session_id, artifact_id)
+    from types import SimpleNamespace
+    from PIL import Image
+    from modules import images, infotext, paths
+    try:
+        with Image.open(artifact['storage_ref']) as image:
+            image.load()
+            info, _items = images.read_info_from_image(image)
+            params = infotext.parse(info) if info else {}
+            prompt = params.get('Prompt') or ''
+            negative_prompt = params.get('Negative prompt') or ''
+            sampler = params.get('Sampler') or ''
+            try:
+                seed = int(params.get('Seed') or 0)
+            except (TypeError, ValueError):
+                seed = 0
+            try:
+                steps = int(params.get('Steps') or 0)
+            except (TypeError, ValueError):
+                steps = 0
+            styles = params.get('Styles') or []
+            if isinstance(styles, str):
+                styles = [style.strip() for style in styles.split(',')]
+            save_params = SimpleNamespace(
+                prompt=prompt,
+                negative_prompt=negative_prompt,
+                sampler=sampler,
+                sampler_name=sampler,
+                seed=seed,
+                steps=steps,
+                cfg_scale=params.get('CFG scale') or 0,
+                clip_skip=params.get('Clip skip') or 1,
+                denoising_strength=params.get('Denoising strength') or 0,
+                width=image.width,
+                height=image.height,
+                styles=styles,
+                n_iter=1,
+                batch_size=1,
+                iteration=0,
+                batch_index=0,
+                all_seeds=[seed],
+                all_prompts=[prompt],
+                all_negative_prompts=[negative_prompt],
+                index_of_first_image=0,
+            )
+            saved_path, _text_path, _exif = images.save_image(
+                image,
+                path=paths.resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_save),
+                seed=seed,
+                prompt=prompt,
+                info=info,
+                extension=shared.opts.samples_format,
+                p=save_params,
+            )
+    except Exception as exc:
+        _log_chat_error('image save failed', exc)
+        raise HTTPException(status_code=500, detail='Chat image could not be saved') from exc
+    if not saved_path:
+        _log_chat_error('image save failed: no output file was created')
+        raise HTTPException(status_code=500, detail='Chat image could not be saved')
+    return {'saved': True}
+
+
+def delete_chat_artifact(session_id: str, artifact_id: str):
+    try:
+        artifact = db.get_artifact(session_id, artifact_id)
+    except Exception as exc:
+        _log_chat_error('image deletion lookup failed', exc)
+        raise
+    if artifact is None or not artifact['media_type'].startswith('image/'):
+        _log_chat_error('image deletion failed: artifact not found')
         raise HTTPException(status_code=404, detail='Chat image artifact not found')
     try:
         artifacts.delete_storage_file(artifact)
         db.delete_artifact(session_id, artifact_id)
+        log.warning(f'Chat: Delete: image="{artifact["storage_ref"]}"')
     except ValueError as exc:
+        _log_chat_error(f'Delete: image="{artifact["storage_ref"]}"', exc)
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        _log_chat_error(f'image deletion failed: {artifact["display_name"]}', exc)
+        raise
     return {'deleted': True, 'id': artifact_id}
 
 
 def patch_message(session_id: str, message_id: str, req: ReqChatMessageUpdate):
     if req.metadata.get('kind') != 'endpoint':
+        _log_chat_error('message update rejected: only endpoint results can be updated')
         raise HTTPException(status_code=400, detail='Only endpoint results can update an assistant message')
     try:
         message = db.update_message(session_id, message_id, req.content, req.metadata)
     except ValueError as exc:
+        _log_chat_error('message update failed', exc)
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        _log_chat_error('message update failed', exc)
+        raise
     if message is None:
+        _log_chat_error('message update failed: endpoint response not found')
         raise HTTPException(status_code=404, detail='Chat endpoint response message not found')
     return message
 
 
 def update_session(session_id: str, req: ReqSessionUpdate):
+    updates = req.model_dump(exclude_unset=True)
+    if 'selected_image_id' in updates:
+        selected_image_id = updates['selected_image_id']
+        try:
+            session = db.get_session(session_id)
+        except Exception as exc:
+            _log_chat_error('session update lookup failed', exc)
+            raise
+        if session is None:
+            _log_chat_error('session update failed: session not found')
+            raise HTTPException(status_code=404, detail='Chat session not found')
+        if selected_image_id is not None:
+            try:
+                artifact = db.get_artifact(session_id, selected_image_id)
+            except Exception as exc:
+                _log_chat_error('session image selection lookup failed', exc)
+                raise
+            if artifact is None or not artifact['media_type'].startswith('image/') \
+                    or not artifacts.public_artifact(artifact)['available']:
+                _log_chat_error('session update failed: selected image is unavailable')
+                raise HTTPException(status_code=400, detail='Selected image is not available in this session')
     try:
-        session = db.update_session(session_id, **req.dict(exclude_unset=True))
+        session = db.update_session(session_id, **updates)
     except ValueError as exc:
+        _log_chat_error('session update failed', exc)
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        _log_chat_error('session update failed', exc)
+        raise
     if session is None:
+        _log_chat_error('session update failed: session not found')
         raise HTTPException(status_code=404, detail='Chat session not found')
     return session
 
 
 def delete_session(session_id: str):
-    if not db.delete_session(session_id):
+    try:
+        deleted = db.delete_session(session_id)
+    except Exception as exc:
+        _log_chat_error('session deletion failed', exc)
+        raise
+    if not deleted:
+        _log_chat_error('session deletion failed: session not found')
         raise HTTPException(status_code=404, detail='Chat session not found')
     return Response(status_code=204)
 
@@ -689,5 +933,7 @@ def register_api(api):
     api.add_api_route('/sdapi/v1/chat/sessions/{session_id}/files', upload_chat_file_route, methods=['POST'], response_model=ResChatSubmission, tags=['Chat'])
     api.add_api_route('/sdapi/v1/chat/sessions/{session_id}/messages/{message_id}', patch_message, methods=['PATCH'], response_model=ResMessage, tags=['Chat'])
     api.add_api_route('/sdapi/v1/chat/sessions/{session_id}/artifacts/{artifact_id}/content', get_chat_artifact_content, methods=['GET'], tags=['Chat'])
+    api.add_api_route('/sdapi/v1/chat/sessions/{session_id}/artifacts/{artifact_id}/open-folder', open_chat_artifact_folder, methods=['POST'], tags=['Chat'])
+    api.add_api_route('/sdapi/v1/chat/sessions/{session_id}/artifacts/{artifact_id}/save', save_chat_artifact, methods=['POST'], tags=['Chat'])
     api.add_api_route('/sdapi/v1/chat/sessions/{session_id}/artifacts/{artifact_id}', delete_chat_artifact, methods=['DELETE'], tags=['Chat'])
     return True

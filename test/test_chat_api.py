@@ -32,18 +32,39 @@ class TestChatArtifactService(unittest.TestCase):
         self.artifact_dir = Path(self.temp_dir) / 'private'
         self.artifact_dir.mkdir(mode=0o700)
 
+    def test_storage_root_uses_configured_chat_upload_directory(self):
+        configured_dir = self.allowed_dir / 'chat-uploads'
+        with patch.dict(artifacts.shared.opts.data, {'chat_upload_dir': str(configured_dir)}):
+            root = artifacts.storage_root()
+
+        self.assertEqual(root, configured_dir.resolve())
+        self.assertTrue(root.is_dir())
+
+    def test_storage_root_defaults_to_chat_artifact_folder_under_temp_dir(self):
+        configured_temp_dir = self.allowed_dir / 'temp'
+        expected_root = configured_temp_dir / 'sdnext-chat-artifacts'
+        with patch.dict(artifacts.shared.opts.data, {
+            'chat_upload_dir': '',
+            'temp_dir': str(configured_temp_dir),
+        }):
+            root = artifacts.storage_root()
+
+        self.assertEqual(root, expected_root.resolve())
+        self.assertTrue(root.is_dir())
+
     def test_allowed_image_import_copies_validated_content_to_private_storage(self):
-        source = self.allowed_dir / 'source image.png'
-        Image.new('RGB', (2, 2), 'red').save(source)
+        source = self.allowed_dir / 'source image.jpg'
+        Image.new('RGB', (2, 2), 'red').save(source, format='PNG')
         with patch.object(artifacts.shared, 'demo', SimpleNamespace(allowed_paths=[str(self.allowed_dir)])), \
                 patch.object(artifacts, 'storage_root', return_value=self.artifact_dir):
             imported = artifacts.copy_allowed_file(str(source))
 
             self.assertEqual(imported['kind'], 'image')
             self.assertEqual(imported['media_type'], 'image/png')
-            self.assertEqual(imported['display_name'], 'source image.png')
+            self.assertEqual(imported['display_name'], 'source image.jpg')
             self.assertNotEqual(imported['path'], str(source))
             self.assertTrue(Path(imported['path']).is_file())
+            self.assertEqual(Path(imported['path']).suffix, '.png')
             with self.assertRaisesRegex(ValueError, 'unavailable or not allowed'):
                 artifacts.copy_allowed_file(str(Path(self.temp_dir) / 'outside.png'))
 
@@ -120,19 +141,41 @@ class TestChatFileImports(unittest.TestCase):
         self.assertEqual(stored['role'], 'input')
         self.assertNotEqual(stored['storage_ref'], str(self.allowed_dir))
         self.assertTrue(Path(stored['storage_ref']).is_file())
+        self.assertEqual(Path(stored['storage_ref']).suffix, '.png')
         self.assertEqual(submission.artifacts[0].id, stored['id'])
         self.assertEqual(submission.artifacts[0].message_id, submission.user_message.id)
         self.assertNotIn('storage_ref', submission.model_dump_json())
         self.assertNotIn(image_bytes.hex(), str(messages))
 
-    def test_artifact_content_and_delete_are_session_scoped_and_confirmed(self):
+    def test_generated_fallback_artifact_uses_namegen_and_detected_extension(self):
+        session = self._create_session()
+        buffer = io.BytesIO()
+        Image.new('RGB', (2, 2), 'blue').save(buffer, format='PNG')
+        image_data = base64.b64encode(buffer.getvalue()).decode('ascii')
+        with patch.object(db, '_db_path', return_value=self.db_path), \
+                patch.object(artifacts, 'storage_root', return_value=self.private_dir), \
+            patch.dict(artifacts.shared.opts.data, {'samples_filename_pattern': '[seq]-[prompt_words]'}), \
+                patch('modules.image.namegen.seq', 0):
+            message = db.create_message(session['id'], 'user', 'generate')
+            artifact = artifacts.create_generated_artifact(
+                session['id'], message['id'], image_data, 'generated-image.jpg',
+            )
+
+        storage_path = Path(artifact['storage_ref'])
+        self.assertEqual(storage_path.suffix, '.png')
+        self.assertRegex(storage_path.name, r'^\d{5}-generated image\.png$')
+        self.assertTrue(storage_path.is_file())
+
+    def test_artifact_content_and_delete_are_session_scoped_and_immediate(self):
         session = self._create_session()
         other_session = self._create_session()
         buffer = io.BytesIO()
         Image.new('RGB', (2, 2), 'red').save(buffer, format='PNG')
         upload = UploadFile(filename='owned.png', file=io.BytesIO(buffer.getvalue()))
         with patch.object(db, '_db_path', return_value=self.db_path), \
-                patch.object(artifacts, 'storage_root', return_value=self.private_dir):
+            patch.object(artifacts, 'storage_root', return_value=self.private_dir), \
+            patch.object(chat_api.log, 'warning') as log_warning, \
+            patch.object(chat_api.log, 'error') as log_error:
             submission = asyncio.run(chat_api.upload_chat_file(session['id'], upload))
             artifact_id = submission.artifacts[0].id
             content = chat_api.get_chat_artifact_content(session['id'], artifact_id)
@@ -140,25 +183,104 @@ class TestChatFileImports(unittest.TestCase):
             stored = db.get_artifact(session['id'], artifact_id)
             with self.assertRaises(Exception) as content_error:
                 chat_api.get_chat_artifact_content(other_session['id'], artifact_id)
-            with self.assertRaises(Exception) as confirmation_error:
-                chat_api.delete_chat_artifact(session['id'], artifact_id, chat_api.ReqArtifactDelete())
             with self.assertRaises(Exception) as ownership_error:
-                chat_api.delete_chat_artifact(
-                    other_session['id'], artifact_id, chat_api.ReqArtifactDelete(confirm=True),
-                )
-            deleted = chat_api.delete_chat_artifact(
-                session['id'], artifact_id, chat_api.ReqArtifactDelete(confirm=True),
-            )
+                chat_api.delete_chat_artifact(other_session['id'], artifact_id)
+            deleted = chat_api.delete_chat_artifact(session['id'], artifact_id)
             remaining_artifact = db.get_artifact(session['id'], artifact_id)
             updated_session = db.get_session(session['id'])
 
         self.assertEqual(content_bytes, buffer.getvalue())
         self.assertEqual(content_error.exception.status_code, 404)
-        self.assertEqual(confirmation_error.exception.status_code, 400)
         self.assertEqual(ownership_error.exception.status_code, 404)
         self.assertEqual(deleted, {'deleted': True, 'id': artifact_id})
+        log_warning.assert_called_once_with(f'Chat: Delete: image="{stored["storage_ref"]}"')
+        self.assertEqual(
+            [call.args[0] for call in log_error.call_args_list],
+            [
+                'Chat: image content request failed: artifact not found or unavailable',
+                'Chat: image deletion failed: artifact not found',
+            ],
+        )
         self.assertFalse(Path(stored['storage_ref']).exists())
         self.assertIsNone(remaining_artifact)
+        self.assertIsNone(updated_session['selected_image_id'])
+
+    def test_artifact_open_folder_and_save_are_session_scoped(self):
+        session = self._create_session()
+        other_session = self._create_session()
+        path = self.private_dir / 'actions.png'
+        Image.new('RGB', (2, 2), 'green').save(path)
+        with patch.object(db, '_db_path', return_value=self.db_path), \
+                patch('platform.system', return_value='Linux'), \
+                patch.object(shared.cmd_opts, 'hide_ui_dir_config', False), \
+                patch('subprocess.Popen') as open_folder, \
+                patch('modules.images.save_image', return_value=('/outputs/actions.png', None, '')) as save_image:
+            artifact = db.create_artifact(
+                session['id'], 'image/png', path.name, 'result', str(path), db_path=self.db_path,
+            )
+            opened = chat_api.open_chat_artifact_folder(session['id'], artifact['id'])
+            saved = chat_api.save_chat_artifact(session['id'], artifact['id'])
+            with self.assertRaises(Exception) as ownership_error:
+                chat_api.open_chat_artifact_folder(other_session['id'], artifact['id'])
+
+        open_folder.assert_called_once()
+        self.assertIn(str(self.private_dir), open_folder.call_args.args[0])
+        save_image.assert_called_once()
+        self.assertIsInstance(save_image.call_args.args[0], Image.Image)
+        self.assertEqual(opened, {'opened': True})
+        self.assertEqual(saved, {'saved': True})
+        self.assertNotIn(str(path), str(opened))
+        self.assertNotIn(str(path), str(saved))
+        self.assertEqual(ownership_error.exception.status_code, 404)
+
+    def test_session_update_selects_only_available_owned_images(self):
+        session = self._create_session()
+        other_session = self._create_session()
+        path = self.private_dir / 'selected.png'
+        Image.new('RGB', (2, 2), 'blue').save(path)
+        with patch.object(db, '_db_path', return_value=self.db_path):
+            artifact = db.create_artifact(
+                session['id'], 'image/png', path.name, 'result', str(path), db_path=self.db_path,
+            )
+            updated = chat_api.update_session(
+                session['id'], chat_api.ReqSessionUpdate(selected_image_id=artifact['id']),
+            )
+            with self.assertRaises(Exception) as ownership_error:
+                chat_api.update_session(
+                    other_session['id'], chat_api.ReqSessionUpdate(selected_image_id=artifact['id']),
+                )
+            path.unlink()
+            with self.assertRaises(Exception) as unavailable_error:
+                chat_api.update_session(
+                    session['id'], chat_api.ReqSessionUpdate(selected_image_id=artifact['id']),
+                )
+
+        self.assertEqual(updated['selected_image_id'], artifact['id'])
+        self.assertEqual(ownership_error.exception.status_code, 400)
+        self.assertEqual(unavailable_error.exception.status_code, 400)
+
+    def test_artifact_delete_preserves_and_marks_derived_images(self):
+        session = self._create_session()
+        source_path = self.private_dir / 'source.png'
+        derived_path = self.private_dir / 'derived.png'
+        Image.new('RGB', (2, 2), 'red').save(source_path)
+        Image.new('RGB', (2, 2), 'blue').save(derived_path)
+        with patch.object(db, '_db_path', return_value=self.db_path):
+            source = db.create_artifact(
+                session['id'], 'image/png', source_path.name, 'result', str(source_path), db_path=self.db_path,
+            )
+            derived = db.create_artifact(
+                session['id'], 'image/png', derived_path.name, 'result', str(derived_path),
+                source_artifact_id=source['id'], db_path=self.db_path,
+            )
+            db.set_selected_image(session['id'], source['id'])
+            chat_api.delete_chat_artifact(session['id'], source['id'])
+            remaining = db.get_artifact(session['id'], derived['id'])
+            updated_session = db.get_session(session['id'])
+
+        self.assertFalse(source_path.exists())
+        self.assertTrue(derived_path.exists())
+        self.assertTrue(remaining['source_deleted'])
         self.assertIsNone(updated_session['selected_image_id'])
 
     def test_missing_artifact_file_is_reported_as_unavailable(self):
@@ -278,14 +400,14 @@ class TestChatFileImports(unittest.TestCase):
 
         self.assertEqual(submission.result.kind, 'error')
         self.assertIn('<span class="chat-file-line">commands.txt:1</span>', submission.assistant_message.content)
-        self.assertIn('<code>steps set to 12</code>', submission.assistant_message.content)
+        self.assertIn('steps set to 12', submission.assistant_message.content)
         self.assertIn('<span class="chat-file-line">commands.txt:2</span>', submission.assistant_message.content)
         self.assertNotIn('<pre>', submission.assistant_message.content)
         self.assertNotIn('<br>', submission.assistant_message.content)
         self.assertNotIn('commands.txt:3', submission.assistant_message.content)
         self.assertEqual(progress_texts, [
             'Processing... line 1/3: set steps=12',
-            'Processing... line 2/3: set steps=999',
+            'Processing... line 1/3: set steps=12\nline 2/3: set steps=999',
         ])
         self.assertEqual(submission.assistant_message.metadata['format'], 'html')
         self.assertEqual(saved['drafts']['image']['steps'], 12)
@@ -303,9 +425,10 @@ class TestChatFileImports(unittest.TestCase):
             submission = asyncio.run(chat_api.upload_chat_file(session['id'], upload))
 
         self.assertEqual(submission.result.kind, 'text')
-        self.assertIn('<code>Comment: first comment</code>', submission.assistant_message.content)
-        self.assertIn('<code>Comment: second comment</code>', submission.assistant_message.content)
-        self.assertIn('<code>steps set to 12</code>', submission.assistant_message.content)
+        self.assertIn('Comment: first comment', submission.assistant_message.content)
+        self.assertIn('Comment: second comment', submission.assistant_message.content)
+        self.assertIn('steps set to 12', submission.assistant_message.content)
+        self.assertNotIn('</div>\n<div>', submission.assistant_message.content)
 
     def test_text_upload_executes_endpoint_commands_and_continues(self):
         session = self._create_session()
@@ -321,7 +444,7 @@ class TestChatFileImports(unittest.TestCase):
         self.assertEqual(submission.result.kind, 'text')
         self.assertIn('memory:', submission.assistant_message.content)
         self.assertIn('&quot;used&quot;: 123', submission.assistant_message.content)
-        self.assertIn('<code>steps set to 12</code>', submission.assistant_message.content)
+        self.assertIn('steps set to 12', submission.assistant_message.content)
 
     def test_server_path_import_copies_image_and_never_persists_path(self):
         session = self._create_session()
@@ -394,6 +517,8 @@ class TestChatApiRegistration(unittest.TestCase):
             ('/sdapi/v1/chat/sessions/{session_id}/messages/{message_id}', 'PATCH'),
             ('/sdapi/v1/chat/sessions/{session_id}/files', 'POST'),
             ('/sdapi/v1/chat/sessions/{session_id}/artifacts/{artifact_id}/content', 'GET'),
+            ('/sdapi/v1/chat/sessions/{session_id}/artifacts/{artifact_id}/open-folder', 'POST'),
+            ('/sdapi/v1/chat/sessions/{session_id}/artifacts/{artifact_id}/save', 'POST'),
             ('/sdapi/v1/chat/sessions/{session_id}/artifacts/{artifact_id}', 'DELETE'),
         })
 
@@ -418,10 +543,12 @@ class TestChatApiRegistration(unittest.TestCase):
                 self.assertEqual(restored.restore_errors, [])
                 self.assertEqual(restored.session.id, session['id'])
 
-                invalid = chat_api.post_message(
-                    session['id'],
-                    chat_api.ReqChatMessage(content='set steps=999'),
-                )
+                with patch.object(chat_api.log, 'error') as log_error:
+                    invalid = chat_api.post_message(
+                        session['id'],
+                        chat_api.ReqChatMessage(content='set steps=999'),
+                    )
+                log_error.assert_called_once_with('Chat: command failed: steps must be between 1 and 200')
                 self.assertEqual(invalid.result.kind, 'error')
                 self.assertEqual(invalid.assistant_message.metadata['kind'], 'error')
 
@@ -553,6 +680,57 @@ class TestChatApiRegistration(unittest.TestCase):
         self.assertIn('again', [operation['command'] for operation in operations])
         self.assertEqual(replay.result.kind, 'operation')
 
+    def test_run_repeats_and_aggregates_image_results(self):
+        image_buffer = io.BytesIO()
+        Image.new('RGB', (2, 2), 'red').save(image_buffer, format='PNG')
+        encoded_image = base64.b64encode(image_buffer.getvalue()).decode('ascii')
+        responses = [
+            SimpleNamespace(
+                images=[encoded_image], info=f'<b>run {index}</b>', stats=f'<div>stats {index}</div>',
+                saved_images=[f'/outputs/run-{index}.png'], params={'prompt': 'test landscape'},
+            )
+            for index in range(1, 4)
+        ]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = os.path.join(temp_dir, 'chat.db')
+            artifact_dir = Path(temp_dir) / 'artifacts'
+            artifact_dir.mkdir()
+            with patch.object(db, '_db_path', return_value=db_path), \
+                    patch.object(chat_api.artifacts, 'storage_root', return_value=artifact_dir):
+                session = chat_api.create_session(chat_api.ReqSessionCreate())
+                chat_api.post_message(session['id'], chat_api.ReqChatMessage(content='prompt a test landscape'))
+                control_api = Mock(post_control=Mock(side_effect=responses))
+                submission = chat_api.post_message(
+                    session['id'],
+                    chat_api.ReqChatMessage(content='run 3'),
+                    SimpleNamespace(control=control_api),
+                )
+                operation = db.list_operations(session['id'])[0]
+
+        self.assertEqual(control_api.post_control.call_count, 3)
+        self.assertEqual(len(submission.result.data['images']), 3)
+        self.assertEqual(len(submission.artifacts), 3)
+        self.assertEqual([artifact.display_name for artifact in submission.artifacts], [
+            'run-1.png', 'run-2.png', 'run-3.png',
+        ])
+        self.assertIn('Generated 3 image(s)', submission.assistant_message.content)
+        self.assertIn('<b>run 1</b>', submission.assistant_message.content)
+        self.assertIn('<b>run 3</b>', submission.assistant_message.content)
+        self.assertIn('<div>stats 1</div>', submission.assistant_message.content)
+        self.assertIn('<div>stats 3</div>', submission.assistant_message.content)
+        self.assertIn('<b>run 3</b><div>stats 1</div>', submission.assistant_message.content)
+        self.assertIn('<div>stats 1</div><div>stats 2</div>', submission.assistant_message.content)
+        self.assertEqual(operation['command'], 'run')
+        self.assertEqual(operation['result']['run_count'], 3)
+        self.assertEqual(operation['result']['image_count'], 3)
+
+    def test_run_count_defaults_and_is_bounded(self):
+        self.assertEqual(commands.parse_command('run').arguments['count'], 1)
+        self.assertEqual(commands.parse_command('run 3').arguments['count'], 3)
+        for value in ('0', '11', 'many', '2 3'):
+            with self.subTest(value=value), self.assertRaises(commands.CommandError):
+                commands.parse_command(f'run {value}')
+
     def test_image_generation_records_failure_from_control_api(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             db_path = os.path.join(temp_dir, 'chat.db')
@@ -580,16 +758,23 @@ class TestChatApiRegistration(unittest.TestCase):
                 session = chat_api.create_session(chat_api.ReqSessionCreate())
                 response = SimpleNamespace(
                     images=['base64-image'], saved_images=[saved_path], info='', params={},
+                    stats='<div><p>Elapsed time</p></div>',
                 )
                 submission = chat_api.post_message(
                     session['id'],
                     chat_api.ReqChatMessage(content='generate'),
                     SimpleNamespace(control=Mock(post_control=Mock(return_value=response))),
                 )
+                operation = db.list_operations(session['id'])[0]
 
         self.assertNotIn(saved_path, submission.assistant_message.content)
+        self.assertIn('Elapsed time', submission.assistant_message.content)
+        self.assertEqual(operation['result']['stats'], response.stats)
         self.assertNotIn(saved_path, str(submission.assistant_message.metadata))
-        serialized = chat_api.api_control.ResControl(saved_images=[saved_path]).model_dump()
+        serialized = chat_api.api_control.ResControl(
+            saved_images=[saved_path], stats=response.stats,
+        ).model_dump()
+        self.assertEqual(serialized['stats'], response.stats)
         self.assertNotIn('saved_images', serialized)
 
     def test_video_generation_uses_video_api(self):

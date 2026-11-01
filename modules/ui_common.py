@@ -288,6 +288,8 @@ def open_folder(result_gallery, gallery_index = 0):
         folder = os.path.dirname(result_gallery[gallery_index]['name'])
     except Exception:
         folder = shared.opts.outdir_samples
+    if len(folder) == 0:
+        return
     if not os.path.exists(folder):
         log.warning(f'Folder open: folder="{folder}" does not exist')
         return
@@ -336,7 +338,7 @@ def create_output_panel(tabname, preview=True, prompt=None, height=None, transfe
             dummy_component = gr.Label(visible=False)
             with gr.Row(elem_id=f"image_buttons_{tabname}", elem_classes="image-buttons"):
                 if not shared.cmd_opts.listen:
-                    open_folder_button = gr.Button('Show', visible=not shared.cmd_opts.hide_ui_dir_config, elem_id=f'open_folder_{tabname}')
+                    open_folder_button = gr.Button('Open folder', visible=not shared.cmd_opts.hide_ui_dir_config, elem_id=f'open_folder_{tabname}')
                     open_folder_button.click(open_folder, _js="(gallery, dummy) => [gallery, selected_gallery_index()]", inputs=[result_gallery, dummy_component], outputs=[])
                 else:
                     clip_files = gr.Button('Copy', elem_id=f'open_folder_{tabname}')

@@ -15,6 +15,7 @@ from modules.api import endpoints, models
 from modules.api import control as control_api
 from modules.api.video import ReqVideo
 from modules.chat import db
+from modules.logger import log
 
 
 class CommandError(ValueError):
@@ -83,7 +84,7 @@ _SETTING_NAMES = {
     for name in (canonical, *aliases)
 }
 _COMMAND_ALIASES = {
-    'run': 'generate', 'start': 'generate',
+    'start': 'generate',
     'abort': 'cancel', 'stop': 'cancel', 'interrupt': 'cancel',
     'reprocess': 'again',
     'prompt-enhancement': 'enhance',
@@ -98,7 +99,7 @@ _PARAMETER_ALIASES = {
     'width': 'width_before', 'height': 'height_before', 'n_iter': 'batch_count',
 }
 _OPERATION_COMMANDS = {
-    'again', 'caption', 'generate', 'schedule', 'cancel', 'pause', 'resume', 'skip', 'history', 'reset', 'last',
+    'again', 'caption', 'generate', 'run', 'schedule', 'cancel', 'pause', 'resume', 'skip', 'history', 'reset', 'last',
 }
 _BUILTIN_COMMANDS = {'context', 'set', 'get', 'list', 'params', 'help', 'model', 'opts'}
 
@@ -314,6 +315,16 @@ def parse_command(text: str) -> ParsedCommand:
             raise CommandError('help does not accept arguments')
         return ParsedCommand(command, {})
     if command in _OPERATION_COMMANDS:
+        if command == 'run':
+            if not raw_arguments.strip():
+                return ParsedCommand(command, {'count': 1})
+            try:
+                count = int(raw_arguments.strip())
+            except ValueError as exc:
+                raise CommandError('Use: run [count]') from exc
+            if not 1 <= count <= 10:
+                raise CommandError('Run count must be between 1 and 10')
+            return ParsedCommand(command, {'count': count})
         if command in {'generate', 'schedule', 'cancel', 'pause', 'resume', 'skip', 'reset', 'last'} and raw_arguments.strip():
             raise CommandError(f'{command} does not accept arguments')
         if command == 'history' and raw_arguments.strip():
@@ -443,9 +454,13 @@ def _apply_saved_settings(draft: dict[str, Any]) -> list[str]:
         try:
             canonical, value = _validate_setting(name, raw_value)
             if not _apply_setting(canonical, value):
-                failures.append(f'{name}: setting callback rejected the value')
+                failure = f'{name}: setting callback rejected the value'
+                failures.append(failure)
+                log.error(f'Chat: setting restore failed: {failure}')
         except Exception as exc:
-            failures.append(f'{name}: {exc}')
+            failure = f'{name}: {exc}'
+            failures.append(failure)
+            log.error(f'Chat: setting restore failed: {failure}')
     return failures
 
 
@@ -526,7 +541,8 @@ def _help_sections() -> list[dict[str, str]]:
             'content': 'Choose a context and control active work\n'
             '- title [name]: Read or set the current session name\n'
             '- context <value>: Select the active context\n'
-            '- run/generate/start: Start the current process\n'
+            '- run [count]: Run image generation 1-10 times (default: 1)\n'
+            '- generate/start: Start the current process once\n'
             '- schedule: Add the current image or video generation to the scheduler\n'
             '- cancel/abort/stop/interrupt: Stop the current process\n'
             '- pause: Pause the current process\n'
@@ -759,7 +775,9 @@ def _reset_context(session_id: str, session: dict[str, Any]) -> str:
         else:
             default = shared.opts.get_default(name)
         if default is not None and not _apply_setting(name, default):
-            failures.append(f'{name}: setting callback rejected the default')
+            failure = f'{name}: setting callback rejected the default'
+            failures.append(failure)
+            log.error(f'Chat: setting reset failed: {failure}')
     drafts = dict(session.get('drafts') or {})
     drafts.pop(session['context'], None)
     db.update_session(session_id, drafts=drafts)
@@ -1107,6 +1125,11 @@ def _execute_command(session_id: str, text: str, image: str | None = None) -> di
         return _command_result(f'{canonical} set to {value}')
     if command.name == 'generate':
         data = _generation_endpoint(session, image=image)
+        return _command_result('Generation started', kind='operation', data=data)
+    if command.name == 'run':
+        data = _generation_endpoint(session, image=image)
+        data['command'] = 'run'
+        data['run_count'] = command.arguments['count']
         return _command_result('Generation started', kind='operation', data=data)
     if command.name == 'schedule':
         if context not in {'image', 'video'}:
