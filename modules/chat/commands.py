@@ -90,6 +90,8 @@ _COMMAND_ALIASES = {
     'captioning': 'caption',
     'details': 'last',
     'p': 'last',
+    'exif': 'meta',
+    'metadata': 'meta',
 }
 _PARAMETER_ALIASES = {
     'sampler': 'sampler_name', 'prompt': 'prompt', 'negative': 'negative_prompt', 'style': 'styles',
@@ -196,7 +198,12 @@ def _model_request(spec: EndpointSpec, raw_arguments: str) -> dict[str, Any]:
 def parse_command(text: str) -> ParsedCommand:
     if not isinstance(text, str) or not text.strip():
         raise CommandError('Enter a command. Use help to see available commands.')
-    match = re.match(r'^(\S+)(?:\s+(.*))?$', text.strip(), flags=re.DOTALL)
+    stripped = text.strip()
+    if stripped.startswith('#'):
+        return ParsedCommand('comment', {'text': stripped[1:].strip()})
+    if stripped.startswith('//'):
+        return ParsedCommand('comment', {'text': stripped[2:].strip()})
+    match = re.match(r'^(\S+)(?:\s+(.*))?$', stripped, flags=re.DOTALL)
     command, raw_arguments = match.groups()
     command = command.lower()
     raw_arguments = raw_arguments or ''
@@ -220,6 +227,32 @@ def parse_command(text: str) -> ParsedCommand:
         return ParsedCommand('endpoint', {'alias': command, 'endpoints': descriptors})
 
     command = _COMMAND_ALIASES.get(command, command)
+    if command in {'use', 'file'}:
+        try:
+            paths = shlex.split(raw_arguments)
+        except ValueError as exc:
+            raise CommandError(f'Invalid file path: {exc}') from exc
+        if len(paths) != 1:
+            raise CommandError('Use: use <path>')
+        return ParsedCommand('import', {'path': paths[0]})
+    if command == 'image':
+        parts = raw_arguments.split()
+        if len(parts) != 1:
+            raise CommandError('Use: image list, image save, image reuse, image clear, or image <number>')
+        action = parts[0].lower()
+        if action in {'list', 'save', 'reuse', 'clear'}:
+            return ParsedCommand(command, {'action': action})
+        try:
+            index = int(action)
+        except ValueError as exc:
+            raise CommandError('Use: image list, image save, image reuse, image clear, or image <number>') from exc
+        if index < 1:
+            raise CommandError('Image number must be positive')
+        return ParsedCommand(command, {'action': 'select', 'index': index})
+    if command == 'meta':
+        if raw_arguments.strip():
+            raise CommandError('meta does not accept arguments')
+        return ParsedCommand(command, {})
     if command == 'context':
         parts = raw_arguments.split()
         if len(parts) > 1 or (parts and parts[0].lower() not in db.CONTEXTS):
@@ -315,7 +348,7 @@ def _choice_values(name: str):
     if name == 'hr_upscaler':
         return [item['name'] for item in endpoints.get_upscalers()]
     if name == 'styles':
-        return [item.name for item in endpoints.get_prompt_styles()]
+        return [item['name'] if isinstance(item, dict) else item.name for item in endpoints.get_prompt_styles()]
     if name in {'model', 'sd_model_checkpoint'}:
         values = [item.title for item in endpoints.get_sd_models()]
         return values
@@ -491,43 +524,57 @@ def _help_sections() -> list[dict[str, str]]:
         {
             'title': 'Process',
             'content': 'Choose a context and control active work\n'
-            '- context <value> - Select the active context\n'
-            '- run/generate/start - Start the current process\n'
-            '- again [prompt] - Repeat the last successful image or video generation, or reprocess the current image\n'
-            '- schedule - Add the current image or video generation to the scheduler\n'
-            '- cancel/abort/stop/interrupt - Stop the current process\n'
-            '- pause - Pause the current process\n'
-            '- resume - Resume a paused process\n'
-            '- skip - Skip the current item\n'
-            '- history [limit] - Show recent process history\n'
-            '- title [name] - Read or set the current session name\n'
-            '- last/details - Show active parameters from the last processing run',
+            '- title [name]: Read or set the current session name\n'
+            '- context <value>: Select the active context\n'
+            '- run/generate/start: Start the current process\n'
+            '- schedule: Add the current image or video generation to the scheduler\n'
+            '- cancel/abort/stop/interrupt: Stop the current process\n'
+            '- pause: Pause the current process\n'
+            '- resume: Resume a paused process\n'
+            '- skip: Skip the current item\n'
+            '- history [limit]: Show recent process history\n'
+            '- last/details: Show active parameters from the last processing run',
         },
         {
             'title': 'Params',
             'content': 'Set, inspect, and reset context parameters\n'
-            '- prompt <value> - Set the prompt\n'
-            '- negative <value> - Set the negative prompt\n'
-            '- set [key] [value] - Set a value or list session values\n'
-            '- get [key] - Get a value or list session values\n'
-            '- list <key> - Show valid parameter choices\n'
-            '- params - List valid parameter keys for the current context\n'
-            '- reset - Restore parameter defaults.',
+            '- prompt <value>: Set the prompt\n'
+            '- negative <value>: Set the negative prompt\n'
+            '- set [key] [value]: Set a value or list session values\n'
+            '- get [key]: Get a value or list session values\n'
+            '- params: List valid parameter keys for the current context\n'
+            '- reset: Restore parameter defaults.',
+        },
+        {
+            'title': 'References',
+            'content': 'Upload and manage reference images and command text\n'
+            '- use/file <path>: Import a server-local text or image file\n'
+            '- image list: List available session images\n'
+            '- image save: Save all images from the latest result batch\n'
+            '- image <number>: Select image <number> as active\n'
+            '- image reuse: Select results image as next input image\n'
+            '- image clear: Clear the active image\n'
+            '- meta/exif/metadata: Inspect metadata for the last image\n',
+        },
+        {
+            'title': 'Helpers',
+            'content': 'List available options\n'
+            '- list <key>: Show valid choices\n',
         },
         {
             'title': 'Global',
             'content': 'Read or change settings shared across sessions\n'
-            '- model [model] [unet] - Show or change the model and optional UNet\n'
-            '- opts [key] [value] - Read or update global options',
+            '- model [model] [unet]: Show or change the model and optional UNet\n'
+            '- opts [key] [value]: Read or update global options\n',
         },
         {
             'title': 'Server',
             'content': 'Query runtime, device, memory, and storage details\n'
-            '- info/ver/version - Show runtime version details\n'
-            '- gpu/smi - Show GPU metrics\n'
-            '- mem/memory - Show RAM, CUDA, and model usage\n'
-            '- status - Show server status and progress\n'
-            '- storage - Show storage usage',
+            '- info/ver/version: Show runtime version details\n'
+            '- gpu/smi: Show GPU metrics\n'
+            '- mem/memory: Show RAM, CUDA, and model usage\n'
+            '- status: Show server status and progress\n'
+            '- storage: Show storage usage',
         },
     ]
 
@@ -645,6 +692,52 @@ def _list_choices(context: str, name: str | None) -> str:
     return f'{name}: {field.annotation}'
 
 
+def _list_sessions() -> str:
+    sessions = []
+    offset = 0
+    while True:
+        batch = db.list_sessions(limit=100, offset=offset)
+        sessions.extend(batch)
+        if len(batch) < 100:
+            break
+        offset += len(batch)
+    if not sessions:
+        return 'No chat sessions'
+    return 'Sessions:\n' + '\n'.join(
+        f'- {item["title"]} ({item["context"]}) [{item["id"]}] updated {item["updated_at"]}'
+        for item in sessions
+    )
+
+
+def _list_catalog(name: str) -> str:
+    if name == 'sessions':
+        return _list_sessions()
+    if name == 'wildcards':
+        from modules import ui_extra_networks_wildcards
+        items = ui_extra_networks_wildcards.list_wildcard_names()
+        return 'Wildcards:\n' + '\n'.join(f'- {item}' for item in items) if items else 'No wildcards available'
+    if name in {'process', 'scripts'}:
+        from modules import scripts_manager
+        if name == 'process':
+            runner = scripts_manager.scripts_postproc
+            items = runner.scripts_in_preferred_order() if runner is not None else []
+            labels = [item.name for item in items]
+            return 'Postprocessing tasks:\n' + '\n'.join(f'- {item}' for item in labels) if labels else 'No postprocessing tasks available'
+        groups = (
+            ('txt2img', scripts_manager.scripts_txt2img),
+            ('img2img', scripts_manager.scripts_img2img),
+            ('control', scripts_manager.scripts_control),
+            ('video', scripts_manager.scripts_video),
+        )
+        sections = []
+        for group, runner in groups:
+            labels = [script.title() for script in runner.scripts] if runner is not None else []
+            if labels:
+                sections.append(f'{group}:\n' + '\n'.join(f'- {label}' for label in labels))
+        return '\n'.join(sections) if sections else 'No scripts available'
+    return ''
+
+
 def _field_range(field) -> tuple[Any, Any] | None:
     minimum = maximum = None
     for constraint in field.metadata:
@@ -701,7 +794,7 @@ def _simple_value(value: Any):
     return _UNSUPPORTED
 
 
-def _format_last_processing() -> str:
+def _format_last_processing() -> dict[str, Any] | str:
     from modules import processing_class, processing_diffusers
     last = processing_diffusers.last_p
     if last is None:
@@ -723,7 +816,7 @@ def _format_last_processing() -> str:
         parameters[name] = value
     if not parameters:
         return 'No non-default processing parameters'
-    return f'Last processing parameters:\n```json\n{json.dumps(parameters, indent=2, ensure_ascii=False)}\n```'
+    return parameters
 
 
 def _generation_endpoint(
@@ -739,7 +832,7 @@ def _generation_endpoint(
         payload = {name: value for name, value in source.items() if name in _IMAGE_PARAMETERS}
         if prompt is not None:
             payload['prompt'] = prompt
-        payload.update({'inputs': [], 'send_images': True, 'save_images': shared.opts.samples_save})
+        payload.update({'inputs': [image] if image else [], 'send_images': True, 'save_images': shared.opts.samples_save})
         request_model = _IMAGE_MODEL
         error_prefix = 'Cannot run image generation'
     elif context == 'video':
@@ -816,6 +909,8 @@ def _execute_command(session_id: str, text: str, image: str | None = None) -> di
             kind='endpoint',
             data=command.arguments,
         )
+    if command.name == 'comment':
+        return _command_result(f'Comment: {command.arguments["text"]}')
 
     session = db.get_session(session_id)
     if session is None:
@@ -844,6 +939,89 @@ def _execute_command(session_id: str, text: str, image: str | None = None) -> di
         except ValueError as exc:
             raise CommandError(str(exc)) from exc
         return _command_result(f'Session name set to {updated["title"]}')
+    if command.name == 'import':
+        return _command_result('', kind='import', data={'path': command.arguments['path']})
+    if command.name == 'image':
+        from modules.chat import artifacts
+        images = [item for item in db.list_artifacts(session_id) if item['media_type'].startswith('image/')]
+        action = command.arguments['action']
+        if action == 'list':
+            if not images:
+                return _command_result('No session images')
+            selected_id = session.get('selected_image_id')
+            lines = []
+            for index, artifact in enumerate(images, start=1):
+                public = artifacts.public_artifact(artifact)
+                status = ' (unavailable)' if not public['available'] else ''
+                selected = ' [selected]' if artifact['id'] == selected_id else ''
+                lines.append(f'{index}. {public["display_name"]} ({artifact["created_at"]}){selected}{status}')
+            return _command_result('\n'.join(lines), data={'format': 'images', 'artifacts': [artifacts.public_artifact(item) for item in images]})
+        if action == 'clear':
+            db.set_selected_image(session_id, None)
+            return _command_result('Selected image cleared')
+        if action == 'save':
+            result_images = [item for item in images if item['role'] == 'result']
+            if not result_images:
+                return _command_error('No result images to save')
+            latest_message_id = result_images[-1].get('message_id')
+            latest_results = [
+                item for item in result_images if item.get('message_id') == latest_message_id
+            ] if latest_message_id else [result_images[-1]]
+            from PIL import Image
+            from modules import images as image_utils
+            saved_files = []
+            failures = []
+            for artifact in latest_results:
+                if not artifacts.public_artifact(artifact)['available']:
+                    failures.append(f'{artifact["display_name"]}: unavailable')
+                    continue
+                try:
+                    with Image.open(artifact['storage_ref']) as result_image:
+                        result_image.load()
+                        filename, _, _ = image_utils.save_image(
+                            result_image.copy(), info=result_image.info.get('parameters'),
+                        )
+                    if filename:
+                        saved_files.append(filename)
+                    else:
+                        failures.append(f'{artifact["display_name"]}: could not be saved')
+                except Exception as exc:
+                    failures.append(f'{artifact["display_name"]}: {type(exc).__name__}')
+            if not saved_files:
+                detail = '; '.join(failures) or 'No available result images'
+                return _command_error(f'Could not save result images: {detail}')
+            message = f'Saved {len(saved_files)} image(s):\n' + '\n'.join(saved_files)
+            if failures:
+                message += '\nFailed: ' + '; '.join(failures)
+            return _command_result(message, kind='error' if failures else 'text', data={'files': saved_files})
+        if action == 'reuse':
+            available = [
+                item for item in reversed(images)
+                if item['role'] == 'result' and artifacts.public_artifact(item)['available']
+            ]
+            if not available:
+                available = [item for item in reversed(images) if artifacts.public_artifact(item)['available']]
+            if not available:
+                return _command_error('No available image to reuse')
+            selected = available[0]
+        else:
+            index = command.arguments['index'] - 1
+            if index >= len(images):
+                return _command_error('Image number is not in the current image list')
+            selected = images[index]
+            if not artifacts.public_artifact(selected)['available']:
+                return _command_error('Selected image is no longer available')
+        db.set_selected_image(session_id, selected['id'])
+        return _command_result(f'Selected image: {selected["display_name"]}')
+    if command.name == 'meta':
+        from modules.chat import artifacts
+        artifact = next((
+            item for item in reversed(db.list_artifacts(session_id))
+            if item['media_type'].startswith('image/') and artifacts.public_artifact(item)['available']
+        ), None)
+        if artifact is None:
+            return _command_error('No available image to inspect')
+        return _command_result(artifacts.image_metadata(artifact))
     if command.name == 'params':
         keys = _context_parameter_keys(context)
         draft = (session.get('drafts') or {}).get(context, {})
@@ -888,8 +1066,12 @@ def _execute_command(session_id: str, text: str, image: str | None = None) -> di
             value = draft.get(name, default)
         return _command_result(f'{name}={value}')
     if command.name == 'list':
+        name = command.arguments['name']
+        catalog = _list_catalog(name) if name in {'sessions', 'wildcards', 'process', 'scripts'} else ''
+        if catalog:
+            return _command_result(catalog)
         try:
-            return _command_result(_list_choices(context, command.arguments['name']))
+            return _command_result(_list_choices(context, name))
         except CommandError as exc:
             return _command_error(str(exc))
     if command.name == 'model':
@@ -958,7 +1140,17 @@ def _execute_command(session_id: str, text: str, image: str | None = None) -> di
     if command.name == 'history':
         return _command_result(_format_history(session_id, command.arguments.get('limit', 20)))
     if command.name == 'last':
-        return _command_result(_format_last_processing())
+        last_processing = _format_last_processing()
+        if isinstance(last_processing, str):
+            return _command_result(last_processing)
+        return _command_result(
+            'Last processing parameters',
+            sections=[{
+                'title': 'Parameters',
+                'content': json.dumps(last_processing, indent=2, ensure_ascii=False),
+                'format': 'json',
+            }],
+        )
     if command.name == 'reset':
         return _command_result(_reset_context(session_id, session))
     return _command_error(f'Unsupported command: {command.name}')

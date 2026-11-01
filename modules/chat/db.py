@@ -12,7 +12,7 @@ from urllib.parse import quote
 from modules.logger import log
 
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 CONTEXTS = {'image', 'video', 'process', 'caption'}
 MESSAGE_ROLES = {'system', 'user', 'assistant'}
 OPERATION_STATUSES = {'running', 'completed', 'failed', 'cancelled'}
@@ -112,7 +112,7 @@ def _migrate_contexts(connection):
 def _migrate_operation_contexts(connection):
     tables = {row['name'] for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
     if 'operations' not in tables:
-        connection.execute(f'PRAGMA user_version = {SCHEMA_VERSION}')
+        connection.execute('PRAGMA user_version = 3')
         return
     connection.execute('PRAGMA foreign_keys = OFF')
     try:
@@ -149,6 +149,37 @@ def _migrate_operation_contexts(connection):
         raise
     finally:
         connection.execute('PRAGMA foreign_keys = ON')
+
+
+def _migrate_artifacts(connection):
+    connection.execute('BEGIN')
+    try:
+        tables = {row['name'] for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+        if 'sessions' in tables:
+            session_columns = {row['name'] for row in connection.execute('PRAGMA table_info(sessions)')}
+            if 'selected_image_id' not in session_columns:
+                connection.execute('ALTER TABLE sessions ADD COLUMN selected_image_id TEXT')
+        connection.execute('''
+            CREATE TABLE IF NOT EXISTS artifacts (
+                id TEXT PRIMARY KEY,
+                session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+                message_id TEXT REFERENCES messages(id) ON DELETE SET NULL,
+                media_type TEXT NOT NULL,
+                display_name TEXT NOT NULL,
+                role TEXT NOT NULL CHECK (role IN ('input', 'result')),
+                storage_ref TEXT NOT NULL,
+                source_artifact_id TEXT,
+                source_deleted INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL
+            )
+        ''')
+        connection.execute('CREATE INDEX IF NOT EXISTS chat_artifacts_session_idx ON artifacts(session_id, created_at)')
+        connection.execute(f'PRAGMA user_version = {SCHEMA_VERSION}')
+        connection.commit()
+    except Exception:
+        if connection.in_transaction:
+            connection.rollback()
+        raise
 
 
 def _dump(value):
@@ -201,7 +232,9 @@ def initialize(db_path=None):
                             version = 2
                         if version == 2:
                             _migrate_operation_contexts(connection)
-                            version = SCHEMA_VERSION
+                            version = 3
+                        if version == 3:
+                            _migrate_artifacts(connection)
                         connection.executescript('''
                             CREATE TABLE IF NOT EXISTS sessions (
                                 id TEXT PRIMARY KEY,
@@ -210,6 +243,7 @@ def initialize(db_path=None):
                                 drafts TEXT NOT NULL DEFAULT '{}',
                                 last_generation_prompt TEXT,
                                 last_generation_snapshot TEXT,
+                                selected_image_id TEXT,
                                 created_at TEXT NOT NULL,
                                 updated_at TEXT NOT NULL
                             );
@@ -238,6 +272,19 @@ def initialize(db_path=None):
                                 completed_at TEXT
                             );
                             CREATE INDEX IF NOT EXISTS chat_operations_session_idx ON operations(session_id, created_at DESC, id);
+                            CREATE TABLE IF NOT EXISTS artifacts (
+                                id TEXT PRIMARY KEY,
+                                session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+                                message_id TEXT REFERENCES messages(id) ON DELETE SET NULL,
+                                media_type TEXT NOT NULL,
+                                display_name TEXT NOT NULL,
+                                role TEXT NOT NULL CHECK (role IN ('input', 'result')),
+                                storage_ref TEXT NOT NULL,
+                                source_artifact_id TEXT,
+                                source_deleted INTEGER NOT NULL DEFAULT 0,
+                                created_at TEXT NOT NULL
+                            );
+                            CREATE INDEX IF NOT EXISTS chat_artifacts_session_idx ON artifacts(session_id, created_at);
                         ''')
                         connection.execute(f'PRAGMA user_version = {SCHEMA_VERSION}')
                         restarted = connection.execute(
@@ -306,7 +353,7 @@ def list_sessions(limit=50, offset=0, db_path=None):
 
 def update_session(session_id, db_path=None, **fields):
     initialize(db_path)
-    allowed = {'title', 'context', 'drafts', 'last_generation_prompt', 'last_generation_snapshot'}
+    allowed = {'title', 'context', 'drafts', 'last_generation_prompt', 'last_generation_snapshot', 'selected_image_id'}
     unknown = set(fields) - allowed
     if unknown:
         raise ValueError(f'Unsupported chat session fields: {", ".join(sorted(unknown))}')
@@ -339,6 +386,83 @@ def delete_session(session_id, db_path=None):
     with _connection(db_path) as connection:
         cursor = connection.execute('DELETE FROM sessions WHERE id = ?', (session_id,))
         return cursor.rowcount > 0
+
+
+def create_artifact(session_id, media_type, display_name, role, storage_ref, message_id=None, source_artifact_id=None, db_path=None):
+    initialize(db_path)
+    if role not in {'input', 'result'}:
+        raise ValueError(f'Invalid chat artifact role: {role}')
+    artifact_id = uuid.uuid4().hex
+    created_at = _timestamp()
+    with _connection(db_path) as connection:
+        connection.execute(
+            'INSERT INTO artifacts(id, session_id, message_id, media_type, display_name, role, storage_ref, source_artifact_id, created_at) '
+            'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            (artifact_id, session_id, message_id, media_type, display_name, role, storage_ref, source_artifact_id, created_at),
+        )
+        row = connection.execute('SELECT * FROM artifacts WHERE id = ?', (artifact_id,)).fetchone()
+        connection.execute('UPDATE sessions SET updated_at = ? WHERE id = ?', (created_at, session_id))
+    return dict(row)
+
+
+def get_artifact(session_id, artifact_id, db_path=None):
+    initialize(db_path)
+    with _connection(db_path) as connection:
+        row = connection.execute(
+            'SELECT * FROM artifacts WHERE id = ? AND session_id = ?',
+            (artifact_id, session_id),
+        ).fetchone()
+    return dict(row) if row is not None else None
+
+
+def list_artifacts(session_id, db_path=None):
+    initialize(db_path)
+    with _connection(db_path) as connection:
+        rows = connection.execute(
+            'SELECT * FROM artifacts WHERE session_id = ? ORDER BY created_at, rowid',
+            (session_id,),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def delete_artifact(session_id, artifact_id, db_path=None):
+    initialize(db_path)
+    with _connection(db_path) as connection:
+        row = connection.execute(
+            'SELECT * FROM artifacts WHERE id = ? AND session_id = ?',
+            (artifact_id, session_id),
+        ).fetchone()
+        if row is None:
+            return None
+        artifact = dict(row)
+        connection.execute(
+            'UPDATE artifacts SET source_deleted = 1 WHERE session_id = ? AND source_artifact_id = ?',
+            (session_id, artifact_id),
+        )
+        connection.execute(
+            'UPDATE sessions SET selected_image_id = NULL WHERE id = ? AND selected_image_id = ?',
+            (session_id, artifact_id),
+        )
+        connection.execute('DELETE FROM artifacts WHERE id = ? AND session_id = ?', (artifact_id, session_id))
+    return artifact
+
+
+def set_selected_image(session_id, artifact_id, db_path=None):
+    initialize(db_path)
+    with _connection(db_path) as connection:
+        if artifact_id is not None:
+            artifact = connection.execute(
+                'SELECT 1 FROM artifacts WHERE id = ? AND session_id = ? AND media_type LIKE \'image/%\'',
+                (artifact_id, session_id),
+            ).fetchone()
+            if artifact is None:
+                raise ValueError('Image artifact not found in this session')
+        connection.execute(
+            'UPDATE sessions SET selected_image_id = ?, updated_at = ? WHERE id = ?',
+            (artifact_id, _timestamp(), session_id),
+        )
+        row = connection.execute('SELECT * FROM sessions WHERE id = ?', (session_id,)).fetchone()
+    return _session(row)
 
 
 def create_message(session_id, role, content, metadata=None, message_id=None, db_path=None):
@@ -452,7 +576,7 @@ def diagnostics(db_path=None):
         integrity = [row[0] for row in connection.execute('PRAGMA integrity_check')]
         foreign_key_errors = [dict(row) for row in connection.execute('PRAGMA foreign_key_check')]
         tables = {row['name'] for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
-        required_tables = {'sessions', 'messages', 'operations'}
+        required_tables = {'sessions', 'messages', 'operations', 'artifacts'}
         json_errors = []
         json_columns = {'sessions': ('drafts', 'last_generation_snapshot'), 'messages': ('metadata',), 'operations': ('snapshot', 'result')}
         for table, columns in json_columns.items():

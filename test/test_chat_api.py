@@ -1,15 +1,371 @@
+import asyncio
+import base64
+import io
+import json
 import os
 import sqlite3
 import tempfile
 import unittest
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile
+from PIL import Image
+from PIL.PngImagePlugin import PngInfo
 
+from modules.chat import artifacts, commands
 from modules.chat import api as chat_api
 from modules.chat import db
 from modules import shared
+
+
+class TestChatArtifactService(unittest.TestCase):
+    temp_dir: tempfile.TemporaryDirectory
+    allowed_dir: Path
+    artifact_dir: Path
+
+    def setUp(self):
+        self.temp_dir = self.enterContext(tempfile.TemporaryDirectory())
+        self.allowed_dir = Path(self.temp_dir) / 'allowed'
+        self.allowed_dir.mkdir()
+        self.artifact_dir = Path(self.temp_dir) / 'private'
+        self.artifact_dir.mkdir(mode=0o700)
+
+    def test_allowed_image_import_copies_validated_content_to_private_storage(self):
+        source = self.allowed_dir / 'source image.png'
+        Image.new('RGB', (2, 2), 'red').save(source)
+        with patch.object(artifacts.shared, 'demo', SimpleNamespace(allowed_paths=[str(self.allowed_dir)])), \
+                patch.object(artifacts, 'storage_root', return_value=self.artifact_dir):
+            imported = artifacts.copy_allowed_file(str(source))
+
+            self.assertEqual(imported['kind'], 'image')
+            self.assertEqual(imported['media_type'], 'image/png')
+            self.assertEqual(imported['display_name'], 'source image.png')
+            self.assertNotEqual(imported['path'], str(source))
+            self.assertTrue(Path(imported['path']).is_file())
+            with self.assertRaisesRegex(ValueError, 'unavailable or not allowed'):
+                artifacts.copy_allowed_file(str(Path(self.temp_dir) / 'outside.png'))
+
+    def test_relative_server_path_rejects_ambiguous_matches(self):
+        first = self.allowed_dir / 'first'
+        second = self.allowed_dir / 'second'
+        first.mkdir()
+        second.mkdir()
+        Image.new('RGB', (1, 1), 'blue').save(first / 'same.png')
+        Image.new('RGB', (1, 1), 'green').save(second / 'same.png')
+        with patch.object(artifacts.shared, 'demo', SimpleNamespace(allowed_paths=[str(first), str(second)])):
+            with self.assertRaisesRegex(ValueError, 'ambiguous'):
+                artifacts.resolve_allowed_path('same.png')
+
+    def test_text_validation_enforces_size_and_utf8(self):
+        text_path = self.allowed_dir / 'commands.md'
+        text_path.write_text('set steps=12\n', encoding='utf-8')
+        validated = artifacts.inspect_file(text_path, text_path.name)
+        self.assertEqual(validated['kind'], 'text')
+        self.assertEqual(validated['content'], 'set steps=12\n')
+
+        large_path = self.allowed_dir / 'large.txt'
+        large_path.write_bytes(b'x' * (artifacts.TEXT_LIMIT + 1))
+        with self.assertRaisesRegex(ValueError, 'must not exceed 1 MB'):
+            artifacts.inspect_file(large_path, large_path.name)
+
+    def test_image_metadata_separates_parsed_parameters_from_raw_items(self):
+        path = self.allowed_dir / 'metadata.png'
+        metadata = PngInfo()
+        metadata.add_text('parameters', 'a landscape\nSteps: 20, Seed: 42, Sampler: Euler')
+        metadata.add_text('source', 'test fixture')
+        Image.new('RGB', (2, 2), 'green').save(path, pnginfo=metadata)
+
+        rendered = artifacts.image_metadata({'storage_ref': str(path)})
+
+        self.assertIn('Parsed:', rendered)
+        self.assertIn('"Steps": 20', rendered)
+        self.assertIn('Raw JSON:', rendered)
+        self.assertIn('"source": "test fixture"', rendered)
+        self.assertNotIn('"parameters"', rendered)
+
+
+class TestChatFileImports(unittest.TestCase):
+    temp_dir: tempfile.TemporaryDirectory
+    db_path: str
+    allowed_dir: Path
+    private_dir: Path
+
+    def setUp(self):
+        self.temp_dir = self.enterContext(tempfile.TemporaryDirectory())
+        self.db_path = os.path.join(self.temp_dir, 'chat.db')
+        self.allowed_dir = Path(self.temp_dir) / 'allowed'
+        self.allowed_dir.mkdir()
+        self.private_dir = Path(self.temp_dir) / 'private'
+        self.private_dir.mkdir(mode=0o700)
+
+    def _create_session(self):
+        with patch.object(db, '_db_path', return_value=self.db_path):
+            return chat_api.create_session(chat_api.ReqSessionCreate())
+
+    def test_image_upload_creates_private_selected_artifact(self):
+        session = self._create_session()
+        buffer = io.BytesIO()
+        Image.new('RGB', (2, 2), 'red').save(buffer, format='PNG')
+        image_bytes = buffer.getvalue()
+        upload = UploadFile(filename='pasted-image.png', file=io.BytesIO(image_bytes))
+        with patch.object(db, '_db_path', return_value=self.db_path), \
+                patch.object(artifacts, 'storage_root', return_value=self.private_dir):
+            submission = asyncio.run(chat_api.upload_chat_file(session['id'], upload))
+            stored = db.get_artifact(session['id'], submission.session.selected_image_id)
+            messages = db.list_messages(session['id'])
+
+        self.assertEqual(stored['display_name'], 'pasted-image.png')
+        self.assertEqual(stored['role'], 'input')
+        self.assertNotEqual(stored['storage_ref'], str(self.allowed_dir))
+        self.assertTrue(Path(stored['storage_ref']).is_file())
+        self.assertEqual(submission.artifacts[0].id, stored['id'])
+        self.assertEqual(submission.artifacts[0].message_id, submission.user_message.id)
+        self.assertNotIn('storage_ref', submission.model_dump_json())
+        self.assertNotIn(image_bytes.hex(), str(messages))
+
+    def test_artifact_content_and_delete_are_session_scoped_and_confirmed(self):
+        session = self._create_session()
+        other_session = self._create_session()
+        buffer = io.BytesIO()
+        Image.new('RGB', (2, 2), 'red').save(buffer, format='PNG')
+        upload = UploadFile(filename='owned.png', file=io.BytesIO(buffer.getvalue()))
+        with patch.object(db, '_db_path', return_value=self.db_path), \
+                patch.object(artifacts, 'storage_root', return_value=self.private_dir):
+            submission = asyncio.run(chat_api.upload_chat_file(session['id'], upload))
+            artifact_id = submission.artifacts[0].id
+            content = chat_api.get_chat_artifact_content(session['id'], artifact_id)
+            content_bytes = Path(content.path).read_bytes()
+            stored = db.get_artifact(session['id'], artifact_id)
+            with self.assertRaises(Exception) as content_error:
+                chat_api.get_chat_artifact_content(other_session['id'], artifact_id)
+            with self.assertRaises(Exception) as confirmation_error:
+                chat_api.delete_chat_artifact(session['id'], artifact_id, chat_api.ReqArtifactDelete())
+            with self.assertRaises(Exception) as ownership_error:
+                chat_api.delete_chat_artifact(
+                    other_session['id'], artifact_id, chat_api.ReqArtifactDelete(confirm=True),
+                )
+            deleted = chat_api.delete_chat_artifact(
+                session['id'], artifact_id, chat_api.ReqArtifactDelete(confirm=True),
+            )
+            remaining_artifact = db.get_artifact(session['id'], artifact_id)
+            updated_session = db.get_session(session['id'])
+
+        self.assertEqual(content_bytes, buffer.getvalue())
+        self.assertEqual(content_error.exception.status_code, 404)
+        self.assertEqual(confirmation_error.exception.status_code, 400)
+        self.assertEqual(ownership_error.exception.status_code, 404)
+        self.assertEqual(deleted, {'deleted': True, 'id': artifact_id})
+        self.assertFalse(Path(stored['storage_ref']).exists())
+        self.assertIsNone(remaining_artifact)
+        self.assertIsNone(updated_session['selected_image_id'])
+
+    def test_missing_artifact_file_is_reported_as_unavailable(self):
+        session = self._create_session()
+        buffer = io.BytesIO()
+        Image.new('RGB', (2, 2), 'blue').save(buffer, format='PNG')
+        upload = UploadFile(filename='missing.png', file=io.BytesIO(buffer.getvalue()))
+        with patch.object(db, '_db_path', return_value=self.db_path), \
+                patch.object(artifacts, 'storage_root', return_value=self.private_dir):
+            submission = asyncio.run(chat_api.upload_chat_file(session['id'], upload))
+            stored = db.get_artifact(session['id'], submission.artifacts[0].id)
+            Path(stored['storage_ref']).unlink()
+            detail = chat_api.get_session(session['id'])
+            restore_errors = chat_api.restore_session(session['id']).restore_errors
+            with self.assertRaises(Exception) as content_error:
+                chat_api.get_chat_artifact_content(session['id'], stored['id'])
+
+        self.assertFalse(detail.artifacts[0].available)
+        self.assertTrue(any('missing.png' in message for message in restore_errors))
+        self.assertEqual(content_error.exception.status_code, 404)
+
+    def test_image_commands_list_select_reuse_clear_and_read_metadata(self):
+        session = self._create_session()
+        message = db.create_message(session['id'], 'user', 'uploaded images', db_path=self.db_path)
+        artifacts_by_role = {}
+        for role, name in (('input', 'input.png'), ('result', 'result.png')):
+            path = self.private_dir / name
+            metadata = PngInfo()
+            metadata.add_text('parameters', f'{name} prompt')
+            Image.new('RGB', (2, 2), 'green').save(path, pnginfo=metadata)
+            artifacts_by_role[role] = db.create_artifact(
+                session['id'], 'image/png', name, role, str(path), message_id=message['id'],
+                db_path=self.db_path,
+            )
+
+        with patch.object(db, '_db_path', return_value=self.db_path):
+            listed = chat_api.post_message(session['id'], chat_api.ReqChatMessage(content='image list'))
+            selected = chat_api.post_message(session['id'], chat_api.ReqChatMessage(content='image 1'))
+            metadata = chat_api.post_message(session['id'], chat_api.ReqChatMessage(content='meta'))
+            latest_input_path = self.private_dir / 'latest-input.png'
+            latest_input_metadata = PngInfo()
+            latest_input_metadata.add_text('parameters', 'latest-input.png prompt')
+            Image.new('RGB', (2, 2), 'yellow').save(latest_input_path, pnginfo=latest_input_metadata)
+            db.create_artifact(
+                session['id'], 'image/png', 'latest-input.png', 'input', str(latest_input_path),
+                message_id=message['id'], db_path=self.db_path,
+            )
+            latest_input = chat_api.post_message(session['id'], chat_api.ReqChatMessage(content='meta'))
+            reused = chat_api.post_message(session['id'], chat_api.ReqChatMessage(content='image reuse'))
+            cleared = chat_api.post_message(session['id'], chat_api.ReqChatMessage(content='image clear'))
+
+        self.assertEqual(len(listed.result.data['artifacts']), 2)
+        self.assertEqual(selected.session.selected_image_id, artifacts_by_role['input']['id'])
+        self.assertIn('result.png prompt', metadata.assistant_message.content)
+        self.assertIn('latest-input.png prompt', latest_input.assistant_message.content)
+        self.assertEqual(reused.session.selected_image_id, artifacts_by_role['result']['id'])
+        self.assertIsNone(cleared.session.selected_image_id)
+
+    def test_image_save_saves_latest_result_batch(self):
+        session = self._create_session()
+        with patch.object(db, '_db_path', return_value=self.db_path):
+            old_message = db.create_message(session['id'], 'user', 'old results')
+            latest_message = db.create_message(session['id'], 'user', 'latest results')
+            input_message = db.create_message(session['id'], 'user', 'input image')
+
+            def add_artifact(name, role, message_id):
+                path = self.private_dir / name
+                metadata = PngInfo()
+                metadata.add_text('parameters', f'{name} prompt')
+                Image.new('RGB', (2, 2), 'red').save(path, pnginfo=metadata)
+                db.create_artifact(
+                    session['id'], 'image/png', name, role, str(path), message_id=message_id,
+                )
+
+            add_artifact('old-result.png', 'result', old_message['id'])
+            add_artifact('latest-one.png', 'result', latest_message['id'])
+            add_artifact('latest-two.png', 'result', latest_message['id'])
+            add_artifact('newer-input.png', 'input', input_message['id'])
+            with patch('modules.images.save_image', side_effect=[
+                ('/saved/latest-one.png', None, ''),
+                ('/saved/latest-two.png', None, ''),
+            ]) as save_image:
+                submission = chat_api.post_message(
+                    session['id'], chat_api.ReqChatMessage(content='image save'),
+                )
+
+        self.assertEqual(save_image.call_count, 2)
+        self.assertEqual(
+            [call.kwargs['info'] for call in save_image.call_args_list],
+            ['latest-one.png prompt', 'latest-two.png prompt'],
+        )
+        self.assertIn('Saved 2 image(s)', submission.assistant_message.content)
+        self.assertIn('/saved/latest-one.png', submission.assistant_message.content)
+        self.assertIn('/saved/latest-two.png', submission.assistant_message.content)
+
+    def test_text_upload_executes_lines_and_stops_at_first_failure(self):
+        session = self._create_session()
+        upload = UploadFile(
+            filename='commands.txt',
+            file=io.BytesIO(b'set steps=12\nset steps=999\nset seed=10\n'),
+        )
+        execute_command = chat_api._execute_chat_command
+        progress_texts = []
+
+        def capture_progress(*args, **kwargs):
+            if shared.state.textinfo and shared.state.textinfo.startswith('Processing...'):
+                progress_texts.append(shared.state.textinfo)
+            return execute_command(*args, **kwargs)
+
+        with patch.object(db, '_db_path', return_value=self.db_path), \
+                patch.object(artifacts, 'storage_root', return_value=self.private_dir), \
+                patch.object(shared.state, 'job', ''), \
+                patch.object(shared.state, 'textinfo', None), \
+                patch.object(chat_api, '_execute_chat_command', side_effect=capture_progress):
+            submission = asyncio.run(chat_api.upload_chat_file(session['id'], upload))
+            saved = db.get_session(session['id'])
+
+        self.assertEqual(submission.result.kind, 'error')
+        self.assertIn('<span class="chat-file-line">commands.txt:1</span>', submission.assistant_message.content)
+        self.assertIn('<code>steps set to 12</code>', submission.assistant_message.content)
+        self.assertIn('<span class="chat-file-line">commands.txt:2</span>', submission.assistant_message.content)
+        self.assertNotIn('<pre>', submission.assistant_message.content)
+        self.assertNotIn('<br>', submission.assistant_message.content)
+        self.assertNotIn('commands.txt:3', submission.assistant_message.content)
+        self.assertEqual(progress_texts, [
+            'Processing... line 1/3: set steps=12',
+            'Processing... line 2/3: set steps=999',
+        ])
+        self.assertEqual(submission.assistant_message.metadata['format'], 'html')
+        self.assertEqual(saved['drafts']['image']['steps'], 12)
+        self.assertNotIn('seed', saved['drafts']['image'])
+        self.assertEqual(list(self.private_dir.iterdir()), [])
+
+    def test_text_upload_renders_hash_and_slash_comment_lines(self):
+        session = self._create_session()
+        upload = UploadFile(
+            filename='comments.txt',
+            file=io.BytesIO(b'# first comment\n  // second comment\nset steps=12\n'),
+        )
+        with patch.object(db, '_db_path', return_value=self.db_path), \
+                patch.object(artifacts, 'storage_root', return_value=self.private_dir):
+            submission = asyncio.run(chat_api.upload_chat_file(session['id'], upload))
+
+        self.assertEqual(submission.result.kind, 'text')
+        self.assertIn('<code>Comment: first comment</code>', submission.assistant_message.content)
+        self.assertIn('<code>Comment: second comment</code>', submission.assistant_message.content)
+        self.assertIn('<code>steps set to 12</code>', submission.assistant_message.content)
+
+    def test_text_upload_executes_endpoint_commands_and_continues(self):
+        session = self._create_session()
+        upload = UploadFile(
+            filename='endpoint.txt',
+            file=io.BytesIO(b'memory\nset steps=12\n'),
+        )
+        with patch.object(db, '_db_path', return_value=self.db_path), \
+                patch.object(artifacts, 'storage_root', return_value=self.private_dir), \
+                patch('modules.api.server.get_memory', return_value={'ram': {'used': 123}}):
+            submission = asyncio.run(chat_api.upload_chat_file(session['id'], upload))
+
+        self.assertEqual(submission.result.kind, 'text')
+        self.assertIn('memory:', submission.assistant_message.content)
+        self.assertIn('&quot;used&quot;: 123', submission.assistant_message.content)
+        self.assertIn('<code>steps set to 12</code>', submission.assistant_message.content)
+
+    def test_server_path_import_copies_image_and_never_persists_path(self):
+        session = self._create_session()
+        source = self.allowed_dir / 'private source.png'
+        Image.new('RGB', (2, 2), 'blue').save(source)
+        with patch.object(db, '_db_path', return_value=self.db_path), \
+                patch.object(artifacts, 'storage_root', return_value=self.private_dir), \
+                patch.object(shared, 'demo', SimpleNamespace(allowed_paths=[str(self.allowed_dir)])):
+            submission = chat_api.post_message(session['id'], chat_api.ReqChatMessage(content=f'use "{source}"'))
+            messages = db.list_messages(session['id'])
+            stored = db.get_artifact(session['id'], submission.session.selected_image_id)
+
+        self.assertEqual(submission.result.kind, 'text')
+        self.assertEqual(submission.user_message.content, 'Server file import')
+        self.assertNotIn(str(source), submission.model_dump_json())
+        self.assertNotIn(str(source), str(messages))
+        self.assertNotEqual(stored['storage_ref'], str(source))
+        self.assertTrue(source.is_file())
+
+    def test_server_text_import_renders_run_html(self):
+        session = self._create_session()
+        source = self.allowed_dir / 'chat-test.txt'
+        source.write_text('prompt a landscape\nrun\n', encoding='utf-8')
+        buffer = io.BytesIO()
+        Image.new('RGB', (2, 2), 'red').save(buffer, format='PNG')
+        encoded_image = base64.b64encode(buffer.getvalue()).decode('ascii')
+        control_api = Mock(post_control=Mock(return_value=SimpleNamespace(
+            images=[encoded_image], info='generated <b>details</b>', params={},
+        )))
+        with patch.object(db, '_db_path', return_value=self.db_path), \
+                patch.object(artifacts, 'storage_root', return_value=self.private_dir), \
+                patch.object(shared, 'demo', SimpleNamespace(allowed_paths=[str(self.allowed_dir)])):
+            submission = chat_api.post_message(
+                session['id'], chat_api.ReqChatMessage(content=f'file "{source}"'),
+                SimpleNamespace(control=control_api),
+            )
+
+        self.assertEqual(submission.result.kind, 'text')
+        self.assertEqual(submission.assistant_message.metadata['format'], 'html')
+        self.assertIn('<span class="chat-file-line">chat-test.txt:2</span>', submission.assistant_message.content)
+        self.assertIn('generated <b>details</b>', submission.assistant_message.content)
+        self.assertNotIn('<pre>', submission.assistant_message.content)
+        self.assertNotIn('<br>', submission.assistant_message.content)
+        self.assertNotIn('&lt;b&gt;details', submission.assistant_message.content)
 
 
 class TestChatApiRegistration(unittest.TestCase):
@@ -36,6 +392,9 @@ class TestChatApiRegistration(unittest.TestCase):
             ('/sdapi/v1/chat/sessions/{session_id}/restore', 'POST'),
             ('/sdapi/v1/chat/sessions/{session_id}/messages', 'POST'),
             ('/sdapi/v1/chat/sessions/{session_id}/messages/{message_id}', 'PATCH'),
+            ('/sdapi/v1/chat/sessions/{session_id}/files', 'POST'),
+            ('/sdapi/v1/chat/sessions/{session_id}/artifacts/{artifact_id}/content', 'GET'),
+            ('/sdapi/v1/chat/sessions/{session_id}/artifacts/{artifact_id}', 'DELETE'),
         })
 
     def test_message_submission_persists_command_exchange_and_restore_state(self):
@@ -101,6 +460,52 @@ class TestChatApiRegistration(unittest.TestCase):
         self.assertEqual(renamed.assistant_message.content, 'Session name set to A useful name')
         self.assertEqual(renamed.session.title, 'A useful name')
 
+    def test_last_command_returns_pretty_json_section(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = os.path.join(temp_dir, 'chat.db')
+            with patch.object(db, '_db_path', return_value=db_path):
+                session = chat_api.create_session(chat_api.ReqSessionCreate())
+                with patch.object(commands, '_format_last_processing', return_value={'prompt': 'a test', 'steps': 20}):
+                    submission = chat_api.post_message(
+                        session['id'], chat_api.ReqChatMessage(content='last'),
+                    )
+
+        section = submission.assistant_message.metadata['sections'][0]
+        self.assertEqual(section['format'], 'json')
+        self.assertEqual(json.loads(section['content']), {'prompt': 'a test', 'steps': 20})
+        self.assertNotIn('```', submission.assistant_message.content)
+
+    def test_list_commands_expose_styles_sessions_wildcards_process_and_scripts(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = os.path.join(temp_dir, 'chat.db')
+            with patch.object(db, '_db_path', return_value=db_path):
+                session = chat_api.create_session(chat_api.ReqSessionCreate())
+                with patch.object(commands.endpoints, 'get_prompt_styles', return_value=[{'name': 'Test style'}]), \
+                        patch('modules.ui_extra_networks_wildcards.list_wildcard_names', return_value=['animals/cats']), \
+                        patch('modules.scripts_manager.scripts_postproc') as postproc, \
+                        patch('modules.scripts_manager.scripts_txt2img') as txt2img, \
+                        patch('modules.scripts_manager.scripts_img2img') as img2img, \
+                        patch('modules.scripts_manager.scripts_control') as control, \
+                        patch('modules.scripts_manager.scripts_video') as video:
+                    postproc.scripts_in_preferred_order.return_value = [SimpleNamespace(name='Resize')]
+                    txt2img.scripts = [SimpleNamespace(title=lambda: 'Txt script')]
+                    img2img.scripts = [SimpleNamespace(title=lambda: 'Img script')]
+                    control.scripts = [SimpleNamespace(title=lambda: 'Control script')]
+                    video.scripts = [SimpleNamespace(title=lambda: 'Video script')]
+                    replies = {
+                        command: chat_api.post_message(
+                            session['id'], chat_api.ReqChatMessage(content=command),
+                        ).assistant_message.content
+                        for command in ('list styles', 'list sessions', 'list wildcards', 'list process', 'list scripts')
+                    }
+
+        self.assertIn('Test style', replies['list styles'])
+        self.assertIn(session['id'], replies['list sessions'])
+        self.assertIn('animals/cats', replies['list wildcards'])
+        self.assertIn('Resize', replies['list process'])
+        for label in ('Txt script', 'Img script', 'Control script', 'Video script'):
+            self.assertIn(label, replies['list scripts'])
+
     def test_image_generation_uses_control_api_and_persists_no_image_bytes(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             db_path = os.path.join(temp_dir, 'chat.db')
@@ -134,7 +539,7 @@ class TestChatApiRegistration(unittest.TestCase):
         self.assertEqual(request.prompt, 'a landscape')
         self.assertEqual(request.inputs, [])
         self.assertTrue(request.send_images)
-        self.assertFalse(request.save_images)
+        self.assertEqual(request.save_images, shared.opts.samples_save)
         self.assertEqual(submission.result.kind, 'operation')
         self.assertEqual(submission.result.data['images'], ['base64-image'])
         self.assertEqual(submission.assistant_message.content, 'Generated 1 image(s)\ngenerated <b>info</b>')
@@ -167,7 +572,7 @@ class TestChatApiRegistration(unittest.TestCase):
         self.assertEqual(operation['error'], 'control failed')
         self.assertEqual(submission.assistant_message.metadata['status'], 'failed')
 
-    def test_image_generation_reports_saved_output_paths(self):
+    def test_image_generation_keeps_saved_output_paths_private(self):
         saved_path = '/outputs/generated image.png'
         with tempfile.TemporaryDirectory() as temp_dir:
             db_path = os.path.join(temp_dir, 'chat.db')
@@ -182,7 +587,8 @@ class TestChatApiRegistration(unittest.TestCase):
                     SimpleNamespace(control=Mock(post_control=Mock(return_value=response))),
                 )
 
-        self.assertIn(f'<code>{saved_path}</code>', submission.assistant_message.content)
+        self.assertNotIn(saved_path, submission.assistant_message.content)
+        self.assertNotIn(saved_path, str(submission.assistant_message.metadata))
         serialized = chat_api.api_control.ResControl(saved_images=[saved_path]).model_dump()
         self.assertNotIn('saved_images', serialized)
 
@@ -332,7 +738,7 @@ class TestChatApiRegistration(unittest.TestCase):
                 diagnostics = db.diagnostics()
 
         self.assertEqual(operation['context'], 'caption')
-        self.assertEqual(diagnostics['user_version'], 3)
+        self.assertEqual(diagnostics['user_version'], db.SCHEMA_VERSION)
         self.assertTrue(diagnostics['ok'])
 
     def test_database_initialization_failure_disables_chat_without_routes(self):

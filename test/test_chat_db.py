@@ -129,6 +129,38 @@ class TestChatDatabase(unittest.TestCase):
         self.assertIsNone(db.get_operation(operation['id'], db_path=self.db_path))
         self.assertFalse(db.delete_session(session['id'], db_path=self.db_path))
 
+    def test_artifact_deletion_preserves_files_and_marks_lineage(self):
+        session = db.create_session(db_path=self.db_path)
+        message = db.create_message(session['id'], 'user', 'image upload', db_path=self.db_path)
+        source_path = pathlib.Path(self.temp_dir) / 'source.png'
+        result_path = pathlib.Path(self.temp_dir) / 'result.png'
+        source_path.write_bytes(b'source')
+        result_path.write_bytes(b'result')
+        source = db.create_artifact(
+            session['id'], 'image/png', 'source.png', 'input', str(source_path),
+            message_id=message['id'], db_path=self.db_path,
+        )
+        result = db.create_artifact(
+            session['id'], 'image/png', 'result.png', 'result', str(result_path),
+            source_artifact_id=source['id'], db_path=self.db_path,
+        )
+        db.set_selected_image(session['id'], source['id'], db_path=self.db_path)
+
+        removed = db.delete_artifact(session['id'], source['id'], db_path=self.db_path)
+        descendant = db.get_artifact(session['id'], result['id'], db_path=self.db_path)
+        updated_session = db.get_session(session['id'], db_path=self.db_path)
+
+        self.assertEqual(removed['id'], source['id'])
+        self.assertEqual(descendant['source_artifact_id'], source['id'])
+        self.assertEqual(descendant['source_deleted'], 1)
+        self.assertIsNone(updated_session['selected_image_id'])
+        self.assertTrue(source_path.is_file())
+        self.assertTrue(result_path.is_file())
+
+        self.assertTrue(db.delete_session(session['id'], db_path=self.db_path))
+        self.assertTrue(result_path.is_file())
+        self.assertEqual(db.list_artifacts(session['id'], db_path=self.db_path), [])
+
     def test_invalid_context_and_role_are_rejected(self):
         with self.assertRaisesRegex(ValueError, 'Invalid chat context'):
             db.create_session(context='audio', db_path=self.db_path)
