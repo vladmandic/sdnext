@@ -159,7 +159,8 @@ def _parse_value(raw_value: str, annotation: Any, example: Any = None):
 
     if list_type is not None:
         values = [item.strip() for item in raw_value.split(',') if item.strip()]
-        return TypeAdapter(list[list_type]).validate_python(values)
+        item_adapter = TypeAdapter(list_type)
+        return [item_adapter.validate_python(item) for item in values]
     if annotation is Any or annotation is None:
         return raw_value
     return TypeAdapter(annotation).validate_python(raw_value)
