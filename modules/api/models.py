@@ -297,6 +297,7 @@ class ResTxt2Img(BaseModel):
     images: list[str] | None = Field(default=None, title="Image", description="The generated images in base64 format.")
     parameters: dict = Field(title="Parameters", description="The request parameters echoed back.")
     info: str = Field(title="Info", description="Generation info string with all parameters used.")
+    error: str | None = Field(default=None, title="Error", description="Failure that stopped the job after the returned images; unset when every batch completed.")
 
 ReqImg2Img = PydanticModelGenerator(
     "StableDiffusionProcessingImg2Img",
@@ -329,6 +330,7 @@ class ResImg2Img(BaseModel):
     images: list[str] | None = Field(default=None, title="Image", description="The generated images in base64 format.")
     parameters: dict = Field(title="Parameters", description="The request parameters echoed back.")
     info: str = Field(title="Info", description="Generation info string with all parameters used.")
+    error: str | None = Field(default=None, title="Error", description="Failure that stopped the job after the returned images; unset when every batch completed.")
 
 class FileData(BaseModel):
     data: str = Field(title="File data", description="Base64 representation of the file")

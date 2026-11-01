@@ -80,6 +80,7 @@ class ResControl(BaseModel):
     params: dict = Field(default={}, title="Settings", description="Echo of the request parameters used for generation")
     info: str = Field(default="", title="Info", description="Generation info string with seed, sampler, and pipeline details")
     stats: str = Field(default="", title="Stats", description="HTML-formatted generation performance summary")
+    error: str | None = Field(default=None, title="Error", description="Failure that stopped the job after the returned images; unset when every batch completed")
 
 
 class APIControl:
@@ -334,4 +335,5 @@ class APIControl:
             params=vars(req),
             info=output_info,
             stats=stats,
+            error=error or None,
         )

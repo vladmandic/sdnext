@@ -131,7 +131,7 @@ class APIGenerate:
             b64images = list(map(helpers.encode_pil_to_base64, processed.images)) if send_images else []
         self.sanitize_b64(txt2imgreq)
         info = processed.js() if processed else ''
-        return models.ResTxt2Img(images=b64images, parameters=vars(txt2imgreq), info=info)
+        return models.ResTxt2Img(images=b64images, parameters=vars(txt2imgreq), info=info, error=error or None)
 
     def post_img2img(self, img2imgreq: models.ReqImg2Img):
         """Generate images from input images with optional inpainting mask. Supports IP-Adapter, FaceID, and script overrides."""
@@ -190,4 +190,4 @@ class APIGenerate:
             img2imgreq.mask = None
         self.sanitize_b64(img2imgreq)
         info = processed.js() if processed else ''
-        return models.ResImg2Img(images=b64images, parameters=vars(img2imgreq), info=info)
+        return models.ResImg2Img(images=b64images, parameters=vars(img2imgreq), info=info, error=error or None)

@@ -13,7 +13,7 @@ Covers:
 - ``State.fail``: error text, the stop flag, the reported status, cleared by ``begin`` only
 - ``process_images`` with a failing and an interrupted pipeline
 - v1 ``txt2img``, ``img2img`` and ``control`` route handlers with a failing, a succeeding and an interrupted
-  pipeline, and a later batch that fails after the first returned
+  pipeline, and a later batch that fails after the first: 200 with the first batch and the error
 - ``video_run.run`` with a failing and an interrupted pipeline
 - an on-demand component returned to cpu when the pass raises inside its entry point
 
@@ -238,7 +238,7 @@ def call_v1(route: str, mode: str, n_iter: int = 1, preview: bool = False) -> di
             res = api.post_text2img(models.ReqTxt2Img(**common))
         elif route == 'control':
             from modules.api.control import APIControl, ReqControl
-            res = APIControl(threading.Lock()).post_control(ReqControl(**common))
+            res = APIControl(threading.Lock()).post_control(ReqControl(**common, batch_count=n_iter)) # control_run names it batch_count
         else:
             buf = io.BytesIO()
             Image.new('RGB', (64, 64), (0, 255, 0)).save(buf, format='PNG')
@@ -362,25 +362,35 @@ def test_v1_control_failed_pass_answers_500_with_the_message():
 
 def test_v1_control_success_answers_200():
     out = call_v1('control', 'ok')
-    assert out['code'] == 200 and out['images'] == 1, out
+    assert out['code'] == 200 and out['images'] == 1 and out.get('error') is None, out
     return True
 
 
 def test_v1_txt2img_success_answers_200():
     out = call_v1('txt2img', 'ok')
-    assert out['code'] == 200 and out['images'] == 1, out
+    assert out['code'] == 200 and out['images'] == 1 and out.get('error') is None, out
     return True
 
 
 def test_v1_txt2img_user_interrupt_answers_200_with_the_preview():
     out = call_v1('txt2img', 'interrupt', preview=True)
-    assert out['code'] == 200 and out['images'] == 1, f'an interrupt is not a failure: {out}'
+    assert out['code'] == 200 and out['images'] == 1 and out.get('error') is None, f'an interrupt is not a failure: {out}'
     return True
 
 
 def test_v1_txt2img_later_batch_failure_keeps_the_first_batch():
+    """Red before the error field: 200 with the first batch and nothing saying the second failed."""
     out = call_v1('txt2img', 'fail-second', n_iter=2)
     assert out['code'] == 200 and out['images'] == 1, out
+    assert out.get('error') == 'stub pipeline failure', f'partial result without its error: {out}'
+    return True
+
+
+def test_v1_control_later_batch_failure_keeps_the_first_batch():
+    """Red before the error field: 200 with the first batch and nothing saying the second failed."""
+    out = call_v1('control', 'fail-second', n_iter=2)
+    assert out['code'] == 200 and out['images'] == 1, out
+    assert out.get('error') == 'stub pipeline failure', f'partial result without its error: {out}'
     return True
 
 
@@ -431,6 +441,7 @@ def run_all():
         test_v1_txt2img_success_answers_200,
         test_v1_txt2img_user_interrupt_answers_200_with_the_preview,
         test_v1_txt2img_later_batch_failure_keeps_the_first_batch,
+        test_v1_control_later_batch_failure_keeps_the_first_batch,
     ]:
         run_test(cat, fn)
     cat = category('video')
