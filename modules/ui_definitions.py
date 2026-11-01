@@ -471,7 +471,8 @@ def create_settings(cmd_opts):
     # --- Server Settings ---
     options_templates.update(options_section(('server', "Server Settings"), {
         "server_listen": OptionInfo(False, "Listen on all interfaces", gr.Checkbox),
-        "chat_enabled": OptionInfo(False, "Enable Chat feature", gr.Checkbox),
+        "chat_enabled": OptionInfo(True, "Enable Chat feature", gr.Checkbox),
+        "scheduler_state": OptionInfo("Paused", "Scheduler state", gr.Dropdown, {"choices": ["Active", "Paused", "Auto", "Stopped"]}),
         "server_status": OptionInfo(120, "Automatic server status monitor rate", gr.Number, {"minimum": 0, "maximum": 1000, "step": 1}),
         "server_monitor": OptionInfo(0, "Automatic server memory monitor rate", gr.Number, {"minimum": 0, "maximum": 1000, "step": 1}),
         "server_rate_limit": OptionInfo(300, "API base rate limit rate", gr.Number, {"minimum": 0, "maximum": 1000, "step": 1}),
@@ -662,13 +663,6 @@ def create_settings(cmd_opts):
         "send_size": OptionInfo(False, "Send size when sending prompt or image to another interface", gr.Checkbox, {"visible": False}),
     }))
 
-    # --- Scheduler ---
-    options_templates.update(options_section(('scheduler', "Scheduler"), {
-        "scheduler_state": OptionInfo("Paused", "Scheduler state", gr.Dropdown, {"choices": ["Active", "Paused", "Auto", "Stopped"], "visible": False}),
-        "scheduler_start": OptionInfo("09:00", "Scheduler start time", gr.Textbox, {"visible": False}),
-        "scheduler_end": OptionInfo("18:00", "Scheduler end time", gr.Textbox, {"visible": False}),
-    }))
-
     # --- Live Previews ---
     options_templates.update(options_section(('live-preview', "Live Previews"), {
         "show_progress_every_n_steps": OptionInfo(1, "Live preview display period", gr.Slider, {"minimum": 0, "maximum": 20, "step": 1, "visible": False}),
@@ -813,6 +807,10 @@ def create_settings(cmd_opts):
                 "autocomplete_min_chars": OptionInfo(3, "Min autocomplete chars", gr.Slider, {"minimum": 2, "maximum": 6, "step": 1, "visible": False}),
                 "autocomplete_keep_underscores": OptionInfo(False, "Keep underscores in autocomplete", gr.Checkbox, {"visible": False}),
                 "autocomplete_append_comma": OptionInfo(True, "Append comma after autocomplete", gr.Checkbox, {"visible": False}),
+
+                # Scheduler settings (controlled via Scheduler Tab UI)
+                "scheduler_start": OptionInfo("09:00", "Scheduler start time", gr.Textbox, {"visible": False}),
+                "scheduler_end": OptionInfo("18:00", "Scheduler end time", gr.Textbox, {"visible": False}),
 
                 # Caption settings (controlled via Caption Tab UI)
                 "caption_default_type": OptionInfo("VLM", "Default caption type", gr.Radio, {"choices": ["VLM", "OpenCLiP", "Tagger"], "visible": False}),

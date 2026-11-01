@@ -318,6 +318,28 @@ def initialize(db_path=None):
             raise
 
 
+def compact_and_stats(db_path=None):
+    initialize(db_path)
+    path = os.path.abspath(_db_path(db_path))
+    with _connection(path) as connection:
+        connection.execute('VACUUM')
+        page_count = connection.execute('PRAGMA page_count').fetchone()[0]
+        page_size = connection.execute('PRAGMA page_size').fetchone()[0]
+        free_pages = connection.execute('PRAGMA freelist_count').fetchone()[0]
+        counts = {
+            table: connection.execute(f'SELECT COUNT(*) FROM {table}').fetchone()[0]
+            for table in ('sessions', 'messages', 'operations', 'artifacts')
+        }
+    return {
+        'path': path,
+        'size_bytes': os.path.getsize(path),
+        'page_count': page_count,
+        'page_size': page_size,
+        'free_pages': free_pages,
+        **counts,
+    }
+
+
 def create_session(title='New chat', context='image', session_id=None, db_path=None):
     initialize(db_path)
     if context not in CONTEXTS:

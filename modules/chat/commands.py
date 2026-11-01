@@ -101,7 +101,7 @@ _PARAMETER_ALIASES = {
 _OPERATION_COMMANDS = {
     'again', 'caption', 'generate', 'run', 'schedule', 'cancel', 'pause', 'resume', 'skip', 'history', 'reset', 'last',
 }
-_BUILTIN_COMMANDS = {'context', 'set', 'get', 'list', 'params', 'help', 'model', 'opts'}
+_BUILTIN_COMMANDS = {'context', 'set', 'get', 'list', 'params', 'help', 'model', 'opts', 'db'}
 
 
 def _command_result(text: str, kind='text', data=None, sections=None):
@@ -253,6 +253,10 @@ def parse_command(text: str) -> ParsedCommand:
     if command == 'meta':
         if raw_arguments.strip():
             raise CommandError('meta does not accept arguments')
+        return ParsedCommand(command, {})
+    if command == 'db':
+        if raw_arguments.strip():
+            raise CommandError('db does not accept arguments')
         return ParsedCommand(command, {})
     if command == 'context':
         parts = raw_arguments.split()
@@ -590,7 +594,8 @@ def _help_sections() -> list[dict[str, str]]:
             '- gpu/smi: Show GPU metrics\n'
             '- mem/memory: Show RAM, CUDA, and model usage\n'
             '- status: Show server status and progress\n'
-            '- storage: Show storage usage',
+            '- storage: Show storage usage\n'
+            '- db: Compact the Chat database and show database statistics',
         },
     ]
 
@@ -938,6 +943,18 @@ def _execute_command(session_id: str, text: str, image: str | None = None) -> di
     if command.name == 'help':
         sections = _help_sections()
         return _command_result(_format_help_sections(sections), sections=sections)
+    if command.name == 'db':
+        stats = db.compact_and_stats()
+        size_kib = stats['size_bytes'] / 1024
+        text = (
+            'Chat database compacted\n'
+            f'Path: {stats["path"]}\n'
+            f'Size: {size_kib:.1f} KiB ({stats["size_bytes"]:,} bytes)\n'
+            f'Pages: {stats["page_count"]} x {stats["page_size"]} bytes; free pages: {stats["free_pages"]}\n'
+            f'Sessions: {stats["sessions"]}; messages: {stats["messages"]}; '
+            f'operations: {stats["operations"]}; artifacts: {stats["artifacts"]}'
+        )
+        return _command_result(text, data=stats)
     if command.name == 'context':
         target = command.arguments['context']
         if target is None:

@@ -913,7 +913,7 @@ def register_api(api):
         db.initialize()
     except (sqlite3.Error, OSError) as exc:
         shared.opts.data['chat_enabled'] = False
-        log.error(f'Chat: disabled for this session because initialization failed: {exc}')
+        log.error(f'Chat disabled: {exc}')
         return False
     api.add_api_route('/sdapi/v1/chat/sessions', get_sessions, methods=['GET'], response_model=list[ResSession], tags=['Chat'])
     api.add_api_route('/sdapi/v1/chat/sessions', create_session, methods=['POST'], response_model=ResSession, tags=['Chat'])

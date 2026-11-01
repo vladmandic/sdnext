@@ -49,6 +49,7 @@
     {"id": "chat-image-save", "label": "Save image", "localized": "", "hint": "", "ui": "modernui"},
     {"id": "chat-image-delete", "label": "Delete", "localized": "", "hint": "", "ui": "modernui"},
     {"id": "chat-image-actions", "label": "Image actions", "localized": "", "hint": "", "ui": "modernui"},
+    {"id": "chat-disabled", "label": "Disabled", "localized": "", "hint": "", "ui": "modernui"},
     {"id": "chat-new-session", "label": "New chat", "localized": "", "hint": "", "ui": "modernui"},
     {"id": "chat-no-sessions", "label": "No saved sessions", "localized": "", "hint": "", "ui": "modernui"},
     {"id": "chat-placeholder", "label": "Write a command...", "localized": "", "hint": "", "ui": "modernui"},

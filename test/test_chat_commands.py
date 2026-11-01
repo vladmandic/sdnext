@@ -101,6 +101,22 @@ class TestChatCommands(unittest.TestCase):
         with self.assertRaises(commands.CommandError):
             commands.parse_command('title ""')
 
+    def test_db_command_compacts_and_reports_database_statistics(self):
+        session = self._create_session()
+        with patch.object(db, '_db_path', return_value=self.db_path):
+            db.create_message(session['id'], 'user', 'test message')
+            result = commands.execute_command(session['id'], 'db')
+
+        self.assertEqual(result['kind'], 'text')
+        self.assertIn('Chat database compacted', result['text'])
+        self.assertIn(self.db_path, result['text'])
+        self.assertEqual(result['data']['sessions'], 1)
+        self.assertEqual(result['data']['messages'], 1)
+        self.assertEqual(result['data']['operations'], 0)
+        self.assertEqual(result['data']['artifacts'], 0)
+        self.assertGreater(result['data']['size_bytes'], 0)
+        self.assertGreater(result['data']['page_count'], 0)
+
     def test_set_accepts_to_equals_and_colon_assignment_syntax(self):
         expected = {'name': 'steps', 'value': '8'}
         for command in ('set steps 8', 'set steps to 8', 'set steps = 8', 'set steps: 8'):
