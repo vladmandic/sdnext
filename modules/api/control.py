@@ -1,5 +1,6 @@
 from typing import Optional, TYPE_CHECKING
 from threading import Lock
+import time
 from pydantic import BaseModel, Field # pylint: disable=no-name-in-module
 from modules import errors, shared, processing_helpers
 from modules.logger import log
@@ -74,8 +75,10 @@ if not hasattr(ReqControl, "__config__"):
 class ResControl(BaseModel):
     images: list[str] = Field(default=None, title="Images", description="Base64-encoded generated output images")
     processed: list[str] = Field(default=None, title="Processed", description="Base64-encoded preprocessor output images (control maps)")
+    saved_images: list[str] = Field(default_factory=list, exclude=True, title="Saved images", description="Internal paths of saved output images")
     params: dict = Field(default={}, title="Settings", description="Echo of the request parameters used for generation")
     info: str = Field(default="", title="Info", description="Generation info string with seed, sampler, and pipeline details")
+    stats: str = Field(default="", title="Stats", description="HTML-formatted generation performance summary")
 
 
 class APIControl:
@@ -279,7 +282,9 @@ class APIControl:
 
         # run
         with self.queue_lock:
+            shared.mem_mon.reset()
             jobid = shared.state.begin('API-CTL', api=True)
+            started = time.perf_counter()
             output_images = []
             output_processed = []
             output_info = ''
@@ -306,10 +311,23 @@ class APIControl:
                 else:
                     pass
             shared.state.end(jobid, api=False)
+            from modules.ui_control import return_stats
+            stats = return_stats(started)
 
         # return
         b64images = list(map(helpers.encode_pil_to_base64, output_images)) if send_images else []
         b64processed = list(map(helpers.encode_pil_to_base64, output_processed)) if send_images else []
+        saved_images = list(dict.fromkeys(
+            path for image in output_images
+            if isinstance((path := getattr(image, 'already_saved_as', None)), str)
+        ))
         self.sanitize_b64(req)
         req.units = requested
-        return ResControl(images=b64images, processed=b64processed, params=vars(req), info=output_info)
+        return ResControl(
+            images=b64images,
+            processed=b64processed,
+            saved_images=saved_images,
+            params=vars(req),
+            info=output_info,
+            stats=stats,
+        )

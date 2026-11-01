@@ -38,6 +38,11 @@ declare global {
     notifyKanvasResize?: (width: number, height: number) => void; // ui/ui.ts
     cycleImageFit?: () => void; // ui/imageViewer.ts
     galleryClickEventHandler?: (event: MouseEvent) => void; // ui/imageViewer.ts
+    chatImageViewer?: {
+      navigate: (artifactId: string, offset: number) => Promise<{ artifactId: string; src: string } | null>;
+      download: (artifactId: string) => Promise<void>;
+      remove: (artifactId: string) => void;
+    }; // extensions-builtin/sdnext-modernui/src/chat.ts
     clip_gallery_urls?: (gallery: { data: string }[]) => void; // ui/ui.ts
     extract_image_from_gallery?: (gallery: { data?: string }[]) => ({ data?: string } | null)[]; // ui/ui.ts
     extensions_apply?: (_extensionsDisabledList: unknown, _extensionsUpdateList: unknown, disableAll: unknown) => [string, string, unknown]; // ui/extensions.ts
