@@ -2,8 +2,9 @@ import os
 import tempfile
 import unittest
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import PropertyMock, patch
 
+from modules import processing_diffusers
 from modules.chat import commands, db
 
 
@@ -77,6 +78,34 @@ class TestChatCommands(unittest.TestCase):
         self.assertEqual(parsed.arguments['values'], ['base model', 'video unet'])
         parsed = commands.parse_command('negative low contrast')
         self.assertEqual(parsed.arguments, {'name': 'negative_prompt', 'value': 'low contrast'})
+
+    def test_bare_prompt_returns_the_current_prompt(self):
+        session = self._create_session()
+        with patch.object(db, '_db_path', return_value=self.db_path):
+            commands.execute_command(session['id'], 'prompt a landscape')
+            result = commands.execute_command(session['id'], 'prompt')
+
+        self.assertEqual(result['text'], 'prompt=a landscape')
+
+    def test_title_command_reads_and_sets_the_current_session_name(self):
+        session = self._create_session()
+        with patch.object(db, '_db_path', return_value=self.db_path):
+            current = commands.execute_command(session['id'], 'title')
+            updated = commands.execute_command(session['id'], 'title "A named session"')
+            saved = db.get_session(session['id'])
+
+        self.assertEqual(current['text'], 'Current session name: New chat')
+        self.assertEqual(updated['text'], 'Session name set to A named session')
+        self.assertEqual(saved['title'], 'A named session')
+        self.assertEqual(commands.parse_command('title').arguments, {'value': None})
+        with self.assertRaises(commands.CommandError):
+            commands.parse_command('title ""')
+
+    def test_set_accepts_to_equals_and_colon_assignment_syntax(self):
+        expected = {'name': 'steps', 'value': '8'}
+        for command in ('set steps 8', 'set steps to 8', 'set steps = 8', 'set steps: 8'):
+            with self.subTest(command=command):
+                self.assertEqual(commands.parse_command(command).arguments, expected)
 
     def test_bare_get_and_set_list_all_supported_session_drafts(self):
         session = self._create_session()
@@ -316,6 +345,45 @@ class TestChatCommands(unittest.TestCase):
         self.assertEqual(result['text'], 'Current context draft reset to defaults')
         self.assertNotIn('image', saved['drafts'])
         self.assertEqual(saved['drafts']['video']['frames'], 24)
+
+    def test_last_details_print_only_non_default_processing_parameters(self):
+        last = SimpleNamespace(
+            steps=20, seed=42, prompt='a landscape', styles=[], init_images=[object()],
+            negative_prompt=None, cfg_name='Default', detailer_prompt='  ', script_args=['ignored'],
+        )
+        session = self._create_session()
+        with patch.object(db, '_db_path', return_value=self.db_path), \
+                patch.object(processing_diffusers, 'last_p', last):
+            result = commands.execute_command(session['id'], 'details')
+
+        self.assertIn('"seed": 42', result['text'])
+        self.assertIn('"prompt": "a landscape"', result['text'])
+        self.assertIn('```json\n', result['text'])
+        self.assertTrue(result['text'].endswith('\n```'))
+        self.assertNotIn('"steps"', result['text'])
+        self.assertNotIn('"styles"', result['text'])
+        self.assertNotIn('"init_images"', result['text'])
+        self.assertNotIn('"negative_prompt"', result['text'])
+        self.assertNotIn('"cfg_name"', result['text'])
+        self.assertNotIn('"detailer_prompt"', result['text'])
+        self.assertNotIn('"script_args"', result['text'])
+        self.assertEqual(commands.parse_command('last').name, 'last')
+        with self.assertRaises(commands.CommandError):
+            commands.parse_command('details now')
+
+    def test_reset_keeps_the_loaded_model_checkpoint(self):
+        session = self._create_session()
+        loaded_model = SimpleNamespace(sd_checkpoint_info=SimpleNamespace(title='Loaded model'))
+        with patch.object(db, '_db_path', return_value=self.db_path), \
+            patch.object(type(commands.shared), 'sd_loaded', new_callable=PropertyMock, return_value=True), \
+            patch.object(type(commands.shared), 'sd_model', new_callable=PropertyMock, return_value=loaded_model), \
+                patch.object(commands.shared.opts, 'get_default', side_effect=lambda name: f'{name}-default'), \
+                patch.object(commands, '_apply_setting', return_value=True) as apply_setting:
+            commands.execute_command(session['id'], 'reset')
+
+        reset_values = {call.args[0]: call.args[1] for call in apply_setting.call_args_list}
+        self.assertEqual(reset_values['sd_model_checkpoint'], 'Loaded model')
+        self.assertNotEqual(reset_values['sd_model_checkpoint'], 'sd_model_checkpoint-default')
 
     def test_generation_dispatches_the_current_image_draft(self):
         session = self._create_session()

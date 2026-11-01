@@ -85,6 +85,22 @@ class TestChatApiRegistration(unittest.TestCase):
                     chat_api.get_session(session['id'])
                 self.assertEqual(getattr(context.exception, 'status_code', None), 404)
 
+    def test_title_command_reads_default_name_and_updates_session(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = os.path.join(temp_dir, 'chat.db')
+            with patch.object(db, '_db_path', return_value=db_path):
+                session = chat_api.create_session(chat_api.ReqSessionCreate())
+                current = chat_api.post_message(session['id'], chat_api.ReqChatMessage(content='title'))
+                renamed = chat_api.post_message(
+                    session['id'],
+                    chat_api.ReqChatMessage(content='title A useful name'),
+                )
+
+        self.assertEqual(current.assistant_message.content, 'Current session name: New chat')
+        self.assertEqual(current.session.title, 'New chat')
+        self.assertEqual(renamed.assistant_message.content, 'Session name set to A useful name')
+        self.assertEqual(renamed.session.title, 'A useful name')
+
     def test_image_generation_uses_control_api_and_persists_no_image_bytes(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             db_path = os.path.join(temp_dir, 'chat.db')
@@ -150,6 +166,25 @@ class TestChatApiRegistration(unittest.TestCase):
         self.assertEqual(operation['status'], 'failed')
         self.assertEqual(operation['error'], 'control failed')
         self.assertEqual(submission.assistant_message.metadata['status'], 'failed')
+
+    def test_image_generation_reports_saved_output_paths(self):
+        saved_path = '/outputs/generated image.png'
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = os.path.join(temp_dir, 'chat.db')
+            with patch.object(db, '_db_path', return_value=db_path):
+                session = chat_api.create_session(chat_api.ReqSessionCreate())
+                response = SimpleNamespace(
+                    images=['base64-image'], saved_images=[saved_path], info='', params={},
+                )
+                submission = chat_api.post_message(
+                    session['id'],
+                    chat_api.ReqChatMessage(content='generate'),
+                    SimpleNamespace(control=Mock(post_control=Mock(return_value=response))),
+                )
+
+        self.assertIn(f'<code>{saved_path}</code>', submission.assistant_message.content)
+        serialized = chat_api.api_control.ResControl(saved_images=[saved_path]).model_dump()
+        self.assertNotIn('saved_images', serialized)
 
     def test_video_generation_uses_video_api(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -245,6 +280,8 @@ class TestChatApiRegistration(unittest.TestCase):
         self.assertEqual(submission.result.kind, 'schedule')
         self.assertEqual(submission.assistant_message.content, 'Queued scheduler task task-1')
         self.assertEqual(enqueue.call_args.kwargs['prompt'], 'a landscape')
+        self.assertNotIn('send_images', enqueue.call_args.kwargs)
+        self.assertNotIn('save_images', enqueue.call_args.kwargs)
 
     def test_schedule_dispatches_video_request_to_scheduler(self):
         with tempfile.TemporaryDirectory() as temp_dir:

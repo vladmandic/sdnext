@@ -1,5 +1,6 @@
 """Deterministic chat command parsing, validation, and session draft handling."""
 
+import inspect
 import json
 import re
 import shlex
@@ -85,14 +86,17 @@ _COMMAND_ALIASES = {
     'run': 'generate', 'start': 'generate',
     'abort': 'cancel', 'stop': 'cancel', 'interrupt': 'cancel',
     'reprocess': 'again',
-    'prompt-enhancement': 'enhance', 'captioning': 'caption', 'upscaling': 'upscale',
+    'prompt-enhancement': 'enhance',
+    'captioning': 'caption',
+    'details': 'last',
+    'p': 'last',
 }
 _PARAMETER_ALIASES = {
     'sampler': 'sampler_name', 'prompt': 'prompt', 'negative': 'negative_prompt', 'style': 'styles',
     'width': 'width_before', 'height': 'height_before', 'n_iter': 'batch_count',
 }
 _OPERATION_COMMANDS = {
-    'again', 'enhance', 'dlss', 'upscale', 'caption', 'generate', 'schedule', 'cancel', 'pause', 'resume', 'skip', 'history', 'reset',
+    'again', 'caption', 'generate', 'schedule', 'cancel', 'pause', 'resume', 'skip', 'history', 'reset', 'last',
 }
 _BUILTIN_COMMANDS = {'context', 'set', 'get', 'list', 'params', 'help', 'model', 'opts'}
 
@@ -109,14 +113,18 @@ def _command_error(text: str):
 
 
 def _split_assignment(text: str) -> tuple[str, str]:
-    assignment = re.match(r'^(\S+?)=(.*)$', text, flags=re.DOTALL)
+    assignment = re.match(r'^(\S+?)\s*[=:]\s*(.*)$', text, flags=re.DOTALL)
     if assignment:
         name, raw_value = assignment.groups()
     else:
         parts = text.split(maxsplit=1)
         if len(parts) != 2:
-            raise CommandError('Use: set <parameter> <value> or set <parameter>=<value>')
+            raise CommandError('Use: set <parameter> <value>, set <parameter> to <value>, or set <parameter>=<value>')
         name, raw_value = parts
+        if raw_value.lower() == 'to':
+            raw_value = ''
+        elif raw_value.lower().startswith('to '):
+            raw_value = raw_value[3:]
     return name.strip(), _normalize_value(raw_value.strip())
 
 
@@ -217,10 +225,17 @@ def parse_command(text: str) -> ParsedCommand:
         if len(parts) > 1 or (parts and parts[0].lower() not in db.CONTEXTS):
             raise CommandError('Use: context image, video, process, or caption')
         return ParsedCommand(command, {'context': parts[0].lower() if parts else None})
+    if command == 'title':
+        if not raw_arguments.strip():
+            return ParsedCommand(command, {'value': None})
+        value = _normalize_value(raw_arguments.strip())
+        if not value.strip():
+            raise CommandError('A session name is required')
+        return ParsedCommand(command, {'value': value})
     if command in {'prompt', 'negative'}:
         value = _normalize_value(raw_arguments.strip())
         if not value:
-            raise CommandError(f'Use: {command} <value>')
+            return ParsedCommand('get', {'name': 'prompt'})
         name = _PARAMETER_ALIASES[command]
         return ParsedCommand('set', {'name': name, 'value': value})
     if command == 'set':
@@ -266,7 +281,7 @@ def parse_command(text: str) -> ParsedCommand:
             raise CommandError('help does not accept arguments')
         return ParsedCommand(command, {})
     if command in _OPERATION_COMMANDS:
-        if command in {'generate', 'schedule', 'cancel', 'pause', 'resume', 'skip', 'reset'} and raw_arguments.strip():
+        if command in {'generate', 'schedule', 'cancel', 'pause', 'resume', 'skip', 'reset', 'last'} and raw_arguments.strip():
             raise CommandError(f'{command} does not accept arguments')
         if command == 'history' and raw_arguments.strip():
             try:
@@ -341,10 +356,10 @@ def _validate_setting(name: str, raw_value: Any) -> tuple[str, Any]:
         if len(matches) == 1:
             value = matches[0]
         elif len(matches) > 1:
-            candidates = ', '.join(str(choice) for choice in matches[:5])
+            candidates = '\n'.join(str(choice) for choice in matches[:5])
             if len(matches) > 5:
                 candidates += ', ...'
-            raise CommandError(f'Ambiguous model name: {candidates}. Provide a more specific name.')
+            raise CommandError(f'Ambiguous model name:\n{candidates}')
     current = shared.opts.get(canonical)
     if choices and value != current:
         values = value if isinstance(value, list) else [value]
@@ -484,7 +499,9 @@ def _help_sections() -> list[dict[str, str]]:
             '- pause - Pause the current process\n'
             '- resume - Resume a paused process\n'
             '- skip - Skip the current item\n'
-            '- history [limit] - Show recent process history.',
+            '- history [limit] - Show recent process history\n'
+            '- title [name] - Read or set the current session name\n'
+            '- last/details - Show active parameters from the last processing run',
         },
         {
             'title': 'Params',
@@ -498,17 +515,10 @@ def _help_sections() -> list[dict[str, str]]:
             '- reset - Restore parameter defaults.',
         },
         {
-            'title': 'Special',
-            'content': 'Reserved enhancement commands are not implemented yet\n'
-            '- enhance - Enhance the prompt\n'
-            '- dlss - Apply DLSS enhancement\n'
-            '- upscale - Upscale an image.',
-        },
-        {
             'title': 'Global',
             'content': 'Read or change settings shared across sessions\n'
             '- model [model] [unet] - Show or change the model and optional UNet\n'
-            '- opts [key] [value] - Read or update global options.',
+            '- opts [key] [value] - Read or update global options',
         },
         {
             'title': 'Server',
@@ -517,7 +527,7 @@ def _help_sections() -> list[dict[str, str]]:
             '- gpu/smi - Show GPU metrics\n'
             '- mem/memory - Show RAM, CUDA, and model usage\n'
             '- status - Show server status and progress\n'
-            '- storage - Show storage usage.',
+            '- storage - Show storage usage',
         },
     ]
 
@@ -649,13 +659,71 @@ def _reset_context(session_id: str, session: dict[str, Any]) -> str:
     names = set(_SETTING_NAMES.values())
     failures = []
     for name in names:
-        default = shared.opts.get_default(name)
+        if name == 'sd_model_checkpoint':
+            loaded_model = shared.sd_model if shared.sd_loaded else None
+            checkpoint_info = getattr(loaded_model, 'sd_checkpoint_info', None)
+            default = getattr(checkpoint_info, 'title', None) or shared.opts.get(name)
+        else:
+            default = shared.opts.get_default(name)
         if default is not None and not _apply_setting(name, default):
             failures.append(f'{name}: setting callback rejected the default')
     drafts = dict(session.get('drafts') or {})
     drafts.pop(session['context'], None)
     db.update_session(session_id, drafts=drafts)
-    return 'Current context draft reset to defaults' + (('\n' + '\n'.join(failures)) if failures else '')
+    return 'Current context parameters reset to defaults' + (('\n' + '\n'.join(failures)) if failures else '')
+
+
+_UNSUPPORTED = object()
+_OMIT = object()
+
+
+def _simple_value(value: Any):
+    if value is None:
+        return _OMIT
+    if isinstance(value, str):
+        if not value.strip() or value.strip().casefold() == 'default':
+            return _OMIT
+        return value
+    if isinstance(value, (int, float, bool)):
+        return value
+    if isinstance(value, (list, tuple)):
+        values = [_simple_value(item) for item in value]
+        if any(item is _UNSUPPORTED for item in values):
+            return _UNSUPPORTED
+        values = [item for item in values if item is not _OMIT]
+        return values if values else _OMIT
+    if isinstance(value, dict):
+        values = {str(key): _simple_value(item) for key, item in value.items()}
+        if any(item is _UNSUPPORTED for item in values.values()):
+            return _UNSUPPORTED
+        values = {key: item for key, item in values.items() if item is not _OMIT}
+        return values if values else _OMIT
+    return _UNSUPPORTED
+
+
+def _format_last_processing() -> str:
+    from modules import processing_class, processing_diffusers
+    last = processing_diffusers.last_p
+    if last is None:
+        return 'No previous processing run is available'
+
+    signature = inspect.signature(processing_class.StableDiffusionProcessing.__init__)
+    parameters = {}
+    for name, parameter in signature.parameters.items():
+        if name in {'self', 'script_args'} or parameter.kind in {inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD}:
+            continue
+        if parameter.default is inspect.Parameter.empty or not hasattr(last, name):
+            continue
+        value = _simple_value(getattr(last, name))
+        if value is _OMIT or value is _UNSUPPORTED:
+            continue
+        default = _simple_value(parameter.default)
+        if default is not _OMIT and default is not _UNSUPPORTED and value == default:
+            continue
+        parameters[name] = value
+    if not parameters:
+        return 'No non-default processing parameters'
+    return f'Last processing parameters:\n```json\n{json.dumps(parameters, indent=2, ensure_ascii=False)}\n```'
 
 
 def _generation_endpoint(
@@ -671,7 +739,7 @@ def _generation_endpoint(
         payload = {name: value for name, value in source.items() if name in _IMAGE_PARAMETERS}
         if prompt is not None:
             payload['prompt'] = prompt
-        payload.update({'inputs': [], 'send_images': True, 'save_images': False})
+        payload.update({'inputs': [], 'send_images': True, 'save_images': shared.opts.samples_save})
         request_model = _IMAGE_MODEL
         error_prefix = 'Cannot run image generation'
     elif context == 'video':
@@ -749,9 +817,6 @@ def _execute_command(session_id: str, text: str, image: str | None = None) -> di
             data=command.arguments,
         )
 
-    if command.name in {'enhance', 'dlss', 'upscale', 'caption'}:
-        return _command_result('Not yet implemented')
-
     session = db.get_session(session_id)
     if session is None:
         return _command_error('Chat session not found')
@@ -770,6 +835,15 @@ def _execute_command(session_id: str, text: str, image: str | None = None) -> di
         if failures:
             message += '\n' + '\n'.join(failures)
         return _command_result(message)
+    if command.name == 'title':
+        title = command.arguments['value']
+        if title is None:
+            return _command_result(f'Current session name: {session["title"]}')
+        try:
+            updated = db.update_session(session_id, title=title)
+        except ValueError as exc:
+            raise CommandError(str(exc)) from exc
+        return _command_result(f'Session name set to {updated["title"]}')
     if command.name == 'params':
         keys = _context_parameter_keys(context)
         draft = (session.get('drafts') or {}).get(context, {})
@@ -883,6 +957,8 @@ def _execute_command(session_id: str, text: str, image: str | None = None) -> di
         return _command_result('Current process skipped')
     if command.name == 'history':
         return _command_result(_format_history(session_id, command.arguments.get('limit', 20)))
+    if command.name == 'last':
+        return _command_result(_format_last_processing())
     if command.name == 'reset':
         return _command_result(_reset_context(session_id, session))
     return _command_error(f'Unsupported command: {command.name}')

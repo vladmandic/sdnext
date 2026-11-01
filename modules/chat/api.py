@@ -1,6 +1,7 @@
 """Typed API contracts and session routes for the optional chat feature."""
 
 import sqlite3
+from html import escape
 from typing import Any, Literal
 
 from fastapi import HTTPException, Query, Response
@@ -16,7 +17,7 @@ ContextId = Literal['image', 'video', 'process', 'caption']
 ChatCommand = Literal[
     'context', 'set', 'get', 'list', 'params', 'help', 'opts', 'prompt', 'negative',
     'generate', 'run', 'start', 'again', 'reprocess', 'schedule', 'cancel', 'abort', 'stop', 'interrupt', 'pause',
-    'resume', 'skip', 'history', 'reset', 'enhance', 'dlss', 'upscale', 'model',
+    'resume', 'skip', 'history', 'last', 'details', 'title', 'reset', 'model',
 ]
 ServerEndpointAlias = Literal[
     'info', 'ver', 'version', 'gpu', 'smi', 'mem', 'memory', 'status', 'storage',
@@ -184,8 +185,13 @@ def _execute_chat_operation(session_id: str, user_message: dict[str, Any], resul
             response = control_api_instance.post_control(request)
             images = response.images or []
             info = response.info or ''
+            saved_images = getattr(response, 'saved_images', []) or []
             parameters = response.params or {}
             completion_text = f'Generated {len(images)} image(s)'
+            if saved_images:
+                completion_text += '<br>Saved: ' + ', '.join(
+                    f'<code>{escape(path)}</code>' for path in saved_images if isinstance(path, str)
+                )
             if info:
                 completion_text += f'\n{info}'
             output_data = {'images': images, 'info': info, 'parameters': parameters}
@@ -282,7 +288,11 @@ def _schedule_chat_operation(result: dict[str, Any]):
     if not isinstance(arguments, dict):
         raise ValueError('Invalid chat schedule arguments')
     if descriptor.get('path') == '/sdapi/v1/control':
-        response = next(scheduler.enqueue_control_request(**arguments))
+        scheduler_arguments = {
+            name: value for name, value in arguments.items()
+            if name not in {'send_images', 'save_images'}
+        }
+        response = next(scheduler.enqueue_control_request(**scheduler_arguments))
         text = response[2]
     elif descriptor.get('path') == '/sdapi/v1/video':
         response = scheduler.enqueue_video_request('video', **arguments)
@@ -299,7 +309,8 @@ def post_message(session_id: str, req: ReqChatMessage, api_instance=None):
     content = req.content.strip()
     if not content:
         raise HTTPException(status_code=422, detail='Chat message cannot be empty')
-    if session['title'] == 'New chat' and not db.list_messages(session_id, limit=1):
+    is_title_command = content.split(maxsplit=1)[0].casefold() == 'title'
+    if session['title'] == 'New chat' and not is_title_command and not db.list_messages(session_id, limit=1):
         title = content.splitlines()[0][:64]
         db.update_session(session_id, title=title)
     user_message = db.create_message(session_id, 'user', content)

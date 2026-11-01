@@ -425,7 +425,9 @@ def process_samples(p: StableDiffusionProcessing, samples, skip_postprocess_imag
 
         info = create_infotext(p, p.prompts, p.seeds, index=i)
         if get_opt(p, 'samples_save') and not p.do_not_save_samples and p.outpath_samples is not None:
-            images.save_image(image, p.outpath_samples, "", p.seeds[i], p.prompts[i], get_opt(p, 'samples_format'), info=info, p=p) # main save image
+            saved_path, _, _ = images.save_image(image, p.outpath_samples, "", p.seeds[i], p.prompts[i], get_opt(p, 'samples_format'), info=info, p=p) # main save image
+            if saved_path:
+                image.already_saved_as = saved_path
 
         image.info["parameters"] = info
         out_infotexts.append(info)
