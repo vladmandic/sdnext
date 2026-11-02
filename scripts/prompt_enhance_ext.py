@@ -13,6 +13,7 @@ from modules.logger import log
 from modules.caption.logits import LogitsParser
 from modules.caption.attention import set_attention
 from modules.caption import helpers
+from modules.llm import Request, Response, Session, get_backend, resolve_model
 from scripts.prompt_enhance.options import Options
 from scripts.prompt_enhance.helpers import is_cloud_model, is_vision_model, is_thinking_model, get_model_repo_from_display
 from scripts.prompt_enhance.template import set_template, get_system_prompt
@@ -321,6 +322,11 @@ class PromptEnhanceScript(scripts_manager.Script):
             current_image = None
         return current_image
 
+    def session(self, model: str):
+        """Scope related enhancement calls without changing model residency."""
+        model_ref = resolve_model(get_model_repo_from_display(model))
+        return get_backend(model_ref, self._generate_local).session(model_ref)
+
     @sd_hijack_te.with_compile_stance('LLM')
     def enhance(self,
                 model: str | None=None,
@@ -349,7 +355,8 @@ class PromptEnhanceScript(scripts_manager.Script):
                 embedding_similarity:float=0.0,
                 use_openai:bool=False,
                 prompt_style: str = 'Standard',
-                return_thinking: bool = False,
+                 return_thinking: bool = False,
+                 llm_session: Session | None = None,
                ):
         thinking_output = ''
 
@@ -358,6 +365,9 @@ class PromptEnhanceScript(scripts_manager.Script):
 
         # Strip symbols from model name if present
         model = get_model_repo_from_display(model) if model else self.options.default
+        model_ref = resolve_model(model)
+        if llm_session is not None and llm_session.model != model_ref:
+            raise ValueError('LLM session model does not match enhancement model')
         prompt = prompt or (self.prompt.value if self.prompt else "") # Check if self.prompt is None
         if use_vision and is_vision_model(model): # handle vision toggle
             image = image or self.image
@@ -436,42 +446,79 @@ class PromptEnhanceScript(scripts_manager.Script):
             has_prefill = (prefill_text is not None) and (len(prefill_text) > 4)
             system = get_system_prompt(system, self.options, nsfw, has_prompt=has_prompt, is_video=self.parent=='video', is_image=current_image is not None, thinking=thinking)
             debug_log(f'Prompt enhance: prompt="{prompt_text}"')
-            if 'gemini' in model:
-                from modules.caption import gemini
-                kwargs = {
-                    'temperature': temperature,
-                    'min_output_tokens': min_tokens,
-                    'max_output_tokens': max_tokens,
-                }
-                model_name = model.replace('google/', '')
-                response = gemini.predict(prompt_text, current_image, model_name, system, prefill_text, thinking, kwargs)
+            kwargs = {'temperature': temperature}
+            if model_ref.provider == 'gemini':
+                kwargs.update(min_output_tokens=min_tokens, max_output_tokens=max_tokens)
+            try:
+                request = Request(prompt=prompt_text, system=system, image=current_image, prefill=prefill_text, thinking=thinking, parameters=kwargs)
+                if llm_session is None:
+                    with self.session(model) as session:
+                        generated = session.generate(request)
+                else:
+                    generated = llm_session.generate(request)
+                response = generated.text
                 thinking_output, answer = self.extract_thinking(response)
                 if thinking_output:
                     response = f'Reasoning:\n{thinking_output}\n\nAnswer:\n{answer}' if keep_thinking else answer
                 t1 = time.time()
                 log.info(f'Prompt enhance: model="{model}" nsfw={nsfw} time={t1-t0:.2f} prompt={has_prompt} prefill={has_prefill} image={current_image} thinking={thinking} response={len(response)}')
                 debug_log(f'Prompt enhance: response="{response}"')
-                self.busy = False
                 return result(response)
-            elif 'grok' in model:
-                from modules.caption import grok
-                kwargs = {
-                    'temperature': temperature,
-                }
-                model_name = model.replace('xai/', '')
-                response = grok.predict(prompt_text, current_image, model_name, system, prefill_text, thinking, kwargs)
-                thinking_output, answer = self.extract_thinking(response)
-                if thinking_output:
-                    response = f'Reasoning:\n{thinking_output}\n\nAnswer:\n{answer}' if keep_thinking else answer
-                t1 = time.time()
-                log.info(f'Prompt enhance: model="{model}" nsfw={nsfw} time={t1-t0:.2f} prompt={has_prompt} prefill={has_prefill} image={current_image} thinking={thinking} response={len(response)}')
-                debug_log(f'Prompt enhance: response="{response}"')
+            finally:
                 self.busy = False
-                return result(response)
-            else:
-                self.busy = False
-                return result('Model not recognized')
 
+        request = Request(prompt=prompt_text, system=system, image=current_image, prefill=prefill_text, thinking=thinking, parameters={
+            'sample': sample, 'min_tokens': min_tokens, 'max_tokens': max_tokens, 'temperature': temperature,
+            'penalty': penalty, 'top_k': top_k, 'top_p': top_p, 'nsfw': nsfw, 'prompt_style': prompt_style,
+            'process_words': process_words, 'semantic_threshold': semantic_threshold, 'embedding_similarity': embedding_similarity, 'custom_args': custom_args,
+        })
+        try:
+            if llm_session is None:
+                with self.session(model) as session:
+                    generated = session.generate(request)
+            else:
+                generated = llm_session.generate(request)
+            if generated.metrics.get('tokenize_error'):
+                return result(prompt_text)
+            response = generated.text
+            thinking_output, answer = self.extract_thinking(generated.raw_text)
+            debug_log(f'Prompt enhance: thinking="{thinking_output}"')
+            debug_log(f'Prompt enhance: answer="{answer}"')
+            if thinking_output:
+                for token in self.tokenizer.all_special_tokens:
+                    answer = answer.replace(token, '')
+                response = f'<think>{thinking_output}</think>{answer}' if keep_thinking else answer
+            is_censored = self.censored(response)
+            if not is_censored:
+                response = self.clean(response, keep_thinking=keep_thinking, prefill_text=prefill_text, keep_prefill=keep_prefill)
+                response = self.post(response, prefix, suffix, networks)
+            generated_tokens = generated.usage['output_tokens']
+            input_len = generated.usage['input_tokens']
+            generate_time = generated.metrics['generate_time']
+            offload_time = generated.metrics['offload_time']
+            tps = generated_tokens / generate_time if generate_time > 0 else 0.0
+            t1 = time.time()
+            prefill = prefill_text[:20] if prefill_text else None
+            log.info(f'Prompt enhance: model="{model}" tps={tps:.2f} time={t1-t0:.2f} offload={offload_time:.2f} style={prompt_style} nsfw={nsfw} seed={seed} thinking={thinking} keep={keep_thinking}:{keep_prefill} prefill="{prefill}" inputs={input_len} outputs={generated_tokens} prompt={len(prompt_text)} response={len(response)}')
+            debug_log(f'Prompt enhance: prompt="{prompt_text}"')
+            debug_log(f'Prompt enhance: response_after_clean="{response}"')
+            if is_censored:
+                log.warning(f'Prompt enhance: censored response="{response}"')
+                return result(prompt)
+            return result(response)
+        finally:
+            self.busy = False
+
+    def _generate_local(self, model: str, request: Request) -> Response:
+        """Existing Transformers inference, independent of enhancement postprocessing."""
+        prompt_text, system, current_image = request.prompt, request.system, request.image
+        prefill_text, thinking = request.prefill, request.thinking
+        args = request.parameters
+        sample, min_tokens, max_tokens = args['sample'], args['min_tokens'], args['max_tokens']
+        temperature, penalty, top_k, top_p = args['temperature'], args['penalty'], args['top_k'], args['top_p']
+        nsfw, prompt_style = args['nsfw'], args['prompt_style']
+        process_words, semantic_threshold = args['process_words'], args['semantic_threshold']
+        embedding_similarity, custom_args = args['embedding_similarity'], args['custom_args']
         chat_template = set_template(
             system=system,
             prompt=prompt_text,
@@ -548,8 +595,7 @@ class PromptEnhanceScript(scripts_manager.Script):
             log.error(f'Prompt enhance tokenize: {e}')
             if debug_enabled:
                 errors.display(e, 'Prompt enhance')
-            self.busy = False
-            return result(prompt_text) # Return original text part on error
+            return Response(text=prompt_text, metrics={'tokenize_error': True})
 
         generate_time = 0.0
         offload_time = 0.0
@@ -613,38 +659,15 @@ class PromptEnhanceScript(scripts_manager.Script):
             outputs = None
             log.error(f'Prompt enhance generate: {e}')
             errors.display(e, 'Prompt enhance')
-            self.busy = False
             response = f'Error: {str(e)}'
         finally:
             offload_time += offload_aux('prompt_enhance')
             devices.torch_gc(force=False, reason='prompt-enhance')
-        t1 = time.time()
-
         if isinstance(response, list):
             response = response[0]
         raw_response = raw_response[0] if isinstance(raw_response, list) else raw_response
-        thinking_output, answer = self.extract_thinking(raw_response)
-        debug_log(f'Prompt enhance: thinking="{thinking_output}"')
-        debug_log(f'Prompt enhance: answer="{answer}"')
-        if thinking_output:
-            for token in self.tokenizer.all_special_tokens:
-                answer = answer.replace(token, '')
-            response = f'<think>{thinking_output}</think>{answer}' if keep_thinking else answer
-        is_censored =  self.censored(response)
-        if not is_censored:
-            response = self.clean(response, keep_thinking=keep_thinking, prefill_text=prefill_text, keep_prefill=keep_prefill)
-            response = self.post(response, prefix, suffix, networks)
         generated_tokens = max(0, outputs.shape[-1] - input_len) if isinstance(outputs, torch.Tensor) else 0
-        tps = generated_tokens / generate_time if generate_time > 0 else 0.0
-        prefill = prefill_text[:20] if prefill_text else None
-        log.info(f'Prompt enhance: model="{model}" tps={tps:.2f} time={t1-t0:.2f} offload={offload_time:.2f} style={prompt_style} nsfw={nsfw} seed={seed} thinking={thinking} keep={keep_thinking}:{keep_prefill} prefill="{prefill}" inputs={input_len} outputs={generated_tokens} prompt={len(prompt_text)} response={len(response)}')
-        debug_log(f'Prompt enhance: prompt="{prompt_text}"')
-        debug_log(f'Prompt enhance: response_after_clean="{response}"')
-        self.busy = False
-        if is_censored:
-            log.warning(f'Prompt enhance: censored response="{response}"')
-            return result(prompt) # Return original full prompt on censorship
-        return result(response)
+        return Response(text=response, raw_text=raw_response, usage={'input_tokens': input_len, 'output_tokens': generated_tokens}, metrics={'generate_time': generate_time, 'offload_time': offload_time})
 
     def apply(self, prompt, image, apply_prompt, llm_model, prompt_system, prompt_prefix, prompt_suffix, min_tokens, max_tokens, do_sample, temperature, repetition_penalty, top_k, top_p, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking, custom_args, process_words, semantic_threshold, embedding_similarity, use_openai, prompt_style):
         response, thinking_output = self.enhance(

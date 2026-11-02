@@ -5,6 +5,7 @@ import re
 import time
 import copy
 from collections import defaultdict
+from contextlib import ExitStack
 import gradio as gr
 from PIL import Image
 from modules import scripts_manager, shared, processing, extra_networks
@@ -130,6 +131,7 @@ class StoryScript(scripts_manager.Script):
         p.story_mode_error = None
         started = time.perf_counter()
         stage = 'validate'
+        llm_work = ExitStack()
         try:
             if not hasattr(p, 'story_mode_source_prompt'):
                 story_prompt = p.all_prompts[0] if isinstance(p.all_prompts, list) and p.all_prompts else p.prompt
@@ -159,11 +161,13 @@ class StoryScript(scripts_manager.Script):
                 raise RuntimeError(f'Story: model="{model}" is not a vision model')
             if use_reference and control_image is None:
                 raise RuntimeError('Story: image=None reference=True reference requires image')
+            llm_session = llm_work.enter_context(enhancer.session(model))
 
             # caption
             if (use_captions or not story_prompt) and control_image is not None:
                 stage = 'caption'
                 caption = enhancer.enhance(
+                    llm_session=llm_session,
                     prompt='Analyze the attached image for use as a visual reference in story-slide generation.',
                     model=model,
                     image=control_image,
@@ -241,6 +245,7 @@ class StoryScript(scripts_manager.Script):
             debug_log(f'Story: system="{story_system}"')
             story_max_tokens = min(8192, 256 + slide_count * 128)
             enhanced_story = enhancer.enhance(
+                llm_session=llm_session,
                 prompt=story_context,
                 model=model,
                 system=story_system,
@@ -264,6 +269,7 @@ class StoryScript(scripts_manager.Script):
                     stage = f'prompt-{index}'
                     debug_log(f'Story: enhancing frame={index}/{slide_count} prompt="{frame_prompt}"')
                     prompt = enhancer.enhance(
+                        llm_session=llm_session,
                         prompt=(
                             f'Expand this short frame prompt into one detailed image-generation prompt for frame {index} of '
                             f'{slide_count}. Preserve continuity with the story and describe only what should be visible in '
@@ -294,6 +300,8 @@ class StoryScript(scripts_manager.Script):
             shared.state.end(task_id)
             log.error(f'Story: failed stage={stage} {e}')
             return
+        finally:
+            llm_work.close()
 
         seed = processing.get_fixed_seed(p.seed)
         p.story_mode_enabled = True

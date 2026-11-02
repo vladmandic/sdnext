@@ -14,6 +14,7 @@ from modules.sd_offload_aux import register_aux, deregister_aux, move_aux_to_gpu
 from modules.logger import log, console
 from modules.caption import vqa_detection, helpers, toriigate
 from modules.caption.attention import set_attention
+from modules.llm import Request, Response, get_backend, resolve_model
 from modules.caption.models_def import vlm_models, vlm_system, vlm_analyze, vlm_default, vlm_prefill, vlm_prompts, vlm_prompt_mapping, vlm_prompt_reverse_mapping, vlm_prompt_placeholders, vlm_prompts_common, vlm_prompts_florence, vlm_prompts_moondream, vlm_prompts_moondream2, vlm_prompts_promptgen, vlm_prompts_toriigate, analyze_question, get_vlm_repo # pylint: disable=unused-import
 
 
@@ -1442,6 +1443,79 @@ class VQA:
         response = return_dict["prediction"]  # the text format answer
         return response
 
+    def _generate_local(self, vqa_model: str, request: Request) -> Response:
+        """Retain specialized local handlers, including structured detections."""
+        question, image = request.prompt, request.image
+        model_name = request.parameters['display_name']
+        system_prompt, prefill, thinking_mode = request.system, request.prefill, request.thinking
+        if 'git' in vqa_model.lower():
+            handler = 'git'
+            answer = self._git(question, image, vqa_model, model_name)
+        elif 'vilt' in vqa_model.lower():
+            handler = 'vilt'
+            answer = self._vilt(question, image, vqa_model, model_name)
+        elif 'blip' in vqa_model.lower():
+            handler = 'blip'
+            answer = self._blip(question, image, vqa_model, model_name)
+        elif 'pix' in vqa_model.lower():
+            handler = 'pix'
+            answer = self._pix(question, image, vqa_model, model_name)
+        elif 'moondream3' in vqa_model.lower():
+            handler = 'moondream3'
+            from modules.caption import moondream3
+            answer = moondream3.predict(question, image, vqa_model, model_name, thinking_mode=thinking_mode)
+        elif 'moondream2' in vqa_model.lower():
+            handler = 'moondream'
+            answer = self._moondream(question, image, vqa_model, model_name, thinking_mode)
+        elif 'florence' in vqa_model.lower():
+            handler = 'florence'
+            answer = self._florence(question, image, vqa_model, None, model_name)
+            florence_detections = vqa_detection.parse_florence_detections(answer, image.size if image else None)
+            if florence_detections:
+                self.last_detection_data = {'detections': florence_detections}
+                debug(f'LLM: handler=florence parsed {len(florence_detections)} detections')
+            if isinstance(answer, dict):
+                answer = vqa_detection.format_florence_response(answer)
+        elif 'mistral' in vqa_model.lower():
+            handler = 'mistral'
+            answer = self._mistral(question, image, vqa_model, system_prompt, model_name, prefill, thinking_mode)
+        elif uses_qwen_handler(vqa_model):
+            handler = 'qwen'
+            answer = self._qwen(question, image, vqa_model, system_prompt, model_name, prefill, thinking_mode)
+        elif 'smol' in vqa_model.lower():
+            handler = 'smol'
+            answer = self._smol(question, image, vqa_model, system_prompt, model_name, prefill, thinking_mode)
+        elif 'joytag' in vqa_model.lower():
+            handler = 'joytag'
+            from modules.caption import joytag
+            answer = joytag.predict(image)
+        elif 'joycaption' in vqa_model.lower():
+            handler = 'joycaption'
+            from modules.caption import joycaption
+            answer = joycaption.predict(question, image, vqa_model)
+        elif 'deepseek' in vqa_model.lower():
+            handler = 'deepseek'
+            from modules.caption import deepseek
+            answer = deepseek.predict(question, image, vqa_model)
+        elif 'paligemma' in vqa_model.lower():
+            handler = 'paligemma'
+            answer = self._paligemma(question, image, vqa_model, model_name)
+        elif 'gemma' in vqa_model.lower():
+            handler = 'gemma'
+            answer = self._gemma(question, image, vqa_model, system_prompt, model_name, prefill, thinking_mode)
+        elif 'ovis' in vqa_model.lower():
+            handler = 'ovis'
+            answer = self._ovis(question, image, vqa_model, model_name)
+        elif 'sa2' in vqa_model.lower():
+            handler = 'sa2'
+            answer = self._sa2(question, image, vqa_model, model_name)
+        elif 'fastvlm' in vqa_model.lower():
+            handler = 'fastvlm'
+            answer = self._fastvlm(question, image, vqa_model, model_name)
+        else:
+            raise ValueError(f'no handler for model repo "{vqa_model}"')
+        return Response(text=answer, metrics={'handler': handler})
+
     @sd_hijack_te.with_compile_stance('LLM')
     def caption(
         self,
@@ -1534,85 +1608,14 @@ class VQA:
             sd_models.set_caption_load_options()
 
         try:
-            handler = 'unknown'
-            if 'git' in vqa_model.lower():
-                handler = 'git'
-                answer = self._git(question, image, vqa_model, model_name)
-            elif 'vilt' in vqa_model.lower():
-                handler = 'vilt'
-                answer = self._vilt(question, image, vqa_model, model_name)
-            elif 'blip' in vqa_model.lower():
-                handler = 'blip'
-                answer = self._blip(question, image, vqa_model, model_name)
-            elif 'pix' in vqa_model.lower():
-                handler = 'pix'
-                answer = self._pix(question, image, vqa_model, model_name)
-            elif 'moondream3' in vqa_model.lower():
-                handler = 'moondream3'
-                from modules.caption import moondream3
-                answer = moondream3.predict(question, image, vqa_model, model_name, thinking_mode=thinking_mode)
-            elif 'moondream2' in vqa_model.lower():
-                handler = 'moondream'
-                answer = self._moondream(question, image, vqa_model, model_name, thinking_mode)
-            elif 'florence' in vqa_model.lower():
-                handler = 'florence'
-                answer = self._florence(question, image, vqa_model, None, model_name)
-                # Parse Florence detection response for annotated image (handles both dict and string formats)
-                florence_detections = vqa_detection.parse_florence_detections(answer, image.size if image else None)
-                if florence_detections:
-                    self.last_detection_data = {'detections': florence_detections}
-                    debug(f'LLM: handler=florence parsed {len(florence_detections)} detections')
-                # Format dict answer as readable string (string answers pass through unchanged)
-                if isinstance(answer, dict):
-                    answer = vqa_detection.format_florence_response(answer)
-            elif 'mistral' in vqa_model.lower():
-                handler = 'mistral'
-                answer = self._mistral(question, image, vqa_model, system_prompt, model_name, prefill, thinking_mode)
-            elif uses_qwen_handler(vqa_model):
-                handler = 'qwen'
-                answer = self._qwen(question, image, vqa_model, system_prompt, model_name, prefill, thinking_mode)
-            elif 'smol' in vqa_model.lower():
-                handler = 'smol'
-                answer = self._smol(question, image, vqa_model, system_prompt, model_name, prefill, thinking_mode)
-            elif 'joytag' in vqa_model.lower():
-                handler = 'joytag'
-                from modules.caption import joytag
-                answer = joytag.predict(image)
-            elif 'joycaption' in vqa_model.lower():
-                handler = 'joycaption'
-                from modules.caption import joycaption
-                answer = joycaption.predict(question, image, vqa_model)
-            elif 'deepseek' in vqa_model.lower():
-                handler = 'deepseek'
-                from modules.caption import deepseek
-                answer = deepseek.predict(question, image, vqa_model)
-            elif 'paligemma' in vqa_model.lower():
-                handler = 'paligemma'
-                answer = self._paligemma(question, image, vqa_model, model_name)
-            elif 'gemma' in vqa_model.lower():
-                handler = 'gemma'
-                answer = self._gemma(question, image, vqa_model, system_prompt, model_name, prefill, thinking_mode)
-            elif 'ovis' in vqa_model.lower():
-                handler = 'ovis'
-                answer = self._ovis(question, image, vqa_model, model_name)
-            elif 'sa2' in vqa_model.lower():
-                handler = 'sa2'
-                answer = self._sa2(question, image, vqa_model, model_name)
-            elif 'fastvlm' in vqa_model.lower():
-                handler = 'fastvlm'
-                answer = self._fastvlm(question, image, vqa_model, model_name)
-            elif 'gemini' in vqa_model.lower():
-                handler = 'gemini'
-                gen_kwargs = get_kwargs(self.model)
-                from modules.caption import gemini
-                answer = gemini.predict(question, image, vqa_model, system_prompt, prefill, thinking_mode, gen_kwargs)
-            elif 'grok' in vqa_model.lower():
-                handler = 'grok'
-                gen_kwargs = get_kwargs(self.model)
-                from modules.caption import grok
-                answer = grok.predict(question, image, vqa_model, system_prompt, prefill, thinking_mode, gen_kwargs)
-            else:
-                raise ValueError(f'no handler for model repo "{vqa_model}"')
+            model_ref = resolve_model(vqa_model)
+            parameters = {'display_name': model_name} if model_ref.provider == 'inprocess' else get_kwargs(self.model)
+            request = Request(prompt=question, system=system_prompt, image=image, prefill=prefill, thinking=thinking_mode, parameters=parameters)
+            backend = get_backend(model_ref, self._generate_local)
+            with backend.session(model_ref) as session:
+                response = session.generate(request)
+            answer = response.text
+            handler = response.metrics.get('handler', model_ref.provider)
         except Exception as e:
             errors.display(e, 'VQA')
             self._generation_overrides = None
