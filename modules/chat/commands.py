@@ -1000,9 +1000,7 @@ def _execute_command(session_id: str, text: str, image: str | None = None) -> di
             if not result_images:
                 return _command_error('No result images to save')
             latest_message_id = result_images[-1].get('message_id')
-            latest_results = [
-                item for item in result_images if item.get('message_id') == latest_message_id
-            ] if latest_message_id else [result_images[-1]]
+            latest_results = [item for item in result_images if item.get('message_id') == latest_message_id] if latest_message_id else [result_images[-1]]
             from PIL import Image
             from modules import images as image_utils
             saved_files = []
@@ -1014,9 +1012,7 @@ def _execute_command(session_id: str, text: str, image: str | None = None) -> di
                 try:
                     with Image.open(artifact['storage_ref']) as result_image:
                         result_image.load()
-                        filename, _, _ = image_utils.save_image(
-                            result_image.copy(), info=result_image.info.get('parameters'),
-                        )
+                        filename, _, _ = image_utils.save_image(result_image, info=result_image.info.get('parameters'))
                     if filename:
                         saved_files.append(filename)
                     else:

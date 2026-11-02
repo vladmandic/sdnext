@@ -153,6 +153,7 @@ class DLSSScript(scripts_manager.Script):
             orig_infos = pp.infotexts if hasattr(pp, 'infotexts') else []
             detailer_enabled = p.detailer_enabled
             p.detailer_enabled = False
+            p.ops.append('dlss')
             try:
                 out_images, out_infos = processing.process_samples(p, pp.images, skip_postprocess_image=True)
             finally:

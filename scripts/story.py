@@ -325,6 +325,7 @@ class StoryScript(scripts_manager.Script):
 
             p.story_mode_processing = True
             p.do_not_save_grid = True
+            p.ops.append('story')
             p.styles = []
             all_images = []
             all_prompts = []
