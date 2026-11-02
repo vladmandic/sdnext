@@ -5,15 +5,18 @@ install dependencies, authenticate, load a model, or make network requests.
 """
 
 from collections.abc import Callable
+from urllib.parse import unquote
 from modules.llm.backend import Backend, ModelRef, Request, Response
 
 
 def resolve_model(model_id: str) -> ModelRef:
     """Translate legacy catalog IDs at the boundary, before backend dispatch.
 
-    Only the existing cloud namespaces are recognized. Future external models
-    must carry their own provider identity, regardless of their model ID.
+    External selections carry an explicit prefix so remote model names cannot
+    select a local or cloud handler.
     """
+    if model_id.startswith('external/'):
+        return ModelRef('openai', unquote(model_id.removeprefix('external/')))
     if model_id.startswith(('google/gemini-', 'gemini-')):
         return ModelRef('gemini', model_id.removeprefix('google/'))
     if model_id.startswith(('xai/grok-', 'grok-')):
@@ -60,4 +63,7 @@ def get_backend(model: ModelRef, local_generate: Callable[[str, Request], Respon
         return GeminiBackend()
     if model.provider == 'grok':
         return GrokBackend()
+    if model.provider == 'openai':
+        from modules.llm.catalog import catalog
+        return catalog.backend(discover=True)
     raise ValueError(f'Unknown LLM provider "{model.provider}"')

@@ -20,6 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from modules.llm import Backend, InProcessBackend, ModelRef, Request, Response, get_backend, resolve_model
+from modules.llm.catalog import is_external
 
 
 def load_consumer(path, class_name, methods, namespace):
@@ -29,7 +30,7 @@ def load_consumer(path, class_name, methods, namespace):
     cls.bases = []
     cls.body = [node for node in cls.body if isinstance(node, ast.FunctionDef) and node.name in methods]
     module = ast.Module(body=[cls], type_ignores=[])
-    namespace.update(Request=Request, Response=Response, get_backend=get_backend, resolve_model=resolve_model)
+    namespace.update(Request=Request, Response=Response, get_backend=get_backend, resolve_model=resolve_model, is_external=is_external)
     namespace.setdefault('sd_hijack_te', types.SimpleNamespace(with_compile_stance=lambda _target: lambda function: function))
     exec(compile(module, str(ROOT / path), 'exec', flags=__future__.annotations.compiler_flag), namespace) # pylint: disable=exec-used
     return namespace[class_name]
