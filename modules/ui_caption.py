@@ -2,6 +2,10 @@ import gradio as gr
 from modules import shared, ui_common, generation_parameters_copypaste
 from modules.logger import log
 from modules.caption import openclip
+from modules.caption.models_def import get_vlm_model_choices, refresh_vlm_models
+from modules.llm.catalog import is_external, display_name, resolve_display_name
+from modules.llm.openai import DEFAULT_MAX_TOKENS
+from modules.llm.ui import bind_token_limit, bind_display_names
 
 
 default_task = "Normal Caption"
@@ -12,12 +16,14 @@ def caption_wrapper(tab, image,
                     analyze_question, analyze_system, analyze_prompt, analyze_model,
                     clip_model, blip_model, clip_mode,
                     wd_model, wd_general_threshold, wd_character_threshold, wd_include_rating, wd_exclude_tags, wd_max_tags, wd_sort_alpha, wd_use_spaces, wd_escape,
+                    vlm_max_tokens=None,
                    ):
     """Wrapper for vqa.caption, vqa.analysis, openclip.caption_image, tagger.tag."""
+    generation_kwargs = {'max_tokens': vlm_max_tokens} if vlm_max_tokens is not None else None
     if tab <= 0:
         log.debug('Caption: mode="VLM Caption"')
         from modules.caption import vqa
-        answer = vqa.caption(vlm_question, vlm_system, vlm_prompt, image, vlm_model, vlm_prefill, vlm_thinking_mode, vlm_custom_args)
+        answer = vqa.caption(vlm_question, vlm_system, vlm_prompt, image, vlm_model, vlm_prefill, vlm_thinking_mode, custom_args=vlm_custom_args, generation_kwargs=generation_kwargs)
         annotated_image = vqa.get_last_annotated_image()
         if annotated_image is not None:
             return answer, gr.update(value=annotated_image, visible=True)
@@ -25,7 +31,7 @@ def caption_wrapper(tab, image,
     elif tab == 1:
         log.debug('Caption: mode="VLM Analyze"')
         from modules.caption import vqa
-        answer = vqa.analyze(analyze_question, analyze_system, analyze_prompt, image, analyze_model, vlm_thinking_mode, vlm_custom_args)
+        answer = vqa.analyze(analyze_question, analyze_system, analyze_prompt, image, analyze_model, thinking_mode=vlm_thinking_mode, custom_args=vlm_custom_args, generation_kwargs=generation_kwargs)
         return answer, gr.update(visible=False)
     elif tab == 2:
         log.debug('Caption: mode="OpenCLIP"')
@@ -48,6 +54,26 @@ def update_vlm_prompts_for_model(model_name):
     return gr.update(choices=prompts, value=value)
 
 
+def update_vlm_backend_controls(model_name, current_limit=None, explicit=False):
+    external = is_external(model_name)
+    default_limit = DEFAULT_MAX_TOKENS if external else shared.opts.caption_vlm_max_length
+    return [
+        gr.update(interactive=not external), gr.update(interactive=not external),
+        gr.update(interactive=False, value=False) if external else gr.update(interactive=True),
+        gr.update(interactive=False, value=1) if external else gr.update(interactive=True),
+        gr.update(interactive=False, value='') if external else gr.update(interactive=True),
+        gr.update(value=current_limit if explicit else default_limit), model_name,
+    ]
+
+
+def update_vlm_token_limit(value, model_name):
+    """Keep external UI limits out of the existing local-model preferences."""
+    if not is_external(model_name):
+        shared.opts.caption_vlm_max_length = int(value)
+        shared.opts.save()
+    return True
+
+
 def update_vlm_prompt_placeholder(question):
     """Update the prompt field placeholder based on selected task."""
     from modules.caption import vqa
@@ -56,8 +82,7 @@ def update_vlm_prompt_placeholder(question):
 
 
 def update_vlm_params(*args):
-    vlm_max_tokens, vlm_num_beams, vlm_temperature, vlm_do_sample, vlm_top_k, vlm_top_p, vlm_keep_prefill, vlm_keep_thinking, vlm_thinking_mode, vlm_custom_args = args
-    shared.opts.caption_vlm_max_length = int(vlm_max_tokens)
+    _vlm_max_tokens, vlm_num_beams, vlm_temperature, vlm_do_sample, vlm_top_k, vlm_top_p, vlm_keep_prefill, vlm_keep_thinking, vlm_thinking_mode, vlm_custom_args = args
     shared.opts.caption_vlm_num_beams = int(vlm_num_beams)
     shared.opts.caption_vlm_temperature = float(vlm_temperature)
     shared.opts.caption_vlm_do_sample = bool(vlm_do_sample)
@@ -160,7 +185,7 @@ def update_clip_model_params(clip_model, blip_model, clip_mode):
 
 def update_vlm_model_params(vlm_model, vlm_system):
     """Save VLM model settings to shared.opts when UI controls change."""
-    shared.opts.caption_vlm_model = str(vlm_model)
+    shared.opts.caption_vlm_model = str(resolve_display_name(vlm_model))
     shared.opts.caption_vlm_system = str(vlm_system)
     shared.opts.save()
 
@@ -177,11 +202,11 @@ def create_ui():
         with gr.Column(variant='compact', elem_id='caption_input'):
             with gr.Row():
                 image = gr.Image(type='pil', label="Image", height=512, visible=True, image_mode='RGB', elem_id='caption_image')
-            with gr.Tabs(elem_id="mode_caption"):
+            with gr.Tabs(elem_id="mode_caption") as caption_modes:
 
-                with gr.Tab("VLM Caption", elem_id="tab_vlm_caption"):
+                with gr.Tab("VLM Caption", elem_id="tab_vlm_caption") as vlm_caption_tab:
                     from modules.caption import vqa
-                    current_vlm_model = shared.opts.caption_vlm_model or vqa.vlm_default
+                    current_vlm_model = display_name(shared.opts.caption_vlm_model or vqa.vlm_default)
                     initial_prompts = vqa.get_prompts_for_model(current_vlm_model)
                     with gr.Row():
                         vlm_system = gr.Textbox(label="System Prompt", value=vqa.vlm_system, lines=1, elem_id='vlm_system')
@@ -190,23 +215,27 @@ def create_ui():
                     with gr.Row():
                         vlm_prompt = gr.Textbox(label="Prompt", placeholder=vqa.get_prompt_placeholder(initial_prompts[0]), lines=2, elem_id='vlm_prompt')
                     with gr.Row(elem_id='caption_buttons_query'):
-                        vlm_model = gr.Dropdown(list(vqa.vlm_models), value=current_vlm_model, label='VLM Model', elem_id='vlm_model')
+                        vlm_model = gr.Dropdown(get_vlm_model_choices(), value=current_vlm_model, label='VLM Model', elem_id='vlm_model')
+                        ui_common.create_refresh_button(vlm_model, refresh_vlm_models, elem_id='vlm_models_refresh')
                     with gr.Row():
-                        vlm_load_btn = gr.Button(value='Load', elem_id='vlm_load', variant='secondary')
-                        vlm_unload_btn = gr.Button(value='Unload', elem_id='vlm_unload', variant='secondary')
+                        vlm_load_btn = gr.Button(value='Load', elem_id='vlm_load', variant='secondary', interactive=not is_external(current_vlm_model))
+                        vlm_unload_btn = gr.Button(value='Unload', elem_id='vlm_unload', variant='secondary', interactive=not is_external(current_vlm_model))
                     with gr.Accordion(label='Caption: Advanced Options', open=False, visible=True):
                         with gr.Row():
-                            vlm_max_tokens = gr.Slider(label='VLM Max Tokens', value=shared.opts.caption_vlm_max_length, minimum=16, maximum=4096, step=1, elem_id='vlm_max_tokens')
-                            vlm_num_beams = gr.Slider(label='VLM Num Beams', value=shared.opts.caption_vlm_num_beams, minimum=1, maximum=16, step=1, elem_id='vlm_num_beams')
+                            vlm_max_tokens = gr.Slider(label='VLM Max Tokens', value=DEFAULT_MAX_TOKENS if is_external(current_vlm_model) else shared.opts.caption_vlm_max_length, minimum=16, maximum=32768, step=1, elem_id='vlm_max_tokens')
+                            token_limit_explicit = gr.State(False)
+                            token_limit_model = gr.State(current_vlm_model)
+                            vlm_max_tokens.input(fn=update_vlm_token_limit, inputs=[vlm_max_tokens, token_limit_model], outputs=[token_limit_explicit], show_progress=False)
+                            vlm_num_beams = gr.Slider(label='VLM Num Beams', value=1 if is_external(current_vlm_model) else shared.opts.caption_vlm_num_beams, minimum=1, maximum=16, step=1, elem_id='vlm_num_beams', interactive=not is_external(current_vlm_model))
                             vlm_temperature = gr.Slider(label='VLM Temperature', value=shared.opts.caption_vlm_temperature, minimum=0.0, maximum=1.0, step=0.01, elem_id='vlm_temperature')
                         with gr.Row():
                             vlm_top_k = gr.Slider(label='Top-K', value=shared.opts.caption_vlm_top_k, minimum=0, maximum=99, step=1, elem_id='vlm_top_k')
                             vlm_top_p = gr.Slider(label='Top-P', value=shared.opts.caption_vlm_top_p, minimum=0.0, maximum=1.0, step=0.01, elem_id='vlm_top_p')
                         with gr.Row():
                             vlm_do_sample = gr.Checkbox(label='Use Samplers', value=shared.opts.caption_vlm_do_sample, elem_id='vlm_do_sample')
-                            vlm_thinking_mode = gr.Checkbox(label='Thinking Mode', value=shared.opts.caption_vlm_thinking_mode, elem_id='vlm_thinking_mode')
+                            vlm_thinking_mode = gr.Checkbox(label='Thinking Mode', value=False if is_external(current_vlm_model) else shared.opts.caption_vlm_thinking_mode, elem_id='vlm_thinking_mode', interactive=not is_external(current_vlm_model))
                         with gr.Row():
-                            vlm_custom_args = gr.Textbox(label='Custom Args', value=shared.opts.caption_vlm_custom_args, placeholder='key=value pairs separated by ; or newlines', lines=2, elem_id='vlm_custom_args')
+                            vlm_custom_args = gr.Textbox(label='Custom Args', value='' if is_external(current_vlm_model) else shared.opts.caption_vlm_custom_args, placeholder='key=value pairs separated by ; or newlines', lines=2, elem_id='vlm_custom_args', interactive=not is_external(current_vlm_model))
                         with gr.Row():
                             vlm_keep_thinking = gr.Checkbox(label='Keep Thinking trace', value=shared.opts.caption_vlm_keep_thinking, elem_id='vlm_keep_thinking')
                             vlm_keep_prefill = gr.Checkbox(label='Keep Prefill', value=shared.opts.caption_vlm_keep_prefill, elem_id='vlm_keep_prefill')
@@ -239,7 +268,7 @@ def create_ui():
                     with gr.Row():
                         btn_vlm_caption = gr.Button("Caption", variant='primary', elem_id="btn_vlm_caption")
 
-                with gr.Tab("VLM Analyze", elem_id="tab_vlm_analyze"):
+                with gr.Tab("VLM Analyze", elem_id="tab_vlm_analyze") as vlm_analyze_tab:
                     from modules.caption import vqa
                     analyze_question_placeholder = 'Enter your analysis question or leave blank to use default'
                     analyze_prompt_placeholder = 'Enter your prompt to match with image or leave blank to use image metadata'
@@ -250,10 +279,11 @@ def create_ui():
                     with gr.Row():
                         analyze_prompt = gr.Textbox(label="Prompt", placeholder=analyze_prompt_placeholder, lines=2, elem_id='analyze_prompt')
                     with gr.Row(elem_id='caption_buttons_query'):
-                        analyze_model = gr.Dropdown(list(vqa.vlm_models), value=current_vlm_model, label='VLM Model', elem_id='analyze_model')
+                        analyze_model = gr.Dropdown(get_vlm_model_choices(), value=current_vlm_model, label='VLM Model', elem_id='analyze_model')
+                        ui_common.create_refresh_button(analyze_model, refresh_vlm_models, elem_id='analyze_models_refresh')
                     with gr.Row():
-                        analyze_load_btn = gr.Button(value='Load', elem_id='analyze_load', variant='secondary')
-                        analyze_unload_btn = gr.Button(value='Unload', elem_id='analyze_unload', variant='secondary')
+                        analyze_load_btn = gr.Button(value='Load', elem_id='analyze_load', variant='secondary', interactive=not is_external(current_vlm_model))
+                        analyze_unload_btn = gr.Button(value='Unload', elem_id='analyze_unload', variant='secondary', interactive=not is_external(current_vlm_model))
                     with gr.Accordion(label='Analyze: Batch', open=False, visible=True):
                         with gr.Row():
                             analyze_batch_files = gr.File(label="Files", show_label=True, file_count='multiple', file_types=['image'], interactive=True, height=100, elem_id='analyze_batch_files')
@@ -382,14 +412,14 @@ def create_ui():
                 vlm_question, vlm_system, vlm_prompt, vlm_model, vlm_prefill, vlm_thinking_mode, vlm_custom_args,
                 analyze_question, analyze_system, analyze_prompt, analyze_model,
                 clip_model, blip_model, clip_mode,
-                wd_model, wd_general_threshold, wd_character_threshold, wd_include_rating, wd_exclude_tags, wd_max_tags, wd_sort_alpha, wd_use_spaces, wd_escape
+                 wd_model, wd_general_threshold, wd_character_threshold, wd_include_rating, wd_exclude_tags, wd_max_tags, wd_sort_alpha, wd_use_spaces, wd_escape, vlm_max_tokens
                ],
         outputs=[prompt, output_image]
     )
     vlm_batch = gr.State('caption')
     btn_vlm_caption_batch.click(
         fn=vqa.batch,
-        inputs=[vlm_model, vlm_system, vlm_batch_files, vlm_batch_folder, vlm_batch_str, vlm_question, vlm_prompt, vlm_save_txt, vlm_save_append, vlm_save_json, vlm_folder_recursive, vlm_prefill, vlm_thinking_mode, vlm_batch],
+        inputs=[vlm_model, vlm_system, vlm_batch_files, vlm_batch_folder, vlm_batch_str, vlm_question, vlm_prompt, vlm_save_txt, vlm_save_append, vlm_save_json, vlm_folder_recursive, vlm_prefill, vlm_thinking_mode, vlm_batch, vlm_max_tokens],
         outputs=[prompt]
     ).then(fn=lambda: gr.update(visible=False), inputs=[], outputs=[output_image])
 
@@ -400,14 +430,14 @@ def create_ui():
                 vlm_question, vlm_system, vlm_prompt, vlm_model, vlm_prefill, vlm_thinking_mode, vlm_custom_args,
                 analyze_question, analyze_system, analyze_prompt, analyze_model,
                 clip_model, blip_model, clip_mode,
-                wd_model, wd_general_threshold, wd_character_threshold, wd_include_rating, wd_exclude_tags, wd_max_tags, wd_sort_alpha, wd_use_spaces, wd_escape
+                 wd_model, wd_general_threshold, wd_character_threshold, wd_include_rating, wd_exclude_tags, wd_max_tags, wd_sort_alpha, wd_use_spaces, wd_escape, vlm_max_tokens
                ],
         outputs=[prompt, output_image]
     )
     analyze_batch = gr.State('analyze')
     btn_analyze_caption_batch.click(
         fn=vqa.batch,
-        inputs=[analyze_model, analyze_system, analyze_batch_files, analyze_batch_folder, analyze_batch_str, analyze_question, analyze_prompt, analyze_save_txt, analyze_save_append, analyze_save_json,analyze_folder_recursive, vlm_prefill, vlm_thinking_mode, analyze_batch],
+        inputs=[analyze_model, analyze_system, analyze_batch_files, analyze_batch_folder, analyze_batch_str, analyze_question, analyze_prompt, analyze_save_txt, analyze_save_append, analyze_save_json,analyze_folder_recursive, vlm_prefill, vlm_thinking_mode, analyze_batch, vlm_max_tokens],
         outputs=[prompt]
     ).then(fn=lambda: gr.update(visible=False), inputs=[], outputs=[output_image])
 
@@ -440,6 +470,17 @@ def create_ui():
 
     # Dynamic UI updates based on selected model and task
     vlm_model.change(fn=update_vlm_prompts_for_model, inputs=[vlm_model], outputs=[vlm_question])
+    for model, tab, load_button, unload_button in (
+        (vlm_model, vlm_caption_tab, vlm_load_btn, vlm_unload_btn),
+        (analyze_model, vlm_analyze_tab, analyze_load_btn, analyze_unload_btn),
+    ):
+        controls = [load_button, unload_button, vlm_thinking_mode, vlm_num_beams, vlm_custom_args, vlm_max_tokens, token_limit_model]
+        for event in (model.change, tab.select):
+            event(fn=update_vlm_backend_controls, inputs=[model, vlm_max_tokens, token_limit_explicit], outputs=controls, show_progress=False)
+    bind_token_limit(vlm_model, vlm_max_tokens, token_limit_explicit, shared.opts.caption_vlm_max_length, active_model=token_limit_model, is_active=lambda: caption_modes.selected in (None, 0))
+    bind_token_limit(analyze_model, vlm_max_tokens, token_limit_explicit, shared.opts.caption_vlm_max_length, active_model=token_limit_model, is_active=lambda: caption_modes.selected == 1)
+    bind_display_names(vlm_model, display_name, resolve_display_name)
+    bind_display_names(analyze_model, display_name, resolve_display_name)
     vlm_question.change(fn=update_vlm_prompt_placeholder, inputs=[vlm_question], outputs=[vlm_prompt])
 
     # Load/Unload model buttons

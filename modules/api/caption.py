@@ -98,9 +98,15 @@ class ResVQA(BaseModel):
 class ItemVLMModel(BaseModel):
     """VLM model information."""
     name: str = Field(title="Name", description="Display name of the model")
-    repo: str = Field(title="Repository", description="HuggingFace repository ID")
+    repo: str = Field(title="Repository", description="Local HuggingFace repository ID or external/ model selection identifier")
     prompts: list[str] = Field(title="Prompts", description="Available prompts/tasks for this model")
     capabilities: list[str] = Field(title="Capabilities", description="Model capabilities. Possible values: 'caption' (image captioning), 'vqa' (visual question answering), 'detection' (object/point detection), 'ocr' (text recognition), 'thinking' (reasoning mode support).")
+    provider: str | None = Field(default=None, description="External inference provider")
+    model_id: str | None = Field(default=None, description="Original remote model ID, without SD.Next selection encoding")
+    display_name: str | None = Field(default=None, description="Remote server's friendly model name")
+    vision: bool | None = Field(default=None, description="Whether the remote model advertises image input")
+    thinking: bool | None = Field(default=None, description="Request-side reasoning control support; null means unknown")
+    context_length: int | None = Field(default=None, description="Advertised remote serving context length")
 
 class ResVLMPrompts(BaseModel):
     """Available VLM prompts grouped by category.
@@ -645,14 +651,16 @@ def get_vqa_models():
     - `capabilities`: Model features (caption, vqa, detection, ocr, thinking)
     """
     from modules.caption import vqa
+    from modules.llm.catalog import is_external, model_info, refresh_models
+    refresh_models(tolerate_errors=True)
     models_list = []
-    for name, repo in vqa.vlm_models.items():
+    for name, repo in vqa.get_vlm_models().items():
         prompts = vqa.get_prompts_for_model(name)
         capabilities = ["caption", "vqa"]
         name_lower = name.lower()
-        if 'florence' in name_lower or 'promptgen' in name_lower:
+        if not is_external(repo) and ('florence' in name_lower or 'promptgen' in name_lower):
             capabilities.extend(["detection", "ocr"])
-        if 'moondream' in name_lower:
+        if not is_external(repo) and 'moondream' in name_lower:
             capabilities.append("detection")
         if vqa.is_thinking_model(name):
             capabilities.append("thinking")
@@ -662,6 +670,9 @@ def get_vqa_models():
             "prompts": prompts,
             "capabilities": list(set(capabilities))
         })
+        if is_external(repo):
+            info = model_info(repo)
+            models_list[-1].update(provider=info.ref.provider, model_id=info.ref.model_id, display_name=info.name, vision=info.vision, thinking=info.thinking, context_length=info.context_length)
     return models_list
 
 

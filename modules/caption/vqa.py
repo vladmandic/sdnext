@@ -15,6 +15,9 @@ from modules.logger import log, console
 from modules.caption import vqa_detection, helpers, toriigate
 from modules.caption.attention import set_attention
 from modules.llm import Request, Response, get_backend, resolve_model
+from modules.llm.catalog import is_external
+from modules.llm.openai import generation_parameters
+from modules.caption.models_def import get_vlm_models # pylint: disable=unused-import
 from modules.caption.models_def import vlm_models, vlm_system, vlm_analyze, vlm_default, vlm_prefill, vlm_prompts, vlm_prompt_mapping, vlm_prompt_reverse_mapping, vlm_prompt_placeholders, vlm_prompts_common, vlm_prompts_florence, vlm_prompts_moondream, vlm_prompts_moondream2, vlm_prompts_promptgen, vlm_prompts_toriigate, analyze_question, get_vlm_repo # pylint: disable=unused-import
 
 
@@ -61,7 +64,7 @@ class BatchWriter:
 
 def get_prompts_for_model(model_name: str) -> list:
     """Get available prompts based on selected model."""
-    if model_name is None:
+    if model_name is None or is_external(model_name):
         return vlm_prompts_common
 
     model_lower = model_name.lower()
@@ -127,7 +130,7 @@ def is_florence_task(question: str) -> bool:
 
 def is_thinking_model(model_name: str) -> bool:
     """Check if the model supports thinking mode based on its name."""
-    if not model_name:
+    if not model_name or is_external(model_name):
         return False
     model_lower = model_name.lower()
     # Check for known thinking models
@@ -147,6 +150,8 @@ def is_thinking_model(model_name: str) -> bool:
 
 def uses_qwen_handler(repo: str) -> bool:
     """Check if the repo is dispatched to the Qwen VL handler."""
+    if is_external(repo):
+        return False
     repo_lower = repo.lower()
     return 'qwen' in repo_lower or 'torii' in repo_lower or 'mimo' in repo_lower
 
@@ -367,6 +372,18 @@ def get_kwargs(model):
     return kwargs
 
 
+def get_external_kwargs():
+    overrides = _get_overrides()
+    def option(key, setting):
+        value = overrides.get(key)
+        return value if value is not None else getattr(shared.opts, setting)
+    return generation_parameters(
+        overrides.get('max_tokens'), option('temperature', 'caption_vlm_temperature'),
+        sample=option('do_sample', 'caption_vlm_do_sample'), top_k=option('top_k', 'caption_vlm_top_k'), top_p=option('top_p', 'caption_vlm_top_p'),
+        num_beams=option('num_beams', 'caption_vlm_num_beams'), custom_args=option('custom_args', 'caption_vlm_custom_args'),
+    )
+
+
 class VQA:
     """Vision-Language Model interrogation class with per-model self-contained loading."""
 
@@ -419,6 +436,9 @@ class VQA:
             log.warning('VQA load: no model specified')
             return
         repo = get_vlm_repo(model_name)
+        if is_external(repo):
+            log.info('External LLM: model loading is managed by the remote server on inference requests')
+            return
         if repo == model_name and model_name not in vlm_models.values():
             log.error(f'VQA load: unknown model="{model_name}"')
             return
@@ -1594,27 +1614,43 @@ class VQA:
             shared.state.end(jobid)
             return 'Error: No model selected.'
         vqa_model = get_vlm_repo(model_name)
-        if vqa_model == model_name and model_name not in vlm_models.values():
+        external = is_external(vqa_model)
+        if vqa_model == model_name and model_name not in vlm_models.values() and not external:
             log.error(f'LLM: type=vlm model="{model_name}" unknown')
             shared.state.end(jobid)
             return f'Error: Unknown model "{model_name}".'
         if isinstance(image, str):
             image = Image.open(image)
         if isinstance(image, Image.Image) and not uses_qwen_handler(vqa_model) and (image.width > 768 or image.height > 768):  # Qwen processors resize to their own max_pixels budget
+            if external:
+                image = image.copy()
             image.thumbnail((768, 768), Image.Resampling.LANCZOS)
-        if self.model is None or self.loaded != vqa_model:
+        if not external and (self.model is None or self.loaded != vqa_model):
             from modules import modelloader
             modelloader.hf_login()
             sd_models.set_caption_load_options()
 
         try:
             model_ref = resolve_model(vqa_model)
-            parameters = {'display_name': model_name} if model_ref.provider == 'inprocess' else get_kwargs(self.model)
-            request = Request(prompt=question, system=system_prompt, image=image, prefill=prefill, thinking=thinking_mode, parameters=parameters)
+            if model_ref.provider == 'inprocess':
+                parameters = {'display_name': model_name}
+            elif external:
+                parameters = get_external_kwargs()
+            else:
+                parameters = get_kwargs(self.model)
+            if external:
+                if custom_args:
+                    raise ValueError('External LLM does not support local custom arguments')
+                question = vlm_prompt_reverse_mapping.get(question.replace('<', '').replace('>', '').replace('_', ' '), question)
+            request = Request(prompt=question, system=(system_prompt or shared.opts.caption_vlm_system) if external else system_prompt, image=image, prefill=prefill, thinking=(thinking_mode or None) if external else thinking_mode, parameters=parameters)
             backend = get_backend(model_ref, self._generate_local)
             with backend.session(model_ref) as session:
                 response = session.generate(request)
             answer = response.text
+            if external:
+                answer = strip_think_xml_tags(answer, keep=get_keep_thinking())
+                if response.reasoning and get_keep_thinking():
+                    answer = f'Reasoning:\n{response.reasoning}\n\nAnswer:\n{answer}'
             handler = response.metrics.get('handler', model_ref.provider)
         except Exception as e:
             errors.display(e, 'VQA')
@@ -1622,10 +1658,11 @@ class VQA:
             shared.state.end(jobid)
             return f'Error: {type(e).__name__}: {e}'
         finally:
-            sd_models.set_huggingface_options(quiet=True)
-            if self.model is not None:
-                offload_aux('vqa')
-            devices.torch_gc(force=True, reason='vqa')
+            if not external:
+                sd_models.set_huggingface_options(quiet=True)
+                if self.model is not None:
+                    offload_aux('vqa')
+                devices.torch_gc(force=True, reason='vqa')
 
         # Clean the answer
         answer = clean(answer, question, prefill)
@@ -1642,7 +1679,7 @@ class VQA:
         t1 = time.time()
         if not quiet:
             model_name = model_name.split(' ')[0] if model_name else 'None'
-            log.debug(f'LLM: type=vlm model="{model_name}" repo="{vqa_model}" args={get_kwargs(self.model)} time={t1-t0:.2f}')
+            log.debug(f'LLM: type=vlm model="{model_name}" repo="{vqa_model}" args={parameters if external else get_kwargs(self.model)} time={t1-t0:.2f}')
         self._generation_overrides = None  # Clear per-request overrides
         shared.state.end(jobid)
         return answer
@@ -1685,7 +1722,7 @@ class VQA:
         )
         return answer
 
-    def batch(self, model_name, system_prompt, batch_files, batch_folder, batch_str, question, prompt, save_txt, append_txt, save_json, recursive, prefill=None, thinking_mode=False, vlm_mode='caption'):
+    def batch(self, model_name, system_prompt, batch_files, batch_folder, batch_str, question, prompt, save_txt, append_txt, save_json, recursive, prefill=None, thinking_mode=False, vlm_mode='caption', max_tokens=None):
         files = []
         if batch_files is not None:
             files += [f.name for f in batch_files]
@@ -1706,6 +1743,7 @@ class VQA:
             writer_json = BatchWriter(folder=os.path.dirname(files[0]), fmt='json', filename=f'{vlm_mode}.json')
         orig_offload = shared.opts.caption_offload
         shared.opts.caption_offload = False
+        generation_kwargs = {'max_tokens': max_tokens} if max_tokens is not None else None
         try:
             import rich.progress as rp
             pbar = rp.Progress(rp.TextColumn('[cyan]VLM:'), rp.BarColumn(), rp.MofNCompleteColumn(), rp.TaskProgressColumn(), rp.TimeRemainingColumn(), rp.TimeElapsedColumn(), rp.TextColumn('[cyan]{task.description}'), console=console)
@@ -1721,9 +1759,9 @@ class VQA:
                         except Exception:
                             continue
                         if vlm_mode == 'caption':
-                            result = self.caption(question, system_prompt, prompt, img, model_name, prefill, thinking_mode, quiet=True)
+                            result = self.caption(question, system_prompt, prompt, img, model_name, prefill, thinking_mode, quiet=True, generation_kwargs=generation_kwargs)
                         elif vlm_mode == 'analyze':
-                            result = self.analyze(question, system_prompt, prompt, img, model_name, prefill, thinking_mode, quiet=True)
+                            result = self.analyze(question, system_prompt, prompt, img, model_name, prefill, thinking_mode, quiet=True, generation_kwargs=generation_kwargs)
                         else:
                             result = f'Unknown mode: {vlm_mode}'
                         if self.last_annotated_image and (save_txt or save_json): # save annotated image if available

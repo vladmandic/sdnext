@@ -239,8 +239,28 @@ def get_vlm_repo(display_name: str) -> str:
     """Look up repo ID from display name, stripping any trailing symbols."""
     from modules.logger import log
     name = display_name.strip()
+    from modules.llm.catalog import is_external, resolve_display_name
+    name = resolve_display_name(name)
+    if is_external(name):
+        return name
     model = vlm_models.get(name, None)
     if model is None:
         log.warning(f"Model '{name}' not found")
         return name
     return model
+
+
+def get_vlm_models():
+    from modules.llm.catalog import selections
+    return {**vlm_models, **{selection: selection for selection in selections(vision=True)}}
+
+
+def refresh_vlm_models():
+    from modules.llm.catalog import refresh_models
+    refresh_models()
+    return get_vlm_model_choices()
+
+
+def get_vlm_model_choices():
+    from modules.llm.catalog import display_name
+    return [display_name(name) for name in get_vlm_models()]
