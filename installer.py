@@ -353,7 +353,7 @@ def pip_progress(cmdline: str, label: str) -> tuple[subprocess.CompletedProcess,
     with subprocess.Popen(cmdline, shell=True, env=os.environ, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors='replace', bufsize=1) as proc:
         with Progress(TextColumn('[cyan]{task.description}'), BarColumn(bar_width=None), DownloadColumn(), TransferSpeedColumn(), TimeRemainingColumn(), console=console, transient=True) as progress:
             task = progress.add_task(description=f'Install: {label[:48]}', total=None)
-            for line in proc.stdout:
+            for line in (proc.stdout or []):
                 line = line.strip()
                 if line.startswith('Progress '): # raw mode prints "Progress <done> of <total>" per chunk
                     parts = line.split()
