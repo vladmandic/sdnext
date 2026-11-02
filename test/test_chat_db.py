@@ -101,6 +101,34 @@ class TestChatDatabase(unittest.TestCase):
         self.assertEqual(recovered['error'], 'Server restarted before operation completed')
         self.assertTrue(db.diagnostics(self.db_path)['ok'])
 
+    def test_selected_image_list_migration_preserves_legacy_selection(self):
+        with sqlite3.connect(self.db_path) as connection:
+            connection.execute('''
+                CREATE TABLE sessions (
+                    id TEXT PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    context TEXT NOT NULL,
+                    drafts TEXT NOT NULL DEFAULT '{}',
+                    last_generation_prompt TEXT,
+                    last_generation_snapshot TEXT,
+                    selected_image_id TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+            ''')
+            connection.execute(
+                'INSERT INTO sessions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                ('legacy', 'Legacy session', 'image', '{}', None, None, 'artifact-1', '2025-01-01', '2025-01-01'),
+            )
+            connection.execute('PRAGMA user_version = 4')
+
+        reload(db)
+        migrated = db.get_session('legacy', db_path=self.db_path)
+
+        self.assertEqual(migrated['selected_image_id'], 'artifact-1')
+        self.assertEqual(migrated['selected_image_ids'], ['artifact-1'])
+        self.assertTrue(db.diagnostics(self.db_path)['ok'])
+
     def test_initialization_retries_transient_database_lock(self):
         connect = db.connect
         attempts = 0

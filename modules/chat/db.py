@@ -12,7 +12,7 @@ from urllib.parse import quote
 from modules.logger import log
 
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 CONTEXTS = {'image', 'video', 'process', 'caption'}
 MESSAGE_ROLES = {'system', 'user', 'assistant'}
 OPERATION_STATUSES = {'running', 'completed', 'failed', 'cancelled'}
@@ -182,6 +182,28 @@ def _migrate_artifacts(connection):
         raise
 
 
+def _migrate_selected_images(connection):
+    connection.execute('BEGIN')
+    try:
+        tables = {row['name'] for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+        if 'sessions' in tables:
+            session_columns = {row['name'] for row in connection.execute('PRAGMA table_info(sessions)')}
+            if 'selected_image_ids' not in session_columns:
+                connection.execute("ALTER TABLE sessions ADD COLUMN selected_image_ids TEXT NOT NULL DEFAULT '[]'")
+                rows = connection.execute('SELECT id, selected_image_id FROM sessions WHERE selected_image_id IS NOT NULL').fetchall()
+                for row in rows:
+                    connection.execute(
+                        'UPDATE sessions SET selected_image_ids = ? WHERE id = ?',
+                        (_dump([row['selected_image_id']]), row['id']),
+                    )
+        connection.execute(f'PRAGMA user_version = {SCHEMA_VERSION}')
+        connection.commit()
+    except Exception:
+        if connection.in_transaction:
+            connection.rollback()
+        raise
+
+
 def _dump(value):
     return json.dumps(value, separators=(',', ':'), allow_nan=False)
 
@@ -197,7 +219,20 @@ def _decode_row(row, json_fields):
 
 
 def _session(row):
-    return _decode_row(row, {'drafts': {}, 'last_generation_snapshot': None})
+    session = _decode_row(row, {
+        'drafts': {}, 'last_generation_snapshot': None, 'selected_image_ids': [],
+    })
+    if session is None:
+        return None
+    selected_ids = session.get('selected_image_ids')
+    if not isinstance(selected_ids, list):
+        selected_ids = []
+    selected_ids = [artifact_id for artifact_id in selected_ids if isinstance(artifact_id, str) and artifact_id]
+    if not selected_ids and session.get('selected_image_id'):
+        selected_ids = [session['selected_image_id']]
+    session['selected_image_ids'] = selected_ids
+    session['selected_image_id'] = selected_ids[0] if selected_ids else None
+    return session
 
 
 def _message(row):
@@ -235,6 +270,9 @@ def initialize(db_path=None):
                             version = 3
                         if version == 3:
                             _migrate_artifacts(connection)
+                            version = 4
+                        if version == 4:
+                            _migrate_selected_images(connection)
                         connection.executescript('''
                             CREATE TABLE IF NOT EXISTS sessions (
                                 id TEXT PRIMARY KEY,
@@ -244,6 +282,7 @@ def initialize(db_path=None):
                                 last_generation_prompt TEXT,
                                 last_generation_snapshot TEXT,
                                 selected_image_id TEXT,
+                                selected_image_ids TEXT NOT NULL DEFAULT '[]',
                                 created_at TEXT NOT NULL,
                                 updated_at TEXT NOT NULL
                             );
@@ -375,7 +414,7 @@ def list_sessions(limit=50, offset=0, db_path=None):
 
 def update_session(session_id, db_path=None, **fields):
     initialize(db_path)
-    allowed = {'title', 'context', 'drafts', 'last_generation_prompt', 'last_generation_snapshot', 'selected_image_id'}
+    allowed = {'title', 'context', 'drafts', 'last_generation_prompt', 'last_generation_snapshot', 'selected_image_id', 'selected_image_ids'}
     unknown = set(fields) - allowed
     if unknown:
         raise ValueError(f'Unsupported chat session fields: {", ".join(sorted(unknown))}')
@@ -385,6 +424,15 @@ def update_session(session_id, db_path=None, **fields):
         fields['title'] = str(fields['title'] or '').strip()
         if not fields['title']:
             raise ValueError('Chat session title cannot be empty')
+    if 'selected_image_id' in fields and 'selected_image_ids' not in fields:
+        fields['selected_image_ids'] = [fields['selected_image_id']] if fields['selected_image_id'] else []
+    if 'selected_image_ids' in fields:
+        selected_ids = fields['selected_image_ids'] or []
+        if not isinstance(selected_ids, list) or any(not isinstance(item, str) or not item for item in selected_ids):
+            raise ValueError('selected_image_ids must be a list of image artifact IDs')
+        selected_ids = list(dict.fromkeys(selected_ids))
+        fields['selected_image_ids'] = _dump(selected_ids)
+        fields['selected_image_id'] = selected_ids[0] if selected_ids else None
     for field in ('drafts', 'last_generation_snapshot'):
         if field in fields and fields[field] is not None:
             if not isinstance(fields[field], dict):
@@ -461,18 +509,27 @@ def delete_artifact(session_id, artifact_id, db_path=None):
             'UPDATE artifacts SET source_deleted = 1 WHERE session_id = ? AND source_artifact_id = ?',
             (session_id, artifact_id),
         )
-        connection.execute(
-            'UPDATE sessions SET selected_image_id = NULL WHERE id = ? AND selected_image_id = ?',
-            (session_id, artifact_id),
-        )
+        session = connection.execute(
+            'SELECT selected_image_ids FROM sessions WHERE id = ?', (session_id,),
+        ).fetchone()
+        selected_ids = json.loads(session['selected_image_ids'] or '[]') if session is not None else []
+        if artifact_id in selected_ids:
+            selected_ids = [item for item in selected_ids if item != artifact_id]
+            connection.execute(
+                'UPDATE sessions SET selected_image_id = ?, selected_image_ids = ?, updated_at = ? WHERE id = ?',
+                (selected_ids[0] if selected_ids else None, _dump(selected_ids), _timestamp(), session_id),
+            )
         connection.execute('DELETE FROM artifacts WHERE id = ? AND session_id = ?', (artifact_id, session_id))
     return artifact
 
 
-def set_selected_image(session_id, artifact_id, db_path=None):
+def set_selected_images(session_id, artifact_ids, db_path=None):
     initialize(db_path)
+    if not isinstance(artifact_ids, list) or any(not isinstance(item, str) or not item for item in artifact_ids):
+        raise ValueError('Selected images must be a list of artifact IDs')
+    artifact_ids = list(dict.fromkeys(artifact_ids))
     with _connection(db_path) as connection:
-        if artifact_id is not None:
+        for artifact_id in artifact_ids:
             artifact = connection.execute(
                 'SELECT 1 FROM artifacts WHERE id = ? AND session_id = ? AND media_type LIKE \'image/%\'',
                 (artifact_id, session_id),
@@ -480,11 +537,15 @@ def set_selected_image(session_id, artifact_id, db_path=None):
             if artifact is None:
                 raise ValueError('Image artifact not found in this session')
         connection.execute(
-            'UPDATE sessions SET selected_image_id = ?, updated_at = ? WHERE id = ?',
-            (artifact_id, _timestamp(), session_id),
+            'UPDATE sessions SET selected_image_id = ?, selected_image_ids = ?, updated_at = ? WHERE id = ?',
+            (artifact_ids[0] if artifact_ids else None, _dump(artifact_ids), _timestamp(), session_id),
         )
         row = connection.execute('SELECT * FROM sessions WHERE id = ?', (session_id,)).fetchone()
     return _session(row)
+
+
+def set_selected_image(session_id, artifact_id, db_path=None):
+    return set_selected_images(session_id, [artifact_id] if artifact_id is not None else [], db_path=db_path)
 
 
 def create_message(session_id, role, content, metadata=None, message_id=None, db_path=None):

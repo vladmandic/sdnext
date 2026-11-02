@@ -1,8 +1,8 @@
 """Deterministic chat command parsing, validation, and session draft handling."""
 
 import inspect
-import json
 import re
+import json
 import shlex
 from dataclasses import dataclass
 from types import UnionType
@@ -84,6 +84,7 @@ _SETTING_NAMES = {
     for name in (canonical, *aliases)
 }
 _COMMAND_ALIASES = {
+    'args': 'params',
     'start': 'generate',
     'abort': 'cancel', 'stop': 'cancel', 'interrupt': 'cancel',
     'reprocess': 'again',
@@ -238,19 +239,16 @@ def parse_command(text: str) -> ParsedCommand:
             raise CommandError('Use: use <path>')
         return ParsedCommand('import', {'path': paths[0]})
     if command == 'image':
-        parts = raw_arguments.split()
-        if len(parts) != 1:
-            raise CommandError('Use: image list, image save, image reuse, image clear, or image <number>')
-        action = parts[0].lower()
+        value = raw_arguments.strip().lower()
+        action = value
         if action in {'list', 'save', 'reuse', 'clear'}:
             return ParsedCommand(command, {'action': action})
-        try:
-            index = int(action)
-        except ValueError as exc:
-            raise CommandError('Use: image list, image save, image reuse, image clear, or image <number>') from exc
-        if index < 1:
+        if not re.fullmatch(r'\d+(?:\s*,\s*\d+)*', value):
+            raise CommandError('Use: image list, image save, image reuse, image clear, or image <number[,number...]>')
+        indices = list(dict.fromkeys(int(item.strip()) for item in value.split(',')))
+        if any(index < 1 for index in indices):
             raise CommandError('Image number must be positive')
-        return ParsedCommand(command, {'action': 'select', 'index': index})
+        return ParsedCommand(command, {'action': 'select', 'indices': indices})
     if command == 'meta':
         if raw_arguments.strip():
             raise CommandError('meta does not accept arguments')
@@ -542,10 +540,16 @@ def _validate_option(name: str, raw_value: str) -> tuple[str, Any]:
 def _help_sections() -> list[dict[str, str]]:
     return [
         {
+            'title': 'Chat',
+            'content': '<a href="https://vladmandic.github.io/sdnext-docs/Chat/" target="_blank">Online Documentation</a>\n',
+            'format': 'html',
+        },
+        {
             'title': 'Process',
             'content': 'Choose a context and control active work\n'
             '- title [name]: Read or set the current session name\n'
             '- context <value>: Select the active context\n'
+            '- clear: Clear displayed messages without changing session history\n'
             '- run [count]: Run image generation 1-10 times (default: 1)\n'
             '- generate/start: Start the current process once\n'
             '- schedule: Add the current image or video generation to the scheduler\n'
@@ -563,7 +567,7 @@ def _help_sections() -> list[dict[str, str]]:
             '- negative <value>: Set the negative prompt\n'
             '- set [key] [value]: Set a value or list session values\n'
             '- get [key]: Get a value or list session values\n'
-            '- params: List valid parameter keys for the current context\n'
+            '- params/args: List valid parameter keys for the current context\n'
             '- reset: Restore parameter defaults.',
         },
         {
@@ -572,9 +576,9 @@ def _help_sections() -> list[dict[str, str]]:
             '- use/file <path>: Import a server-local text or image file\n'
             '- image list: List available session images\n'
             '- image save: Save all images from the latest result batch\n'
-            '- image <number>: Select image <number> as active\n'
+            '- image <number[,number...]>: Select one or more images as active inputs\n'
             '- image reuse: Select results image as next input image\n'
-            '- image clear: Clear the active image\n'
+            '- image clear: Clear active image inputs\n'
             '- meta/exif/metadata: Inspect metadata for the last image\n',
         },
         {
@@ -599,7 +603,6 @@ def _help_sections() -> list[dict[str, str]]:
             '- db: Compact the Chat database and show database statistics',
         },
     ]
-
 
 def _format_help_sections(sections: list[dict[str, str]]) -> str:
     return '\n'.join(f'{section["title"]}\n{section["content"]}' for section in sections)
@@ -847,7 +850,7 @@ def _generation_endpoint(
     session: dict[str, Any],
     snapshot: dict[str, Any] | None = None,
     prompt: str | None = None,
-    image: str | None = None,
+    image: str | list[str] | None = None,
 ) -> dict[str, Any]:
     context = session['context']
     draft = (session.get('drafts') or {}).get(context, {})
@@ -856,7 +859,8 @@ def _generation_endpoint(
         payload = {name: value for name, value in source.items() if name in _IMAGE_PARAMETERS}
         if prompt is not None:
             payload['prompt'] = prompt
-        payload.update({'inputs': [image] if image else [], 'send_images': True, 'save_images': shared.opts.samples_save})
+        inputs = image if isinstance(image, list) else [image] if image else []
+        payload.update({'inputs': inputs, 'send_images': True, 'save_images': shared.opts.samples_save})
         request_model = _IMAGE_MODEL
         error_prefix = 'Cannot run image generation'
     elif context == 'video':
@@ -916,7 +920,7 @@ def _format_history(session_id: str, limit: int) -> str:
     return '\n'.join(lines)
 
 
-def _execute_command(session_id: str, text: str, image: str | None = None) -> dict[str, Any]:
+def _execute_command(session_id: str, text: str, image: str | list[str] | None = None) -> dict[str, Any]:
     """Execute deterministic commands; endpoint aliases return validated descriptors only."""
     try:
         command = parse_command(text)
@@ -984,17 +988,17 @@ def _execute_command(session_id: str, text: str, image: str | None = None) -> di
         if action == 'list':
             if not images:
                 return _command_result('No session images')
-            selected_id = session.get('selected_image_id')
+            selected_ids = set(session.get('selected_image_ids') or ([session['selected_image_id']] if session.get('selected_image_id') else []))
             lines = []
             for index, artifact in enumerate(images, start=1):
                 public = artifacts.public_artifact(artifact)
                 status = ' (unavailable)' if not public['available'] else ''
-                selected = ' [selected]' if artifact['id'] == selected_id else ''
+                selected = ' [selected]' if artifact['id'] in selected_ids else ''
                 lines.append(f'{index}. {public["display_name"]} ({artifact["created_at"]}){selected}{status}')
             return _command_result('\n'.join(lines), data={'format': 'images', 'artifacts': [artifacts.public_artifact(item) for item in images]})
         if action == 'clear':
-            db.set_selected_image(session_id, None)
-            return _command_result('Selected image cleared')
+            db.set_selected_images(session_id, [])
+            return _command_result('Selected images cleared')
         if action == 'save':
             result_images = [item for item in images if item['role'] == 'result']
             if not result_images:
@@ -1037,14 +1041,18 @@ def _execute_command(session_id: str, text: str, image: str | None = None) -> di
                 return _command_error('No available image to reuse')
             selected = available[0]
         else:
-            index = command.arguments['index'] - 1
-            if index >= len(images):
+            indices = command.arguments['indices']
+            if any(index > len(images) for index in indices):
                 return _command_error('Image number is not in the current image list')
-            selected = images[index]
-            if not artifacts.public_artifact(selected)['available']:
+            selected = [images[index - 1] for index in indices]
+            if any(not artifacts.public_artifact(item)['available'] for item in selected):
                 return _command_error('Selected image is no longer available')
-        db.set_selected_image(session_id, selected['id'])
-        return _command_result(f'Selected image: {selected["display_name"]}')
+        selected_images = selected if isinstance(selected, list) else [selected]
+        db.set_selected_images(session_id, [item['id'] for item in selected_images])
+        if len(selected_images) == 1:
+            return _command_result(f'Selected image: {selected_images[0]["display_name"]}')
+        names = ', '.join(item['display_name'] for item in selected_images)
+        return _command_result(f'Selected images: {names}')
     if command.name == 'meta':
         from modules.chat import artifacts
         artifact = next((
@@ -1193,7 +1201,7 @@ def _execute_command(session_id: str, text: str, image: str | None = None) -> di
     return _command_error(f'Unsupported command: {command.name}')
 
 
-def execute_command(session_id: str, text: str, image: str | None = None) -> dict[str, Any]:
+def execute_command(session_id: str, text: str, image: str | list[str] | None = None) -> dict[str, Any]:
     try:
         return _execute_command(session_id, text, image=image)
     except CommandError as exc:

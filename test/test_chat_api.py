@@ -259,6 +259,23 @@ class TestChatFileImports(unittest.TestCase):
         self.assertEqual(ownership_error.exception.status_code, 400)
         self.assertEqual(unavailable_error.exception.status_code, 400)
 
+    def test_session_update_selects_multiple_available_images(self):
+        session = self._create_session()
+        paths = [self.private_dir / 'first.png', self.private_dir / 'second.png']
+        for path, color in zip(paths, ('red', 'blue')):
+            Image.new('RGB', (2, 2), color).save(path)
+        with patch.object(db, '_db_path', return_value=self.db_path):
+            image_ids = [
+                db.create_artifact(session['id'], 'image/png', path.name, 'input', str(path))['id']
+                for path in paths
+            ]
+            updated = chat_api.update_session(
+                session['id'], chat_api.ReqSessionUpdate(selected_image_ids=image_ids),
+            )
+
+        self.assertEqual(updated['selected_image_ids'], image_ids)
+        self.assertEqual(updated['selected_image_id'], image_ids[0])
+
     def test_artifact_delete_preserves_and_marks_derived_images(self):
         session = self._create_session()
         source_path = self.private_dir / 'source.png'
@@ -724,6 +741,45 @@ class TestChatApiRegistration(unittest.TestCase):
         self.assertEqual(operation['result']['run_count'], 3)
         self.assertEqual(operation['result']['image_count'], 3)
 
+    def test_run_uses_multiple_selected_uploaded_images(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = os.path.join(temp_dir, 'chat.db')
+            artifact_dir = Path(temp_dir) / 'artifacts'
+            artifact_dir.mkdir()
+            with patch.object(db, '_db_path', return_value=db_path), \
+                    patch.object(artifacts, 'storage_root', return_value=artifact_dir):
+                session = chat_api.create_session(chat_api.ReqSessionCreate())
+                uploaded_ids = []
+                encoded_image = ''
+                for filename, color in (('first.png', 'red'), ('second.png', 'blue')):
+                    image_buffer = io.BytesIO()
+                    Image.new('RGB', (2, 2), color).save(image_buffer, format='PNG')
+                    image_bytes = image_buffer.getvalue()
+                    encoded_image = base64.b64encode(image_bytes).decode('ascii')
+                    upload = UploadFile(filename=filename, file=io.BytesIO(image_bytes))
+                    upload_result = asyncio.run(chat_api.upload_chat_file(session['id'], upload))
+                    uploaded_ids.append(upload_result.session.selected_image_id)
+                response = SimpleNamespace(images=[encoded_image], info='', params={'prompt': 'test landscape'})
+                control_api = Mock(post_control=Mock(return_value=response))
+                chat_api.post_message(session['id'], chat_api.ReqChatMessage(content='prompt test landscape'))
+                selection = chat_api.post_message(
+                    session['id'], chat_api.ReqChatMessage(content='image 1,2'),
+                )
+                selected_images = [
+                    artifacts.read_image_base64(db.get_artifact(session['id'], artifact_id))
+                    for artifact_id in selection.session.selected_image_ids
+                ]
+                submission = chat_api.post_message(
+                    session['id'],
+                    chat_api.ReqChatMessage(content='run'),
+                    SimpleNamespace(control=control_api),
+                )
+
+        request = control_api.post_control.call_args.args[0]
+        self.assertEqual(selection.session.selected_image_ids, uploaded_ids)
+        self.assertEqual(submission.session.selected_image_ids, uploaded_ids)
+        self.assertEqual(request.inputs, selected_images)
+
     def test_run_count_defaults_and_is_bounded(self):
         self.assertEqual(commands.parse_command('run').arguments['count'], 1)
         self.assertEqual(commands.parse_command('run 3').arguments['count'], 3)
@@ -745,10 +801,12 @@ class TestChatApiRegistration(unittest.TestCase):
                 )
                 operation = db.list_operations(session['id'])[0]
 
-        self.assertEqual(submission.result.kind, 'operation')
+        self.assertEqual(submission.result.kind, 'error')
         self.assertEqual(operation['status'], 'failed')
         self.assertEqual(operation['error'], 'control failed')
+        self.assertEqual(submission.assistant_message.metadata['kind'], 'error')
         self.assertEqual(submission.assistant_message.metadata['status'], 'failed')
+        self.assertTrue(submission.assistant_message.metadata['failed'])
 
     def test_image_generation_keeps_saved_output_paths_private(self):
         saved_path = '/outputs/generated image.png'

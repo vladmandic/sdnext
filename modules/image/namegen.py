@@ -29,7 +29,7 @@ class FilenameGenerator:
     replacements = {
         'uuid': lambda self: str(uuid.uuid4()),
         # process info
-        'ops': lambda self: ",".join(getattr(self.p, 'ops', [])),
+        'ops': lambda self: ",".join(list(set(getattr(self.p, 'ops', [])))),
         # batch info
         'batch_number': lambda self: self.batch_number,
         'iter_number': lambda self: self.iter_number,

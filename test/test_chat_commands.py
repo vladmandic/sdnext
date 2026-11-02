@@ -195,6 +195,7 @@ class TestChatCommands(unittest.TestCase):
             'negative_prompt str unspecified',
         )
         self.assertEqual(commands.parse_command('PARAMS').name, 'params')
+        self.assertEqual(commands.parse_command('ARGS').name, 'params')
         with self.assertRaises(commands.CommandError):
             commands.parse_command('params image')
 

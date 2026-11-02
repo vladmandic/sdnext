@@ -18,7 +18,7 @@ from modules.logger import log
 
 ContextId = Literal['image', 'video', 'process', 'caption']
 ChatCommand = Literal[
-    'context', 'set', 'get', 'list', 'params', 'help', 'opts', 'prompt', 'negative',
+    'context', 'set', 'get', 'list', 'params', 'args', 'help', 'opts', 'prompt', 'negative',
     'generate', 'run', 'start', 'again', 'reprocess', 'schedule', 'cancel', 'abort', 'stop', 'interrupt', 'pause',
     'resume', 'skip', 'history', 'last', 'details', 'title', 'reset', 'model',
     'use', 'file', 'image', 'meta', 'exif', 'metadata',
@@ -41,6 +41,7 @@ class ReqSessionUpdate(BaseModel):
     last_generation_prompt: str | None = Field(default=None, title='Last generation prompt')
     last_generation_snapshot: dict[str, Any] | None = Field(default=None, title='Last generation snapshot')
     selected_image_id: str | None = Field(default=None, title='Selected image artifact')
+    selected_image_ids: list[str] | None = Field(default=None, title='Selected image artifacts')
 
 
 class ResSession(BaseModel):
@@ -51,6 +52,7 @@ class ResSession(BaseModel):
     last_generation_prompt: str | None = None
     last_generation_snapshot: dict[str, Any] | None = None
     selected_image_id: str | None = None
+    selected_image_ids: list[str] = Field(default_factory=list)
     created_at: str
     updated_at: str
 
@@ -388,13 +390,15 @@ def _execute_chat_operation(session_id: str, user_message: dict[str, Any], resul
         _log_chat_error(f'{context} operation failed', exc)
         db.update_operation(operation_id, 'failed', error=str(exc))
         result.update({
+            'kind': 'error',
             'text': f'{context.capitalize()} operation failed: {exc}',
             'operation_id': operation_id,
             'data': {},
             'message_metadata': {
-                'kind': 'operation',
+                'kind': 'error',
                 'operation_id': operation_id,
                 'status': 'failed',
+                'failed': True,
             },
         })
     return result
@@ -571,20 +575,27 @@ def _execute_chat_command(
     return result
 
 
-def _selected_image_for_command(session: dict[str, Any], content: str, fallback: str | None) -> str | None:
+def _selected_image_for_command(
+    session: dict[str, Any],
+    content: str,
+    fallback: str | list[str] | None,
+) -> str | list[str] | None:
     try:
         command = commands.parse_command(content)
     except commands.CommandError:
         return fallback
-    if command.name not in {'generate', 'again', 'schedule'}:
+    if command.name not in {'generate', 'run', 'again', 'schedule'}:
         return fallback
-    artifact_id = session.get('selected_image_id')
-    if not artifact_id:
+    artifact_ids = session.get('selected_image_ids') or ([session['selected_image_id']] if session.get('selected_image_id') else [])
+    if not artifact_ids:
         return fallback
-    artifact = db.get_artifact(session['id'], artifact_id)
-    if artifact is None:
-        return None
-    return artifacts.read_image_base64(artifact)
+    images = []
+    for artifact_id in artifact_ids:
+        artifact = db.get_artifact(session['id'], artifact_id)
+        if artifact is None or not artifacts.public_artifact(artifact)['available']:
+            raise ValueError('Selected image is unavailable')
+        images.append(artifacts.read_image_base64(artifact))
+    return images if session['context'] == 'image' else images[0]
 
 
 def _finish_submission(session_id: str, user_message: dict[str, Any], result: dict[str, Any]):
@@ -862,8 +873,13 @@ def patch_message(session_id: str, message_id: str, req: ReqChatMessageUpdate):
 
 def update_session(session_id: str, req: ReqSessionUpdate):
     updates = req.model_dump(exclude_unset=True)
-    if 'selected_image_id' in updates:
-        selected_image_id = updates['selected_image_id']
+    if 'selected_image_ids' in updates or 'selected_image_id' in updates:
+        if 'selected_image_ids' in updates:
+            selected_image_ids = updates['selected_image_ids'] or []
+        else:
+            selected_image_id = updates['selected_image_id']
+            selected_image_ids = [selected_image_id] if selected_image_id else []
+        selected_image_ids = list(dict.fromkeys(selected_image_ids))
         try:
             session = db.get_session(session_id)
         except Exception as exc:
@@ -872,7 +888,7 @@ def update_session(session_id: str, req: ReqSessionUpdate):
         if session is None:
             _log_chat_error('session update failed: session not found')
             raise HTTPException(status_code=404, detail='Chat session not found')
-        if selected_image_id is not None:
+        for selected_image_id in selected_image_ids:
             try:
                 artifact = db.get_artifact(session_id, selected_image_id)
             except Exception as exc:
@@ -882,6 +898,8 @@ def update_session(session_id: str, req: ReqSessionUpdate):
                     or not artifacts.public_artifact(artifact)['available']:
                 _log_chat_error('session update failed: selected image is unavailable')
                 raise HTTPException(status_code=400, detail='Selected image is not available in this session')
+            updates['selected_image_ids'] = selected_image_ids
+            updates['selected_image_id'] = selected_image_ids[0] if selected_image_ids else None
     try:
         session = db.update_session(session_id, **updates)
     except ValueError as exc:
