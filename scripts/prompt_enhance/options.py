@@ -279,7 +279,14 @@ class Options:
     def get_model_choices():
         """Return list of display names for dropdown."""
         from .helpers import get_model_display_name
-        return [get_model_display_name(repo) for repo in Options.models.keys()]
+        from modules.llm.catalog import selections
+        return [get_model_display_name(repo) for repo in [*Options.models, *selections()]]
+
+    @staticmethod
+    def refresh_model_choices():
+        from modules.llm.catalog import refresh_models
+        refresh_models()
+        return Options.get_model_choices()
 
     @staticmethod
     def get_default_display():

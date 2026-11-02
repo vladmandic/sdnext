@@ -4,6 +4,8 @@ Run: python test/test-llm-openai.py
 All HTTP is mocked; this script does not load models or contact external servers.
 """
 
+import importlib.util
+import ast
 import io
 import json
 from pathlib import Path
@@ -16,9 +18,14 @@ from unittest.mock import Mock, patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from modules.llm import ModelRef, Request, resolve_model
+from modules.llm import Backend, ModelRef, Request, Response, resolve_model
 from modules.llm.openai import DEFAULT_MAX_TOKENS, OpenAIBackend, generation_parameters
 from modules.llm.catalog import Catalog, refresh_models
+from modules.llm.ui import bind_token_limit, bind_display_names
+
+spec = importlib.util.spec_from_file_location('llm_contract_tests', ROOT / 'test/test-llm-backends.py')
+contract_tests = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(contract_tests)
 
 
 def model_entry(model_id='Qwen/vision-thinking', image=True, output='text'):
@@ -250,6 +257,202 @@ class CatalogTests(unittest.TestCase):
             logger.log.error.assert_called_once()
             with self.assertRaises(RuntimeError):
                 refresh_models()
+
+
+class ExternalEnhanceTests(unittest.TestCase):
+    # Reuse only the fixture, not the local/cloud test cases from PR1.
+    setUp = contract_tests.EnhanceTests.setUp
+
+    def test_external_dispatch_does_not_load_local_qwen(self):
+        self.namespace['generation_parameters'] = generation_parameters
+
+        class FakeExternal(Backend):
+            def model_info(self, model):
+                return types.SimpleNamespace(vision=False)
+
+            def generate(self, model, request):
+                self.model, self.request = model, request
+                return Response('answer', reasoning='trace')
+
+        backend = FakeExternal()
+        self.namespace['get_backend'] = lambda *_args: backend
+        response = self.script.enhance(model='external/Qwen%2Flocal-thinking', prompt='question', temperature=0, seed=1, return_thinking=True)
+        self.assertEqual(response, ('answer', 'trace'))
+        self.assertEqual(backend.model, ModelRef('openai', 'Qwen/local-thinking'))
+        self.assertEqual(backend.request.parameters['temperature'], 0)
+        self.assertEqual(backend.request.parameters['max_tokens'], DEFAULT_MAX_TOKENS)
+        self.assertIsNone(backend.request.thinking)
+        self.script.load.assert_not_called()
+        self.script._generate_local.assert_not_called()
+        self.assertFalse(self.script.busy)
+
+    def test_explicit_enhancement_limit_is_not_increased(self):
+        self.namespace['generation_parameters'] = generation_parameters
+
+        class FakeExternal(Backend):
+            def model_info(self, model):
+                return types.SimpleNamespace(vision=False)
+
+            def generate(self, model, request):
+                self.request = request
+                return Response('answer')
+
+        backend = FakeExternal()
+        self.namespace['get_backend'] = lambda *_args: backend
+        result = self.script.enhance(model='external/Qwen', prompt='question', seed=1, max_tokens=128, default_max_tokens=8192)
+        self.assertEqual(result, 'answer')
+        self.assertEqual(backend.request.parameters['max_tokens'], 128)
+
+    def test_enhancement_ui_changes_only_untouched_defaults(self):
+        namespace = {'gr': types.SimpleNamespace(update=lambda **kwargs: kwargs), 'DEFAULT_MAX_TOKENS': DEFAULT_MAX_TOKENS, 'get_model_repo_from_display': lambda value: value}
+        cls = contract_tests.load_consumer('scripts/prompt_enhance_ext.py', 'PromptEnhanceScript', ['update_token_limit'], namespace)
+        script = cls()
+        script.options = types.SimpleNamespace(max_tokens=512)
+        self.assertEqual(script.update_token_limit('external/Qwen', 512, False), {'value': DEFAULT_MAX_TOKENS})
+        self.assertEqual(script.update_token_limit('external/Qwen', 128, True), {'value': 128})
+        self.assertEqual(script.update_token_limit('Qwen/local', DEFAULT_MAX_TOKENS, False), {'value': 512})
+
+    def test_structured_remote_output_is_not_cleaned_as_prose(self):
+        self.namespace['generation_parameters'] = generation_parameters
+
+        class FakeExternal(Backend):
+            def model_info(self, model):
+                return types.SimpleNamespace(vision=False)
+
+            def generate(self, model, request):
+                return Response(self.answer)
+
+        backend = FakeExternal()
+        self.namespace['get_backend'] = lambda *_args: backend
+        self.script.clean = Mock(side_effect=AssertionError('must not apply prose cleanup'))
+        for style, answer in [('JSON', '{"prompt": "A red fox"}'), ('None', '["Scene 1: A red fox", "Scene 2: A blue lake"]'), ('Standard', 'Scene 1: A red fox')]:
+            with self.subTest(style=style):
+                backend.answer = answer
+                response = self.script.enhance(model='external/Qwen', prompt='question', seed=1, prompt_style=style)
+                self.assertEqual(response, answer)
+
+
+class StoryBudgetTests(unittest.TestCase):
+    def test_every_external_story_stage_uses_shared_policy(self):
+        for slide_count in (4, 99):
+            with self.subTest(slide_count=slide_count):
+                requests = []
+
+                def enhance(requests=requests, **kwargs):
+                    requests.append(generation_parameters(kwargs.get('max_tokens'), 0.75, default_max_tokens=kwargs.get('default_max_tokens')))
+                    return 'answer'
+
+                enhancer = types.SimpleNamespace(session=lambda _model: __import__('contextlib').nullcontext(object()), enhance=enhance)
+                namespace = {
+                    'ExitStack': __import__('contextlib').ExitStack, 'time': __import__('time'), 'log': Mock(), 'debug_log': Mock(),
+                    'shared': types.SimpleNamespace(state=types.SimpleNamespace(begin=Mock(), end=Mock()), sd_model=object()),
+                    'extra_networks': types.SimpleNamespace(re_extra_net=__import__('re').compile(r'<[^>]+>')),
+                    'get_model_repo_from_display': lambda name: name, 'is_vision_model': lambda _model: True,
+                    'processing': types.SimpleNamespace(get_fixed_seed=lambda value: value, process_init=Mock()),
+                }
+                cls = contract_tests.load_consumer('scripts/story.py', 'StoryScript', ['process'], namespace)
+                script = cls()
+                script.get_enhancer = lambda _p, enhancer=enhancer: enhancer
+                script.get_control_image = lambda _p: object()
+                script.parse_frame_prompts = lambda _response, _count: ['one', 'two']
+                p = types.SimpleNamespace(all_prompts=['story'], all_negative_prompts=['negative'], seed=1, extra_generation_params={})
+                script.process(p, True, slide_count, 'external/Qwen', True, True, False)
+                self.assertIsNone(p.story_mode_error)
+                self.assertEqual(len(requests), 4) # caption, story planning, two enhanced frames
+                self.assertEqual([request['max_tokens'] for request in requests], [DEFAULT_MAX_TOKENS, max(DEFAULT_MAX_TOKENS, min(8192, 256 + slide_count * 128)), DEFAULT_MAX_TOKENS, DEFAULT_MAX_TOKENS])
+
+
+class SavedTokenLimitTests(unittest.TestCase):
+    def test_display_aliases_restore_and_save_only_canonical_ids(self):
+        class Dropdown:
+            visible = True
+            label = 'LLM model'
+            choices = ['local/model', 'llm.example.com/one', 'llm.example.com/two']
+            value = 'local/model'
+
+        gr = types.SimpleNamespace(Dropdown=Dropdown)
+        for name in ('Slider', 'Radio', 'Checkbox', 'Textbox', 'Number', 'Button', 'Accordion', 'Tabs'):
+            setattr(gr, name, type(name, (), {}))
+        namespace = {'gr': gr, 'ToolButton': type('ToolButton', (), {}), 'debug_ui': False, 'log': Mock()}
+        cls = contract_tests.load_consumer('modules/ui_loadsave.py', 'UiLoadsave', ['add_component', 'iter_all', 'iter_changes', 'ui_apply'], namespace)
+        loader = cls()
+        loader.filename = 'not-written.json'
+        loader.ui_settings = {'enhancer/LLM model/value': 'external/one'}
+        loader.ui_defaults, loader.component_mapping, loader.component_open = {}, {}, {}
+        component = Dropdown()
+        labels = {'external/one': 'llm.example.com/one', 'external/two': 'llm.example.com/two'}
+        ids = {label: selection for selection, label in labels.items()}
+        bind_display_names(component, lambda value: labels.get(value, value), lambda value: ids.get(value, value))
+        loader.add_component('enhancer/LLM model', component)
+        self.assertEqual(component.value, 'llm.example.com/one')
+        self.assertEqual(loader.iter_all(['llm.example.com/one']), [None])
+        changes = list(loader.iter_changes(['llm.example.com/two']))
+        self.assertEqual(changes[0][2], 'external/two')
+        loader.read_from_file = lambda: dict(loader.ui_settings)
+        loader.write_to_file = Mock()
+        loader.ui_apply('llm.example.com/two')
+        loader.write_to_file.assert_called_once_with({'enhancer/LLM model/value': 'external/two'})
+
+    def test_only_the_restored_active_tab_controls_caption_defaults(self):
+        for selected, caption, analyze in [(0, 'external/Caption', 'Qwen/local'), (1, 'Qwen/local', 'external/Analyze')]:
+            for saved_limit in (None, 128):
+                with self.subTest(selected=selected, saved_limit=saved_limit):
+                    modes = types.SimpleNamespace(selected=selected)
+                    model = types.SimpleNamespace(value='Qwen/local')
+                    analyze_model = types.SimpleNamespace(value='Qwen/local')
+                    limit = types.SimpleNamespace(value=512)
+                    explicit = types.SimpleNamespace(value=False)
+                    active = types.SimpleNamespace(value='Qwen/local')
+                    bind_token_limit(model, limit, explicit, 512, active_model=active, is_active=lambda modes=modes: modes.selected == 0)
+                    bind_token_limit(analyze_model, limit, explicit, 512, active_model=active, is_active=lambda modes=modes: modes.selected == 1)
+                    # UiLoadsave traverses caption model, shared slider, analyze model.
+                    model.init_field(caption)
+                    if saved_limit is not None:
+                        limit.value = saved_limit
+                        limit.init_field(saved_limit)
+                    analyze_model.init_field(analyze)
+                    self.assertEqual(active.value, caption if selected == 0 else analyze)
+                    self.assertEqual(limit.value, DEFAULT_MAX_TOKENS if saved_limit is None else saved_limit)
+
+    def test_saved_model_and_explicit_cap_restoration(self):
+        """Exercise the real UiLoadsave path, which does not emit input events."""
+        class Slider:
+            visible = True
+            label = 'Max tokens'
+            minimum, maximum, step = 10, 32768, 1
+            value = 512
+
+        class Dropdown:
+            visible = True
+            label = 'LLM model'
+            choices = ['Qwen/local', 'external/Qwen']
+            value = 'Qwen/local'
+
+        gr = types.SimpleNamespace(Slider=Slider, Dropdown=Dropdown)
+        for name in ('Radio', 'Checkbox', 'Textbox', 'Number', 'Button', 'Accordion', 'Tabs'):
+            setattr(gr, name, type(name, (), {}))
+        namespace = {'gr': gr, 'ToolButton': type('ToolButton', (), {}), 'debug_ui': False, 'log': Mock()}
+        cls = contract_tests.load_consumer('modules/ui_loadsave.py', 'UiLoadsave', ['add_component'], namespace)
+        for saved_limit in (None, 128, 512):
+            with self.subTest(saved_limit=saved_limit):
+                loader = cls()
+                loader.ui_settings = {'enhancer/LLM model/value': 'external/Qwen'}
+                if saved_limit is not None:
+                    loader.ui_settings['enhancer/Max tokens/value'] = saved_limit
+                loader.ui_defaults, loader.component_mapping, loader.component_open = {}, {}, {}
+                model, limit = Dropdown(), Slider()
+                explicit = types.SimpleNamespace(value=False)
+                active_model = types.SimpleNamespace(value='Qwen/local')
+                bind_token_limit(model, limit, explicit, 512, active_model=active_model)
+                loader.add_component('enhancer/LLM model', model)
+                loader.add_component('enhancer/Max tokens', limit)
+                self.assertEqual(model.value, 'external/Qwen')
+                self.assertEqual(active_model.value, 'external/Qwen')
+                self.assertEqual(limit.value, DEFAULT_MAX_TOKENS if saved_limit is None else saved_limit)
+                self.assertEqual(explicit.value, saved_limit is not None)
+                # A later model restoration must not overwrite an explicit cap.
+                model.init_field('external/Qwen')
+                self.assertEqual(limit.value, DEFAULT_MAX_TOKENS if saved_limit is None else saved_limit)
 
 
 if __name__ == '__main__':

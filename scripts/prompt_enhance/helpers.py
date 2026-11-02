@@ -2,6 +2,7 @@ import base64
 import io
 import gradio as gr
 from modules import ui_symbols
+from modules.llm.catalog import is_external, model_info, display_name as external_display_name, resolve_display_name
 from .options import Options
 
 
@@ -27,6 +28,9 @@ def is_vision_model(model_name: str) -> bool:
     """Check if model supports vision/image input."""
     if not model_name:
         return False
+    if is_external(model_name):
+        info = model_info(model_name)
+        return info is not None and info.vision and info.text_generation
     return model_name in Options.img2img or model_name in Options.cloud
 
 
@@ -34,6 +38,8 @@ def is_thinking_model(model_name: str) -> bool:
     """Check if model supports thinking/reasoning mode."""
     if not model_name:
         return False
+    if is_external(model_name):
+        return False # Unknown request-side controls, regardless of the model name.
     model_lower = model_name.lower().replace('-', '')
     # Match VQA's detection patterns for consistency
     thinking_indicators = [
@@ -53,6 +59,9 @@ def is_thinking_model(model_name: str) -> bool:
 def get_model_display_name(model_repo: str) -> str:
     """Generate display name with vision/reasoning symbols."""
     symbols = []
+    if is_external(model_repo):
+        label = external_display_name(model_repo)
+        return f'{label} {ui_symbols.vision}' if is_vision_model(model_repo) else label
     if model_repo in Options.img2img:
         symbols.append(ui_symbols.vision)
     if model_repo in Options.cloud:
@@ -69,7 +78,21 @@ def get_model_repo_from_display(display_name: str) -> str:
     result = display_name
     for symbol in [ui_symbols.vision, ui_symbols.reasoning, ui_symbols.cloud]:
         result = result.replace(symbol, '')
-    return result.strip()
+    return resolve_display_name(result.strip())
+
+
+def model_value_to_config(value):
+    if not value:
+        return value
+    repo = get_model_repo_from_display(value)
+    return repo if is_external(repo) else value
+
+
+def model_value_from_config(value):
+    if not value:
+        return value
+    repo = get_model_repo_from_display(value)
+    return get_model_display_name(repo) if is_external(repo) else value
 
 
 def keep_think_block_open(text_prompt: str) -> str:

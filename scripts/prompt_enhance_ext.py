@@ -7,15 +7,18 @@ import transformers
 import gradio as gr
 from PIL import Image
 from modules import scripts_manager, shared, devices, errors, processing, sd_models, sd_modules, timer, extra_networks, sd_hijack_te
-from modules import ui_control_helpers
+from modules import ui_control_helpers, ui_common
 from modules.sd_offload_aux import register_aux, deregister_aux, move_aux_to_gpu, offload_aux
 from modules.logger import log
 from modules.caption.logits import LogitsParser
 from modules.caption.attention import set_attention
 from modules.caption import helpers
 from modules.llm import Request, Response, Session, get_backend, resolve_model
+from modules.llm.catalog import is_external
+from modules.llm.openai import DEFAULT_MAX_TOKENS, generation_parameters
+from modules.llm.ui import bind_token_limit, bind_display_names
 from scripts.prompt_enhance.options import Options
-from scripts.prompt_enhance.helpers import is_cloud_model, is_vision_model, is_thinking_model, get_model_repo_from_display
+from scripts.prompt_enhance.helpers import is_cloud_model, is_vision_model, is_thinking_model, get_model_repo_from_display, model_value_to_config, model_value_from_config
 from scripts.prompt_enhance.template import set_template, get_system_prompt
 
 
@@ -54,7 +57,7 @@ class PromptEnhanceScript(scripts_manager.Script):
         if self.busy:
             log.debug('Prompt enhance: busy')
             return model_repo
-        if is_cloud_model(name):
+        if is_cloud_model(name) or is_external(name):
             return model_repo
         if (self.model is not None) and (self.model == name):
             return model_repo
@@ -357,6 +360,7 @@ class PromptEnhanceScript(scripts_manager.Script):
                 prompt_style: str = 'Standard',
                  return_thinking: bool = False,
                  llm_session: Session | None = None,
+                 default_max_tokens: int | None = None,
                ):
         thinking_output = ''
 
@@ -366,8 +370,17 @@ class PromptEnhanceScript(scripts_manager.Script):
         # Strip symbols from model name if present
         model = get_model_repo_from_display(model) if model else self.options.default
         model_ref = resolve_model(model)
+        external = is_external(model)
         if llm_session is not None and llm_session.model != model_ref:
             raise ValueError('LLM session model does not match enhancement model')
+        if external:
+            try:
+                info = get_backend(model_ref).model_info(model_ref)
+                if use_vision and image is not None and not info.vision:
+                    raise ValueError('Selected external model does not advertise image input')
+            except Exception as e:
+                log.error(f'Prompt enhance: {e}')
+                return result(f'Error: {e}')
         prompt = prompt or (self.prompt.value if self.prompt else "") # Check if self.prompt is None
         if use_vision and is_vision_model(model): # handle vision toggle
             image = image or self.image
@@ -376,9 +389,9 @@ class PromptEnhanceScript(scripts_manager.Script):
         prefix = prefix or ''
         suffix = suffix or ''
         min_tokens = min_tokens or self.options.min_tokens
-        max_tokens = max_tokens or self.options.max_tokens
+        max_tokens = max_tokens if external else max_tokens or self.options.max_tokens
         penalty = penalty or self.options.repetition_penalty
-        temperature = temperature or self.options.temperature
+        temperature = temperature if external and temperature is not None else temperature or self.options.temperature
         top_k = top_k if top_k is not None else self.options.top_k
         top_p = top_p if top_p is not None else self.options.top_p
         thinking = thinking or self.options.thinking_mode
@@ -390,14 +403,14 @@ class PromptEnhanceScript(scripts_manager.Script):
         while self.busy:
             time.sleep(0.1)
 
-        if not is_cloud_model(model):
+        if not is_cloud_model(model) and not external:
             self.load(model, use_openai=use_openai)
 
         if seed is None or seed == -1:
             random.seed()
             seed = int(random.randrange(4294967294))
         torch.manual_seed(seed)
-        if (self.llm is None) and (not is_cloud_model(model)):
+        if (self.llm is None) and (not is_cloud_model(model)) and not external:
             log.error('Prompt enhance: model not loaded')
             return result(prompt)
         prompt_text, networks = self.extract(prompt) # Use prompt_text after extraction
@@ -441,16 +454,18 @@ class PromptEnhanceScript(scripts_manager.Script):
         t0 = time.time()
         self.busy = True
 
-        if is_cloud_model(model):
+        if is_cloud_model(model) or external:
             has_prompt = (prompt_text is not None) and (len(prompt_text) > 4)
             has_prefill = (prefill_text is not None) and (len(prefill_text) > 4)
-            system = get_system_prompt(system, self.options, nsfw, has_prompt=has_prompt, is_video=self.parent=='video', is_image=current_image is not None, thinking=thinking)
+            system = get_system_prompt(system, self.options, nsfw, has_prompt=has_prompt, is_video=self.parent=='video', is_image=current_image is not None, thinking=thinking, **({'prompt_style': prompt_style} if external else {}))
             debug_log(f'Prompt enhance: prompt="{prompt_text}"')
             kwargs = {'temperature': temperature}
             if model_ref.provider == 'gemini':
                 kwargs.update(min_output_tokens=min_tokens, max_output_tokens=max_tokens)
             try:
-                request = Request(prompt=prompt_text, system=system, image=current_image, prefill=prefill_text, thinking=thinking, parameters=kwargs)
+                if external:
+                    kwargs = generation_parameters(max_tokens, temperature, sample=sample, top_k=top_k, top_p=top_p, penalty=penalty, seed=seed, min_tokens=min_tokens, custom_args=custom_args, process_words=process_words, default_max_tokens=default_max_tokens)
+                request = Request(prompt=prompt_text, system=system, image=current_image, prefill=prefill_text, thinking=(thinking or None) if external else thinking, parameters=kwargs)
                 if llm_session is None:
                     with self.session(model) as session:
                         generated = session.generate(request)
@@ -458,12 +473,31 @@ class PromptEnhanceScript(scripts_manager.Script):
                     generated = llm_session.generate(request)
                 response = generated.text
                 thinking_output, answer = self.extract_thinking(response)
+                if external:
+                    thinking_output = generated.reasoning or thinking_output
+                    log.debug(f'External LLM: model="{model}" max_tokens={kwargs["max_tokens"]} usage={generated.usage}')
+                    # Remote output may be JSON or story arrays. Do not apply
+                    # local prose heuristics (colon/list/markdown stripping).
+                    response = answer.strip()
+                    if prefill_text:
+                        if keep_prefill and not response.startswith(prefill_text):
+                            sep = '' if not response or response[0] in '.,!?;:' else ' '
+                            response = f'{prefill_text}{sep}{response}'
+                        elif not keep_prefill and response.startswith(prefill_text):
+                            response = response[len(prefill_text):].strip()
+                    response = self.post(response, prefix, suffix, networks)
+                    answer = response
                 if thinking_output:
                     response = f'Reasoning:\n{thinking_output}\n\nAnswer:\n{answer}' if keep_thinking else answer
                 t1 = time.time()
                 log.info(f'Prompt enhance: model="{model}" nsfw={nsfw} time={t1-t0:.2f} prompt={has_prompt} prefill={has_prefill} image={current_image} thinking={thinking} response={len(response)}')
                 debug_log(f'Prompt enhance: response="{response}"')
                 return result(response)
+            except Exception as e:
+                if not external:
+                    raise
+                log.error(f'Prompt enhance: {e}')
+                return result(f'Error: {e}')
             finally:
                 self.busy = False
 
@@ -705,6 +739,8 @@ class PromptEnhanceScript(scripts_manager.Script):
     def get_custom(self, name):
         # Strip symbols from display name to get repo
         repo_name = get_model_repo_from_display(name)
+        if is_external(repo_name):
+            return [None, None, None, None]
         model_repo = self.options.models.get(repo_name, {}).get('repo', None) or repo_name
         model_gguf = self.options.models.get(repo_name, {}).get('gguf', None)
         model_type = self.options.models.get(repo_name, {}).get('type', None)
@@ -718,6 +754,21 @@ class PromptEnhanceScript(scripts_manager.Script):
         if not is_vl:
             return gr.update(interactive=False, value=False)
         return gr.update(interactive=is_vl)
+
+    def update_backend_controls(self, model_name):
+        external = is_external(get_model_repo_from_display(model_name))
+        updates = [gr.update(interactive=not external) for _ in range(3)]
+        updates += [gr.update(interactive=False, value=False) if external else gr.update(interactive=True)]
+        updates += [gr.update(interactive=False, value=0) if external else gr.update(interactive=True)]
+        updates += [gr.update(interactive=False, value='') if external else gr.update(interactive=True) for _ in range(2)]
+        updates += [gr.update(interactive=False, value=0) if external else gr.update(interactive=True) for _ in range(2)]
+        updates += [gr.update(interactive=not external)]
+        return updates
+
+    def update_token_limit(self, model_name, current_limit, explicit):
+        """Only replace provider defaults, never a limit entered by the user."""
+        limit = DEFAULT_MAX_TOKENS if is_external(get_model_repo_from_display(model_name)) else self.options.max_tokens
+        return gr.update(value=current_limit if explicit else limit)
 
     def ui(self, _is_img2img):
         with gr.Accordion('Prompt enhance', open=False, elem_id='prompt_enhance'):
@@ -737,6 +788,7 @@ class PromptEnhanceScript(scripts_manager.Script):
             with gr.Group():
                 with gr.Row():
                     llm_model = gr.Dropdown(label='LLM model', choices=Options.get_model_choices(), value=Options.get_default_display(), interactive=True, allow_custom_value=True, elem_id='prompt_enhance_model')
+                    ui_common.create_refresh_button(llm_model, Options.refresh_model_choices, elem_id='prompt_enhance_refresh')
                 with gr.Row():
                     load_btn = gr.Button(value='Load model', elem_id='prompt_enhance_load', variant='secondary')
                     load_btn.click(fn=self.load, inputs=[llm_model, use_openai], outputs=[])
@@ -759,7 +811,9 @@ class PromptEnhanceScript(scripts_manager.Script):
                 with gr.Accordion('Options', open=False, elem_id='prompt_enhance_options'):
                     with gr.Row():
                         min_tokens = gr.Slider(label='Min tokens', value=self.options.min_tokens, minimum=0, maximum=4096, step=1, interactive=True)
-                        max_tokens = gr.Slider(label='Max tokens', value=self.options.max_tokens, minimum=10, maximum=4096, step=1, interactive=True)
+                        max_tokens = gr.Slider(label='Max tokens', value=self.options.max_tokens, minimum=10, maximum=32768, step=1, interactive=True, elem_id='prompt_enhance_max_tokens')
+                        token_limit_explicit = gr.State(False)
+                        max_tokens.input(fn=lambda: True, inputs=[], outputs=[token_limit_explicit], show_progress=False)
                         do_sample = gr.Checkbox(label='Use samplers', value=self.options.do_sample, interactive=True)
                     with gr.Row():
                         temperature = gr.Slider(label='Temperature', value=self.options.temperature, minimum=0.0, maximum=1.0, step=0.01, interactive=True)
@@ -806,6 +860,10 @@ class PromptEnhanceScript(scripts_manager.Script):
                 self.image = gr.Image(type='pil', interactive=False, visible=False, width=64, height=64) # dummy image
             # Update vision toggle interactivity when model changes
             llm_model.change(fn=self.update_vision_toggle, inputs=[llm_model], outputs=[use_vision], show_progress=False)
+            llm_model.change(fn=self.update_backend_controls, inputs=[llm_model], outputs=[load_btn, unload_btn, use_openai, thinking_mode, min_tokens, custom_args, process_words, semantic_threshold, embedding_similarity, custom_btn], show_progress=False)
+            llm_model.change(fn=self.update_token_limit, inputs=[llm_model, max_tokens, token_limit_explicit], outputs=[max_tokens], show_progress=False)
+            bind_token_limit(llm_model, max_tokens, token_limit_explicit, self.options.max_tokens, get_model_repo_from_display)
+            bind_display_names(llm_model, model_value_from_config, model_value_to_config)
             if self.prompt:
                 apply_btn.click(fn=self.apply, inputs=[self.prompt, self.image, apply_prompt, llm_model, prompt_system, prompt_prefix, prompt_suffix, min_tokens, max_tokens, do_sample, temperature, repetition_penalty, top_k, top_p, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking, custom_args, process_words, semantic_threshold, embedding_similarity, use_openai, prompt_style], outputs=[prompt_output, self.prompt, self.thinking_output])
         return [self.prompt, self.image, apply_auto, llm_model, prompt_system, prompt_prefix, prompt_suffix, min_tokens, max_tokens, do_sample, temperature, repetition_penalty, top_k, top_p, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking, custom_args, process_words, semantic_threshold, embedding_similarity, use_openai, prompt_style]

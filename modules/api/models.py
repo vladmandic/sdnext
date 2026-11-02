@@ -378,11 +378,20 @@ class ReqPromptEnhance(BaseModel):
     process_words: Optional[str] = Field(title="Banned words", default=None, description="List of words to process")
     semantic_threshold: Optional[float] = Field(title="Semantic threshold", default=None, description="Semantic similarity threshold for processed words")
     embedding_similarity: Optional[float] = Field(title="Embedding similarity", default=None, description="Embedding similarity threshold for processed words")
-    use_openai: Optional[bool] = Field(title="Use OpenAI", default=False, description="Use OpenAI API for model access")
+    use_openai: Optional[bool] = Field(title="Use OpenAI", default=False, description="Expose the in-process LLM through SD.Next's OpenAI-compatible server; not needed for external/ models")
 
 class ResPromptEnhance(BaseModel):
     prompt: str = Field(title="Prompt", description="Enhanced prompt")
     seed: int = Field(title="Seed", description="Seed used to generate the prompt")
+
+class ItemPromptEnhanceModel(BaseModel):
+    name: str = Field(description="Model selection identifier")
+    vision: bool = Field(description="Whether image input is supported")
+    thinking: bool | None = Field(default=None, description="Request-side reasoning control support; null means unknown")
+    provider: str | None = Field(default=None, description="External inference provider")
+    model_id: str | None = Field(default=None, description="Original remote model ID")
+    display_name: str | None = Field(default=None, description="Remote server's friendly model name")
+    context_length: int | None = Field(default=None, description="Advertised remote serving context length")
 
 class ReqProcessImage(ReqProcess):
     image: str = Field(..., title="Image", description="Image to work on, must be a Base64 string containing the image's data.")

@@ -8,10 +8,12 @@ from collections import defaultdict
 from contextlib import ExitStack
 import gradio as gr
 from PIL import Image
-from modules import scripts_manager, shared, processing, extra_networks
+from modules import scripts_manager, shared, processing, extra_networks, ui_common
 from modules.logger import log
+from modules.llm.catalog import is_external
+from modules.llm.ui import bind_display_names
 from scripts.prompt_enhance.options import Options
-from scripts.prompt_enhance.helpers import is_vision_model, get_model_repo_from_display
+from scripts.prompt_enhance.helpers import is_vision_model, get_model_repo_from_display, model_value_to_config, model_value_from_config
 
 
 debug_log = log.trace if os.environ.get('SD_STORY_DEBUG', None) is not None else lambda *args, **kwargs: None
@@ -25,15 +27,17 @@ class StoryScript(scripts_manager.Script):
         return scripts_manager.AlwaysVisible if self.is_control else False
 
     def ui(self, _is_img2img):
-        vision_models = [model for model in Options.get_model_choices()if is_vision_model(get_model_repo_from_display(model))]
+        models = Options.get_model_choices()
         default_model = Options.get_default_display()
-        if default_model not in vision_models:
-            default_model = vision_models[0] if vision_models else ''
+        if default_model not in models:
+            default_model = models[0] if models else ''
         with gr.Accordion('Story mode', open=False, elem_id='story_mode'):
             with gr.Row():
                 enabled = gr.Checkbox(label='Story mode enabled', value=False, elem_id='story_enabled')
             with gr.Row():
-                llm_model = gr.Dropdown(label='LLM model', choices=vision_models, value=default_model)
+                llm_model = gr.Dropdown(label='LLM model', choices=models, value=default_model)
+                bind_display_names(llm_model, model_value_from_config, model_value_to_config)
+                ui_common.create_refresh_button(llm_model, Options.refresh_model_choices, elem_id='story_llm_refresh')
             with gr.Row():
                 with gr.Group():
                     slide_count = gr.Slider(label='Number of slides', value=4, minimum=2, maximum=99, step=1, elem_id='story_slide_count')
@@ -157,11 +161,12 @@ class StoryScript(scripts_manager.Script):
             story_context = story_prompt
             log.info(f'Story: slides={slide_count} model="{model}" image={control_image} captions={use_captions} reference={use_reference}')
             debug_log(f'Story: prompt="{story_prompt}"')
-            if not is_vision_model(model):
+            llm_session = llm_work.enter_context(enhancer.session(model))
+            needs_vision = use_reference or ((use_captions or not story_prompt) and control_image is not None)
+            if needs_vision and not is_vision_model(model):
                 raise RuntimeError(f'Story: model="{model}" is not a vision model')
             if use_reference and control_image is None:
                 raise RuntimeError('Story: image=None reference=True reference requires image')
-            llm_session = llm_work.enter_context(enhancer.session(model))
 
             # caption
             if (use_captions or not story_prompt) and control_image is not None:
@@ -249,7 +254,8 @@ class StoryScript(scripts_manager.Script):
                 prompt=story_context,
                 model=model,
                 system=story_system,
-                max_tokens=story_max_tokens,
+                max_tokens=None if is_external(model) else story_max_tokens,
+                default_max_tokens=story_max_tokens,
                 image=control_image if use_reference else None,
                 use_vision=bool(use_reference and control_image is not None),
                 prompt_style='None',

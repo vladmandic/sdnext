@@ -34,7 +34,10 @@ class UiLoadsave:
             if getattr(obj, 'do_not_save_to_config', False):
                 return
             saved_value = self.ui_settings.get(key, None)
-            self.ui_defaults[key] = getattr(obj, field)
+            to_config = getattr(obj, 'value_to_config', lambda value: value) if field == 'value' else lambda value: value
+            self.ui_defaults[key] = to_config(getattr(obj, field))
+            if saved_value is not None and field == 'value':
+                saved_value = getattr(obj, 'value_from_config', lambda value: value)(saved_value)
             if saved_value is None:
                 pass
             elif condition and not condition(saved_value):
@@ -59,7 +62,7 @@ class UiLoadsave:
         if type(x) == gr.Accordion:
             apply_field(x, 'open')
         if type(x) == gr.Slider:
-            apply_field(x, 'value')
+            apply_field(x, 'value', init_field=getattr(x, 'init_field', None))
             apply_field(x, 'minimum')
             apply_field(x, 'maximum')
             apply_field(x, 'step')
@@ -144,6 +147,7 @@ class UiLoadsave:
                 if new_value >= len(choices):
                     updates.append(None)
                 new_value = choices[new_value]
+            new_value = getattr(component, 'value_to_config', lambda value: value)(new_value)
             old_value = self.ui_settings.get(name, None)
             default_value = self.ui_defaults.get(name, '')
             if old_value == new_value:
@@ -168,6 +172,7 @@ class UiLoadsave:
                 if new_value >= len(choices):
                     continue
                 new_value = choices[new_value]
+            new_value = getattr(component, 'value_to_config', lambda value: value)(new_value)
             old_value = self.ui_settings.get(name, None)
             default_value = self.ui_defaults.get(name, '')
             if old_value == new_value:

@@ -83,6 +83,7 @@ class Api:
         self.add_api_route("/sdapi/v1/detect", self.process.post_detect, methods=["POST"], response_model=process.ResFace, tags=["Processing"])
         self.add_api_route("/sdapi/v1/detail", self.process.post_detail, methods=["POST"], response_model=models.ResDetail, tags=["Processing"])
         self.add_api_route("/sdapi/v1/prompt-enhance", self.process.post_prompt_enhance, methods=["POST"], response_model=models.ResPromptEnhance, tags=["Generation"])
+        self.add_api_route("/sdapi/v1/prompt-enhance", self.process.get_prompt_enhance_models, methods=["GET"], response_model=list[models.ItemPromptEnhanceModel], tags=["Generation"])
 
         # api dealing with optional scripts
         self.add_api_route("/sdapi/v1/scripts", script.get_scripts_list, methods=["GET"], response_model=models.ResScripts, tags=["Scripts"])

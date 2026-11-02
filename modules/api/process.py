@@ -258,14 +258,17 @@ class APIProcess:
         res = models.ResPromptEnhance(prompt=prompt, seed=seed)
         return res
 
-    def get_prompt_enhance_models(self):
+    def get_prompt_enhance_models(self) -> list[dict]:
         """
         List available prompt enhancement models.
 
         Returns model repository IDs with capability flags indicating vision
         (image-conditioned enhancement) and thinking (reasoning mode) support.
         """
-        from scripts.prompt_enhance import Options, is_vision_model, is_thinking_model # pylint: disable=no-name-in-module
+        from modules.llm.catalog import refresh_models, selections
+        from scripts.prompt_enhance.options import Options
+        from scripts.prompt_enhance.helpers import is_vision_model, is_thinking_model
+        refresh_models(tolerate_errors=True)
         result = []
         for repo in Options.models.keys():
             result.append({
@@ -273,6 +276,8 @@ class APIProcess:
                 "vision": is_vision_model(repo),
                 "thinking": is_thinking_model(repo),
             })
+        for selection, info in selections().items():
+            result.append({'name': selection, 'provider': info.ref.provider, 'model_id': info.ref.model_id, 'display_name': info.name, 'vision': info.vision, 'thinking': info.thinking, 'context_length': info.context_length})
         return result
 
     def set_upscalers(self, req: dict):
