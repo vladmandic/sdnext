@@ -1,10 +1,13 @@
 # Change Log for SD.Next
 
-## Update for 2026-11-02
+## Update for 2026-11-03
 
 - **Chat**:
   New top-level interface: use chat to interact with SD.Next in a conversational manner  
   See [chat docs](https://vladmandic.github.io/sdnext-docs/Chat/) for more details  
+- **Coding**  
+  expand ai/ml instructions and skills  
+  see [instructions](https://github.com/vladmandic/sdnext/blob/dev/AGENTS.md) and [skills](https://github.com/vladmandic/sdnext/blob/dev/.github/skills/README.md) for details  
 - **Video**: Major cleanup of video encoding end-to-end
   - *av* installs with the core requirements
   - new endpoint `GET /sdapi/v1/video/codecs`

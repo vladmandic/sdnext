@@ -44,6 +44,10 @@ This folder contains repo-local Copilot skills for recurring SD.Next tasks.
   File: `check-scripts/SKILL.md`
   Use when auditing `scripts/*.py` for correct Script overrides (`__init__`, `title`, `show`) and verifying `ui()` output compatibility with `run()` or `process()` parameters.
 
+- `scripts`
+  File: `scripts/SKILL.md`
+  Use when creating or modifying SD.Next files under `scripts/*`; distinguishes generation scripts, postprocessing scripts, and standalone utilities, and refers to `check-scripts` for audits.
+
 - `github-issues`
   File: `github-issues/SKILL.md`
   Use when reading SD.Next GitHub issues with `[Issues]` in title and producing a markdown summary with status and suggested next steps for each issue.

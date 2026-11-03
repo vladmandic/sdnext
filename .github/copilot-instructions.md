@@ -1,17 +1,28 @@
-# SD.Next: AGENTS.md Project Guidelines
+# SD.Next: Project Guidelines
 
-**SD.Next** is a complex codebase with specific patterns and conventions.
+*NOTE: this document is provided in two copies as `AGENTS.md` and `.github/copilot-instructions.md`*.  
+
+All instructions files are in `.github/instructions/`.  
+All skill files are in `.github/skills`.  
+
 General app structure is:
 - **Python** backend server  
   Uses **Torch** for model inference, **FastAPI** for API routes and **Gradio** for creation of UI components.  
-- **JavaScript**/**CSS** frontend  
+- **TypeScript**/**CSS** frontend  
 
 ## Instructions
 
 This file contains general guidelines for contributing to the SD.Next codebase, including conventions, tools, and project structure. For more specific guidance on working with particular areas of the codebase, please refer to the instructions files linked below:
-- [Core Runtime Guidelines](instructions/core.instructions.md): Use when editing Python core runtime code, startup flow, model loading, API internals, backend/device logic, or shared state in modules and pipelines.
+- [Core Runtime Guidelines](instructions/core.instructions.md): Use when editing Python core runtime code, startup flow, model loading, API internals, backend/device logic, or shared state in modules and pipelines. Keep logic changes narrow; end-to-end parameter changes may span modules, and each affected module and its reason should be listed in the final summary.
+- [Processing Workflow Guidelines](instructions/processing.instructions.md): Use when changing generation processing parameters, processing objects, workflow dispatch, or UI-to-backend processing paths.
+- [Model Loading Guidelines](instructions/model-loading.instructions.md): Use when changing model detection, loading, component downloads, cache routing, quantization, or offload behavior.
+- [LoRA Integration Guidelines](instructions/lora.instructions.md): Use when changing LoRA discovery, metadata detection, prompt parsing, loading strategy, activation, weight application, or UI integration.
+- [Scheduler Integration Guidelines](instructions/scheduler.instructions.md): Use when changing scheduler classes, sampler registration or configuration, scheduler compatibility, or scheduler option wiring.
+- [Chat Feature Guidelines](instructions/chat.instructions.md): Use when changing the optional chat feature, including its API, command parsing, persistence, operations, or artifacts.
+- [API Development Guidelines](instructions/api.instructions.md): Use when adding or changing FastAPI routes, request/response contracts, route registration, authentication, or API handlers.
 - [UI And Frontend Guidelines](instructions/ui.instructions.md): Use when editing frontend UI code, JavaScript, HTML, CSS, localization files, or built-in UI extensions including modernui and kanvas.
 - [Hint Typography Guidelines](instructions/hints.instructions.md): Use when editing hint text or other UI strings in the English source file `ui/locale/locale_en.json`; manual locale overrides are out of scope.
+- [SDNQ Quantization Guidelines](instructions/sdnq.instructions.md): Use when changing SDNQ quantization, pre-quantized model loading, SDNQ attention, device placement, or quantized component behavior.
 
 ## Agent Guidelines
 
@@ -33,10 +44,20 @@ This file contains general guidelines for contributing to the SD.Next codebase, 
   venv MUST be activated before running any Python commands or scripts to ensure correct dependencies and environment variables.  
 - `python` 3.11+.
 - `pyproject.toml` for Python configuration, including linting and type checking settings.
-- `eslint` configured for both core and UI code.
 - `pnpm` for managing JavaScript dependencies and scripts, with key commands defined in `package.json`.
-- `ruff` and `pylint` for Python linting, with configurations in `pyproject.toml` and executed via `pnpm ruff` and `pnpm pylint`.
-- `pre-commit` hooks which also check line-endings and other formatting issues, configured in `.pre-commit-config.yaml`.
+
+## Checks
+
+- `pre-commit` hooks which checks line-endings and other formatting issues, configured in `.pre-commit-config.yaml` and executed with `pnpm precommit`.
+- `codespell` for checking spelling errors in code and documentation, executed via `pnpm codespell`.
+- `eslint` configured for both core and UI code and executed via `pnpm eslint:core`, `pnpm eslint:modernui` or `pnpm eslint:kanvas` (depending on module).
+- `ruff` for Python linting, with configurations in `pyproject.toml` and executed via `pnpm ruff`.
+- `pylint` for Python linting, with configurations in `pyproject.toml` and executed via `pnpm pylint`.
+- `ty` for Python type checking, with configurations in `pyproject.toml` and executed via `pnpm ty`.
+- `pyright` for Python type checking, with configurations in `pyproject.toml` and executed via `pnpm pyright`.
+
+Full linting and typechecking suite is executed using `test/lint.sh`.  
+SDNext initialization and startup is tested using `./webui.sh --test`.  
 
 ## Project Structure
 
@@ -61,7 +82,7 @@ This file contains general guidelines for contributing to the SD.Next codebase, 
 - Use conventions from `CONTRIBUTING`.
 - Do not include unrelated edits or submodule changes when preparing contributions.
 - Do not inspect or modify files under `extensions/` unless the user explicitly asks; this restriction does not apply to `extensions-builtin/`.
-- Do not modify autogenerated translated locale files (`ui/locale/locale_*.json`) other than `locale_en.json`; do not inspect or modify manual override files (`ui/locale/override_*.json`).
+- `ui/locale/locale_en.json` is the editable source of truth. Leave generated translated locale files (`ui/locale/locale_*.json`, except the English source) and manual overrides (`ui/locale/override_*.json`) untouched.
 - Use existing CLI/API tool patterns in `cli/` and `test/` when adding automation scripts.
 - Respect environment-driven behavior (`SD_*` flags and options) instead of hardcoding platform/model assumptions.
 - For startup/init edits, preserve error handling and partial-failure tolerance in parallel scans and extension loading.
@@ -74,4 +95,4 @@ This file contains general guidelines for contributing to the SD.Next codebase, 
 
 ## Repo-Local Skills
 
-Repo-local skills are indexed in `.github/skills/README.md`; use that file as the canonical list. Update the index when adding or changing a skill.
+Repo-local skills are indexed in `skills/README.md`; use that file as the canonical list. Update the index when adding or changing a skill.

@@ -7,7 +7,7 @@ applyTo: "launch.py, webui.py, installer.py, modules/**/*.py, pipelines/**/*.py,
 
 1. Preserve startup ordering and import timing in `launch.py` and `webui.py`; avoid moving initialization steps unless required to fix a critical startup bug or implement a new startup feature.
 2. Treat `modules/shared.py` as the source of truth for global runtime state (`shared.opts`, model references, backend/device flags).
-3. Prefer narrow changes (changes scoped to a single function or module when feasible) with explicit side effects; avoid introducing new cross-module mutable globals.
+3. Prefer narrow changes (changes scoped to a single function or module) with explicit side effects; if the fix requires changes in more than one module, list each module and the reason in the final summary. Avoid introducing new cross-module mutable globals.
 4. Keep platform paths neutral: do not assume CUDA-only behavior and preserve ROCm/IPEX/DirectML/OpenVINO compatibility branches.
 5. Keep extension and script loading resilient: when adding startup scans/hooks, preserve partial-failure tolerance and logging.
 6. Follow existing API/server patterns under `modules/api/` and reuse shared queue/state helpers rather than ad-hoc request handling.
@@ -27,7 +27,7 @@ applyTo: "launch.py, webui.py, installer.py, modules/**/*.py, pipelines/**/*.py,
 
 ## Build And Test
 
-- Activate environment: `source venv/bin/activate` (always ensure this is active when working with Python code).
+- Activate environment: if the `venv/` directory does not exist, create it from the repository root with `python -m venv venv`. Then run `source venv/bin/activate` (always ensure this is active when working with Python code).
 - Startup smoke test: `python launch.py --test` (when startup behavior changes)
 - Full startup/integration check: `python launch.py` (not routine validation)
 - Full lint sequence: `pnpm lint` (for broad changes; otherwise use relevant narrower checks)
