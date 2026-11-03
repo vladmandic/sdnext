@@ -15,7 +15,7 @@ from modules.caption.attention import set_attention
 from modules.caption import helpers
 from modules.llm import Request, Response, Session, get_backend, resolve_model
 from modules.llm.catalog import is_external
-from modules.llm.openai import DEFAULT_MAX_TOKENS, generation_parameters
+from modules.llm.openai import get_default_max_tokens, generation_parameters
 from modules.llm.ui import bind_token_limit, bind_display_names
 from scripts.prompt_enhance.options import Options
 from scripts.prompt_enhance.helpers import is_cloud_model, is_vision_model, is_thinking_model, get_model_repo_from_display, model_value_to_config, model_value_from_config
@@ -767,7 +767,7 @@ class PromptEnhanceScript(scripts_manager.Script):
 
     def update_token_limit(self, model_name, current_limit, explicit):
         """Only replace provider defaults, never a limit entered by the user."""
-        limit = DEFAULT_MAX_TOKENS if is_external(get_model_repo_from_display(model_name)) else self.options.max_tokens
+        limit = get_default_max_tokens() if is_external(get_model_repo_from_display(model_name)) else self.options.max_tokens
         return gr.update(value=current_limit if explicit else limit)
 
     def ui(self, _is_img2img):

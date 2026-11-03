@@ -54,7 +54,8 @@ treated as an exhaustive allowlist without a server guarantee.
 
 1. Open **Settings > Model Options > External LLM**.
 2. Set **External LLM API URL** to the API base URL, including `/v1`, for example
-   `http://llm.example.com/v1`. Set the optional API key and request timeout.
+   `http://llm.example.com/v1`. Set the optional API key, socket connection/read
+   timeout, and default output-token budget (8,192 by default).
 3. Save settings and refresh each model selector, or restart SD.Next.
 4. Select a model under the endpoint's hostname prefix. Models are discovered
    remotely, not configured individually within SD.Next. API requests continue to
@@ -82,7 +83,8 @@ control does not force reasoning off on the server; allow enough tokens for
 models whose defaults enable reasoning. Separately returned reasoning can still
 be displayed with **Keep Thinking Trace**.
 
-All external requests share an **8,192 total output-token default**, including
+All external requests share the **External LLM default output tokens** setting
+(**8,192** by default), including
 reasoning and the final answer. Enhancement, captioning, analysis, batch jobs,
 and every story stage use this policy. Story planning keeps a larger automatic
 estimate when needed for many slides. There is no new story-specific control.
@@ -95,6 +97,16 @@ External caption UI limits do not overwrite the saved local-model preference.
 Local/cloud defaults are unchanged. A larger limit is not a guarantee that an
 unbounded reasoning model will finish; context limits and server defaults still
 apply, and this policy does not retry or turn thinking off.
+
+The default can be set between 16 and 32,768 tokens. After saving a changed
+default, reselect the model to update existing UI token controls; explicit UI
+limits are not replaced. Requests without an explicit limit read the current
+setting when generated.
+
+The request timeout applies to blocking socket connection/read operations, not
+the total request duration. Responses are non-streaming, so waiting for response
+headers can include model loading and generation. Progress inside the remote
+model does not itself reset the socket timeout.
 
 Local load/unload controls do not manage remote models. The **OpenAI interface**
 checkbox serves an in-process SD.Next model and is not needed for external access.

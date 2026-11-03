@@ -4,7 +4,7 @@ from modules.logger import log
 from modules.caption import openclip
 from modules.caption.models_def import get_vlm_model_choices, refresh_vlm_models
 from modules.llm.catalog import is_external, display_name, resolve_display_name
-from modules.llm.openai import DEFAULT_MAX_TOKENS
+from modules.llm.openai import get_default_max_tokens
 from modules.llm.ui import bind_token_limit, bind_display_names
 
 
@@ -56,7 +56,7 @@ def update_vlm_prompts_for_model(model_name):
 
 def update_vlm_backend_controls(model_name, current_limit=None, explicit=False):
     external = is_external(model_name)
-    default_limit = DEFAULT_MAX_TOKENS if external else shared.opts.caption_vlm_max_length
+    default_limit = get_default_max_tokens() if external else shared.opts.caption_vlm_max_length
     return [
         gr.update(interactive=not external), gr.update(interactive=not external),
         gr.update(interactive=False, value=False) if external else gr.update(interactive=True),
@@ -222,7 +222,7 @@ def create_ui():
                         vlm_unload_btn = gr.Button(value='Unload', elem_id='vlm_unload', variant='secondary', interactive=not is_external(current_vlm_model))
                     with gr.Accordion(label='Caption: Advanced Options', open=False, visible=True):
                         with gr.Row():
-                            vlm_max_tokens = gr.Slider(label='VLM Max Tokens', value=DEFAULT_MAX_TOKENS if is_external(current_vlm_model) else shared.opts.caption_vlm_max_length, minimum=16, maximum=32768, step=1, elem_id='vlm_max_tokens')
+                            vlm_max_tokens = gr.Slider(label='VLM Max Tokens', value=get_default_max_tokens() if is_external(current_vlm_model) else shared.opts.caption_vlm_max_length, minimum=16, maximum=32768, step=1, elem_id='vlm_max_tokens')
                             token_limit_explicit = gr.State(False)
                             token_limit_model = gr.State(current_vlm_model)
                             vlm_max_tokens.input(fn=update_vlm_token_limit, inputs=[vlm_max_tokens, token_limit_model], outputs=[token_limit_explicit], show_progress=False)

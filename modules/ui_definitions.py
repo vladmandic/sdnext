@@ -124,6 +124,7 @@ def create_settings(cmd_opts):
         "llm_api_url": OptionInfo("", "External LLM API URL", gr.Textbox),
         "llm_api_key": OptionInfo("", "External LLM API key", gr.Textbox, secret=True),
         "llm_api_timeout": OptionInfo(120, "External LLM request timeout", gr.Number, {"minimum": 1, "precision": 0}),
+        "llm_api_max_tokens": OptionInfo(8192, "External LLM default output tokens", gr.Number, {"minimum": 16, "maximum": 32768, "precision": 0}),
         "model_krea2_sep": OptionInfo("<h2>Krea 2</h2>", "", gr.HTML),
         "model_krea2_dense": OptionInfo(False, "Use dense masking"),
         "model_sd3_sep": OptionInfo("<h2>Stable Diffusion 3.x</h2>", "", gr.HTML),

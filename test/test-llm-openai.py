@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from modules.llm import Backend, ModelRef, Request, Response, resolve_model
-from modules.llm.openai import DEFAULT_MAX_TOKENS, OpenAIBackend, generation_parameters
+from modules.llm.openai import DEFAULT_MAX_TOKENS, OpenAIBackend, generation_parameters, get_default_max_tokens
 from modules.llm.catalog import Catalog, refresh_models, is_external, model_info, display_name, resolve_display_name
 from modules.llm.ui import bind_token_limit, bind_display_names
 from pydantic import BaseModel, Field
@@ -27,6 +27,15 @@ from pydantic import BaseModel, Field
 spec = importlib.util.spec_from_file_location('llm_contract_tests', ROOT / 'test/test-llm-backends.py')
 contract_tests = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(contract_tests)
+
+
+def setUpModule():
+    """Exercise settings without importing the application or GPU runtime."""
+    shared = types.ModuleType('modules.shared')
+    shared.opts = types.SimpleNamespace(llm_api_max_tokens=DEFAULT_MAX_TOKENS)
+    for patcher in (patch.dict(sys.modules, {'modules.shared': shared}), patch('modules.shared', shared, create=True)):
+        patcher.start()
+        unittest.addModuleCleanup(patcher.stop)
 
 
 def model_entry(model_id='Qwen/vision-thinking', image=True, output='text'):
@@ -185,6 +194,24 @@ class OpenAITests(unittest.TestCase):
             self.backend.generate(info.ref, Request('question'))
         self.assertEqual(json.loads(http.call_args.args[0].data)['max_tokens'], DEFAULT_MAX_TOKENS)
 
+    def test_configured_default_and_explicit_direct_requests(self):
+        info = self.discover()[0]
+        completion = {'choices': [{'message': {'content': 'answer'}}]}
+        for configured in (256, 12288):
+            with self.subTest(configured=configured), patch('modules.shared.opts.llm_api_max_tokens', configured):
+                self.assertEqual(get_default_max_tokens(), configured)
+                self.assertEqual(generation_parameters(None, 0.8)['max_tokens'], configured)
+                self.assertEqual(generation_parameters(128, 0.8)['max_tokens'], 128)
+                for parameters, expected in [({}, configured), ({'max_tokens': 128}, 128)]:
+                    with patch('modules.llm.openai.urlopen', return_value=json_response(completion)) as http:
+                        self.backend.generate(info.ref, Request('question', parameters=parameters))
+                    self.assertEqual(json.loads(http.call_args.args[0].data)['max_tokens'], expected)
+
+    def test_invalid_configured_defaults_are_rejected(self):
+        for value in (None, True, '8192', 0, 15, 128.5, 32769, float('nan'), float('inf')):
+            with self.subTest(value=value), patch('modules.shared.opts.llm_api_max_tokens', value), self.assertRaises(ValueError):
+                get_default_max_tokens()
+
 
 class CatalogTests(unittest.TestCase):
     def test_domain_display_alias_never_shadows_existing_repository_ids(self):
@@ -341,7 +368,7 @@ class ExternalEnhanceTests(unittest.TestCase):
         self.assertEqual(backend.request.parameters['max_tokens'], 128)
 
     def test_enhancement_ui_changes_only_untouched_defaults(self):
-        namespace = {'gr': types.SimpleNamespace(update=lambda **kwargs: kwargs), 'DEFAULT_MAX_TOKENS': DEFAULT_MAX_TOKENS, 'get_model_repo_from_display': lambda value: value}
+        namespace = {'gr': types.SimpleNamespace(update=lambda **kwargs: kwargs), 'get_default_max_tokens': get_default_max_tokens, 'get_model_repo_from_display': lambda value: value}
         cls = contract_tests.load_consumer('scripts/prompt_enhance_ext.py', 'PromptEnhanceScript', ['update_token_limit'], namespace)
         script = cls()
         script.options = types.SimpleNamespace(max_tokens=512)
@@ -423,11 +450,14 @@ class ExternalCaptionTests(unittest.TestCase):
             )),
         }
         exec(compile(ast.Module(body=[function], type_ignores=[]), 'vqa.py', 'exec'), namespace) # pylint: disable=exec-used
-        self.assertEqual(namespace['get_external_kwargs']()['max_tokens'], DEFAULT_MAX_TOKENS)
-        overrides['max_tokens'] = 128
-        self.assertEqual(namespace['get_external_kwargs']()['max_tokens'], 128)
-        overrides['max_tokens'] = None
-        self.assertEqual(namespace['get_external_kwargs']()['max_tokens'], DEFAULT_MAX_TOKENS)
+        for configured in (256, DEFAULT_MAX_TOKENS, 12288):
+            with self.subTest(configured=configured), patch('modules.shared.opts.llm_api_max_tokens', configured):
+                overrides.clear()
+                self.assertEqual(namespace['get_external_kwargs']()['max_tokens'], configured)
+                overrides['max_tokens'] = 128
+                self.assertEqual(namespace['get_external_kwargs']()['max_tokens'], 128)
+                overrides['max_tokens'] = None
+                self.assertEqual(namespace['get_external_kwargs']()['max_tokens'], configured)
 
     def test_caption_ui_defaults_explicit_limits_and_local_preferences(self):
         tree = ast.parse((ROOT / 'modules/ui_caption.py').read_text(encoding='utf-8'))
@@ -435,7 +465,7 @@ class ExternalCaptionTests(unittest.TestCase):
         shared = types.SimpleNamespace(opts=types.SimpleNamespace(caption_vlm_max_length=512, save=Mock()))
         namespace = {
             'gr': types.SimpleNamespace(update=lambda **kwargs: kwargs), 'shared': shared,
-            'is_external': lambda value: value.startswith('external/'), 'DEFAULT_MAX_TOKENS': DEFAULT_MAX_TOKENS,
+            'is_external': lambda value: value.startswith('external/'), 'get_default_max_tokens': get_default_max_tokens,
         }
         exec(compile(ast.Module(body=functions, type_ignores=[]), 'ui_caption.py', 'exec'), namespace) # pylint: disable=exec-used
         update = namespace['update_vlm_backend_controls']
@@ -497,8 +527,8 @@ class ExternalCaptionTests(unittest.TestCase):
 
 class StoryBudgetTests(unittest.TestCase):
     def test_every_external_story_stage_uses_shared_policy(self):
-        for slide_count in (4, 99):
-            with self.subTest(slide_count=slide_count):
+        for slide_count, configured in ((4, 256), (99, 256), (4, DEFAULT_MAX_TOKENS), (99, 12288)):
+            with self.subTest(slide_count=slide_count, configured=configured), patch('modules.shared.opts.llm_api_max_tokens', configured):
                 requests = []
 
                 def enhance(requests=requests, **kwargs):
@@ -522,7 +552,41 @@ class StoryBudgetTests(unittest.TestCase):
                 script.process(p, True, slide_count, 'external/Qwen', True, True, False)
                 self.assertIsNone(p.story_mode_error)
                 self.assertEqual(len(requests), 4) # caption, story planning, two enhanced frames
-                self.assertEqual([request['max_tokens'] for request in requests], [DEFAULT_MAX_TOKENS, max(DEFAULT_MAX_TOKENS, min(8192, 256 + slide_count * 128)), DEFAULT_MAX_TOKENS, DEFAULT_MAX_TOKENS])
+                self.assertEqual([request['max_tokens'] for request in requests], [configured, max(configured, min(8192, 256 + slide_count * 128)), configured, configured])
+
+
+class ConfiguredTokenDefaultsTests(unittest.TestCase):
+    def test_ui_selection_and_restoration_use_current_setting(self):
+        namespace = {
+            'gr': types.SimpleNamespace(update=lambda **kwargs: kwargs),
+            'get_default_max_tokens': get_default_max_tokens, 'get_model_repo_from_display': lambda value: value,
+            'shared': types.SimpleNamespace(opts=types.SimpleNamespace(caption_vlm_max_length=512)),
+        }
+        cls = contract_tests.load_consumer('scripts/prompt_enhance_ext.py', 'PromptEnhanceScript', ['update_token_limit'], namespace)
+        enhancer = cls()
+        enhancer.options = types.SimpleNamespace(max_tokens=512)
+        tree = ast.parse((ROOT / 'modules/ui_caption.py').read_text(encoding='utf-8'))
+        function = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == 'update_vlm_backend_controls')
+        exec(compile(ast.Module(body=[function], type_ignores=[]), 'ui_caption.py', 'exec'), namespace) # pylint: disable=exec-used
+        model = types.SimpleNamespace()
+        limit = types.SimpleNamespace(value=512)
+        explicit = types.SimpleNamespace(value=False)
+        bind_token_limit(model, limit, explicit, 512)
+        for configured in (256, 12288):
+            with self.subTest(configured=configured), patch('modules.shared.opts.llm_api_max_tokens', configured):
+                self.assertEqual(enhancer.update_token_limit('external/Qwen', 512, False), {'value': configured})
+                self.assertEqual(enhancer.update_token_limit('external/Qwen', 128, True), {'value': 128})
+                update = namespace['update_vlm_backend_controls']
+                self.assertEqual(update('external/Qwen', 512, False)[-2], {'value': configured})
+                self.assertEqual(update('external/Qwen', 128, True)[-2], {'value': 128})
+                explicit.value = False
+                model.init_field('external/Qwen')
+                self.assertEqual(limit.value, configured)
+                explicit.value = True
+                limit.value = 128
+                model.init_field('external/Qwen')
+                self.assertEqual(limit.value, 128)
+                self.assertEqual(enhancer.update_token_limit('Qwen/local', configured, False), {'value': 512})
 
 
 class SavedTokenLimitTests(unittest.TestCase):

@@ -1,7 +1,7 @@
 """Canonical selection persistence and token defaults for existing LLM controls."""
 
 from modules.llm.catalog import is_external
-from modules.llm.openai import DEFAULT_MAX_TOKENS
+from modules.llm.openai import get_default_max_tokens
 
 
 def bind_display_names(component, to_display, to_selection):
@@ -23,7 +23,7 @@ def bind_token_limit(model_component, limit_component, explicit_component, local
         if active_model is not None:
             active_model.value = value
         if not explicit_component.value:
-            limit_component.value = DEFAULT_MAX_TOKENS if is_external(model_id(value)) else local_default
+            limit_component.value = get_default_max_tokens() if is_external(model_id(value)) else local_default
 
     def restore_limit(_value):
         explicit_component.value = True

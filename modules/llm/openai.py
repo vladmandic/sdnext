@@ -18,6 +18,15 @@ PREFIX = 'external/'
 DEFAULT_MAX_TOKENS = 8192
 
 
+def get_default_max_tokens():
+    """Read the shared external default when a request or UI needs it."""
+    from modules import shared
+    value = getattr(shared.opts, 'llm_api_max_tokens', DEFAULT_MAX_TOKENS)
+    if type(value) not in (int, float) or not 16 <= value <= 32768 or int(value) != value:
+        raise ValueError('External LLM default output tokens must be an integer between 16 and 32768')
+    return int(value)
+
+
 def generation_parameters(max_tokens, temperature, sample=True, top_k=0, top_p=0, penalty=None, seed=None, min_tokens=0, num_beams=1, custom_args='', process_words='', default_max_tokens=None):
     """Translate supported caller options without silently dropping local features."""
     if min_tokens:
@@ -27,7 +36,7 @@ def generation_parameters(max_tokens, temperature, sample=True, top_k=0, top_p=0
     if custom_args or process_words:
         raise ValueError('External LLM does not support local custom arguments or logits processing')
     if max_tokens is None:
-        max_tokens = max(DEFAULT_MAX_TOKENS, default_max_tokens or 0)
+        max_tokens = max(get_default_max_tokens(), default_max_tokens or 0)
     if type(max_tokens) not in (int, float) or max_tokens < 1:
         raise ValueError('External LLM output token limit must be positive')
     result = {'max_tokens': int(max_tokens), 'temperature': float(temperature) if sample else 0.0}
@@ -149,7 +158,8 @@ class OpenAIBackend(Backend):
         if request.image is not None and not info.vision:
             raise ValueError('Selected external model does not advertise image input')
         parameters = dict(request.parameters)
-        parameters.setdefault('max_tokens', DEFAULT_MAX_TOKENS)
+        if 'max_tokens' not in parameters:
+            parameters['max_tokens'] = get_default_max_tokens()
         allowed = {'max_tokens', 'temperature', 'top_p', 'top_k', 'repeat_penalty', 'seed', 'stop'}
         unsupported = parameters.keys() - allowed
         if unsupported:
