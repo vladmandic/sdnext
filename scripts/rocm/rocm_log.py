@@ -12,7 +12,7 @@ from modules.logger import log
 
 _ALGORITHM_PATTERN = re.compile(r"FW Chosen Algorithm:\s*([^,\s]+)")
 _CHOSEN_PATTERN = re.compile(r"FW Chosen Algorithm:\s*([^,\s]+)\s*,\s*[^,]*,\s*([0-9.eE+-]+)")
-_MIOPEN_PREFIX = "MIOpen(HIP):"
+_MIOPEN_PREFIXES = ("MIOpen:", "MIOpen(HIP):")
 _logging_capture = None
 
 
@@ -25,7 +25,7 @@ def _forward_stderr(fd, line):
 
 def _process_line(line, saved_stderr):
     text = line.decode(errors="replace").rstrip("\r\n")
-    if not text.lstrip().startswith(_MIOPEN_PREFIX):
+    if not text.lstrip().startswith(_MIOPEN_PREFIXES):
         _forward_stderr(saved_stderr, line)
         return
     match = _CHOSEN_PATTERN.search(text)
