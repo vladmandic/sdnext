@@ -140,9 +140,28 @@ class TestChatCommands(unittest.TestCase):
 
     def test_set_accepts_to_equals_and_colon_assignment_syntax(self):
         expected = {'name': 'steps', 'value': '8'}
-        for command in ('set steps 8', 'set steps to 8', 'set steps = 8', 'set steps: 8'):
+        commands_to_test = ('set steps 8', 'set steps to 8', 'set steps=8', 'set steps = 8', 'set steps: 8')
+        for command in commands_to_test:
             with self.subTest(command=command):
                 self.assertEqual(commands.parse_command(command).arguments, expected)
+        session = self._create_session()
+        with patch.object(db, '_db_path', return_value=self.db_path):
+            results = [commands.execute_command(session['id'], command) for command in commands_to_test]
+            saved = db.get_session(session['id'])
+        self.assertTrue(all(result == results[0] for result in results))
+        self.assertEqual(saved['drafts']['image']['steps'], 8)
+
+    def test_opts_accepts_the_same_assignment_syntax_as_set(self):
+        expected = {'name': 'sample_setting', 'value': '8'}
+        for command in (
+                'opts sample_setting 8', 'opts sample_setting to 8', 'opts sample_setting=8',
+                'opts sample_setting = 8', 'opts sample_setting: 8'):
+            with self.subTest(command=command):
+                self.assertEqual(commands.parse_command(command).arguments, expected)
+        self.assertEqual(
+            commands.parse_command('opts sample_setting').arguments,
+            {'name': 'sample_setting', 'value': None},
+        )
 
     def test_bare_get_and_set_list_all_supported_session_drafts(self):
         session = self._create_session()

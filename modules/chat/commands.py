@@ -314,13 +314,13 @@ def parse_command(text: str) -> ParsedCommand:
         arguments = raw_arguments.strip()
         if not arguments:
             return ParsedCommand(command, {'name': None, 'value': None})
-        if '=' in arguments.split(maxsplit=1)[0]:
-            name, value = _split_assignment(arguments)
-            return ParsedCommand(command, {'name': name.lower(), 'value': value})
         parts = arguments.split(maxsplit=1)
+        if len(parts) == 1 and not re.search(r'[=:]', arguments):
+            return ParsedCommand(command, {'name': parts[0].lower(), 'value': None})
+        name, value = _split_assignment(arguments)
         return ParsedCommand(command, {
-            'name': parts[0].lower(),
-            'value': _normalize_value(parts[1].strip()) if len(parts) == 2 else None,
+            'name': name.lower(),
+            'value': value,
         })
     if command == 'help':
         if raw_arguments.strip():
