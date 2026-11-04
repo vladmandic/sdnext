@@ -10,7 +10,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
-from modules import shared
+from modules import progress, shared
 from modules.api import control as api_control
 from modules.chat import artifacts, commands, db
 from modules.logger import log
@@ -110,6 +110,11 @@ class ResChatParameter(BaseModel):
 class ResChatParameters(BaseModel):
     context: ContextId
     parameters: list[ResChatParameter]
+
+
+class ResChatChoices(BaseModel):
+    name: str
+    choices: list[str]
 
 
 class ReqChatAction(BaseModel):
@@ -242,6 +247,17 @@ def get_session_parameters(session_id: str) -> ResChatParameters:
         context=context,
         parameters=commands.get_parameter_entries(context, draft),
     )
+
+
+def get_session_parameter_choices(session_id: str, name: str = Query(...)) -> ResChatChoices:
+    session = db.get_session(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail='Chat session not found')
+    try:
+        choices = commands.get_parameter_choices(session['context'], name)
+    except commands.CommandError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return ResChatChoices(name=name, choices=choices)
 
 
 def restore_session(session_id: str):
@@ -699,6 +715,14 @@ async def upload_chat_file(session_id: str, upload: UploadFile, api_instance=Non
 
 
 def post_message(session_id: str, req: ReqChatMessage, api_instance=None):
+    progress.start_chat_operation()
+    try:
+        return _post_message(session_id, req, api_instance)
+    finally:
+        progress.finish_chat_operation()
+
+
+def _post_message(session_id: str, req: ReqChatMessage, api_instance=None):
     try:
         session = db.get_session(session_id)
     except Exception as exc:
@@ -969,6 +993,7 @@ def register_api(api):
     api.add_api_route('/sdapi/v1/chat/sessions/{session_id}', update_session, methods=['PATCH'], response_model=ResSession, tags=['Chat'])
     api.add_api_route('/sdapi/v1/chat/sessions/{session_id}', delete_session, methods=['DELETE'], status_code=204, tags=['Chat'])
     api.add_api_route('/sdapi/v1/chat/sessions/{session_id}/parameters', get_session_parameters, methods=['GET'], response_model=ResChatParameters, tags=['Chat'])
+    api.add_api_route('/sdapi/v1/chat/sessions/{session_id}/choices', get_session_parameter_choices, methods=['GET'], response_model=ResChatChoices, tags=['Chat'])
     api.add_api_route('/sdapi/v1/chat/sessions/{session_id}/restore', restore_session, methods=['POST'], response_model=ResSessionDetail, tags=['Chat'])
     control_api_instance = api if hasattr(api, 'control') else None
 

@@ -17,7 +17,7 @@ from PIL.PngImagePlugin import PngInfo
 from modules.chat import artifacts, commands
 from modules.chat import api as chat_api
 from modules.chat import db
-from modules import shared
+from modules import progress, shared
 
 
 class TestChatArtifactService(unittest.TestCase):
@@ -530,6 +530,7 @@ class TestChatApiRegistration(unittest.TestCase):
             ('/sdapi/v1/chat/sessions/{session_id}', 'PATCH'),
             ('/sdapi/v1/chat/sessions/{session_id}', 'DELETE'),
             ('/sdapi/v1/chat/sessions/{session_id}/parameters', 'GET'),
+            ('/sdapi/v1/chat/sessions/{session_id}/choices', 'GET'),
             ('/sdapi/v1/chat/sessions/{session_id}/restore', 'POST'),
             ('/sdapi/v1/chat/sessions/{session_id}/messages', 'POST'),
             ('/sdapi/v1/chat/sessions/{session_id}/messages/{message_id}', 'PATCH'),
@@ -553,6 +554,44 @@ class TestChatApiRegistration(unittest.TestCase):
         self.assertEqual(video_parameters.context, 'video')
         self.assertIn('steps', {parameter.name for parameter in image_parameters.parameters})
         self.assertIn('frames', {parameter.name for parameter in video_parameters.parameters})
+
+    def test_parameter_choices_match_the_command_validator_catalog(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = os.path.join(temp_dir, 'chat.db')
+            with patch.object(db, '_db_path', return_value=db_path):
+                session = chat_api.create_session(chat_api.ReqSessionCreate(context='image'))
+                with patch.object(commands.endpoints, 'get_prompt_styles', return_value=[{'name': 'Cycle Style'}]):
+                    styles = chat_api.get_session_parameter_choices(session['id'], name='styles')
+                with patch.object(commands.endpoints, 'get_sd_models', return_value=[SimpleNamespace(title='Base Model')]):
+                    models = chat_api.get_session_parameter_choices(session['id'], name='model')
+
+        self.assertEqual(styles.name, 'styles')
+        self.assertEqual(styles.choices, ['Cycle Style'])
+        self.assertEqual(models.name, 'model')
+        self.assertEqual(models.choices, ['Base Model'])
+
+    def test_chat_progress_stays_active_while_shared_job_is_cleared(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = os.path.join(temp_dir, 'chat.db')
+            with patch.object(db, '_db_path', return_value=db_path):
+                session = chat_api.create_session(chat_api.ReqSessionCreate())
+
+                def execute_command(*_args, **_kwargs):
+                    response = progress.api_progress(progress.ProgressRequest(id_task='undefined', id_live_preview=-1))
+                    self.assertTrue(response.active)
+                    return {'kind': 'text', 'text': 'done', 'data': {}}
+
+                with patch.object(shared.state, 'job', ''), \
+                        patch.object(chat_api, '_execute_chat_command', side_effect=execute_command):
+                    submission = chat_api.post_message(
+                        session['id'], chat_api.ReqChatMessage(content='help'),
+                    )
+                    response = progress.api_progress(
+                        progress.ProgressRequest(id_task='undefined', id_live_preview=-1),
+                    )
+
+        self.assertEqual(submission.result.kind, 'text')
+        self.assertFalse(response.active)
 
     def test_message_submission_persists_command_exchange_and_restore_state(self):
         with tempfile.TemporaryDirectory() as temp_dir:

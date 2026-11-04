@@ -2,6 +2,7 @@ import base64
 import os
 import io
 import time
+from threading import Lock
 from pydantic import BaseModel, Field # pylint: disable=no-name-in-module
 import modules.shared as shared
 from modules.logger import log
@@ -12,8 +13,27 @@ pending_tasks = {}
 finished_tasks = []
 recorded_results = []
 recorded_results_limit = 2
+_active_chat_operations = 0
+_chat_operations_lock = Lock()
 debug = os.environ.get('SD_VAE_DEBUG', None) is not None
 debug_log = log.trace if debug else lambda *args, **kwargs: None
+
+
+def start_chat_operation():
+    global _active_chat_operations # pylint: disable=global-statement
+    with _chat_operations_lock:
+        _active_chat_operations += 1
+
+
+def finish_chat_operation():
+    global _active_chat_operations # pylint: disable=global-statement
+    with _chat_operations_lock:
+        _active_chat_operations = max(0, _active_chat_operations - 1)
+
+
+def is_chat_operation_active():
+    with _chat_operations_lock:
+        return _active_chat_operations > 0
 
 
 def start_task(id_task):
@@ -85,7 +105,9 @@ class InternalProgressResponse(BaseModel):
 
 
 def api_progress(req: ProgressRequest):
-    active = (req.id_task == current_task) or (req.id_task == 'undefined' and len(shared.state.job) > 0)
+    active = (req.id_task == current_task) or (
+        req.id_task == 'undefined' and (len(shared.state.job) > 0 or is_chat_operation_active())
+    )
     queued = req.id_task in pending_tasks
     completed = req.id_task in finished_tasks
     paused = shared.state.paused

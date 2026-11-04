@@ -297,6 +297,29 @@ class TestChatCommands(unittest.TestCase):
         self.assertEqual(get_result['text'], 'sample_setting=a multiword value')
         self.assertIn('sample_setting="a multiword value"', list_result['text'])
 
+    def test_opts_choice_fragments_use_validator_choices(self):
+        choices = ['North Light', 'South Light']
+        values = {'sample_setting': choices[1]}
+        session = self._create_session()
+        option_info = SimpleNamespace(
+            default=choices[0], component_args={'choices': choices},
+            validate=lambda _name, value: value in choices,
+        )
+        options = SimpleNamespace(
+            data_labels={'sample_setting': option_info},
+            secrets=set(),
+            get=lambda name: values[name],
+            set=lambda name, value: values.__setitem__(name, value) or True,
+            save=lambda silent=True: None,
+        )
+        with patch.object(db, '_db_path', return_value=self.db_path), \
+                patch.object(commands.shared, 'opts', options):
+            available = commands.get_parameter_choices('image', 'sample_setting')
+            result = commands.execute_command(session['id'], 'opts sample_setting north')
+
+        self.assertEqual(available, choices)
+        self.assertIn('sample_setting set to North Light', result['text'])
+
     def test_process_and_caption_contexts_require_an_image_input(self):
         session = self._create_session()
         with patch.object(db, '_db_path', return_value=self.db_path):
@@ -354,6 +377,36 @@ class TestChatCommands(unittest.TestCase):
         self.assertIn('Ambiguous model name', result['text'])
         self.assertIn('Meina Unreal XL', result['text'])
         self.assertIn('Meina Mix', result['text'])
+
+    def test_set_styles_resolves_unique_fragment_case_insensitively(self):
+        session = self._create_session()
+        available = [{'name': 'Cycle Style'}, {'name': 'Vintage Film'}]
+        with patch.object(db, '_db_path', return_value=self.db_path), \
+                patch.object(commands.endpoints, 'get_prompt_styles', return_value=available):
+            result = commands.execute_command(session['id'], 'set styles=cycle')
+            saved = db.get_session(session['id'])
+
+        self.assertIn("styles set to ['Cycle Style']", result['text'])
+        self.assertEqual(saved['drafts']['image']['styles'], ['Cycle Style'])
+
+    def test_parameter_choice_lookup_uses_the_set_validator_choices(self):
+        available = [{'name': 'Cycle Style'}, {'name': 'Vintage Film'}]
+        with patch.object(commands.endpoints, 'get_prompt_styles', return_value=available):
+            choices = commands.get_parameter_choices('image', 'styles')
+
+        self.assertEqual(choices, ['Cycle Style', 'Vintage Film'])
+
+    def test_set_styles_rejects_ambiguous_fragment_with_candidates(self):
+        session = self._create_session()
+        available = [{'name': 'Portrait Lighting'}, {'name': 'Portrait Film'}]
+        with patch.object(db, '_db_path', return_value=self.db_path), \
+                patch.object(commands.endpoints, 'get_prompt_styles', return_value=available):
+            result = commands.execute_command(session['id'], 'set styles=portrait')
+
+        self.assertEqual(result['kind'], 'error')
+        self.assertIn('Ambiguous styles', result['text'])
+        self.assertIn('Portrait Lighting', result['text'])
+        self.assertIn('Portrait Film', result['text'])
 
     def test_restore_continues_after_an_individual_setting_failure(self):
         session = self._create_session()

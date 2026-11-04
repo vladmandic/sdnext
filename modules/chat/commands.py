@@ -379,15 +379,52 @@ def _choice_values(name: str):
         return ['Automatic', 'None', *[item['model_name'] for item in endpoints.get_sd_vaes()]]
     if name in {'unet', 'dit', 'transformer', 'finetune', 'sd_unet'}:
         return ['Default', *[item['name'] for item in endpoints.get_unets()]]
-    canonical = _SETTING_NAMES.get(name)
-    if canonical:
-        info = shared.opts.data_labels.get(canonical)
-        component_args = info.component_args if info else None
-        if callable(component_args):
-            component_args = component_args()
-        choices = component_args.get('choices', []) if isinstance(component_args, dict) else []
-        return [item[0] if isinstance(item, (list, tuple)) else item for item in choices]
-    return []
+    canonical = _SETTING_NAMES.get(name, name)
+    info = shared.opts.data_labels.get(canonical)
+    component_args = info.component_args if info else None
+    if callable(component_args):
+        component_args = component_args()
+    choices = component_args.get('choices', []) if isinstance(component_args, dict) else []
+    return [item[0] if isinstance(item, (list, tuple)) else item for item in choices]
+
+
+def get_parameter_choices(context: str, name: str) -> list[str]:
+    name = _PARAMETER_ALIASES.get(name, name)
+    try:
+        kind, spec = _parameter_spec(context, name)
+    except CommandError:
+        canonical = _SETTING_NAMES.get(name, name)
+        if canonical in shared.opts.secrets or canonical.endswith(('_version', '_token', '_key', '_secret', '_password')):
+            raise CommandError(f'Setting is not available through chat: {canonical}') from None
+        if canonical not in shared.opts.data_labels:
+            raise CommandError(f'Unsupported parameter: {name}') from None
+        name = canonical
+    else:
+        name = spec if kind == 'setting' else name
+    return [str(choice) for choice in _choice_values(name)]
+
+
+def _resolve_choice_fragment(name: str, value: Any, choices: list[Any]):
+    if isinstance(value, list):
+        return [_resolve_choice_fragment(name, item, choices) for item in value]
+    if not isinstance(value, str) or value in choices:
+        return value
+    fragment = ''.join(character for character in value.casefold() if character.isalnum())
+    if not fragment:
+        return value
+    matches = [
+        choice for choice in choices
+        if fragment in ''.join(character for character in str(choice).casefold() if character.isalnum())
+    ]
+    if len(matches) == 1:
+        return matches[0]
+    if len(matches) > 1:
+        candidates = '\n'.join(str(choice) for choice in matches[:5])
+        if len(matches) > 5:
+            candidates += ', ...'
+        label = 'model name' if name in {'model', 'sd_model_checkpoint'} else name
+        raise CommandError(f'Ambiguous {label}:\n{candidates}')
+    return value
 
 
 def _validate_setting(name: str, raw_value: Any) -> tuple[str, Any]:
@@ -403,24 +440,13 @@ def _validate_setting(name: str, raw_value: Any) -> tuple[str, Any]:
     except ValidationError as exc:
         raise CommandError(f'Invalid value for {name}: {exc.errors()[0]["msg"]}') from exc
     choices = _choice_values(canonical)
-    if canonical == 'sd_model_checkpoint' and choices and isinstance(value, str) and value not in choices:
-        fragment = ''.join(character for character in value.casefold() if character.isalnum())
-        matches = [
-            choice for choice in choices
-            if fragment and fragment in ''.join(character for character in str(choice).casefold() if character.isalnum())
-        ]
-        if len(matches) == 1:
-            value = matches[0]
-        elif len(matches) > 1:
-            candidates = '\n'.join(str(choice) for choice in matches[:5])
-            if len(matches) > 5:
-                candidates += ', ...'
-            raise CommandError(f'Ambiguous model name:\n{candidates}')
+    if choices:
+        value = _resolve_choice_fragment(canonical, value, choices)
     current = shared.opts.get(canonical)
     if choices and value != current:
         values = value if isinstance(value, list) else [value]
         if any(item not in choices for item in values):
-            raise CommandError(f'Invalid value for {name}; use list {name} to see valid choices')
+            raise CommandError(f'Invalid value for {name}\nUse list {name} to see valid choices')
     if not choices and value != current:
         raise CommandError(f'No valid choices are available for {name}')
     return canonical, value
@@ -442,9 +468,10 @@ def _validate_parameter(context: str, name: str, raw_value: Any):
             raise CommandError(f'{name} must be between {minimum} and {maximum}')
     choices = _choice_values(name)
     if choices:
+        value = _resolve_choice_fragment(name, value, choices)
         values = value if isinstance(value, list) else [value]
         if any(item not in choices for item in values):
-            raise CommandError(f'Invalid value for {name}; use list {name} to see valid choices')
+            raise CommandError(f'Invalid value for {name}\nUse list {name} to see valid choices')
     return value
 
 
@@ -533,12 +560,11 @@ def _validate_option(name: str, raw_value: str) -> tuple[str, Any]:
         value = _parse_value(raw_value, annotation, example)
     except ValidationError as exc:
         raise CommandError(f'Invalid value for {canonical}: {exc.errors()[0]["msg"]}') from exc
+    choices = _choice_values(canonical)
+    if choices:
+        value = _resolve_choice_fragment(canonical, value, choices)
     if not info.validate(canonical, value):
         raise CommandError(f'Invalid value for {canonical}')
-    component_args = info.component_args
-    if callable(component_args):
-        component_args = component_args()
-    choices = component_args.get('choices', []) if isinstance(component_args, dict) else []
     if choices:
         values = value if isinstance(value, list) else [value]
         if any(item not in choices for item in values):
