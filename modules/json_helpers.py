@@ -10,6 +10,7 @@ from modules.logger import log
 
 path_locks: dict[str, threading.RLock] = {}
 path_locks_guard = threading.Lock()
+strict_mode = os.environ.get('SD_STRICT', None) is not None
 
 
 def path_lock(filename: str | os.PathLike[str]) -> threading.RLock:
@@ -78,6 +79,8 @@ def readfile(filename: str | os.PathLike[str], silent: bool = False, lock: bool 
         except Exception as err:
             if not silent:
                 log.error(f'Read failed: file="{filename}" {err}')
+            if strict_mode:
+                os._exit(1)
 
     if isinstance(data, list) and as_type == "dict":
         if not data:
@@ -147,3 +150,5 @@ def writefile(obj: dict | list, filename: str | os.PathLike[str], mode="w", sile
                 log.debug(f'Save: file="{filename}" json={datalength} bytes={len(output)} time={t1 - t0:.3f}')
         except Exception as err:
             log.error(f'Save failed: file="{filename}" {err}')
+            if strict_mode:
+                os._exit(1)

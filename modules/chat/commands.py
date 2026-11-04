@@ -339,7 +339,7 @@ def parse_command(text: str) -> ParsedCommand:
                 raise CommandError('History limit must be between 1 and 100')
             return ParsedCommand(command, {'limit': limit})
         return ParsedCommand(command, {'text': raw_arguments.strip()} if raw_arguments.strip() else {})
-    raise CommandError(f'Unknown command: {command}. Use help to see available commands.')
+    raise CommandError(f'Unknown command: {command}')
 
 
 def _parameter_spec(context: str, name: str):
@@ -558,7 +558,7 @@ def _help_sections() -> list[dict[str, str]]:
             '- resume: Resume a paused process\n'
             '- skip: Skip the current item\n'
             '- history [limit]: Show recent process history\n'
-            '- last/details: Show active parameters from the last processing run',
+            '- last/details: Show active parameters from the last processing run\n',
         },
         {
             'title': 'Params',
@@ -568,7 +568,7 @@ def _help_sections() -> list[dict[str, str]]:
             '- set [key] [value]: Set a value or list session values\n'
             '- get [key]: Get a value or list session values\n'
             '- params/args: List valid parameter keys for the current context\n'
-            '- reset: Restore parameter defaults.',
+            '- reset: Restore parameter defaults\n',
         },
         {
             'title': 'References',
@@ -600,7 +600,7 @@ def _help_sections() -> list[dict[str, str]]:
             '- mem/memory: Show RAM, CUDA, and model usage\n'
             '- status: Show server status and progress\n'
             '- storage: Show storage usage\n'
-            '- db: Compact the Chat database and show database statistics',
+            '- db: Compact the Chat database and show database statistics\n',
         },
     ]
 

@@ -22,6 +22,9 @@
   - `bt.709` colour conversion with colour tags, fractional frame, clip rotation
   - `mkv` and `webm` frame counts read from each track
   - ltx condition video: skipping frames keeps the first frame
+- **Other**
+  - add env var `SD_STRICT` which will enable strict mode  
+    in strict mode, read/parse/write errors will cause the application to exit immediately  
 - **Fixes**
   - api: *txt2img*, *img2img* and *control* answer *500* with the error when the generation fails, instead of *200* with no images
   - api: *txt2img*, *img2img* and *control* responses carry an *error* field when a later batch fails after earlier batches returned images
