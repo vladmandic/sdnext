@@ -206,6 +206,11 @@ def parse_command(text: str) -> ParsedCommand:
         return ParsedCommand('comment', {'text': stripped[1:].strip()})
     if stripped.startswith('//'):
         return ParsedCommand('comment', {'text': stripped[2:].strip()})
+    if stripped[0] in {'`', "'", '"', '>'}:
+        value = stripped[1:].strip()
+        if not value:
+            raise CommandError('Enter prompt text after the prompt marker.')
+        return ParsedCommand('set', {'name': 'prompt', 'value': value})
     match = re.match(r'^(\S+)(?:\s+(.*))?$', stripped, flags=re.DOTALL)
     command, raw_arguments = match.groups()
     command = command.lower()

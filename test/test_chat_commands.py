@@ -79,6 +79,20 @@ class TestChatCommands(unittest.TestCase):
         parsed = commands.parse_command('negative low contrast')
         self.assertEqual(parsed.arguments, {'name': 'negative_prompt', 'value': 'low contrast'})
 
+    def test_prompt_markers_set_the_current_prompt(self):
+        session = self._create_session()
+        prompt = 'a full prompt\nwith a second line'
+        with patch.object(db, '_db_path', return_value=self.db_path):
+            for marker in ('`', "'", '"', '>'):
+                with self.subTest(marker=marker):
+                    parsed = commands.parse_command(f'{marker}{prompt}')
+                    self.assertEqual(parsed.arguments, {'name': 'prompt', 'value': prompt})
+                    result = commands.execute_command(session['id'], f'{marker}{prompt}')
+                    self.assertEqual(result['kind'], 'text')
+            saved = db.get_session(session['id'])
+
+        self.assertEqual(saved['drafts']['image']['prompt'], prompt)
+
     def test_bare_prompt_returns_the_current_prompt(self):
         session = self._create_session()
         with patch.object(db, '_db_path', return_value=self.db_path):
