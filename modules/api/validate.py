@@ -41,6 +41,7 @@ log_cost = {
     "/sdapi/v1/scheduler/tasks/{task_id}/media/{media_index}": -1,
     "/sdapi/v1/chat/sessions/{session_id}": -1,
     "/sdapi/v1/chat/sessions/{session_id}/messages": -1,
+    "/sdapi/v1/chat/sessions/{session_id}/parameters": -1,
     "/sdapi/v1/chat/sessions/{session_id}/artifacts/{artifact_id}/content": -1,
     "/sdapi/v1/chat/sessions/{session_id}/artifacts/{artifact_id}/metadata": -1,
     "/js": -1,

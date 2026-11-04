@@ -99,6 +99,19 @@ class ResSessionDetail(BaseModel):
     restore_errors: list[str] = Field(default_factory=list)
 
 
+class ResChatParameter(BaseModel):
+    name: str
+    type: str
+    value: str
+    is_set: bool
+    is_none: bool
+
+
+class ResChatParameters(BaseModel):
+    context: ContextId
+    parameters: list[ResChatParameter]
+
+
 class ReqChatAction(BaseModel):
     command: ChatCommand | ServerEndpointAlias
     arguments: dict[str, Any] = Field(default_factory=dict)
@@ -212,6 +225,23 @@ def get_session(session_id: str):
     except Exception as exc:
         _log_chat_error('session detail retrieval failed', exc)
         raise
+
+
+def get_session_parameters(session_id: str) -> ResChatParameters:
+    try:
+        session = db.get_session(session_id)
+    except Exception as exc:
+        _log_chat_error('session parameter lookup failed', exc)
+        raise
+    if session is None:
+        _log_chat_error('session parameter lookup failed: session not found')
+        raise HTTPException(status_code=404, detail='Chat session not found')
+    context = session['context']
+    draft = (session.get('drafts') or {}).get(context, {})
+    return ResChatParameters(
+        context=context,
+        parameters=commands.get_parameter_entries(context, draft),
+    )
 
 
 def restore_session(session_id: str):
@@ -938,6 +968,7 @@ def register_api(api):
     api.add_api_route('/sdapi/v1/chat/sessions/{session_id}', get_session, methods=['GET'], response_model=ResSessionDetail, tags=['Chat'])
     api.add_api_route('/sdapi/v1/chat/sessions/{session_id}', update_session, methods=['PATCH'], response_model=ResSession, tags=['Chat'])
     api.add_api_route('/sdapi/v1/chat/sessions/{session_id}', delete_session, methods=['DELETE'], status_code=204, tags=['Chat'])
+    api.add_api_route('/sdapi/v1/chat/sessions/{session_id}/parameters', get_session_parameters, methods=['GET'], response_model=ResChatParameters, tags=['Chat'])
     api.add_api_route('/sdapi/v1/chat/sessions/{session_id}/restore', restore_session, methods=['POST'], response_model=ResSessionDetail, tags=['Chat'])
     control_api_instance = api if hasattr(api, 'control') else None
 

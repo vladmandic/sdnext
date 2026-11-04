@@ -93,6 +93,13 @@ class TestChatCommands(unittest.TestCase):
 
         self.assertEqual(saved['drafts']['image']['prompt'], prompt)
 
+    def test_slash_prefix_is_removed_before_command_parsing(self):
+        self.assertEqual(commands.parse_command('/help'), commands.parse_command('help'))
+        self.assertEqual(commands.parse_command('/set steps=30'), commands.parse_command('set steps=30'))
+        self.assertEqual(commands.parse_command('// a note').name, 'comment')
+        with self.assertRaises(commands.CommandError):
+            commands.parse_command('/')
+
     def test_bare_prompt_returns_the_current_prompt(self):
         session = self._create_session()
         with patch.object(db, '_db_path', return_value=self.db_path):

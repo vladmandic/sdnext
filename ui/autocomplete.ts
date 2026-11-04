@@ -306,40 +306,75 @@ const engine = {
  * `start..end` is the replacement range the appropriate insert function should overwrite.
  * Embeddings are served under `mode === 'tag'` and merged into tag-mode results by the engine.
  */
-function getCurrentWord(textarea) {
-  const { value, selectionStart } = textarea;
-  if (selectionStart !== textarea.selectionEnd) return null; // has selection
+interface PromptInput {
+  value: string;
+  selectionStart: number;
+  selectionEnd: number;
+}
+
+interface CurrentWord {
+  word: string;
+  start: number;
+  end: number;
+  mode: 'tag' | 'artist' | 'lora' | 'wildcard';
+}
+
+interface PromptEdit {
+  from: number;
+  to: number;
+  insert: string;
+  cursor: number;
+}
+
+interface ExtraNetworkResult {
+  name: string;
+  display: string;
+  kind: 'lora' | 'embed' | 'wildcard';
+}
+
+type AutocompleteResult = TagResult | ExtraNetworkResult;
+
+function getCurrentWord(input: PromptInput, splitOnSpaces = false): CurrentWord | null {
+  const { value, selectionStart, selectionEnd } = input;
+  if (selectionStart !== selectionEnd) return null;
   // Scan backward from cursor to the nearest hard separator
   let wordStart = selectionStart;
   while (wordStart > 0) {
     const ch = value[wordStart - 1];
-    if (ch === ',' || ch === '\n') break;
+    if (ch === ',' || ch === '\n' || (splitOnSpaces && /\s/.test(ch))) break;
     wordStart--;
   }
   // Skip leading whitespace between the separator and the typed word
-  while (wordStart < selectionStart && value[wordStart] === ' ') wordStart++;
+  while (wordStart < selectionStart && /\s/.test(value[wordStart])) wordStart++;
   const segment = value.slice(wordStart, selectionStart);
   // LoRA / extra-network trigger: unclosed `<` with `kind:` prefix
   const before = value.slice(0, selectionStart);
   const lastOpen = before.lastIndexOf('<');
   const lastClose = before.lastIndexOf('>');
-  if (lastOpen > lastClose && lastOpen >= wordStart) {
+  if (lastOpen > lastClose) {
     const inside = before.slice(lastOpen + 1); // e.g. "lora:foo", "lora:", "lor", or ""
     const colon = inside.indexOf(':');
-    if (colon < 0) {
+    if (colon >= 0 && inside.slice(0, colon).toLowerCase() === 'lora') {
+      return { word: inside.slice(colon + 1), start: lastOpen, end: selectionStart, mode: 'lora' };
+    }
+    if (lastOpen >= wordStart && colon < 0) {
       // Bare `<` (or `<lo`, `<lora` partial). LoRA is the only `<...>` kind we ship,
       // so browse-all-loras; whatever the user typed gets overwritten on accept.
       return { word: '', start: lastOpen, end: selectionStart, mode: 'lora' };
     }
-    if (inside.slice(0, colon).toLowerCase() === 'lora') {
-      return { word: inside.slice(colon + 1), start: lastOpen, end: selectionStart, mode: 'lora' };
-    }
     // Recognized colon but unknown kind, suppress completion.
-    return null;
+    if (lastOpen >= wordStart) return null;
   }
   // Wildcard trigger: unclosed `__` that doesn't close within the current word
-  if (segment.startsWith('__') && !segment.slice(2).includes('__')) {
-    return { word: segment.slice(2), start: wordStart, end: selectionStart, mode: 'wildcard' };
+  const hardSeparator = Math.max(value.lastIndexOf(',', selectionStart - 1), value.lastIndexOf('\n', selectionStart - 1)) + 1;
+  const wildcardStart = splitOnSpaces ? before.lastIndexOf('__') : wordStart;
+  const wildcardAtBoundary = wildcardStart === hardSeparator || /\s/.test(value[wildcardStart - 1] ?? '');
+  const wildcardText = value.slice(wildcardStart, selectionStart);
+  if ((splitOnSpaces && wildcardStart >= hardSeparator && wildcardAtBoundary && wildcardText.startsWith('__')
+      && !wildcardText.slice(2).includes('__'))
+    || (!splitOnSpaces && segment.startsWith('__') && !segment.slice(2).includes('__'))) {
+    const start = splitOnSpaces ? wildcardStart : wordStart;
+    return { word: value.slice(start + 2, selectionStart), start, end: selectionStart, mode: 'wildcard' };
   }
   // Artist trigger: leading `@` filters tag results to the artist category.
   if (segment.startsWith('@')) {
@@ -358,65 +393,110 @@ function escapeParensForPrompt(name) {
   return name.replace(/([()])/g, '\\$1');
 }
 
+function createExtraNetworkEdit(info: CurrentWord, item: { name: string; display?: string }, kind: 'lora' | 'wildcard'): PromptEdit {
+  const insert = kind === 'lora'
+    ? `<lora:${item.display ?? item.name}:1.0>`
+    : `__${item.display ?? item.name}__`;
+  return { from: info.start, to: info.end, insert, cursor: info.start + insert.length };
+}
+
+function createTagEdit(value: string, info: CurrentWord, tagName: string, kind: 'tag' | 'embed'): PromptEdit {
+  const before = value.slice(0, info.start);
+  const after = value.slice(info.end);
+  const trimmedBefore = before.trimEnd();
+  const trimmedAfter = after.trimStart();
+  const useComma = window.opts?.autocomplete_append_comma ?? true;
+  const separator = useComma ? ',' : '';
+  const needsSeparator = trimmedBefore.length > 0 && !trimmedBefore.endsWith(',');
+  const prefix = needsSeparator ? `${separator} ` : '';
+  const leadingSpace = trimmedBefore.length > 0 && (!needsSeparator || !separator) ? ' ' : '';
+  let suffix = `${separator} `;
+  if (after.length > 0 && trimmedAfter.startsWith(',')) suffix = ' ';
+  const keepUnderscores = window.opts?.autocomplete_keep_underscores ?? false;
+  let body = tagName;
+  if (kind !== 'embed' && !keepUnderscores) body = body.replace(/_/g, ' ');
+  if (info.mode === 'artist' && window.opts?.autocomplete_at_prefix_artist) body = `@${body}`;
+  const insertion = `${prefix}${escapeParensForPrompt(body)}${suffix}`;
+  const from = trimmedBefore.length;
+  return {
+    from,
+    to: value.length - trimmedAfter.length,
+    insert: `${leadingSpace}${insertion}${trimmedAfter}`,
+    cursor: from + leadingSpace.length + insertion.length,
+  };
+}
+
+function searchAutocomplete(info: CurrentWord): AutocompleteResult[] {
+  if (info.mode === 'lora') return xnEngine.searchLoras(info.word);
+  if (info.mode === 'wildcard') return xnEngine.searchWildcards(info.word);
+  if (info.mode === 'artist') return engine.searchAll(info.word).filter((tag) => tag.category === ARTIST_CATEGORY_ID);
+  return [...xnEngine.searchEmbeddings(info.word), ...engine.searchAll(info.word)];
+}
+
+function searchChatPrompt(value: string, selectionStart: number, selectionEnd: number): ChatPromptAutocompleteResult | null {
+  if (!active) return null;
+  const info = getCurrentWord({ value, selectionStart, selectionEnd }, true);
+  if (!info) return null;
+  const minChars = window.opts?.autocomplete_min_chars ?? 3;
+  let threshold = minChars;
+  if (info.mode === 'lora' || info.mode === 'wildcard') threshold = 0;
+  else if (info.mode === 'artist') threshold = 1;
+  if (info.word.length < threshold) return null;
+
+  const options = searchAutocomplete(info).flatMap((item): ChatPromptAutocompleteOption[] => {
+    let kind: ChatPromptAutocompleteOption['kind'] = 'tag';
+    if ('kind' in item) kind = item.kind;
+    let detail = kind;
+    if ('category' in item) detail = engine.categoryNames[item.category] ?? '';
+    const kindStyle = KIND_GLYPHS[kind];
+    let color = kindStyle.color ?? '#888';
+    if ('category' in item) color = engine.categoryColors[item.category] ?? color;
+    const edit = kind === 'lora' || kind === 'wildcard'
+      ? createExtraNetworkEdit(info, item, kind)
+      : createTagEdit(value, info, item.display ?? item.name, kind === 'embed' ? 'embed' : 'tag');
+    const display = item.display ?? item.name;
+    const keepUnderscores = window.opts?.autocomplete_keep_underscores ?? false;
+    const label = kind !== 'embed' && !keepUnderscores ? display.replace(/_/g, ' ') : display;
+    const count = 'count' in item && item.count > 0 ? formatCount(item.count) : '';
+    return [{ label, kind, detail, glyph: kindStyle.glyph, color, count, ...edit }];
+  });
+  return options.length > 0 ? { from: info.start, to: info.end, query: info.word, options } : null;
+}
+
+window.chatPromptAutocomplete = { search: searchChatPrompt };
+
+function applyTextareaEdit(textarea: HTMLTextAreaElement, edit: PromptEdit): void {
+  textarea.value = textarea.value.slice(0, edit.from) + edit.insert + textarea.value.slice(edit.to);
+  textarea.selectionStart = edit.cursor;
+  textarea.selectionEnd = edit.cursor;
+  if (typeof updateInput === 'function') updateInput(textarea);
+}
+
 /**
  * Insert an extra-network reference at the current trigger position.
  *   kind === 'lora':     inserts `<lora:name:1.0>` over the range including the leading `<`
  *   kind === 'wildcard': inserts `__name__` over the range including the leading `__`
  * Embeddings use insertTag directly so they go through comma-separator and paren-escape logic.
  */
-function insertExtraNetwork(textarea, item, kind) {
+function insertExtraNetwork(textarea: HTMLTextAreaElement, item: { name: string; display?: string }, kind: 'lora' | 'wildcard'): void {
   const info = getCurrentWord(textarea);
   if (!info || info.mode !== kind) return;
-  const { value } = textarea;
-  const before = value.slice(0, info.start);
-  const after = value.slice(info.end);
-  let insertion;
-  if (kind === 'lora') {
-    insertion = `<lora:${item.display ?? item.name}:1.0>`;
-  } else if (kind === 'wildcard') {
-    insertion = `__${item.display ?? item.name}__`;
-  } else {
-    return;
-  }
-  textarea.value = before + insertion + after;
-  const cursorPos = before.length + insertion.length;
-  textarea.selectionStart = cursorPos;
-  textarea.selectionEnd = cursorPos;
-  if (typeof updateInput === 'function') updateInput(textarea);
+  applyTextareaEdit(textarea, createExtraNetworkEdit(info, item, kind));
 }
 
 /** Insert a tag at the current word position, replacing the typed prefix. */
-function insertTag(textarea, tagName, kind = 'tag') {
+function insertTag(textarea: HTMLTextAreaElement, tagName: string, kind: 'tag' | 'embed' = 'tag'): void {
   const info = getCurrentWord(textarea);
   if (!info || (info.mode !== 'tag' && info.mode !== 'artist')) return;
-  const { value } = textarea;
-  const before = value.slice(0, info.start);
-  const after = value.slice(info.end);
-  // Build insertion: tag + separator. Parens in tag names are escaped so the prompt parser doesn't read them as attention syntax.
-  const useComma = window.opts?.autocomplete_append_comma ?? true;
-  const sep = useComma ? ',' : '';
-  const needsSepBefore = before.length > 0 && before.trimEnd().length > 0 && !before.trimEnd().endsWith(',');
-  const prefix = needsSepBefore ? `${sep} ` : '';
-  let suffix = `${sep} `;
-  if (after.length > 0 && after.trimStart().startsWith(',')) suffix = ' ';
-  // Embedding names are file-system identifiers, so underscores must be preserved regardless of the user setting.
-  // Tags and artists honor `autocomplete_keep_underscores`; default is to swap `_` for space.
-  const keepUnderscores = window.opts?.autocomplete_keep_underscores ?? false;
-  let body = tagName;
-  if (kind !== 'embed' && !keepUnderscores) body = body.replace(/_/g, ' ');
-  // Artist mode optionally keeps the `@` prefix (Anima syntax). The `@` is consumed for non-Anima models.
-  if (info.mode === 'artist' && window.opts?.autocomplete_at_prefix_artist) body = `@${body}`;
-  const insertion = `${prefix}${escapeParensForPrompt(body)}${suffix}`;
-  textarea.value = before.trimEnd() + (before.trimEnd().length > 0 ? ' ' : '') + insertion + after.trimStart();
-  // Position cursor after the inserted tag + separator
-  const cursorPos = before.trimEnd().length + (before.trimEnd().length > 0 ? 1 : 0) + insertion.length;
-  textarea.selectionStart = cursorPos;
-  textarea.selectionEnd = cursorPos;
-  // Sync with Gradio
-  if (typeof updateInput === 'function') updateInput(textarea);
+  applyTextareaEdit(textarea, createTagEdit(textarea.value, info, tagName, kind));
 }
 
 // -- Dropdown --
+
+const AUTOCOMPLETE_ROW_HEIGHT = 32;
+const AUTOCOMPLETE_VISIBLE_ROWS = 8;
+const AUTOCOMPLETE_LIST_HEIGHT = AUTOCOMPLETE_ROW_HEIGHT * AUTOCOMPLETE_VISIBLE_ROWS + 8;
+const AUTOCOMPLETE_MAX_HEIGHT = AUTOCOMPLETE_LIST_HEIGHT + 2;
 
 const dropdown = {
   el: null,
@@ -549,7 +629,7 @@ const dropdown = {
     const cursorBottom = caretViewportY(this.textarea);
     const anchorY = Math.max(rect.top, Math.min(cursorBottom, rect.bottom));
     const spaceBelow = window.innerHeight - anchorY;
-    const dropHeight = Math.min(this.el.scrollHeight, 300);
+    const dropHeight = Math.min(this.el.scrollHeight, AUTOCOMPLETE_MAX_HEIGHT);
     if (spaceBelow >= dropHeight || spaceBelow >= anchorY - rect.top) {
       this.el.style.top = `${anchorY + 2}px`;
     } else {
@@ -624,21 +704,7 @@ function onInput(textarea) {
   }
   clearTimeout(debounceInput);
   debounceInput = setTimeout(() => {
-    let results;
-    if (info.mode === 'lora') {
-      results = xnEngine.searchLoras(info.word);
-    } else if (info.mode === 'wildcard') {
-      results = xnEngine.searchWildcards(info.word);
-    } else if (info.mode === 'artist') {
-      // `@` trigger: tag-search filtered to the artist category. The category-1 color carries the visual cue.
-      results = engine.searchAll(info.word).filter((t) => t.category === ARTIST_CATEGORY_ID);
-    } else {
-      const tagResults = engine.searchAll(info.word);
-      const embedResults = xnEngine.searchEmbeddings(info.word);
-      // Embeddings fold into tag-mode results (a1111 tagcomplete parity).
-      results = [...embedResults, ...tagResults];
-    }
-    dropdown.show(results, textarea, info.word);
+    dropdown.show(searchAutocomplete(info), textarea, info.word);
   }, 150);
 }
 
@@ -777,13 +843,14 @@ export async function initAutocomplete() {
   // Inject styles (CSS files in javascript/ are not auto-loaded)
   const style = document.createElement('style');
   style.textContent = `
-    .autocompleteResults { position: fixed; z-index: 9999; max-height: 300px; overflow-y: auto;
+    .autocompleteResults { position: fixed; z-index: 9999; max-height: ${AUTOCOMPLETE_MAX_HEIGHT}px; overflow-y: auto;
       background: var(--sd-main-background-color, var(--background-fill-primary, #1f2937));
       border: 1px solid var(--sd-input-border-color, var(--border-color-primary, #374151));
       border-radius: var(--sd-border-radius, 6px); box-shadow: 0 4px 16px rgba(0,0,0,0.4);
       font-size: 13px; scrollbar-width: thin; color: var(--body-text-color-subdued); }
-    .autocompleteResultsList { list-style: none; margin: 0; padding: 4px 0; }
-    .autocompleteResultsList > li { display: flex; align-items: center; padding: 6px 12px; cursor: pointer;
+    .autocompleteResultsList { list-style: none; margin: 0; max-height: ${AUTOCOMPLETE_LIST_HEIGHT}px; padding: 4px 0; }
+    .autocompleteResultsList > li { box-sizing: border-box; display: flex; align-items: center; height: ${AUTOCOMPLETE_ROW_HEIGHT}px;
+      min-height: ${AUTOCOMPLETE_ROW_HEIGHT}px; max-height: ${AUTOCOMPLETE_ROW_HEIGHT}px; overflow: hidden; padding: 6px 12px; cursor: pointer;
       gap: 8px; line-height: 1.4; transition: background 0.1s ease; border-bottom: 1px solid rgba(255,255,255,0.03); }
     .autocompleteResultsList > li:last-child { border-bottom: none; }
     .autocompleteResultsList > li:hover { background: var(--sd-panel-background-color, var(--input-background-fill-focus, #374151)); }

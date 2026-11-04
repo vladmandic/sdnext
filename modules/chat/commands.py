@@ -211,6 +211,10 @@ def parse_command(text: str) -> ParsedCommand:
         if not value:
             raise CommandError('Enter prompt text after the prompt marker.')
         return ParsedCommand('set', {'name': 'prompt', 'value': value})
+    if stripped.startswith('/'):
+        stripped = stripped[1:].lstrip()
+        if not stripped:
+            raise CommandError('Enter a command. Use help to see available commands.')
     match = re.match(r'^(\S+)(?:\s+(.*))?$', stripped, flags=re.DOTALL)
     command, raw_arguments = match.groups()
     command = command.lower()
@@ -702,6 +706,10 @@ def _context_parameter_entries(context: str, keys: list[str], draft: dict[str, A
     return entries
 
 
+def get_parameter_entries(context: str, draft: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    return _context_parameter_entries(context, _context_parameter_keys(context), draft or {})
+
+
 def _list_choices(context: str, name: str | None) -> str:
     if name is None:
         return f'Listable keys for {context}:\n' + '\n'.join(
@@ -1068,9 +1076,8 @@ def _execute_command(session_id: str, text: str, image: str | list[str] | None =
             return _command_error('No available image to inspect')
         return _command_result(artifacts.image_metadata(artifact))
     if command.name == 'params':
-        keys = _context_parameter_keys(context)
         draft = (session.get('drafts') or {}).get(context, {})
-        entries = _context_parameter_entries(context, keys, draft)
+        entries = get_parameter_entries(context, draft)
         return _command_result(
             f'Valid parameter keys for {context}:\n'
             + '\n'.join(

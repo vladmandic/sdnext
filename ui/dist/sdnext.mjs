@@ -15219,33 +15219,38 @@ var engine = {
     return results.slice(0, limit);
   }
 };
-function getCurrentWord(textarea) {
-  const { value, selectionStart } = textarea;
-  if (selectionStart !== textarea.selectionEnd) return null;
+function getCurrentWord(input, splitOnSpaces = false) {
+  const { value, selectionStart, selectionEnd } = input;
+  if (selectionStart !== selectionEnd) return null;
   let wordStart = selectionStart;
   while (wordStart > 0) {
     const ch = value[wordStart - 1];
-    if (ch === "," || ch === "\n") break;
+    if (ch === "," || ch === "\n" || splitOnSpaces && /\s/.test(ch)) break;
     wordStart--;
   }
-  while (wordStart < selectionStart && value[wordStart] === " ") wordStart++;
+  while (wordStart < selectionStart && /\s/.test(value[wordStart])) wordStart++;
   const segment = value.slice(wordStart, selectionStart);
   const before = value.slice(0, selectionStart);
   const lastOpen = before.lastIndexOf("<");
   const lastClose = before.lastIndexOf(">");
-  if (lastOpen > lastClose && lastOpen >= wordStart) {
+  if (lastOpen > lastClose) {
     const inside = before.slice(lastOpen + 1);
     const colon = inside.indexOf(":");
-    if (colon < 0) {
-      return { word: "", start: lastOpen, end: selectionStart, mode: "lora" };
-    }
-    if (inside.slice(0, colon).toLowerCase() === "lora") {
+    if (colon >= 0 && inside.slice(0, colon).toLowerCase() === "lora") {
       return { word: inside.slice(colon + 1), start: lastOpen, end: selectionStart, mode: "lora" };
     }
-    return null;
+    if (lastOpen >= wordStart && colon < 0) {
+      return { word: "", start: lastOpen, end: selectionStart, mode: "lora" };
+    }
+    if (lastOpen >= wordStart) return null;
   }
-  if (segment.startsWith("__") && !segment.slice(2).includes("__")) {
-    return { word: segment.slice(2), start: wordStart, end: selectionStart, mode: "wildcard" };
+  const hardSeparator = Math.max(value.lastIndexOf(",", selectionStart - 1), value.lastIndexOf("\n", selectionStart - 1)) + 1;
+  const wildcardStart = splitOnSpaces ? before.lastIndexOf("__") : wordStart;
+  const wildcardAtBoundary = wildcardStart === hardSeparator || /\s/.test(value[wildcardStart - 1] ?? "");
+  const wildcardText = value.slice(wildcardStart, selectionStart);
+  if (splitOnSpaces && wildcardStart >= hardSeparator && wildcardAtBoundary && wildcardText.startsWith("__") && !wildcardText.slice(2).includes("__") || !splitOnSpaces && segment.startsWith("__") && !segment.slice(2).includes("__")) {
+    const start = splitOnSpaces ? wildcardStart : wordStart;
+    return { word: value.slice(start + 2, selectionStart), start, end: selectionStart, mode: "wildcard" };
   }
   if (segment.startsWith("@")) {
     return { word: segment.slice(1), start: wordStart, end: selectionStart, mode: "artist" };
@@ -15257,49 +15262,88 @@ var ARTIST_CATEGORY_ID = 1;
 function escapeParensForPrompt(name) {
   return name.replace(/([()])/g, "\\$1");
 }
-function insertExtraNetwork(textarea, item, kind) {
-  const info = getCurrentWord(textarea);
-  if (!info || info.mode !== kind) return;
-  const { value } = textarea;
-  const before = value.slice(0, info.start);
-  const after = value.slice(info.end);
-  let insertion;
-  if (kind === "lora") {
-    insertion = `<lora:${item.display ?? item.name}:1.0>`;
-  } else if (kind === "wildcard") {
-    insertion = `__${item.display ?? item.name}__`;
-  } else {
-    return;
-  }
-  textarea.value = before + insertion + after;
-  const cursorPos = before.length + insertion.length;
-  textarea.selectionStart = cursorPos;
-  textarea.selectionEnd = cursorPos;
-  if (typeof updateInput2 === "function") updateInput2(textarea);
+function createExtraNetworkEdit(info, item, kind) {
+  const insert = kind === "lora" ? `<lora:${item.display ?? item.name}:1.0>` : `__${item.display ?? item.name}__`;
+  return { from: info.start, to: info.end, insert, cursor: info.start + insert.length };
 }
-function insertTag(textarea, tagName, kind = "tag") {
-  const info = getCurrentWord(textarea);
-  if (!info || info.mode !== "tag" && info.mode !== "artist") return;
-  const { value } = textarea;
+function createTagEdit(value, info, tagName, kind) {
   const before = value.slice(0, info.start);
   const after = value.slice(info.end);
+  const trimmedBefore = before.trimEnd();
+  const trimmedAfter = after.trimStart();
   const useComma = window.opts?.autocomplete_append_comma ?? true;
-  const sep = useComma ? "," : "";
-  const needsSepBefore = before.length > 0 && before.trimEnd().length > 0 && !before.trimEnd().endsWith(",");
-  const prefix = needsSepBefore ? `${sep} ` : "";
-  let suffix = `${sep} `;
-  if (after.length > 0 && after.trimStart().startsWith(",")) suffix = " ";
+  const separator = useComma ? "," : "";
+  const needsSeparator = trimmedBefore.length > 0 && !trimmedBefore.endsWith(",");
+  const prefix = needsSeparator ? `${separator} ` : "";
+  const leadingSpace = trimmedBefore.length > 0 && (!needsSeparator || !separator) ? " " : "";
+  let suffix = `${separator} `;
+  if (after.length > 0 && trimmedAfter.startsWith(",")) suffix = " ";
   const keepUnderscores = window.opts?.autocomplete_keep_underscores ?? false;
   let body = tagName;
   if (kind !== "embed" && !keepUnderscores) body = body.replace(/_/g, " ");
   if (info.mode === "artist" && window.opts?.autocomplete_at_prefix_artist) body = `@${body}`;
   const insertion = `${prefix}${escapeParensForPrompt(body)}${suffix}`;
-  textarea.value = before.trimEnd() + (before.trimEnd().length > 0 ? " " : "") + insertion + after.trimStart();
-  const cursorPos = before.trimEnd().length + (before.trimEnd().length > 0 ? 1 : 0) + insertion.length;
-  textarea.selectionStart = cursorPos;
-  textarea.selectionEnd = cursorPos;
+  const from = trimmedBefore.length;
+  return {
+    from,
+    to: value.length - trimmedAfter.length,
+    insert: `${leadingSpace}${insertion}${trimmedAfter}`,
+    cursor: from + leadingSpace.length + insertion.length
+  };
+}
+function searchAutocomplete(info) {
+  if (info.mode === "lora") return xnEngine.searchLoras(info.word);
+  if (info.mode === "wildcard") return xnEngine.searchWildcards(info.word);
+  if (info.mode === "artist") return engine.searchAll(info.word).filter((tag) => tag.category === ARTIST_CATEGORY_ID);
+  return [...xnEngine.searchEmbeddings(info.word), ...engine.searchAll(info.word)];
+}
+function searchChatPrompt(value, selectionStart, selectionEnd) {
+  if (!active) return null;
+  const info = getCurrentWord({ value, selectionStart, selectionEnd }, true);
+  if (!info) return null;
+  const minChars = window.opts?.autocomplete_min_chars ?? 3;
+  let threshold = minChars;
+  if (info.mode === "lora" || info.mode === "wildcard") threshold = 0;
+  else if (info.mode === "artist") threshold = 1;
+  if (info.word.length < threshold) return null;
+  const options = searchAutocomplete(info).flatMap((item) => {
+    let kind = "tag";
+    if ("kind" in item) kind = item.kind;
+    let detail = kind;
+    if ("category" in item) detail = engine.categoryNames[item.category] ?? "";
+    const kindStyle = KIND_GLYPHS[kind];
+    let color = kindStyle.color ?? "#888";
+    if ("category" in item) color = engine.categoryColors[item.category] ?? color;
+    const edit = kind === "lora" || kind === "wildcard" ? createExtraNetworkEdit(info, item, kind) : createTagEdit(value, info, item.display ?? item.name, kind === "embed" ? "embed" : "tag");
+    const display = item.display ?? item.name;
+    const keepUnderscores = window.opts?.autocomplete_keep_underscores ?? false;
+    const label = kind !== "embed" && !keepUnderscores ? display.replace(/_/g, " ") : display;
+    const count = "count" in item && item.count > 0 ? formatCount(item.count) : "";
+    return [{ label, kind, detail, glyph: kindStyle.glyph, color, count, ...edit }];
+  });
+  return options.length > 0 ? { from: info.start, to: info.end, query: info.word, options } : null;
+}
+window.chatPromptAutocomplete = { search: searchChatPrompt };
+function applyTextareaEdit(textarea, edit) {
+  textarea.value = textarea.value.slice(0, edit.from) + edit.insert + textarea.value.slice(edit.to);
+  textarea.selectionStart = edit.cursor;
+  textarea.selectionEnd = edit.cursor;
   if (typeof updateInput2 === "function") updateInput2(textarea);
 }
+function insertExtraNetwork(textarea, item, kind) {
+  const info = getCurrentWord(textarea);
+  if (!info || info.mode !== kind) return;
+  applyTextareaEdit(textarea, createExtraNetworkEdit(info, item, kind));
+}
+function insertTag(textarea, tagName, kind = "tag") {
+  const info = getCurrentWord(textarea);
+  if (!info || info.mode !== "tag" && info.mode !== "artist") return;
+  applyTextareaEdit(textarea, createTagEdit(textarea.value, info, tagName, kind));
+}
+var AUTOCOMPLETE_ROW_HEIGHT = 32;
+var AUTOCOMPLETE_VISIBLE_ROWS = 8;
+var AUTOCOMPLETE_LIST_HEIGHT = AUTOCOMPLETE_ROW_HEIGHT * AUTOCOMPLETE_VISIBLE_ROWS + 8;
+var AUTOCOMPLETE_MAX_HEIGHT = AUTOCOMPLETE_LIST_HEIGHT + 2;
 var dropdown = {
   el: null,
   listEl: null,
@@ -15425,7 +15469,7 @@ var dropdown = {
     const cursorBottom = caretViewportY(this.textarea);
     const anchorY = Math.max(rect.top, Math.min(cursorBottom, rect.bottom));
     const spaceBelow = window.innerHeight - anchorY;
-    const dropHeight = Math.min(this.el.scrollHeight, 300);
+    const dropHeight = Math.min(this.el.scrollHeight, AUTOCOMPLETE_MAX_HEIGHT);
     if (spaceBelow >= dropHeight || spaceBelow >= anchorY - rect.top) {
       this.el.style.top = `${anchorY + 2}px`;
     } else {
@@ -15489,19 +15533,7 @@ function onInput(textarea) {
   }
   clearTimeout(debounceInput);
   debounceInput = setTimeout(() => {
-    let results;
-    if (info.mode === "lora") {
-      results = xnEngine.searchLoras(info.word);
-    } else if (info.mode === "wildcard") {
-      results = xnEngine.searchWildcards(info.word);
-    } else if (info.mode === "artist") {
-      results = engine.searchAll(info.word).filter((t) => t.category === ARTIST_CATEGORY_ID);
-    } else {
-      const tagResults = engine.searchAll(info.word);
-      const embedResults = xnEngine.searchEmbeddings(info.word);
-      results = [...embedResults, ...tagResults];
-    }
-    dropdown.show(results, textarea, info.word);
+    dropdown.show(searchAutocomplete(info), textarea, info.word);
   }, 150);
 }
 function onKeyDown(e) {
@@ -15629,13 +15661,14 @@ async function initAutocomplete() {
   log("autoComplete", { active, enabled });
   const style = document.createElement("style");
   style.textContent = `
-    .autocompleteResults { position: fixed; z-index: 9999; max-height: 300px; overflow-y: auto;
+    .autocompleteResults { position: fixed; z-index: 9999; max-height: ${AUTOCOMPLETE_MAX_HEIGHT}px; overflow-y: auto;
       background: var(--sd-main-background-color, var(--background-fill-primary, #1f2937));
       border: 1px solid var(--sd-input-border-color, var(--border-color-primary, #374151));
       border-radius: var(--sd-border-radius, 6px); box-shadow: 0 4px 16px rgba(0,0,0,0.4);
       font-size: 13px; scrollbar-width: thin; color: var(--body-text-color-subdued); }
-    .autocompleteResultsList { list-style: none; margin: 0; padding: 4px 0; }
-    .autocompleteResultsList > li { display: flex; align-items: center; padding: 6px 12px; cursor: pointer;
+    .autocompleteResultsList { list-style: none; margin: 0; max-height: ${AUTOCOMPLETE_LIST_HEIGHT}px; padding: 4px 0; }
+    .autocompleteResultsList > li { box-sizing: border-box; display: flex; align-items: center; height: ${AUTOCOMPLETE_ROW_HEIGHT}px;
+      min-height: ${AUTOCOMPLETE_ROW_HEIGHT}px; max-height: ${AUTOCOMPLETE_ROW_HEIGHT}px; overflow: hidden; padding: 6px 12px; cursor: pointer;
       gap: 8px; line-height: 1.4; transition: background 0.1s ease; border-bottom: 1px solid rgba(255,255,255,0.03); }
     .autocompleteResultsList > li:last-child { border-bottom: none; }
     .autocompleteResultsList > li:hover { background: var(--sd-panel-background-color, var(--input-background-fill-focus, #374151)); }

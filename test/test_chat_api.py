@@ -529,6 +529,7 @@ class TestChatApiRegistration(unittest.TestCase):
             ('/sdapi/v1/chat/sessions/{session_id}', 'GET'),
             ('/sdapi/v1/chat/sessions/{session_id}', 'PATCH'),
             ('/sdapi/v1/chat/sessions/{session_id}', 'DELETE'),
+            ('/sdapi/v1/chat/sessions/{session_id}/parameters', 'GET'),
             ('/sdapi/v1/chat/sessions/{session_id}/restore', 'POST'),
             ('/sdapi/v1/chat/sessions/{session_id}/messages', 'POST'),
             ('/sdapi/v1/chat/sessions/{session_id}/messages/{message_id}', 'PATCH'),
@@ -538,6 +539,20 @@ class TestChatApiRegistration(unittest.TestCase):
             ('/sdapi/v1/chat/sessions/{session_id}/artifacts/{artifact_id}/save', 'POST'),
             ('/sdapi/v1/chat/sessions/{session_id}/artifacts/{artifact_id}', 'DELETE'),
         })
+
+    def test_session_parameter_catalog_matches_the_active_context(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = os.path.join(temp_dir, 'chat.db')
+            with patch.object(db, '_db_path', return_value=db_path):
+                image_session = chat_api.create_session(chat_api.ReqSessionCreate(context='image'))
+                video_session = chat_api.create_session(chat_api.ReqSessionCreate(context='video'))
+                image_parameters = chat_api.get_session_parameters(image_session['id'])
+                video_parameters = chat_api.get_session_parameters(video_session['id'])
+
+        self.assertEqual(image_parameters.context, 'image')
+        self.assertEqual(video_parameters.context, 'video')
+        self.assertIn('steps', {parameter.name for parameter in image_parameters.parameters})
+        self.assertIn('frames', {parameter.name for parameter in video_parameters.parameters})
 
     def test_message_submission_persists_command_exchange_and_restore_state(self):
         with tempfile.TemporaryDirectory() as temp_dir:
