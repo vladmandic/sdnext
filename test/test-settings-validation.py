@@ -8,6 +8,7 @@ Covers:
 - a late option's stored value reset when it is out of range or of the wrong type, as a built-in option's is at load
 - keys no option claims reported once, after extensions have added theirs
 - built-in options still validated at load, compatibility and ``uiux_`` keys never reported
+- every setting the Tag Autocomplete script stores registered as an option and sent to the page
 
 No running server required.
 
@@ -195,6 +196,34 @@ def test_compatibility_keys_not_reported():
     assert opts.data['clip_skip'] == 2 and opts.data['uiux_theme'] == 'dark', 'kept keys changed'
 
 
+# --- settings stored outside an option ---
+
+def test_autocomplete_settings_registered():
+    """every setting the Tag Autocomplete script stores is an option, so the page's settings carry its stored value"""
+    import re
+    from modules import shared
+    with open(os.path.join(script_dir, 'scripts', 'autocomplete.py'), encoding='utf8') as f:
+        keys = sorted(set(re.findall(r"opts\.data(?:\.get\(|\[)'(autocomplete_\w+)'", f.read())))
+    assert len(keys) >= 7, f'script keys not found: {keys}'
+    templates = dict(shared.options_templates)
+    missing = [k for k in keys if k not in templates]
+    assert missing == [], f'stored without an option: {missing}'
+    folder = os.path.join(work_dir, 'autocomplete')
+    os.makedirs(folder, exist_ok=True)
+    config = os.path.join(folder, 'config.json')
+    stored = {k: not templates[k].default for k in keys if isinstance(templates[k].default, bool)}
+    with open(config, 'w', encoding='utf8') as f:
+        json.dump(stored, f)
+    with capture_log() as cap:
+        opts = Options(templates, filename=config, secrets=os.path.join(folder, 'secrets.json'))
+        opts.validate_pending()
+        messages = unknown_lines(cap.warnings())
+    assert messages == [], f'reported: {messages}'
+    values = json.loads(opts.dumpjson())['values']
+    wrong = {k: values.get(k) for k, v in stored.items() if values.get(k) != v}
+    assert wrong == {}, f'page settings differ from the stored values: {wrong}'
+
+
 def run_all():
     log.warning('=== Settings validation ===')
     cat = category('late options')
@@ -210,6 +239,8 @@ def run_all():
         test_compatibility_keys_not_reported,
     ]:
         run_test(cat, fn)
+    cat = category('registered')
+    run_test(cat, test_autocomplete_settings_registered)
 
     log.warning('=== Results ===')
     total = {'passed': 0, 'failed': 0, 'skipped': 0}

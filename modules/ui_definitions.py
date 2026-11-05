@@ -807,6 +807,8 @@ def create_settings(cmd_opts):
                 "autocomplete_min_chars": OptionInfo(3, "Min autocomplete chars", gr.Slider, {"minimum": 2, "maximum": 6, "step": 1, "visible": False}),
                 "autocomplete_keep_underscores": OptionInfo(False, "Keep underscores in autocomplete", gr.Checkbox, {"visible": False}),
                 "autocomplete_append_comma": OptionInfo(True, "Append comma after autocomplete", gr.Checkbox, {"visible": False}),
+                "autocomplete_at_prefix_artist": OptionInfo(False, "Keep @ on artist insert", gr.Checkbox, {"visible": False}),
+                "autocomplete_translations": OptionInfo(False, "Foreign-term translations in autocomplete", gr.Checkbox, {"visible": False}),
 
                 # Scheduler settings (controlled via Scheduler Tab UI)
                 "scheduler_start": OptionInfo("09:00", "Scheduler start time", gr.Textbox, {"visible": False}),

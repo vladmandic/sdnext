@@ -30,6 +30,7 @@
   - api: *txt2img*, *img2img* and *control* responses carry an *error* field when a later batch fails after earlier batches returned images
   - api: failed video return 500 with the error instead of 499
   - api: ts video files served as *video/mp2t*
+  - autocomplete: *Keep @ on artist insert* applies after a page reload
   - dlss: use video codec defaults, slow-motion output plays slower
   - gallery: thumbnails and previews for webm, mkv, mov, avi and ts videos
   - hdr: the 16-bit hdr image saves on windows paths with non-ascii characters
