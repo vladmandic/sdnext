@@ -6,6 +6,7 @@ import threading
 from typing import TYPE_CHECKING
 from modules import cmd_args, errors
 from modules.json_helpers import readfile, writefile
+from modules.paths import create_path
 from modules.shared_legacy import LegacyOption
 from modules.logger import log
 
@@ -187,6 +188,8 @@ class Options:
                     secrets[k] = v
                 else:
                     options[k] = v
+            create_path(os.path.dirname(filename)) # the first save runs before create_paths makes a new data dir
+            create_path(os.path.dirname(secretsfn))
             writefile(options, filename, silent=silent)
             writefile(secrets, secretsfn, silent=silent)
             if self.debug:
