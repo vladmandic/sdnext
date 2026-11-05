@@ -44,21 +44,13 @@ def ts2utc(timestamp: int) -> datetime:
 def active() -> list[Extension]:
     if shared.opts.disable_all_extensions == "all":
         return []
-    elif shared.opts.disable_all_extensions == "user":
+    elif shared.opts.disable_all_extensions == "user" or shared.cmd_opts.safe:
         return [x for x in extensions if x.enabled and x.is_builtin]
     else:
         return [x for x in extensions if x.enabled]
 
 
 def temp_disable_extensions():
-    disable_safe = [
-        'sd-webui-controlnet',
-        'multidiffusion-upscaler-for-automatic1111',
-        'a1111-sd-webui-lycoris',
-        'sd-webui-agent-scheduler',
-        'clip-interrogator-ext',
-        'stable-diffusion-webui-images-browser',
-    ]
     disable_diffusers = [
         'sd-webui-controlnet',
         'multidiffusion-upscaler-for-automatic1111',
@@ -72,6 +64,7 @@ def temp_disable_extensions():
         'sd-extension-framepack',
         'sd-extension-nudenet',
         'sd-extension-promptgen',
+        'sd-extension-system-info'
     ]
     disabled = []
     theme_type = shared.cmd_opts.theme if shared.cmd_opts.theme is not None else shared.opts.theme_type
@@ -103,10 +96,6 @@ def temp_disable_extensions():
         shared.opts.data['theme_type'] = 'Modern'
         shared.opts.data['gradio_theme'] = 'Default'
 
-    if shared.cmd_opts.safe:
-        for ext in disable_safe:
-            if ext.lower() not in shared.opts.disabled_extensions:
-                disabled.append(ext)
     for ext in disable_diffusers:
         if ext.lower() not in shared.opts.disabled_extensions:
             disabled.append(ext)

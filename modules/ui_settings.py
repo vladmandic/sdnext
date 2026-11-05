@@ -13,6 +13,7 @@ quicksettings_names = {x: i for i, x in enumerate(shared.opts.quicksettings_list
 quicksettings_list = []
 hidden_list = []
 components = []
+settings_keys = []
 
 
 def apply_setting(key, value):
@@ -119,8 +120,13 @@ def create_dirty_indicator(key, keys_to_reset, **kwargs):
 
 
 def run_settings(*args):
+    options_count = len(shared.opts.data_labels)
+    if len(args) != options_count or len(components) != options_count or len(settings_keys) != options_count or set(settings_keys) != set(shared.opts.data_labels):
+        message = f'Settings not applied: count mismatch options={options_count} values={len(args)} components={len(components)} keys={len(settings_keys)}'
+        log.error(message)
+        return shared.opts.dumpjson(), message
     changed = []
-    for key, value, comp in zip(shared.opts.data_labels.keys(), args, components, strict=False):
+    for key, value, comp in zip(settings_keys, args, components, strict=True):
         if comp == dummy_component or value=='dummy': # or getattr(comp, 'visible', True) is False or key in hidden_list:
             # actual = shared.opts.data.get(key, None)  # ensure the key is in data
             # default = shared.opts.data_labels[key].default
@@ -237,6 +243,7 @@ def create_ui(disabled_tabs=None):
             script_callbacks.ui_settings_callback() # let extensions create settings
             shared.opts.validate_pending()
             sections = []
+            section_ids = set()
             options_count = len(shared.opts.data_labels)
             for item in shared.opts.data_labels.values(): # get unique sections from all items
                 section = item.section or (None, 'Hidden')
@@ -249,8 +256,9 @@ def create_ui(disabled_tabs=None):
                     section_id = None
                     item.section = None, 'Hidden'
                     section_text = 'Hidden'
-                if (section_id, section_text) not in sections:
+                if section_id not in section_ids:
                     sections.append((section_id, section_text))
+                    section_ids.add(section_id)
 
             with gr.Tabs(elem_id="settings"):
                 quicksettings_list.clear()
@@ -266,6 +274,7 @@ def create_ui(disabled_tabs=None):
                         for (key, _item) in items:
                             hidden_list.append(key)
                             components.append(dummy_component)
+                            settings_keys.append(key)
                     else:
                         with gr.TabItem(elem_id=f"settings_section_tab_{section_id}", label=section_text):
                             current_items = []
@@ -273,16 +282,19 @@ def create_ui(disabled_tabs=None):
                                 if key in quicksettings_names:
                                     quicksettings_list.append((key, item))
                                     components.append(dummy_component)
+                                    settings_keys.append(key)
                                 else:
                                     with gr.Row(elem_id=f"settings_section_row_{section_id}", elem_classes=["settings_section"]):
                                         component = create_setting_component(key)
                                         shared.settings_components[key] = component
                                         current_items.append(key)
                                         components.append(component)
+                                        settings_keys.append(key)
                         create_dirty_indicator(section_id, current_items)
                 components_count = len(components)
-                if components_count != options_count:
-                    log.error(f'Settings: count mismatch: options={options_count} components={components_count}')
+                option_keys = set(shared.opts.data_labels)
+                if components_count != options_count or len(settings_keys) != options_count or set(settings_keys) != option_keys:
+                    log.error(f'Settings: binding mismatch: options={options_count} components={components_count} keys={len(settings_keys)} missing={sorted(option_keys - set(settings_keys))}')
 
                 with gr.TabItem("Show all pages", elem_id="settings_show_all_pages"):
                     create_dirty_indicator("show_all_pages", [])
