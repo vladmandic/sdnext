@@ -76,30 +76,17 @@ def _connection(db_path=None, timeout=5):
     return _Connection(db_path, timeout)
 
 
-def _migrate_contexts(connection):
+def _reset_schema(connection):
     connection.execute('PRAGMA foreign_keys = OFF')
     try:
         connection.execute('BEGIN')
-        connection.execute('''
-            CREATE TABLE sessions_new (
-                id TEXT PRIMARY KEY,
-                title TEXT NOT NULL,
-                context TEXT NOT NULL CHECK (context IN ('image', 'video', 'process', 'caption')),
-                drafts TEXT NOT NULL DEFAULT '{}',
-                last_generation_prompt TEXT,
-                last_generation_snapshot TEXT,
-                created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL
-            )
-        ''')
-        connection.execute('''
-            INSERT INTO sessions_new(id, title, context, drafts, last_generation_prompt, last_generation_snapshot, created_at, updated_at)
-            SELECT id, title, context, drafts, last_generation_prompt, last_generation_snapshot, created_at, updated_at FROM sessions
-        ''')
-        connection.execute('DROP TABLE sessions')
-        connection.execute('ALTER TABLE sessions_new RENAME TO sessions')
-        connection.execute('CREATE INDEX chat_sessions_updated_idx ON sessions(updated_at DESC, id)')
-        connection.execute('PRAGMA user_version = 2')
+        objects = connection.execute(
+            "SELECT type, name FROM sqlite_master WHERE type IN ('view', 'table') AND name NOT LIKE 'sqlite_%'"
+        ).fetchall()
+        for item in objects:
+            name = item['name'].replace('"', '""')
+            connection.execute(f'DROP {item["type"].upper()} IF EXISTS "{name}"')
+        connection.execute('PRAGMA user_version = 0')
         connection.commit()
     except Exception:
         if connection.in_transaction:
@@ -107,101 +94,6 @@ def _migrate_contexts(connection):
         raise
     finally:
         connection.execute('PRAGMA foreign_keys = ON')
-
-
-def _migrate_operation_contexts(connection):
-    tables = {row['name'] for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
-    if 'operations' not in tables:
-        connection.execute('PRAGMA user_version = 3')
-        return
-    connection.execute('PRAGMA foreign_keys = OFF')
-    try:
-        connection.execute('BEGIN')
-        connection.execute('''
-            CREATE TABLE operations_new (
-                id TEXT PRIMARY KEY,
-                session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-                message_id TEXT REFERENCES messages(id) ON DELETE SET NULL,
-                command TEXT NOT NULL,
-                context TEXT NOT NULL CHECK (context IN ('image', 'video', 'process', 'caption')),
-                status TEXT NOT NULL CHECK (status IN ('running', 'completed', 'failed', 'cancelled')),
-                snapshot TEXT NOT NULL DEFAULT '{}',
-                result TEXT,
-                error TEXT,
-                created_at TEXT NOT NULL,
-                started_at TEXT NOT NULL,
-                completed_at TEXT
-            )
-        ''')
-        connection.execute('''
-            INSERT INTO operations_new(id, session_id, message_id, command, context, status, snapshot, result, error, created_at, started_at, completed_at)
-            SELECT id, session_id, message_id, command, context, status, snapshot, result, error, created_at, started_at, completed_at
-            FROM operations
-        ''')
-        connection.execute('DROP TABLE operations')
-        connection.execute('ALTER TABLE operations_new RENAME TO operations')
-        connection.execute('CREATE INDEX chat_operations_session_idx ON operations(session_id, created_at DESC, id)')
-        connection.execute(f'PRAGMA user_version = {SCHEMA_VERSION}')
-        connection.commit()
-    except Exception:
-        if connection.in_transaction:
-            connection.rollback()
-        raise
-    finally:
-        connection.execute('PRAGMA foreign_keys = ON')
-
-
-def _migrate_artifacts(connection):
-    connection.execute('BEGIN')
-    try:
-        tables = {row['name'] for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
-        if 'sessions' in tables:
-            session_columns = {row['name'] for row in connection.execute('PRAGMA table_info(sessions)')}
-            if 'selected_image_id' not in session_columns:
-                connection.execute('ALTER TABLE sessions ADD COLUMN selected_image_id TEXT')
-        connection.execute('''
-            CREATE TABLE IF NOT EXISTS artifacts (
-                id TEXT PRIMARY KEY,
-                session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-                message_id TEXT REFERENCES messages(id) ON DELETE SET NULL,
-                media_type TEXT NOT NULL,
-                display_name TEXT NOT NULL,
-                role TEXT NOT NULL CHECK (role IN ('input', 'result')),
-                storage_ref TEXT NOT NULL,
-                source_artifact_id TEXT,
-                source_deleted INTEGER NOT NULL DEFAULT 0,
-                created_at TEXT NOT NULL
-            )
-        ''')
-        connection.execute('CREATE INDEX IF NOT EXISTS chat_artifacts_session_idx ON artifacts(session_id, created_at)')
-        connection.execute(f'PRAGMA user_version = {SCHEMA_VERSION}')
-        connection.commit()
-    except Exception:
-        if connection.in_transaction:
-            connection.rollback()
-        raise
-
-
-def _migrate_selected_images(connection):
-    connection.execute('BEGIN')
-    try:
-        tables = {row['name'] for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
-        if 'sessions' in tables:
-            session_columns = {row['name'] for row in connection.execute('PRAGMA table_info(sessions)')}
-            if 'selected_image_ids' not in session_columns:
-                connection.execute("ALTER TABLE sessions ADD COLUMN selected_image_ids TEXT NOT NULL DEFAULT '[]'")
-                rows = connection.execute('SELECT id, selected_image_id FROM sessions WHERE selected_image_id IS NOT NULL').fetchall()
-                for row in rows:
-                    connection.execute(
-                        'UPDATE sessions SET selected_image_ids = ? WHERE id = ?',
-                        (_dump([row['selected_image_id']]), row['id']),
-                    )
-        connection.execute(f'PRAGMA user_version = {SCHEMA_VERSION}')
-        connection.commit()
-    except Exception:
-        if connection.in_transaction:
-            connection.rollback()
-        raise
 
 
 def _dump(value):
@@ -256,23 +148,13 @@ def initialize(db_path=None):
                 try:
                     started = time.perf_counter()
                     with _connection(path, timeout=1) as connection:
-                        exists = connection.execute(
-                            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'sessions'",
+                        has_schema = connection.execute(
+                            "SELECT 1 FROM sqlite_master WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%' LIMIT 1",
                         ).fetchone() is not None
                         version = connection.execute('PRAGMA user_version').fetchone()[0]
-                        if version > SCHEMA_VERSION:
-                            raise sqlite3.DatabaseError(f'Chat database schema {version} is newer than supported schema {SCHEMA_VERSION}')
-                        if version == 1:
-                            _migrate_contexts(connection)
-                            version = 2
-                        if version == 2:
-                            _migrate_operation_contexts(connection)
-                            version = 3
-                        if version == 3:
-                            _migrate_artifacts(connection)
-                            version = 4
-                        if version == 4:
-                            _migrate_selected_images(connection)
+                        reset = version != SCHEMA_VERSION and (has_schema or version != 0)
+                        if reset:
+                            _reset_schema(connection)
                         connection.executescript('''
                             CREATE TABLE IF NOT EXISTS sessions (
                                 id TEXT PRIMARY KEY,
@@ -331,6 +213,7 @@ def initialize(db_path=None):
                             ('Server restarted before operation completed', _timestamp()),
                         ).rowcount
                         connection.execute('PRAGMA optimize')
+                        connection.execute('ANALYZE')
                         database = connection.execute('PRAGMA database_list').fetchone()
                         schema_version = connection.execute('PRAGMA schema_version').fetchone()[0]
                         version = connection.execute('PRAGMA user_version').fetchone()[0]
@@ -344,7 +227,8 @@ def initialize(db_path=None):
                         stat = [stats[0]] if stats else ['empty']
                         integrity = connection.execute('PRAGMA integrity_check').fetchone()[0]
                         elapsed = time.perf_counter() - started
-                        log.info(f'Chat: db={database[1]} path="{database[2]}" schema={schema_version} user={version} size={page_count*page_size} journal={journal} stat={stat} mode={"open" if exists else "create"} time={elapsed:.3f} integrity={integrity} recovered={restarted}')
+                        mode = 'reset' if reset else 'open' if has_schema else 'create'
+                        log.info(f'Chat: db={database[1]} path="{database[2]}" schema={schema_version} user={version} size={page_count*page_size} journal={journal} stat={stat} mode={mode} time={elapsed:.3f} integrity={integrity} recovered={restarted}')
                     break
                 except sqlite3.OperationalError as exc:
                     log.warning(f'Chat: attempt={attempt} path="{path}" {exc}')
@@ -660,25 +544,59 @@ def diagnostics(db_path=None):
         foreign_key_errors = [dict(row) for row in connection.execute('PRAGMA foreign_key_check')]
         tables = {row['name'] for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
         required_tables = {'sessions', 'messages', 'operations', 'artifacts'}
-        json_errors = []
-        json_columns = {'sessions': ('drafts', 'last_generation_snapshot'), 'messages': ('metadata',), 'operations': ('snapshot', 'result')}
-        for table, columns in json_columns.items():
+        required_columns = {
+            'sessions': {'id', 'title', 'context', 'drafts', 'last_generation_prompt', 'last_generation_snapshot', 'selected_image_id', 'selected_image_ids', 'created_at', 'updated_at'},
+            'messages': {'id', 'session_id', 'role', 'content', 'metadata', 'created_at'},
+            'operations': {'id', 'session_id', 'message_id', 'command', 'context', 'status', 'snapshot', 'result', 'error', 'created_at', 'started_at', 'completed_at'},
+            'artifacts': {'id', 'session_id', 'message_id', 'media_type', 'display_name', 'role', 'storage_ref', 'source_artifact_id', 'source_deleted', 'created_at'},
+        }
+        table_columns = {}
+        missing_columns = {}
+        for table, expected in required_columns.items():
             if table not in tables:
                 continue
-            for row in connection.execute(f'SELECT id, {", ".join(columns)} FROM {table}'):
-                for column in columns:
+            table_columns[table] = {row['name'] for row in connection.execute(f'PRAGMA table_info({table})')}
+            missing = sorted(expected - table_columns[table])
+            if missing:
+                missing_columns[table] = missing
+        json_errors = []
+        json_columns = {'sessions': ('drafts', 'last_generation_snapshot'), 'messages': ('metadata',), 'operations': ('snapshot', 'result')}
+        for table, fields in json_columns.items():
+            if table not in tables or not {'id', *fields} <= table_columns.get(table, set()):
+                continue
+            for row in connection.execute(f'SELECT id, {", ".join(fields)} FROM {table}'):
+                for column in fields:
                     try:
                         if row[column] is not None:
                             json.loads(row[column])
                     except (TypeError, json.JSONDecodeError) as exc:
                         json_errors.append({'id': row['id'], 'table': table, 'column': column, 'error': str(exc)})
         version = connection.execute('PRAGMA user_version').fetchone()[0]
+        table_counts = {
+            table: connection.execute(f'SELECT COUNT(*) FROM {table}').fetchone()[0]
+            for table in required_tables if table in tables
+        }
+        compile_options = [row[0] for row in connection.execute('PRAGMA compile_options')]
+        page_size = connection.execute('PRAGMA page_size').fetchone()[0]
+        page_count = connection.execute('PRAGMA page_count').fetchone()[0]
+        freelist_count = connection.execute('PRAGMA freelist_count').fetchone()[0]
+        journal_mode = connection.execute('PRAGMA journal_mode').fetchone()[0]
+        schema_version = connection.execute('PRAGMA schema_version').fetchone()[0]
     return {
         'path': os.path.abspath(_db_path(db_path)),
         'integrity': integrity,
         'foreign_key_errors': foreign_key_errors,
         'missing_tables': sorted(required_tables - tables),
+        'missing_columns': missing_columns,
         'json_errors': json_errors,
+        'tables': table_counts,
+        'file_bytes': os.path.getsize(_db_path(db_path)),
+        'page_size': page_size,
+        'page_count': page_count,
+        'freelist_count': freelist_count,
+        'journal_mode': journal_mode,
+        'schema_version': schema_version,
         'user_version': version,
-        'ok': integrity == ['ok'] and not foreign_key_errors and required_tables <= tables and not json_errors and version == SCHEMA_VERSION,
+        'compile_options': compile_options,
+        'ok': integrity == ['ok'] and not foreign_key_errors and required_tables <= tables and not missing_columns and not json_errors and version == SCHEMA_VERSION,
     }

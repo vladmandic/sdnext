@@ -197,8 +197,8 @@ class TestChatFileImports(unittest.TestCase):
         self.assertEqual(
             [call.args[0] for call in log_error.call_args_list],
             [
-                'Chat: image content request failed: artifact not found or unavailable',
-                'Chat: image deletion failed: artifact not found',
+                'Chat: image content request: artifact unavailable',
+                'Chat: image deletion: artifact not found',
             ],
         )
         self.assertFalse(Path(stored['storage_ref']).exists())
@@ -541,6 +541,21 @@ class TestChatApiRegistration(unittest.TestCase):
             ('/sdapi/v1/chat/sessions/{session_id}/artifacts/{artifact_id}', 'DELETE'),
         })
 
+    def test_registration_logs_database_diagnostics_when_requested(self):
+        app = FastAPI()
+        stats = {'ok': False, 'missing_tables': ['messages']}
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = os.path.join(temp_dir, 'chat.db')
+            with patch.object(db, '_db_path', return_value=db_path), \
+                    patch.object(db, 'diagnostics', return_value=stats) as diagnostics, \
+                    patch.object(chat_api.log, 'info') as log_info, \
+                    patch.object(chat_api.log, 'error') as log_error:
+                self.assertTrue(chat_api.register_api(app, diag=True))
+
+        diagnostics.assert_called_once_with()
+        log_info.assert_any_call(f'Chat database diagnostics: {stats}')
+        log_error.assert_called_once_with('Chat: database diagnostics found integrity or schema issues')
+
     def test_session_parameter_catalog_matches_the_active_context(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             db_path = os.path.join(temp_dir, 'chat.db')
@@ -619,7 +634,7 @@ class TestChatApiRegistration(unittest.TestCase):
                         session['id'],
                         chat_api.ReqChatMessage(content='set steps=999'),
                     )
-                log_error.assert_called_once_with('Chat: command failed: steps must be between 1 and 200')
+                log_error.assert_called_once_with('Chat: command: steps must be between 1 and 200')
                 self.assertEqual(invalid.result.kind, 'error')
                 self.assertEqual(invalid.assistant_message.metadata['kind'], 'error')
 
@@ -790,7 +805,7 @@ class TestChatApiRegistration(unittest.TestCase):
         self.assertIn('<div>stats 1</div>', submission.assistant_message.content)
         self.assertIn('<div>stats 3</div>', submission.assistant_message.content)
         self.assertIn('<b>run 3</b><div>stats 1</div>', submission.assistant_message.content)
-        self.assertIn('<div>stats 1</div><div>stats 2</div>', submission.assistant_message.content)
+        self.assertIn('<div>stats 1</div>\n<div>stats 2</div>', submission.assistant_message.content)
         self.assertEqual(operation['command'], 'run')
         self.assertEqual(operation['result']['run_count'], 3)
         self.assertEqual(operation['result']['image_count'], 3)
@@ -1058,7 +1073,7 @@ class TestChatApiRegistration(unittest.TestCase):
                     chat_api.ReqChatMessage(content='help'),
                 )
 
-        expected_titles = ['Process', 'Params', 'Special', 'Global', 'Server']
+        expected_titles = ['Chat', 'Process', 'Params', 'References', 'Helpers', 'Global', 'Server']
         self.assertEqual([section['title'] for section in submission.result.sections], expected_titles)
         self.assertEqual(
             [section['title'] for section in submission.assistant_message.metadata['sections']],

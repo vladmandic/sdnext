@@ -64,70 +64,26 @@ class TestChatDatabase(unittest.TestCase):
         self.assertEqual(recovered['error'], 'Server restarted before operation completed')
         self.assertIsNotNone(recovered['completed_at'])
 
-    def test_context_schema_migration_preserves_chat_rows(self):
-        session = db.create_session('Legacy session', db_path=self.db_path)
-        message = db.create_message(session['id'], 'user', 'hello', db_path=self.db_path)
-        operation = db.create_operation(session['id'], 'generate', 'image', {}, db_path=self.db_path)
-        with sqlite3.connect(self.db_path) as connection:
-            connection.execute('PRAGMA foreign_keys = OFF')
-            connection.execute('''
-                CREATE TABLE sessions_old (
-                    id TEXT PRIMARY KEY,
-                    title TEXT NOT NULL,
-                    context TEXT NOT NULL CHECK (context IN ('image', 'video')),
-                    drafts TEXT NOT NULL DEFAULT '{}',
-                    last_generation_prompt TEXT,
-                    last_generation_snapshot TEXT,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
-                )
-            ''')
-            connection.execute('''
-                INSERT INTO sessions_old SELECT id, title, context, drafts, last_generation_prompt,
-                    last_generation_snapshot, created_at, updated_at FROM sessions
-            ''')
-            connection.execute('DROP TABLE sessions')
-            connection.execute('ALTER TABLE sessions_old RENAME TO sessions')
-            connection.execute('PRAGMA user_version = 1')
+    def test_schema_version_mismatch_discards_database_and_recreates_schema(self):
+        for version in (1, db.SCHEMA_VERSION + 1):
+            path = self.db_path.with_name(f'chat-v{version}.db')
+            with sqlite3.connect(path) as connection:
+                connection.execute('CREATE TABLE sessions (id TEXT PRIMARY KEY, title TEXT NOT NULL)')
+                connection.execute('INSERT INTO sessions VALUES (?, ?)', ('legacy', 'Legacy session'))
+                connection.execute('CREATE TABLE obsolete (value TEXT)')
+                connection.execute(f'PRAGMA user_version = {version}')
 
-        reload(db)
-        db.initialize(self.db_path)
-        updated = db.update_session(session['id'], db_path=self.db_path, context='caption')
+            with self.subTest(version=version):
+                reload(db)
+                db.initialize(path)
 
-        self.assertEqual(updated['context'], 'caption')
-        self.assertEqual(db.list_messages(session['id'], db_path=self.db_path)[0]['id'], message['id'])
-        recovered = db.get_operation(operation['id'], db_path=self.db_path)
-        self.assertEqual(recovered['status'], 'failed')
-        self.assertEqual(recovered['error'], 'Server restarted before operation completed')
-        self.assertTrue(db.diagnostics(self.db_path)['ok'])
-
-    def test_selected_image_list_migration_preserves_legacy_selection(self):
-        with sqlite3.connect(self.db_path) as connection:
-            connection.execute('''
-                CREATE TABLE sessions (
-                    id TEXT PRIMARY KEY,
-                    title TEXT NOT NULL,
-                    context TEXT NOT NULL,
-                    drafts TEXT NOT NULL DEFAULT '{}',
-                    last_generation_prompt TEXT,
-                    last_generation_snapshot TEXT,
-                    selected_image_id TEXT,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
-                )
-            ''')
-            connection.execute(
-                'INSERT INTO sessions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                ('legacy', 'Legacy session', 'image', '{}', None, None, 'artifact-1', '2025-01-01', '2025-01-01'),
-            )
-            connection.execute('PRAGMA user_version = 4')
-
-        reload(db)
-        migrated = db.get_session('legacy', db_path=self.db_path)
-
-        self.assertEqual(migrated['selected_image_id'], 'artifact-1')
-        self.assertEqual(migrated['selected_image_ids'], ['artifact-1'])
-        self.assertTrue(db.diagnostics(self.db_path)['ok'])
+                self.assertIsNone(db.get_session('legacy', db_path=path))
+                self.assertTrue(db.diagnostics(path)['ok'])
+                with sqlite3.connect(path) as connection:
+                    self.assertEqual(connection.execute('PRAGMA user_version').fetchone()[0], db.SCHEMA_VERSION)
+                    self.assertIsNone(connection.execute(
+                        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'obsolete'",
+                    ).fetchone())
 
     def test_initialization_retries_transient_database_lock(self):
         connect = db.connect

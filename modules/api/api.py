@@ -182,7 +182,7 @@ class Api:
         # chat api
         if shared.opts.chat_enabled:
             import modules.chat.api as chat_api
-            chat_api.register_api(self)
+            chat_api.register_api(self, diag=shared.cmd_opts.test)
 
         # hide trailing-slash duplicates from OpenAPI schema
         from fastapi.routing import APIRoute

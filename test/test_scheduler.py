@@ -161,6 +161,8 @@ class TestSchedulerSerialization(unittest.TestCase):
 
     def test_task_model_options_restore_after_execution_error(self):
         original = self.model_options()
+        original.get = lambda name: getattr(original, name)
+        original.set = lambda name, value: setattr(original, name, value)
         original.samples_save = True
         shared = SimpleNamespace(opts=original)
         task_options = {key: f'task-{key}' for key in scheduler._model_option_keys} # pylint: disable=protected-access
@@ -173,7 +175,7 @@ class TestSchedulerSerialization(unittest.TestCase):
                 patch.dict(sys.modules, {'modules.shared': shared}), \
                 patch.object(scheduler, '_execute_task', side_effect=fail_during_execution) as execute:
             with self.assertRaisesRegex(RuntimeError, 'task failed'):
-                scheduler._run_task({'parameters': task_options}) # pylint: disable=protected-access
+                scheduler._run_task({'parameters': task_options}, lock=False) # pylint: disable=protected-access
         execute.assert_called_once()
         self.assertEqual({key: getattr(original, key) for key in scheduler._model_option_keys}, {key: f'original-{key}' for key in scheduler._model_option_keys}) # pylint: disable=protected-access
         self.assertTrue(original.samples_save)
@@ -330,11 +332,11 @@ class TestSchedulerPolicy(unittest.TestCase):
         return patch.object(shared, 'opts', options)
 
     def test_worker_wait_interval_keeps_busy_queue_polling_fast(self):
-        call_queue = SimpleNamespace(is_locked=lambda: True)
+        from modules import call_queue
 
-        with patch.dict(sys.modules, {'modules.call_queue': call_queue}):
+        with patch.object(call_queue, 'is_locked', return_value=True):
             self.assertEqual(scheduler._worker_wait_interval(), 1.0) # pylint: disable=protected-access
-            call_queue.is_locked = lambda: False
+        with patch.object(call_queue, 'is_locked', return_value=False):
             self.assertEqual(scheduler._worker_wait_interval(), 5.0) # pylint: disable=protected-access
 
     def test_auto_window_boundaries_and_overnight_window(self):
@@ -395,7 +397,7 @@ class TestSchedulerPolicy(unittest.TestCase):
                 patch.object(scheduler, '_run_task') as run_task:
             self.assertTrue(scheduler.run_once())
         claim.assert_called_once_with(force_only=True)
-        run_task.assert_called_once_with({'id': 12, 'attempts': 1, 'image_blobs': []})
+        run_task.assert_called_once_with({'id': 12, 'attempts': 1, 'image_blobs': []}, lock=True)
 
     def test_run_once_uses_configured_retry_delay(self):
         from modules import call_queue
@@ -413,7 +415,7 @@ class TestSchedulerPolicy(unittest.TestCase):
         self.assertEqual(str(retry_or_fail.call_args.args[1]), 'generation failed')
         self.assertEqual(retry_or_fail.call_args.kwargs['retry_delay'], scheduler._task_retry_delay) # pylint: disable=protected-access
 
-    def test_run_once_locks_standard_video_replay(self):
+    def test_run_once_requests_lock_for_standard_video_replay(self):
         from modules import call_queue
 
         task = {
@@ -422,27 +424,14 @@ class TestSchedulerPolicy(unittest.TestCase):
             'mode': 'video',
             'parameters': {'video': {'surface': 'video'}},
         }
-        lock_state = {'held': False}
-
-        class QueueLock:
-            def __enter__(self):
-                lock_state['held'] = True
-
-            def __exit__(self, _exc_type, _exc_value, _traceback):
-                lock_state['held'] = False
-
-        def execute(_task):
-            self.assertTrue(lock_state['held'])
-
         with patch.object(scheduler, 'scheduler_enabled', return_value=False), \
                 patch.object(call_queue, 'is_locked', return_value=False), \
-                patch.object(call_queue, 'get_lock', return_value=QueueLock()) as get_lock, \
                 patch.object(scheduler.scheduler_db, 'claim_next_task', return_value=task), \
                 patch.object(scheduler.scheduler_db, 'get_task', return_value={'image_blobs': []}), \
-                patch.object(scheduler, '_run_task', side_effect=execute):
+                patch.object(scheduler, '_run_task') as run_task:
             self.assertTrue(scheduler.run_once())
 
-        get_lock.assert_called_once_with()
+        run_task.assert_called_once_with({**task, 'image_blobs': []}, lock=True)
 
     def test_worker_start_initializes_database_before_starting_thread(self):
         worker = unittest.mock.Mock()

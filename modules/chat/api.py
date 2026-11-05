@@ -157,6 +157,11 @@ def _log_chat_error(operation: str, exc: Exception | None = None) -> None:
     log.error(f'Chat: {operation}{detail}')
 
 
+def _log_chat_warning(operation: str, exc: Exception | None = None) -> None:
+    detail = f': {type(exc).__name__}: {exc}' if exc is not None else ''
+    log.warning(f'Chat: {operation}{detail}')
+
+
 def _chat_error_result(result: dict[str, Any]) -> str:
     if (result.get('message_metadata') or {}).get('format') == 'html':
         return 'Imported file command failed'
@@ -196,7 +201,7 @@ def get_sessions(limit: int = Query(default=50, ge=1, le=100), offset: int = Que
     try:
         return db.list_sessions(limit=limit, offset=offset)
     except Exception as exc:
-        _log_chat_error('session listing failed', exc)
+        _log_chat_error('session listing', exc)
         raise
 
 
@@ -204,10 +209,10 @@ def create_session(req: ReqSessionCreate):
     try:
         return db.create_session(title=req.title, context=req.context)
     except ValueError as exc:
-        _log_chat_error('session creation failed', exc)
+        _log_chat_error('session creation', exc)
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
-        _log_chat_error('session creation failed', exc)
+        _log_chat_error('session creation', exc)
         raise
 
 
@@ -215,10 +220,10 @@ def get_session(session_id: str):
     try:
         session = db.get_session(session_id)
     except Exception as exc:
-        _log_chat_error('session lookup failed', exc)
+        _log_chat_error(f'session={session_id} lookup failed', exc)
         raise
     if session is None:
-        _log_chat_error('session lookup failed: session not found')
+        _log_chat_error(f'session={session_id} lookup session not found', None)
         raise HTTPException(status_code=404, detail='Chat session not found')
     try:
         return ResSessionDetail(
@@ -228,7 +233,7 @@ def get_session(session_id: str):
             artifacts=_public_artifacts(session_id),
         )
     except Exception as exc:
-        _log_chat_error('session detail retrieval failed', exc)
+        _log_chat_error(f'session={session_id} detail retrieval', exc)
         raise
 
 
@@ -239,7 +244,7 @@ def get_session_parameters(session_id: str) -> ResChatParameters:
         _log_chat_error('session parameter lookup failed', exc)
         raise
     if session is None:
-        _log_chat_error('session parameter lookup failed: session not found')
+        _log_chat_error(f'session={session_id} parameter lookup session not found')
         raise HTTPException(status_code=404, detail='Chat session not found')
     context = session['context']
     draft = (session.get('drafts') or {}).get(context, {})
@@ -264,17 +269,17 @@ def restore_session(session_id: str):
     try:
         session = db.get_session(session_id)
     except Exception as exc:
-        _log_chat_error('session restore failed', exc)
+        _log_chat_error(f'restore session={session_id}', exc)
         raise
     if session is None:
-        _log_chat_error('session restore failed: session not found')
+        _log_chat_error(f'restore session={session_id} not found')
         raise HTTPException(status_code=404, detail='Chat session not found')
     restore_errors = commands.restore_session_state(session_id)
     for item in _public_artifacts(session_id):
         if not item['available']:
-            error = f'Image unavailable: {item["display_name"]}'
+            error = f'image={item["display_name"]} unavailable'
             restore_errors.append(error)
-            _log_chat_error(f'session restore failed: {error}')
+            # _log_chat_error(f'restore session={session_id} {error}')
     return ResSessionDetail(
         session=db.get_session(session_id),
         messages=db.list_messages(session_id),
@@ -433,7 +438,7 @@ def _execute_chat_operation(session_id: str, user_message: dict[str, Any], resul
             },
         })
     except Exception as exc:
-        _log_chat_error(f'{context} operation failed', exc)
+        _log_chat_error(f'context={context} operation', exc)
         db.update_operation(operation_id, 'failed', error=str(exc))
         result.update({
             'kind': 'error',
@@ -510,12 +515,10 @@ def _execute_import_endpoint(result: dict[str, Any]) -> dict[str, Any]:
 def _import_staged_file(session_id: str, user_message: dict[str, Any], imported: dict[str, Any], api_instance, depth: int = 0):
     if imported['kind'] == 'image':
         try:
-            artifact = artifacts.create_image_artifact(
-                session_id, user_message['id'], imported['path'], imported['display_name'], role='input',
-            )
+            artifact = artifacts.create_image_artifact(session_id, user_message['id'], imported['path'], imported['display_name'], role='input')
             db.set_selected_image(session_id, artifact['id'])
         except Exception as exc:
-            _log_chat_error('image import failed', exc)
+            _log_chat_error('image import', exc)
             from pathlib import Path
             Path(imported['path']).unlink(missing_ok=True)
             raise ValueError('Image file could not be imported') from None
@@ -666,7 +669,7 @@ def _finish_submission(session_id: str, user_message: dict[str, Any], result: di
             artifacts=_public_artifacts(session_id),
         )
     except Exception as exc:
-        _log_chat_error('message persistence failed', exc)
+        _log_chat_error('message persistence', exc)
         raise
 
 
@@ -674,18 +677,18 @@ async def upload_chat_file(session_id: str, upload: UploadFile, api_instance=Non
     try:
         session = db.get_session(session_id)
     except Exception as exc:
-        _log_chat_error('file upload session lookup failed', exc)
+        _log_chat_error('file upload session lookup', exc)
         raise
     if session is None:
-        _log_chat_error('file upload failed: session not found')
+        _log_chat_error('file upload session not found')
         raise HTTPException(status_code=404, detail='Chat session not found')
     try:
         imported = await artifacts.stage_upload(upload)
     except ValueError as exc:
-        _log_chat_error('file upload rejected', exc)
+        _log_chat_error('file upload', exc)
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
-        _log_chat_error('file upload failed', exc)
+        _log_chat_error('file upload', exc)
         raise HTTPException(status_code=400, detail='File could not be imported') from None
     finally:
         await upload.close()
@@ -697,12 +700,12 @@ async def upload_chat_file(session_id: str, upload: UploadFile, api_instance=Non
             metadata={'source': 'file-upload'},
         )
     except Exception as exc:
-        _log_chat_error('file upload message creation failed', exc)
+        _log_chat_error('file upload message creation', exc)
         raise
     try:
         result = _import_staged_file(session_id, user_message, imported, api_instance)
     except Exception as exc:
-        _log_chat_error('imported file processing failed', exc)
+        _log_chat_error('imported file processing', exc)
         result = {'kind': 'error', 'text': 'File could not be imported', 'data': {}}
         staged_path = imported.get('path')
         if imported['kind'] == 'image' and staged_path:
@@ -710,7 +713,7 @@ async def upload_chat_file(session_id: str, upload: UploadFile, api_instance=Non
             Path(staged_path).unlink(missing_ok=True)
     else:
         if result.get('kind') == 'error':
-            _log_chat_error(f'file processing failed: {_chat_error_result(result)}')
+            _log_chat_error(f'file processing: {_chat_error_result(result)}')
     return _finish_submission(session_id, user_message, result)
 
 
@@ -726,14 +729,14 @@ def _post_message(session_id: str, req: ReqChatMessage, api_instance=None):
     try:
         session = db.get_session(session_id)
     except Exception as exc:
-        _log_chat_error('message session lookup failed', exc)
+        _log_chat_error('message session lookup', exc)
         raise
     if session is None:
-        _log_chat_error('message submission failed: session not found')
+        _log_chat_error('message submission: session not found')
         raise HTTPException(status_code=404, detail='Chat session not found')
     content = req.content.strip()
     if not content:
-        _log_chat_error('message submission failed: message is empty')
+        _log_chat_error('message submission: message is empty')
         raise HTTPException(status_code=422, detail='Chat message cannot be empty')
     command_word = content.split(maxsplit=1)[0].casefold()
     is_private_path_command = command_word in {'use', 'file'}
@@ -744,17 +747,17 @@ def _post_message(session_id: str, req: ReqChatMessage, api_instance=None):
         transcript_content = 'Server file import' if is_private_path_command else content
         user_message = db.create_message(session_id, 'user', transcript_content)
     except Exception as exc:
-        _log_chat_error('message persistence failed', exc)
+        _log_chat_error('message persistence', exc)
         raise
     try:
         image = _selected_image_for_command(session, content, req.image)
         result = _execute_chat_command(session_id, user_message, content, image, api_instance)
     except Exception as exc:  # Keep a command failure in the persisted conversation.
-        _log_chat_error('command failed', exc)
+        _log_chat_error('command', exc)
         result = {'kind': 'error', 'text': 'Command failed. Check the server log.', 'data': {}}
     else:
         if result.get('kind') == 'error':
-            _log_chat_error(f'command failed: {_chat_error_result(result)}')
+            _log_chat_error(f'command: {_chat_error_result(result)}')
     return _finish_submission(session_id, user_message, result)
 
 
@@ -762,11 +765,11 @@ def get_chat_artifact_content(session_id: str, artifact_id: str):
     try:
         artifact = db.get_artifact(session_id, artifact_id)
     except Exception as exc:
-        _log_chat_error('image content lookup failed', exc)
+        _log_chat_error('image content lookup', exc)
         raise
     if artifact is None or not artifacts.public_artifact(artifact)['available']:
-        _log_chat_error('image content request failed: artifact not found or unavailable')
-        raise HTTPException(status_code=404, detail='Chat image artifact not found or unavailable')
+        _log_chat_error('image content request: artifact unavailable')
+        raise HTTPException(status_code=404, detail='Chat image artifact unavailable')
     try:
         return FileResponse(
             artifact['storage_ref'],
@@ -774,7 +777,7 @@ def get_chat_artifact_content(session_id: str, artifact_id: str):
             filename=artifact['display_name'],
         )
     except Exception as exc:
-        _log_chat_error('image content request failed', exc)
+        _log_chat_error('image content request', exc)
         raise
 
 
@@ -782,12 +785,12 @@ def _get_available_chat_image(session_id: str, artifact_id: str):
     try:
         artifact = db.get_artifact(session_id, artifact_id)
     except Exception as exc:
-        _log_chat_error('image operation lookup failed', exc)
+        _log_chat_error('image operation lookup', exc)
         raise
     if artifact is None or not artifact['media_type'].startswith('image/') \
             or not artifacts.public_artifact(artifact)['available']:
-        _log_chat_error('image operation failed: artifact not found or unavailable')
-        raise HTTPException(status_code=404, detail='Chat image artifact not found or unavailable')
+        _log_chat_error('image operation: artifact unavailable')
+        raise HTTPException(status_code=404, detail='Chat image artifact unavailable')
     return artifact
 
 
@@ -802,8 +805,8 @@ def open_chat_artifact_folder(session_id: str, artifact_id: str):
         return {'opened': False}
     folder = Path(artifact['storage_ref']).parent
     if not folder.is_dir():
-        _log_chat_error(f'image folder open failed: folder unavailable: {folder}')
-        raise HTTPException(status_code=404, detail='Chat image folder is unavailable')
+        _log_chat_error(f'image folder open: folder unavailable: {folder}')
+        raise HTTPException(status_code=404, detail='Chat image folder unavailable')
     system = platform.system()
     try:
         if system == 'Windows':
@@ -816,8 +819,8 @@ def open_chat_artifact_folder(session_id: str, artifact_id: str):
         else:
             subprocess.Popen(['xdg-open', str(folder)])  # pylint: disable=consider-using-with
     except Exception as exc:
-        _log_chat_error('image folder open failed', exc)
-        raise HTTPException(status_code=500, detail='Chat image folder could not be opened') from exc
+        _log_chat_error('image folder open', exc)
+        raise HTTPException(status_code=500, detail='Chat image folder unavailable') from exc
     return {'opened': True}
 
 
@@ -877,10 +880,10 @@ def save_chat_artifact(session_id: str, artifact_id: str):
                 p=save_params,
             )
     except Exception as exc:
-        _log_chat_error('image save failed', exc)
+        _log_chat_error('image save', exc)
         raise HTTPException(status_code=500, detail='Chat image could not be saved') from exc
     if not saved_path:
-        _log_chat_error('image save failed: no output file was created')
+        _log_chat_error('image save: no output file was created')
         raise HTTPException(status_code=500, detail='Chat image could not be saved')
     return {'saved': True}
 
@@ -892,17 +895,17 @@ def delete_chat_artifact(session_id: str, artifact_id: str):
         _log_chat_error('image deletion lookup failed', exc)
         raise
     if artifact is None or not artifact['media_type'].startswith('image/'):
-        _log_chat_error('image deletion failed: artifact not found')
+        _log_chat_error('image deletion: artifact not found')
         raise HTTPException(status_code=404, detail='Chat image artifact not found')
     try:
         artifacts.delete_storage_file(artifact)
         db.delete_artifact(session_id, artifact_id)
         log.warning(f'Chat: Delete: image="{artifact["storage_ref"]}"')
     except ValueError as exc:
-        _log_chat_error(f'Delete: image="{artifact["storage_ref"]}"', exc)
+        _log_chat_error(f'image deletion: image="{artifact["storage_ref"]}"', exc)
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
-        _log_chat_error(f'image deletion failed: {artifact["display_name"]}', exc)
+        _log_chat_error(f'image deletion: {artifact["display_name"]}', exc)
         raise
     return {'deleted': True, 'id': artifact_id}
 
@@ -914,13 +917,13 @@ def patch_message(session_id: str, message_id: str, req: ReqChatMessageUpdate):
     try:
         message = db.update_message(session_id, message_id, req.content, req.metadata)
     except ValueError as exc:
-        _log_chat_error('message update failed', exc)
+        _log_chat_error('message update', exc)
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
-        _log_chat_error('message update failed', exc)
+        _log_chat_error('message update', exc)
         raise
     if message is None:
-        _log_chat_error('message update failed: endpoint response not found')
+        _log_chat_error('message update: endpoint response not found')
         raise HTTPException(status_code=404, detail='Chat endpoint response message not found')
     return message
 
@@ -940,7 +943,7 @@ def update_session(session_id: str, req: ReqSessionUpdate):
             _log_chat_error('session update lookup failed', exc)
             raise
         if session is None:
-            _log_chat_error('session update failed: session not found')
+            _log_chat_error('session update: session not found')
             raise HTTPException(status_code=404, detail='Chat session not found')
         for selected_image_id in selected_image_ids:
             try:
@@ -950,20 +953,20 @@ def update_session(session_id: str, req: ReqSessionUpdate):
                 raise
             if artifact is None or not artifact['media_type'].startswith('image/') \
                     or not artifacts.public_artifact(artifact)['available']:
-                _log_chat_error('session update failed: selected image is unavailable')
+                _log_chat_error('session update: selected image is unavailable')
                 raise HTTPException(status_code=400, detail='Selected image is not available in this session')
             updates['selected_image_ids'] = selected_image_ids
             updates['selected_image_id'] = selected_image_ids[0] if selected_image_ids else None
     try:
         session = db.update_session(session_id, **updates)
     except ValueError as exc:
-        _log_chat_error('session update failed', exc)
+        _log_chat_error('session update', exc)
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
-        _log_chat_error('session update failed', exc)
+        _log_chat_error('session update', exc)
         raise
     if session is None:
-        _log_chat_error('session update failed: session not found')
+        _log_chat_error('session update: session not found')
         raise HTTPException(status_code=404, detail='Chat session not found')
     return session
 
@@ -972,21 +975,36 @@ def delete_session(session_id: str):
     try:
         deleted = db.delete_session(session_id)
     except Exception as exc:
-        _log_chat_error('session deletion failed', exc)
+        _log_chat_error('session deletion', exc)
         raise
     if not deleted:
-        _log_chat_error('session deletion failed: session not found')
+        _log_chat_error('session deletion: session not found')
         raise HTTPException(status_code=404, detail='Chat session not found')
     return Response(status_code=204)
 
 
-def register_api(api):
+def register_api(api, diag: bool = False):
     try:
         db.initialize()
     except (sqlite3.Error, OSError) as exc:
         shared.opts.data['chat_enabled'] = False
         log.error(f'Chat disabled: {exc}')
         return False
+    if diag:
+        try:
+            stats = db.diagnostics()
+            log.info(f'Chat database diagnostics: {stats}')
+            if not stats['ok']:
+                log.error('Chat: database diagnostics found integrity or schema issues')
+        except Exception as exc:
+            log.error(f'Chat: database diagnostics failed: {exc}')
+
+    def post_message_route(session_id: str, req: ReqChatMessage):
+        return post_message(session_id, req, api)
+
+    async def upload_chat_file_route(session_id: str, file: UploadFile = File(...)):
+        return await upload_chat_file(session_id, file, api)
+
     api.add_api_route('/sdapi/v1/chat/sessions', get_sessions, methods=['GET'], response_model=list[ResSession], tags=['Chat'])
     api.add_api_route('/sdapi/v1/chat/sessions', create_session, methods=['POST'], response_model=ResSession, tags=['Chat'])
     api.add_api_route('/sdapi/v1/chat/sessions/{session_id}', get_session, methods=['GET'], response_model=ResSessionDetail, tags=['Chat'])
@@ -995,14 +1013,6 @@ def register_api(api):
     api.add_api_route('/sdapi/v1/chat/sessions/{session_id}/parameters', get_session_parameters, methods=['GET'], response_model=ResChatParameters, tags=['Chat'])
     api.add_api_route('/sdapi/v1/chat/sessions/{session_id}/choices', get_session_parameter_choices, methods=['GET'], response_model=ResChatChoices, tags=['Chat'])
     api.add_api_route('/sdapi/v1/chat/sessions/{session_id}/restore', restore_session, methods=['POST'], response_model=ResSessionDetail, tags=['Chat'])
-    control_api_instance = api if hasattr(api, 'control') else None
-
-    def post_message_route(session_id: str, req: ReqChatMessage):
-        return post_message(session_id, req, control_api_instance)
-
-    async def upload_chat_file_route(session_id: str, file: UploadFile = File(...)):
-        return await upload_chat_file(session_id, file, control_api_instance)
-
     api.add_api_route('/sdapi/v1/chat/sessions/{session_id}/messages', post_message_route, methods=['POST'], response_model=ResChatSubmission, tags=['Chat'])
     api.add_api_route('/sdapi/v1/chat/sessions/{session_id}/files', upload_chat_file_route, methods=['POST'], response_model=ResChatSubmission, tags=['Chat'])
     api.add_api_route('/sdapi/v1/chat/sessions/{session_id}/messages/{message_id}', patch_message, methods=['PATCH'], response_model=ResMessage, tags=['Chat'])

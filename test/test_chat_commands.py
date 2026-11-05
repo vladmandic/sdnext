@@ -44,14 +44,20 @@ class TestChatCommands(unittest.TestCase):
             result = commands.execute_command(session['id'], 'help')
 
         sections = result['sections']
-        self.assertEqual([section['title'] for section in sections], ['Process', 'Params', 'Special', 'Global', 'Server'])
+        self.assertEqual(
+            [section['title'] for section in sections],
+            ['Chat', 'Process', 'Params', 'References', 'Helpers', 'Global', 'Server'],
+        )
         self.assertNotIn('Help\n', result['text'])
         for section in sections:
             with self.subTest(section=section['title']):
-                description, command_list = section['content'].split('\n\n', maxsplit=1)
-                self.assertTrue(description)
-                self.assertTrue(command_list)
-                self.assertTrue(all(line.startswith('- ') and ' - ' in line for line in command_list.splitlines()))
+                if section.get('format') == 'html':
+                    self.assertIn('Online Documentation', section['content'])
+                    continue
+                lines = section['content'].splitlines()
+                self.assertTrue(lines[0])
+                self.assertGreater(len(lines), 1)
+                self.assertTrue(all(line.startswith('- ') and ':' in line for line in lines[1:]))
 
     def test_rejects_bad_ranges_and_unknown_parameters_as_chat_errors(self):
         session = self._create_session()
@@ -348,11 +354,14 @@ class TestChatCommands(unittest.TestCase):
                 self.assertEqual(result['kind'], 'error')
                 self.assertIn(f'{context.capitalize()} requires an image', result['text'])
 
-    def test_special_commands_return_the_documented_placeholder(self):
+    def test_unsupported_commands_return_errors(self):
         session = self._create_session()
         with patch.object(db, '_db_path', return_value=self.db_path):
             for command in ('enhance', 'dlss', 'upscale'):
-                self.assertEqual(commands.execute_command(session['id'], command)['text'], 'Not yet implemented')
+                with self.subTest(command=command):
+                    result = commands.execute_command(session['id'], command)
+                    self.assertEqual(result['kind'], 'error')
+                    self.assertTrue(result['text'].startswith('Unknown command:'))
 
     def test_model_alias_validates_choices_and_persists_canonical_option(self):
         session = self._create_session()
@@ -452,7 +461,7 @@ class TestChatCommands(unittest.TestCase):
                 result = commands.execute_command(session['id'], 'reset')
             saved = db.get_session(session['id'])
 
-        self.assertEqual(result['text'], 'Current context draft reset to defaults')
+        self.assertEqual(result['text'], 'Current context parameters reset to defaults')
         self.assertNotIn('image', saved['drafts'])
         self.assertEqual(saved['drafts']['video']['frames'], 24)
 
@@ -466,17 +475,18 @@ class TestChatCommands(unittest.TestCase):
                 patch.object(processing_diffusers, 'last_p', last):
             result = commands.execute_command(session['id'], 'details')
 
-        self.assertIn('"seed": 42', result['text'])
-        self.assertIn('"prompt": "a landscape"', result['text'])
-        self.assertIn('```json\n', result['text'])
-        self.assertTrue(result['text'].endswith('\n```'))
-        self.assertNotIn('"steps"', result['text'])
-        self.assertNotIn('"styles"', result['text'])
-        self.assertNotIn('"init_images"', result['text'])
-        self.assertNotIn('"negative_prompt"', result['text'])
-        self.assertNotIn('"cfg_name"', result['text'])
-        self.assertNotIn('"detailer_prompt"', result['text'])
-        self.assertNotIn('"script_args"', result['text'])
+        details = result['sections'][0]['content']
+        self.assertEqual(result['text'], 'Last processing parameters')
+        self.assertEqual(result['sections'][0]['format'], 'json')
+        self.assertIn('"seed": 42', details)
+        self.assertIn('"prompt": "a landscape"', details)
+        self.assertNotIn('"steps"', details)
+        self.assertNotIn('"styles"', details)
+        self.assertNotIn('"init_images"', details)
+        self.assertNotIn('"negative_prompt"', details)
+        self.assertNotIn('"cfg_name"', details)
+        self.assertNotIn('"detailer_prompt"', details)
+        self.assertNotIn('"script_args"', details)
         self.assertEqual(commands.parse_command('last').name, 'last')
         with self.assertRaises(commands.CommandError):
             commands.parse_command('details now')
@@ -507,7 +517,7 @@ class TestChatCommands(unittest.TestCase):
         self.assertEqual(request['arguments']['prompt'], 'a landscape')
         self.assertEqual(request['arguments']['inputs'], [])
         self.assertTrue(request['arguments']['send_images'])
-        self.assertFalse(request['arguments']['save_images'])
+        self.assertEqual(request['arguments']['save_images'], commands.shared.opts.samples_save)
 
     def test_again_reuses_snapshot_and_accepts_prompt_override(self):
         session = self._create_session()
@@ -556,13 +566,22 @@ class TestChatCommands(unittest.TestCase):
         self.assertEqual(descriptor['path'], '/sdapi/v1/video')
         self.assertEqual(descriptor['arguments']['prompt'], 'a moving landscape')
 
-    def test_caption_and_named_unimplemented_commands(self):
+    def test_caption_and_named_unsupported_commands_return_errors(self):
         session = self._create_session()
+        expected = {
+            'caption': 'Unsupported command: caption',
+            'captioning': 'Unsupported command: caption',
+            'enhance prompt text': 'Unknown command: enhance',
+            'prompt-enhancement prompt text': 'Unknown command: enhance',
+            'upscale': 'Unknown command: upscale',
+            'upscaling': 'Unknown command: upscaling',
+        }
         with patch.object(db, '_db_path', return_value=self.db_path):
-            for command in ('caption', 'captioning', 'enhance prompt text', 'prompt-enhancement prompt text',
-                            'upscale', 'upscaling'):
-                result = commands.execute_command(session['id'], command)
-                self.assertEqual(result['text'], 'Not yet implemented', command)
+            for command, error in expected.items():
+                with self.subTest(command=command):
+                    result = commands.execute_command(session['id'], command)
+                    self.assertEqual(result['kind'], 'error')
+                    self.assertEqual(result['text'], error)
 
     def test_process_control_aliases_call_shared_state(self):
         session = self._create_session()
