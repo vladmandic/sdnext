@@ -235,6 +235,7 @@ def create_ui(disabled_tabs=None):
 
             result = gr.HTML(elem_id="settings_result")
             script_callbacks.ui_settings_callback() # let extensions create settings
+            shared.opts.validate_pending()
             sections = []
             options_count = len(shared.opts.data_labels)
             for item in shared.opts.data_labels.values(): # get unique sections from all items

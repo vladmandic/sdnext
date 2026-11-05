@@ -54,6 +54,7 @@ class Options:
         self.secretsfn: str = secrets or cmd_opts.secrets
         self.restricted: set[str] = restricted
         self.legacy = [k for k, v in options_templates.items() if isinstance(v, LegacyOption)]
+        self.pending_keys: list[str] = [] # stored keys without an option at load, checked again by validate_pending
         self.load()
 
     def __getattr__(self, item):
@@ -219,8 +220,13 @@ class Options:
         migrated = migrate_removed_values(self.data)
         if len(migrated) > 0:
             log.warning(f"Setting migration: {migrated}")
+        self.pending_keys = self.validate_keys(list(self.data))
+
+    def validate_keys(self, keys: list[str]) -> list[str]:
+        """reset stored values that do not fit their option, returning the keys no option claims"""
         unknown_settings = []
-        for k, v in self.data.items():
+        for k in keys:
+            v = self.data[k]
             info = self.data_labels.get(k, None)
             if info is not None:
                 if not info.validate(k, v):
@@ -230,6 +236,12 @@ class Options:
                 self.data[k] = info.default
             if info is None and k not in compatibility_opts and not k.startswith('uiux_'):
                 unknown_settings.append(k)
+        return unknown_settings
+
+    def validate_pending(self):
+        """validate stored keys whose options were added after load, once extensions have added theirs"""
+        unknown_settings = self.validate_keys([k for k in self.pending_keys if k in self.data])
+        self.pending_keys = []
         if len(unknown_settings) > 0:
             log.warning(f"Setting validation: unknown={unknown_settings}")
 

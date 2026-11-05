@@ -52,6 +52,7 @@
   - save: *[datetime<format>]* and *[hasprompt<...>]* filename tokens apply args
   - save: *Save metadata to JSON file* appends one line per image to a `jsonl`
   - save: an image save that fails no longer stops every later save
+  - settings: extension settings are checked once extensions add them, instead of reported as unknown at startup
   - ui: refresh buttons call their method once per click
 
 ## Update for 2026-10-29
