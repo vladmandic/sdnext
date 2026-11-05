@@ -93,8 +93,13 @@ class FilenameGenerator:
         if isinstance(self.prompt, list):
             self.prompt = ' '.join(self.prompt)
         self.image = image[0] if isinstance(image, list) and len(image) > 0 else image
-        self.width = width if width is not None else (self.image.width if self.image is not None else (p.width if p is not None else 0))
-        self.height = height if height is not None else (self.image.height if self.image is not None else (p.height if p is not None else 0))
+        image_width = getattr(self.image, 'width', None)
+        image_height = getattr(self.image, 'height', None)
+        image_shape = getattr(self.image, 'shape', None)
+        if image_shape is not None and len(image_shape) >= 2:
+            image_height, image_width = image_shape[:2]
+        self.width = width if width is not None else (image_width if image_width is not None else (p.width if p is not None else 0))
+        self.height = height if height is not None else (image_height if image_height is not None else (p.height if p is not None else 0))
         if not grid:
             self.batch_number = NOTHING if self.p is None or getattr(self.p, 'batch_size', 1) == 1 else (self.p.batch_index + 1 if hasattr(self.p, 'batch_index') else NOTHING)
             self.iter_number = NOTHING if self.p is None or getattr(self.p, 'n_iter', 1) == 1 else (self.p.iteration + 1 if hasattr(self.p, 'iteration') else NOTHING)
