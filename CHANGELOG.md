@@ -22,6 +22,9 @@
   - `bt.709` colour conversion with colour tags, fractional frame, clip rotation
   - `mkv` and `webm` frame counts read from each track
   - ltx condition video: skipping frames keeps the first frame
+- **Torch**
+  - update cuda to `torch==2.15.0+cu132`
+  - update rocm/linux to `torch==2.15.0+rocm10.0`
 - **Other**
   - add env var `SD_STRICT` which will enable strict mode  
     in strict mode, read/parse/write errors will cause the application to exit immediately  
