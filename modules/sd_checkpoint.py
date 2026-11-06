@@ -332,7 +332,7 @@ def select_checkpoint(op='model', sd_model_checkpoint=None):
             log.info("  or use --ckpt <path-to-checkpoint> to force using specific model")
         return None
     if model_checkpoint is not None:
-        if model_checkpoint != 'model.safetensors' and model_checkpoint != 'stabilityai/stable-diffusion-xl-base-1.0':
+        if (model_checkpoint != 'model.safetensors') and (model_checkpoint != 'stabilityai/stable-diffusion-xl-base-1.0'):
             log.error(f'Load {op}: search="{model_checkpoint}" not found')
         else:
             log.info("Selecting first available checkpoint")

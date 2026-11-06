@@ -256,12 +256,12 @@ class BluePixelPipeline(Flux2Pipeline):
         sigmas = np.linspace(1.0, 1 / num_inference_steps, num_inference_steps)
         image_seq_len = latents.shape[1]
         if mu_mode == "training":
-            if not self.scheduler.config.use_dynamic_shifting or self.scheduler.config.time_shift_type != "exponential":
+            if not self.scheduler.config.use_dynamic_shifting or self.scheduler.config.time_shift_type != "exponential": # pylint: disable=no-member
                 raise ValueError("Training mu requires an exponential dynamic scheduler")
             mu = math.log(1 + image_seq_len) / (math.log(2.0) + image_seq_len)
         else:
             mu = compute_empirical_mu(image_seq_len=image_seq_len, num_steps=num_inference_steps)
-        dynamic_shifting = self.scheduler.config.use_dynamic_shifting
+        dynamic_shifting = self.scheduler.config.use_dynamic_shifting # pylint: disable=no-member
         self.last_mu = mu if dynamic_shifting else None
         self.last_mu_mode = mu_mode if dynamic_shifting else "fixed"
         self.last_image_seq_len = int(image_seq_len)

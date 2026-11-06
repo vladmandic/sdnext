@@ -15,6 +15,7 @@ from modules import paths
 
 
 loggedin = None
+last_mirror = 'None'
 diffuser_repos = []
 debug = log.trace if os.environ.get('SD_DOWNLOAD_DEBUG', None) is not None else lambda *args, **kwargs: None
 pbar = None
@@ -23,19 +24,26 @@ pbar = None
 def hf_login(token=None):
     if shared.opts.offline_mode:
         return False
-    global loggedin # pylint: disable=global-statement
+    global loggedin, last_mirror # pylint: disable=global-statement
+    install('hf_xet', quiet=True)
     token = token or shared.opts.huggingface_token
     if token is None:
         token = os.environ.get('HF_TOKEN', None)
     token = token.replace("\n", "").replace("\r", "").strip() if token is not None else None
-    install('hf_xet', quiet=True)
+
+    mirror_opt = shared.opts.huggingface_mirror.strip()
+    if mirror_opt != last_mirror:
+        mirror_url = 'https://hf-mirror.com' if mirror_opt == 'HF-Mirror' else 'https://huggingface.co'
+        os.environ['HF_ENDPOINT'] = mirror_url
+        last_mirror = mirror_opt
+        log.info(f'HF mirror: name="{shared.opts.huggingface_mirror.strip()}" url={mirror_url}')
+
     if token is None or len(token) <= 4:
         log.debug('HF login: no token provided')
         return False
-    if loggedin != token:
-        if len(shared.opts.huggingface_mirror.strip()) > 0 and os.environ.get('HF_ENDPOINT', None) is None:
-            os.environ['HF_ENDPOINT'] = shared.opts.huggingface_mirror.strip()
 
+    status = True
+    if loggedin != token:
         os.environ.pop('HUGGING_FACE_HUB_TOKEN', None)
         os.unsetenv('HUGGING_FACE_HUB_TOKEN')
         os.environ['HF_TOKEN'] = token
@@ -51,6 +59,7 @@ def hf_login(token=None):
             with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
                 hf.login(token=token, add_to_git_credential=False)
         except Exception as e:
+            status = False
             text += str(e)
         text = (stdout.getvalue() or '') + (stderr.getvalue() or '')
         try:
@@ -69,10 +78,13 @@ def hf_login(token=None):
                 token_name = user.get('auth', {}).get('accessToken', {}).get('displayName', None)
         except Exception:
             pass
-        log.info(f'HF login: user={user_name} key="{token_name}" token="{obfuscated_token}" fn="{hf.constants.HF_TOKEN_PATH}" {line[0] if len(line) > 0 else text}')
-        loggedin = new_token
+        if status:
+            log.info(f'HF login: user={user_name} key="{token_name}" token="{obfuscated_token}" fn="{hf.constants.HF_TOKEN_PATH}" {line[0] if len(line) > 0 else text}')
+            loggedin = new_token
+        else:
+            log.error(f'HF login: user={user_name} key="{token_name}" token="{obfuscated_token}" fn="{hf.constants.HF_TOKEN_PATH}" {line[0] if len(line) > 0 else text}')
         return user_name is not None
-    return True
+    return status
 
 
 def download_diffusers_model(hub_id: str, cache_dir: str | None = None, download_config: dict[str, str | bool] | None = None, token = None, variant = None, revision = None, mirror = None, custom_pipeline = None):
@@ -221,10 +233,31 @@ def find_diffuser(name: str, full=False):
         log.error(f'Search model: model="{name}" {e}')
     if len(models) > 0:
         if not full:
-            return models[0].id + suffix
+            repo_id = models[0].id + suffix
+            check_mirror(repo_id)
+            return repo_id
         else:
-            return [m.id + suffix for m in models]
+            repo_ids = [m.id + suffix for m in models]
+            for repo_id in repo_ids:
+                check_mirror(repo_id)
+            return repo_ids
     return None
+
+
+def check_mirror(repo_id: str):
+    hf_login()
+    if 'HF_ENDPOINT' not in os.environ:
+        return
+    import requests
+    try:
+        r = requests.head(f"{os.environ['HF_ENDPOINT']}/api/models/{repo_id}", allow_redirects=False, timeout=5)
+        is_redirected = "huggingface.co" in r.headers.get("location", "")
+        if r.status_code == 200:
+            log.debug(f'HF mirror: repo="{repo_id}" status={r.status_code} redirected={is_redirected}')
+        else:
+            log.warning(f'HF mirror: repo="{repo_id}" status={r.status_code} redirected={is_redirected}')
+    except Exception as e:
+        log.error(f'HF mirror: repo="{repo_id}" {e}')
 
 
 def get_reference_opts(name: str, quiet=False):

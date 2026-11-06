@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-11-05
+## Update for 2026-11-06
 
 - **Models**:
   - [BluePixel-Turbo](https://huggingface.co/openvivo/BluePixel-Turbo)  
@@ -32,6 +32,7 @@
 - **Other**
   - add env var `SD_STRICT` which will enable strict mode  
     in strict mode, read/parse/write errors will cause the application to exit immediately  
+  - improved handling of HuggingFace mirror settings
 - **Fixes**
   - api: *txt2img*, *img2img* and *control* answer *500* with the error when the generation fails, instead of *200* with no images
   - api: *txt2img*, *img2img* and *control* responses carry an *error* field when a later batch fails after earlier batches returned images

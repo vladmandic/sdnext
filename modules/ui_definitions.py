@@ -711,7 +711,7 @@ def create_settings(cmd_opts):
         "diffuser_cache_config": OptionInfo(True, "Use cached model config when available"),
         "huggingface_token": OptionInfo('', 'HuggingFace token', gr.Textbox, {"lines": 2}, secret=True, env_var='HF_TOKEN'),
         "hf_transfer_mode": OptionInfo("XET", "HuggingFace download method", gr.Dropdown, {"choices": ['HTTP', 'XET', 'XET HighPerformance', 'XET Sequential']}),
-        "huggingface_mirror": OptionInfo('', 'HuggingFace mirror', gr.Textbox),
+        "huggingface_mirror": OptionInfo('None', 'HuggingFace mirror', gr.Dropdown, {"choices": ['None', 'HF-Mirror']}),
         "offline_mode": OptionInfo(False, 'Force offline mode', gr.Checkbox),
 
         "diffusers_model_load_variant": OptionInfo("default", "Preferred Model variant", gr.Radio, {"choices": ['default', 'fp32', 'fp16']}),

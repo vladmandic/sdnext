@@ -391,6 +391,8 @@ def load_diffuser_force(detected_model_type: str, checkpoint_info: CheckpointInf
     unload_model_weights(op=op)
     shared.sd_model = None
     model_type = detected_model_type.removesuffix('SDNQ').strip()
+    repo_id = path_to_repo(checkpoint_info)
+    modelloader.check_mirror(repo_id)
     try:
         # explicit load-by-type
         if model_type in ['Stable Cascade']:
