@@ -42,6 +42,8 @@
   - dlss: use video codec defaults, slow-motion output plays slower
   - gallery: thumbnails and previews for webm, mkv, mov, avi and ts videos
   - hdr: the 16-bit hdr image saves on windows paths with non-ascii characters
+  - ltx: *Tiny* live previews show the video instead of a placeholder
+  - ltx: tab passes no longer run with the previous job's guidance end, sigma adjust and correction settings
   - minimax: quantized *H3* fix decode
   - minimax: webm, mkv and ts files accepted as reference videos
   - models: *FLUX.3*, *MiniMax-H3* and modular video models fail the load when a component the workflow requires does not load

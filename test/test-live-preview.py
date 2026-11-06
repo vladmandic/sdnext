@@ -12,6 +12,7 @@ Covers:
 - a flow-match scheduler: the preview equals ``x_t - sigma * v`` for the step
 - a pipeline that unpacks to a 5D latent: the callback publishes only its 4D middle frame, once per step
 - the preview reads the published latent and model output once
+- LTX 2 packed video tokens: the callback publishes the middle frame, keyframe tokens appended after the video left out
 
 Real diffusers schedulers drive the step; the pipeline is a stub and the decode returns the latent. No running server.
 
@@ -202,6 +203,57 @@ def test_video_latent_published_once_as_4d():
     return True
 
 
+class LTXPipe:
+    """The LTX 2 pipeline's packing contract, with diffusers' own pack and unpack."""
+    vae_spatial_compression_ratio = 32
+    transformer_spatial_patch_size = 1
+    transformer_temporal_patch_size = 1
+    num_timesteps = steps
+
+    def __init__(self):
+        from diffusers.pipelines.ltx2.pipeline_ltx2 import LTX2Pipeline
+        self._unpack_latents = LTX2Pipeline._unpack_latents  # pylint: disable=protected-access
+        self.pack = LTX2Pipeline._pack_latents  # pylint: disable=protected-access
+
+
+def publish_packed(video, extra_tokens=None):
+    """Pack a [B, C, F, H, W] latent as LTX 2 does, run the callback at the latent's pixel size, return the published latent."""
+    pipe = LTXPipe()
+    packed = pipe.pack(video)
+    if extra_tokens is not None:
+        packed = torch.cat([packed, extra_tokens], dim=1)
+    p = processing()
+    p.width, p.height = video.shape[-1] * pipe.vae_spatial_compression_ratio, video.shape[-2] * pipe.vae_spatial_compression_ratio
+    try:
+        processing_callbacks.set_callbacks_p(p)
+        shared.state.begin('Inference')
+        processing_callbacks.diffusers_callback(pipe, step=step_index, timestep=500, kwargs={'latents': packed})
+        published = shared.state.current_latent
+        shared.state.end()
+    finally:
+        processing_callbacks.set_callbacks_p(None)
+    return published
+
+
+def test_ltx_packed_latent_published_as_middle_frame():
+    """Red before the fix: the packed [B, frames*h*w, C] tokens were published as they came, and the preview decoders took them for an image."""
+    video = torch.randn(1, 128, 4, 5, 8, generator=torch.Generator().manual_seed(42))
+    published = publish_packed(video)
+    assert published is not None and published.shape == (1, 128, 5, 8), f'published {None if published is None else tuple(published.shape)}'
+    assert torch.equal(published, video[:, :, 2]), 'published latent is not the middle frame'
+    return True
+
+
+def test_ltx_keyframe_tokens_left_out():
+    """The condition pipeline appends keyframe tokens after the video tokens; the grid comes from the pass size, not from the token count."""
+    gen = torch.Generator().manual_seed(42)
+    video = torch.randn(1, 128, 4, 5, 8, generator=gen)
+    published = publish_packed(video, extra_tokens=torch.randn(1, 5 * 8, 128, generator=gen))
+    assert published is not None and published.shape == (1, 128, 5, 8), f'published {None if published is None else tuple(published.shape)}'
+    assert torch.equal(published, video[:, :, 2]), 'published latent is not a video frame'
+    return True
+
+
 def test_preview_reads_published_values_once():
     """Red before the fix: the preview read the latent twice and the model output four times, each read a point where the callback can swap it."""
     reads = {'current_latent': 0, 'current_noise_pred': 0}
@@ -257,6 +309,8 @@ def run_all():
     for fn in [
         test_video_latent_published_once_as_4d,
         test_preview_reads_published_values_once,
+        test_ltx_packed_latent_published_as_middle_frame,
+        test_ltx_keyframe_tokens_left_out,
     ]:
         run_test(cat, fn)
 
