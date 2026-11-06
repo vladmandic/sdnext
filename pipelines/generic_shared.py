@@ -52,7 +52,7 @@ shared_te_map = {
     },
     'Qwen-3 9B Base': {
         'cls': transformers.Qwen3ForCausalLM,
-        'identifier': '9b',
+        'identifier': ['9b', 'bluepixel'],
         'target_repo': 'black-forest-labs/FLUX.2-klein-9B',
         'target_subfolder': 'text_encoder',
     },

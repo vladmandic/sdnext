@@ -32,6 +32,7 @@ NATIVE_DISPATCH = {
     'sd3':        'pipelines.sd3.sd3_lora',
     'f1':         'pipelines.flux.flux1_lora',
     'f2':         'pipelines.flux.flux2_lora',
+    'bluepixel':  'pipelines.flux.flux2_lora',
     'f3':         'pipelines.flux3.flux3_lora',
     'anima':      'pipelines.anima.anima_lora',
     'chroma':     'pipelines.chroma.chroma_lora',

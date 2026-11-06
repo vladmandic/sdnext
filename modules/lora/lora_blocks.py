@@ -34,6 +34,7 @@ CHAINS = { # arch -> anchored tail prefixes, one per chain, in depth order
     'anima': ('transformer_blocks_',),
     'f1': ('transformer_blocks_', 'single_transformer_blocks_'),
     'f2': ('transformer_blocks_', 'single_transformer_blocks_'),
+    'bluepixel': ('transformer_blocks_', 'single_transformer_blocks_'),
     'chroma': ('transformer_blocks_', 'single_transformer_blocks_'),
     'zimage': ('layers_',),
     'ernieimage': ('layers_',),

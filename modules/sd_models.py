@@ -445,6 +445,10 @@ def load_diffuser_force(detected_model_type: str, checkpoint_info: CheckpointInf
             from pipelines.model_flux2 import load_flux2
             sd_model = load_flux2(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
+        elif model_type in ['BluePixel']:
+            from pipelines.model_bluepixel import load_bluepixel
+            sd_model = load_bluepixel(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
         elif model_type in ['FLUX2Klein']:
             from pipelines.model_flux2_klein import load_flux2_klein
             sd_model = load_flux2_klein(checkpoint_info, diffusers_load_config)
@@ -1186,6 +1190,9 @@ def get_class_task(cls: type) -> DiffusersTaskType:
 
 
 def get_diffusers_task(pipe: diffusers.DiffusionPipeline) -> DiffusersTaskType:
+    task_type = getattr(pipe, 'sdnext_task_type', None)
+    if task_type is not None:
+        return task_type
     return get_class_task(pipe.__class__)
 
 
@@ -1474,6 +1481,8 @@ def set_diffuser_pipe(pipe, new_pipe_type):
     if get_diffusers_task(pipe) == new_pipe_type:
         return pipe
     if pipe_serves_task(pipe, new_pipe_type): # a class registered for several tasks classifies as one of them
+        if hasattr(pipe, 'sdnext_task_type'):
+            pipe.sdnext_task_type = new_pipe_type
         return pipe
 
     if get_diffusers_task(pipe) == DiffusersTaskType.MODULAR:

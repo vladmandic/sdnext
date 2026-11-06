@@ -49,6 +49,8 @@ def get_model_type(pipe):
         model_type = 'chroma'
     elif "Flux3" in name:
         model_type = 'f3'
+    elif "BluePixel" in name:
+        model_type = 'bluepixel'
     elif "Flux2" in name:
         model_type = 'f2'
     elif "UltraFlux" in name:

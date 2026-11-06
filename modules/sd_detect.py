@@ -94,6 +94,8 @@ def guess_by_name(fn, current_guess):
         new_guess = 'ZetaChroma'
     elif 'chroma' in fn.lower() and 'xl' not in fn.lower():
         new_guess = 'Chroma'
+    elif 'bluepixel' in fn.lower():
+        new_guess = 'BluePixel'
     elif 'flux-3' in fn.lower() or 'flux3' in fn.lower() or 'flux_3' in fn.lower():
         new_guess = 'FLUX3'
     elif ('flux.2' in fn.lower() or 'f2' in fn.lower()) and 'klein' in fn.lower():

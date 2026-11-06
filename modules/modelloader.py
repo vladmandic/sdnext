@@ -198,6 +198,7 @@ def load_diffusers_models(clear=True):
 
 
 def find_diffuser(name: str, full=False):
+    name = name.strip()
     repo = [r for r in diffuser_repos if name == r['name'] or name == r['friendly'] or name == r['path']]
     if len(repo) > 0:
         return [repo[0]['name']]
@@ -209,11 +210,15 @@ def find_diffuser(name: str, full=False):
         suffix = '/'.join(parts[2:]) # subfolder
         if len(suffix) > 0:
             suffix = '/' + suffix
-    models = list(hf_api.list_models(search=name, filter="diffusers", full=True, limit=20, sort="downloads"))
-    if len(models) == 0:
-        models = list(hf_api.list_models(search=name, full=True, limit=20, sort="downloads")) # widen search
-    models = [m for m in models if m.id.startswith(name)] # filter exact
-    log.debug(f'Search model: repo="{name}" {len(models) > 0}')
+    models = []
+    try:
+        models = list(hf_api.list_models(search=name, filter="diffusers", full=True, limit=20, sort="downloads"))
+        if len(models) == 0:
+            models = list(hf_api.list_models(search=name, full=True, limit=20, sort="downloads")) # widen search
+        models = [m for m in models if m.id.startswith(name)] # filter exact
+        log.debug(f'Search model: repo="{name}" {len(models) > 0}')
+    except Exception as e:
+        log.error(f'Search model: model="{name}" {e}')
     if len(models) > 0:
         if not full:
             return models[0].id + suffix

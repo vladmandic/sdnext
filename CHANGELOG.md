@@ -2,6 +2,10 @@
 
 ## Update for 2026-11-05
 
+- **Models**:
+  - [BluePixel-Turbo](https://huggingface.co/openvivo/BluePixel-Turbo)  
+    BluePixel is retrained FLUX.2-Klein-9B with DCAE-F64 autoencoder and then distilled with four-step SATP  
+    result is turbo-style 9B instruction-based image editing model with native 2K/4K outputs  
 - **Chat**:
   New top-level interface: use chat to interact with SD.Next in a conversational manner  
   See [chat docs](https://vladmandic.github.io/sdnext-docs/Chat/) for more details  
