@@ -102,7 +102,7 @@ class BluePixelPipeline(Flux2Pipeline):
         text_ids = self._prepare_text_ids(prompt_embeds).to(device)
         return prompt_embeds, text_ids
 
-    def _encode_vae_image(self, image, generator):
+    def _encode_vae_image(self, image, generator):  # pylint: disable=unused-argument
         latents = self.vae.encode(image)[0]
         return latents * self.vae.config.scaling_factor
 
