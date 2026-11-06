@@ -48,6 +48,7 @@ installer.add_args(modules.cmd_args.parser)
 modules.cmd_args.parsed, _ = modules.cmd_args.parser.parse_known_args([])
 
 from PIL import Image                                                # pylint: disable=wrong-import-position
+import numpy as np                                                   # pylint: disable=wrong-import-position
 from modules import shared                                           # pylint: disable=wrong-import-position
 from modules.errors import log                                       # pylint: disable=wrong-import-position
 from modules.image.namegen import FilenameGenerator                  # pylint: disable=wrong-import-position
@@ -177,6 +178,13 @@ def test_tokens_with_arguments():
     assert names['[nosuch<x>]'] == '[nosuch<x>]', f'unknown token not kept: {names}'
 
 
+def test_numpy_image_dimensions():
+    image = np.zeros((12, 20, 3), dtype=np.uint8)
+    generator = FilenameGenerator(image=image)
+    filename = generator.apply('[width]x[height]')
+    assert filename == '20x12', f'numpy image dimensions were not read: {filename}'
+
+
 def test_save_image_pattern_with_drive_letter():
     """On Windows a folder or file pattern starting with a letter and a colon dropped the output folder and saved relative to that drive; the file must land below the configured folder."""
     from modules.image.save import save_image
@@ -205,6 +213,7 @@ def run_all():
     cat = category('apply')
     run_test(cat, test_generated_names_carry_no_colon)
     run_test(cat, test_tokens_with_arguments)
+    run_test(cat, test_numpy_image_dimensions)
     cat = category('save')
     for fn in [
         test_save_image_into_folder_ending_in_underscore,
