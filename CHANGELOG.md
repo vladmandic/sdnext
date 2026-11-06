@@ -58,7 +58,7 @@
   - processing: negative prompt the pipeline takes no input for is reported once per job
   - processing: text encoder failure fails the job with its own error instead of a misleading *not enough values to unpack* from the pipeline
   - samplers: *Euler SGM* and *DC Solver* use the model's prediction type
-  - save: *[datetime<format>]* and *[hasprompt<...>]* filename tokens apply args
+  - save: `[datetime<format>]` and `[hasprompt<...>]` filename tokens apply args
   - save: *Save metadata to JSON file* appends one line per image to a `jsonl`
   - save: an image save that fails no longer stops every later save
   - settings: extension settings are checked once extensions add them, instead of reported as unknown at startup
@@ -1388,7 +1388,7 @@ For full details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/m
   - update `vlad-neomorph` theme
   - a lot of small performance optimizations that add up to faster load times and more responsive ui
 - **Caption & Prompt Enhance**
-  - [Google Gemma 4] in *E2B* and *E4B* variants as well as *heretic* fine-tune
+  - [Google Gemma 4](https://huggingface.co/google/gemma-4-E4B-it) in *E2B* and *E4B* variants as well as *heretic* fine-tune
 - **Agents**
   framework for AI agent based work in `.github/`  
   *note*: all skills are agent-model agnostic  
@@ -3783,7 +3783,7 @@ We're back with another update with nearly 100 commits!
   - [Mixture-of-Diffusers](https://huggingface.co/posts/elismasilva/251775641926329)  
     Regional tiling type of a solution for SDXL models  
     select from *scripts -> mixture of diffusers*  
-  - [Automatic Color Inpaint]  
+  - Automatic Color Inpaint  
     Automatically creates mask based on selected color and triggers inpaint  
     simply select in *scripts -> automatic color inpaint* when in img2img mode  
   - [RAS: Region-Adaptive Sampling](https://github.com/microsoft/RAS) *experimental*  
@@ -6898,10 +6898,10 @@ Upgrades are still possible and supported, but clean install is recommended for 
     as well as resume aborted/incomplete downloads  
   - civitai integration in *models -> civitai* can now find most  
     previews AND metadata for most models (checkpoints, loras, embeddings)  
-    metadata is now parsed and saved in *[model].json*  
+    metadata is now parsed and saved in `[model].json`  
     typical hit rate is >95% for models, loras and embeddings  
   - description from parsed model metadata is used as model description if there is no manual  
-    description file present in format of *[model].txt*  
+    description file present in format of `[model].txt`  
   - to enable search for models, make sure all models have set hash values  
     *Models -> Valida -> Calculate hashes*  
 - **LoRA**
@@ -6966,7 +6966,7 @@ Upgrades are still possible and supported, but clean install is recommended for 
   - [MultiDiffusion](https://github.com/pkuliyi2015/multidiffusion-upscaler-for-automatic1111)  
     has been removed from list of built-in extensions  
     you can still install it manually if desired  
-  - [LyCORIS]<https://github.com/KohakuBlueleaf/a1111-sd-webui-lycoris>  
+  - [LyCORIS](https://github.com/KohakuBlueleaf/a1111-sd-webui-lycoris)  
     has been removed from list of built-in extensions  
     it is considered obsolete given that all functionality is now built-in  
 - **General**  
@@ -7485,7 +7485,7 @@ Second stage of a jumbo merge from upstream plus few minor changes...
 
 - simplify token merging  
 - reorganize some settings  
-- all updates from upstream: **A1111** v1.3.2 [df004be] *(latest release)*  
+- all updates from upstream: **A1111** v1.3.2 [df004be](https://github.com/AUTOMATIC1111/stable-diffusion-webui/commit/df004be) *(latest release)*  
   pretty much nothing major that i havent released in previous versions, but its still a long list of tiny changes  
   - skipped/did-not-port:  
     add separate hires prompt: unnecessarily complicated and spread over large number of commits due to many regressions  

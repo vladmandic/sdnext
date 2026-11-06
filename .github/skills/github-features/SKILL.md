@@ -4,7 +4,7 @@ description: "Read SD.Next GitHub issues with [Feature] in the title and produce
 argument-hint: "Optionally specify state (open/closed/all), max issues, and whether to include labels/assignees"
 ---
 
-# Summarize SD.Next [Feature] GitHub Issues
+# Summarize SD.Next `[Feature]` GitHub Issues
 
 Fetch issues from the SD.Next GitHub repository that contain `[Feature]` in the title, then produce a concise markdown report with one entry per issue.
 

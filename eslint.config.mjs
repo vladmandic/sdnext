@@ -188,10 +188,24 @@ const jsonConfig = defineConfig([
 const markdownConfig = defineConfig([
   {
     files: ['**/*.md'],
+    ignores: ['modules/control/proc/**'], // vendored
     plugins: { markdown },
     language: 'markdown/gfm',
-    processor: 'markdown/markdown',
+    languageOptions: {
+      frontmatter: 'yaml',
+    },
     extends: ['markdown/recommended'],
+    rules: {
+      'markdown/no-missing-label-refs': [
+        'error',
+        {
+          allowLabels: [
+            '!NOTE', '!TIP', '!IMPORTANT', '!WARNING', '!CAUTION', // GitHub alerts
+            'x', '', // [x] and [ ] marks in tables
+          ],
+        },
+      ],
+    },
   },
 ]);
 
