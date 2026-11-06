@@ -225,7 +225,7 @@ class Options:
             log.warning(f"Setting migration: {migrated}")
         self.pending_keys = self.validate_keys(list(self.data))
 
-    def validate_keys(self, keys: list[str]) -> list[str]:
+    def validate_keys(self, keys: builtins.list[str]) -> builtins.list[str]:
         """reset stored values that do not fit their option, returning the keys no option claims"""
         unknown_settings = []
         for k in keys:

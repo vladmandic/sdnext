@@ -12,6 +12,7 @@ target-version = "py310"
 exclude = [
     "venv",
     ".git",
+    "extensions-builtin/sdnq",
 ]
 
 [tool.ruff.lint]
@@ -435,7 +436,7 @@ possibly-missing-attribute = "ignore"
 possibly-missing-submodule = "ignore"
 unknown-argument = "ignore"
 unresolved-attribute = "ignore"
-unresolved-import = "ignore"
+import-not-found = "ignore"
 unsupported-base = "ignore"
 unsupported-operator = "ignore"
 unused-type-ignore-comment = "ignore"
