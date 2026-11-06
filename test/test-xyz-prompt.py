@@ -6,6 +6,8 @@ Covers:
 
 - blank entries in a values list (a trailing comma and space) add no cell, in the Script grid,
   the always-on grid and the dropdown restore; escaped commas and inner spaces are kept
+- a Search & replace axis whose values occur in none of the fields it targets logs one warning
+  naming those fields; a value found in any targeted field, prompt or negative, logs none
 
 Both grids run their real run and process code. Image generation is replaced by a recorder that
 runs process_init on the cell and keeps the prompts the pipeline would encode, and the grid
@@ -15,6 +17,7 @@ Usage:
     python test/test-xyz-prompt.py
 """
 
+import logging
 import os
 import sys
 from contextlib import contextmanager
@@ -119,6 +122,31 @@ def recorded_grid():
         processing.process_images, processing.create_infotext, grid_script.draw_xyz_grid, grid_on.draw_xyz_grid = saved
 
 
+class Capture(logging.Handler):
+    def __init__(self):
+        super().__init__(logging.WARNING)
+        self.messages: list[str] = []
+
+    def emit(self, record):
+        self.messages.append(record.getMessage())
+
+
+@contextmanager
+def captured_warnings():
+    handler = Capture()
+    log.addHandler(handler)
+    try:
+        log.warning('xyz-test probe')
+        assert handler.messages == ['xyz-test probe'], f'capture not working: {handler.messages}'
+        yield handler
+    finally:
+        log.removeHandler(handler)
+
+
+def search_warnings(handler: Capture) -> list[str]:
+    return [m for m in handler.messages if m.startswith('XYZ grid: search')]
+
+
 def make_p(prompt: str = 'a cat', negative: str = '', **kwargs):
     p = processing.StableDiffusionProcessingTxt2Img(prompt=prompt, negative_prompt=negative, styles=[], seed=1, steps=1, batch_size=1, n_iter=1, width=64, height=64, **kwargs)
     p.do_not_save_grid = True
@@ -189,6 +217,36 @@ def test_escaped_comma_and_inner_spaces_kept():
     assert prompts == ['a cat', 'a dog, sleeping'], f'prompts={prompts}'
 
 
+def test_unmatched_values_warn():
+    with captured_warnings() as handler:
+        run_script_grid(make_p('a cat'), '[Prompt] Search & replace', 'horse, cow')
+    warnings = search_warnings(handler)
+    assert len(warnings) == 1 and "'prompt'" in warnings[0] and "'horse'" in warnings[0], f'warnings={warnings}'
+
+
+def test_unmatched_values_warn_in_always_on_grid():
+    with captured_warnings() as handler:
+        run_always_on_grid(make_p('a cat'), '[Prompt] Search & replace', 'horse, cow')
+    warnings = search_warnings(handler)
+    assert len(warnings) == 1, f'warnings={warnings}'
+
+
+def test_refine_variant_names_the_empty_refine_field():
+    with captured_warnings() as handler:
+        run_script_grid(make_p('a cat'), '[Prompt] Search & replace refine', 'cat, dog')
+    warnings = search_warnings(handler)
+    assert len(warnings) == 1 and "'refiner_prompt'" in warnings[0] and "'prompt'" not in warnings[0], f'warnings={warnings}'
+
+
+def test_any_matching_value_does_not_warn():
+    with captured_warnings() as handler:
+        run_script_grid(make_p('a lazy dog'), '[Prompt] Search & replace', 'cat, dog, monkey')
+        run_script_grid(make_p('a cat', negative='blurry'), '[Prompt] Search & replace', 'blurry, sharp')
+        run_script_grid(make_p('a dog', detailer_prompt='a cat face'), '[Prompt] Search & replace all', 'cat, fox')
+    warnings = search_warnings(handler)
+    assert warnings == [], f'warnings={warnings}'
+
+
 def run_all():
     global script_grid, always_on_grid # pylint: disable=global-statement
     script_grid = make_script(grid_script)
@@ -201,6 +259,16 @@ def run_all():
         test_trailing_comma_adds_no_cell_in_always_on_grid,
         test_blank_entry_left_out_of_dropdown_restore,
         test_escaped_comma_and_inner_spaces_kept,
+    ]:
+        run_test(cat, fn)
+
+    log.warning('=== xyz search and replace ===')
+    cat = category('search')
+    for fn in [
+        test_unmatched_values_warn,
+        test_unmatched_values_warn_in_always_on_grid,
+        test_refine_variant_names_the_empty_refine_field,
+        test_any_matching_value_does_not_warn,
     ]:
         run_test(cat, fn)
 

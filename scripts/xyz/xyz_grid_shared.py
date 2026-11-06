@@ -181,6 +181,14 @@ def apply_prompt_all(p, x, xs):
     apply_prompt('detailer_prompt', 'detailer_negative', p, x, xs)
 
 
+def confirm_prompt(*fields):
+    def fun(p, xs):
+        texts = [getattr(p, field, None) for field in fields]
+        if not any(s in text for text in texts if isinstance(text, str) for s in xs):
+            log.warning(f'XYZ grid: search values={xs} not found fields={list(fields)}')
+    return fun
+
+
 def apply_order(p, x, xs):
     token_order = []
     for token in x:

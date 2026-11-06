@@ -68,6 +68,7 @@
   - settings: improve settings parsing and validation to prevent corruption
   - ui: refresh buttons call their method once per click
   - xyz: a blank value after a trailing comma is dropped instead of *Search & replace* inserting the replacement between every character of the prompt
+  - xyz: *Search & replace* warns when none of its values occurs in the prompts it searches
 
 ## Update for 2026-10-29
 
