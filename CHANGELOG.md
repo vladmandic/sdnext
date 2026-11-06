@@ -67,6 +67,7 @@
   - settings: a new data folder receives *config.json* and *secrets.json* on the first save
   - settings: improve settings parsing and validation to prevent corruption
   - ui: refresh buttons call their method once per click
+  - xyz: a blank value after a trailing comma is dropped instead of *Search & replace* inserting the replacement between every character of the prompt
 
 ## Update for 2026-10-29
 

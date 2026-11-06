@@ -14,6 +14,10 @@ def restore_comma(val: str):
     return val.replace(r"\,", ",")
 
 
+def split_values(vals: str) -> list[str]:
+    return [restore_comma(x.strip()) for x in re_plain_comma.split(vals) if x.strip()]
+
+
 def apply_field(field):
     def fun(p, x, xs):
         log.debug(f'XYZ grid apply field: {field}={x}')
