@@ -70,6 +70,7 @@
   - xyz: a blank value after a trailing comma is dropped instead of *Search & replace* inserting the replacement between every character of the prompt
   - xyz: *Search & replace* warns when none of its values occurs in the prompts it searches
   - xyz: restoring a grid image sets dropdown axes, such as sampler, model or lora, to the values the grid used
+  - xyz: in the always-on grid, *Search & replace all*, *Prompt order* and *Styles* change the prompt of each cell, and lora tags no longer pile up across cells
 
 ## Update for 2026-10-29
 

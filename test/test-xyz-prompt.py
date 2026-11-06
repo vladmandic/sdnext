@@ -11,6 +11,10 @@ Covers:
 - a dropdown axis writes its selection to the infotext and each grid's dropdown restore reads it
   back from that grid's own keys; the Script grid's keys, Fixed seed keys included, stay apart
   from the always-on grid's; a text axis records the values as typed
+- in the always-on grid, which runs after process_init has built the prompt lists, axes that edit
+  the prompt or styles (Search & replace all, Prompt order, Styles) reach the prompts each cell
+  encodes, the base styles and negative prompt still apply once, and a write into one cell's
+  prompt list does not reach the next cell
 
 Both grids run their real run and process code. Image generation is replaced by a recorder that
 runs process_init on the cell and keeps the prompts the pipeline would encode, and the grid
@@ -150,8 +154,8 @@ def search_warnings(handler: Capture) -> list[str]:
     return [m for m in handler.messages if m.startswith('XYZ grid: search')]
 
 
-def make_p(prompt: str = 'a cat', negative: str = '', **kwargs):
-    p = processing.StableDiffusionProcessingTxt2Img(prompt=prompt, negative_prompt=negative, styles=[], seed=1, steps=1, batch_size=1, n_iter=1, width=64, height=64, **kwargs)
+def make_p(prompt: str = 'a cat', negative: str = '', styles: list | None = None, **kwargs):
+    p = processing.StableDiffusionProcessingTxt2Img(prompt=prompt, negative_prompt=negative, styles=styles or [], seed=1, steps=1, batch_size=1, n_iter=1, width=64, height=64, **kwargs)
     p.do_not_save_grid = True
     p.do_not_save_samples = True
     return p
@@ -289,6 +293,59 @@ def test_script_grid_fixed_seed_keys_are_its_own():
     assert fixed == ['Fixed X Script Values', 'Fixed Z Script Values'], f'fixed={fixed}'
 
 
+def test_always_on_search_and_replace_all_reaches_the_encode():
+    prompts = run_always_on_grid(make_p('a cat'), '[Prompt] Search & replace all', 'cat, dog').prompts()
+    assert prompts == ['a cat', 'a dog'], f'prompts={prompts}'
+
+
+def test_always_on_prompt_order_reaches_the_encode():
+    prompts = run_always_on_grid(make_p('red, blue'), '[Prompt] Prompt order', 'red, blue').prompts()
+    assert prompts == ['red, blue', 'blue, red'], f'prompts={prompts}'
+
+
+def test_always_on_styles_axis_reaches_the_encode():
+    from modules import shared
+    from modules.styles import Style
+    saved = dict(shared.prompt_styles.styles)
+    shared.prompt_styles.styles['xyz-test style'] = Style('xyz-test style', prompt='{prompt}, oil painting')
+    try:
+        prompts = run_always_on_grid(make_p('a cat'), '[Network] Styles', x_dropdown=['xyz-test style']).prompts()
+    finally:
+        shared.prompt_styles.styles.clear()
+        shared.prompt_styles.styles.update(saved)
+    assert prompts == ['a cat, oil painting'], f'prompts={prompts}'
+
+
+def test_always_on_cells_keep_the_base_negative_and_styles():
+    from modules import shared
+    from modules.styles import Style
+    saved = dict(shared.prompt_styles.styles)
+    shared.prompt_styles.styles['xyz-test base'] = Style('xyz-test base', prompt='{prompt}, detailed', negative_prompt='blurry')
+    try:
+        p = make_p('a cat', negative='lowres', styles=['xyz-test base'])
+        recorder = run_always_on_grid(p, '[Prompt] Search & replace all', 'cat, dog')
+    finally:
+        shared.prompt_styles.styles.clear()
+        shared.prompt_styles.styles.update(saved)
+    cells = [(cell['prompts'][0], cell['negative_prompts'][0]) for cell in recorder.cells]
+    assert cells == [('a cat, detailed', 'lowres, blurry'), ('a dog, detailed', 'lowres, blurry')], f'cells={cells}'
+
+
+def test_lora_tag_write_stays_in_its_cell():
+    def tag_writer(pc):
+        processing.process_init(pc)
+        pc.all_prompts[0] += ', tag' # extra_networks_lora.prompt writes tags into all_prompts in place
+        recorder.cells.append({'prompts': list(pc.prompts), 'negative_prompts': list(pc.negative_prompts)})
+    p = make_p('a cat')
+    processing.process_init(p)
+    base = list(p.all_prompts)
+    grid_on.active = False
+    with recorded_grid() as recorder:
+        processing.process_images = tag_writer
+        always_on_grid.process(p, True, *grid_args('[Prompt] Search & replace all', 'cat, dog, fox'))
+    assert p.all_prompts == base, f'base all_prompts={p.all_prompts}'
+
+
 def run_all():
     global script_grid, always_on_grid # pylint: disable=global-statement
     script_grid = make_script(grid_script)
@@ -322,6 +379,17 @@ def run_all():
         test_always_on_dropdown_restores_its_own_values,
         test_text_axis_records_the_typed_values,
         test_script_grid_fixed_seed_keys_are_its_own,
+    ]:
+        run_test(cat, fn)
+
+    log.warning('=== always-on grid prompts ===')
+    cat = category('always-on')
+    for fn in [
+        test_always_on_search_and_replace_all_reaches_the_encode,
+        test_always_on_prompt_order_reaches_the_encode,
+        test_always_on_styles_axis_reaches_the_encode,
+        test_always_on_cells_keep_the_base_negative_and_styles,
+        test_lora_tag_write_stays_in_its_cell,
     ]:
         run_test(cat, fn)
 

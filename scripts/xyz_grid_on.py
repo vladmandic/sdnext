@@ -358,6 +358,8 @@ class XYZGridScript(scripts_manager.Script):
             pc.network_data = None
             pc.override_settings_restore_afterwards = False
             pc.styles = pc.styles[:]
+            pc.all_prompts = None # p's lists were built before this hook ran; each cell rebuilds its own from pc.prompt and pc.styles
+            pc.all_negative_prompts = None
             if no_fixed_seeds:
                 pc.seed = -1
                 processing.fix_seed(pc)
