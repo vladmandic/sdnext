@@ -139,7 +139,7 @@ class XYZGridScript(scripts_manager.Script):
         csv_mode.change(fn=change_choice_mode, inputs=[csv_mode, x_type, x_values, x_values_dropdown, y_type, y_values, y_values_dropdown, z_type, z_values, z_values_dropdown], outputs=[fill_x_button, x_values, x_values_dropdown, fill_y_button, y_values, y_values_dropdown, fill_z_button, z_values, z_values_dropdown])
 
         def get_dropdown_update_from_params(axis,params):
-            val_key = f"{axis} Values"
+            val_key = f"{axis} Script Values"
             vals = params.get(val_key,"")
             valslist = split_values(vals)
             return gr.update(value = valslist)
@@ -249,12 +249,12 @@ class XYZGridScript(scripts_manager.Script):
                 xs = process_axis(x_opt, x_values, x_values_dropdown)
             else:
                 xs = []
-            return x_opt, xs
+            return x_opt, xs, x_values # dropdown axes record their selection as the values text
 
         try:
-            x_opt, xs = parse_axis(x_type, x_values, x_values_dropdown)
-            y_opt, ys = parse_axis(y_type, y_values, y_values_dropdown)
-            z_opt, zs = parse_axis(z_type, z_values, z_values_dropdown)
+            x_opt, xs, x_values = parse_axis(x_type, x_values, x_values_dropdown)
+            y_opt, ys, y_values = parse_axis(y_type, y_values, y_values_dropdown)
+            z_opt, zs, z_values = parse_axis(z_type, z_values, z_values_dropdown)
         except Exception as e:
             log.error(f"XYZ grid: invalid axis values {e}")
             errors.display(e, 'xyz')
@@ -367,7 +367,7 @@ class XYZGridScript(scripts_manager.Script):
                     pc.extra_generation_params["Z Script Type"] = z_opt.label
                     pc.extra_generation_params["Z Script Values"] = z_values
                     if z_opt.label == "[Param] Seed" and not no_fixed_seeds:
-                        pc.extra_generation_params["Fixed Z Values"] = ", ".join([str(z) for z in zs])
+                        pc.extra_generation_params["Fixed Z Script Values"] = ", ".join([str(z) for z in zs])
                 grid_text = f'{len(zs)}x{len(xs)}x{len(ys)}' if len(zs) > 0 else f'{len(xs)}x{len(ys)}'
                 grid_infotext[0] = processing.create_infotext(pc, pc.all_prompts, pc.all_seeds, grid=grid_text)
             t1 = time.time()

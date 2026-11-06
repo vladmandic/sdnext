@@ -8,6 +8,9 @@ Covers:
   the always-on grid and the dropdown restore; escaped commas and inner spaces are kept
 - a Search & replace axis whose values occur in none of the fields it targets logs one warning
   naming those fields; a value found in any targeted field, prompt or negative, logs none
+- a dropdown axis writes its selection to the infotext and each grid's dropdown restore reads it
+  back from that grid's own keys; the Script grid's keys, Fixed seed keys included, stay apart
+  from the always-on grid's; a text axis records the values as typed
 
 Both grids run their real run and process code. Image generation is replaced by a recorder that
 runs process_init on the cell and keeps the prompts the pipeline would encode, and the grid
@@ -247,6 +250,45 @@ def test_any_matching_value_does_not_warn():
     assert warnings == [], f'warnings={warnings}'
 
 
+def infotext_params(recorder: GridRecorder) -> dict:
+    params = {}
+    for written in recorder.infotext_params:
+        params.update({key: str(value) for key, value in written.items()})
+    return params
+
+
+def test_script_grid_dropdown_restores_its_own_values():
+    recorder = run_script_grid(make_p('a cat'), '[Sampler] Name', x_dropdown=['Euler a', 'UniPC'])
+    params = infotext_params(recorder)
+    assert dropdown_restore(script_grid, 'X', params) == ['Euler a', 'UniPC'], f'params={params}'
+
+
+def test_script_grid_dropdown_ignores_always_on_values():
+    recorder = run_script_grid(make_p('a cat'), '[Sampler] Name', x_dropdown=['Euler a', 'UniPC'])
+    params = {**infotext_params(recorder), 'X Type': '[Sampler] Name', 'X Values': 'DPM++ 2M'}
+    values = dropdown_restore(script_grid, 'X', params)
+    assert values == ['Euler a', 'UniPC'], f'values={values}'
+
+
+def test_always_on_dropdown_restores_its_own_values():
+    p = make_p('a cat')
+    recorder = run_always_on_grid(p, '[Sampler] Name', x_dropdown=['Euler a', 'UniPC'])
+    params = infotext_params(recorder)
+    values = dropdown_restore(always_on_grid, 'X', params)
+    assert values == ['Euler a', 'UniPC'], f'values={values}'
+
+
+def test_text_axis_records_the_typed_values():
+    params = infotext_params(run_script_grid(make_p('a cat'), '[Prompt] Search & replace', r'cat, a dog\, sleeping'))
+    assert params.get('X Script Values') == r'cat, a dog\, sleeping', f'params={params}'
+
+
+def test_script_grid_fixed_seed_keys_are_its_own():
+    recorder = run_script_grid(make_p('a cat'), '[Param] Seed', '1, 2', z_label='[Param] Seed', z_values='3, 4')
+    fixed = sorted(key for key in infotext_params(recorder) if key.startswith('Fixed'))
+    assert fixed == ['Fixed X Script Values', 'Fixed Z Script Values'], f'fixed={fixed}'
+
+
 def run_all():
     global script_grid, always_on_grid # pylint: disable=global-statement
     script_grid = make_script(grid_script)
@@ -269,6 +311,17 @@ def run_all():
         test_unmatched_values_warn_in_always_on_grid,
         test_refine_variant_names_the_empty_refine_field,
         test_any_matching_value_does_not_warn,
+    ]:
+        run_test(cat, fn)
+
+    log.warning('=== xyz infotext restore ===')
+    cat = category('restore')
+    for fn in [
+        test_script_grid_dropdown_restores_its_own_values,
+        test_script_grid_dropdown_ignores_always_on_values,
+        test_always_on_dropdown_restores_its_own_values,
+        test_text_axis_records_the_typed_values,
+        test_script_grid_fixed_seed_keys_are_its_own,
     ]:
         run_test(cat, fn)
 
