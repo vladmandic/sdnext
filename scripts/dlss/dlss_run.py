@@ -56,6 +56,46 @@ def resolve_video_options(codec: str | None, ext: str | None, pix: str | None, o
     return codec, ext, pix, opt
 
 
+def probe_video_audio(filepath: str) -> tuple[int | None, str]:
+    from modules.video_models.video_utils import check_av
+    av = check_av()
+    if av is None:
+        return None, 'stereo'
+    try:
+        with av.open(filepath) as container:
+            if not container.streams.audio:
+                return None, 'stereo'
+            stream = container.streams.audio[0]
+            sample_rate = stream.codec_context.sample_rate
+            if not sample_rate:
+                raise ValueError('input audio stream has no sample rate')
+            layout = stream.layout.name if stream.layout is not None else 'stereo'
+            return int(sample_rate), layout
+    except Exception as e:
+        log.error(f'DLSS audio: file="{filepath}" probe failed: {e}')
+        return None, 'stereo'
+
+
+def write_video_audio(filepath: str, writer) -> bool:
+    from modules.video_models.video_utils import check_av
+    av = check_av()
+    if av is None:
+        return False
+    try:
+        with av.open(filepath) as container:
+            if not container.streams.audio:
+                log.error(f'DLSS audio: file="{filepath}" source audio stream is missing')
+                return False
+            stream = container.streams.audio[0]
+            sample_rate = stream.codec_context.sample_rate
+            layout = stream.layout.name if stream.layout is not None else 'stereo'
+            writer.write_audio({'sr': sample_rate, 'layout': layout, 'frames': container.decode(stream)}, sample_rate)
+        return True
+    except Exception as e:
+        log.error(f'DLSS audio: file="{filepath}" mux failed: {e}')
+        return False
+
+
 def dlss_output_fps(fps_in: float, framegen_factor: int, fg_mode: str) -> float:
     """Output frame rate: FrameGen in fps mode multiplies the input rate, slow motion keeps it so the clip plays longer."""
     if framegen_factor > 1 and fg_mode == 'fps':
@@ -142,6 +182,8 @@ def dlss_run(p: StableDiffusionProcessing | None,
     has_images = hasattr(pp, "images") and pp.images is not None
     has_image = hasattr(pp, "image") and pp.image is not None
     has_video = hasattr(pp, "video") and pp.video is not None
+    video_input = pp.video if has_video else None
+    audio_rate, audio_layout = probe_video_audio(video_input) if video_input else (None, 'stereo')
     if has_images:
         raw_inputs = pp.images if isinstance(pp.images, list) else [pp.images]
     elif has_image:
@@ -320,7 +362,9 @@ def dlss_run(p: StableDiffusionProcessing | None,
                                                                    mp4_pix=mp4_pix,
                                                                    mp4_opt=mp4_opt,
                                                                    source=pp.video,
-                                                                   fps=output_fps)
+                                                                   fps=output_fps,
+                                                                   audio_rate=audio_rate,
+                                                                   audio_layout=audio_layout)
                         video_initialized = True
                     else:
                         video.save_video_frames(video_writter, current_frames)
@@ -336,6 +380,11 @@ def dlss_run(p: StableDiffusionProcessing | None,
             output_images = total_produced_frames
 
         if video_writter is not None:
+            if audio_rate is not None and video_input is not None:
+                if reader is not None:
+                    reader.close()
+                    reader = None
+                write_video_audio(video_input, video_writter)
             video_writter.release()
         elif has_images:
             pp.images = output_images.copy()

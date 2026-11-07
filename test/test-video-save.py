@@ -2587,6 +2587,36 @@ def test_video_tab_muxes_audio_packets():
     return True
 
 
+def test_dlss_stream_muxes_input_audio():
+    if need_av():
+        return need_av()
+    module, reason = dlss_module()
+    if module is None:
+        return reason
+    with tempfile.NamedTemporaryFile(prefix='dlss-audio-input-', suffix='.mp4', dir=work_dir, delete=False) as temp_video:
+        input_video = temp_video.name
+    _res, source_err = call_and_catch(video_save.atomic_save_video, input_video, tensor_of(small_frames(24)),
+                                     audio=sine(1.0, 32000, channels=2), fps=24, codec='libx264', sample_rate=32000)
+    assert source_err is None, f'input video creation raised {source_err!r}'
+    audio_rate, audio_layout = module.probe_video_audio(input_video)
+    assert audio_rate == 32000 and audio_layout == 'stereo', f'input audio config {(audio_rate, audio_layout)}'
+    res, err = call_and_catch(legacy_save, small_frames(24), 'dlss_stream_audio.mp4',
+                              stream=True, mp4_codec='libx264', audio_rate=audio_rate, audio_layout=audio_layout)
+    assert err is None and isinstance(res, tuple), f'stream open: returned {res!r} raised {err!r}'
+    filename, writer = res
+    try:
+        muxed = module.write_video_audio(input_video, writer)
+    finally:
+        _res, release_err = call_and_catch(writer.release)
+    info = stream_info(filename) if os.path.isfile(filename) else {}
+    verdict('test_dlss_stream_muxes_input_audio', 'PASS', muxed=muxed, raised=repr(err) if err else None, release_raised=repr(release_err) if release_err else None, audio=info.get('audio'), duration=info.get('duration'))
+    assert muxed, 'DLSS audio reader did not find the source soundtrack'
+    assert release_err is None, f'release raised {release_err!r}'
+    assert info.get('audio') == ['aac'], f'audio streams {info.get("audio")}'
+    assert info.get('duration') is not None and abs(info['duration'] - 1.0) <= 2 * 1024 / 32000, f'duration {info.get("duration")}'
+    return True
+
+
 # ============================================================
 # metadata
 # ============================================================
@@ -3092,7 +3122,7 @@ GROUPS = [
     ('rate', [test_video_rate_fractions, test_mpeg4_opens_at_dlss_long_rate, test_video_tab_keeps_fractional_rate, test_fps_zero_refused_by_name, test_dlss_output_fps_rule, test_video_tab_returns_none_video_on_failure]),
     ('colour', [test_default_outputs_are_tagged_bt709, test_legacy_default_colour_720, test_legacy_default_colour_512, test_video_tab_default_colour, test_rgb_pix_fmt_tagged_full_and_exact, test_prores_tagged_and_within_oracle, test_mpeg4_in_mp4_carries_colr]),
     ('readers', [test_readers_agree_on_h264_fixture, test_readers_fractional_rate, test_readers_per_container, test_reader_codec_names, test_count_frames_without_header_or_duration, test_frames_estimate_ignores_trailing_audio, test_tag_duration_parses_matroska_tags, test_tagged_matroska_not_demuxed, test_reader_decodes_with_stream_tags, test_reader_rotation_follows_display_matrix, test_params_without_capture_read_headers_only, test_iter_frames_skip_and_limit, test_ltx_condition_frames_keep_frame_zero, test_first_frame_equals_read_video_first, test_get_video_info_exact_keys, test_unreadable_file_contracts, test_corrupt_stream_stops_with_warning, test_frames_are_contiguous, test_unchanged_callers, test_reader_decode_speed_measured]),
-    ('audio', [test_video_tab_muxes_audio_tensor, test_video_tab_muxes_audio_packets]),
+    ('audio', [test_video_tab_muxes_audio_tensor, test_video_tab_muxes_audio_packets, test_dlss_stream_muxes_input_audio]),
     ('metadata', [test_metadata_roundtrip]),
     ('gradio', [test_option_off_does_not_probe_or_convert, test_option_on_converts_without_binaries, test_option_on_serves_playable_as_is, test_option_on_converts_unplayable_h264, test_preview_audio_passthrough_and_drop, test_preview_unopenable_file_served_as_is, test_preview_av_import_failure_does_not_raise, test_cli_fallback_leaves_no_copy, test_cleanup_tmpdr_removes_all_video_extensions]),
     ('process', [test_process_missing_video_reports_reason, test_process_tab_shows_failure_text_whole]),
