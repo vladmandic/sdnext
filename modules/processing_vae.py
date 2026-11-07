@@ -95,7 +95,7 @@ def full_vae_decode(latents, model, use_job=True):
         sd_models.move_model(model.vae, devices.device)
 
     # sd_models.set_vae_options(model, vae=None, op='decode') # set during model load
-    upcast = (model.vae.dtype == torch.float16) and (getattr(model.vae.config, 'force_upcast', False) or shared.opts.no_half_vae)
+    upcast = (model.vae.dtype in (torch.float16, torch.bfloat16)) and (getattr(model.vae.config, 'force_upcast', False) or shared.opts.no_half_vae)
     if upcast:
         if hasattr(model, 'upcast_vae'): # this is done by diffusers automatically if output_type != 'latent'
             model.upcast_vae()
@@ -185,7 +185,7 @@ def full_vae_encode(image, model=None):
     log_debug(f'Encode vae="{vae_name}" dtype={model.vae.dtype} upcast={model.vae.config.get("force_upcast", None)}')
 
     sd_models.set_vae_options(model, vae=None, op='encode')
-    upcast = (model.vae.dtype == torch.float16) and (getattr(model.vae.config, 'force_upcast', False) or shared.opts.no_half_vae)
+    upcast = (model.vae.dtype in (torch.float16, torch.bfloat16)) and (getattr(model.vae.config, 'force_upcast', False) or shared.opts.no_half_vae)
     if upcast:
         if hasattr(model, 'upcast_vae'): # this is done by diffusers automatically if output_type != 'latent'
             model.upcast_vae()
