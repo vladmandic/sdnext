@@ -318,8 +318,6 @@ def save_chat_settings_revision(session_id: str):
         extras = commands.validate_control_extras(image_draft.get('control_extras', {}))
     except ValidationError as exc:
         raise commands.CommandError('Current image draft contains invalid generation parameters') from exc
-    except commands.CommandError:
-        raise
 
     parameters = {
         name: value for name, value in validated.items()
