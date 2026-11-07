@@ -81,6 +81,12 @@ def reference_caps(workflow: str | None):
     return minimax_references.get_reference_caps(workflow)
 
 
+def get_video_save_fps(p: processing.StableDiffusionProcessingVideo, mp4_fps: float, interpolation: int = 1) -> float:
+    output_fps = p.video_output_fps if p.video_output_fps is not None else mp4_fps
+    framegen_factor = p.video_framegen_factor if p.video_framegen_factor is not None else 1
+    return output_fps * framegen_factor * interpolation
+
+
 def validate_references(selected: models_def.Model, references: list | None, init_image) -> list | None:
     """Return the ordered references a reference workflow conditions on, None for every other model.
     Reference conditioning is exclusive to ref2va: its partition holds no keyframe transformer, and
@@ -175,6 +181,7 @@ def run(selected: models_def.Model, *,
         vae_type=vae_type,
         vae_tile_frames=int(vae_tile_frames),
         video_audio=bool(audio),
+        video_output_fps=float(mp4_fps),
         override_settings=override_settings,
     )
     if p.vae_type == 'Remote' and not selected.vae_remote:
@@ -341,7 +348,7 @@ def run(selected: models_def.Model, *,
         x = x * 2.0 - 1.0
         pixels = x.permute(1, 0, 2, 3).unsqueeze(0)
     from modules.processing_video import interpolation_factor
-    save_fps = mp4_fps * interpolation_factor(p)
+    save_fps = get_video_save_fps(p, mp4_fps, interpolation_factor(p))
     num_frames, video_file, thumb_file = video_save.save_video(
         p=p,
         pixels=pixels,
