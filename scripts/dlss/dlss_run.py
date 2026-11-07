@@ -103,6 +103,12 @@ def dlss_output_fps(fps_in: float, framegen_factor: int, fg_mode: str) -> float:
     return fps_in
 
 
+def set_video_framegen_factor(p: StableDiffusionProcessing | None, framegen_factor: int, fg_mode: str = 'fps') -> None:
+    """Pass the active FrameGen output-rate multiplier to the Video tab encoder."""
+    if hasattr(p, 'video_framegen_factor'):
+        p.video_framegen_factor = framegen_factor if fg_mode == 'fps' else 1
+
+
 def dlss_run(p: StableDiffusionProcessing | None,
              pp: Processed | PostprocessedImage,
              *args,
@@ -263,6 +269,7 @@ def dlss_run(p: StableDiffusionProcessing | None,
                     if p is not None:
                         p.extra_generation_params['DLSSFG'] = f'{fg_opt_profile}'
                     active_chain.append(('fg', fg_session))
+                    set_video_framegen_factor(p, int(fg_factor), fg_mode)
             elif ('super' in op_lower) or ('vsr' in op_lower) or (op_lower == 's'):
                 ss_model_path = _resolve_model_path(SS_MODEL)
                 if ss_model_path:
