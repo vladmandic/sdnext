@@ -351,6 +351,27 @@ def parse_command(text: str) -> ParsedCommand:
     raise CommandError(f'Unknown command: {command}')
 
 
+def split_commands(text: str) -> list[str]:
+    try:
+        parsed = parse_command(text)
+    except CommandError:
+        parsed = None
+    if parsed is not None and parsed.name == 'set' and parsed.arguments.get('name') in {'prompt', 'negative_prompt'}:
+        return [text.strip()]
+    return [line.strip() for line in text.splitlines() if line.strip()]
+
+
+def is_transient_command(text: str) -> bool:
+    stripped = text.strip()
+    if stripped.startswith('/') and not stripped.startswith('//'):
+        stripped = stripped[1:].lstrip()
+    match = re.match(r'^(\S+)', stripped)
+    if match is None:
+        return False
+    command = _COMMAND_ALIASES.get(match.group(1).casefold(), match.group(1).casefold())
+    return command in {'help', 'list', 'params'}
+
+
 def _parameter_spec(context: str, name: str):
     if name in _SETTING_NAMES:
         return 'setting', _SETTING_NAMES[name]

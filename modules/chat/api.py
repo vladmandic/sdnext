@@ -2,6 +2,8 @@
 
 import json
 import sqlite3
+import uuid
+from datetime import datetime, timezone
 from html import escape
 from typing import Any, Literal
 
@@ -647,7 +649,22 @@ def _selected_image_for_command(
     return images if session['context'] == 'image' else images[0]
 
 
-def _finish_submission(session_id: str, user_message: dict[str, Any], result: dict[str, Any]):
+def _transient_message(role: str, content: str, metadata: dict[str, Any] | None = None):
+    return {
+        'id': uuid.uuid4().hex,
+        'role': role,
+        'content': content,
+        'metadata': metadata or {},
+        'created_at': datetime.now(timezone.utc).isoformat(),
+    }
+
+
+def _finish_submission(
+    session_id: str,
+    user_message: dict[str, Any],
+    result: dict[str, Any],
+    persist: bool = True,
+):
     try:
         metadata = result.get('message_metadata', {
             'kind': result.get('kind', 'text'),
@@ -655,12 +672,15 @@ def _finish_submission(session_id: str, user_message: dict[str, Any], result: di
         })
         if result.get('sections'):
             metadata['sections'] = result['sections']
-        assistant_message = db.create_message(
-            session_id,
-            'assistant',
-            result.get('text', ''),
-            metadata=metadata,
-        )
+        if persist:
+            assistant_message = db.create_message(
+                session_id,
+                'assistant',
+                result.get('text', ''),
+                metadata=metadata,
+            )
+        else:
+            assistant_message = _transient_message('assistant', result.get('text', ''), metadata)
         return ResChatSubmission(
             session=db.get_session(session_id),
             user_message=user_message,
@@ -738,27 +758,55 @@ def _post_message(session_id: str, req: ReqChatMessage, api_instance=None):
     if not content:
         _log_chat_error('message submission: message is empty')
         raise HTTPException(status_code=422, detail='Chat message cannot be empty')
+    command_lines = commands.split_commands(content)
+    transient = bool(command_lines) and all(commands.is_transient_command(line) for line in command_lines)
     command_word = content.split(maxsplit=1)[0].casefold()
     is_private_path_command = command_word in {'use', 'file'}
     try:
-        if session['title'] == 'New chat' and command_word != 'title' and not is_private_path_command and not db.list_messages(session_id, limit=1):
+        if not transient and session['title'] == 'New chat' and command_word != 'title' and not is_private_path_command and not db.list_messages(session_id, limit=1):
             title = content.splitlines()[0][:64]
             db.update_session(session_id, title=title)
         transcript_content = 'Server file import' if is_private_path_command else content
-        user_message = db.create_message(session_id, 'user', transcript_content)
+        user_message = (
+            _transient_message('user', transcript_content)
+            if transient else db.create_message(session_id, 'user', transcript_content)
+        )
     except Exception as exc:
         _log_chat_error('message persistence', exc)
         raise
     try:
         image = _selected_image_for_command(session, content, req.image)
-        result = _execute_chat_command(session_id, user_message, content, image, api_instance)
+        result = _execute_chat_commands(session_id, user_message, command_lines, image, api_instance)
     except Exception as exc:  # Keep a command failure in the persisted conversation.
         _log_chat_error('command', exc)
         result = {'kind': 'error', 'text': 'Command failed. Check the server log.', 'data': {}}
     else:
         if result.get('kind') == 'error':
             _log_chat_error(f'command: {_chat_error_result(result)}')
-    return _finish_submission(session_id, user_message, result)
+    return _finish_submission(session_id, user_message, result, persist=not transient)
+
+
+def _execute_chat_commands(
+    session_id: str,
+    user_message: dict[str, Any],
+    command_lines: list[str],
+    image: str | list[str] | None,
+    api_instance,
+):
+    if len(command_lines) == 1:
+        return _execute_chat_command(session_id, user_message, command_lines[0], image, api_instance)
+
+    results = []
+    for line in command_lines:
+        result = _execute_chat_command(session_id, user_message, line, image, api_instance)
+        results.append(result.get('text', ''))
+        if result.get('kind') != 'text':
+            result['text'] = '\n'.join(text for text in results if text)
+            return result
+    combined = {'kind': 'text', 'text': '\n'.join(text for text in results if text), 'data': {}}
+    if results and result.get('sections'):
+        combined['sections'] = result['sections']
+    return combined
 
 
 def get_chat_artifact_content(session_id: str, artifact_id: str):

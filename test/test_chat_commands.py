@@ -85,6 +85,27 @@ class TestChatCommands(unittest.TestCase):
         parsed = commands.parse_command('negative low contrast')
         self.assertEqual(parsed.arguments, {'name': 'negative_prompt', 'value': 'low contrast'})
 
+    def test_multiline_input_splits_commands_but_preserves_prompt_variants(self):
+        self.assertEqual(
+            commands.split_commands('set steps 8\nset cfg_scale 1'),
+            ['set steps 8', 'set cfg_scale 1'],
+        )
+        for text in (
+                'prompt this is\nmultiline prompt',
+                'set prompt this is\nmultiline prompt',
+                'set prompt=this is\nmultiline prompt',
+                '>this is\nmultiline prompt',
+                'negative this is\nmultiline negative prompt',
+                'set negative_prompt this is\nmultiline negative prompt'):
+            with self.subTest(text=text):
+                self.assertEqual(commands.split_commands(text), [text])
+
+    def test_help_list_and_args_are_transient_commands(self):
+        for text in ('help', 'help extra', 'list', 'args', '/args', 'params'):
+            with self.subTest(text=text):
+                self.assertTrue(commands.is_transient_command(text))
+        self.assertFalse(commands.is_transient_command('set steps 8'))
+
     def test_prompt_markers_set_the_current_prompt(self):
         session = self._create_session()
         prompt = 'a full prompt\nwith a second line'

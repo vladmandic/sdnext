@@ -657,6 +657,44 @@ class TestChatApiRegistration(unittest.TestCase):
                     chat_api.get_session(session['id'])
                 self.assertEqual(getattr(context.exception, 'status_code', None), 404)
 
+    def test_multiline_submission_executes_commands_and_keeps_prompt_newlines(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = os.path.join(temp_dir, 'chat.db')
+            with patch.object(db, '_db_path', return_value=db_path):
+                session = chat_api.create_session(chat_api.ReqSessionCreate())
+                batch = chat_api.post_message(
+                    session['id'],
+                    chat_api.ReqChatMessage(content='set steps 8\nset cfg_scale 1'),
+                )
+                prompt = chat_api.post_message(
+                    session['id'],
+                    chat_api.ReqChatMessage(content='prompt this is\nmultiline prompt'),
+                )
+                detail = chat_api.get_session(session['id'])
+
+        self.assertEqual(batch.result.text, 'steps set to 8\ncfg_scale set to 1.0')
+        self.assertEqual(prompt.result.text, 'prompt set to this is\nmultiline prompt')
+        self.assertEqual(detail.session.drafts['image']['steps'], 8)
+        self.assertEqual(detail.session.drafts['image']['cfg_scale'], 1)
+        self.assertEqual(detail.session.drafts['image']['prompt'], 'this is\nmultiline prompt')
+        self.assertEqual(len(detail.messages), 4)
+
+    def test_help_list_and_args_are_not_persisted_to_session_history(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = os.path.join(temp_dir, 'chat.db')
+            with patch.object(db, '_db_path', return_value=db_path):
+                session = chat_api.create_session(chat_api.ReqSessionCreate())
+                submissions = [
+                    chat_api.post_message(session['id'], chat_api.ReqChatMessage(content=command))
+                    for command in ('help', 'list', 'args')
+                ]
+                detail = chat_api.get_session(session['id'])
+
+        self.assertEqual([item.user_message.content for item in submissions], ['help', 'list', 'args'])
+        self.assertEqual([item.assistant_message.content for item in submissions][0], submissions[0].result.text)
+        self.assertEqual(detail.messages, [])
+        self.assertEqual(detail.session.title, 'New chat')
+
     def test_title_command_reads_default_name_and_updates_session(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             db_path = os.path.join(temp_dir, 'chat.db')
