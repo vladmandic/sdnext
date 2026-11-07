@@ -8,6 +8,9 @@ Covers:
   the always-on grid and the dropdown restore; escaped commas and inner spaces are kept
 - a Search & replace axis whose values occur in none of the fields it targets logs one warning
   naming those fields; a value found in any targeted field, prompt or negative, logs none
+- Search & replace replaces one anchor per cell, the first value or else the longest value found
+  in the fields the axis targets, so no value matches inside another value or inside a cell's
+  replacement; any value can still anchor, including one found only in the negative prompt
 - a dropdown axis writes its selection to the infotext and each grid's dropdown restore reads it
   back from that grid's own keys; the Script grid's keys, Fixed seed keys included, stay apart
   from the always-on grid's; a text axis records the values as typed
@@ -98,7 +101,7 @@ class GridRecorder:
 
     def process_images(self, pc):
         processing.process_init(pc)
-        self.cells.append({'prompts': list(pc.prompts), 'negative_prompts': list(pc.negative_prompts)})
+        self.cells.append({'prompts': list(pc.prompts), 'negative_prompts': list(pc.negative_prompts), 'detailer_prompt': pc.detailer_prompt})
 
     def create_infotext(self, pc, *args, **kwargs): # pylint: disable=unused-argument
         self.infotext_params.append(dict(pc.extra_generation_params))
@@ -254,6 +257,51 @@ def test_any_matching_value_does_not_warn():
     assert warnings == [], f'warnings={warnings}'
 
 
+def search_replace(prompt: str, values: str, negative: str = '') -> list[tuple[str, str]]:
+    recorder = run_script_grid(make_p(prompt, negative=negative), '[Prompt] Search & replace', values)
+    return [(cell['prompts'][0], cell['negative_prompts'][0]) for cell in recorder.cells]
+
+
+def test_value_inside_the_anchor_is_left_alone():
+    prompts = [prompt for prompt, _negative in search_replace('photo of a woman', 'woman, man, child')]
+    assert prompts == ['photo of a woman', 'photo of a man', 'photo of a child'], f'prompts={prompts}'
+
+
+def test_numeric_sweep_with_an_integer_between_decimals():
+    weights = [prompt for prompt, _negative in search_replace('portrait, (red hair:0.8)', '0.8, 1, 1.2')]
+    assert weights == ['portrait, (red hair:0.8)', 'portrait, (red hair:1)', 'portrait, (red hair:1.2)'], f'prompts={weights}'
+    strengths = [prompt for prompt, _negative in search_replace('<lora:style:0.5>, a castle', '0.5, 1, 1.5')]
+    assert strengths == ['<lora:style:0.5>, a castle', '<lora:style:1>, a castle', '<lora:style:1.5>, a castle'], f'prompts={strengths}'
+
+
+def test_value_inside_the_anchor_text_is_left_alone():
+    prompts = [prompt for prompt, _negative in search_replace('a castle, oil painting', 'oil painting, painting, watercolor')]
+    assert prompts == ['a castle, oil painting', 'a castle, painting', 'a castle, watercolor'], f'prompts={prompts}'
+
+
+def test_absent_first_value_anchors_on_the_longest_found():
+    prompts = [prompt for prompt, _negative in search_replace('photo of a woman', 'child, man, woman')]
+    assert prompts == ['photo of a child', 'photo of a man', 'photo of a woman'], f'prompts={prompts}'
+
+
+def test_value_only_in_the_negative_is_not_replaced():
+    negatives = [negative for _prompt, negative in search_replace('photo of a woman', 'woman, man, child', negative='man, blurry')]
+    assert negatives == ['man, blurry'] * 3, f'negatives={negatives}'
+
+
+def test_any_value_can_anchor():
+    prompts = [prompt for prompt, _negative in search_replace('a lazy dog', 'cat, dog, monkey')]
+    assert prompts == ['a lazy cat', 'a lazy dog', 'a lazy monkey'], f'prompts={prompts}'
+    cells = search_replace('a cat', 'blurry, sharp', negative='blurry')
+    assert cells == [('a cat', 'blurry'), ('a cat', 'sharp')], f'cells={cells}'
+
+
+def test_search_and_replace_all_uses_one_anchor():
+    recorder = run_script_grid(make_p('photo of a woman', detailer_prompt='face of a woman'), '[Prompt] Search & replace all', 'woman, man')
+    cells = [(cell['prompts'][0], cell['detailer_prompt']) for cell in recorder.cells]
+    assert cells == [('photo of a woman', 'face of a woman'), ('photo of a man', 'face of a man')], f'cells={cells}'
+
+
 def infotext_params(recorder: GridRecorder) -> dict:
     params = {}
     for written in recorder.infotext_params:
@@ -368,6 +416,19 @@ def run_all():
         test_unmatched_values_warn_in_always_on_grid,
         test_refine_variant_names_the_empty_refine_field,
         test_any_matching_value_does_not_warn,
+    ]:
+        run_test(cat, fn)
+
+    log.warning('=== xyz search and replace anchor ===')
+    cat = category('anchor')
+    for fn in [
+        test_value_inside_the_anchor_is_left_alone,
+        test_numeric_sweep_with_an_integer_between_decimals,
+        test_value_inside_the_anchor_text_is_left_alone,
+        test_absent_first_value_anchors_on_the_longest_found,
+        test_value_only_in_the_negative_is_not_replaced,
+        test_any_value_can_anchor,
+        test_search_and_replace_all_uses_one_anchor,
     ]:
         run_test(cat, fn)
 

@@ -71,6 +71,7 @@
   - xyz: *Search & replace* warns when none of its values occurs in the prompts it searches
   - xyz: restoring a grid image sets dropdown axes, such as sampler, model or lora, to the values the grid used
   - xyz: in the always-on grid, *Search & replace all*, *Prompt order* and *Styles* change the prompt of each cell, and lora tags no longer pile up across cells
+  - xyz: *Search & replace* replaces one value per cell, the first value or, when it is absent, the longest one found, so `woman,man` no longer renders `wowoman` and `0.8,1,1.2` no longer renders `1.2.2`
 
 ## Update for 2026-10-29
 
