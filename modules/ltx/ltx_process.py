@@ -285,6 +285,7 @@ def run(model: str, *,
             width=base_w,
             height=base_h,
             frames=get_frames(frames),
+            video_output_fps=float(mp4_fps),
             cfg_scale=cfg_scale,
             denoising_strength=float(condition_strength) if condition_strength is not None else 1.0,
             init_image=init_image,
@@ -615,9 +616,9 @@ def run(model: str, *,
                 x = x * 2.0 - 1.0
                 pixels = x.permute(1, 0, 2, 3).unsqueeze(0)
 
-            # LTX is conditioned on mp4_fps as the source rate; scale saved fps to keep duration constant
+            # Preserve the output duration after interpolation and FrameGen add frames.
             from modules.processing_video import interpolation_factor
-            save_fps = mp4_fps * interpolation_factor(p)
+            save_fps = video_run.get_video_save_fps(p, mp4_fps, interpolation_factor(p))
             num_frames, video_file, thumb_file = save_video(
                 p=p,
                 pixels=pixels,
@@ -639,7 +640,7 @@ def run(model: str, *,
 
             out_w, out_h = video_utils.pixel_size(pixels, fallback=(p.width, p.height))
             total_time = max(time.time() - t0, 1e-6)
-            log.info(f'Processed: fn="{video_file}" frames={num_frames} fps={num_frames/total_time:.2f} its={p.steps/total_time:.3f} resolution={out_w}x{out_h} time={total_time:.2f}')
+            log.info(f'Processed: fn="{video_file}" frames={num_frames} fps={save_fps} its={p.steps/total_time:.3f} resolution={out_w}x{out_h} time={total_time:.2f}')
             # the decode paths never materialize PIL, so frames come back through the saved file
             images_out = pixels if isinstance(pixels, list) else []
             processed_out = processing.Processed(p, images_out, seed=p.seed, audio=audio_out)

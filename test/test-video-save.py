@@ -1873,16 +1873,76 @@ def test_fps_zero_refused_by_name():
     return True
 
 
+def dlss_video_ui_fps_and_factor():
+    import gradio as gr
+    from modules.video_models import video_ui
+    from scripts.dlss_ext import create_ui as create_dlss_ui
+
+    with gr.Blocks():
+        video_fps_component = video_ui.create_ui_outputs()[0]
+        dlss_components = create_dlss_ui('video')
+    fg_factor_component = next(component for component in dlss_components if component.elem_id == 'video_dlss_fg_factor')
+    return float(video_fps_component.value), int(fg_factor_component.value)
+
+
 def test_dlss_output_fps_rule():
     module, reason = dlss_module()
     if module is None:
         return reason
+    video_fps, fg_factor = dlss_video_ui_fps_and_factor()
     rule = need(module, 'dlss_output_fps')
-    assert rule(24.0, 1, 'fps') == 24.0
-    assert rule(24.0, 2, 'fps') == 48.0
-    assert rule(24.0, 2, 'slowmo') == 24.0
-    assert rule(29.97, 4, 'fps') == 29.97 * 4
-    verdict('test_dlss_output_fps_rule', 'PASS')
+    assert rule(video_fps, 1, 'fps') == video_fps
+    assert rule(video_fps, fg_factor, 'fps') == video_fps * fg_factor
+    assert rule(video_fps, fg_factor, 'slowmo') == video_fps
+    verdict('test_dlss_output_fps_rule', 'PASS', video_fps=video_fps, fg_factor=fg_factor)
+    return True
+
+
+def test_dlss_video_extras_passes_framegen_factor_to_video_encoder():
+    module, reason = dlss_module()
+    if module is None:
+        return reason
+    from modules.processing import StableDiffusionProcessingVideo
+    from modules.processing_class import StableDiffusionProcessing
+    from modules.video_models.video_run import get_video_save_fps
+
+    video_fps, fg_factor = dlss_video_ui_fps_and_factor()
+
+    set_factor = need(module, 'set_video_framegen_factor')
+    video_p = StableDiffusionProcessingVideo.__new__(StableDiffusionProcessingVideo)
+    video_p.video_output_fps = video_fps
+    video_p.video_framegen_factor = None
+    set_factor(video_p, fg_factor)
+    output_fps = get_video_save_fps(video_p, video_fps)
+    assert output_fps == video_fps * fg_factor, f'Video Extras FPS {output_fps}'
+
+    if need_av():
+        return need_av()
+    fn = out_path('rate_videotab_framegen.mp4')
+    frame_count = 241
+    _res, err = call_and_catch(video_save.atomic_save_video, fn, tensor_of(small_frames(frame_count)), fps=output_fps, codec='libx264')
+    info = stream_info(fn) if err is None and os.path.isfile(fn) else {}
+    rate = float(Fraction(info['average_rate'])) if info.get('average_rate') else None
+    assert err is None, f'raised {err!r}'
+    assert info.get('frames') == frame_count, f'encoded frames {info.get("frames")}'
+    assert rate is not None and abs(rate - 48.0) < 0.005, f'stored rate {rate}'
+
+    inactive_p = StableDiffusionProcessingVideo.__new__(StableDiffusionProcessingVideo)
+    inactive_p.video_output_fps = video_fps
+    inactive_p.video_framegen_factor = None
+    assert get_video_save_fps(inactive_p, video_fps) == video_fps, f'inactive FrameGen FPS {inactive_p.video_framegen_factor}'
+
+    slowmo_p = StableDiffusionProcessingVideo.__new__(StableDiffusionProcessingVideo)
+    slowmo_p.video_output_fps = video_fps
+    slowmo_p.video_framegen_factor = None
+    set_factor(slowmo_p, fg_factor, 'slowmo')
+    assert get_video_save_fps(slowmo_p, video_fps) == video_fps, 'slowmo mode must keep the original output FPS'
+
+    image_p = StableDiffusionProcessing.__new__(StableDiffusionProcessing)
+    set_factor(image_p, fg_factor)
+    assert not hasattr(image_p, 'video_framegen_factor'), 'non-video processing received FrameGen FPS state'
+
+    verdict('test_dlss_video_extras_passes_framegen_factor_to_video_encoder', 'PASS', input_fps=video_fps, fg_factor=fg_factor, output_fps=output_fps, stored_rate=rate, frames=info.get('frames'))
     return True
 
 
@@ -3119,7 +3179,7 @@ GROUPS = [
     ('writer failure', [test_sync_unknown_codec_returns_none, test_stream_rejected_pix_fmt_raises_with_reason, test_container_refusing_codec_removes_its_file, test_av_missing_sync_returns_none_stream_raises, test_zero_byte_mp4_metadata_is_empty, test_output_equal_to_source_refused, test_dlss_none_kwargs_resolve_to_ui_values, test_gif_failure_returns_none, test_mid_encode_exception_returns_none, test_sync_success_registers_after_open, test_threaded_save_joined, test_both_paths_write_the_same_stream, test_legacy_save_accepts_grayscale_frames, test_stream_writer_failure_leaves_partial_file, test_write_audio_without_stream_refused]),
     ('pixel format', [test_presets_declare_pix_fmt, test_table_pix_fmt_opens_in_legacy_loop, test_table_pix_fmt_opens_in_video_tab_loop, test_rejected_pix_fmt_names_the_list, test_empty_pix_fmt_refused_naming_default, test_out_of_table_codec_defaults_yuv420p, test_ext_none_follows_codec_when_container_refuses, test_odd_size_cropped_under_yuv420p_legacy, test_odd_size_cropped_under_yuv420p_video_tab, test_odd_size_kept_without_subsampling]),
     ('defaults', [test_legacy_default_is_h264_yuv420p, test_legacy_default_quality_matches_old_writer, test_explicit_mpeg4_gets_table_preset, test_legacy_labels_map_to_codecs, test_legacy_labels_encode, test_odd_size_under_default, test_none_codec_kwargs_give_default, test_resolve_video_type_aliases, test_explicit_codec_overrides_label_container, test_extension_rule, test_codec_name_saves_in_its_container, test_video_type_dropdowns_list_the_codec_presets]),
-    ('rate', [test_video_rate_fractions, test_mpeg4_opens_at_dlss_long_rate, test_video_tab_keeps_fractional_rate, test_fps_zero_refused_by_name, test_dlss_output_fps_rule, test_video_tab_returns_none_video_on_failure]),
+    ('rate', [test_video_rate_fractions, test_mpeg4_opens_at_dlss_long_rate, test_video_tab_keeps_fractional_rate, test_fps_zero_refused_by_name, test_dlss_output_fps_rule, test_dlss_video_extras_passes_framegen_factor_to_video_encoder, test_video_tab_returns_none_video_on_failure]),
     ('colour', [test_default_outputs_are_tagged_bt709, test_legacy_default_colour_720, test_legacy_default_colour_512, test_video_tab_default_colour, test_rgb_pix_fmt_tagged_full_and_exact, test_prores_tagged_and_within_oracle, test_mpeg4_in_mp4_carries_colr]),
     ('readers', [test_readers_agree_on_h264_fixture, test_readers_fractional_rate, test_readers_per_container, test_reader_codec_names, test_count_frames_without_header_or_duration, test_frames_estimate_ignores_trailing_audio, test_tag_duration_parses_matroska_tags, test_tagged_matroska_not_demuxed, test_reader_decodes_with_stream_tags, test_reader_rotation_follows_display_matrix, test_params_without_capture_read_headers_only, test_iter_frames_skip_and_limit, test_ltx_condition_frames_keep_frame_zero, test_first_frame_equals_read_video_first, test_get_video_info_exact_keys, test_unreadable_file_contracts, test_corrupt_stream_stops_with_warning, test_frames_are_contiguous, test_unchanged_callers, test_reader_decode_speed_measured]),
     ('audio', [test_video_tab_muxes_audio_tensor, test_video_tab_muxes_audio_packets, test_dlss_stream_muxes_input_audio]),
