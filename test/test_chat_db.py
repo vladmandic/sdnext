@@ -45,6 +45,40 @@ class TestChatDatabase(unittest.TestCase):
         self.assertEqual(db.list_operations(session['id'], db_path=self.db_path)[0]['status'], 'completed')
         self.assertTrue(db.diagnostics(self.db_path)['ok'])
 
+    def test_settings_revisions_are_stable_session_scoped_and_cascade(self):
+        session = db.create_session(db_path=self.db_path)
+        other_session = db.create_session(db_path=self.db_path)
+        first_snapshot = {'schema_version': 1, 'context': 'image', 'parameters': {'steps': 30}, 'extras': {}}
+        second_snapshot = {'schema_version': 1, 'context': 'image', 'parameters': {'steps': 24}, 'extras': {}}
+
+        first = db.create_settings_revision(
+            session['id'], first_snapshot, {'image': {'steps': 30}}, db_path=self.db_path,
+        )
+        second = db.create_settings_revision(
+            session['id'], second_snapshot, {'image': {'steps': 24}}, db_path=self.db_path,
+        )
+
+        reload(db)
+        db.initialize(self.db_path)
+        reopened = db.get_session(session['id'], db_path=self.db_path)
+        self.assertEqual(reopened['active_settings_revision_id'], second['revision']['id'])
+        self.assertEqual(db.get_settings_revision(session['id'], first['revision']['id'], db_path=self.db_path)['snapshot'], first_snapshot)
+        self.assertLess(first['revision']['id'], second['revision']['id'])
+        self.assertEqual(second['session']['active_settings_revision_id'], second['revision']['id'])
+        self.assertEqual([revision['id'] for revision in db.list_settings_revisions(session['id'], db_path=self.db_path)], [
+            second['revision']['id'], first['revision']['id'],
+        ])
+        self.assertIsNone(db.get_settings_revision(other_session['id'], first['revision']['id'], db_path=self.db_path))
+
+        activated = db.activate_settings_revision(
+            session['id'], first['revision']['id'], {'image': {'steps': 30}}, db_path=self.db_path,
+        )
+        self.assertEqual(activated['session']['active_settings_revision_id'], first['revision']['id'])
+        self.assertEqual(activated['session']['drafts']['image']['steps'], 30)
+        self.assertTrue(db.delete_session(session['id'], db_path=self.db_path))
+        self.assertEqual(db.list_settings_revisions(session['id'], db_path=self.db_path), [])
+        self.assertTrue(db.diagnostics(self.db_path)['ok'])
+
     def test_initialization_marks_running_operations_failed(self):
         session = db.create_session(db_path=self.db_path)
         operation = db.create_operation(session['id'], 'generate', 'image', {}, db_path=self.db_path)

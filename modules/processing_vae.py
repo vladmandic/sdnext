@@ -9,7 +9,6 @@ from modules.vae import sd_vae_taesd
 
 debug = os.environ.get('SD_VAE_DEBUG', None) is not None
 log_debug = log.trace if debug else lambda *args, **kwargs: None
-log_debug('Trace: VAE')
 
 
 def create_latents(image, p, dtype=None, device=None):

@@ -10,7 +10,7 @@ from typing import Any, Literal
 from fastapi import File, HTTPException, Query, Response, UploadFile
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import FileResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 from modules import progress, shared
 from modules.api import control as api_control
@@ -20,7 +20,7 @@ from modules.logger import log
 
 ContextId = Literal['image', 'video', 'process', 'caption']
 ChatCommand = Literal[
-    'context', 'set', 'get', 'list', 'params', 'args', 'help', 'opts', 'prompt', 'negative',
+    'context', 'clear', 'set', 'get', 'list', 'params', 'args', 'help', 'opts', 'prompt', 'negative', 'snapshot', 'snap',
     'generate', 'run', 'start', 'again', 'reprocess', 'schedule', 'cancel', 'abort', 'stop', 'interrupt', 'pause',
     'resume', 'skip', 'history', 'last', 'details', 'title', 'reset', 'model',
     'use', 'file', 'image', 'meta', 'exif', 'metadata',
@@ -239,6 +239,178 @@ def get_session(session_id: str):
         raise
 
 
+_CONTROL_IMPORT_FIELDS = {
+    'prompt', 'negative_prompt', 'styles', 'steps', 'sampler_name', 'seed',
+    'cfg_name', 'cfg_scale', 'cfg_image', 'cfg_rescale', 'cfg_start', 'cfg_stop', 'cfg_true', 'cfg_adaptive',
+    'clip_skip', 'vae_type', 'tiling', 'hidiffusion', 'denoising_strength',
+    'resize_mode_before', 'resize_name_before', 'resize_context_before', 'width_before', 'height_before', 'scale_by_before',
+    'resize_mode_after', 'resize_name_after', 'resize_context_after', 'width_after', 'height_after', 'scale_by_after',
+    'batch_count', 'batch_size',
+}
+
+
+def import_control_settings(
+    session_id: str,
+    values: dict[str, Any],
+    defaults: dict[str, Any],
+    extras: dict[str, Any] | None = None,
+):
+    """Append a sparse Control settings revision and apply it to the image Chat draft."""
+    session = db.get_session(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail='Chat session not found')
+    if session['context'] != 'image':
+        raise HTTPException(status_code=409, detail=f'Not yet implemented for {session["context"]} context')
+
+    unsupported = set(values) - _CONTROL_IMPORT_FIELDS
+    if unsupported:
+        raise HTTPException(status_code=422, detail=f'Unsupported Control parameters: {", ".join(sorted(unsupported))}')
+    try:
+        validated = api_control.ReqControl.model_validate(values).model_dump(mode='json', exclude_unset=True)
+    except ValidationError as exc:
+        raise HTTPException(status_code=422, detail='Invalid Control generation parameters') from exc
+    try:
+        normalized_extras = commands.validate_control_extras(extras if extras is not None else {})
+    except commands.CommandError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    parameters = {
+        name: value for name, value in validated.items()
+        if value != defaults.get(name, api_control.ReqControl.model_fields[name].default)
+    }
+    drafts = dict(session.get('drafts') or {})
+    image_draft = dict(drafts.get('image') or {})
+    previous_revision = db.get_settings_revision(session_id, session.get('active_settings_revision_id')) \
+        if session.get('active_settings_revision_id') is not None else None
+    previous_snapshot = (previous_revision or {}).get('snapshot')
+    snapshot = {
+        'schema_version': 1,
+        'context': 'image',
+        'source': 'control-ui',
+        'captured_at': datetime.now(timezone.utc).isoformat(timespec='seconds'),
+        'parameters': jsonable_encoder(parameters),
+        'extras': jsonable_encoder(normalized_extras),
+    }
+    image_draft = _apply_control_settings_snapshot(image_draft, snapshot, previous_snapshot)
+    drafts['image'] = image_draft
+    created = db.create_settings_revision(session_id, snapshot, drafts)
+    return {
+        'session': created['session'],
+        'imported': sorted(parameters),
+        'extras': sorted(normalized_extras),
+        'revision_id': created['revision']['id'],
+    }
+
+
+def save_chat_settings_revision(session_id: str):
+    """Save the current image Chat draft as a sparse settings revision."""
+    session = db.get_session(session_id)
+    if session is None:
+        raise commands.CommandError('Chat session not found')
+    if session['context'] != 'image':
+        raise commands.CommandError(f'Not yet implemented for {session["context"]} context')
+
+    drafts = dict(session.get('drafts') or {})
+    image_draft = dict(drafts.get('image') or {})
+    values = {name: image_draft[name] for name in _CONTROL_IMPORT_FIELDS if name in image_draft}
+    try:
+        validated = api_control.ReqControl.model_validate(values).model_dump(mode='json', exclude_unset=True)
+        extras = commands.validate_control_extras(image_draft.get('control_extras', {}))
+    except ValidationError as exc:
+        raise commands.CommandError('Current image draft contains invalid generation parameters') from exc
+    except commands.CommandError:
+        raise
+
+    parameters = {
+        name: value for name, value in validated.items()
+        if value != api_control.ReqControl.model_fields[name].default
+    }
+    snapshot = {
+        'schema_version': 1,
+        'context': 'image',
+        'source': 'chat-draft',
+        'captured_at': datetime.now(timezone.utc).isoformat(timespec='seconds'),
+        'parameters': jsonable_encoder(parameters),
+        'extras': jsonable_encoder(extras),
+    }
+    return db.create_settings_revision(session_id, snapshot, drafts)
+
+
+def _validate_control_settings_revision(snapshot: Any) -> dict[str, Any]:
+    fields = {'schema_version', 'context', 'source', 'captured_at', 'parameters', 'extras'}
+    if not isinstance(snapshot, dict) or set(snapshot) != fields:
+        raise commands.CommandError('Settings revision has an invalid snapshot format')
+    if snapshot.get('schema_version') != 1:
+        raise commands.CommandError('Settings revision uses an unsupported schema version')
+    if snapshot.get('context') != 'image' or snapshot.get('source') not in {'control-ui', 'chat-draft'}:
+        raise commands.CommandError('Settings revision is not an image settings snapshot')
+    if not isinstance(snapshot.get('captured_at'), str) or not snapshot['captured_at']:
+        raise commands.CommandError('Settings revision has no capture timestamp')
+    parameters = snapshot.get('parameters')
+    extras = snapshot.get('extras')
+    if not isinstance(parameters, dict) or not isinstance(extras, dict):
+        raise commands.CommandError('Settings revision parameters and Extras must be objects')
+    unsupported = set(parameters) - _CONTROL_IMPORT_FIELDS
+    if unsupported:
+        raise commands.CommandError(f'Settings revision contains unsupported parameters: {", ".join(sorted(unsupported))}')
+    try:
+        parameters = api_control.ReqControl.model_validate(parameters).model_dump(mode='json', exclude_unset=True)
+        normalized_extras = commands.validate_control_extras(extras)
+    except ValidationError as exc:
+        raise commands.CommandError('Settings revision contains invalid Control parameters') from exc
+    if normalized_extras != extras:
+        raise commands.CommandError('Settings revision Extras are not in canonical sparse form')
+    return {**snapshot, 'parameters': parameters, 'extras': normalized_extras}
+
+
+def _apply_control_settings_snapshot(draft: dict[str, Any], snapshot: dict[str, Any], previous: Any = None):
+    updated = dict(draft)
+    previous_parameters = previous.get('parameters', {}) if isinstance(previous, dict) else {}
+    if not isinstance(previous_parameters, dict):
+        previous_parameters = {}
+    new_parameters = snapshot['parameters']
+    for name in previous_parameters:
+        if name not in new_parameters:
+            updated.pop(name, None)
+    updated.update(new_parameters)
+
+    old_extras = previous.get('extras', {}) if isinstance(previous, dict) else {}
+    new_extras = snapshot['extras']
+    if new_extras:
+        updated['control_extras'] = new_extras
+    elif old_extras:
+        updated.pop('control_extras', None)
+    return updated
+
+
+def restore_control_settings_revision(session_id: str, revision_id: int):
+    if not isinstance(revision_id, int) or isinstance(revision_id, bool) or revision_id < 1:
+        raise commands.CommandError('Settings revision ID must be a positive integer')
+    session = db.get_session(session_id)
+    if session is None:
+        raise commands.CommandError('Chat session not found')
+    if session['context'] != 'image':
+        raise commands.CommandError(f'Not yet implemented for {session["context"]} context')
+    revision = db.get_settings_revision(session_id, revision_id)
+    if revision is None:
+        raise commands.CommandError(f'No Control settings snapshot with ID {revision_id}')
+    snapshot = _validate_control_settings_revision(revision['snapshot'])
+    active_revision_id = session.get('active_settings_revision_id')
+    previous_revision = db.get_settings_revision(session_id, active_revision_id) if active_revision_id is not None else None
+    drafts = dict(session.get('drafts') or {})
+    image_draft = dict(drafts.get('image') or {})
+    image_draft = _apply_control_settings_snapshot(
+        image_draft,
+        snapshot,
+        (previous_revision or {}).get('snapshot'),
+    )
+    drafts['image'] = image_draft
+    activated = db.activate_settings_revision(session_id, revision_id, drafts)
+    if activated is None:
+        raise commands.CommandError(f'Could not activate Control settings snapshot {revision_id}')
+    return activated
+
+
 def get_session_parameters(session_id: str) -> ResChatParameters:
     try:
         session = db.get_session(session_id)
@@ -321,11 +493,14 @@ def _execute_chat_operation(session_id: str, user_message: dict[str, Any], resul
     if not isinstance(arguments, dict):
         raise ValueError('Invalid chat generation arguments')
 
+    operation_snapshot = _safe_operation_values(arguments)
+    if context == 'image':
+        operation_snapshot['settings_revision_id'] = session.get('active_settings_revision_id')
     operation = db.create_operation(
         session_id,
         operation_command,
         context,
-        _safe_operation_values(arguments),
+        operation_snapshot,
         message_id=user_message['id'],
     )
     operation_id = operation['id']
@@ -1035,7 +1210,7 @@ def register_api(api, diag: bool = False):
     try:
         db.initialize()
     except (sqlite3.Error, OSError) as exc:
-        shared.opts.data['chat_enabled'] = False
+        shared.opts.chat_enabled = False
         log.error(f'Chat disabled: {exc}')
         return False
     if diag:

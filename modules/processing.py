@@ -20,7 +20,6 @@ from modules.processing_class import ( # pylint: disable=unused-import
 opt_C = 4
 opt_f = 8
 debug = log.trace if os.environ.get('SD_PROCESS_DEBUG', None) is not None else lambda *args, **kwargs: None
-debug('Trace: PROCESS')
 create_binary_mask = processing_helpers.create_binary_mask
 apply_overlay = processing_helpers.apply_overlay
 apply_color_correction = processing_helpers.apply_color_correction

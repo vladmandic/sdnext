@@ -1,11 +1,12 @@
 from typing import Optional, TYPE_CHECKING
 from threading import Lock
+from types import SimpleNamespace
 import time
 from fastapi.exceptions import HTTPException
 from pydantic import BaseModel, Field # pylint: disable=no-name-in-module
-from modules import errors, shared, processing_helpers
+from modules import errors, shared, processing_helpers, scripts_manager
 from modules.logger import log
-from modules.api import models, helpers
+from modules.api import models, helpers, script
 from modules.control import run
 
 
@@ -88,6 +89,16 @@ class APIControl:
         self.queue_lock = queue_lock
         self.default_script_arg = []
         self.units = []
+
+    def prepare_scripts(self, req: ReqControl):
+        script_runner = scripts_manager.scripts_control
+        if not script_runner.scripts:
+            script_runner.initialize_scripts(is_control=True)
+        if not self.default_script_arg:
+            self.default_script_arg = script.init_default_script_args(script_runner)
+        p_stub = SimpleNamespace(per_script_args={})
+        script.init_script_args(p_stub, req, self.default_script_arg, None, None, script_runner)
+        return p_stub.per_script_args
 
     def sanitize_args(self, args: dict):
         args = vars(args)
@@ -258,6 +269,7 @@ class APIControl:
         self.prepare_face_module(req)
         self.prepare_control(req)
         self.prepare_xyz_grid(req)
+        per_script_args = self.prepare_scripts(req)
 
         # Merge init_control images into inits
         init_control = getattr(req, "init_control", None)
@@ -293,6 +305,7 @@ class APIControl:
             extra_p_args = {
                 'do_not_save_grid': not req.save_images,
                 'do_not_save_samples': not req.save_images,
+                'per_script_args': per_script_args,
                 **self.prepare_ip_adapter(req),
             }
             # Forward inpainting fields

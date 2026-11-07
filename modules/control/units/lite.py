@@ -12,7 +12,6 @@ from modules.control.units.lite_model import ControlNetLLLite
 
 what = 'ControlLLLite'
 debug = log.trace if os.environ.get('SD_CONTROL_DEBUG', None) is not None else lambda *args, **kwargs: None
-debug('Trace: CONTROL')
 predefined_sd15 = {
 }
 predefined_sdxl = {

@@ -16,9 +16,65 @@ max_units = shared.opts.control_max_units
 units: list[unit.Unit] = [] # main state variable
 controls: list[gr.components.Component] = [] # list of gr controls
 debug = log.trace if os.environ.get('SD_CONTROL_DEBUG', None) is not None else lambda *args, **kwargs: None
-debug('Trace: CONTROL')
 use_generator = os.environ.get('SD_USE_GENERATOR', None) is not None
 use_async = os.environ.get('SD_USE_ASYNC', None) is not None
+
+
+def _chat_import_default(component):
+    value = component.value
+    if getattr(component, 'multiselect', False) and value is None:
+        return []
+    try:
+        return component.preprocess(component.postprocess(value))
+    except Exception as exc:
+        log.debug(f'Chat: Control default normalization failed for {component.label}: {exc}')
+        return value
+
+
+def init_chat_send(control_import_fields, input_script_args):
+    if not shared.opts.chat_enabled:
+        return
+    chat_session_id = gr.Textbox(value='', elem_id='control-chat-session-id', elem_classes='chat-control-capture')
+    chat_import_result = gr.JSON(value={}, elem_id='control-chat-import-result', elem_classes='chat-control-capture')
+    chat_import_button = gr.Button(value='Import Control settings', elem_id='control-chat-import', elem_classes='chat-control-capture')
+
+    def capture_chat_control_settings(*values):
+        session_id = values[-1]
+        field_count = len(control_import_fields)
+        captured_values = dict(zip([name for name, _component in control_import_fields], values[:field_count]))
+        script_values = values[field_count:-1]
+        defaults = { name: _chat_import_default(component) for name, component in control_import_fields }
+        try:
+            from modules.chat import api as chat_api, commands as chat_commands
+            captured_extras = chat_commands.capture_control_extras(script_values)
+            result = chat_api.import_control_settings(
+                session_id,
+                captured_values,
+                defaults,
+                extras=captured_extras,
+            )
+            result['capture_id'] = time.time_ns()
+            return result
+        except Exception as exc:
+            detail = getattr(exc, 'detail', str(exc) or 'Control settings could not be imported')
+            log.error(f'Chat: Control settings import failed: {exc}')
+            return {'error': str(detail), 'capture_id': time.time_ns()}
+
+    chat_import_button.click(
+        fn=capture_chat_control_settings,
+        inputs=[component for _name, component in control_import_fields] + input_script_args + [chat_session_id],
+        outputs=[chat_import_result],
+        queue=False,
+        show_progress='hidden',
+    )
+    chat_import_result.change(
+        fn=None,
+        _js="(result) => { window.dispatchEvent(new CustomEvent('sdnext-chat-control-imported', { detail: result })); }",
+        inputs=[chat_import_result],
+        outputs=[],
+        queue=False,
+        show_progress='hidden',
+    )
 
 
 def return_stats(t: float | None = None):
@@ -326,6 +382,24 @@ def create_ui(_blocks: gr.Blocks=None):
                 if hasattr(ctrl, 'clear'):
                     ctrl.clear(**select_dict)
 
+            chat_fields = [
+                ('prompt', prompt), ('negative_prompt', negative), ('styles', styles),
+                ('steps', steps), ('sampler_name', sampler_index), ('seed', seed),
+                ('cfg_name', cfg_name), ('cfg_scale', cfg_scale), ('cfg_image', cfg_image),
+                ('cfg_rescale', cfg_rescale), ('cfg_start', cfg_start), ('cfg_stop', cfg_stop),
+                ('cfg_true', cfg_true), ('cfg_adaptive', cfg_adaptive),
+                ('clip_skip', clip_skip), ('vae_type', vae_type), ('tiling', tiling), ('hidiffusion', hidiffusion),
+                ('denoising_strength', denoising_strength),
+                ('resize_mode_before', resize_mode_before), ('resize_name_before', resize_name_before),
+                ('resize_context_before', resize_context_before), ('width_before', width_before),
+                ('height_before', height_before), ('scale_by_before', scale_by_before),
+                ('resize_mode_after', resize_mode_after), ('resize_name_after', resize_name_after),
+                ('resize_context_after', resize_context_after), ('width_after', width_after),
+                ('height_after', height_after), ('scale_by_after', scale_by_after),
+                ('batch_count', batch_count), ('batch_size', batch_size),
+            ]
+            init_chat_send(chat_fields, input_script_args)
+
             tabs_state = gr.Textbox(value='none', visible=False)
             input_fields = [
                 input_type,
@@ -349,6 +423,7 @@ def create_ui(_blocks: gr.Blocks=None):
                 video_skip_frames, video_type, video_duration, video_loop, video_pad, video_interpolate,
                 override_script_name, override_script_args, override_settings,
             ]
+
             output_fields = [
                 output_image,
                 output_video,

@@ -12,7 +12,6 @@ from modules.control.units import detect
 
 what = 'ControlNet-XS'
 debug = log.trace if os.environ.get('SD_CONTROL_DEBUG', None) is not None else lambda *args, **kwargs: None
-debug('Trace: CONTROL')
 predefined_sd15 = {
 }
 predefined_sdxl = {

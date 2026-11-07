@@ -10,7 +10,6 @@ from modules.control.units import detect
 
 what = 'T2I-Adapter'
 debug = log.trace if os.environ.get('SD_CONTROL_DEBUG', None) is not None else lambda *args, **kwargs: None
-debug('Trace: CONTROL')
 predefined_sd15 = {
     'Segment': ('TencentARC/t2iadapter_seg_sd14v1', {}),
     'Zoe Depth': ('TencentARC/t2iadapter_zoedepth_sd15v1', {}),

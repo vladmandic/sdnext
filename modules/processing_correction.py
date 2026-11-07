@@ -11,7 +11,6 @@ from modules.logger import log
 
 debug_enabled = os.environ.get('SD_HDR_DEBUG', None) is not None
 debug = log.trace if debug_enabled else lambda *args, **kwargs: None
-debug('Trace: HDR')
 
 
 def sharpen_tensor(tensor, ratio=0):

@@ -13,7 +13,6 @@ from modules.logger import log
 
 folder_symbol = ui_symbols.folder
 debug = log.trace if os.environ.get('SD_PASTE_DEBUG', None) is not None else lambda *args, **kwargs: None
-debug('Trace: PASTE')
 
 warn_once_set = WeakSet()
 

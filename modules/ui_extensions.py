@@ -10,7 +10,7 @@ from modules import extensions, shared, paths, errors, ui_symbols, call_queue
 from modules.logger import log
 
 
-debug = log.debug if os.environ.get('SD_EXT_DEBUG', None) is not None else lambda *args, **kwargs: None
+debug = log.trace if os.environ.get('SD_EXT_DEBUG', None) is not None else lambda *args, **kwargs: None
 extensions_index = "https://vladmandic.github.io/sd-data/pages/extensions.json"
 hide_tags = ["localization"]
 exclude_extensions = ['sdnext-modernui', 'sdnext-kanvas']

@@ -14,7 +14,6 @@ from modules.memstats import memory_stats
 
 
 debug = log.trace if os.environ.get('SD_MASK_DEBUG', None) is not None else lambda *args, **kwargs: None
-debug('Trace: MASK')
 
 
 def get_crop_region(mask, pad=0):
