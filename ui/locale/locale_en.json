@@ -655,7 +655,7 @@
     {"id": "", "label": "Enable PixelArt", "localized": "", "hint": "Apply pixel art quantization and palette reduction filter", "ui": "extras"},
     {"id": "", "label": "Enable post-inference resize", "localized": "", "hint": "Resize output images to specific dimensions after diffusion inference completes"},
     {"id": "", "label": "Enable preview", "localized": "", "hint": "Render real-time intermediate frame previews during generation"},
-    {"id": "", "label": "Enable prompt-enhance", "localized": "", "hint": "Enable automated prompt expansion and enhancement"},
+    {"id": "", "label": "Enable prompt-enhance", "localized": "", "hint": "The prompt is rewritten by the model's own prompt enhancer before generation.<br><br>Ideogram 4 is trained on JSON captions. With this disabled, plain prompts often come back as the <i>Image blocked by safety filter</i> frame or as grey noise, so the prompt has to be a JSON caption.<br><br>Enabled by default for Ideogram 4, disabled for ERNIE-Image and Lens.", "reload": "model"},
     {"id": "", "label": "Enable refine pass", "localized": "", "hint": "Use a similar process as image to image to upscale and/or add detail to the final image. Optionally uses refiner model to enhance image details.", "ui": "txt2img"},
     {"id": "", "label": "Enable SeedVR", "localized": "", "hint": "Activate SeedVR generative super-resolution and video restoration pipeline"},
     {"id": "", "label": "Enable tonemap", "localized": "", "hint": "Apply tone mapping operator to compress HDR radiance into display range", "ui": "script_hdr"},
