@@ -62,6 +62,7 @@
   - offload: a job that fails inside the vae no longer leaves the vae on the gpu
   - preview: live previews of v-prediction models use the v-prediction estimate
   - preview: live previews of video and *Qwen-Image 2.1* latents
+  - preview: remove *Tiny: decode layers*, which no longer changed the decoder and only enlarged *Tiny* previews; use *Micro* when *Tiny* is too heavy
   - process: show why a video run failed, report a missing input video
   - processing: a generation that fails reports *failed* with its error instead of *interrupted*
   - processing: hires on modular pipelines that take condition images (*FLUX.3 Klein*) runs at the hires size instead of the base size
