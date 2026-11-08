@@ -1,9 +1,10 @@
 import os
 import time
 import contextlib
+import collections
 from functools import wraps
 import torch
-from modules import shared, timer, sd_models
+from modules import shared, timer, sd_models, devices
 from modules.logger import log
 from modules.attention import context as attention_context
 
@@ -19,11 +20,42 @@ def freeze(value):
     raise TypeError(type(value).__name__)
 
 
+class HostTensor:
+    """Cached tensor held in host memory with the device it is returned to."""
+    def __init__(self, tensor: torch.Tensor):
+        self.device = tensor.device
+        self.tensor = tensor.to(devices.cpu, copy=True)
+
+
+def to_host(value):
+    """Host copy of an encode result; an object it cannot copy raises TypeError, which leaves the result uncached."""
+    if isinstance(value, torch.Tensor):
+        return HostTensor(value)
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if type(value) in (list, tuple):
+        return type(value)(to_host(item) for item in value)
+    if type(value) is dict:
+        return {key: to_host(item) for key, item in value.items()}
+    raise TypeError(type(value).__name__)
+
+
+def from_host(value):
+    """Copy of a cached result with each tensor back on its original device."""
+    if isinstance(value, HostTensor):
+        return value.tensor.to(value.device, copy=True)
+    if type(value) in (list, tuple):
+        return type(value)(from_host(item) for item in value)
+    if type(value) is dict:
+        return {key: from_host(item) for key, item in value.items()}
+    return value
+
+
 class PromptCache:
+    """Encode results in host memory, sized by *Text encoder cache size*, least recently used evicted first."""
     def __init__(self):
-        self.cache = {}
+        self.cache = collections.OrderedDict()
         self.id = None
-        self.max = 16
 
     @staticmethod
     def key(args, kwargs):
@@ -39,23 +71,28 @@ class PromptCache:
             self.cache.clear()
             self.id = current_id
             log.debug(f'Encode: prompt cache activate id={self.id} depth={len(self.cache)}')
-        cached = self.cache.get(key, None) if key is not None else None
-        if cached is not None:
-            if isinstance(prompt, list):
-                length = sum(len(p) for p in prompt if isinstance(p, str))
-                log.debug(f'Encode: length={length} cache={len(self.cache)} prompt={prompt}')
-            else:
-                length = len(prompt) if isinstance(prompt, str) else 0
-                log.debug(f'Encode: length={length} cache={len(self.cache)} prompt="{prompt}"')
-        return cached
+        if key is None or key not in self.cache:
+            return None
+        self.cache.move_to_end(key)
+        if isinstance(prompt, list):
+            length = sum(len(p) for p in prompt if isinstance(p, str))
+            log.debug(f'Encode: length={length} cache={len(self.cache)} prompt={prompt}')
+        else:
+            length = len(prompt) if isinstance(prompt, str) else 0
+            log.debug(f'Encode: length={length} cache={len(self.cache)} prompt="{prompt}"')
+        return from_host(self.cache[key])
 
     def set(self, key, encoded):
-        if key is None:
+        size = int(shared.opts.sd_textencoder_cache_size)
+        if key is None or size < 1:
             return
-        if len(self.cache) >= self.max:
-            oldest_key = next(iter(self.cache))
-            del self.cache[oldest_key]
-        self.cache[key] = encoded
+        try:
+            self.cache[key] = to_host(encoded)
+        except TypeError:
+            return
+        self.cache.move_to_end(key)
+        while len(self.cache) > size:
+            self.cache.popitem(last=False)
 
 
 prompt_cache = PromptCache()

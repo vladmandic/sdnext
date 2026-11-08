@@ -71,6 +71,7 @@
   - processing: negative prompt the pipeline takes no input for is reported once per job
   - processing: text encoder failure fails the job with its own error instead of a misleading *not enough values to unpack* from the pipeline
   - prompt: the prompt cache keys on every encode argument and skips calls with images, *Ideogram 4* no longer fails at a new size with the same prompt and edit models encode each new input image
+  - prompt: cached prompt encodings stay in system memory and follow *Text encoder cache size*, *Ideogram 4* no longer fills the gpu with one 1.2 GB entry per prompt until its text encoder fails to load
   - samplers: *Euler SGM* and *DC Solver* use the model's prediction type
   - save: `[datetime<format>]` and `[hasprompt<...>]` filename tokens apply args
   - save: *Save metadata to JSON file* appends one line per image to a `jsonl`
