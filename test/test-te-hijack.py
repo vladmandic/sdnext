@@ -11,6 +11,8 @@ Covers:
 - an encode that succeeds: the caller gets its embeddings, the job is ended
 - ``pad_to_same_length`` on a pipeline with the SD 1.5 ``encode_prompt`` signature: its ``TypeError`` probe reaches it and
   the positional retry pads the shorter embedding
+- the prompt cache: a size argument beside the prompt is part of the key, images under any argument name leave the call
+  uncached, an identical call is served from the cache
 
 The pipeline is a stub installed as ``shared.sd_model``. No model, no running server.
 
@@ -95,6 +97,24 @@ class EncodingPipe:
         return self.embeds
 
 
+class GridPipe:
+    """Ideogram's signature: the packed sequence length follows the grid passed beside the prompt."""
+
+    def __init__(self):
+        self.calls = 0
+
+    def encode_prompt(self, prompt, grid_h, grid_w, device=None):  # pylint: disable=unused-argument
+        self.calls += 1
+        return (torch.zeros(1, grid_h * grid_w, 4),)
+
+
+class ImagePipe:
+    """Boogu's signature: the instruction is encoded together with input images under their own name."""
+
+    def encode_prompt(self, prompt, input_images=None):  # pylint: disable=unused-argument
+        return (torch.full((1, 4), float(input_images[0].getpixel((0, 0))[0])),)
+
+
 class PositionalPipe:
     """The SD 1.5 signature: everything but the prompt is positional and required."""
 
@@ -140,6 +160,50 @@ def test_encode_success_returns_embeddings():
     return True
 
 
+def test_cache_keys_on_size_arguments():
+    """Red before the fix: the key was the prompt alone, so a new size got the previous size's sequence."""
+    pipe = GridPipe()
+
+    def call():
+        pipe.encode_prompt(prompt=['a cat'], grid_h=64, grid_w=64)
+        return pipe.encode_prompt(prompt=['a cat'], grid_h=48, grid_w=80)
+
+    outcome, _, _ = run_hijacked(pipe, call)
+    assert isinstance(outcome, tuple), f'caller got {outcome!r}'
+    assert tuple(outcome[0].shape) == (1, 3840, 4), f'shape {tuple(outcome[0].shape)} for a 48x80 grid'
+    return True
+
+
+def test_cache_skips_image_arguments():
+    """Red before the fix: only a kwarg named image disabled the cache, so a second picture got the first one's encoding."""
+    from PIL import Image
+    pipe = ImagePipe()
+
+    def call():
+        pipe.encode_prompt(prompt=['make it night'], input_images=[Image.new('RGB', (8, 8), (10, 0, 0))])
+        return pipe.encode_prompt(prompt=['make it night'], input_images=[Image.new('RGB', (8, 8), (200, 0, 0))])
+
+    outcome, _, _ = run_hijacked(pipe, call)
+    assert isinstance(outcome, tuple), f'caller got {outcome!r}'
+    assert float(outcome[0][0, 0]) == 200.0, f'second picture encoded as {float(outcome[0][0, 0])}'
+    return True
+
+
+def test_cache_hits_identical_call():
+    pipe = GridPipe()
+
+    def call():
+        first = pipe.encode_prompt(prompt=['a cat'], grid_h=64, grid_w=64)
+        second = pipe.encode_prompt(prompt=['a cat'], grid_h=64, grid_w=64)
+        return first, second
+
+    outcome, _, _ = run_hijacked(pipe, call)
+    assert isinstance(outcome, tuple), f'caller got {outcome!r}'
+    assert pipe.calls == 1, f'encoded {pipe.calls} times'
+    assert torch.equal(outcome[0][0], outcome[1][0]), 'cached result differs'
+    return True
+
+
 def test_pad_signature_probe_reaches_caller():
     """Red before the fix: the hijack swallowed the TypeError, so pad_to_same_length indexed the empty prompt it got back."""
     pipe = PositionalPipe()
@@ -158,6 +222,13 @@ def run_all():
         test_encode_failure_reaches_caller,
         test_encode_success_returns_embeddings,
         test_pad_signature_probe_reaches_caller,
+    ]:
+        run_test(cat, fn)
+    cat = category('cache')
+    for fn in [
+        test_cache_keys_on_size_arguments,
+        test_cache_skips_image_arguments,
+        test_cache_hits_identical_call,
     ]:
         run_test(cat, fn)
 
