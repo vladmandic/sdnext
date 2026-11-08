@@ -60,6 +60,7 @@
   - namegen: sanitize and check length per path component
   - namegen: add `opts`, `wildcards` as allowed templates
   - offload: a job that fails inside the vae no longer leaves the vae on the gpu
+  - offload: *TeaCache* runs under block level group offload, *FramePack*'s first job after a load no longer fails with tensors on two devices
   - preview: live previews of v-prediction models use the v-prediction estimate
   - preview: live previews of video and *Qwen-Image 2.1* latents
   - preview: remove *Tiny: decode layers*, which no longer changed the decoder and only enlarged *Tiny* previews; use *Micro* when *Tiny* is too heavy

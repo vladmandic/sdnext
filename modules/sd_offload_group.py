@@ -132,6 +132,10 @@ def remove_group_offload_component(module) -> bool:
     registry.remove_hook(_GROUP_OFFLOADING, recurse=True)
     registry.remove_hook(_LAYER_EXECUTION_TRACKER, recurse=True)
     registry.remove_hook(_LAZY_PREFETCH_GROUP_OFFLOADING, recurse=True)
+    bridge = getattr(module, 'sdnext_first_block_bridge', None)
+    if bridge is not None:
+        bridge.remove()
+        module.sdnext_first_block_bridge = None
     module.sdnext_group_offload_sig = None
     return True
 
@@ -155,6 +159,35 @@ def remove_group_offload(sd_model):
         sd_model.sdnext_ondemand_modules = []
     if removed:
         log.debug(f'Offload: type=group op=remove modules={removed}')
+
+
+def bridge_first_block(module) -> bool:
+    """TeaCache calls transformer_blocks[0].norm1 from the denoiser's own forward, outside the block forward that block
+    level groups onload on, while the block's weights are still on cpu or mid-copy on the prefetch stream. Onload or wait
+    for the first block's group on that call; inside the block forward the group is already in place."""
+    from diffusers.hooks.group_offloading import _GROUP_OFFLOADING
+    blocks = getattr(module, 'transformer_blocks', None)
+    if not isinstance(blocks, torch.nn.ModuleList) or len(blocks) == 0:
+        return False
+    norm = getattr(blocks[0], 'norm1', None)
+    registry = getattr(blocks[0], '_diffusers_hook', None)
+    hook = registry.get_hook(_GROUP_OFFLOADING) if registry is not None else None
+    if not isinstance(norm, torch.nn.Module) or hook is None:
+        return False
+    group = hook.group
+
+    @torch.compiler.disable()
+    def onload_first_block(norm_module, _args):
+        if not getattr(module, 'enable_teacache', False):
+            return
+        param = next(norm_module.parameters(), None)
+        if param is not None and not devices.same_device(param.device, group.onload_device):
+            group.onload_()
+        if group.stream is not None:
+            group.stream.synchronize()
+
+    module.sdnext_first_block_bridge = norm.register_forward_pre_hook(onload_first_block)
+    return True
 
 
 def apply_group_offload_component(module, module_name: str, main: bool) -> bool:
@@ -202,6 +235,8 @@ def apply_group_offload_component(module, module_name: str, main: bool) -> bool:
     apply_group_offloading(module, onload_device=devices.device, offload_device=devices.cpu, **cfg)
     if cfg['offload_type'] == 'leaf_level' and isinstance(module, transformers.PreTrainedModel):
         s.debug_move(f'Offload: type=group op=units module={module_name} units={group_no_split_units(module)}')
+    if cfg['offload_type'] == 'block_level':
+        s.debug_move(f'Offload: type=group op=bridge module={module_name} first_block={bridge_first_block(module)}')
     if not cfg['use_stream']:
         s.debug_move(f'Offload: type=group op=keep module={module_name} groups={keep_loaded_tensors(module)}')
     module.sdnext_group_offload_sig = sig
