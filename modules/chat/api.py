@@ -170,7 +170,7 @@ def _chat_error_result(result: dict[str, Any]) -> str:
     return result.get('text') or 'Unknown error'
 
 
-_IMAGE_PAYLOAD_FIELDS = {'image', 'images', 'inputs', 'inits', 'mask', 'init_images', 'init_control', 'control', 'ip_adapter', 'face'}
+_IMAGE_PAYLOAD_FIELDS = {'image', 'images', 'imageList', 'inputs', 'inits', 'mask', 'init_images', 'init_control', 'control', 'ip_adapter', 'face'}
 
 
 def _safe_operation_values(values: dict[str, Any]) -> dict[str, Any]:
@@ -478,7 +478,7 @@ def _execute_chat_operation(session_id: str, user_message: dict[str, Any], resul
     handlers = {
         '/sdapi/v1/control': 'image',
         '/sdapi/v1/video': 'video',
-        '/sdapi/v1/process': 'process',
+        '/sdapi/v1/extra-batch-images': 'process',
         '/sdapi/v1/vqa': 'caption',
     }
     context = handlers.get(descriptor.get('path'))
@@ -565,23 +565,24 @@ def _execute_chat_operation(session_id: str, user_message: dict[str, Any], resul
             process_api_instance = getattr(api_instance, 'process', None)
             if process_api_instance is None:
                 raise RuntimeError('The image processing API is unavailable')
-            request = models.ReqProcessImage.model_validate(arguments)
-            response = process_api_instance.extras_single_image_api(request)
+            request = models.ReqProcessBatch.model_validate(arguments)
+            response = process_api_instance.extras_batch_images_api(request)
             info = response.html_info or ''
-            completion_text = 'Image processed'
+            images = response.images or []
+            completion_text = f'Processed {len(images)} image(s)'
             if info:
                 completion_text += f'\n{info}'
             source_artifact_id = session.get('selected_image_id')
             stored_artifacts = _store_image_results(
-                session_id, user_message['id'], [response.image], [], source_artifact_id,
+                session_id, user_message['id'], images, [], source_artifact_id,
             )
             output_data = {
-                'images': [response.image],
+                'images': images,
                 'info': info,
                 'artifacts': [artifacts.public_artifact(item) for item in stored_artifacts],
             }
-            saved_result = {'info': info}
-            message_metadata = {'format': 'html', 'image_count': 1}
+            saved_result = {'image_count': len(images), 'info': info}
+            message_metadata = {'format': 'html', 'image_count': len(images)}
         else:
             from modules.api.caption import ReqVQA, post_vqa
             request = ReqVQA.model_validate(arguments)
@@ -770,7 +771,7 @@ def _execute_chat_command(
     session_id: str,
     user_message: dict[str, Any],
     content: str,
-    image: str | None,
+    image: str | list[str] | None,
     api_instance,
     import_depth: int = 0,
 ):
@@ -812,6 +813,13 @@ def _selected_image_for_command(
         return fallback
     artifact_ids = session.get('selected_image_ids') or ([session['selected_image_id']] if session.get('selected_image_id') else [])
     if not artifact_ids:
+        if fallback is not None:
+            return fallback
+        if session['context'] == 'process':
+            for artifact in reversed(db.list_artifacts(session['id'])):
+                if artifact['role'] == 'result' and artifact['media_type'].startswith('image/') \
+                        and artifacts.public_artifact(artifact)['available']:
+                    return artifacts.read_image_base64(artifact)
         return fallback
     images = []
     for artifact_id in artifact_ids:
@@ -819,7 +827,7 @@ def _selected_image_for_command(
         if artifact is None or not artifacts.public_artifact(artifact)['available']:
             raise ValueError('Selected image is unavailable')
         images.append(artifacts.read_image_base64(artifact))
-    return images if session['context'] == 'image' else images[0]
+    return images if session['context'] in {'image', 'process'} else images[0]
 
 
 def _transient_message(role: str, content: str, metadata: dict[str, Any] | None = None):

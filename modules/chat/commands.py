@@ -66,6 +66,13 @@ _SERVER_COMMAND_GROUPS = {
 _IMAGE_MODEL = control_api.ReqControl
 _IMAGE_MODEL_FIELDS = _IMAGE_MODEL.model_fields
 _IMAGE_PARAMETERS = set(_IMAGE_MODEL_FIELDS)
+_PROCESS_MODEL = models.ReqProcess
+_PROCESS_MODEL_FIELDS = _PROCESS_MODEL.model_fields
+_PROCESS_PARAMETERS = set(_PROCESS_MODEL_FIELDS)
+_PROCESS_PARAMETER_ALIASES = {
+    'upscale:upscaler': 'upscaler_1',
+    'upscale:refiner': 'upscaler_2',
+}
 _VIDEO_MODEL_FIELDS = ReqVideo.model_fields
 _VIDEO_PARAMETERS = set(_VIDEO_MODEL_FIELDS)
 _IMAGE_RANGES = {
@@ -185,6 +192,15 @@ def _parse_value(raw_value: str, annotation: Any, example: Any = None):
             values = [item.strip() for item in list_text.split(',') if item.strip()]
         item_adapter = TypeAdapter(list_type)
         return [item_adapter.validate_python(item) for item in values]
+    if annotation is dict or origin is dict or (origin in (Union, UnionType) and dict in args):
+        try:
+            value = json.loads(raw_value)
+        except json.JSONDecodeError:
+            try:
+                value = ast.literal_eval(raw_value)
+            except (SyntaxError, ValueError):
+                value = raw_value
+        return TypeAdapter(annotation).validate_python(value)
     if annotation is Any or annotation is None:
         return raw_value
     return TypeAdapter(annotation).validate_python(raw_value)
@@ -355,7 +371,10 @@ def parse_command(text: str) -> ParsedCommand:
         name = name.lower()
         return ParsedCommand(command, {'name': _PARAMETER_ALIASES.get(name, name), 'value': value})
     if command in {'get', 'list'}:
-        parts = raw_arguments.split()
+        try:
+            parts = shlex.split(raw_arguments)
+        except ValueError as exc:
+            raise CommandError(f'Invalid {command} argument: {exc}') from exc
         if len(parts) > 1:
             raise CommandError(f'Use: {command} [parameter]')
         name = parts[0].lower() if parts else None
@@ -443,6 +462,14 @@ def is_transient_command(text: str) -> bool:
 def _parameter_spec(context: str, name: str):
     if name in _SETTING_NAMES:
         return 'setting', _SETTING_NAMES[name]
+    if context == 'process':
+        if ':' in name:
+            script_parameter = _process_script_parameter(name)
+            if script_parameter is not None:
+                return 'process_extra', script_parameter
+        name = _PROCESS_PARAMETER_ALIASES.get(name, name)
+        if name in _PROCESS_PARAMETERS:
+            return 'parameter', (_PROCESS_MODEL, name)
     if context in {'process', 'caption'} and name in {'prompt', 'negative_prompt'}:
         return 'parameter', (None, name)
     if context == 'image' and name in _IMAGE_PARAMETERS and name in _IMAGE_MODEL_FIELDS:
@@ -461,7 +488,7 @@ def _choice_values(name: str):
         return [item['name'] for item in endpoints.get_samplers()]
     if name == 'scheduler':
         return [item['name'] for item in endpoints.get_schedulers()]
-    if name == 'hr_upscaler':
+    if name in {'hr_upscaler', 'upscaler_1', 'upscaler_2'}:
         return [item['name'] for item in endpoints.get_upscalers()]
     if name == 'styles':
         return [item['name'] if isinstance(item, dict) else item.name for item in endpoints.get_prompt_styles()]
@@ -497,6 +524,10 @@ def get_parameter_choices(context: str, name: str) -> list[str]:
             name = spec
         elif kind == 'extra':
             return [str(choice) for choice in (spec[1].get('choices') or [])]
+        elif kind == 'process_extra':
+            return [str(label) for label, _value in _process_script_choices(spec[2])]
+        else:
+            name = spec[1]
     return [str(choice) for choice in _choice_values(name)]
 
 
@@ -562,7 +593,7 @@ def _validate_parameter(context: str, name: str, raw_value: Any):
         minimum, maximum = _IMAGE_RANGES[name]
         if not minimum <= value <= maximum:
             raise CommandError(f'{name} must be between {minimum} and {maximum}')
-    choices = _choice_values(name)
+    choices = _choice_values(field_name)
     if choices:
         value = _resolve_choice_fragment(name, value, choices)
         values = value if isinstance(value, list) else [value]
@@ -614,7 +645,7 @@ def _format_session(session: dict[str, Any]) -> str:
     allowed_by_context = {
         'image': _IMAGE_PARAMETERS,
         'video': _VIDEO_PARAMETERS,
-        'process': {'prompt', 'negative_prompt'},
+        'process': _PROCESS_PARAMETERS,
         'caption': {'prompt', 'negative_prompt'},
     }
     for context, draft in sorted((session.get('drafts') or {}).items()):
@@ -765,6 +796,8 @@ def _listable_keys(context: str) -> list[str]:
     keys = ['model', 'unet', 'vae']
     if context in {'image', 'video'}:
         keys.extend(['sampler_name', 'styles'])
+    if context == 'process':
+        keys.extend(_PROCESS_PARAMETER_ALIASES)
     if context == 'image':
         try:
             keys.extend(item['name'] for item in _control_extra_parameter_specs() if item['field']['choices'])
@@ -778,6 +811,8 @@ def _context_parameter_keys(context: str) -> list[str]:
         return sorted(_IMAGE_PARAMETERS)
     if context == 'video':
         return sorted(_VIDEO_PARAMETERS)
+    if context == 'process':
+        return sorted(_PROCESS_PARAMETERS)
     return ['prompt', 'negative_prompt']
 
 
@@ -800,6 +835,8 @@ def _parameter_field(context: str, name: str):
         return _IMAGE_MODEL_FIELDS[name]
     if context == 'video':
         return _VIDEO_MODEL_FIELDS[name]
+    if context == 'process':
+        return _PROCESS_MODEL_FIELDS[name]
     return None
 
 
@@ -872,6 +909,27 @@ def get_parameter_entries(context: str, draft: dict[str, Any] | None = None) -> 
                 })
         except CommandError:
             pass
+    elif context == 'process':
+        from modules import scripts_manager
+        runner = scripts_manager.scripts_postproc
+        scripts = runner.scripts_in_preferred_order() if runner is not None else []
+        script_args = draft.get('script_args') or {}
+        for script in scripts:
+            controls = getattr(script, 'controls', None)
+            if not isinstance(controls, dict):
+                continue
+            values = script_args.get(script.name, {}) if isinstance(script_args, dict) else {}
+            for name, component in controls.items():
+                default = getattr(component, 'value', None)
+                value = values.get(name, default) if isinstance(values, dict) else default
+                parameter_name = f'{_process_script_name_key(script.name)}:{name}'
+                entries.append({
+                    'name': parameter_name,
+                    'type': _process_script_value_type(component).__name__,
+                    'value': _format_parameter_value(value, 'set' if name in values else 'default'),
+                    'is_set': name in values,
+                    'is_none': value is None,
+                })
     return entries
 
 
@@ -886,7 +944,16 @@ def _list_choices(context: str, name: str | None) -> str:
         if not choices:
             raise CommandError(f'No valid choices are currently available for {name}')
         return f'{name}:\n' + '\n'.join(f'- {choice}' for choice in choices)
-    choices = _choice_values(name)
+    if kind == 'process_extra':
+        choices = _process_script_choices(spec[2])
+        if choices:
+            return f'{name}:\n' + '\n'.join(f'- {label}' for label, _value in choices)
+        minimum = getattr(spec[2], 'minimum', None)
+        maximum = getattr(spec[2], 'maximum', None)
+        type_name = _process_script_value_type(spec[2]).__name__
+        suffix = f'; range {minimum}..{maximum}' if minimum is not None and maximum is not None else ''
+        return f'{name}: {type_name}{suffix}'
+    choices = _choice_values(spec[1] if kind == 'parameter' else name)
     if kind == 'setting' and not choices:
         raise CommandError(f'No valid choices are currently available for {name}')
     if choices:
@@ -946,6 +1013,159 @@ def _list_catalog(name: str) -> str:
     return ''
 
 
+def _list_process_script_arguments(name: str) -> str | None:
+    script = _process_postprocessing_script(name)
+    if script is None:
+        return None
+
+    arguments = []
+    controls = getattr(script, 'controls', None)
+    if isinstance(controls, dict):
+        for key, component in controls.items():
+            details = [f'default={_format_parameter_value(getattr(component, "value", None), "default")}']
+            choices = getattr(component, 'choices', None)
+            if choices:
+                choices = [str(choice[0] if isinstance(choice, (tuple, list)) else choice) for choice in choices]
+                details.append(f'choices={", ".join(choices)}')
+            minimum = getattr(component, 'minimum', None)
+            maximum = getattr(component, 'maximum', None)
+            if minimum is not None and maximum is not None:
+                details.append(f'range={minimum}..{maximum}')
+            arguments.append(f'- {key}: {"; ".join(details)}')
+    else:
+        try:
+            parameters = list(inspect.signature(script.process).parameters.values())[1:]
+        except (TypeError, ValueError, AttributeError):
+            parameters = []
+        for parameter in parameters:
+            if parameter.kind in {inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD}:
+                continue
+            annotation = 'Any' if parameter.annotation is inspect.Parameter.empty else _format_type(parameter.annotation)
+            default = (
+                'required' if parameter.default is inspect.Parameter.empty
+                else f'default={_format_parameter_value(parameter.default, "default")}'
+            )
+            arguments.append(f'- {parameter.name}: {annotation} ({default})')
+    if not arguments:
+        return f'{script.name}: no configurable arguments available'
+    return f'{script.name} arguments:\n' + '\n'.join(arguments)
+
+
+def _process_script_name_key(name: str) -> str:
+    return re.sub(r'[^a-z0-9]+', '_', name.casefold()).strip('_')
+
+
+def _process_postprocessing_script(name: str):
+    from modules import scripts_manager
+    runner = scripts_manager.scripts_postproc
+    scripts = runner.scripts_in_preferred_order() if runner is not None else []
+    normalized_name = re.sub(r'[_\s]+', ' ', name.casefold()).strip()
+    return next((
+        item for item in scripts
+        if re.sub(r'[_\s]+', ' ', item.name.casefold()).strip() == normalized_name
+    ), None)
+
+
+def _process_script_parameter(name: str):
+    script_name, separator, argument_name = name.partition(':')
+    if not separator or not argument_name:
+        return None
+    script = _process_postprocessing_script(script_name)
+    controls = getattr(script, 'controls', None) if script is not None else None
+    if not isinstance(controls, dict):
+        return None
+    for field_name, component in controls.items():
+        if field_name.casefold() == argument_name.casefold():
+            return script.name, field_name, component
+    return None
+
+
+def _process_script_choices(component):
+    choices = getattr(component, 'choices', None) or []
+    return [
+        (str(choice[0]), choice[1]) if isinstance(choice, (tuple, list)) and len(choice) > 1
+        else (str(choice), choice)
+        for choice in choices
+    ]
+
+
+def _process_script_value_type(component):
+    value = getattr(component, 'value', None)
+    choices = _process_script_choices(component)
+    if isinstance(value, list):
+        return list
+    if value is not None:
+        return type(value)
+    return type(choices[0][1]) if choices else str
+
+
+def _validate_process_script_value(name: str, component, raw_value: Any):
+    default = getattr(component, 'value', None)
+    annotation = _process_script_value_type(component)
+    example = default
+    if isinstance(default, list):
+        choices = _process_script_choices(component)
+        sample = choices[0][1] if choices else (default[0] if default else '')
+        if sample is not None:
+            example = [sample]
+    try:
+        value = _parse_value(raw_value, annotation, example)
+    except (ValidationError, ValueError) as exc:
+        message = exc.errors()[0]['msg'] if isinstance(exc, ValidationError) else str(exc)
+        raise CommandError(f'Invalid value for {name}: {message}') from exc
+
+    choices = _process_script_choices(component)
+    if choices:
+        valid_values = [choice[1] for choice in choices]
+        labels = [choice[0] for choice in choices]
+        candidates = list(dict.fromkeys([*labels, *valid_values]))
+        is_list = isinstance(value, list)
+        values = value if is_list else [value]
+        resolved_values = []
+        for item in values:
+            resolved = _resolve_choice_fragment(name, item, candidates)
+            if resolved in valid_values:
+                resolved_values.append(resolved)
+            elif resolved in labels:
+                resolved_values.append(valid_values[labels.index(resolved)])
+            else:
+                raise CommandError(f'Invalid value for {name}; use list {name} to see valid choices')
+        value = resolved_values if is_list else resolved_values[0]
+
+    minimum = getattr(component, 'minimum', None)
+    maximum = getattr(component, 'maximum', None)
+    if minimum is not None and value < minimum:
+        raise CommandError(f'{name} must be at least {minimum}')
+    if maximum is not None and value > maximum:
+        raise CommandError(f'{name} must be at most {maximum}')
+    return value
+
+
+def _process_script_value(draft: dict[str, Any], script_name: str, field_name: str, component):
+    script_args = draft.get('script_args') or {}
+    values = script_args.get(script_name, {}) if isinstance(script_args, dict) else {}
+    default = getattr(component, 'value', None)
+    return values.get(field_name, default) if isinstance(values, dict) else default
+
+
+def _set_process_script_value(draft: dict[str, Any], script_name: str, field_name: str, component, value: Any):
+    script_args = dict(draft.get('script_args') or {})
+    values = dict(script_args.get(script_name) or {})
+    default = getattr(component, 'value', None)
+    if value == default:
+        values.pop(field_name, None)
+    else:
+        values[field_name] = value
+    if values:
+        script_args[script_name] = values
+    else:
+        script_args.pop(script_name, None)
+    if script_args:
+        draft['script_args'] = script_args
+    else:
+        draft.pop('script_args', None)
+
+
 def _field_range(field) -> tuple[Any, Any] | None:
     minimum = maximum = None
     for constraint in field.metadata:
@@ -993,6 +1213,8 @@ def _clear_parameter(session_id: str, session: dict[str, Any], name: str) -> str
             raise CommandError(f'Setting callback rejected the default for {name}')
     elif kind == 'extra':
         default = spec[1]['default']
+    elif kind == 'process_extra':
+        default = getattr(spec[2], 'value', None)
     else:
         request_model, name = spec
         if request_model is None:
@@ -1006,6 +1228,8 @@ def _clear_parameter(session_id: str, session: dict[str, Any], name: str) -> str
     context_draft = dict(drafts.get(context) or {})
     if kind == 'extra':
         _set_control_extra_value(context_draft, spec[0], spec[1], default)
+    elif kind == 'process_extra':
+        _set_process_script_value(context_draft, spec[0], spec[1], spec[2], default)
     else:
         context_draft.pop(name, None)
     if context_draft:
@@ -1294,11 +1518,16 @@ def _generation_endpoint(
         request_model = ReqVideo
         error_prefix = 'Cannot run video generation'
     elif context == 'process':
-        if not image:
-            raise CommandError('Process requires an image generated in this chat')
-        payload = {'image': image}
-        request_model = models.ReqProcessImage
-        error_prefix = 'Cannot process the image'
+        image_values = image if isinstance(image, list) else [image] if image else []
+        if not image_values:
+            raise CommandError('Process requires an image selected or generated in this chat')
+        payload = {name: value for name, value in source.items() if name in _PROCESS_PARAMETERS}
+        payload['imageList'] = [
+            {'name': f'image-{index + 1}.png', 'data': image_data}
+            for index, image_data in enumerate(image_values)
+        ]
+        request_model = models.ReqProcessBatch
+        error_prefix = 'Cannot process the images'
     elif context == 'caption':
         if not image:
             raise CommandError('Caption requires an image generated in this chat')
@@ -1318,7 +1547,7 @@ def _generation_endpoint(
         'path': {
             'image': '/sdapi/v1/control',
             'video': '/sdapi/v1/video',
-            'process': '/sdapi/v1/process',
+            'process': '/sdapi/v1/extra-batch-images',
             'caption': '/sdapi/v1/vqa',
         }[context],
         'location': 'body',
@@ -1591,12 +1820,18 @@ def _execute_command(session_id: str, text: str, image: str | list[str] | None =
                 return _command_error(f'Setting callback rejected {name}; the session draft was not changed.')
         elif kind == 'extra':
             value = _validate_control_extra_value(name, spec[1], command.arguments['value'])
+        elif kind == 'process_extra':
+            value = _validate_process_script_value(name, spec[2], command.arguments['value'])
         else:
             value = _validate_parameter(context, name, command.arguments['value'])
         drafts = dict(session.get('drafts') or {})
         context_draft = dict(drafts.get(context) or {})
         if kind == 'extra':
             _set_control_extra_value(context_draft, spec[0], spec[1], value)
+        elif kind == 'process_extra':
+            _set_process_script_value(context_draft, spec[0], spec[1], spec[2], value)
+        elif kind == 'parameter':
+            context_draft[spec[1]] = value
         else:
             context_draft[name] = value
         drafts[context] = context_draft
@@ -1613,17 +1848,26 @@ def _execute_command(session_id: str, text: str, image: str | list[str] | None =
         elif kind == 'extra':
             draft = (session.get('drafts') or {}).get(context, {})
             value = _control_extra_value(draft, spec[0], spec[1])
+        elif kind == 'process_extra':
+            draft = (session.get('drafts') or {}).get(context, {})
+            value = _process_script_value(draft, spec[0], spec[1], spec[2])
         else:
             draft = (session.get('drafts') or {}).get(context, {})
             request_model, field_name = spec
             default = request_model.model_fields[field_name].default if request_model is not None else ''
-            value = draft.get(name, default)
+            value = draft.get(field_name, default)
         return _command_result(f'{name}={value}')
     if command.name == 'list':
         name = command.arguments['name']
+        if name is None and context == 'process':
+            return _command_result(_list_catalog('process'))
         catalog = _list_catalog(name) if name in {'sessions', 'wildcards', 'process', 'scripts'} else ''
         if catalog:
             return _command_result(catalog)
+        if name is not None and context == 'process':
+            script_arguments = _list_process_script_arguments(name)
+            if script_arguments is not None:
+                return _command_result(script_arguments)
         try:
             return _command_result(_list_choices(context, name))
         except CommandError as exc:

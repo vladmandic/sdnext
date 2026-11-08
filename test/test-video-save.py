@@ -1294,6 +1294,21 @@ def test_dlss_none_kwargs_resolve_to_ui_values():
     return True
 
 
+def test_dlss_kwargs_none_use_defaults_and_keep_falsy_values():
+    module, reason = dlss_module()
+    if module is None:
+        return reason
+    resolve = need(module, '_kwarg_or_default')
+    assert resolve({'option': None}, 'option', 'default') == 'default'
+    assert resolve({}, 'option', 'default') == 'default'
+    assert resolve({'option': False}, 'option', True) is False
+    assert resolve({'option': 0}, 'option', 1) == 0
+    assert resolve({'option': []}, 'option', ['default']) == []
+    assert resolve({'option': ''}, 'option', 'default') == ''
+    verdict('test_dlss_kwargs_none_use_defaults_and_keep_falsy_values', 'PASS')
+    return True
+
+
 def test_gif_failure_returns_none():
     blocker = out_path('not_a_dir')
     with open(blocker, 'w', encoding='utf8') as f:
@@ -3086,7 +3101,7 @@ def test_clips_written():
 GROUPS = [
     ('platform', [test_versions, test_presets_open]),
     ('floor', [test_log_capture_sees_writer_lines, test_quality_floor, test_quality_negative_control, test_quality_fixture_guard, test_colour_floor, test_colour_positive_control, test_colour_negative_controls, test_lossless_rgb_roundtrip]),
-    ('writer failure', [test_sync_unknown_codec_returns_none, test_stream_rejected_pix_fmt_raises_with_reason, test_container_refusing_codec_removes_its_file, test_av_missing_sync_returns_none_stream_raises, test_zero_byte_mp4_metadata_is_empty, test_output_equal_to_source_refused, test_dlss_none_kwargs_resolve_to_ui_values, test_gif_failure_returns_none, test_mid_encode_exception_returns_none, test_sync_success_registers_after_open, test_threaded_save_joined, test_both_paths_write_the_same_stream, test_legacy_save_accepts_grayscale_frames, test_stream_writer_failure_leaves_partial_file, test_write_audio_without_stream_refused]),
+    ('writer failure', [test_sync_unknown_codec_returns_none, test_stream_rejected_pix_fmt_raises_with_reason, test_container_refusing_codec_removes_its_file, test_av_missing_sync_returns_none_stream_raises, test_zero_byte_mp4_metadata_is_empty, test_output_equal_to_source_refused, test_dlss_none_kwargs_resolve_to_ui_values, test_dlss_kwargs_none_use_defaults_and_keep_falsy_values, test_gif_failure_returns_none, test_mid_encode_exception_returns_none, test_sync_success_registers_after_open, test_threaded_save_joined, test_both_paths_write_the_same_stream, test_legacy_save_accepts_grayscale_frames, test_stream_writer_failure_leaves_partial_file, test_write_audio_without_stream_refused]),
     ('pixel format', [test_presets_declare_pix_fmt, test_table_pix_fmt_opens_in_legacy_loop, test_table_pix_fmt_opens_in_video_tab_loop, test_rejected_pix_fmt_names_the_list, test_empty_pix_fmt_refused_naming_default, test_out_of_table_codec_defaults_yuv420p, test_ext_none_follows_codec_when_container_refuses, test_odd_size_cropped_under_yuv420p_legacy, test_odd_size_cropped_under_yuv420p_video_tab, test_odd_size_kept_without_subsampling]),
     ('defaults', [test_legacy_default_is_h264_yuv420p, test_legacy_default_quality_matches_old_writer, test_explicit_mpeg4_gets_table_preset, test_legacy_labels_map_to_codecs, test_legacy_labels_encode, test_odd_size_under_default, test_none_codec_kwargs_give_default, test_resolve_video_type_aliases, test_explicit_codec_overrides_label_container, test_extension_rule, test_codec_name_saves_in_its_container, test_video_type_dropdowns_list_the_codec_presets]),
     ('rate', [test_video_rate_fractions, test_mpeg4_opens_at_dlss_long_rate, test_video_tab_keeps_fractional_rate, test_fps_zero_refused_by_name, test_dlss_output_fps_rule, test_video_tab_returns_none_video_on_failure]),

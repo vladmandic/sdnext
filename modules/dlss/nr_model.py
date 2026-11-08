@@ -865,9 +865,12 @@ class NeuralRenderingModel(nn.Module):
     def __init__(self, weights: dict[str, torch.Tensor], chunk: int = 131072):
         super().__init__()
         self._weight_attributes: dict[str, str] = {}
-        self._chunk_size = chunk
-        global CHUNK_TOKENS # pylint: disable=global-statement
-        CHUNK_TOKENS = self._chunk_size
+        if chunk is not None:
+            self._chunk_size = chunk
+            global CHUNK_TOKENS # pylint: disable=global-statement
+            CHUNK_TOKENS = self._chunk_size
+        else:
+            self._chunk_size = CHUNK_TOKENS
         for index, (name, value) in enumerate(sorted(weights.items())):
             attribute = f"weight_{index}"
             self.register_buffer(attribute, value.detach().to(dtype=torch.float32))

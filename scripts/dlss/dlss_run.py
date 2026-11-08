@@ -45,6 +45,11 @@ def _to_ndarray_rgb_float(img) -> np.ndarray:
     return arr.astype(np.float32) / 255.0
 
 
+def get(kwargs, name, default):
+    value = kwargs.get(name)
+    return default if value is None else value
+
+
 def resolve_video_options(codec: str | None, ext: str | None, pix: str | None, opt: str | None) -> tuple[str, str, str | None, str]:
     """The UI's video defaults for any control a caller left unset; API and Enso jobs pass None for controls they lack.
 
@@ -79,38 +84,38 @@ def dlss_run(p: StableDiffusionProcessing | None,
     elif len(args) > 0: # called with positional arguments from generate / pp=Processed
         dlss_enabled, dlss_graph, dlss_chunk, dlss_full, nr_profile, nr_motion, nr_scale, nr_intensity, nr_blend, nr_detail, nr_colour, nr_radius, nr_threshold, nr_normalized, nr_local_tone, nr_local_structure, nr_skin_structure, nr_mask_structure, ss_profile, ss_scale, ss_detail, ss_colour, ss_radius, ss_threshold, fg_profile, fg_mode, fg_factor, fg_threshold, mp4_codec, mp4_ext, mp4_pix, mp4_opt = args
     elif len(kwargs) > 0: # called with keyword arguments from postprocess / pp=PostprocessedImage
-        dlss_enabled = kwargs.get("dlss_enabled", [])
-        dlss_graph = kwargs.get("dlss_graph", False)
-        dlss_chunk = kwargs.get("dlss_chunk", 131072)
-        dlss_full = kwargs.get("dlss_full", False)
-        nr_profile = kwargs.get("nr_profile", "None")
-        nr_motion = kwargs.get("nr_motion", "Medium")
-        nr_scale = kwargs.get("nr_scale", 1.0)
-        nr_intensity = kwargs.get("nr_intensity", 1.0)
-        nr_blend = kwargs.get("nr_blend", 0.73974609375)
-        nr_detail = kwargs.get("nr_detail", 1.0)
-        nr_colour = kwargs.get("nr_colour", 1.0)
-        nr_radius = kwargs.get("nr_radius", 4.0)
-        nr_threshold = kwargs.get("nr_threshold", 0.3)
-        nr_normalized = kwargs.get("nr_normalized", 0.0)
-        nr_local_tone = kwargs.get("nr_local_tone", 1.0)
-        nr_local_structure = kwargs.get("nr_local_structure", 1.0)
-        nr_skin_structure = kwargs.get("nr_skin_structure", 0.0)
-        nr_mask_structure = kwargs.get("nr_mask_structure", 0.0)
-        ss_profile = kwargs.get("ss_profile", "None")
-        ss_scale = kwargs.get("ss_scale", 2.0)
-        ss_detail = kwargs.get("ss_detail", 1.0)
-        ss_colour = kwargs.get("ss_colour", 1.0)
-        ss_radius = kwargs.get("ss_radius", 4.0)
-        ss_threshold = kwargs.get("ss_threshold", 0.4)
-        fg_profile = kwargs.get("fg_profile", "None")
-        fg_mode = kwargs.get("fg_mode", "fps")
-        fg_factor = kwargs.get("fg_factor", 2)
-        fg_threshold = kwargs.get("fg_threshold", 0.4)
-        mp4_codec = kwargs.get("mp4_codec")
-        mp4_ext = kwargs.get("mp4_ext")
-        mp4_pix = kwargs.get("mp4_pix")
-        mp4_opt = kwargs.get("mp4_opt")
+        dlss_enabled = get(kwargs, "dlss_enabled", [])
+        dlss_graph = get(kwargs, "dlss_graph", False)
+        dlss_chunk = get(kwargs, "dlss_chunk", 131072)
+        dlss_full = get(kwargs, "dlss_full", False)
+        nr_profile = get(kwargs, "nr_profile", "None")
+        nr_motion = get(kwargs, "nr_motion", "Medium")
+        nr_scale = get(kwargs, "nr_scale", 1.0)
+        nr_intensity = get(kwargs, "nr_intensity", 1.0)
+        nr_blend = get(kwargs, "nr_blend", 0.73974609375)
+        nr_detail = get(kwargs, "nr_detail", 1.0)
+        nr_colour = get(kwargs, "nr_colour", 1.0)
+        nr_radius = get(kwargs, "nr_radius", 4.0)
+        nr_threshold = get(kwargs, "nr_threshold", 0.3)
+        nr_normalized = get(kwargs, "nr_normalized", 0.0)
+        nr_local_tone = get(kwargs, "nr_local_tone", 1.0)
+        nr_local_structure = get(kwargs, "nr_local_structure", 1.0)
+        nr_skin_structure = get(kwargs, "nr_skin_structure", 0.0)
+        nr_mask_structure = get(kwargs, "nr_mask_structure", 0.0)
+        ss_profile = get(kwargs, "ss_profile", "None")
+        ss_scale = get(kwargs, "ss_scale", 2.0)
+        ss_detail = get(kwargs, "ss_detail", 1.0)
+        ss_colour = get(kwargs, "ss_colour", 1.0)
+        ss_radius = get(kwargs, "ss_radius", 4.0)
+        ss_threshold = get(kwargs, "ss_threshold", 0.4)
+        fg_profile = get(kwargs, "fg_profile", "None")
+        fg_mode = get(kwargs, "fg_mode", "fps")
+        fg_factor = get(kwargs, "fg_factor", 2)
+        fg_threshold = get(kwargs, "fg_threshold", 0.4)
+        mp4_codec = get(kwargs, "mp4_codec", None)
+        mp4_ext = get(kwargs, "mp4_ext", None)
+        mp4_pix = get(kwargs, "mp4_pix", None)
+        mp4_opt = get(kwargs, "mp4_opt", None)
     else:
         log.warning('DLSS run called with unexpected argument structure')
         return None

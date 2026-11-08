@@ -3,9 +3,10 @@
 ## Update for 2026-11-08
 
 - **Chat**: New top-level interface  
-  See [chat docs](https://vladmandic.github.io/sdnext-docs/Chat/) for more details  
-  - Can be used as an interactive interface for generating and editing images through conversational prompts  
-  - Can also be used for advanced scripting and automation within SD.Next  
+  See [chat docs](https://vladmandic.github.io/sdnext-docs/Chat/) for more details as this is quite an extensive module  
+  - Can be used as an interactive interface for generating, editing and processing images and videos through conversational prompts  
+  - Can be used for advanced scripting and automation within SD.Next  
+  - Chat supports all *text2image, image2image, image-edit, processing workflows*
   - Allows for full control of SD.Next generation parameters and settings  
   - Allows for persistent context across interactions  
 - **Models**:

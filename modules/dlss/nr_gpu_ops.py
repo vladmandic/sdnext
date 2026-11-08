@@ -161,7 +161,7 @@ def compose_head_torch(
     """RGB = colour + 0.25 * half(head[..., :3]), blended by mask red * intensity on GPU."""
     residual = head[..., :3].to(torch.float16) * 0.25
     predicted = torch.clamp(color + residual.to(color.dtype), 0.0, 1.0)
-    blend = intensity
+    blend = intensity if intensity is not None else 1.0
     if control_mask is not None:
         blend = control_mask[..., :1] * intensity
     if isinstance(blend, torch.Tensor):

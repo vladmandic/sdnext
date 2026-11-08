@@ -1182,8 +1182,8 @@ class TestChatApiRegistration(unittest.TestCase):
             db_path = os.path.join(temp_dir, 'chat.db')
             with patch.object(db, '_db_path', return_value=db_path):
                 session = chat_api.create_session(chat_api.ReqSessionCreate(context='process'))
-                process_api = Mock(extras_single_image_api=Mock(return_value=SimpleNamespace(
-                    image='processed-base64', html_info='processed <b>info</b>',
+                process_api = Mock(extras_batch_images_api=Mock(return_value=SimpleNamespace(
+                    images=['processed-base64'], html_info='processed <b>info</b>',
                 )))
                 submission = chat_api.post_message(
                     session['id'],
@@ -1198,16 +1198,60 @@ class TestChatApiRegistration(unittest.TestCase):
                 operations = db.list_operations(session['id'])
                 messages = db.list_messages(session['id'])
 
-        first_request = process_api.extras_single_image_api.call_args_list[0].args[0]
-        replay_request = process_api.extras_single_image_api.call_args_list[1].args[0]
-        self.assertEqual(first_request.image, 'input-image-base64')
-        self.assertEqual(replay_request.image, 'latest-image-base64')
+        first_request = process_api.extras_batch_images_api.call_args_list[0].args[0]
+        replay_request = process_api.extras_batch_images_api.call_args_list[1].args[0]
+        self.assertEqual(first_request.imageList[0].data, 'input-image-base64')
+        self.assertEqual(replay_request.imageList[0].data, 'latest-image-base64')
         self.assertCountEqual([operation['command'] for operation in operations], ['again', 'generate'])
         self.assertTrue(all('image' not in operation['snapshot'] for operation in operations))
+        self.assertTrue(all('imageList' not in operation['snapshot'] for operation in operations))
         self.assertNotIn('input-image-base64', str(messages))
         self.assertEqual(submission.result.data['images'], ['processed-base64'])
-        self.assertEqual(submission.assistant_message.content, 'Image processed\nprocessed <b>info</b>')
+        self.assertEqual(submission.assistant_message.content, 'Processed 1 image(s)\nprocessed <b>info</b>')
         self.assertEqual(replay.result.kind, 'operation')
+
+    def test_process_batches_selected_images_and_defaults_to_latest_result(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = os.path.join(temp_dir, 'chat.db')
+            first_path = Path(temp_dir) / 'first.png'
+            second_path = Path(temp_dir) / 'second.png'
+            first_path.write_bytes(b'first input')
+            second_path.write_bytes(b'second input')
+            with patch.object(db, '_db_path', return_value=db_path):
+                session = chat_api.create_session(chat_api.ReqSessionCreate(context='process'))
+                first = db.create_artifact(session['id'], 'image/png', 'first.png', 'input', str(first_path))
+                second = db.create_artifact(session['id'], 'image/png', 'second.png', 'input', str(second_path))
+                db.set_selected_images(session['id'], [first['id'], second['id']])
+                response = SimpleNamespace(images=['processed-1', 'processed-2'], html_info='batch info')
+                process_api = Mock(extras_batch_images_api=Mock(return_value=response))
+                api_instance = SimpleNamespace(process=process_api)
+                with patch.object(chat_api, '_store_image_results', return_value=[]):
+                    selected = chat_api.post_message(
+                        session['id'], chat_api.ReqChatMessage(content='run'), api_instance,
+                    )
+
+                    db.set_selected_images(session['id'], [])
+                    latest_path = Path(temp_dir) / 'latest.png'
+                    latest_path.write_bytes(b'latest result')
+                    db.create_artifact(
+                        session['id'], 'image/png', 'latest.png', 'result', str(latest_path),
+                    )
+                    latest = chat_api.post_message(
+                        session['id'], chat_api.ReqChatMessage(content='run'), api_instance,
+                    )
+
+        selected_request, latest_request = [call.args[0] for call in process_api.extras_batch_images_api.call_args_list]
+        self.assertEqual(
+            [item.data for item in selected_request.imageList],
+            [base64.b64encode(b'first input').decode('ascii'), base64.b64encode(b'second input').decode('ascii')],
+        )
+        self.assertEqual(
+            [item.data for item in latest_request.imageList],
+            [base64.b64encode(b'latest result').decode('ascii')],
+        )
+        self.assertEqual(selected.result.data['images'], ['processed-1', 'processed-2'])
+        self.assertIn('Processed 2 image(s)', selected.assistant_message.content)
+        self.assertEqual(latest.result.kind, 'operation')
 
     def test_caption_generation_uses_transient_image_without_persisting_it(self):
         with tempfile.TemporaryDirectory() as temp_dir:

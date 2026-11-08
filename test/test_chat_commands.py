@@ -310,16 +310,98 @@ class TestChatCommands(unittest.TestCase):
 
     def test_bare_list_shows_listable_keys_for_current_context(self):
         session = self._create_session()
+        process_runner = SimpleNamespace(scripts_in_preferred_order=lambda: [
+            SimpleNamespace(name='Upscale'), SimpleNamespace(name='Detailer'),
+        ])
         with patch.object(db, '_db_path', return_value=self.db_path):
             image_result = commands.execute_command(session['id'], 'list')
             commands.execute_command(session['id'], 'context process')
-            process_result = commands.execute_command(session['id'], 'list')
+            with patch.object(scripts_manager, 'scripts_postproc', process_runner):
+                process_result = commands.execute_command(session['id'], 'list')
+                process_keys = commands.execute_command(session['id'], 'list upscale:upscaler')
 
         self.assertEqual(
             image_result['text'],
             'Listable keys for image:\n- model\n- sampler_name\n- styles\n- unet\n- vae',
         )
-        self.assertEqual(process_result['text'], 'Listable keys for process:\n- model\n- unet\n- vae')
+        self.assertEqual(process_result['text'], 'Postprocessing tasks:\n- Upscale\n- Detailer')
+        self.assertTrue(process_keys['text'].startswith('upscale:upscaler:'))
+
+    def test_list_process_script_matches_underscores_and_case(self):
+        class ProcessScript:
+            name = 'nVidia DLSS'
+            controls = {
+                'dlss_operations': SimpleNamespace(value=['NeuralRender'], choices=['NeuralRender', 'SuperRes']),
+            }
+
+            def process(self, pp, **kwargs):
+                return pp, kwargs
+
+        session = self._create_session()
+        runner = SimpleNamespace(scripts_in_preferred_order=lambda: [ProcessScript()])
+        with patch.object(db, '_db_path', return_value=self.db_path), \
+                patch.object(scripts_manager, 'scripts_postproc', runner):
+            commands.execute_command(session['id'], 'context process')
+            underscored = commands.execute_command(session['id'], 'list nvidia_dlss')
+            mixed_case = commands.execute_command(session['id'], 'list "NVIDIA DLSS"')
+
+        self.assertEqual(underscored['text'], 'nVidia DLSS arguments:\n- dlss_operations: default=["NeuralRender"]; choices=NeuralRender, SuperRes')
+        self.assertEqual(mixed_case['text'], underscored['text'])
+
+    def test_process_script_arguments_support_set_get_list_and_clear(self):
+        class ProcessScript:
+            name = 'nVidia DLSS'
+            controls = {
+                'dlss_enabled': SimpleNamespace(value=[], choices=['NeuralRender', 'SuperRes']),
+            }
+
+            def process(self, pp, **kwargs):
+                return pp, kwargs
+
+        session = self._create_session()
+        runner = SimpleNamespace(scripts_in_preferred_order=lambda: [ProcessScript()])
+        with patch.object(db, '_db_path', return_value=self.db_path), \
+                patch.object(scripts_manager, 'scripts_postproc', runner):
+            commands.execute_command(session['id'], 'context process')
+            set_value = commands.execute_command(session['id'], 'set nvidia_dlss:dlss_enabled NeuralRender')
+            get_value = commands.execute_command(session['id'], 'get nvidia_dlss:dlss_enabled')
+            list_value = commands.execute_command(session['id'], 'list nvidia_dlss:dlss_enabled')
+            saved = db.get_session(session['id'])
+            parameter = next(
+                item for item in commands.get_parameter_entries('process', saved['drafts']['process'])
+                if item['name'] == 'nvidia_dlss:dlss_enabled'
+            )
+            clear_value = commands.execute_command(session['id'], 'clear nvidia_dlss:dlss_enabled')
+            cleared = db.get_session(session['id'])
+
+        self.assertEqual(set_value['text'], "nvidia_dlss:dlss_enabled set to ['NeuralRender']")
+        self.assertEqual(get_value['text'], "nvidia_dlss:dlss_enabled=['NeuralRender']")
+        self.assertEqual(list_value['text'], 'nvidia_dlss:dlss_enabled:\n- NeuralRender\n- SuperRes')
+        self.assertEqual(parameter['value'], '["NeuralRender"]')
+        self.assertTrue(parameter['is_set'])
+        self.assertIn('cleared to default []', clear_value['text'])
+        self.assertNotIn('script_args', cleared['drafts'].get('process', {}))
+
+    def test_process_parameters_support_upscale_alias_and_json_script_args(self):
+        session = self._create_session()
+        upscalers = [{'name': 'Upscaler A'}, {'name': 'Upscaler B'}]
+        with patch.object(db, '_db_path', return_value=self.db_path), \
+                patch.object(commands.endpoints, 'get_upscalers', return_value=upscalers):
+            commands.execute_command(session['id'], 'context process')
+            set_upscaler = commands.execute_command(session['id'], 'set upscale:upscaler Upscaler B')
+            set_script_args = commands.execute_command(
+                session['id'], 'set script_args {"Detailer": {"strength": 0.5}}',
+            )
+            get_upscaler = commands.execute_command(session['id'], 'get upscale:upscaler')
+            list_upscalers = commands.execute_command(session['id'], 'list upscale:upscaler')
+            saved = db.get_session(session['id'])
+
+        self.assertIn('upscale:upscaler set to Upscaler B', set_upscaler['text'])
+        self.assertIn('script_args set to', set_script_args['text'])
+        self.assertEqual(get_upscaler['text'], 'upscale:upscaler=Upscaler B')
+        self.assertEqual(list_upscalers['text'], 'upscale:upscaler:\n- Upscaler A\n- Upscaler B')
+        self.assertEqual(saved['drafts']['process']['upscaler_1'], 'Upscaler B')
+        self.assertEqual(saved['drafts']['process']['script_args'], {'Detailer': {'strength': 0.5}})
 
     def test_params_lists_keys_for_current_context(self):
         session = self._create_session()
