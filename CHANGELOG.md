@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-11-07
+## Update for 2026-11-08
 
 - **Chat**: New top-level interface  
   See [chat docs](https://vladmandic.github.io/sdnext-docs/Chat/) for more details  
@@ -36,6 +36,10 @@
   - add env var `SD_STRICT` which will enable strict mode  
     in strict mode, read/parse/write errors will cause the application to exit immediately  
   - improved handling of HuggingFace mirror settings
+    *note*: `hf-mirror.com` does not actually mirror entire huggingface, only some  
+    the rest are redirected back to `huggingface.co` which is still under standard access control operations  
+- **Internal**
+  - modernui css: use a build process for `/css` instead of monolithic single `style.css`
 - **Fixes**
   - api: *txt2img*, *img2img* and *control* answer *500* with the error when the generation fails, instead of *200* with no images
   - api: *txt2img*, *img2img* and *control* responses carry an *error* field when a later batch fails after earlier batches returned images
