@@ -73,6 +73,7 @@
   - save: an image save that fails no longer stops every later save
   - settings: extension settings are checked once extensions add them, instead of reported as unknown at startup
   - settings: a new data folder receives *config.json* and *secrets.json* on the first save
+  - settings: *Expandable segments* sets the allocator to expandable segments alone, large vae decodes no longer run out of memory or fail an allocator assert
   - settings: improve settings parsing and validation to prevent corruption
   - ui: refresh buttons call their method once per click
   - xyz: a blank value after a trailing comma is dropped instead of *Search & replace* inserting the replacement between every character of the prompt
