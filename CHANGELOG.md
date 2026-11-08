@@ -51,6 +51,7 @@
   - gallery: thumbnails and previews for webm, mkv, mov, avi and ts videos
   - hdr: the 16-bit hdr image saves on windows paths with non-ascii characters
   - ideogram: a text encoder that fails to move to the gpu goes back to the cpu instead of staying partly on the gpu
+  - lora: *LoRA auto-apply tags* reach the first batch, keep their metadata order and are added when a tag is part of the lora file name; a lora without tags adds nothing, and later batches no longer append a bare comma
   - ltx: *Tiny* live previews show the video instead of a placeholder
   - ltx: tab passes no longer run with the previous job's guidance end, sigma adjust and correction settings
   - minimax: quantized *H3* fix decode
