@@ -164,6 +164,47 @@ class TestChatCommands(unittest.TestCase):
         with self.assertRaises(commands.CommandError):
             commands.parse_command('title ""')
 
+    def test_session_command_syntax_and_aliases(self):
+        self.assertEqual(commands.parse_command('session').arguments, {'action': 'list'})
+        self.assertEqual(commands.parse_command('session list').arguments, {'action': 'list'})
+        self.assertEqual(commands.parse_command('session 2').arguments, {'action': 'activate_index', 'index': 2})
+        self.assertEqual(commands.parse_command('session "Design review"').arguments, {
+            'action': 'activate_name', 'name': 'Design review',
+        })
+        self.assertEqual(commands.parse_command('session del').arguments, {'action': 'delete'})
+        self.assertEqual(commands.parse_command('session rm').arguments, {'action': 'delete'})
+        self.assertEqual(commands.parse_command('session create "New work"').arguments, {
+            'action': 'create', 'title': 'New work',
+        })
+        self.assertEqual(commands.parse_command('session add').arguments, {'action': 'create', 'title': None})
+        self.assertEqual(commands.parse_command('import').name, 'import-settings')
+        for text in ('session 0', 'session list extra', 'session del now', 'import settings'):
+            with self.subTest(text=text), self.assertRaises(commands.CommandError):
+                commands.parse_command(text)
+        self.assertTrue(commands.is_transient_command('session'))
+        self.assertTrue(commands.is_transient_command('session create Draft'))
+
+    def test_session_commands_list_activate_create_and_delete(self):
+        current = self._create_session()
+        with patch.object(db, '_db_path', return_value=self.db_path):
+            target = db.create_session(title='Design review')
+            sessions = db.list_sessions(limit=100)
+            listed = commands.execute_command(current['id'], 'session list')
+            activated_by_index = commands.execute_command(current['id'], 'session 1')
+            activated_by_name = commands.execute_command(current['id'], 'session "Design review"')
+            created = commands.execute_command(current['id'], 'session create "New work"')
+            deleted = commands.execute_command(current['id'], 'session del')
+            imported = commands.execute_command(current['id'], 'import')
+
+        self.assertIn(f'{sessions.index(target) + 1}. Design review [image]', listed['text'])
+        self.assertEqual(listed['data']['sessions'], sessions)
+        self.assertEqual(activated_by_index['kind'], 'session')
+        self.assertEqual(activated_by_index['data'], {'action': 'activate', 'session_id': sessions[0]['id']})
+        self.assertEqual(activated_by_name['data'], {'action': 'activate', 'session_id': target['id']})
+        self.assertEqual(created['data'], {'action': 'create', 'title': 'New work'})
+        self.assertEqual(deleted['data'], {'action': 'delete', 'session_id': current['id']})
+        self.assertEqual(imported['kind'], 'import-control')
+
     def test_db_command_compacts_and_reports_database_statistics(self):
         session = self._create_session()
         with patch.object(db, '_db_path', return_value=self.db_path):

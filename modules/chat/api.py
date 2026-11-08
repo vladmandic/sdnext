@@ -23,7 +23,7 @@ ChatCommand = Literal[
     'context', 'clear', 'set', 'get', 'list', 'params', 'args', 'help', 'opts', 'prompt', 'negative', 'snapshot', 'snap',
     'generate', 'run', 'start', 'again', 'reprocess', 'schedule', 'cancel', 'abort', 'stop', 'interrupt', 'pause',
     'resume', 'skip', 'history', 'last', 'details', 'title', 'reset', 'model',
-    'use', 'file', 'image', 'meta', 'exif', 'metadata',
+    'use', 'file', 'image', 'meta', 'exif', 'metadata', 'session', 'import',
 ]
 ServerEndpointAlias = Literal[
     'info', 'ver', 'version', 'gpu', 'smi', 'mem', 'memory', 'status', 'storage',
@@ -135,7 +135,7 @@ class ReqChatMessageUpdate(BaseModel):
 
 
 class ResChatAction(BaseModel):
-    kind: Literal['text', 'operation', 'schedule', 'endpoint', 'error']
+    kind: Literal['text', 'operation', 'schedule', 'endpoint', 'error', 'session', 'import-control']
     text: str = ''
     data: dict[str, Any] = Field(default_factory=dict)
     sections: list[dict[str, str]] = Field(default_factory=list)

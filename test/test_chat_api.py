@@ -228,6 +228,20 @@ class TestChatControlParameterImports(unittest.TestCase):
             with self.assertRaisesRegex(chat_api.HTTPException, 'Not yet implemented for video context'):
                 chat_api.import_control_settings(session['id'], {'steps': 4}, {'steps': 20})
 
+    def test_session_and_import_commands_validate_new_response_kinds(self):
+        session = self._create_session()
+        with patch.object(db, '_db_path', return_value=self.db_path):
+            session_result = chat_api.post_message(
+                session['id'], chat_api.ReqChatMessage(content='session create "API test"'),
+            )
+            import_result = chat_api.post_message(
+                session['id'], chat_api.ReqChatMessage(content='import'),
+            )
+
+        self.assertEqual(session_result.result.kind, 'session')
+        self.assertEqual(session_result.result.data, {'action': 'create', 'title': 'API test'})
+        self.assertEqual(import_result.result.kind, 'import-control')
+
     def test_save_chat_settings_revision_snapshots_sparse_image_draft(self):
         session = self._create_session()
         with patch.object(db, '_db_path', return_value=self.db_path):

@@ -104,7 +104,7 @@ _PARAMETER_ALIASES = {
 _OPERATION_COMMANDS = {
     'again', 'caption', 'generate', 'run', 'schedule', 'cancel', 'pause', 'resume', 'skip', 'history', 'reset', 'last',
 }
-_BUILTIN_COMMANDS = {'context', 'clear', 'set', 'get', 'list', 'params', 'help', 'model', 'opts', 'db', 'snapshot'}
+_BUILTIN_COMMANDS = {'context', 'clear', 'set', 'get', 'list', 'params', 'help', 'model', 'opts', 'db', 'snapshot', 'session', 'import'}
 
 
 def _command_result(text: str, kind='text', data=None, sections=None):
@@ -262,6 +262,30 @@ def parse_command(text: str) -> ParsedCommand:
         return ParsedCommand('endpoint', {'alias': command, 'endpoints': descriptors})
 
     command = _COMMAND_ALIASES.get(command, command)
+    if command == 'session':
+        value = raw_arguments.strip()
+        action = value.casefold()
+        if not value or action == 'list':
+            return ParsedCommand(command, {'action': 'list'})
+        if action in {'del', 'rm'}:
+            return ParsedCommand(command, {'action': 'delete'})
+        if action.startswith(('del ', 'rm ', 'list ')):
+            raise CommandError('Use: session [list|<number>|<name>|del|rm|create [name]|add [name]]')
+        if action == 'create' or action == 'add' or action.startswith(('create ', 'add ')):
+            title = value.split(maxsplit=1)[1] if len(value.split(maxsplit=1)) > 1 else ''
+            title = _normalize_value(title.strip()) or None
+            return ParsedCommand(command, {'action': 'create', 'title': title})
+        name = _normalize_value(value)
+        if name.isdecimal():
+            index = int(name)
+            if index < 1:
+                raise CommandError('Session number must be positive')
+            return ParsedCommand(command, {'action': 'activate_index', 'index': index})
+        return ParsedCommand(command, {'action': 'activate_name', 'name': name})
+    if command == 'import':
+        if raw_arguments.strip():
+            raise CommandError('Use: import')
+        return ParsedCommand('import-settings', {})
     if command in {'use', 'file'}:
         try:
             paths = shlex.split(raw_arguments)
@@ -413,7 +437,7 @@ def is_transient_command(text: str) -> bool:
         except CommandError:
             return False
         return parsed.arguments['action'] == 'list'
-    return command in {'help', 'list', 'params'}
+    return command in {'help', 'list', 'params', 'session'}
 
 
 def _parameter_spec(context: str, name: str):
@@ -660,10 +684,18 @@ def _help_sections() -> list[dict[str, str]]:
             'format': 'html',
         },
         {
+            'title': 'Session',
+            'content': 'Manage chat sessions\n'
+            '- session/list: List existing sessions\n'
+            '- session <number|name>: Activate a session\n'
+            '- session del/rm: Delete the current session\n'
+            '- session create/add [name]: Create and activate a session\n'
+            '- title [name]: Read or set the current session name\n'
+            '- context <value>: Select the active context\n',
+        },
+        {
             'title': 'Process',
             'content': 'Choose a context and control active work\n'
-            '- title [name]: Read or set the current session name\n'
-            '- context <value>: Select the active context\n'
             '- clear: Clear displayed messages without changing session history\n'
             '- run [count]: Run image generation 1-10 times (default: 1)\n'
             '- generate/start: Start the current process once\n'
@@ -687,6 +719,7 @@ def _help_sections() -> list[dict[str, str]]:
             '- get [key]: Get a value or list session values\n'
             '- clear <key>: Reset one parameter or setting to its default\n'
             '- params/args: List valid parameter keys for the current context\n'
+            '- import: Import current values from the UI into the active session\n'
             '- reset: Restore parameter defaults\n'
             '- Control Extras use script:field keys, such as dlss:nr\n',
         },
@@ -1310,6 +1343,17 @@ def _format_history(session_id: str, limit: int) -> str:
     return '\n'.join(lines)
 
 
+def _all_sessions() -> list[dict[str, Any]]:
+    sessions = []
+    offset = 0
+    while True:
+        batch = db.list_sessions(limit=100, offset=offset)
+        sessions.extend(batch)
+        if len(batch) < 100:
+            return sessions
+        offset += len(batch)
+
+
 def _format_settings_snapshots(session: dict[str, Any]) -> str:
     revisions = db.list_settings_revisions(session['id'])
     if not revisions:
@@ -1360,6 +1404,54 @@ def _execute_command(session_id: str, text: str, image: str | list[str] | None =
         return _command_error('Chat session not found')
     context = session['context']
 
+    if command.name == 'session':
+        action = command.arguments['action']
+        if action == 'list':
+            sessions = _all_sessions()
+            if not sessions:
+                return _command_result('No chat sessions')
+            lines = [
+                f'{index}. {item["title"]} [{item["context"]}]'
+                f'{" (active)" if item["id"] == session_id else ""}'
+                for index, item in enumerate(sessions, start=1)
+            ]
+            return _command_result('\n'.join(lines), data={'sessions': sessions})
+        if action == 'delete':
+            return _command_result(
+                f'Deleting session "{session["title"]}"',
+                kind='session',
+                data={'action': 'delete', 'session_id': session_id},
+            )
+        if action == 'create':
+            title = command.arguments['title']
+            return _command_result(
+                f'Creating session{f": {title}" if title else ""}',
+                kind='session',
+                data={'action': 'create', 'title': title},
+            )
+        sessions = _all_sessions()
+        if action == 'activate_index':
+            index = command.arguments['index']
+            if index > len(sessions):
+                return _command_error(f'No session numbered {index}')
+            target = sessions[index - 1]
+        else:
+            name = command.arguments['name']
+            matches = [item for item in sessions if item['title'].casefold() == name.casefold()]
+            if not matches:
+                return _command_error(f'No session named "{name}"')
+            if len(matches) > 1:
+                return _command_error(f'Session name is ambiguous: "{name}" matches {len(matches)} sessions')
+            target = matches[0]
+        return _command_result(
+            f'Activating session "{target["title"]}"',
+            kind='session',
+            data={'action': 'activate', 'session_id': target['id']},
+        )
+    if command.name == 'import-settings':
+        if context != 'image':
+            return _command_error(f'Not yet implemented for {context} context')
+        return _command_result('Importing Control settings', kind='import-control')
     if command.name == 'help':
         sections = _help_sections()
         return _command_result(_format_help_sections(sections), sections=sections)
