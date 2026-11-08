@@ -1,4 +1,5 @@
 import os
+import time
 import ctypes
 from modules.logger import log
 
@@ -95,8 +96,9 @@ class LinuxUtils():
             libc = ctypes.CDLL("libc.so.6")
             libc.malloc_trim.argtypes = [ctypes.c_size_t]
             libc.malloc_trim.restype = ctypes.c_int
+            t0 = time.time()
             status = bool(libc.malloc_trim(0))
-            log.debug(f"Linux trim: status={status}")
+            log.debug(f"Linux trim: status={status} time={time.time() - t0:.2f}")
         except (AttributeError, OSError):
             log.debug("Linux trim: not supported")
 

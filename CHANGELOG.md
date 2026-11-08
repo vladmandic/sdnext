@@ -55,6 +55,7 @@
   - minimax: webm, mkv and ts files accepted as reference videos
   - models: *FLUX.3*, *MiniMax-H3* and modular video models fail the load when a component the workflow requires does not load
   - models: gated repo access check sends the token stored by *hf auth login*
+  - models: unloading a model returns the host memory it freed to the system on linux
   - namegen: prevent filename collisions
   - namegen: sanitize and check length per path component
   - namegen: add `opts`, `wildcards` as allowed templates
