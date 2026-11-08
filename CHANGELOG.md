@@ -1,14 +1,17 @@
 # Change Log for SD.Next
 
-## Update for 2026-11-06
+## Update for 2026-11-07
 
+- **Chat**: New top-level interface  
+  See [chat docs](https://vladmandic.github.io/sdnext-docs/Chat/) for more details  
+  - Can be used as an interactive interface for generating and editing images through conversational prompts  
+  - Can also be used for advanced scripting and automation within SD.Next  
+  - Allows for full control of SD.Next generation parameters and settings  
+  - Allows for persistent context across interactions  
 - **Models**:
   - [BluePixel-Turbo](https://huggingface.co/openvivo/BluePixel-Turbo)  
     BluePixel is retrained FLUX.2-Klein-9B with DCAE-F64 autoencoder and then distilled with four-step SATP  
     result is turbo-style 9B instruction-based image editing model with native 2K/4K outputs  
-- **Chat**:
-  New top-level interface: use chat to interact with SD.Next in a conversational manner  
-  See [chat docs](https://vladmandic.github.io/sdnext-docs/Chat/) for more details  
 - **Coding**  
   expand ai/ml instructions and skills  
   see [instructions](https://github.com/vladmandic/sdnext/blob/dev/AGENTS.md) and [skills](https://github.com/vladmandic/sdnext/blob/dev/.github/skills/README.md) for details  
@@ -72,6 +75,7 @@
   - xyz: restoring a grid image sets dropdown axes, such as sampler, model or lora, to the values the grid used
   - xyz: in the always-on grid, *Search & replace all*, *Prompt order* and *Styles* change the prompt of each cell, and lora tags no longer pile up across cells
   - xyz: *Search & replace* replaces one value per cell, the first value or, when it is absent, the longest one found, so `woman,man` no longer renders `wowoman` and `0.8,1,1.2` no longer renders `1.2.2`
+  - qwen-image-2.1: use correct shared te
 
 ## Update for 2026-10-29
 
