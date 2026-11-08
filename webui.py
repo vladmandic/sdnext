@@ -521,7 +521,6 @@ def webui(restart=False, _exit=False, profiler=None):
         for k, v in modules.script_callbacks.callback_map.items():
             log.debug(f'Registered callbacks: {k}={len(v)} {[c.script for c in v]}')
     debug = log.trace if os.environ.get('SD_SCRIPT_DEBUG', None) is not None else lambda *args, **kwargs: None
-    debug('Trace: SCRIPTS')
     for m in modules.scripts_manager.scripts_data:
         debug(f'  {m}')
     debug('Loaded postprocessing scripts:')

@@ -4,7 +4,7 @@ description: "Read SD.Next GitHub issues with the literal string [Issue] in the 
 argument-hint: "Optionally specify state (open/closed/all), max issues, and whether to include labels/assignees"
 ---
 
-# Summarize SD.Next [Issues] GitHub Issues
+# Summarize SD.Next `[Issues]` GitHub Issues
 
 Fetch issues from the SD.Next GitHub repository that contain the literal string `[Issue]` in the title, then produce a concise markdown report with one entry per issue.
 

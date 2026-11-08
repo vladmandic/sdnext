@@ -14,6 +14,10 @@ def restore_comma(val: str):
     return val.replace(r"\,", ",")
 
 
+def split_values(vals: str) -> list[str]:
+    return [restore_comma(x.strip()) for x in re_plain_comma.split(vals) if x.strip()]
+
+
 def apply_field(field):
     def fun(p, x, xs):
         log.debug(f'XYZ grid apply field: {field}={x}')
@@ -146,35 +150,43 @@ def apply_seed(p, x, xs):
     log.debug(f'XYZ grid apply seed: {x}')
 
 
-def apply_prompt(positive, negative, p, x, xs):
-    for s in xs:
-        log.debug(f'XYZ grid apply prompt: fields={positive}/{negative} "{s}"="{x}"')
-        orig_positive = getattr(p, positive)
-        orig_negative = getattr(p, negative)
-        if s in orig_positive:
-            setattr(p, positive, orig_positive.replace(s, x))
-        if s in orig_negative:
-            setattr(p, negative, orig_negative.replace(s, x))
+def apply_prompt(p, x, xs, fields):
+    texts = [text for text in (getattr(p, field, None) for field in fields) if isinstance(text, str)]
+    found = [s for s in xs if any(s in text for text in texts)]
+    if len(found) == 0:
+        return
+    anchor = xs[0] if xs[0] in found else max(found, key=len) # one anchor per cell: no value matches inside another value or its replacement
+    log.debug(f'XYZ grid apply prompt: fields={fields} "{anchor}"="{x}"')
+    for field in fields:
+        text = getattr(p, field, None)
+        if isinstance(text, str):
+            setattr(p, field, text.replace(anchor, x))
 
 
 def apply_prompt_primary(p, x, xs):
-    apply_prompt('prompt', 'negative_prompt', p, x, xs)
+    apply_prompt(p, x, xs, ('prompt', 'negative_prompt'))
     p.all_prompts = None
     p.all_negative_prompts = None
 
 
 def apply_prompt_refine(p, x, xs):
-    apply_prompt('refiner_prompt', 'refiner_negative', p, x, xs)
+    apply_prompt(p, x, xs, ('refiner_prompt', 'refiner_negative'))
 
 
 def apply_prompt_detailer(p, x, xs):
-    apply_prompt('detailer_prompt', 'detailer_negative', p, x, xs)
+    apply_prompt(p, x, xs, ('detailer_prompt', 'detailer_negative'))
 
 
 def apply_prompt_all(p, x, xs):
-    apply_prompt('prompt', 'negative_prompt', p, x, xs)
-    apply_prompt('refiner_prompt', 'refiner_negative', p, x, xs)
-    apply_prompt('detailer_prompt', 'detailer_negative', p, x, xs)
+    apply_prompt(p, x, xs, ('prompt', 'negative_prompt', 'refiner_prompt', 'refiner_negative', 'detailer_prompt', 'detailer_negative'))
+
+
+def confirm_prompt(*fields):
+    def fun(p, xs):
+        texts = [getattr(p, field, None) for field in fields]
+        if not any(s in text for text in texts if isinstance(text, str) for s in xs):
+            log.warning(f'XYZ grid: search values={xs} not found fields={list(fields)}')
+    return fun
 
 
 def apply_order(p, x, xs):

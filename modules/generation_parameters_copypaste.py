@@ -14,7 +14,6 @@ paste_fields: dict[str, dict] = {}
 field_names = {}
 registered_param_bindings: list[ParamBinding] = []
 debug = log.trace if os.environ.get('SD_PASTE_DEBUG', None) is not None else lambda *args, **kwargs: None
-debug('Trace: PASTE')
 parse_generation_parameters = parse # compatibility
 infotext_to_setting_name_mapping = mapping # compatibility
 

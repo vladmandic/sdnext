@@ -107,6 +107,154 @@ class TestChatArtifactService(unittest.TestCase):
         self.assertNotIn('"parameters"', rendered)
 
 
+class TestChatControlParameterImports(unittest.TestCase):
+    temp_dir: tempfile.TemporaryDirectory
+    db_path: str
+
+    def setUp(self):
+        self.temp_dir = self.enterContext(tempfile.TemporaryDirectory())
+        self.db_path = os.path.join(self.temp_dir, 'chat.db')
+
+    def _create_session(self, context='image'):
+        with patch.object(db, '_db_path', return_value=self.db_path):
+            return chat_api.create_session(chat_api.ReqSessionCreate(context=context))
+
+    def test_import_persists_only_non_default_values_and_preserves_other_drafts(self):
+        session = self._create_session()
+        with patch.object(db, '_db_path', return_value=self.db_path):
+            db.update_session(session['id'], drafts={
+                'image': {'cfg_scale': 2.0},
+                'video': {'steps': 8},
+            })
+            result = chat_api.import_control_settings(
+                session['id'],
+                {'prompt': 'imported prompt', 'steps': 4, 'cfg_scale': 6.0, 'sampler_name': 'Euler'},
+                {'prompt': '', 'steps': 20, 'cfg_scale': 6.0, 'sampler_name': 'Default'},
+            )
+
+        self.assertEqual(result['imported'], ['prompt', 'sampler_name', 'steps'])
+        self.assertEqual(result['session']['drafts']['image'], {
+            'cfg_scale': 2.0,
+            'prompt': 'imported prompt',
+            'steps': 4,
+            'sampler_name': 'Euler',
+        })
+        self.assertEqual(result['session']['drafts']['video'], {'steps': 8})
+        self.assertEqual(result['session']['active_settings_revision_id'], result['revision_id'])
+        revision = db.get_settings_revision(session['id'], result['revision_id'], db_path=self.db_path)
+        self.assertEqual(revision['snapshot']['schema_version'], 1)
+        self.assertEqual(revision['snapshot']['context'], 'image')
+        self.assertEqual(revision['snapshot']['source'], 'control-ui')
+        self.assertEqual(revision['snapshot']['parameters'], {
+            'prompt': 'imported prompt', 'steps': 4, 'sampler_name': 'Euler',
+        })
+        self.assertEqual(revision['snapshot']['extras'], {})
+
+    def test_import_revisions_preserve_chat_edits_and_restore_sparse_defaults(self):
+        session = self._create_session()
+        with patch.object(db, '_db_path', return_value=self.db_path):
+            first = chat_api.import_control_settings(session['id'], {'steps': 30}, {'steps': 20}, extras={})
+            db.update_session(session['id'], drafts={'image': {'steps': 24, 'prompt': 'keep prompt'}})
+            self.assertEqual(commands.execute_command(session['id'], 'get steps')['text'], 'steps=24')
+            second = chat_api.import_control_settings(session['id'], {'steps': 20}, {'steps': 20}, extras={})
+
+            self.assertEqual(second['session']['drafts']['image'], {'prompt': 'keep prompt'})
+            self.assertEqual(db.get_settings_revision(session['id'], second['revision_id'])['snapshot']['parameters'], {})
+
+            restored_first = chat_api.restore_control_settings_revision(session['id'], first['revision_id'])
+            self.assertEqual(restored_first['session']['drafts']['image'], {'steps': 30, 'prompt': 'keep prompt'})
+            restored_second = chat_api.restore_control_settings_revision(session['id'], second['revision_id'])
+
+        self.assertEqual(restored_second['session']['active_settings_revision_id'], second['revision_id'])
+        self.assertEqual(restored_second['session']['drafts']['image'], {'prompt': 'keep prompt'})
+
+    def test_import_persists_sparse_extras_and_clears_previous_snapshot_when_defaulted(self):
+        session = self._create_session()
+        script_info = SimpleNamespace(
+            name='example-extra',
+            is_alwayson=True,
+            args=[SimpleNamespace(label='Mode', value='fast', choices=['fast', 'quality'])],
+        )
+        runner = SimpleNamespace(alwayson_scripts=[SimpleNamespace(api_info=script_info)])
+        extras = {
+            'example-extra': {
+                'argument_schema': [
+                    {'index': 0, 'label': 'Mode', 'default': 'fast', 'choices': ['fast', 'quality']},
+                ],
+                'arguments': [{'index': 0, 'label': 'Mode', 'value': 'quality'}],
+            },
+        }
+
+        with patch.object(__import__('modules.scripts_manager', fromlist=['scripts_control']), 'scripts_control', runner), \
+            patch.object(db, '_db_path', return_value=self.db_path):
+            result = chat_api.import_control_settings(session['id'], {'steps': 4}, {'steps': 20}, extras=extras)
+            self.assertEqual(result['extras'], ['example-extra'])
+            self.assertEqual(result['session']['drafts']['image']['control_extras'], extras)
+            db.update_session(session['id'], drafts={'image': {'control_extras': extras}})
+            cleared = chat_api.import_control_settings(session['id'], {}, {}, extras={})
+
+        self.assertNotIn('control_extras', cleared['session']['drafts']['image'])
+        self.assertEqual(cleared['extras'], [])
+
+    def test_import_rejects_changed_extra_schema_without_partial_update(self):
+        session = self._create_session()
+        script_info = SimpleNamespace(
+            name='example-extra',
+            is_alwayson=True,
+            args=[SimpleNamespace(label='Mode', value='fast', choices=['fast', 'quality'])],
+        )
+        runner = SimpleNamespace(alwayson_scripts=[SimpleNamespace(api_info=script_info)])
+        stale_extras = {
+            'example-extra': {
+                'argument_schema': [
+                    {'index': 0, 'label': 'Mode', 'default': 'slow', 'choices': ['slow', 'quality']},
+                ],
+                'arguments': [{'index': 0, 'label': 'Mode', 'value': 'quality'}],
+            },
+        }
+
+        with patch.object(__import__('modules.scripts_manager', fromlist=['scripts_control']), 'scripts_control', runner), \
+            patch.object(db, '_db_path', return_value=self.db_path):
+            with self.assertRaisesRegex(chat_api.HTTPException, 'schema changed'):
+                chat_api.import_control_settings(session['id'], {'steps': 4}, {'steps': 20}, extras=stale_extras)
+            unchanged = db.get_session(session['id'])
+
+        self.assertEqual(unchanged['drafts'], {})
+        self.assertEqual(db.list_settings_revisions(session['id'], db_path=self.db_path), [])
+
+    def test_import_requires_image_context(self):
+        session = self._create_session(context='video')
+        with patch.object(db, '_db_path', return_value=self.db_path):
+            with self.assertRaisesRegex(chat_api.HTTPException, 'Not yet implemented for video context'):
+                chat_api.import_control_settings(session['id'], {'steps': 4}, {'steps': 20})
+
+    def test_session_and_import_commands_validate_new_response_kinds(self):
+        session = self._create_session()
+        with patch.object(db, '_db_path', return_value=self.db_path):
+            session_result = chat_api.post_message(
+                session['id'], chat_api.ReqChatMessage(content='session create "API test"'),
+            )
+            import_result = chat_api.post_message(
+                session['id'], chat_api.ReqChatMessage(content='import'),
+            )
+
+        self.assertEqual(session_result.result.kind, 'session')
+        self.assertEqual(session_result.result.data, {'action': 'create', 'title': 'API test'})
+        self.assertEqual(import_result.result.kind, 'import-control')
+
+    def test_save_chat_settings_revision_snapshots_sparse_image_draft(self):
+        session = self._create_session()
+        with patch.object(db, '_db_path', return_value=self.db_path):
+            db.update_session(session['id'], drafts={'image': {'steps': 31, 'prompt': 'draft prompt', 'unrelated': True}})
+            result = chat_api.save_chat_settings_revision(session['id'])
+            revision = db.get_settings_revision(session['id'], result['revision']['id'])
+
+        self.assertEqual(result['session']['active_settings_revision_id'], result['revision']['id'])
+        self.assertEqual(result['session']['drafts']['image'], {'steps': 31, 'prompt': 'draft prompt', 'unrelated': True})
+        self.assertEqual(revision['snapshot']['source'], 'chat-draft')
+        self.assertEqual(revision['snapshot']['parameters'], {'steps': 31, 'prompt': 'draft prompt'})
+
+
 class TestChatFileImports(unittest.TestCase):
     temp_dir: tempfile.TemporaryDirectory
     db_path: str
@@ -657,6 +805,73 @@ class TestChatApiRegistration(unittest.TestCase):
                     chat_api.get_session(session['id'])
                 self.assertEqual(getattr(context.exception, 'status_code', None), 404)
 
+    def test_multiline_submission_executes_commands_and_keeps_prompt_newlines(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = os.path.join(temp_dir, 'chat.db')
+            with patch.object(db, '_db_path', return_value=db_path):
+                session = chat_api.create_session(chat_api.ReqSessionCreate())
+                batch = chat_api.post_message(
+                    session['id'],
+                    chat_api.ReqChatMessage(content='set steps 8\nset cfg_scale 1'),
+                )
+                prompt = chat_api.post_message(
+                    session['id'],
+                    chat_api.ReqChatMessage(content='prompt this is\nmultiline prompt'),
+                )
+                detail = chat_api.get_session(session['id'])
+
+        self.assertEqual(batch.result.text, 'steps set to 8\ncfg_scale set to 1.0')
+        self.assertEqual(prompt.result.text, 'prompt set to this is\nmultiline prompt')
+        self.assertEqual(detail.session.drafts['image']['steps'], 8)
+        self.assertEqual(detail.session.drafts['image']['cfg_scale'], 1)
+        self.assertEqual(detail.session.drafts['image']['prompt'], 'this is\nmultiline prompt')
+        self.assertEqual(len(detail.messages), 4)
+
+    def test_help_list_and_args_are_not_persisted_to_session_history(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = os.path.join(temp_dir, 'chat.db')
+            with patch.object(db, '_db_path', return_value=db_path):
+                session = chat_api.create_session(chat_api.ReqSessionCreate())
+                submissions = [
+                    chat_api.post_message(session['id'], chat_api.ReqChatMessage(content=command))
+                    for command in ('help', 'list', 'args', 'snapshot', 'snap')
+                ]
+                detail = chat_api.get_session(session['id'])
+
+        self.assertEqual([item.user_message.content for item in submissions], ['help', 'list', 'args', 'snapshot', 'snap'])
+        self.assertEqual([item.assistant_message.content for item in submissions][0], submissions[0].result.text)
+        self.assertEqual(detail.messages, [])
+        self.assertEqual(detail.session.title, 'New chat')
+
+    def test_snapshot_restore_is_persisted_as_a_chat_exchange(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = os.path.join(temp_dir, 'chat.db')
+            with patch.object(db, '_db_path', return_value=db_path):
+                session = chat_api.create_session(chat_api.ReqSessionCreate())
+                revision = db.create_settings_revision(
+                    session['id'],
+                    {
+                        'schema_version': 1,
+                        'context': 'image',
+                        'source': 'control-ui',
+                        'captured_at': '2026-11-07T09:00:00+00:00',
+                        'parameters': {'steps': 30},
+                        'extras': {},
+                    },
+                    {'image': {'steps': 30}},
+                )
+                submission = chat_api.post_message(
+                    session['id'],
+                    chat_api.ReqChatMessage(content=f'snap {revision["revision"]["id"]}'),
+                )
+                detail = chat_api.get_session(session['id'])
+                saved_session = db.get_session(session['id'])
+
+        self.assertEqual(submission.assistant_message.content, f'Restored image settings snapshot #{revision["revision"]["id"]}')
+        self.assertEqual(len(detail.messages), 2)
+        self.assertEqual(detail.session.drafts['image']['steps'], 30)
+        self.assertEqual(saved_session['active_settings_revision_id'], revision['revision']['id'])
+
     def test_title_command_reads_default_name_and_updates_session(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             db_path = os.path.join(temp_dir, 'chat.db')
@@ -720,10 +935,37 @@ class TestChatApiRegistration(unittest.TestCase):
             self.assertIn(label, replies['list scripts'])
 
     def test_image_generation_uses_control_api_and_persists_no_image_bytes(self):
+        script_info = SimpleNamespace(
+            name='nudenet',
+            is_alwayson=True,
+            args=[SimpleNamespace(label='Enabled', value=False, choices=None)],
+        )
+        script_runner = SimpleNamespace(alwayson_scripts=[SimpleNamespace(api_info=script_info)])
+        extras = {
+            'nudenet': {
+                'argument_schema': [
+                    {'index': 0, 'label': 'Enabled', 'default': False, 'choices': None},
+                ],
+                'arguments': [{'index': 0, 'label': 'Enabled', 'value': True}],
+            },
+        }
         with tempfile.TemporaryDirectory() as temp_dir:
             db_path = os.path.join(temp_dir, 'chat.db')
-            with patch.object(db, '_db_path', return_value=db_path):
+            with patch.object(db, '_db_path', return_value=db_path), \
+                    patch('modules.scripts_manager.scripts_control', script_runner):
                 session = chat_api.create_session(chat_api.ReqSessionCreate())
+                revision = db.create_settings_revision(
+                    session['id'],
+                    {
+                        'schema_version': 1,
+                        'context': 'image',
+                        'source': 'control-ui',
+                        'captured_at': '2026-11-07T09:00:00+00:00',
+                        'parameters': {'steps': 4},
+                        'extras': extras,
+                    },
+                    {'image': {'steps': 4, 'control_extras': extras}},
+                )
                 chat_api.post_message(session['id'], chat_api.ReqChatMessage(content='prompt a landscape'))
                 response = SimpleNamespace(
                     images=['base64-image'],
@@ -760,6 +1002,12 @@ class TestChatApiRegistration(unittest.TestCase):
         self.assertEqual(submission.assistant_message.metadata['format'], 'html')
         self.assertEqual(operations[0]['status'], 'completed')
         self.assertEqual(operations[0]['result']['image_count'], 1)
+        operations_by_command = {operation['command']: operation for operation in operations}
+        self.assertEqual(operations_by_command['generate']['snapshot']['settings_revision_id'], revision['revision']['id'])
+        self.assertEqual(operations_by_command['again']['snapshot']['settings_revision_id'], revision['revision']['id'])
+        self.assertEqual(operations_by_command['generate']['snapshot']['alwayson_scripts'], {'nudenet': {'args': [True]}})
+        self.assertEqual(operations_by_command['generate']['snapshot']['prompt'], 'a landscape')
+        self.assertEqual(operations_by_command['again']['snapshot']['prompt'], 'another landscape')
         self.assertNotIn('images', operations[0]['result'])
         self.assertNotIn('base64-image', str(messages))
         self.assertEqual(control_api.post_control.call_args.args[0].prompt, 'another landscape')

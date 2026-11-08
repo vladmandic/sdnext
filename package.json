@@ -29,7 +29,7 @@
     "debug": "grep -ohIPR 'SD_.*?_DEBUG' *.py modules/ pipelines/ | sort -u",
     "eslint:modernui": "cd extensions-builtin/sdnext-modernui && eslint",
     "eslint:kanvas": "cd extensions-builtin/sdnext-kanvas && eslint",
-    "eslint:core": "eslint",
+    "eslint:core": "eslint && eslint --config eslint.config-code-blocks.mjs \"**/*.md\"",
     "eslint": "npm run eslint:core && npm run eslint:modernui && npm run eslint:kanvas",
     "tsc:modernui": "cd extensions-builtin/sdnext-modernui && tsc --noEmit",
     "tsc:kanvas": "cd extensions-builtin/sdnext-kanvas && tsc --noEmit",

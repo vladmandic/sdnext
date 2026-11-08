@@ -14,7 +14,6 @@ from modules.api import helpers
 
 debug = log.trace if os.environ.get('SD_PROCESS_DEBUG', None) is not None else lambda *args, **kwargs: None
 debug_steps = log.trace if os.environ.get('SD_STEPS_DEBUG', None) is not None else lambda *args, **kwargs: None
-debug_steps('Trace: STEPS')
 
 
 def is_modular(pipe = None):

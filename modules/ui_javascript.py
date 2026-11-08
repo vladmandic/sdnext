@@ -29,19 +29,21 @@ def html_head():
         else:
             head += f'<script type="text/javascript" src="{webpath(script_js)}"></script>\n'
     added = []
-    for script in scripts_manager.list_scripts('javascript', ".js"):
+    scripts = []
+    scripts += scripts_manager.list_scripts('javascript', ".js")
+    scripts += scripts_manager.list_scripts('javascript', ".mjs")
+    scripts += scripts_manager.list_scripts('dist', ".mjs")
+    for script in scripts:
         if script.filename in main or script.filename in skip:
             continue
-        if '.esm' in script.filename or '.mjs' in script.filename:
+        if ('.esm' in script.filename) or ('.mjs' in script.filename):
             head += f'<script type="module" src="{webpath(script.path)}"></script>\n'
         else:
             head += f'<script type="text/javascript" defer src="{webpath(script.path)}"></script>\n'
         added.append(script.path)
-    for script in scripts_manager.list_scripts('javascript', ".mjs"):
-        head += f'<script type="module" src="{webpath(script.path)}"></script>\n'
-        added.append(script.path)
     added = [a.replace(script_path, '').replace('\\', '/') for a in added]
-    # log.debug(f'Adding JS scripts: {added}')
+    added = [a.replace('extensions-builtin/', '') for a in added]
+    log.debug(f'UI scripts: {added}')
     return head
 
 
@@ -74,6 +76,10 @@ def html_css(css: list[str]):
         if os.path.isfile(f):
             head += stylesheet(f)
     for cssfile in scripts_manager.list_files_with_name("style.css"):
+        if not os.path.isfile(cssfile):
+            continue
+        head += stylesheet(cssfile)
+    for cssfile in scripts_manager.list_files_with_name("dist/style.css"):
         if not os.path.isfile(cssfile):
             continue
         head += stylesheet(cssfile)

@@ -207,6 +207,17 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
         elif callable(getattr(pipe, 'unpack_latents', None)) and latents.ndim == 4: # the pipeline maps its own latents into the vae latent space
             preview_latent = pipe.unpack_latents(latents)
             preview_noise_pred = pipe.unpack_latents(current_noise_pred, offset=False) if current_noise_pred is not None else None
+        elif latents.ndim == 3 and hasattr(pipe, 'vae_spatial_compression_ratio') and hasattr(pipe, '_unpack_latents'): # LTX: [B, frames*h*w, C] video tokens, keyframe tokens appended after them
+            width, height = processing_helpers.pass_size(p)
+            patch, patch_t = getattr(pipe, 'transformer_spatial_patch_size', 1), getattr(pipe, 'transformer_temporal_patch_size', 1)
+            grid_h, grid_w = height // pipe.vae_spatial_compression_ratio // patch, width // pipe.vae_spatial_compression_ratio // patch
+            frames = latents.shape[1] // max(grid_h * grid_w, 1)
+            preview_latent, preview_noise_pred = None, None
+            if frames > 0:
+                tokens = frames * grid_h * grid_w
+                preview_latent = pipe._unpack_latents(latents[:, :tokens], frames, grid_h, grid_w, patch, patch_t) # pylint: disable=protected-access
+                if current_noise_pred is not None and current_noise_pred.shape == latents.shape:
+                    preview_noise_pred = pipe._unpack_latents(current_noise_pred[:, :tokens], frames, grid_h, grid_w, patch, patch_t) # pylint: disable=protected-access
         elif 'Ideogram4' in pipe.__class__.__name__:  # packed normalized [B, seq, 128] -> Flux.2 latent space for TAE FLUX.2
             if latents.ndim == 3:
                 b, seq_len, packed_ch = latents.shape

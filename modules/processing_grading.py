@@ -15,7 +15,6 @@ from modules.logger import log
 
 debug_enabled = os.environ.get('SD_GRADING_DEBUG', None) is not None
 debug = log.trace if debug_enabled else lambda *args, **kwargs: None
-debug('Trace: grading')
 _kornia = None
 _pillow_lut = None
 

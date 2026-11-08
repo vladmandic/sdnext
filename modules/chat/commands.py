@@ -3,6 +3,7 @@
 import inspect
 import re
 import json
+import ast
 import shlex
 from dataclasses import dataclass
 from types import UnionType
@@ -85,6 +86,7 @@ _SETTING_NAMES = {
 }
 _COMMAND_ALIASES = {
     'args': 'params',
+    'snap': 'snapshot',
     'start': 'generate',
     'abort': 'cancel', 'stop': 'cancel', 'interrupt': 'cancel',
     'reprocess': 'again',
@@ -102,7 +104,7 @@ _PARAMETER_ALIASES = {
 _OPERATION_COMMANDS = {
     'again', 'caption', 'generate', 'run', 'schedule', 'cancel', 'pause', 'resume', 'skip', 'history', 'reset', 'last',
 }
-_BUILTIN_COMMANDS = {'context', 'set', 'get', 'list', 'params', 'help', 'model', 'opts', 'db'}
+_BUILTIN_COMMANDS = {'context', 'clear', 'set', 'get', 'list', 'params', 'help', 'model', 'opts', 'db', 'snapshot', 'session', 'import'}
 
 
 def _command_result(text: str, kind='text', data=None, sections=None):
@@ -117,6 +119,14 @@ def _command_error(text: str):
 
 
 def _split_assignment(text: str) -> tuple[str, str]:
+    extra_assignment = re.match(r'^(\S+:\S+?)(?:\s*=\s*|\s+)(.*)$', text, flags=re.DOTALL)
+    if extra_assignment:
+        name, raw_value = extra_assignment.groups()
+        if raw_value.lower() == 'to':
+            raw_value = ''
+        elif raw_value.lower().startswith('to '):
+            raw_value = raw_value[3:]
+        return name.strip(), _normalize_value(raw_value.strip())
     assignment = re.match(r'^(\S+?)\s*[=:]\s*(.*)$', text, flags=re.DOTALL)
     if assignment:
         name, raw_value = assignment.groups()
@@ -159,7 +169,20 @@ def _parse_value(raw_value: str, annotation: Any, example: Any = None):
                 break
 
     if list_type is not None:
-        values = [item.strip() for item in raw_value.split(',') if item.strip()]
+        try:
+            values = json.loads(raw_value)
+        except json.JSONDecodeError:
+            try:
+                values = ast.literal_eval(raw_value)
+            except (SyntaxError, ValueError):
+                values = None
+        if isinstance(values, tuple):
+            values = list(values)
+        if not isinstance(values, list):
+            list_text = raw_value.strip()
+            if list_text.startswith('[') and list_text.endswith(']'):
+                list_text = list_text[1:-1]
+            values = [item.strip() for item in list_text.split(',') if item.strip()]
         item_adapter = TypeAdapter(list_type)
         return [item_adapter.validate_python(item) for item in values]
     if annotation is Any or annotation is None:
@@ -239,6 +262,30 @@ def parse_command(text: str) -> ParsedCommand:
         return ParsedCommand('endpoint', {'alias': command, 'endpoints': descriptors})
 
     command = _COMMAND_ALIASES.get(command, command)
+    if command == 'session':
+        value = raw_arguments.strip()
+        action = value.casefold()
+        if not value or action == 'list':
+            return ParsedCommand(command, {'action': 'list'})
+        if action in {'del', 'rm'}:
+            return ParsedCommand(command, {'action': 'delete'})
+        if action.startswith(('del ', 'rm ', 'list ')):
+            raise CommandError('Use: session [list|<number>|<name>|del|rm|create [name]|add [name]]')
+        if action == 'create' or action == 'add' or action.startswith(('create ', 'add ')):
+            title = value.split(maxsplit=1)[1] if len(value.split(maxsplit=1)) > 1 else ''
+            title = _normalize_value(title.strip()) or None
+            return ParsedCommand(command, {'action': 'create', 'title': title})
+        name = _normalize_value(value)
+        if name.isdecimal():
+            index = int(name)
+            if index < 1:
+                raise CommandError('Session number must be positive')
+            return ParsedCommand(command, {'action': 'activate_index', 'index': index})
+        return ParsedCommand(command, {'action': 'activate_name', 'name': name})
+    if command == 'import':
+        if raw_arguments.strip():
+            raise CommandError('Use: import')
+        return ParsedCommand('import-settings', {})
     if command in {'use', 'file'}:
         try:
             paths = shlex.split(raw_arguments)
@@ -266,6 +313,15 @@ def parse_command(text: str) -> ParsedCommand:
         if raw_arguments.strip():
             raise CommandError('db does not accept arguments')
         return ParsedCommand(command, {})
+    if command == 'snapshot':
+        value = raw_arguments.strip()
+        if not value:
+            return ParsedCommand(command, {'action': 'list', 'revision_id': None})
+        if value.casefold() == 'save':
+            return ParsedCommand(command, {'action': 'save', 'revision_id': None})
+        if not value.isdecimal() or int(value) < 1:
+            raise CommandError('Use: snapshot, snapshot save, or snapshot <positive snapshot ID>')
+        return ParsedCommand(command, {'action': 'restore', 'revision_id': int(value)})
     if command == 'context':
         parts = raw_arguments.split()
         if len(parts) > 1 or (parts and parts[0].lower() not in db.CONTEXTS):
@@ -278,6 +334,12 @@ def parse_command(text: str) -> ParsedCommand:
         if not value.strip():
             raise CommandError('A session name is required')
         return ParsedCommand(command, {'value': value})
+    if command == 'clear':
+        parts = raw_arguments.split()
+        if len(parts) != 1:
+            raise CommandError('Use: clear <parameter>')
+        name = parts[0].lower()
+        return ParsedCommand(command, {'name': _PARAMETER_ALIASES.get(name, name)})
     if command in {'prompt', 'negative'}:
         value = _normalize_value(raw_arguments.strip())
         if not value:
@@ -351,6 +413,33 @@ def parse_command(text: str) -> ParsedCommand:
     raise CommandError(f'Unknown command: {command}')
 
 
+def split_commands(text: str) -> list[str]:
+    try:
+        parsed = parse_command(text)
+    except CommandError:
+        parsed = None
+    if parsed is not None and parsed.name == 'set' and parsed.arguments.get('name') in {'prompt', 'negative_prompt'}:
+        return [text.strip()]
+    return [line.strip() for line in text.splitlines() if line.strip()]
+
+
+def is_transient_command(text: str) -> bool:
+    stripped = text.strip()
+    if stripped.startswith('/') and not stripped.startswith('//'):
+        stripped = stripped[1:].lstrip()
+    match = re.match(r'^(\S+)', stripped)
+    if match is None:
+        return False
+    command = _COMMAND_ALIASES.get(match.group(1).casefold(), match.group(1).casefold())
+    if command == 'snapshot':
+        try:
+            parsed = parse_command(stripped)
+        except CommandError:
+            return False
+        return parsed.arguments['action'] == 'list'
+    return command in {'help', 'list', 'params', 'session'}
+
+
 def _parameter_spec(context: str, name: str):
     if name in _SETTING_NAMES:
         return 'setting', _SETTING_NAMES[name]
@@ -360,6 +449,10 @@ def _parameter_spec(context: str, name: str):
         return 'parameter', (_IMAGE_MODEL, name)
     if context == 'video' and name in _VIDEO_PARAMETERS and name in _VIDEO_MODEL_FIELDS.keys():
         return 'parameter', (ReqVideo, name)
+    if context == 'image' and ':' in name:
+        extra = _control_extra_field(name)
+        if extra is not None:
+            return 'extra', extra
     raise CommandError(f'Unsupported parameter for {context}: {name}')
 
 
@@ -400,7 +493,10 @@ def get_parameter_choices(context: str, name: str) -> list[str]:
             raise CommandError(f'Unsupported parameter: {name}') from None
         name = canonical
     else:
-        name = spec if kind == 'setting' else name
+        if kind == 'setting':
+            name = spec
+        elif kind == 'extra':
+            return [str(choice) for choice in (spec[1].get('choices') or [])]
     return [str(choice) for choice in _choice_values(name)]
 
 
@@ -528,6 +624,14 @@ def _format_session(session: dict[str, Any]) -> str:
             for name, value in sorted(draft.items())
             if name in allowed or name in _SETTING_NAMES
         )
+        if context == 'image':
+            for script_name, snapshot in (draft.get('control_extras') or {}).items():
+                schema = snapshot.get('argument_schema', [])
+                keys = _control_extra_keys(script_name, schema)
+                for argument in snapshot.get('arguments', []):
+                    index = argument.get('index')
+                    if isinstance(index, int) and 0 <= index < len(keys):
+                        values.append(f'image.{keys[index]}={argument.get("value")}')
     return '\n'.join(values)
 
 
@@ -580,10 +684,18 @@ def _help_sections() -> list[dict[str, str]]:
             'format': 'html',
         },
         {
+            'title': 'Session',
+            'content': 'Manage chat sessions\n'
+            '- session/list: List existing sessions\n'
+            '- session <number|name>: Activate a session\n'
+            '- session del/rm: Delete the current session\n'
+            '- session create/add [name]: Create and activate a session\n'
+            '- title [name]: Read or set the current session name\n'
+            '- context <value>: Select the active context\n',
+        },
+        {
             'title': 'Process',
             'content': 'Choose a context and control active work\n'
-            '- title [name]: Read or set the current session name\n'
-            '- context <value>: Select the active context\n'
             '- clear: Clear displayed messages without changing session history\n'
             '- run [count]: Run image generation 1-10 times (default: 1)\n'
             '- generate/start: Start the current process once\n'
@@ -593,6 +705,9 @@ def _help_sections() -> list[dict[str, str]]:
             '- resume: Resume a paused process\n'
             '- skip: Skip the current item\n'
             '- history [limit]: Show recent process history\n'
+            '- snapshot: List saved image settings snapshots\n'
+            '- snapshot save: Save the current image draft as a snapshot and list snapshots\n'
+            '- snapshot <id>: Restore a saved image settings snapshot\n'
             '- last/details: Show active parameters from the last processing run\n',
         },
         {
@@ -602,8 +717,11 @@ def _help_sections() -> list[dict[str, str]]:
             '- negative <value>: Set the negative prompt\n'
             '- set [key] [value]: Set a value or list session values\n'
             '- get [key]: Get a value or list session values\n'
+            '- clear <key>: Reset one parameter or setting to its default\n'
             '- params/args: List valid parameter keys for the current context\n'
-            '- reset: Restore parameter defaults\n',
+            '- import: Import current values from the UI into the active session\n'
+            '- reset: Restore parameter defaults\n'
+            '- Control Extras use script:field keys, such as dlss:nr\n',
         },
         {
             'title': 'References',
@@ -647,6 +765,11 @@ def _listable_keys(context: str) -> list[str]:
     keys = ['model', 'unet', 'vae']
     if context in {'image', 'video'}:
         keys.extend(['sampler_name', 'styles'])
+    if context == 'image':
+        try:
+            keys.extend(item['name'] for item in _control_extra_parameter_specs() if item['field']['choices'])
+        except CommandError:
+            pass
     return sorted(keys)
 
 
@@ -733,7 +856,23 @@ def _context_parameter_entries(context: str, keys: list[str], draft: dict[str, A
 
 
 def get_parameter_entries(context: str, draft: dict[str, Any] | None = None) -> list[dict[str, Any]]:
-    return _context_parameter_entries(context, _context_parameter_keys(context), draft or {})
+    draft = draft or {}
+    entries = _context_parameter_entries(context, _context_parameter_keys(context), draft)
+    if context == 'image':
+        try:
+            for item in _control_extra_parameter_specs():
+                field = item['field']
+                value = _control_extra_value(draft, item['script'], field)
+                entries.append({
+                    'name': item['name'],
+                    'type': type(field['default']).__name__ if field['default'] is not None else 'Any',
+                    'value': _format_parameter_value(value, 'set' if value != field['default'] else 'default'),
+                    'is_set': value != field['default'],
+                    'is_none': value is None,
+                })
+        except CommandError:
+            pass
+    return entries
 
 
 def _list_choices(context: str, name: str | None) -> str:
@@ -742,6 +881,11 @@ def _list_choices(context: str, name: str | None) -> str:
             f'- {key}' for key in _listable_keys(context)
         )
     kind, spec = _parameter_spec(context, name)
+    if kind == 'extra':
+        choices = spec[1].get('choices') or []
+        if not choices:
+            raise CommandError(f'No valid choices are currently available for {name}')
+        return f'{name}:\n' + '\n'.join(f'- {choice}' for choice in choices)
     choices = _choice_values(name)
     if kind == 'setting' and not choices:
         raise CommandError(f'No valid choices are currently available for {name}')
@@ -832,6 +976,46 @@ def _reset_context(session_id: str, session: dict[str, Any]) -> str:
     return 'Current context parameters reset to defaults' + (('\n' + '\n'.join(failures)) if failures else '')
 
 
+def _clear_parameter(session_id: str, session: dict[str, Any], name: str) -> str:
+    context = session['context']
+    kind, spec = _parameter_spec(context, name)
+    if kind == 'setting':
+        name = spec
+        if name == 'sd_model_checkpoint':
+            loaded_model = shared.sd_model if shared.sd_loaded else None
+            checkpoint_info = getattr(loaded_model, 'sd_checkpoint_info', None)
+            default = getattr(checkpoint_info, 'title', None) or shared.opts.get(name)
+        else:
+            default = shared.opts.get_default(name)
+        if default is None:
+            raise CommandError(f'No default value is available for {name}')
+        if not _apply_setting(name, default):
+            raise CommandError(f'Setting callback rejected the default for {name}')
+    elif kind == 'extra':
+        default = spec[1]['default']
+    else:
+        request_model, name = spec
+        if request_model is None:
+            default = ''
+        else:
+            default, state = _parameter_default(context, name)
+            if state != 'default':
+                raise CommandError(f'No default value is available for {name}')
+
+    drafts = dict(session.get('drafts') or {})
+    context_draft = dict(drafts.get(context) or {})
+    if kind == 'extra':
+        _set_control_extra_value(context_draft, spec[0], spec[1], default)
+    else:
+        context_draft.pop(name, None)
+    if context_draft:
+        drafts[context] = context_draft
+    else:
+        drafts.pop(context, None)
+    db.update_session(session_id, drafts=drafts)
+    return f'{name} cleared to default {_format_parameter_value(default, "default")}'
+
+
 _UNSUPPORTED = object()
 _OMIT = object()
 
@@ -885,6 +1069,203 @@ def _format_last_processing() -> dict[str, Any] | str:
     return parameters
 
 
+def _control_script_specs():
+    from modules import scripts_manager
+    runner = scripts_manager.scripts_control
+    if runner is None:
+        raise CommandError('Control Extras are unavailable')
+    specs = {}
+    for script in runner.alwayson_scripts:
+        info = script.api_info
+        if info is None or not info.is_alwayson or not info.name:
+            continue
+        name = info.name.casefold()
+        schema = [
+            {
+                'index': index,
+                'label': argument.label or '',
+                'default': _json_control_value(argument.value, f'{name} default'),
+                'choices': _json_control_value(argument.choices, f'{name} choices'),
+            }
+            for index, argument in enumerate(info.args)
+        ]
+        specs[name] = {'script': script, 'schema': schema}
+    return specs
+
+
+def _control_extra_keys(script_name: str, schema: list[dict[str, Any]]) -> list[str]:
+    script_key = re.sub(r'[^a-z0-9]+', '_', script_name.casefold()).strip('_') or script_name.casefold()
+    labels = [
+        re.sub(r'[^a-z0-9]+', '_', str(field['label']).casefold()).strip('_') or f'arg{field["index"]}'
+        for field in schema
+    ]
+    counts = {label: labels.count(label) for label in labels}
+    keys = []
+    for field, label in zip(schema, labels):
+        suffix = label if counts[label] == 1 else f'{label}_{field["index"]}'
+        keys.append(f'{script_key}:{suffix}')
+    return keys
+
+
+def _control_extra_parameter_specs() -> list[dict[str, Any]]:
+    parameters = []
+    for script_name, spec in sorted(_control_script_specs().items()):
+        keys = _control_extra_keys(script_name, spec['schema'])
+        parameters.extend(
+            {'name': key, 'script': script_name, 'field': field}
+            for key, field in zip(keys, spec['schema'])
+        )
+    return parameters
+
+
+def _control_extra_field(name: str):
+    for item in _control_extra_parameter_specs():
+        if item['name'] == name.casefold():
+            return item['script'], item['field']
+    return None
+
+
+def _json_control_value(value: Any, label: str):
+    try:
+        return json.loads(json.dumps(value, ensure_ascii=False))
+    except (TypeError, ValueError) as exc:
+        raise CommandError(f'Control Extras value is not serializable: {label}') from exc
+
+
+def _control_value_matches_default(value: Any, field: dict[str, Any]) -> bool:
+    default = field['default']
+    if value == default or (value is None and default == []) or (value == [] and default is None):
+        return True
+    choices = field.get('choices') or []
+    if isinstance(value, int) and not isinstance(value, bool) and 0 <= value < len(choices):
+        return choices[value] == default
+    return False
+
+
+def capture_control_extras(script_values: list[Any]) -> dict[str, dict[str, Any]]:
+    """Capture sparse always-on values from the Control script UI input vector."""
+    extras = {}
+    for name, spec in _control_script_specs().items():
+        script = spec['script']
+        schema = spec['schema']
+        values = script_values[script.args_from:script.args_to]
+        if len(values) != len(schema):
+            raise CommandError(f'Control Extras values are unavailable for {name}')
+        arguments = []
+        for field, value in zip(schema, values):
+            value = _json_control_value(value, f'{name}.{field["label"]}')
+            if not _control_value_matches_default(value, field):
+                arguments.append({'index': field['index'], 'label': field['label'], 'value': value})
+        if arguments:
+            extras[name] = {'argument_schema': schema, 'arguments': arguments}
+    return extras
+
+
+def validate_control_extras(extras: Any) -> dict[str, dict[str, Any]]:
+    if not isinstance(extras, dict):
+        raise CommandError('Control Extras must be an object')
+    if not extras:
+        return {}
+    specs = _control_script_specs()
+    normalized = {}
+    for raw_name, snapshot in extras.items():
+        name = str(raw_name).casefold()
+        spec = specs.get(name)
+        if spec is None:
+            raise CommandError(f'Control Extras script is unavailable: {raw_name}; re-import Control settings')
+        schema = spec['schema']
+        if not isinstance(snapshot, dict) or not isinstance(snapshot.get('argument_schema'), list):
+            raise CommandError(f'Invalid Control Extras schema for {raw_name}')
+        saved_schema = _json_control_value(snapshot['argument_schema'], f'{name} schema')
+        if saved_schema != schema:
+            raise CommandError(f'Control Extras schema changed for {raw_name}; re-import Control settings')
+        saved_arguments = snapshot.get('arguments')
+        if not isinstance(saved_arguments, list):
+            raise CommandError(f'Invalid Control Extras arguments for {raw_name}')
+        arguments = []
+        used_indexes = set()
+        for item in saved_arguments:
+            if not isinstance(item, dict):
+                raise CommandError(f'Invalid Control Extras argument for {raw_name}')
+            index = item.get('index')
+            if not isinstance(index, int) or isinstance(index, bool) or not 0 <= index < len(schema):
+                raise CommandError(f'Invalid Control Extras argument index for {raw_name}')
+            if index in used_indexes or item.get('label') != schema[index]['label'] or 'value' not in item:
+                raise CommandError(f'Control Extras argument order changed for {raw_name}; re-import Control settings')
+            value = _json_control_value(item['value'], f'{name}.{schema[index]["label"]}')
+            used_indexes.add(index)
+            if value != schema[index]['default']:
+                arguments.append({'index': index, 'label': schema[index]['label'], 'value': value})
+        arguments.sort(key=lambda argument: argument['index'])
+        if arguments:
+            normalized[name] = {'argument_schema': schema, 'arguments': arguments}
+    return normalized
+
+
+def _control_extra_value(draft: dict[str, Any], script_name: str, field: dict[str, Any]):
+    snapshot = validate_control_extras(draft.get('control_extras', {})).get(script_name)
+    if snapshot is None:
+        return field['default']
+    for argument in snapshot['arguments']:
+        if argument['index'] == field['index']:
+            return argument['value']
+    return field['default']
+
+
+def _set_control_extra_value(draft: dict[str, Any], script_name: str, field: dict[str, Any], value: Any):
+    extras = validate_control_extras(draft.get('control_extras', {}))
+    schema = _control_script_specs()[script_name]['schema']
+    snapshot = extras.get(script_name, {'argument_schema': schema, 'arguments': []})
+    arguments = {item['index']: item for item in snapshot['arguments']}
+    if value == field['default']:
+        arguments.pop(field['index'], None)
+    else:
+        arguments[field['index']] = {
+            'index': field['index'],
+            'label': field['label'],
+            'value': _json_control_value(value, f'{script_name}.{field["label"]}'),
+        }
+    if arguments:
+        extras[script_name] = {
+            'argument_schema': schema,
+            'arguments': [arguments[index] for index in sorted(arguments)],
+        }
+    else:
+        extras.pop(script_name, None)
+    if extras:
+        draft['control_extras'] = validate_control_extras(extras)
+    else:
+        draft.pop('control_extras', None)
+
+
+def _validate_control_extra_value(name: str, field: dict[str, Any], raw_value: str):
+    default = field['default']
+    annotation = type(default) if default is not None else Any
+    try:
+        value = _parse_value(raw_value, annotation, default)
+    except (ValidationError, ValueError) as exc:
+        message = exc.errors()[0]['msg'] if isinstance(exc, ValidationError) else str(exc)
+        raise CommandError(f'Invalid value for {name}: {message}') from exc
+    choices = field.get('choices') or []
+    if choices:
+        value = _resolve_choice_fragment(name, value, choices)
+        values = value if isinstance(value, list) else [value]
+        if any(item not in choices for item in values):
+            raise CommandError(f'Invalid value for {name}\nUse list {name} to see valid choices')
+    return _json_control_value(value, name)
+
+
+def control_extras_to_api(extras: Any) -> dict[str, dict[str, list[Any]]]:
+    normalized = validate_control_extras(extras)
+    payload = {}
+    for name, snapshot in normalized.items():
+        arguments = [entry['default'] for entry in snapshot['argument_schema']]
+        for override in snapshot['arguments']:
+            arguments[override['index']] = override['value']
+        payload[name] = {'args': arguments}
+    return payload
+
+
 def _generation_endpoint(
     session: dict[str, Any],
     snapshot: dict[str, Any] | None = None,
@@ -896,6 +1277,9 @@ def _generation_endpoint(
     source = snapshot if snapshot is not None else draft
     if context == 'image':
         payload = {name: value for name, value in source.items() if name in _IMAGE_PARAMETERS}
+        imported_extras = control_extras_to_api(source.get('control_extras', {}))
+        if imported_extras:
+            payload['alwayson_scripts'] = {**(payload.get('alwayson_scripts') or {}), **imported_extras}
         if prompt is not None:
             payload['prompt'] = prompt
         inputs = image if isinstance(image, list) else [image] if image else []
@@ -959,6 +1343,42 @@ def _format_history(session_id: str, limit: int) -> str:
     return '\n'.join(lines)
 
 
+def _all_sessions() -> list[dict[str, Any]]:
+    sessions = []
+    offset = 0
+    while True:
+        batch = db.list_sessions(limit=100, offset=offset)
+        sessions.extend(batch)
+        if len(batch) < 100:
+            return sessions
+        offset += len(batch)
+
+
+def _format_settings_snapshots(session: dict[str, Any]) -> str:
+    revisions = db.list_settings_revisions(session['id'])
+    if not revisions:
+        return 'No image settings snapshots have been saved'
+    lines = []
+    active_revision_id = session.get('active_settings_revision_id')
+    for revision in revisions:
+        snapshot = revision.get('snapshot') or {}
+        parameters = snapshot.get('parameters') or {}
+        extras = snapshot.get('extras') or {}
+        details = []
+        for name, value in sorted(parameters.items())[:3]:
+            text = json.dumps(value, ensure_ascii=False, separators=(',', ':'))
+            details.append(f'{name}={text[:40] + "..." if len(text) > 40 else text}')
+        if len(parameters) > 3:
+            details.append(f'+{len(parameters) - 3} parameters')
+        if extras:
+            details.append(f'Extras: {", ".join(sorted(extras))}')
+        summary = '; '.join(details) if details else 'no non-default settings'
+        timestamp = snapshot.get('captured_at') or revision.get('created_at', '')
+        active = ' [active]' if revision['id'] == active_revision_id else ''
+        lines.append(f'#{revision["id"]}{active} {timestamp}: {summary}')
+    return '\n'.join(lines)
+
+
 def _execute_command(session_id: str, text: str, image: str | list[str] | None = None) -> dict[str, Any]:
     """Execute deterministic commands; endpoint aliases return validated descriptors only."""
     try:
@@ -984,6 +1404,54 @@ def _execute_command(session_id: str, text: str, image: str | list[str] | None =
         return _command_error('Chat session not found')
     context = session['context']
 
+    if command.name == 'session':
+        action = command.arguments['action']
+        if action == 'list':
+            sessions = _all_sessions()
+            if not sessions:
+                return _command_result('No chat sessions')
+            lines = [
+                f'{index}. {item["title"]} [{item["context"]}]'
+                f'{" (active)" if item["id"] == session_id else ""}'
+                for index, item in enumerate(sessions, start=1)
+            ]
+            return _command_result('\n'.join(lines), data={'sessions': sessions})
+        if action == 'delete':
+            return _command_result(
+                f'Deleting session "{session["title"]}"',
+                kind='session',
+                data={'action': 'delete', 'session_id': session_id},
+            )
+        if action == 'create':
+            title = command.arguments['title']
+            return _command_result(
+                f'Creating session{f": {title}" if title else ""}',
+                kind='session',
+                data={'action': 'create', 'title': title},
+            )
+        sessions = _all_sessions()
+        if action == 'activate_index':
+            index = command.arguments['index']
+            if index > len(sessions):
+                return _command_error(f'No session numbered {index}')
+            target = sessions[index - 1]
+        else:
+            name = command.arguments['name']
+            matches = [item for item in sessions if item['title'].casefold() == name.casefold()]
+            if not matches:
+                return _command_error(f'No session named "{name}"')
+            if len(matches) > 1:
+                return _command_error(f'Session name is ambiguous: "{name}" matches {len(matches)} sessions')
+            target = matches[0]
+        return _command_result(
+            f'Activating session "{target["title"]}"',
+            kind='session',
+            data={'action': 'activate', 'session_id': target['id']},
+        )
+    if command.name == 'import-settings':
+        if context != 'image':
+            return _command_error(f'Not yet implemented for {context} context')
+        return _command_result('Importing Control settings', kind='import-control')
     if command.name == 'help':
         sections = _help_sections()
         return _command_result(_format_help_sections(sections), sections=sections)
@@ -1121,11 +1589,16 @@ def _execute_command(session_id: str, text: str, image: str | list[str] | None =
             name, value = _validate_setting(name, command.arguments['value'])
             if not _apply_setting(name, value):
                 return _command_error(f'Setting callback rejected {name}; the session draft was not changed.')
+        elif kind == 'extra':
+            value = _validate_control_extra_value(name, spec[1], command.arguments['value'])
         else:
             value = _validate_parameter(context, name, command.arguments['value'])
         drafts = dict(session.get('drafts') or {})
         context_draft = dict(drafts.get(context) or {})
-        context_draft[name] = value
+        if kind == 'extra':
+            _set_control_extra_value(context_draft, spec[0], spec[1], value)
+        else:
+            context_draft[name] = value
         drafts[context] = context_draft
         db.update_session(session_id, drafts=drafts)
         return _command_result(f'{name} set to {value}')
@@ -1137,6 +1610,9 @@ def _execute_command(session_id: str, text: str, image: str | list[str] | None =
         if kind == 'setting':
             canonical = spec
             value = shared.opts.get(canonical)
+        elif kind == 'extra':
+            draft = (session.get('drafts') or {}).get(context, {})
+            value = _control_extra_value(draft, spec[0], spec[1])
         else:
             draft = (session.get('drafts') or {}).get(context, {})
             request_model, field_name = spec
@@ -1222,6 +1698,27 @@ def _execute_command(session_id: str, text: str, image: str | list[str] | None =
         return _command_result('Current process skipped')
     if command.name == 'history':
         return _command_result(_format_history(session_id, command.arguments.get('limit', 20)))
+    if command.name == 'snapshot':
+        if context != 'image':
+            return _command_result(f'Not yet implemented for {context} context')
+        revision_id = command.arguments['revision_id']
+        action = command.arguments['action']
+        if action == 'list':
+            return _command_result(_format_settings_snapshots(session))
+        if action == 'save':
+            from modules.chat.api import save_chat_settings_revision
+            saved = save_chat_settings_revision(session_id)
+            revision_id = saved['revision']['id']
+            return _command_result(
+                f'Saved image settings snapshot #{revision_id}\n{_format_settings_snapshots(saved["session"])}',
+                data={'revision_id': revision_id, 'active_revision_id': saved['session']['active_settings_revision_id']},
+            )
+        from modules.chat.api import restore_control_settings_revision
+        restored = restore_control_settings_revision(session_id, revision_id)
+        return _command_result(
+            f'Restored image settings snapshot #{revision_id}',
+            data={'revision_id': revision_id, 'active_revision_id': restored['session']['active_settings_revision_id']},
+        )
     if command.name == 'last':
         last_processing = _format_last_processing()
         if isinstance(last_processing, str):
@@ -1236,6 +1733,8 @@ def _execute_command(session_id: str, text: str, image: str | list[str] | None =
         )
     if command.name == 'reset':
         return _command_result(_reset_context(session_id, session))
+    if command.name == 'clear':
+        return _command_result(_clear_parameter(session_id, session, command.arguments['name']))
     return _command_error(f'Unsupported command: {command.name}')
 
 

@@ -12,7 +12,7 @@ from urllib.parse import quote
 from modules.logger import log
 
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 CONTEXTS = {'image', 'video', 'process', 'caption'}
 MESSAGE_ROLES = {'system', 'user', 'assistant'}
 OPERATION_STATUSES = {'running', 'completed', 'failed', 'cancelled'}
@@ -29,7 +29,7 @@ def _db_path(db_path=None):
     if db_path is not None:
         return os.fspath(db_path)
     from modules import paths, shared
-    directory = getattr(shared.opts, 'chat_dir', None) or os.path.join(paths.models_path, 'chat')
+    directory = shared.opts.chat_dir or os.path.join(paths.models_path, 'chat')
     if not os.path.isabs(directory):
         directory = os.path.join(paths.data_path, directory)
     return os.path.join(directory, 'chat.db')
@@ -163,6 +163,7 @@ def initialize(db_path=None):
                                 drafts TEXT NOT NULL DEFAULT '{}',
                                 last_generation_prompt TEXT,
                                 last_generation_snapshot TEXT,
+                                active_settings_revision_id INTEGER,
                                 selected_image_id TEXT,
                                 selected_image_ids TEXT NOT NULL DEFAULT '[]',
                                 created_at TEXT NOT NULL,
@@ -193,6 +194,14 @@ def initialize(db_path=None):
                                 completed_at TEXT
                             );
                             CREATE INDEX IF NOT EXISTS chat_operations_session_idx ON operations(session_id, created_at DESC, id);
+                            CREATE TABLE IF NOT EXISTS settings_revisions (
+                                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+                                context TEXT NOT NULL CHECK (context = 'image'),
+                                snapshot TEXT NOT NULL,
+                                created_at TEXT NOT NULL
+                            );
+                            CREATE INDEX IF NOT EXISTS chat_settings_revisions_session_idx ON settings_revisions(session_id, id DESC);
                             CREATE TABLE IF NOT EXISTS artifacts (
                                 id TEXT PRIMARY KEY,
                                 session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
@@ -251,7 +260,7 @@ def compact_and_stats(db_path=None):
         free_pages = connection.execute('PRAGMA freelist_count').fetchone()[0]
         counts = {
             table: connection.execute(f'SELECT COUNT(*) FROM {table}').fetchone()[0]
-            for table in ('sessions', 'messages', 'operations', 'artifacts')
+            for table in ('sessions', 'messages', 'operations', 'settings_revisions', 'artifacts')
         }
     return {
         'path': path,
@@ -333,6 +342,85 @@ def update_session(session_id, db_path=None, **fields):
         )
         row = connection.execute('SELECT * FROM sessions WHERE id = ?', (session_id,)).fetchone()
     return _session(row)
+
+
+def create_settings_revision(session_id, snapshot, drafts, db_path=None):
+    initialize(db_path)
+    if not isinstance(snapshot, dict):
+        raise ValueError('Chat settings revision snapshot must be an object')
+    if snapshot.get('context') != 'image':
+        raise ValueError('Chat settings snapshots are supported only for image context')
+    if not isinstance(drafts, dict):
+        raise ValueError('Chat drafts must be an object')
+    serialized_snapshot = _dump(snapshot)
+    serialized_drafts = _dump(drafts)
+    now = _timestamp()
+    with _connection(db_path) as connection:
+        cursor = connection.execute(
+            'INSERT INTO settings_revisions(session_id, context, snapshot, created_at) VALUES (?, ?, ?, ?)',
+            (session_id, 'image', serialized_snapshot, now),
+        )
+        revision_id = cursor.lastrowid
+        updated = connection.execute(
+            'UPDATE sessions SET drafts = ?, active_settings_revision_id = ?, updated_at = ? WHERE id = ? AND context = ?',
+            (serialized_drafts, revision_id, now, session_id, 'image'),
+        )
+        if not updated.rowcount:
+            raise ValueError('Chat session not found')
+        revision_row = connection.execute(
+            'SELECT * FROM settings_revisions WHERE id = ? AND session_id = ?',
+            (revision_id, session_id),
+        ).fetchone()
+        session_row = connection.execute('SELECT * FROM sessions WHERE id = ?', (session_id,)).fetchone()
+    return {'revision': _settings_revision(revision_row), 'session': _session(session_row)}
+
+
+def _settings_revision(row):
+    return _decode_row(row, {'snapshot': {}})
+
+
+def list_settings_revisions(session_id, limit=200, db_path=None):
+    initialize(db_path)
+    limit = min(1000, max(1, int(limit)))
+    with _connection(db_path) as connection:
+        rows = connection.execute(
+            'SELECT * FROM settings_revisions WHERE session_id = ? ORDER BY id DESC LIMIT ?',
+            (session_id, limit),
+        ).fetchall()
+    return [_settings_revision(row) for row in rows]
+
+
+def get_settings_revision(session_id, revision_id, db_path=None):
+    initialize(db_path)
+    with _connection(db_path) as connection:
+        row = connection.execute(
+            'SELECT * FROM settings_revisions WHERE session_id = ? AND id = ?',
+            (session_id, revision_id),
+        ).fetchone()
+    return _settings_revision(row)
+
+
+def activate_settings_revision(session_id, revision_id, drafts, db_path=None):
+    initialize(db_path)
+    if not isinstance(drafts, dict):
+        raise ValueError('Chat drafts must be an object')
+    serialized_drafts = _dump(drafts)
+    now = _timestamp()
+    with _connection(db_path) as connection:
+        revision_row = connection.execute(
+            'SELECT * FROM settings_revisions WHERE session_id = ? AND id = ? AND context = ?',
+            (session_id, revision_id, 'image'),
+        ).fetchone()
+        if revision_row is None:
+            return None
+        updated = connection.execute(
+            'UPDATE sessions SET drafts = ?, active_settings_revision_id = ?, updated_at = ? WHERE id = ? AND context = ?',
+            (serialized_drafts, revision_id, now, session_id, 'image'),
+        )
+        if not updated.rowcount:
+            return None
+        session_row = connection.execute('SELECT * FROM sessions WHERE id = ?', (session_id,)).fetchone()
+    return {'revision': _settings_revision(revision_row), 'session': _session(session_row)}
 
 
 def delete_session(session_id, db_path=None):
@@ -543,11 +631,12 @@ def diagnostics(db_path=None):
         integrity = [row[0] for row in connection.execute('PRAGMA integrity_check')]
         foreign_key_errors = [dict(row) for row in connection.execute('PRAGMA foreign_key_check')]
         tables = {row['name'] for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
-        required_tables = {'sessions', 'messages', 'operations', 'artifacts'}
+        required_tables = {'sessions', 'messages', 'operations', 'settings_revisions', 'artifacts'}
         required_columns = {
-            'sessions': {'id', 'title', 'context', 'drafts', 'last_generation_prompt', 'last_generation_snapshot', 'selected_image_id', 'selected_image_ids', 'created_at', 'updated_at'},
+            'sessions': {'id', 'title', 'context', 'drafts', 'last_generation_prompt', 'last_generation_snapshot', 'active_settings_revision_id', 'selected_image_id', 'selected_image_ids', 'created_at', 'updated_at'},
             'messages': {'id', 'session_id', 'role', 'content', 'metadata', 'created_at'},
             'operations': {'id', 'session_id', 'message_id', 'command', 'context', 'status', 'snapshot', 'result', 'error', 'created_at', 'started_at', 'completed_at'},
+            'settings_revisions': {'id', 'session_id', 'context', 'snapshot', 'created_at'},
             'artifacts': {'id', 'session_id', 'message_id', 'media_type', 'display_name', 'role', 'storage_ref', 'source_artifact_id', 'source_deleted', 'created_at'},
         }
         table_columns = {}
@@ -560,7 +649,7 @@ def diagnostics(db_path=None):
             if missing:
                 missing_columns[table] = missing
         json_errors = []
-        json_columns = {'sessions': ('drafts', 'last_generation_snapshot'), 'messages': ('metadata',), 'operations': ('snapshot', 'result')}
+        json_columns = {'sessions': ('drafts', 'last_generation_snapshot'), 'messages': ('metadata',), 'operations': ('snapshot', 'result'), 'settings_revisions': ('snapshot',)}
         for table, fields in json_columns.items():
             if table not in tables or not {'id', *fields} <= table_columns.get(table, set()):
                 continue

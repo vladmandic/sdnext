@@ -1,14 +1,17 @@
 # Change Log for SD.Next
 
-## Update for 2026-11-06
+## Update for 2026-11-08
 
+- **Chat**: New top-level interface  
+  See [chat docs](https://vladmandic.github.io/sdnext-docs/Chat/) for more details  
+  - Can be used as an interactive interface for generating and editing images through conversational prompts  
+  - Can also be used for advanced scripting and automation within SD.Next  
+  - Allows for full control of SD.Next generation parameters and settings  
+  - Allows for persistent context across interactions  
 - **Models**:
   - [BluePixel-Turbo](https://huggingface.co/openvivo/BluePixel-Turbo)  
     BluePixel is retrained FLUX.2-Klein-9B with DCAE-F64 autoencoder and then distilled with four-step SATP  
     result is turbo-style 9B instruction-based image editing model with native 2K/4K outputs  
-- **Chat**:
-  New top-level interface: use chat to interact with SD.Next in a conversational manner  
-  See [chat docs](https://vladmandic.github.io/sdnext-docs/Chat/) for more details  
 - **Coding**  
   expand ai/ml instructions and skills  
   see [instructions](https://github.com/vladmandic/sdnext/blob/dev/AGENTS.md) and [skills](https://github.com/vladmandic/sdnext/blob/dev/.github/skills/README.md) for details  
@@ -33,6 +36,10 @@
   - add env var `SD_STRICT` which will enable strict mode  
     in strict mode, read/parse/write errors will cause the application to exit immediately  
   - improved handling of HuggingFace mirror settings
+    *note*: `hf-mirror.com` does not actually mirror entire huggingface, only some  
+    the rest are redirected back to `huggingface.co` which is still under standard access control operations  
+- **Internal**
+  - modernui css: use a build process for `/css` instead of monolithic single `style.css`
 - **Fixes**
   - api: *txt2img*, *img2img* and *control* answer *500* with the error when the generation fails, instead of *200* with no images
   - api: *txt2img*, *img2img* and *control* responses carry an *error* field when a later batch fails after earlier batches returned images
@@ -42,6 +49,8 @@
   - dlss: use video codec defaults, slow-motion output plays slower
   - gallery: thumbnails and previews for webm, mkv, mov, avi and ts videos
   - hdr: the 16-bit hdr image saves on windows paths with non-ascii characters
+  - ltx: *Tiny* live previews show the video instead of a placeholder
+  - ltx: tab passes no longer run with the previous job's guidance end, sigma adjust and correction settings
   - minimax: quantized *H3* fix decode
   - minimax: webm, mkv and ts files accepted as reference videos
   - models: *FLUX.3*, *MiniMax-H3* and modular video models fail the load when a component the workflow requires does not load
@@ -58,13 +67,19 @@
   - processing: negative prompt the pipeline takes no input for is reported once per job
   - processing: text encoder failure fails the job with its own error instead of a misleading *not enough values to unpack* from the pipeline
   - samplers: *Euler SGM* and *DC Solver* use the model's prediction type
-  - save: *[datetime<format>]* and *[hasprompt<...>]* filename tokens apply args
+  - save: `[datetime<format>]` and `[hasprompt<...>]` filename tokens apply args
   - save: *Save metadata to JSON file* appends one line per image to a `jsonl`
   - save: an image save that fails no longer stops every later save
   - settings: extension settings are checked once extensions add them, instead of reported as unknown at startup
   - settings: a new data folder receives *config.json* and *secrets.json* on the first save
   - settings: improve settings parsing and validation to prevent corruption
   - ui: refresh buttons call their method once per click
+  - xyz: a blank value after a trailing comma is dropped instead of *Search & replace* inserting the replacement between every character of the prompt
+  - xyz: *Search & replace* warns when none of its values occurs in the prompts it searches
+  - xyz: restoring a grid image sets dropdown axes, such as sampler, model or lora, to the values the grid used
+  - xyz: in the always-on grid, *Search & replace all*, *Prompt order* and *Styles* change the prompt of each cell, and lora tags no longer pile up across cells
+  - xyz: *Search & replace* replaces one value per cell, the first value or, when it is absent, the longest one found, so `woman,man` no longer renders `wowoman` and `0.8,1,1.2` no longer renders `1.2.2`
+  - qwen-image-2.1: use correct shared te
 
 ## Update for 2026-10-29
 
@@ -1388,7 +1403,7 @@ For full details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/m
   - update `vlad-neomorph` theme
   - a lot of small performance optimizations that add up to faster load times and more responsive ui
 - **Caption & Prompt Enhance**
-  - [Google Gemma 4] in *E2B* and *E4B* variants as well as *heretic* fine-tune
+  - [Google Gemma 4](https://huggingface.co/google/gemma-4-E4B-it) in *E2B* and *E4B* variants as well as *heretic* fine-tune
 - **Agents**
   framework for AI agent based work in `.github/`  
   *note*: all skills are agent-model agnostic  
@@ -3783,7 +3798,7 @@ We're back with another update with nearly 100 commits!
   - [Mixture-of-Diffusers](https://huggingface.co/posts/elismasilva/251775641926329)  
     Regional tiling type of a solution for SDXL models  
     select from *scripts -> mixture of diffusers*  
-  - [Automatic Color Inpaint]  
+  - Automatic Color Inpaint  
     Automatically creates mask based on selected color and triggers inpaint  
     simply select in *scripts -> automatic color inpaint* when in img2img mode  
   - [RAS: Region-Adaptive Sampling](https://github.com/microsoft/RAS) *experimental*  
@@ -6898,10 +6913,10 @@ Upgrades are still possible and supported, but clean install is recommended for 
     as well as resume aborted/incomplete downloads  
   - civitai integration in *models -> civitai* can now find most  
     previews AND metadata for most models (checkpoints, loras, embeddings)  
-    metadata is now parsed and saved in *[model].json*  
+    metadata is now parsed and saved in `[model].json`  
     typical hit rate is >95% for models, loras and embeddings  
   - description from parsed model metadata is used as model description if there is no manual  
-    description file present in format of *[model].txt*  
+    description file present in format of `[model].txt`  
   - to enable search for models, make sure all models have set hash values  
     *Models -> Valida -> Calculate hashes*  
 - **LoRA**
@@ -6966,7 +6981,7 @@ Upgrades are still possible and supported, but clean install is recommended for 
   - [MultiDiffusion](https://github.com/pkuliyi2015/multidiffusion-upscaler-for-automatic1111)  
     has been removed from list of built-in extensions  
     you can still install it manually if desired  
-  - [LyCORIS]<https://github.com/KohakuBlueleaf/a1111-sd-webui-lycoris>  
+  - [LyCORIS](https://github.com/KohakuBlueleaf/a1111-sd-webui-lycoris)  
     has been removed from list of built-in extensions  
     it is considered obsolete given that all functionality is now built-in  
 - **General**  
@@ -7485,7 +7500,7 @@ Second stage of a jumbo merge from upstream plus few minor changes...
 
 - simplify token merging  
 - reorganize some settings  
-- all updates from upstream: **A1111** v1.3.2 [df004be] *(latest release)*  
+- all updates from upstream: **A1111** v1.3.2 [df004be](https://github.com/AUTOMATIC1111/stable-diffusion-webui/commit/df004be) *(latest release)*  
   pretty much nothing major that i havent released in previous versions, but its still a long list of tiny changes  
   - skipped/did-not-port:  
     add separate hires prompt: unnecessarily complicated and spread over large number of commits due to many regressions  

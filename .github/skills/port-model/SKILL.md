@@ -290,7 +290,7 @@ When porting a new model or model family to SD.Next, also update `CHANGELOG.md`:
      - Notable text encoder or technology notes
 
 Example format:
-```
+```markdown
   - [BRIA FIBO](https://huggingface.co/briaai/FIBO) 8B parameter text-to-image model using Flow Matching  
     includes *Normal*, *Edit*, and *Lite* (distilled) variants  
     features lightweight SmolLM3-3B text encoder with efficient inference  

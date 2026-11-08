@@ -10,7 +10,6 @@ from modules.files_cache import directory_files, directory_mtime, extension_filt
 
 
 debug = log.trace if os.environ.get('SD_TI_DEBUG', None) is not None else lambda *args, **kwargs: None
-debug('Trace: TEXTUAL INVERSION')
 supported_models = ['ldm', 'sd', 'sdxl']
 
 

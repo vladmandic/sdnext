@@ -14,7 +14,7 @@ from modules.paths import resolve_output_path
 from modules.video_models.video_codecs import is_video_file
 
 
-debug = log.debug if os.environ.get('SD_BROWSER_DEBUG', None) is not None else lambda *args, **kwargs: None
+debug = log.trace if os.environ.get('SD_BROWSER_DEBUG', None) is not None else lambda *args, **kwargs: None
 OPTS_FOLDERS = [
     "outdir_samples",
     "outdir_txt2img_samples",

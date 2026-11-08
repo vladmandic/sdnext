@@ -10,7 +10,7 @@ from modules.ltx.ltx_diffusers_patch import apply_patch as apply_ltx_diffusers_p
 from modules.ltx.ltx_util import get_bucket, get_frames, load_model, load_upsample, load_upsample_2x, get_conditions, get_generator, get_prompts, ltx_scheduler_opts, vae_decode
 
 apply_ltx_diffusers_patch()
-from modules.processing_callbacks import diffusers_callback
+from modules.processing_callbacks import diffusers_callback, set_callbacks_p
 from modules.video_models import video_run, video_utils
 from modules.video_models.video_vae import set_vae_params
 from modules.video_models.video_save import save_video, get_audio_rate
@@ -379,6 +379,7 @@ def run(model: str, *,
                     # re-anchor so the text encoder doesn't stay pinned through Stage 1 forward.
                     shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model, force=True, silent=True)
                     devices.torch_gc(force=True, reason='ltx:encode')
+                    set_callbacks_p(p) # the pipe is called directly, so process_images does not set it
                     latents = _latent_pass(
                         caps=caps,
                         prompt_embeds=prompt_embeds,
@@ -469,6 +470,7 @@ def run(model: str, *,
                         log.debug(f'Video: op=upsample family=2.x latents={latents.shape} auto={auto_refine_upsample} {up_args}')
                         latents = upsample_pipe_2x(latents=latents, **up_args).frames[0]
                         upsample_pipe_2x = sd_models.apply_balanced_offload(upsample_pipe_2x, exclude=upsample_exclude, silent=True)
+                    p.width, p.height = final_w, final_h # the latents are at the upsampled size from here on
                     t5 = time.time()
                     timer.process.add('upsample', t5 - t4)
 
@@ -559,6 +561,7 @@ def run(model: str, *,
                             refine_args['negative_prompt_attention_mask'],
                         )
                         log.debug(f'Video: op=refine cls={caps.repo_cls_name} latents={latents.shape} canonical_stage2={caps.supports_canonical_stage2}')
+                        set_callbacks_p(p)
                         result = shared.sd_model(latents=latents, **refine_args)
                         out = result.frames[0] if hasattr(result, 'frames') else None
                         if want_audio:
