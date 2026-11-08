@@ -15,6 +15,7 @@ Covers:
   uncached, an identical call is served from the cache
 - the prompt cache's storage: sized by *Text encoder cache size* (0 off), least recently used evicted first, entries
   in host memory as copies, results it cannot copy left uncached; the gpu case skips without cuda
+- Ideogram 4's ``encode_prompt``: a text encoder move to the gpu that fails ends with the encoder moved back to cpu
 
 The pipeline is a stub installed as ``shared.sd_model``. No model, no running server.
 
@@ -336,6 +337,53 @@ def test_cache_holds_no_gpu_memory():
     return True
 
 
+class MoveFailingEncoder(torch.nn.Module):
+    """A text encoder whose move to the gpu fails, recording every move it is asked for."""
+
+    def __init__(self):
+        super().__init__()
+        self.weight = torch.nn.Parameter(torch.zeros(1))
+        self.moves = []
+
+    def to(self, *args, **kwargs):
+        device = torch.device(args[0] if args else kwargs['device'])
+        self.moves.append(device.type)
+        if device.type != 'cpu':
+            raise RuntimeError('CUDA driver error: out of memory')
+        return super().to(*args, **kwargs)
+
+
+def test_ideogram_encoder_back_on_cpu_after_failed_move():
+    """Red before the fix: the move ran before the try whose finally returns the encoder to cpu."""
+    from pipelines.ideogram import ideogram4
+
+    class Pipe(ideogram4.Ideogram4Pipeline):  # pylint: disable=abstract-method
+        @property
+        def _execution_device(self):
+            return torch.device('cuda')
+
+    pipe = object.__new__(Pipe)
+    pipe.text_encoder = MoveFailingEncoder()
+    saved = {key: shared.opts.data.get(key, None) for key in ('diffusers_offload_mode', 'model_ideogram4_enable_pe')}
+    shared.opts.data['diffusers_offload_mode'] = 'group'
+    shared.opts.data['model_ideogram4_enable_pe'] = True
+    try:
+        try:
+            pipe.encode_prompt(prompt=['a cat'], grid_h=64, grid_w=64, max_sequence_length=2048, device=torch.device('cuda'))
+            outcome = None
+        except RuntimeError as e:
+            outcome = e
+    finally:
+        for key, value in saved.items():
+            if value is None:
+                shared.opts.data.pop(key, None)
+            else:
+                shared.opts.data[key] = value
+    assert isinstance(outcome, RuntimeError), f'caller got {outcome!r}'
+    assert pipe.text_encoder.moves == ['cuda', 'cpu'], f'moves {pipe.text_encoder.moves}'
+    return True
+
+
 def test_pad_signature_probe_reaches_caller():
     """Red before the fix: the hijack swallowed the TypeError, so pad_to_same_length indexed the empty prompt it got back."""
     pipe = PositionalPipe()
@@ -366,6 +414,11 @@ def run_all():
         test_cache_returns_independent_copy,
         test_cache_skips_results_it_cannot_copy,
         test_cache_holds_no_gpu_memory,
+    ]:
+        run_test(cat, fn)
+    cat = category('pipelines')
+    for fn in [
+        test_ideogram_encoder_back_on_cpu_after_failed_move,
     ]:
         run_test(cat, fn)
 

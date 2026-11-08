@@ -430,8 +430,8 @@ class Ideogram4Pipeline(DiffusionPipeline):
         from modules import shared, devices
         if not shared.opts.model_ideogram4_enable_pe:
             prompt = prompt_to_json(prompt)
-        self.text_encoder.to(self._execution_device)
         try:
+            self.text_encoder.to(self._execution_device) # a move that fails partway leaves the moved part on the gpu
             prompt = self._encode_prompt(prompt, grid_h, grid_w, max_sequence_length, device)
         finally:
             if shared.opts.diffusers_offload_mode != 'none':
