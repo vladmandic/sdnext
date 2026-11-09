@@ -798,7 +798,12 @@ def install_rocm():
             if device_id < len(amd_gpus):
                 device = amd_gpus[device_id]
 
-    rocm_sdk_version = '10.1.0' if device is not None and device.gfx_version >= 0x1100 else '10.0.0'
+    if device is not None and device.gfx_version >= 0x1200:
+        rocm_sdk_version = '10.1.0'
+    elif device is not None and device.gfx_version >= 0x1100:
+        rocm_sdk_version = '10.1.0'
+    else:
+        rocm_sdk_version = '10.0.0'
     if sys.platform == "win32" and (not args.use_zluda) and (device is not None) and (device.therock is not None) and not installed("rocm"):
         check_python(supported_minors=[11, 12, 13], reason='ROCm-Windows: python==3.11/3.12/3.13 required')
         install(f"rocm[devel,libraries]=={rocm_sdk_version} --index-url https://stable.repo.amd.com/rocm/whl-next/")
@@ -890,14 +895,6 @@ def install_rocm():
                         # lock to 2.4.1 instead of 2.5.1 for performance reasons there are no support for torch 2.6 for rocm 6.0
                         torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.4.1+rocm6.0 torchvision==0.19.1+rocm6.0 --index-url https://download.pytorch.org/whl/rocm6.0')
                         log.warning(f"ROCm: unsupported version={rocm.version} minimum supported version=6.0")
-
-    if device is None or os.environ.get("HSA_OVERRIDE_GFX_VERSION", None) is not None:
-        log.info(f'ROCm: HSA_OVERRIDE_GFX_VERSION auto config skipped: device={device} version={os.environ.get("HSA_OVERRIDE_GFX_VERSION", None)}')
-    else:
-        gfx_ver = device.get_gfx_version()
-        if gfx_ver is not None and device.name.removeprefix("gfx") != gfx_ver.replace(".", ""):
-            os.environ.setdefault('HSA_OVERRIDE_GFX_VERSION', gfx_ver)
-            log.info(f'ROCm: HSA_OVERRIDE_GFX_VERSION config overridden: device={device} version={os.environ.get("HSA_OVERRIDE_GFX_VERSION", None)}')
 
     ts('amd', t_start)
     return torch_command
