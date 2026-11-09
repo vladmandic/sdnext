@@ -565,6 +565,34 @@ def _resolve_choice_fragment(name: str, value: Any, choices: list[Any]):
     return value
 
 
+def _resolve_video_model(value: str, engine: str | None = None) -> tuple[str, str]:
+    from modules.video_models import models_def
+
+    engines = [engine] if engine else models_def.engines()
+    exact_matches = [
+        (engine_name, model_name)
+        for engine_name in engines
+        for model_name in models_def.model_names(engine_name)
+        if model_name.casefold() == value.casefold()
+    ]
+    fragment = ''.join(character for character in value.casefold() if character.isalnum())
+    matches = exact_matches or [
+        (engine_name, model_name)
+        for engine_name in engines
+        for model_name in models_def.model_names(engine_name)
+        if fragment and fragment in ''.join(character for character in model_name.casefold() if character.isalnum())
+    ]
+    if len(matches) == 1:
+        return matches[0]
+    if len(matches) > 1:
+        candidates = '\n'.join(f'{model_name} ({engine_name})' for engine_name, model_name in matches[:5])
+        if len(matches) > 5:
+            candidates += '\n...'
+        raise CommandError(f'Ambiguous model name:\n{candidates}')
+    available = models_def.model_names(engine) if engine else models_def.engines()
+    raise CommandError(f'Invalid value for model\nUse list model to see available choices: {available}')
+
+
 def _validate_setting(name: str, raw_value: Any) -> tuple[str, Any]:
     canonical = _SETTING_NAMES.get(name)
     if canonical is None:
@@ -1831,6 +1859,7 @@ def _execute_command(session_id: str, text: str, image: str | list[str] | None =
         if name is None:
             return _command_result(_format_session(session))
         kind, spec = _parameter_spec(context, name)
+        video_model_engine = None
         if kind == 'setting':
             name, value = _validate_setting(name, command.arguments['value'])
             if not _apply_setting(name, value):
@@ -1839,6 +1868,10 @@ def _execute_command(session_id: str, text: str, image: str | list[str] | None =
             value = _validate_control_extra_value(name, spec[1], command.arguments['value'])
         elif kind == 'process_extra':
             value = _validate_process_script_value(name, spec[2], command.arguments['value'])
+        elif kind == 'parameter' and context == 'video' and spec[1] == 'model':
+            video_model_engine, value = _resolve_video_model(
+                str(command.arguments['value']), (session.get('drafts') or {}).get(context, {}).get('engine'),
+            )
         else:
             value = _validate_parameter(
                 context, name, command.arguments['value'], (session.get('drafts') or {}).get(context, {}),
@@ -1851,6 +1884,8 @@ def _execute_command(session_id: str, text: str, image: str | list[str] | None =
             _set_process_script_value(context_draft, spec[0], spec[1], spec[2], value)
         elif kind == 'parameter':
             context_draft[spec[1]] = value
+            if video_model_engine:
+                context_draft['engine'] = video_model_engine
         else:
             context_draft[name] = value
         drafts[context] = context_draft
@@ -1893,6 +1928,21 @@ def _execute_command(session_id: str, text: str, image: str | list[str] | None =
             return _command_error(str(exc))
     if command.name == 'model':
         values = command.arguments['values']
+        if context == 'video':
+            video_draft = (session.get('drafts') or {}).get(context, {})
+            if not values:
+                return _command_result(
+                    f'engine={video_draft.get("engine", "None")}\nmodel={video_draft.get("model", "None")}',
+                )
+            if len(values) != 1:
+                raise CommandError('Use: model <video model>')
+            engine, model = _resolve_video_model(values[0], video_draft.get('engine'))
+            drafts = dict(session.get('drafts') or {})
+            video_draft = dict(video_draft)
+            video_draft.update({'engine': engine, 'model': model})
+            drafts['video'] = video_draft
+            db.update_session(session_id, drafts=drafts)
+            return _command_result(f'engine set to {engine}\nmodel set to {model}')
         if not values:
             return _command_result(
                 f'model={shared.opts.get("sd_model_checkpoint")}\nunet={shared.opts.get("sd_unet")}')

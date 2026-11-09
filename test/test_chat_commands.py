@@ -615,6 +615,34 @@ class TestChatCommands(unittest.TestCase):
         self.assertIn('Meina Unreal XL', result['text'])
         self.assertIn('Meina Mix', result['text'])
 
+    def test_video_model_command_resolves_full_and_unique_fragments(self):
+        session = self._create_session()
+        with patch('modules.video_models.models_def.engines', return_value=['WAN Video']), \
+                patch('modules.video_models.models_def.model_names', return_value=[
+                    'WAN 2.2 5B T2V', 'WAN 2.2 5B I2V',
+                ]):
+            with patch.object(db, '_db_path', return_value=self.db_path):
+                commands.execute_command(session['id'], 'context video')
+                full_name = commands.execute_command(session['id'], 'model "WAN 2.2 5B T2V"')
+                full_saved = db.get_session(session['id'])['drafts']['video'].copy()
+                fragment = commands.execute_command(session['id'], 'model "2.2 5B I2V"')
+                fragment_saved = db.get_session(session['id'])['drafts']['video'].copy()
+                set_fragment = commands.execute_command(session['id'], 'set model "2.2 5B T2V"')
+                set_saved = db.get_session(session['id'])['drafts']['video'].copy()
+                ambiguous = commands.execute_command(session['id'], 'model "WAN 2.2 5B"')
+                generation = commands.execute_command(session['id'], 'generate')
+
+        self.assertIn('model set to WAN 2.2 5B T2V', full_name['text'])
+        self.assertEqual(full_saved, {'engine': 'WAN Video', 'model': 'WAN 2.2 5B T2V'})
+        self.assertIn('model set to WAN 2.2 5B I2V', fragment['text'])
+        self.assertEqual(fragment_saved['model'], 'WAN 2.2 5B I2V')
+        self.assertEqual(set_fragment['text'], 'model set to WAN 2.2 5B T2V')
+        self.assertEqual(set_saved, {'engine': 'WAN Video', 'model': 'WAN 2.2 5B T2V'})
+        self.assertIn('Ambiguous model name', ambiguous['text'])
+        self.assertIn('(WAN Video)', ambiguous['text'])
+        self.assertEqual(generation['data']['endpoints'][0]['arguments']['engine'], 'WAN Video')
+        self.assertEqual(generation['data']['endpoints'][0]['arguments']['model'], 'WAN 2.2 5B T2V')
+
     def test_set_styles_resolves_unique_fragment_case_insensitively(self):
         session = self._create_session()
         available = [{'name': 'Cycle Style'}, {'name': 'Vintage Film'}]
