@@ -1065,6 +1065,7 @@
   },
   "vivo BluePixel Turbo": {
     "path": "openvivo/BluePixel-Turbo",
+    "preview": "openvivo--BluePixel-Turbo.jpg",
     "desc": "BluePixel-Turbo is vivo's four-step distilled instruction-based image-editing model built on FLUX.2 Klein 9B with a DCAE-F64 autoencoder for native 4K editing. Weights are subject to the FLUX Non-Commercial License.",
     "extras": "sampler: FlowMatch Euler, cfg_scale: 3.0, steps: 4",
     "size": 36.31,
