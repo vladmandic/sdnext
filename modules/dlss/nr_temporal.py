@@ -275,6 +275,8 @@ class DLSSNRTemporalSession:
     def __init__(self, pipeline, *, options: DLSSNRTemporalOptions | None = None, motion: Callable | str = "flow"):
         self.pipeline = pipeline
         self.options = options or DLSSNRTemporalOptions()
+        if motion is None:
+            motion = zero_motion
         if self.options.profile not in NR_PROFILES:
             raise ValueError(f"DLSSNRTemporalSession: profile={self.options.profile} invalid")
         if motion == "Fast":
@@ -314,6 +316,8 @@ class DLSSNRTemporalSession:
         device = getattr(self.pipeline, "device", "cpu")
 
         frame_t = frame if isinstance(frame, torch.Tensor) else torch.from_numpy(np.asarray(frame, dtype=np.float32)).to(device)
+        if self.options.scale is None:
+            self.options.scale = 1.0
         if self.options.scale != 1.0:
             h_proc = int(round(frame_t.shape[0] * self.options.scale))
             w_proc = int(round(frame_t.shape[1] * self.options.scale))

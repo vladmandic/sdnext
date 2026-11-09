@@ -126,9 +126,14 @@ class ScriptPostprocessingRunner:
             else:
                 for (name, _component), value in zip(script.controls.items(), script_args, strict=False):
                     process_kwargs[name] = value
-            log.debug(f'Process: script="{script.name}" args={process_args} kwargs={process_kwargs}')
+            clean_kwargs = {k: v for k, v in process_kwargs.items() if v is not None}
             try:
-                script.process(pp, *process_args, **process_kwargs)
+                if len(list(clean_kwargs)) + len(process_args) > 0:
+                    log.debug(f'Process: script="{script.name}" args={process_args} kwargs={clean_kwargs}')
+                    script.process(pp, *process_args, **process_kwargs)
+                else:
+                    pass
+                    # log.debug(f'Process: script="{script.name}" skip')
             finally:
                 shared.state.end(jobid)
 

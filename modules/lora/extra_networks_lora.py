@@ -40,37 +40,59 @@ def get_stepwise(param, step, steps): # from https://github.com/cheald/sd-webui-
     return stepwise
 
 
+def trailing_networks_start(text: str) -> int:
+    """Start of the extra network references that end a prompt, separated by commas and spaces only; len(text) when it ends in other text."""
+    end = len(text)
+    for match in reversed(list(extra_networks.re_extra_net.finditer(text))):
+        if text[match.end():end].strip(', '):
+            break
+        end = match.start()
+    return end
+
+
+def add_tags(text, tags: list[str]):
+    """Prompt with the tags it lacks, at _tags_ or appended; an extra network reference such as <lora:name:1.0> does not count as a tag.
+    Appended tags go before trailing references, so a prompt with references parses to the same text as the batch prompt parsed before tagging."""
+    if isinstance(text, list):
+        return [add_tags(item, tags) for item in text]
+    if not isinstance(text, str):
+        return text
+    plain, _ = extra_networks.parse_prompt(text)
+    missing = ', '.join(t for t in tags if t not in plain)
+    if '_tags_' in text:
+        return text.replace('_tags_', missing)
+    if not missing:
+        return text
+    cut = trailing_networks_start(text)
+    head = text[:cut].rstrip(', ')
+    tail = text[len(head):] if cut < len(text) else ''
+    return f"{head}, {missing}{tail}" if head else f"{missing}{tail}"
+
+
 def prompt(p):
+    """Add the loaded LoRAs' metadata tags to the prompts; runs on every activation, after the batch's prompts were sliced."""
     if shared.opts.lora_apply_tags == 0:
         return
     all_tags = []
     for loaded in l.loaded_networks:
         page = [en for en in shared.extra_networks if en.name == 'lora'][0]
         item = page.create_item(loaded.name)
-        tags = (item or {}).get("tags", {})
-        loaded.tags = list(tags)
-        if len(loaded.tags) == 0:
-            loaded.tags.append(loaded.name)
+        loaded.tags = list((item or {}).get("tags", {}))
         if shared.opts.lora_apply_tags > 0:
             loaded.tags = loaded.tags[:shared.opts.lora_apply_tags]
         all_tags.extend(loaded.tags)
-    if len(all_tags) > 0:
-        all_tags = list(set(all_tags))
-        all_tags = [t for t in all_tags if t not in p.prompt]
-        if len(all_tags) > 0:
+    all_tags = list(dict.fromkeys(all_tags)) # metadata order; a set orders strings by a hash that changes per process
+    if len(all_tags) == 0:
+        return
+    p.extra_generation_params["LoRA tags"] = ', '.join(all_tags)
+    batch = getattr(p, 'prompts', None)
+    p.prompt = add_tags(p.prompt, all_tags)
+    if batch:
+        p.prompts = add_tags(batch, all_tags) # the batch being encoded, sliced from all_prompts before activation
+        if p.prompts != batch:
             log.debug(f"Network tags: type=LoRA tags={all_tags} max={shared.opts.lora_apply_tags} apply")
-        all_tags = ', '.join(all_tags)
-        p.extra_generation_params["LoRA tags"] = all_tags
-        if '_tags_' in p.prompt:
-            p.prompt = p.prompt.replace('_tags_', all_tags)
-        else:
-            p.prompt = f"{p.prompt}, {all_tags}"
-        if p.all_prompts is not None:
-            for i in range(len(p.all_prompts)):
-                if '_tags_' in p.all_prompts[i]:
-                    p.all_prompts[i] = p.all_prompts[i].replace('_tags_', all_tags)
-                else:
-                    p.all_prompts[i] = f"{p.all_prompts[i]}, {all_tags}"
+    if p.all_prompts:
+        p.all_prompts = add_tags(p.all_prompts, all_tags)
 
 
 def infotext(p):

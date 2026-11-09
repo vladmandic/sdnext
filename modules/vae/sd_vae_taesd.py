@@ -42,23 +42,6 @@ taesd_map = {
 }
 
 
-def restore_preview_size(image, vae):
-    # TAESD (image) and TAEHV (video) drop spatial upsample blocks when taesd_layers < 3, shrinking output 2x/4x.
-    # Rescale spatial dims so preview size stays constant. Other taes (TAEM1, Hybrid) ignore taesd_layers, so skip them.
-    from modules.taesd.taesd import TAESD
-    from modules.taesd.taehv import TAEHV
-    layers = shared.opts.taesd_layers
-    if layers >= 3 or not isinstance(vae, (TAESD, TAEHV)) or not isinstance(image, torch.Tensor) or image.ndim < 3 or image.shape[-3] != 3:
-        return image
-    try:
-        frames = image.reshape(-1, *image.shape[-3:]) # flatten any leading dims to a batch of CHW frames
-        frames = torch.nn.functional.interpolate(frames, scale_factor=float(2 ** (3 - layers)), mode='bilinear', align_corners=False)
-        image = frames.reshape(*image.shape[:-2], frames.shape[-2], frames.shape[-1])
-    except Exception:
-        pass
-    return image
-
-
 def load_model():
     global loaded_cls, loaded_vae, loaded_type # pylint: disable=global-statement
     if not shared.sd_loaded:
@@ -135,7 +118,6 @@ def decode(latents):
         if image.ndim == 5:
             image = image.squeeze(0)
         image = image.clamp(0, 1).detach()
-        image = restore_preview_size(image, vae)
         return image
 
 

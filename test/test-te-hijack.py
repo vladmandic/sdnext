@@ -11,6 +11,11 @@ Covers:
 - an encode that succeeds: the caller gets its embeddings, the job is ended
 - ``pad_to_same_length`` on a pipeline with the SD 1.5 ``encode_prompt`` signature: its ``TypeError`` probe reaches it and
   the positional retry pads the shorter embedding
+- the prompt cache: a size argument beside the prompt is part of the key, images under any argument name leave the call
+  uncached, an identical call is served from the cache
+- the prompt cache's storage: sized by *Text encoder cache size* (0 off), least recently used evicted first, entries
+  in host memory as copies, results it cannot copy left uncached; the gpu case skips without cuda
+- Ideogram 4's ``encode_prompt``: a text encoder move to the gpu that fails ends with the encoder moved back to cpu
 
 The pipeline is a stub installed as ``shared.sd_model``. No model, no running server.
 
@@ -95,6 +100,24 @@ class EncodingPipe:
         return self.embeds
 
 
+class GridPipe:
+    """Ideogram's signature: the packed sequence length follows the grid passed beside the prompt."""
+
+    def __init__(self):
+        self.calls = 0
+
+    def encode_prompt(self, prompt, grid_h, grid_w, device=None):  # pylint: disable=unused-argument
+        self.calls += 1
+        return (torch.zeros(1, grid_h * grid_w, 4),)
+
+
+class ImagePipe:
+    """Boogu's signature: the instruction is encoded together with input images under their own name."""
+
+    def encode_prompt(self, prompt, input_images=None):  # pylint: disable=unused-argument
+        return (torch.full((1, 4), float(input_images[0].getpixel((0, 0))[0])),)
+
+
 class PositionalPipe:
     """The SD 1.5 signature: everything but the prompt is positional and required."""
 
@@ -140,6 +163,227 @@ def test_encode_success_returns_embeddings():
     return True
 
 
+def test_cache_keys_on_size_arguments():
+    """Red before the fix: the key was the prompt alone, so a new size got the previous size's sequence."""
+    pipe = GridPipe()
+
+    def call():
+        pipe.encode_prompt(prompt=['a cat'], grid_h=64, grid_w=64)
+        return pipe.encode_prompt(prompt=['a cat'], grid_h=48, grid_w=80)
+
+    outcome, _, _ = run_hijacked(pipe, call)
+    assert isinstance(outcome, tuple), f'caller got {outcome!r}'
+    assert tuple(outcome[0].shape) == (1, 3840, 4), f'shape {tuple(outcome[0].shape)} for a 48x80 grid'
+    return True
+
+
+def test_cache_skips_image_arguments():
+    """Red before the fix: only a kwarg named image disabled the cache, so a second picture got the first one's encoding."""
+    from PIL import Image
+    pipe = ImagePipe()
+
+    def call():
+        pipe.encode_prompt(prompt=['make it night'], input_images=[Image.new('RGB', (8, 8), (10, 0, 0))])
+        return pipe.encode_prompt(prompt=['make it night'], input_images=[Image.new('RGB', (8, 8), (200, 0, 0))])
+
+    outcome, _, _ = run_hijacked(pipe, call)
+    assert isinstance(outcome, tuple), f'caller got {outcome!r}'
+    assert float(outcome[0][0, 0]) == 200.0, f'second picture encoded as {float(outcome[0][0, 0])}'
+    return True
+
+
+def test_cache_hits_identical_call():
+    pipe = GridPipe()
+
+    def call():
+        first = pipe.encode_prompt(prompt=['a cat'], grid_h=64, grid_w=64)
+        second = pipe.encode_prompt(prompt=['a cat'], grid_h=64, grid_w=64)
+        return first, second
+
+    outcome, _, _ = run_hijacked(pipe, call)
+    assert isinstance(outcome, tuple), f'caller got {outcome!r}'
+    assert pipe.calls == 1, f'encoded {pipe.calls} times'
+    assert torch.equal(outcome[0][0], outcome[1][0]), 'cached result differs'
+    return True
+
+
+class CountingPipe:
+    """One encode per call, each result a new tensor on ``device``."""
+
+    def __init__(self, device='cpu', numel=4):
+        self.calls = 0
+        self.device = device
+        self.numel = numel
+
+    def encode_prompt(self, prompt, **kwargs):  # pylint: disable=unused-argument
+        self.calls += 1
+        return (torch.full((self.numel,), float(self.calls), device=self.device),)
+
+
+class Holder:
+    def __init__(self, tensor):
+        self.tensor = tensor
+
+
+class HolderPipe:
+    """Returns an object that holds a tensor the cache cannot copy to host memory."""
+
+    def __init__(self):
+        self.calls = 0
+
+    def encode_prompt(self, prompt, **kwargs):  # pylint: disable=unused-argument
+        self.calls += 1
+        return Holder(torch.ones(4))
+
+
+def with_cache_size(size, call):
+    saved = shared.opts.data.get('sd_textencoder_cache_size', None)
+    shared.opts.data['sd_textencoder_cache_size'] = size
+    try:
+        return call()
+    finally:
+        if saved is None:
+            shared.opts.data.pop('sd_textencoder_cache_size', None)
+        else:
+            shared.opts.data['sd_textencoder_cache_size'] = saved
+
+
+def test_cache_size_follows_setting():
+    """Red before the fix: the hijack kept 16 entries and cached with the setting at 0."""
+    pipe = CountingPipe()
+
+    def call():
+        for prompt in ['a', 'b', 'c']:
+            pipe.encode_prompt(prompt=[prompt])
+        held = len(sd_hijack_te.prompt_cache.cache)
+        shared.opts.data['sd_textencoder_cache_size'] = 0
+        pipe.encode_prompt(prompt=['d'])
+        pipe.encode_prompt(prompt=['d'])
+        return held
+
+    outcome, _, _ = run_hijacked(pipe, lambda: with_cache_size(2, call))
+    assert outcome == 2, f'cache held {outcome!r} entries with the size at 2'
+    assert pipe.calls == 5, f'{pipe.calls} encodes: the size at 0 still served d from the cache'
+    return True
+
+
+def test_cache_evicts_least_recently_used():
+    """Red before the fix: nothing was evicted below 16 entries, and the oldest entry went first."""
+    pipe = CountingPipe()
+
+    def call():
+        for prompt in ['a', 'b', 'a', 'c']:
+            pipe.encode_prompt(prompt=[prompt])
+        calls = pipe.calls
+        pipe.encode_prompt(prompt=['a'])
+        hit_a = pipe.calls == calls
+        pipe.encode_prompt(prompt=['b'])
+        return hit_a, pipe.calls == calls + 1
+
+    outcome, _, _ = run_hijacked(pipe, lambda: with_cache_size(2, call))
+    assert outcome == (True, True), f'(a served from cache, b encoded again) = {outcome!r}'
+    return True
+
+
+def test_cache_returns_independent_copy():
+    """Red before the fix: the cache held the caller's own tensor, so an in-place change reached the next hit."""
+    pipe = CountingPipe()
+
+    def call():
+        first = pipe.encode_prompt(prompt=['a'])
+        first[0].mul_(0)
+        return pipe.encode_prompt(prompt=['a'])
+
+    outcome, _, _ = run_hijacked(pipe, lambda: with_cache_size(4, call))
+    assert pipe.calls == 1, f'encoded {pipe.calls} times'
+    assert torch.equal(outcome[0], torch.ones(4)), f'hit returned {outcome[0].tolist()}'
+    return True
+
+
+def test_cache_skips_results_it_cannot_copy():
+    """Red before the fix: any result was stored as returned, tensors inside other objects included."""
+    pipe = HolderPipe()
+
+    def call():
+        pipe.encode_prompt(prompt=['a'])
+        pipe.encode_prompt(prompt=['a'])
+        return len(sd_hijack_te.prompt_cache.cache)
+
+    outcome, _, _ = run_hijacked(pipe, lambda: with_cache_size(4, call))
+    assert outcome == 0 and pipe.calls == 2, f'cache held {outcome} entries after {pipe.calls} encodes'
+    return True
+
+
+def test_cache_holds_no_gpu_memory():
+    """Red before the fix: every cached result stayed allocated on the gpu."""
+    if not torch.cuda.is_available():
+        return 'no cuda device'
+    pipe = CountingPipe(device='cuda', numel=16 * 1024 * 1024)
+
+    def call():
+        torch.cuda.synchronize()
+        before = torch.cuda.memory_allocated()
+        first = pipe.encode_prompt(prompt=['a'])[0].clone()
+        torch.cuda.synchronize()
+        held = torch.cuda.memory_allocated() - before - first.numel() * first.element_size()
+        second = pipe.encode_prompt(prompt=['a'])[0]
+        return held, second.device.type, torch.equal(first, second)
+
+    outcome, _, _ = run_hijacked(pipe, lambda: with_cache_size(4, call))
+    held, device, same = outcome
+    assert held == 0, f'{held / 1024 ** 2:.0f} MB stayed allocated after the encode returned'
+    assert device == 'cuda' and same, f'hit returned a tensor on {device}, equal={same}'
+    assert pipe.calls == 1, f'encoded {pipe.calls} times'
+    return True
+
+
+class MoveFailingEncoder(torch.nn.Module):
+    """A text encoder whose move to the gpu fails, recording every move it is asked for."""
+
+    def __init__(self):
+        super().__init__()
+        self.weight = torch.nn.Parameter(torch.zeros(1))
+        self.moves = []
+
+    def to(self, *args, **kwargs):
+        device = torch.device(args[0] if args else kwargs['device'])
+        self.moves.append(device.type)
+        if device.type != 'cpu':
+            raise RuntimeError('CUDA driver error: out of memory')
+        return super().to(*args, **kwargs)
+
+
+def test_ideogram_encoder_back_on_cpu_after_failed_move():
+    """Red before the fix: the move ran before the try whose finally returns the encoder to cpu."""
+    from pipelines.ideogram import ideogram4
+
+    class Pipe(ideogram4.Ideogram4Pipeline):  # pylint: disable=abstract-method
+        @property
+        def _execution_device(self):
+            return torch.device('cuda')
+
+    pipe = object.__new__(Pipe)
+    pipe.text_encoder = MoveFailingEncoder()
+    saved = {key: shared.opts.data.get(key, None) for key in ('diffusers_offload_mode', 'model_ideogram4_enable_pe')}
+    shared.opts.data['diffusers_offload_mode'] = 'group'
+    shared.opts.data['model_ideogram4_enable_pe'] = True
+    try:
+        try:
+            pipe.encode_prompt(prompt=['a cat'], grid_h=64, grid_w=64, max_sequence_length=2048, device=torch.device('cuda'))
+            outcome = None
+        except RuntimeError as e:
+            outcome = e
+    finally:
+        for key, value in saved.items():
+            if value is None:
+                shared.opts.data.pop(key, None)
+            else:
+                shared.opts.data[key] = value
+    assert isinstance(outcome, RuntimeError), f'caller got {outcome!r}'
+    assert pipe.text_encoder.moves == ['cuda', 'cpu'], f'moves {pipe.text_encoder.moves}'
+    return True
+
+
 def test_pad_signature_probe_reaches_caller():
     """Red before the fix: the hijack swallowed the TypeError, so pad_to_same_length indexed the empty prompt it got back."""
     pipe = PositionalPipe()
@@ -158,6 +402,23 @@ def run_all():
         test_encode_failure_reaches_caller,
         test_encode_success_returns_embeddings,
         test_pad_signature_probe_reaches_caller,
+    ]:
+        run_test(cat, fn)
+    cat = category('cache')
+    for fn in [
+        test_cache_keys_on_size_arguments,
+        test_cache_skips_image_arguments,
+        test_cache_hits_identical_call,
+        test_cache_size_follows_setting,
+        test_cache_evicts_least_recently_used,
+        test_cache_returns_independent_copy,
+        test_cache_skips_results_it_cannot_copy,
+        test_cache_holds_no_gpu_memory,
+    ]:
+        run_test(cat, fn)
+    cat = category('pipelines')
+    for fn in [
+        test_ideogram_encoder_back_on_cpu_after_failed_move,
     ]:
         run_test(cat, fn)
 

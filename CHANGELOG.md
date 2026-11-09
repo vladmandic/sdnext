@@ -3,9 +3,10 @@
 ## Update for 2026-11-08
 
 - **Chat**: New top-level interface  
-  See [chat docs](https://vladmandic.github.io/sdnext-docs/Chat/) for more details  
-  - Can be used as an interactive interface for generating and editing images through conversational prompts  
-  - Can also be used for advanced scripting and automation within SD.Next  
+  See [chat docs](https://vladmandic.github.io/sdnext-docs/Chat/) for more details as this is quite an extensive module  
+  - Can be used as an interactive interface for generating, editing and processing images and videos through conversational prompts  
+  - Can be used for advanced scripting and automation within SD.Next  
+  - Chat supports all *text2image, image2image, image-edit, processing workflows*
   - Allows for full control of SD.Next generation parameters and settings  
   - Allows for persistent context across interactions  
 - **Models**:
@@ -49,29 +50,37 @@
   - dlss: use video codec defaults, slow-motion output plays slower
   - gallery: thumbnails and previews for webm, mkv, mov, avi and ts videos
   - hdr: the 16-bit hdr image saves on windows paths with non-ascii characters
+  - ideogram: a text encoder that fails to move to the gpu goes back to the cpu instead of staying partly on the gpu
+  - lora: *LoRA auto-apply tags* reach the first batch, keep their metadata order and are added when a tag is part of the lora file name; a lora without tags adds nothing, and later batches no longer append a bare comma
   - ltx: *Tiny* live previews show the video instead of a placeholder
   - ltx: tab passes no longer run with the previous job's guidance end, sigma adjust and correction settings
   - minimax: quantized *H3* fix decode
   - minimax: webm, mkv and ts files accepted as reference videos
   - models: *FLUX.3*, *MiniMax-H3* and modular video models fail the load when a component the workflow requires does not load
   - models: gated repo access check sends the token stored by *hf auth login*
+  - models: unloading a model returns the host memory it freed to the system on linux
   - namegen: prevent filename collisions
   - namegen: sanitize and check length per path component
   - namegen: add `opts`, `wildcards` as allowed templates
   - offload: a job that fails inside the vae no longer leaves the vae on the gpu
+  - offload: *TeaCache* runs under block level group offload, *FramePack*'s first job after a load no longer fails with tensors on two devices
   - preview: live previews of v-prediction models use the v-prediction estimate
   - preview: live previews of video and *Qwen-Image 2.1* latents
+  - preview: remove *Tiny: decode layers*, which no longer changed the decoder and only enlarged *Tiny* previews; use *Micro* when *Tiny* is too heavy
   - process: show why a video run failed, report a missing input video
   - processing: a generation that fails reports *failed* with its error instead of *interrupted*
   - processing: hires on modular pipelines that take condition images (*FLUX.3 Klein*) runs at the hires size instead of the base size
   - processing: negative prompt the pipeline takes no input for is reported once per job
   - processing: text encoder failure fails the job with its own error instead of a misleading *not enough values to unpack* from the pipeline
+  - prompt: the prompt cache keys on every encode argument and skips calls with images, *Ideogram 4* no longer fails at a new size with the same prompt and edit models encode each new input image
+  - prompt: cached prompt encodings stay in system memory and follow *Text encoder cache size*, *Ideogram 4* no longer fills the gpu with one 1.2 GB entry per prompt until its text encoder fails to load
   - samplers: *Euler SGM* and *DC Solver* use the model's prediction type
   - save: `[datetime<format>]` and `[hasprompt<...>]` filename tokens apply args
   - save: *Save metadata to JSON file* appends one line per image to a `jsonl`
   - save: an image save that fails no longer stops every later save
   - settings: extension settings are checked once extensions add them, instead of reported as unknown at startup
   - settings: a new data folder receives *config.json* and *secrets.json* on the first save
+  - settings: *Expandable segments* sets the allocator to expandable segments alone, large vae decodes no longer run out of memory or fail an allocator assert
   - settings: improve settings parsing and validation to prevent corruption
   - ui: refresh buttons call their method once per click
   - xyz: a blank value after a trailing comma is dropped instead of *Search & replace* inserting the replacement between every character of the prompt

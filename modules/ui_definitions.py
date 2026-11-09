@@ -671,7 +671,6 @@ def create_settings(cmd_opts):
         "live_preview_force": OptionInfo(False, "Force live previews on each step"),
         "live_preview_require_focus": OptionInfo(True, "Pause live previews when tab is not focused"),
         "live_preview_downscale": OptionInfo(True, "Downscale high resolution live previews"),
-        "taesd_layers": OptionInfo(3, "Tiny: decode layers", gr.Slider, {"minimum": 1, "maximum": 3, "step": 1}),
         "taesd_frames": OptionInfo(4, "Tiny: video frames", gr.Slider, {"minimum": -1, "maximum": 32, "step": 1, "visible": False}),
 
         "notification_audio_enable": OptionInfo(False, "Play a notification upon completion"),
