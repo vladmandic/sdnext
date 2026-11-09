@@ -23,7 +23,7 @@ ChatCommand = Literal[
     'context', 'clear', 'set', 'get', 'list', 'params', 'args', 'help', 'opts', 'prompt', 'negative', 'snapshot', 'snap',
     'generate', 'run', 'start', 'again', 'reprocess', 'schedule', 'cancel', 'abort', 'stop', 'interrupt', 'pause',
     'resume', 'skip', 'history', 'last', 'details', 'title', 'reset', 'model',
-    'use', 'file', 'image', 'meta', 'exif', 'metadata',
+    'use', 'file', 'image', 'meta', 'exif', 'metadata', 'session', 'import',
 ]
 ServerEndpointAlias = Literal[
     'info', 'ver', 'version', 'gpu', 'smi', 'mem', 'memory', 'status', 'storage',
@@ -135,7 +135,7 @@ class ReqChatMessageUpdate(BaseModel):
 
 
 class ResChatAction(BaseModel):
-    kind: Literal['text', 'operation', 'schedule', 'endpoint', 'error']
+    kind: Literal['text', 'operation', 'schedule', 'endpoint', 'error', 'session', 'import-control']
     text: str = ''
     data: dict[str, Any] = Field(default_factory=dict)
     sections: list[dict[str, str]] = Field(default_factory=list)
@@ -170,11 +170,18 @@ def _chat_error_result(result: dict[str, Any]) -> str:
     return result.get('text') or 'Unknown error'
 
 
-_IMAGE_PAYLOAD_FIELDS = {'image', 'images', 'inputs', 'inits', 'mask', 'init_images', 'init_control', 'control', 'ip_adapter', 'face'}
+_IMAGE_PAYLOAD_FIELDS = {'image', 'images', 'imageList', 'inputs', 'inits', 'mask', 'init_images', 'init_control', 'control', 'ip_adapter', 'face'}
 
 
-def _safe_operation_values(values: dict[str, Any]) -> dict[str, Any]:
-    return {name: value for name, value in values.items() if name not in _IMAGE_PAYLOAD_FIELDS}
+def _safe_operation_values(
+    values: dict[str, Any],
+    context: str | None = None,
+    session: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    safe_values = {name: value for name, value in values.items() if name not in _IMAGE_PAYLOAD_FIELDS}
+    if context == 'video' and session and (session.get('selected_image_ids') or session.get('selected_image_id')):
+        safe_values.pop('init_image', None)
+    return safe_values
 
 
 def _store_image_results(session_id: str, message_id: str, images: list, saved_images: list, source_artifact_id: str | None) -> list[dict[str, Any]]:
@@ -431,7 +438,8 @@ def get_session_parameter_choices(session_id: str, name: str = Query(...)) -> Re
     if session is None:
         raise HTTPException(status_code=404, detail='Chat session not found')
     try:
-        choices = commands.get_parameter_choices(session['context'], name)
+        draft = (session.get('drafts') or {}).get(session['context'], {})
+        choices = commands.get_parameter_choices(session['context'], name, draft)
     except commands.CommandError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return ResChatChoices(name=name, choices=choices)
@@ -478,7 +486,7 @@ def _execute_chat_operation(session_id: str, user_message: dict[str, Any], resul
     handlers = {
         '/sdapi/v1/control': 'image',
         '/sdapi/v1/video': 'video',
-        '/sdapi/v1/process': 'process',
+        '/sdapi/v1/extra-batch-images': 'process',
         '/sdapi/v1/vqa': 'caption',
     }
     context = handlers.get(descriptor.get('path'))
@@ -491,7 +499,7 @@ def _execute_chat_operation(session_id: str, user_message: dict[str, Any], resul
     if not isinstance(arguments, dict):
         raise ValueError('Invalid chat generation arguments')
 
-    operation_snapshot = _safe_operation_values(arguments)
+    operation_snapshot = _safe_operation_values(arguments, context, session)
     if context == 'image':
         operation_snapshot['settings_revision_id'] = session.get('active_settings_revision_id')
     operation = db.create_operation(
@@ -507,10 +515,24 @@ def _execute_chat_operation(session_id: str, user_message: dict[str, Any], resul
             control_api_instance = getattr(api_instance, 'control', None)
             if control_api_instance is None:
                 raise RuntimeError('The control generation API is unavailable')
-            responses = [
-                control_api_instance.post_control(api_control.ReqControl.model_validate(arguments))
-                for _ in range(run_count)
-            ]
+            responses = []
+            errors = []
+            first_exception = None
+            for run_index in range(run_count):
+                try:
+                    response = control_api_instance.post_control(api_control.ReqControl.model_validate(arguments))
+                except Exception as exc:
+                    first_exception = first_exception or exc
+                    errors.append(f'Run {run_index + 1}: {exc}')
+                    continue
+                responses.append(response)
+                response_error = getattr(response, 'error', None)
+                if response_error:
+                    errors.append(f'Run {run_index + 1}: {response_error}')
+            if not responses:
+                if run_count == 1:
+                    raise first_exception
+                raise RuntimeError('\n'.join(errors)) from first_exception
             images = [image for response in responses for image in (response.images or [])]
             info = '\n'.join(response.info for response in responses if response.info)
             stats = '\n'.join(response.stats for response in responses if getattr(response, 'stats', ''))
@@ -519,7 +541,10 @@ def _execute_chat_operation(session_id: str, user_message: dict[str, Any], resul
             stored_artifacts = _store_image_results(
                 session_id, user_message['id'], images, saved_images, session.get('selected_image_id'),
             )
-            completion_text = f'Generated {len(images)} image(s)'
+            completion_text = f'<span class="chat-processed">Generated {len(images)} image(s)</span>'
+            error = '\n'.join(errors)
+            if error:
+                completion_text += f'\nError: {error}'
             if info:
                 completion_text += f'\n{info}'
             if stats:
@@ -529,6 +554,7 @@ def _execute_chat_operation(session_id: str, user_message: dict[str, Any], resul
                 'info': info,
                 'stats': stats,
                 'parameters': parameters,
+                'error': error or None,
                 'artifacts': [artifacts.public_artifact(item) for item in stored_artifacts],
             }
             saved_result = {
@@ -537,6 +563,7 @@ def _execute_chat_operation(session_id: str, user_message: dict[str, Any], resul
                 'info': info,
                 'stats': stats,
                 'parameters': parameters,
+                'error': error or None,
             }
             message_metadata = {'image_count': len(images), 'format': 'html'}
         elif context == 'video':
@@ -565,23 +592,22 @@ def _execute_chat_operation(session_id: str, user_message: dict[str, Any], resul
             process_api_instance = getattr(api_instance, 'process', None)
             if process_api_instance is None:
                 raise RuntimeError('The image processing API is unavailable')
-            request = models.ReqProcessImage.model_validate(arguments)
-            response = process_api_instance.extras_single_image_api(request)
+            request = models.ReqProcessBatch.model_validate(arguments)
+            response = process_api_instance.extras_batch_images_api(request)
             info = response.html_info or ''
-            completion_text = 'Image processed'
+            images = response.images or []
+            completion_text = f'<span class="chat-processed">Processed {len(images)} image(s)</span>'
             if info:
-                completion_text += f'\n{info}'
+                completion_text += f'<br>{info}'
             source_artifact_id = session.get('selected_image_id')
-            stored_artifacts = _store_image_results(
-                session_id, user_message['id'], [response.image], [], source_artifact_id,
-            )
+            stored_artifacts = _store_image_results(session_id, user_message['id'], images, [], source_artifact_id)
             output_data = {
-                'images': [response.image],
+                'images': images,
                 'info': info,
                 'artifacts': [artifacts.public_artifact(item) for item in stored_artifacts],
             }
-            saved_result = {'info': info}
-            message_metadata = {'format': 'html', 'image_count': 1}
+            saved_result = {'image_count': len(images), 'info': info}
+            message_metadata = {'format': 'html', 'image_count': len(images)}
         else:
             from modules.api.caption import ReqVQA, post_vqa
             request = ReqVQA.model_validate(arguments)
@@ -599,7 +625,7 @@ def _execute_chat_operation(session_id: str, user_message: dict[str, Any], resul
             db.update_session(
                 session_id,
                 last_generation_prompt=str(arguments.get('prompt') or ''),
-                last_generation_snapshot=_safe_operation_values(arguments),
+                last_generation_snapshot=_safe_operation_values(arguments, context, session),
             )
         result.update({
             'text': completion_text,
@@ -770,7 +796,7 @@ def _execute_chat_command(
     session_id: str,
     user_message: dict[str, Any],
     content: str,
-    image: str | None,
+    image: str | list[str] | None,
     api_instance,
     import_depth: int = 0,
 ):
@@ -812,6 +838,13 @@ def _selected_image_for_command(
         return fallback
     artifact_ids = session.get('selected_image_ids') or ([session['selected_image_id']] if session.get('selected_image_id') else [])
     if not artifact_ids:
+        if fallback is not None:
+            return fallback
+        if session['context'] == 'process':
+            for artifact in reversed(db.list_artifacts(session['id'])):
+                if artifact['role'] == 'result' and artifact['media_type'].startswith('image/') \
+                        and artifacts.public_artifact(artifact)['available']:
+                    return artifacts.read_image_base64(artifact)
         return fallback
     images = []
     for artifact_id in artifact_ids:
@@ -819,7 +852,7 @@ def _selected_image_for_command(
         if artifact is None or not artifacts.public_artifact(artifact)['available']:
             raise ValueError('Selected image is unavailable')
         images.append(artifacts.read_image_base64(artifact))
-    return images if session['context'] == 'image' else images[0]
+    return images if session['context'] in {'image', 'process'} else images[0]
 
 
 def _transient_message(role: str, content: str, metadata: dict[str, Any] | None = None):

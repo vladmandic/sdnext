@@ -66,8 +66,15 @@ _SERVER_COMMAND_GROUPS = {
 _IMAGE_MODEL = control_api.ReqControl
 _IMAGE_MODEL_FIELDS = _IMAGE_MODEL.model_fields
 _IMAGE_PARAMETERS = set(_IMAGE_MODEL_FIELDS)
-_VIDEO_MODEL_FIELDS = ReqVideo.model_fields
-_VIDEO_PARAMETERS = set(_VIDEO_MODEL_FIELDS)
+_PROCESS_MODEL = models.ReqProcess
+_PROCESS_MODEL_FIELDS = _PROCESS_MODEL.model_fields
+_PROCESS_PARAMETERS = set(_PROCESS_MODEL_FIELDS)
+_PROCESS_PARAMETER_ALIASES = {
+    'upscale:upscaler': 'upscaler_1',
+    'upscale:refiner': 'upscaler_2',
+}
+_VIDEO_MODEL_FIELDS: dict[str, Any] = ReqVideo.model_fields
+_VIDEO_PARAMETERS: set[str] = set(_VIDEO_MODEL_FIELDS)
 _IMAGE_RANGES = {
     'width_before': (64, 4096), 'height_before': (64, 4096), 'steps': (1, 200),
     'batch_size': (1, 16), 'batch_count': (1, 100), 'cfg_scale': (0, 100),
@@ -104,7 +111,7 @@ _PARAMETER_ALIASES = {
 _OPERATION_COMMANDS = {
     'again', 'caption', 'generate', 'run', 'schedule', 'cancel', 'pause', 'resume', 'skip', 'history', 'reset', 'last',
 }
-_BUILTIN_COMMANDS = {'context', 'clear', 'set', 'get', 'list', 'params', 'help', 'model', 'opts', 'db', 'snapshot'}
+_BUILTIN_COMMANDS = {'context', 'clear', 'set', 'get', 'list', 'params', 'help', 'model', 'opts', 'db', 'snapshot', 'session', 'import'}
 
 
 def _command_result(text: str, kind='text', data=None, sections=None):
@@ -185,6 +192,15 @@ def _parse_value(raw_value: str, annotation: Any, example: Any = None):
             values = [item.strip() for item in list_text.split(',') if item.strip()]
         item_adapter = TypeAdapter(list_type)
         return [item_adapter.validate_python(item) for item in values]
+    if annotation is dict or origin is dict or (origin in (Union, UnionType) and dict in args):
+        try:
+            value = json.loads(raw_value)
+        except json.JSONDecodeError:
+            try:
+                value = ast.literal_eval(raw_value)
+            except (SyntaxError, ValueError):
+                value = raw_value
+        return TypeAdapter(annotation).validate_python(value)
     if annotation is Any or annotation is None:
         return raw_value
     return TypeAdapter(annotation).validate_python(raw_value)
@@ -262,6 +278,30 @@ def parse_command(text: str) -> ParsedCommand:
         return ParsedCommand('endpoint', {'alias': command, 'endpoints': descriptors})
 
     command = _COMMAND_ALIASES.get(command, command)
+    if command == 'session':
+        value = raw_arguments.strip()
+        action = value.casefold()
+        if not value or action == 'list':
+            return ParsedCommand(command, {'action': 'list'})
+        if action in {'del', 'rm'}:
+            return ParsedCommand(command, {'action': 'delete'})
+        if action.startswith(('del ', 'rm ', 'list ')):
+            raise CommandError('Use: session [list|<number>|<name>|del|rm|create [name]|add [name]]')
+        if action == 'create' or action == 'add' or action.startswith(('create ', 'add ')):
+            title = value.split(maxsplit=1)[1] if len(value.split(maxsplit=1)) > 1 else ''
+            title = _normalize_value(title.strip()) or None
+            return ParsedCommand(command, {'action': 'create', 'title': title})
+        name = _normalize_value(value)
+        if name.isdecimal():
+            index = int(name)
+            if index < 1:
+                raise CommandError('Session number must be positive')
+            return ParsedCommand(command, {'action': 'activate_index', 'index': index})
+        return ParsedCommand(command, {'action': 'activate_name', 'name': name})
+    if command == 'import':
+        if raw_arguments.strip():
+            raise CommandError('Use: import')
+        return ParsedCommand('import-settings', {})
     if command in {'use', 'file'}:
         try:
             paths = shlex.split(raw_arguments)
@@ -331,7 +371,10 @@ def parse_command(text: str) -> ParsedCommand:
         name = name.lower()
         return ParsedCommand(command, {'name': _PARAMETER_ALIASES.get(name, name), 'value': value})
     if command in {'get', 'list'}:
-        parts = raw_arguments.split()
+        try:
+            parts = shlex.split(raw_arguments)
+        except ValueError as exc:
+            raise CommandError(f'Invalid {command} argument: {exc}') from exc
         if len(parts) > 1:
             raise CommandError(f'Use: {command} [parameter]')
         name = parts[0].lower() if parts else None
@@ -413,18 +456,26 @@ def is_transient_command(text: str) -> bool:
         except CommandError:
             return False
         return parsed.arguments['action'] == 'list'
-    return command in {'help', 'list', 'params'}
+    return command in {'help', 'list', 'params', 'session'}
 
 
 def _parameter_spec(context: str, name: str):
+    if context == 'video' and name in _VIDEO_PARAMETERS:
+        return 'parameter', (ReqVideo, name)
     if name in _SETTING_NAMES:
         return 'setting', _SETTING_NAMES[name]
+    if context == 'process':
+        if ':' in name:
+            script_parameter = _process_script_parameter(name)
+            if script_parameter is not None:
+                return 'process_extra', script_parameter
+        name = _PROCESS_PARAMETER_ALIASES.get(name, name)
+        if name in _PROCESS_PARAMETERS:
+            return 'parameter', (_PROCESS_MODEL, name)
     if context in {'process', 'caption'} and name in {'prompt', 'negative_prompt'}:
         return 'parameter', (None, name)
     if context == 'image' and name in _IMAGE_PARAMETERS and name in _IMAGE_MODEL_FIELDS:
         return 'parameter', (_IMAGE_MODEL, name)
-    if context == 'video' and name in _VIDEO_PARAMETERS and name in _VIDEO_MODEL_FIELDS.keys():
-        return 'parameter', (ReqVideo, name)
     if context == 'image' and ':' in name:
         extra = _control_extra_field(name)
         if extra is not None:
@@ -432,12 +483,23 @@ def _parameter_spec(context: str, name: str):
     raise CommandError(f'Unsupported parameter for {context}: {name}')
 
 
-def _choice_values(name: str):
+def _choice_values(name: str, context: str | None = None, draft: dict[str, Any] | None = None):
+    if context == 'video' and name in {'engine', 'model'}:
+        from modules.video_models import models_def
+        engines = models_def.engines()
+        if name == 'engine':
+            return engines
+        engine = (draft or {}).get('engine')
+        if engine:
+            return models_def.model_names(engine)
+        return list(dict.fromkeys(
+            model_name for engine_name in engines for model_name in models_def.model_names(engine_name)
+        ))
     if name in {'sampler_name', 'sampler'}:
         return [item['name'] for item in endpoints.get_samplers()]
     if name == 'scheduler':
         return [item['name'] for item in endpoints.get_schedulers()]
-    if name == 'hr_upscaler':
+    if name in {'hr_upscaler', 'upscaler_1', 'upscaler_2'}:
         return [item['name'] for item in endpoints.get_upscalers()]
     if name == 'styles':
         return [item['name'] if isinstance(item, dict) else item.name for item in endpoints.get_prompt_styles()]
@@ -457,7 +519,7 @@ def _choice_values(name: str):
     return [item[0] if isinstance(item, (list, tuple)) else item for item in choices]
 
 
-def get_parameter_choices(context: str, name: str) -> list[str]:
+def get_parameter_choices(context: str, name: str, draft: dict[str, Any] | None = None) -> list[str]:
     name = _PARAMETER_ALIASES.get(name, name)
     try:
         kind, spec = _parameter_spec(context, name)
@@ -473,7 +535,11 @@ def get_parameter_choices(context: str, name: str) -> list[str]:
             name = spec
         elif kind == 'extra':
             return [str(choice) for choice in (spec[1].get('choices') or [])]
-    return [str(choice) for choice in _choice_values(name)]
+        elif kind == 'process_extra':
+            return [str(label) for label, _value in _process_script_choices(spec[2])]
+        else:
+            name = spec[1]
+    return [str(choice) for choice in _choice_values(name, context, draft)]
 
 
 def _resolve_choice_fragment(name: str, value: Any, choices: list[Any]):
@@ -497,6 +563,34 @@ def _resolve_choice_fragment(name: str, value: Any, choices: list[Any]):
         label = 'model name' if name in {'model', 'sd_model_checkpoint'} else name
         raise CommandError(f'Ambiguous {label}:\n{candidates}')
     return value
+
+
+def _resolve_video_model(value: str, engine: str | None = None) -> tuple[str, str]:
+    from modules.video_models import models_def
+
+    engines = [engine] if engine else models_def.engines()
+    exact_matches = [
+        (engine_name, model_name)
+        for engine_name in engines
+        for model_name in models_def.model_names(engine_name)
+        if model_name.casefold() == value.casefold()
+    ]
+    fragment = ''.join(character for character in value.casefold() if character.isalnum())
+    matches = exact_matches or [
+        (engine_name, model_name)
+        for engine_name in engines
+        for model_name in models_def.model_names(engine_name)
+        if fragment and fragment in ''.join(character for character in model_name.casefold() if character.isalnum())
+    ]
+    if len(matches) == 1:
+        return matches[0]
+    if len(matches) > 1:
+        candidates = '\n'.join(f'{model_name} ({engine_name})' for engine_name, model_name in matches[:5])
+        if len(matches) > 5:
+            candidates += '\n...'
+        raise CommandError(f'Ambiguous model name:\n{candidates}')
+    available = models_def.model_names(engine) if engine else models_def.engines()
+    raise CommandError(f'Invalid value for model\nUse list model to see available choices: {available}')
 
 
 def _validate_setting(name: str, raw_value: Any) -> tuple[str, Any]:
@@ -524,7 +618,7 @@ def _validate_setting(name: str, raw_value: Any) -> tuple[str, Any]:
     return canonical, value
 
 
-def _validate_parameter(context: str, name: str, raw_value: Any):
+def _validate_parameter(context: str, name: str, raw_value: Any, draft: dict[str, Any] | None = None):
     _, (request_model, field_name) = _parameter_spec(context, name)
     if request_model is None:
         return raw_value
@@ -538,7 +632,7 @@ def _validate_parameter(context: str, name: str, raw_value: Any):
         minimum, maximum = _IMAGE_RANGES[name]
         if not minimum <= value <= maximum:
             raise CommandError(f'{name} must be between {minimum} and {maximum}')
-    choices = _choice_values(name)
+    choices = _choice_values(field_name, context, draft)
     if choices:
         value = _resolve_choice_fragment(name, value, choices)
         values = value if isinstance(value, list) else [value]
@@ -590,7 +684,7 @@ def _format_session(session: dict[str, Any]) -> str:
     allowed_by_context = {
         'image': _IMAGE_PARAMETERS,
         'video': _VIDEO_PARAMETERS,
-        'process': {'prompt', 'negative_prompt'},
+        'process': _PROCESS_PARAMETERS,
         'caption': {'prompt', 'negative_prompt'},
     }
     for context, draft in sorted((session.get('drafts') or {}).items()):
@@ -660,10 +754,18 @@ def _help_sections() -> list[dict[str, str]]:
             'format': 'html',
         },
         {
+            'title': 'Session',
+            'content': 'Manage chat sessions\n'
+            '- session/list: List existing sessions\n'
+            '- session <number|name>: Activate a session\n'
+            '- session del/rm: Delete the current session\n'
+            '- session create/add [name]: Create and activate a session\n'
+            '- title [name]: Read or set the current session name\n'
+            '- context <value>: Select the active context\n',
+        },
+        {
             'title': 'Process',
             'content': 'Choose a context and control active work\n'
-            '- title [name]: Read or set the current session name\n'
-            '- context <value>: Select the active context\n'
             '- clear: Clear displayed messages without changing session history\n'
             '- run [count]: Run image generation 1-10 times (default: 1)\n'
             '- generate/start: Start the current process once\n'
@@ -687,6 +789,7 @@ def _help_sections() -> list[dict[str, str]]:
             '- get [key]: Get a value or list session values\n'
             '- clear <key>: Reset one parameter or setting to its default\n'
             '- params/args: List valid parameter keys for the current context\n'
+            '- import: Import current values from the UI into the active session\n'
             '- reset: Restore parameter defaults\n'
             '- Control Extras use script:field keys, such as dlss:nr\n',
         },
@@ -732,6 +835,10 @@ def _listable_keys(context: str) -> list[str]:
     keys = ['model', 'unet', 'vae']
     if context in {'image', 'video'}:
         keys.extend(['sampler_name', 'styles'])
+    if context == 'video':
+        keys.append('engine')
+    if context == 'process':
+        keys.extend(_PROCESS_PARAMETER_ALIASES)
     if context == 'image':
         try:
             keys.extend(item['name'] for item in _control_extra_parameter_specs() if item['field']['choices'])
@@ -745,6 +852,8 @@ def _context_parameter_keys(context: str) -> list[str]:
         return sorted(_IMAGE_PARAMETERS)
     if context == 'video':
         return sorted(_VIDEO_PARAMETERS)
+    if context == 'process':
+        return sorted(_PROCESS_PARAMETERS)
     return ['prompt', 'negative_prompt']
 
 
@@ -767,6 +876,8 @@ def _parameter_field(context: str, name: str):
         return _IMAGE_MODEL_FIELDS[name]
     if context == 'video':
         return _VIDEO_MODEL_FIELDS[name]
+    if context == 'process':
+        return _PROCESS_MODEL_FIELDS[name]
     return None
 
 
@@ -839,10 +950,31 @@ def get_parameter_entries(context: str, draft: dict[str, Any] | None = None) -> 
                 })
         except CommandError:
             pass
+    elif context == 'process':
+        from modules import scripts_manager
+        runner = scripts_manager.scripts_postproc
+        scripts = runner.scripts_in_preferred_order() if runner is not None else []
+        script_args = draft.get('script_args') or {}
+        for script in scripts:
+            controls = getattr(script, 'controls', None)
+            if not isinstance(controls, dict):
+                continue
+            values = script_args.get(script.name, {}) if isinstance(script_args, dict) else {}
+            for name, component in controls.items():
+                default = getattr(component, 'value', None)
+                value = values.get(name, default) if isinstance(values, dict) else default
+                parameter_name = f'{_process_script_name_key(script.name)}:{name}'
+                entries.append({
+                    'name': parameter_name,
+                    'type': _process_script_value_type(component).__name__,
+                    'value': _format_parameter_value(value, 'set' if name in values else 'default'),
+                    'is_set': name in values,
+                    'is_none': value is None,
+                })
     return entries
 
 
-def _list_choices(context: str, name: str | None) -> str:
+def _list_choices(context: str, name: str | None, draft: dict[str, Any] | None = None) -> str:
     if name is None:
         return f'Listable keys for {context}:\n' + '\n'.join(
             f'- {key}' for key in _listable_keys(context)
@@ -853,7 +985,16 @@ def _list_choices(context: str, name: str | None) -> str:
         if not choices:
             raise CommandError(f'No valid choices are currently available for {name}')
         return f'{name}:\n' + '\n'.join(f'- {choice}' for choice in choices)
-    choices = _choice_values(name)
+    if kind == 'process_extra':
+        choices = _process_script_choices(spec[2])
+        if choices:
+            return f'{name}:\n' + '\n'.join(f'- {label}' for label, _value in choices)
+        minimum = getattr(spec[2], 'minimum', None)
+        maximum = getattr(spec[2], 'maximum', None)
+        type_name = _process_script_value_type(spec[2]).__name__
+        suffix = f'; range {minimum}..{maximum}' if minimum is not None and maximum is not None else ''
+        return f'{name}: {type_name}{suffix}'
+    choices = _choice_values(spec[1] if kind == 'parameter' else name, context, draft)
     if kind == 'setting' and not choices:
         raise CommandError(f'No valid choices are currently available for {name}')
     if choices:
@@ -913,6 +1054,159 @@ def _list_catalog(name: str) -> str:
     return ''
 
 
+def _list_process_script_arguments(name: str) -> str | None:
+    script = _process_postprocessing_script(name)
+    if script is None:
+        return None
+
+    arguments = []
+    controls = getattr(script, 'controls', None)
+    if isinstance(controls, dict):
+        for key, component in controls.items():
+            details = [f'default={_format_parameter_value(getattr(component, "value", None), "default")}']
+            choices = getattr(component, 'choices', None)
+            if choices:
+                choices = [str(choice[0] if isinstance(choice, (tuple, list)) else choice) for choice in choices]
+                details.append(f'choices={", ".join(choices)}')
+            minimum = getattr(component, 'minimum', None)
+            maximum = getattr(component, 'maximum', None)
+            if minimum is not None and maximum is not None:
+                details.append(f'range={minimum}..{maximum}')
+            arguments.append(f'- {key}: {"; ".join(details)}')
+    else:
+        try:
+            parameters = list(inspect.signature(script.process).parameters.values())[1:]
+        except (TypeError, ValueError, AttributeError):
+            parameters = []
+        for parameter in parameters:
+            if parameter.kind in {inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD}:
+                continue
+            annotation = 'Any' if parameter.annotation is inspect.Parameter.empty else _format_type(parameter.annotation)
+            default = (
+                'required' if parameter.default is inspect.Parameter.empty
+                else f'default={_format_parameter_value(parameter.default, "default")}'
+            )
+            arguments.append(f'- {parameter.name}: {annotation} ({default})')
+    if not arguments:
+        return f'{script.name}: no configurable arguments available'
+    return f'{script.name} arguments:\n' + '\n'.join(arguments)
+
+
+def _process_script_name_key(name: str) -> str:
+    return re.sub(r'[^a-z0-9]+', '_', name.casefold()).strip('_')
+
+
+def _process_postprocessing_script(name: str):
+    from modules import scripts_manager
+    runner = scripts_manager.scripts_postproc
+    scripts = runner.scripts_in_preferred_order() if runner is not None else []
+    normalized_name = re.sub(r'[_\s]+', ' ', name.casefold()).strip()
+    return next((
+        item for item in scripts
+        if re.sub(r'[_\s]+', ' ', item.name.casefold()).strip() == normalized_name
+    ), None)
+
+
+def _process_script_parameter(name: str):
+    script_name, separator, argument_name = name.partition(':')
+    if not separator or not argument_name:
+        return None
+    script = _process_postprocessing_script(script_name)
+    controls = getattr(script, 'controls', None) if script is not None else None
+    if not isinstance(controls, dict):
+        return None
+    for field_name, component in controls.items():
+        if field_name.casefold() == argument_name.casefold():
+            return script.name, field_name, component
+    return None
+
+
+def _process_script_choices(component):
+    choices = getattr(component, 'choices', None) or []
+    return [
+        (str(choice[0]), choice[1]) if isinstance(choice, (tuple, list)) and len(choice) > 1
+        else (str(choice), choice)
+        for choice in choices
+    ]
+
+
+def _process_script_value_type(component):
+    value = getattr(component, 'value', None)
+    choices = _process_script_choices(component)
+    if isinstance(value, list):
+        return list
+    if value is not None:
+        return type(value)
+    return type(choices[0][1]) if choices else str
+
+
+def _validate_process_script_value(name: str, component, raw_value: Any):
+    default = getattr(component, 'value', None)
+    annotation = _process_script_value_type(component)
+    example = default
+    if isinstance(default, list):
+        choices = _process_script_choices(component)
+        sample = choices[0][1] if choices else (default[0] if default else '')
+        if sample is not None:
+            example = [sample]
+    try:
+        value = _parse_value(raw_value, annotation, example)
+    except (ValidationError, ValueError) as exc:
+        message = exc.errors()[0]['msg'] if isinstance(exc, ValidationError) else str(exc)
+        raise CommandError(f'Invalid value for {name}: {message}') from exc
+
+    choices = _process_script_choices(component)
+    if choices:
+        valid_values = [choice[1] for choice in choices]
+        labels = [choice[0] for choice in choices]
+        candidates = list(dict.fromkeys([*labels, *valid_values]))
+        is_list = isinstance(value, list)
+        values = value if is_list else [value]
+        resolved_values = []
+        for item in values:
+            resolved = _resolve_choice_fragment(name, item, candidates)
+            if resolved in valid_values:
+                resolved_values.append(resolved)
+            elif resolved in labels:
+                resolved_values.append(valid_values[labels.index(resolved)])
+            else:
+                raise CommandError(f'Invalid value for {name}; use list {name} to see valid choices')
+        value = resolved_values if is_list else resolved_values[0]
+
+    minimum = getattr(component, 'minimum', None)
+    maximum = getattr(component, 'maximum', None)
+    if minimum is not None and value < minimum:
+        raise CommandError(f'{name} must be at least {minimum}')
+    if maximum is not None and value > maximum:
+        raise CommandError(f'{name} must be at most {maximum}')
+    return value
+
+
+def _process_script_value(draft: dict[str, Any], script_name: str, field_name: str, component):
+    script_args = draft.get('script_args') or {}
+    values = script_args.get(script_name, {}) if isinstance(script_args, dict) else {}
+    default = getattr(component, 'value', None)
+    return values.get(field_name, default) if isinstance(values, dict) else default
+
+
+def _set_process_script_value(draft: dict[str, Any], script_name: str, field_name: str, component, value: Any):
+    script_args = dict(draft.get('script_args') or {})
+    values = dict(script_args.get(script_name) or {})
+    default = getattr(component, 'value', None)
+    if value == default:
+        values.pop(field_name, None)
+    else:
+        values[field_name] = value
+    if values:
+        script_args[script_name] = values
+    else:
+        script_args.pop(script_name, None)
+    if script_args:
+        draft['script_args'] = script_args
+    else:
+        draft.pop('script_args', None)
+
+
 def _field_range(field) -> tuple[Any, Any] | None:
     minimum = maximum = None
     for constraint in field.metadata:
@@ -960,6 +1254,8 @@ def _clear_parameter(session_id: str, session: dict[str, Any], name: str) -> str
             raise CommandError(f'Setting callback rejected the default for {name}')
     elif kind == 'extra':
         default = spec[1]['default']
+    elif kind == 'process_extra':
+        default = getattr(spec[2], 'value', None)
     else:
         request_model, name = spec
         if request_model is None:
@@ -973,6 +1269,8 @@ def _clear_parameter(session_id: str, session: dict[str, Any], name: str) -> str
     context_draft = dict(drafts.get(context) or {})
     if kind == 'extra':
         _set_control_extra_value(context_draft, spec[0], spec[1], default)
+    elif kind == 'process_extra':
+        _set_process_script_value(context_draft, spec[0], spec[1], spec[2], default)
     else:
         context_draft.pop(name, None)
     if context_draft:
@@ -1257,15 +1555,24 @@ def _generation_endpoint(
         payload = {name: value for name, value in source.items() if name in _VIDEO_PARAMETERS}
         if prompt is not None:
             payload['prompt'] = prompt
+        if image is not None:
+            inputs = image if isinstance(image, list) else [image]
+            if inputs:
+                payload['init_image'] = inputs[0]
         payload.update({'send_video': True, 'send_frames': False, 'send_thumbnail': True})
         request_model = ReqVideo
         error_prefix = 'Cannot run video generation'
     elif context == 'process':
-        if not image:
-            raise CommandError('Process requires an image generated in this chat')
-        payload = {'image': image}
-        request_model = models.ReqProcessImage
-        error_prefix = 'Cannot process the image'
+        image_values = image if isinstance(image, list) else [image] if image else []
+        if not image_values:
+            raise CommandError('Process requires an image selected or generated in this chat')
+        payload = {name: value for name, value in source.items() if name in _PROCESS_PARAMETERS}
+        payload['imageList'] = [
+            {'name': f'image-{index + 1}.png', 'data': image_data}
+            for index, image_data in enumerate(image_values)
+        ]
+        request_model = models.ReqProcessBatch
+        error_prefix = 'Cannot process the images'
     elif context == 'caption':
         if not image:
             raise CommandError('Caption requires an image generated in this chat')
@@ -1285,7 +1592,7 @@ def _generation_endpoint(
         'path': {
             'image': '/sdapi/v1/control',
             'video': '/sdapi/v1/video',
-            'process': '/sdapi/v1/process',
+            'process': '/sdapi/v1/extra-batch-images',
             'caption': '/sdapi/v1/vqa',
         }[context],
         'location': 'body',
@@ -1308,6 +1615,17 @@ def _format_history(session_id: str, limit: int) -> str:
             summary += f' - {prompt[:100]}'
         lines.append(summary)
     return '\n'.join(lines)
+
+
+def _all_sessions() -> list[dict[str, Any]]:
+    sessions = []
+    offset = 0
+    while True:
+        batch = db.list_sessions(limit=100, offset=offset)
+        sessions.extend(batch)
+        if len(batch) < 100:
+            return sessions
+        offset += len(batch)
 
 
 def _format_settings_snapshots(session: dict[str, Any]) -> str:
@@ -1360,6 +1678,54 @@ def _execute_command(session_id: str, text: str, image: str | list[str] | None =
         return _command_error('Chat session not found')
     context = session['context']
 
+    if command.name == 'session':
+        action = command.arguments['action']
+        if action == 'list':
+            sessions = _all_sessions()
+            if not sessions:
+                return _command_result('No chat sessions')
+            lines = [
+                f'{index}. {item["title"]} [{item["context"]}]'
+                f'{" (active)" if item["id"] == session_id else ""}'
+                for index, item in enumerate(sessions, start=1)
+            ]
+            return _command_result('\n'.join(lines), data={'sessions': sessions})
+        if action == 'delete':
+            return _command_result(
+                f'Deleting session "{session["title"]}"',
+                kind='session',
+                data={'action': 'delete', 'session_id': session_id},
+            )
+        if action == 'create':
+            title = command.arguments['title']
+            return _command_result(
+                f'Creating session{f": {title}" if title else ""}',
+                kind='session',
+                data={'action': 'create', 'title': title},
+            )
+        sessions = _all_sessions()
+        if action == 'activate_index':
+            index = command.arguments['index']
+            if index > len(sessions):
+                return _command_error(f'No session numbered {index}')
+            target = sessions[index - 1]
+        else:
+            name = command.arguments['name']
+            matches = [item for item in sessions if item['title'].casefold() == name.casefold()]
+            if not matches:
+                return _command_error(f'No session named "{name}"')
+            if len(matches) > 1:
+                return _command_error(f'Session name is ambiguous: "{name}" matches {len(matches)} sessions')
+            target = matches[0]
+        return _command_result(
+            f'Activating session "{target["title"]}"',
+            kind='session',
+            data={'action': 'activate', 'session_id': target['id']},
+        )
+    if command.name == 'import-settings':
+        if context != 'image':
+            return _command_error(f'Not yet implemented for {context} context')
+        return _command_result('Importing Control settings', kind='import-control')
     if command.name == 'help':
         sections = _help_sections()
         return _command_result(_format_help_sections(sections), sections=sections)
@@ -1493,18 +1859,33 @@ def _execute_command(session_id: str, text: str, image: str | list[str] | None =
         if name is None:
             return _command_result(_format_session(session))
         kind, spec = _parameter_spec(context, name)
+        video_model_engine = None
         if kind == 'setting':
             name, value = _validate_setting(name, command.arguments['value'])
             if not _apply_setting(name, value):
                 return _command_error(f'Setting callback rejected {name}; the session draft was not changed.')
         elif kind == 'extra':
             value = _validate_control_extra_value(name, spec[1], command.arguments['value'])
+        elif kind == 'process_extra':
+            value = _validate_process_script_value(name, spec[2], command.arguments['value'])
+        elif kind == 'parameter' and context == 'video' and spec[1] == 'model':
+            video_model_engine, value = _resolve_video_model(
+                str(command.arguments['value']), (session.get('drafts') or {}).get(context, {}).get('engine'),
+            )
         else:
-            value = _validate_parameter(context, name, command.arguments['value'])
+            value = _validate_parameter(
+                context, name, command.arguments['value'], (session.get('drafts') or {}).get(context, {}),
+            )
         drafts = dict(session.get('drafts') or {})
         context_draft = dict(drafts.get(context) or {})
         if kind == 'extra':
             _set_control_extra_value(context_draft, spec[0], spec[1], value)
+        elif kind == 'process_extra':
+            _set_process_script_value(context_draft, spec[0], spec[1], spec[2], value)
+        elif kind == 'parameter':
+            context_draft[spec[1]] = value
+            if video_model_engine:
+                context_draft['engine'] = video_model_engine
         else:
             context_draft[name] = value
         drafts[context] = context_draft
@@ -1521,23 +1902,47 @@ def _execute_command(session_id: str, text: str, image: str | list[str] | None =
         elif kind == 'extra':
             draft = (session.get('drafts') or {}).get(context, {})
             value = _control_extra_value(draft, spec[0], spec[1])
+        elif kind == 'process_extra':
+            draft = (session.get('drafts') or {}).get(context, {})
+            value = _process_script_value(draft, spec[0], spec[1], spec[2])
         else:
             draft = (session.get('drafts') or {}).get(context, {})
             request_model, field_name = spec
             default = request_model.model_fields[field_name].default if request_model is not None else ''
-            value = draft.get(name, default)
+            value = draft.get(field_name, default)
         return _command_result(f'{name}={value}')
     if command.name == 'list':
         name = command.arguments['name']
+        if name is None and context == 'process':
+            return _command_result(_list_catalog('process'))
         catalog = _list_catalog(name) if name in {'sessions', 'wildcards', 'process', 'scripts'} else ''
         if catalog:
             return _command_result(catalog)
+        if name is not None and context == 'process':
+            script_arguments = _list_process_script_arguments(name)
+            if script_arguments is not None:
+                return _command_result(script_arguments)
         try:
-            return _command_result(_list_choices(context, name))
+            return _command_result(_list_choices(context, name, (session.get('drafts') or {}).get(context, {})))
         except CommandError as exc:
             return _command_error(str(exc))
     if command.name == 'model':
         values = command.arguments['values']
+        if context == 'video':
+            video_draft = (session.get('drafts') or {}).get(context, {})
+            if not values:
+                return _command_result(
+                    f'engine={video_draft.get("engine", "None")}\nmodel={video_draft.get("model", "None")}',
+                )
+            if len(values) != 1:
+                raise CommandError('Use: model <video model>')
+            engine, model = _resolve_video_model(values[0], video_draft.get('engine'))
+            drafts = dict(session.get('drafts') or {})
+            video_draft = dict(video_draft)
+            video_draft.update({'engine': engine, 'model': model})
+            drafts['video'] = video_draft
+            db.update_session(session_id, drafts=drafts)
+            return _command_result(f'engine set to {engine}\nmodel set to {model}')
         if not values:
             return _command_result(
                 f'model={shared.opts.get("sd_model_checkpoint")}\nunet={shared.opts.get("sd_unet")}')
@@ -1578,7 +1983,7 @@ def _execute_command(session_id: str, text: str, image: str | list[str] | None =
     if command.name == 'schedule':
         if context not in {'image', 'video'}:
             raise CommandError(f'Scheduling is not supported for context: {context}')
-        data = _generation_endpoint(session)
+        data = _generation_endpoint(session, image=image)
         return _command_result('Task scheduled', kind='schedule', data=data)
     if command.name == 'again':
         if context in {'process', 'caption'}:

@@ -196,6 +196,22 @@ def test_compatibility_keys_not_reported():
     assert opts.data['clip_skip'] == 2 and opts.data['uiux_theme'] == 'dark', 'kept keys changed'
 
 
+def test_retired_preview_layers():
+    """a stored Tiny decode layers value has no option, is not reported, and is dropped by the next save"""
+    from modules import shared
+    assert 'taesd_layers' not in dict(shared.options_templates), 'taesd_layers is still an option'
+    with capture_log() as cap:
+        opts = make_options({'steps': 30, 'taesd_layers': 1}, 'retired')
+        opts.validate_pending()
+        messages = unknown_lines(cap.warnings())
+    assert messages == [], f'reported: {messages}'
+    opts.save_atomic(silent=True)
+    with open(opts.filename, encoding='utf8') as f:
+        saved = json.load(f)
+    assert 'taesd_layers' not in saved, f'kept on save: {saved}'
+    assert saved.get('steps') == 30, f'other settings lost: {saved}'
+
+
 # --- settings stored outside an option ---
 
 def test_autocomplete_settings_registered():
@@ -237,6 +253,7 @@ def run_all():
     for fn in [
         test_builtin_validated_at_load,
         test_compatibility_keys_not_reported,
+        test_retired_preview_layers,
     ]:
         run_test(cat, fn)
     cat = category('registered')

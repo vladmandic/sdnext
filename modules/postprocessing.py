@@ -74,7 +74,7 @@ def run_postprocessing(extras_mode,
         info = ''
         processed_images = []
         for image, name, ext in zip(image_data, image_names, image_ext, strict=False): # pylint: disable=redefined-argument-from-local
-            log.debug(f'Process: image={image} {args}')
+            log.debug(f'Process: image={image}')
             info = ''
             if shared.state.interrupted:
                 log.debug('Postprocess interrupted')
