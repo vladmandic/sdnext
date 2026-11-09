@@ -73,8 +73,8 @@ _PROCESS_PARAMETER_ALIASES = {
     'upscale:upscaler': 'upscaler_1',
     'upscale:refiner': 'upscaler_2',
 }
-_VIDEO_MODEL_FIELDS = ReqVideo.model_fields
-_VIDEO_PARAMETERS = set(_VIDEO_MODEL_FIELDS)
+_VIDEO_MODEL_FIELDS: dict[str, Any] = ReqVideo.model_fields
+_VIDEO_PARAMETERS: set[str] = set(_VIDEO_MODEL_FIELDS)
 _IMAGE_RANGES = {
     'width_before': (64, 4096), 'height_before': (64, 4096), 'steps': (1, 200),
     'batch_size': (1, 16), 'batch_count': (1, 100), 'cfg_scale': (0, 100),
@@ -460,6 +460,8 @@ def is_transient_command(text: str) -> bool:
 
 
 def _parameter_spec(context: str, name: str):
+    if context == 'video' and name in _VIDEO_PARAMETERS:
+        return 'parameter', (ReqVideo, name)
     if name in _SETTING_NAMES:
         return 'setting', _SETTING_NAMES[name]
     if context == 'process':
@@ -474,8 +476,6 @@ def _parameter_spec(context: str, name: str):
         return 'parameter', (None, name)
     if context == 'image' and name in _IMAGE_PARAMETERS and name in _IMAGE_MODEL_FIELDS:
         return 'parameter', (_IMAGE_MODEL, name)
-    if context == 'video' and name in _VIDEO_PARAMETERS and name in _VIDEO_MODEL_FIELDS.keys():
-        return 'parameter', (ReqVideo, name)
     if context == 'image' and ':' in name:
         extra = _control_extra_field(name)
         if extra is not None:
@@ -483,7 +483,18 @@ def _parameter_spec(context: str, name: str):
     raise CommandError(f'Unsupported parameter for {context}: {name}')
 
 
-def _choice_values(name: str):
+def _choice_values(name: str, context: str | None = None, draft: dict[str, Any] | None = None):
+    if context == 'video' and name in {'engine', 'model'}:
+        from modules.video_models import models_def
+        engines = models_def.engines()
+        if name == 'engine':
+            return engines
+        engine = (draft or {}).get('engine')
+        if engine:
+            return models_def.model_names(engine)
+        return list(dict.fromkeys(
+            model_name for engine_name in engines for model_name in models_def.model_names(engine_name)
+        ))
     if name in {'sampler_name', 'sampler'}:
         return [item['name'] for item in endpoints.get_samplers()]
     if name == 'scheduler':
@@ -508,7 +519,7 @@ def _choice_values(name: str):
     return [item[0] if isinstance(item, (list, tuple)) else item for item in choices]
 
 
-def get_parameter_choices(context: str, name: str) -> list[str]:
+def get_parameter_choices(context: str, name: str, draft: dict[str, Any] | None = None) -> list[str]:
     name = _PARAMETER_ALIASES.get(name, name)
     try:
         kind, spec = _parameter_spec(context, name)
@@ -528,7 +539,7 @@ def get_parameter_choices(context: str, name: str) -> list[str]:
             return [str(label) for label, _value in _process_script_choices(spec[2])]
         else:
             name = spec[1]
-    return [str(choice) for choice in _choice_values(name)]
+    return [str(choice) for choice in _choice_values(name, context, draft)]
 
 
 def _resolve_choice_fragment(name: str, value: Any, choices: list[Any]):
@@ -579,7 +590,7 @@ def _validate_setting(name: str, raw_value: Any) -> tuple[str, Any]:
     return canonical, value
 
 
-def _validate_parameter(context: str, name: str, raw_value: Any):
+def _validate_parameter(context: str, name: str, raw_value: Any, draft: dict[str, Any] | None = None):
     _, (request_model, field_name) = _parameter_spec(context, name)
     if request_model is None:
         return raw_value
@@ -593,7 +604,7 @@ def _validate_parameter(context: str, name: str, raw_value: Any):
         minimum, maximum = _IMAGE_RANGES[name]
         if not minimum <= value <= maximum:
             raise CommandError(f'{name} must be between {minimum} and {maximum}')
-    choices = _choice_values(field_name)
+    choices = _choice_values(field_name, context, draft)
     if choices:
         value = _resolve_choice_fragment(name, value, choices)
         values = value if isinstance(value, list) else [value]
@@ -796,6 +807,8 @@ def _listable_keys(context: str) -> list[str]:
     keys = ['model', 'unet', 'vae']
     if context in {'image', 'video'}:
         keys.extend(['sampler_name', 'styles'])
+    if context == 'video':
+        keys.append('engine')
     if context == 'process':
         keys.extend(_PROCESS_PARAMETER_ALIASES)
     if context == 'image':
@@ -933,7 +946,7 @@ def get_parameter_entries(context: str, draft: dict[str, Any] | None = None) -> 
     return entries
 
 
-def _list_choices(context: str, name: str | None) -> str:
+def _list_choices(context: str, name: str | None, draft: dict[str, Any] | None = None) -> str:
     if name is None:
         return f'Listable keys for {context}:\n' + '\n'.join(
             f'- {key}' for key in _listable_keys(context)
@@ -953,7 +966,7 @@ def _list_choices(context: str, name: str | None) -> str:
         type_name = _process_script_value_type(spec[2]).__name__
         suffix = f'; range {minimum}..{maximum}' if minimum is not None and maximum is not None else ''
         return f'{name}: {type_name}{suffix}'
-    choices = _choice_values(spec[1] if kind == 'parameter' else name)
+    choices = _choice_values(spec[1] if kind == 'parameter' else name, context, draft)
     if kind == 'setting' and not choices:
         raise CommandError(f'No valid choices are currently available for {name}')
     if choices:
@@ -1514,6 +1527,10 @@ def _generation_endpoint(
         payload = {name: value for name, value in source.items() if name in _VIDEO_PARAMETERS}
         if prompt is not None:
             payload['prompt'] = prompt
+        if image is not None:
+            inputs = image if isinstance(image, list) else [image]
+            if inputs:
+                payload['init_image'] = inputs[0]
         payload.update({'send_video': True, 'send_frames': False, 'send_thumbnail': True})
         request_model = ReqVideo
         error_prefix = 'Cannot run video generation'
@@ -1823,7 +1840,9 @@ def _execute_command(session_id: str, text: str, image: str | list[str] | None =
         elif kind == 'process_extra':
             value = _validate_process_script_value(name, spec[2], command.arguments['value'])
         else:
-            value = _validate_parameter(context, name, command.arguments['value'])
+            value = _validate_parameter(
+                context, name, command.arguments['value'], (session.get('drafts') or {}).get(context, {}),
+            )
         drafts = dict(session.get('drafts') or {})
         context_draft = dict(drafts.get(context) or {})
         if kind == 'extra':
@@ -1869,7 +1888,7 @@ def _execute_command(session_id: str, text: str, image: str | list[str] | None =
             if script_arguments is not None:
                 return _command_result(script_arguments)
         try:
-            return _command_result(_list_choices(context, name))
+            return _command_result(_list_choices(context, name, (session.get('drafts') or {}).get(context, {})))
         except CommandError as exc:
             return _command_error(str(exc))
     if command.name == 'model':
@@ -1914,7 +1933,7 @@ def _execute_command(session_id: str, text: str, image: str | list[str] | None =
     if command.name == 'schedule':
         if context not in {'image', 'video'}:
             raise CommandError(f'Scheduling is not supported for context: {context}')
-        data = _generation_endpoint(session)
+        data = _generation_endpoint(session, image=image)
         return _command_result('Task scheduled', kind='schedule', data=data)
     if command.name == 'again':
         if context in {'process', 'caption'}:

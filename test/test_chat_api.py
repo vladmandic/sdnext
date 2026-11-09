@@ -1058,6 +1058,63 @@ class TestChatApiRegistration(unittest.TestCase):
         self.assertEqual(operation['result']['run_count'], 3)
         self.assertEqual(operation['result']['image_count'], 3)
 
+    def test_run_reports_partial_control_error_and_keeps_images(self):
+        image_buffer = io.BytesIO()
+        Image.new('RGB', (2, 2), 'red').save(image_buffer, format='PNG')
+        encoded_image = base64.b64encode(image_buffer.getvalue()).decode('ascii')
+        responses = [
+            SimpleNamespace(images=[encoded_image], info='', stats='', saved_images=[], params={}),
+            SimpleNamespace(images=[encoded_image], info='', stats='', saved_images=[], params={}, error='batch failed'),
+        ]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = os.path.join(temp_dir, 'chat.db')
+            artifact_dir = Path(temp_dir) / 'artifacts'
+            artifact_dir.mkdir()
+            with patch.object(db, '_db_path', return_value=db_path), \
+                    patch.object(chat_api.artifacts, 'storage_root', return_value=artifact_dir):
+                session = chat_api.create_session(chat_api.ReqSessionCreate())
+                chat_api.post_message(session['id'], chat_api.ReqChatMessage(content='prompt a test landscape'))
+                control_api = Mock(post_control=Mock(side_effect=responses))
+                submission = chat_api.post_message(
+                    session['id'], chat_api.ReqChatMessage(content='run 2'), SimpleNamespace(control=control_api),
+                )
+                operation = db.list_operations(session['id'])[0]
+
+        self.assertEqual(submission.result.kind, 'operation')
+        self.assertEqual(len(submission.result.data['images']), 2)
+        self.assertEqual(len(submission.artifacts), 2)
+        self.assertEqual(submission.result.data['error'], 'Run 2: batch failed')
+        self.assertIn('Error: Run 2: batch failed', submission.assistant_message.content)
+        self.assertEqual(operation['status'], 'completed')
+        self.assertEqual(operation['result']['error'], 'Run 2: batch failed')
+
+    def test_run_keeps_prior_images_when_later_control_call_raises(self):
+        image_buffer = io.BytesIO()
+        Image.new('RGB', (2, 2), 'red').save(image_buffer, format='PNG')
+        encoded_image = base64.b64encode(image_buffer.getvalue()).decode('ascii')
+        first_response = SimpleNamespace(images=[encoded_image], info='', stats='', saved_images=[], params={})
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = os.path.join(temp_dir, 'chat.db')
+            artifact_dir = Path(temp_dir) / 'artifacts'
+            artifact_dir.mkdir()
+            with patch.object(db, '_db_path', return_value=db_path), \
+                    patch.object(chat_api.artifacts, 'storage_root', return_value=artifact_dir):
+                session = chat_api.create_session(chat_api.ReqSessionCreate())
+                chat_api.post_message(session['id'], chat_api.ReqChatMessage(content='prompt a test landscape'))
+                control_api = Mock(post_control=Mock(side_effect=[first_response, RuntimeError('run failed')]))
+                submission = chat_api.post_message(
+                    session['id'], chat_api.ReqChatMessage(content='run 2'), SimpleNamespace(control=control_api),
+                )
+                operation = db.list_operations(session['id'])[0]
+
+        self.assertEqual(submission.result.kind, 'operation')
+        self.assertEqual(len(submission.result.data['images']), 1)
+        self.assertEqual(len(submission.artifacts), 1)
+        self.assertEqual(submission.result.data['error'], 'Run 2: run failed')
+        self.assertIn('Error: Run 2: run failed', submission.assistant_message.content)
+        self.assertEqual(operation['status'], 'completed')
+        self.assertEqual(operation['result']['error'], 'Run 2: run failed')
+
     def test_run_uses_multiple_selected_uploaded_images(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             db_path = os.path.join(temp_dir, 'chat.db')
@@ -1158,6 +1215,12 @@ class TestChatApiRegistration(unittest.TestCase):
             with patch.object(db, '_db_path', return_value=db_path):
                 session = chat_api.create_session(chat_api.ReqSessionCreate(context='video'))
                 chat_api.post_message(session['id'], chat_api.ReqChatMessage(content='prompt a test clip'))
+                image_path = Path(temp_dir) / 'selected.png'
+                image_path.write_bytes(b'selected chat image')
+                image = db.create_artifact(
+                    session['id'], 'image/png', 'selected.png', 'input', str(image_path),
+                )
+                db.set_selected_images(session['id'], [image['id']])
                 response = SimpleNamespace(
                     video='video-base64', video_path=None, thumbnail='thumbnail-base64',
                     frames=[], frames_count=8, info='video info', params={'prompt': 'a test clip'},
@@ -1172,10 +1235,28 @@ class TestChatApiRegistration(unittest.TestCase):
 
         request = video_api.post_video.call_args.args[0]
         self.assertEqual(request.prompt, 'a test clip')
+        self.assertEqual(request.init_image, base64.b64encode(b'selected chat image').decode('ascii'))
         self.assertEqual(submission.result.data['video'], 'video-base64')
         self.assertEqual(submission.result.data['thumbnail'], 'thumbnail-base64')
         self.assertEqual(submission.assistant_message.content, 'Generated video\nvideo info')
         self.assertEqual(operation['context'], 'video')
+        self.assertNotIn('init_image', operation['snapshot'])
+        self.assertNotIn('init_image', submission.session.last_generation_snapshot)
+
+    def test_video_model_choices_follow_active_engine_draft(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = os.path.join(temp_dir, 'chat.db')
+            with patch.object(db, '_db_path', return_value=db_path), \
+                    patch('modules.video_models.models_def.engines', return_value=['Engine A', 'Engine B']), \
+                    patch('modules.video_models.models_def.model_names', side_effect=lambda engine: {
+                        'Engine A': ['Video A'],
+                        'Engine B': ['Video B'],
+                    }[engine]):
+                session = chat_api.create_session(chat_api.ReqSessionCreate(context='video'))
+                db.update_session(session['id'], drafts={'video': {'engine': 'Engine B'}})
+                choices = chat_api.get_session_parameter_choices(session['id'], 'model')
+
+        self.assertEqual(choices.choices, ['Video B'])
 
     def test_process_generation_uses_transient_image_without_persisting_it(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -1207,7 +1288,8 @@ class TestChatApiRegistration(unittest.TestCase):
         self.assertTrue(all('imageList' not in operation['snapshot'] for operation in operations))
         self.assertNotIn('input-image-base64', str(messages))
         self.assertEqual(submission.result.data['images'], ['processed-base64'])
-        self.assertEqual(submission.assistant_message.content, 'Processed 1 image(s)\nprocessed <b>info</b>')
+        self.assertEqual(submission.assistant_message.content, '<span class="chat-processed">Processed 1 image(s)</span><br>processed <b>info</b>')
+        self.assertEqual(submission.assistant_message.metadata['format'], 'html')
         self.assertEqual(replay.result.kind, 'operation')
 
     def test_process_batches_selected_images_and_defaults_to_latest_result(self):
@@ -1284,7 +1366,7 @@ class TestChatApiRegistration(unittest.TestCase):
                 chat_api.post_message(session['id'], chat_api.ReqChatMessage(content='prompt a landscape'))
                 submission = chat_api.post_message(
                     session['id'],
-                    chat_api.ReqChatMessage(content='schedule'),
+                    chat_api.ReqChatMessage(content='schedule', image='schedule-image-base64'),
                 )
 
         self.assertEqual(submission.result.kind, 'schedule')
@@ -1304,13 +1386,14 @@ class TestChatApiRegistration(unittest.TestCase):
                 chat_api.post_message(session['id'], chat_api.ReqChatMessage(content='prompt a test clip'))
                 submission = chat_api.post_message(
                     session['id'],
-                    chat_api.ReqChatMessage(content='schedule'),
+                    chat_api.ReqChatMessage(content='schedule', image='schedule-image-base64'),
                 )
 
         self.assertEqual(submission.result.kind, 'schedule')
         self.assertEqual(submission.assistant_message.content, 'Queued scheduler task task-2')
         self.assertEqual(enqueue.call_args.args[0], 'video')
         self.assertEqual(enqueue.call_args.kwargs['prompt'], 'a test clip')
+        self.assertEqual(enqueue.call_args.kwargs['init_image'], 'schedule-image-base64')
 
     def test_version_two_database_migrates_operation_contexts(self):
         with tempfile.TemporaryDirectory() as temp_dir:

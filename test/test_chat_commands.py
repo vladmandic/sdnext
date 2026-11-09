@@ -483,6 +483,30 @@ class TestChatCommands(unittest.TestCase):
         self.assertTrue(set_parameter['is_set'])
         self.assertFalse(set_parameter['is_none'])
 
+    def test_video_engine_and_model_choices_follow_video_registry(self):
+        session = self._create_session()
+        with patch('modules.video_models.models_def.engines', return_value=['Engine A', 'Engine B']), \
+                patch('modules.video_models.models_def.model_names', side_effect=lambda engine: {
+                    'Engine A': ['Video A', 'Shared Model'],
+                    'Engine B': ['Video B', 'Shared Model'],
+                }[engine]):
+            with patch.object(db, '_db_path', return_value=self.db_path):
+                commands.execute_command(session['id'], 'context video')
+                engine_choices = commands.get_parameter_choices('video', 'engine')
+                all_model_choices = commands.get_parameter_choices('video', 'model')
+                commands.execute_command(session['id'], 'set engine Engine A')
+                model_choices = commands.get_parameter_choices(
+                    'video', 'model', db.get_session(session['id'])['drafts']['video'],
+                )
+                set_model = commands.execute_command(session['id'], 'set model Video A')
+                saved = db.get_session(session['id'])
+
+        self.assertEqual(engine_choices, ['Engine A', 'Engine B'])
+        self.assertEqual(all_model_choices, ['Video A', 'Shared Model', 'Video B'])
+        self.assertEqual(model_choices, ['Video A', 'Shared Model'])
+        self.assertEqual(set_model['text'], 'model set to Video A')
+        self.assertEqual(saved['drafts']['video']['model'], 'Video A')
+
     def test_opts_get_set_and_bare_list(self):
         session = self._create_session()
         values = {'sample_setting': 'default'}

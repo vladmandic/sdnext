@@ -173,8 +173,15 @@ def _chat_error_result(result: dict[str, Any]) -> str:
 _IMAGE_PAYLOAD_FIELDS = {'image', 'images', 'imageList', 'inputs', 'inits', 'mask', 'init_images', 'init_control', 'control', 'ip_adapter', 'face'}
 
 
-def _safe_operation_values(values: dict[str, Any]) -> dict[str, Any]:
-    return {name: value for name, value in values.items() if name not in _IMAGE_PAYLOAD_FIELDS}
+def _safe_operation_values(
+    values: dict[str, Any],
+    context: str | None = None,
+    session: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    safe_values = {name: value for name, value in values.items() if name not in _IMAGE_PAYLOAD_FIELDS}
+    if context == 'video' and session and (session.get('selected_image_ids') or session.get('selected_image_id')):
+        safe_values.pop('init_image', None)
+    return safe_values
 
 
 def _store_image_results(session_id: str, message_id: str, images: list, saved_images: list, source_artifact_id: str | None) -> list[dict[str, Any]]:
@@ -431,7 +438,8 @@ def get_session_parameter_choices(session_id: str, name: str = Query(...)) -> Re
     if session is None:
         raise HTTPException(status_code=404, detail='Chat session not found')
     try:
-        choices = commands.get_parameter_choices(session['context'], name)
+        draft = (session.get('drafts') or {}).get(session['context'], {})
+        choices = commands.get_parameter_choices(session['context'], name, draft)
     except commands.CommandError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return ResChatChoices(name=name, choices=choices)
@@ -491,7 +499,7 @@ def _execute_chat_operation(session_id: str, user_message: dict[str, Any], resul
     if not isinstance(arguments, dict):
         raise ValueError('Invalid chat generation arguments')
 
-    operation_snapshot = _safe_operation_values(arguments)
+    operation_snapshot = _safe_operation_values(arguments, context, session)
     if context == 'image':
         operation_snapshot['settings_revision_id'] = session.get('active_settings_revision_id')
     operation = db.create_operation(
@@ -507,10 +515,24 @@ def _execute_chat_operation(session_id: str, user_message: dict[str, Any], resul
             control_api_instance = getattr(api_instance, 'control', None)
             if control_api_instance is None:
                 raise RuntimeError('The control generation API is unavailable')
-            responses = [
-                control_api_instance.post_control(api_control.ReqControl.model_validate(arguments))
-                for _ in range(run_count)
-            ]
+            responses = []
+            errors = []
+            first_exception = None
+            for run_index in range(run_count):
+                try:
+                    response = control_api_instance.post_control(api_control.ReqControl.model_validate(arguments))
+                except Exception as exc:
+                    first_exception = first_exception or exc
+                    errors.append(f'Run {run_index + 1}: {exc}')
+                    continue
+                responses.append(response)
+                response_error = getattr(response, 'error', None)
+                if response_error:
+                    errors.append(f'Run {run_index + 1}: {response_error}')
+            if not responses:
+                if run_count == 1:
+                    raise first_exception
+                raise RuntimeError('\n'.join(errors)) from first_exception
             images = [image for response in responses for image in (response.images or [])]
             info = '\n'.join(response.info for response in responses if response.info)
             stats = '\n'.join(response.stats for response in responses if getattr(response, 'stats', ''))
@@ -519,7 +541,10 @@ def _execute_chat_operation(session_id: str, user_message: dict[str, Any], resul
             stored_artifacts = _store_image_results(
                 session_id, user_message['id'], images, saved_images, session.get('selected_image_id'),
             )
-            completion_text = f'Generated {len(images)} image(s)'
+            completion_text = f'<span class="chat-processed">Generated {len(images)} image(s)</span>'
+            error = '\n'.join(errors)
+            if error:
+                completion_text += f'\nError: {error}'
             if info:
                 completion_text += f'\n{info}'
             if stats:
@@ -529,6 +554,7 @@ def _execute_chat_operation(session_id: str, user_message: dict[str, Any], resul
                 'info': info,
                 'stats': stats,
                 'parameters': parameters,
+                'error': error or None,
                 'artifacts': [artifacts.public_artifact(item) for item in stored_artifacts],
             }
             saved_result = {
@@ -537,6 +563,7 @@ def _execute_chat_operation(session_id: str, user_message: dict[str, Any], resul
                 'info': info,
                 'stats': stats,
                 'parameters': parameters,
+                'error': error or None,
             }
             message_metadata = {'image_count': len(images), 'format': 'html'}
         elif context == 'video':
@@ -569,13 +596,11 @@ def _execute_chat_operation(session_id: str, user_message: dict[str, Any], resul
             response = process_api_instance.extras_batch_images_api(request)
             info = response.html_info or ''
             images = response.images or []
-            completion_text = f'Processed {len(images)} image(s)'
+            completion_text = f'<span class="chat-processed">Processed {len(images)} image(s)</span>'
             if info:
-                completion_text += f'\n{info}'
+                completion_text += f'<br>{info}'
             source_artifact_id = session.get('selected_image_id')
-            stored_artifacts = _store_image_results(
-                session_id, user_message['id'], images, [], source_artifact_id,
-            )
+            stored_artifacts = _store_image_results(session_id, user_message['id'], images, [], source_artifact_id)
             output_data = {
                 'images': images,
                 'info': info,
@@ -600,7 +625,7 @@ def _execute_chat_operation(session_id: str, user_message: dict[str, Any], resul
             db.update_session(
                 session_id,
                 last_generation_prompt=str(arguments.get('prompt') or ''),
-                last_generation_snapshot=_safe_operation_values(arguments),
+                last_generation_snapshot=_safe_operation_values(arguments, context, session),
             )
         result.update({
             'text': completion_text,

@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import HTTPException
 from modules.api.helpers import decode_base64_to_image, encode_pil_to_base64
 from modules import errors, shared, postprocessing
+from modules.ui_common import infotext_to_html
 from modules.api import models, helpers
 
 
@@ -307,4 +308,4 @@ class APIProcess:
         outputs, _video, info, _params = result
         if outputs is None or len(outputs) == 0:
             raise HTTPException(status_code=500, detail="Invalid processing response")
-        return models.ResProcessBatch(images=list(map(helpers.encode_pil_to_base64, outputs)), html_info=info)
+        return models.ResProcessBatch(images=list(map(helpers.encode_pil_to_base64, outputs)), html_info=infotext_to_html(info))
