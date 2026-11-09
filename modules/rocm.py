@@ -151,6 +151,20 @@ class Agent:
         gfx = self.name if self.name.startswith("gfx") else f"gfx{self.gfx_version:04x}"
         return gfx
 
+    def get_gfx_version(self) -> str | None:
+        if self.gfx_version is None:
+            return None
+        if self.gfx_version >= 0x1100 and self.gfx_version < 0x1200:
+            return "11.0.0"
+        elif self.gfx_version == 0x1010:
+            return "10.1.0"
+        elif self.gfx_version != 0x1030 and self.gfx_version > 0x1000 and self.gfx_version < 0x1100:
+            # Some gfx10xx users may need to override the version to 10.3.0.
+            # It is unknown whether overriding is needed in ZLUDA.
+            return "10.3.0"
+        return None
+
+
 def configure_xnack(agents: list[Agent]):
     unsupported = [agent.name for agent in agents if agent.gfx_version not in xnack_arches]
     if unsupported:
@@ -286,9 +300,9 @@ if sys.platform == "win32":
         # newer drivers ship amdhip64 that depends on sdk dlls such as rocm_kpack.dll
         env = os.environ.copy()
         if isinstance(environment, PythonPackageEnvironment):
-            env["PATH"] = os.pathsep.join([environment.path, env.get("PATH", "")])
+            env["PATH"] = os.path.join(environment.path, env.get("PATH", ""))
         elif isinstance(environment, ROCmEnvironment):
-            env["PATH"] = os.pathsep.join([os.path.join(environment.path, "bin"), env.get("PATH", "")])
+            env["PATH"] = os.path.join(environment.path, "bin", env.get("PATH", ""))
         out = spawn([sys.executable, name], env=env)
         os.unlink(name)
         out = out.strip()
