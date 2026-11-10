@@ -236,6 +236,30 @@ class ModelData:
         if not self.locked:
             self.sd_refiner = v
 
+    def get_model_capabilities(self):
+        from modules.sd_models import DiffusersTaskType, get_class_task, get_task_class, pipe_serves_task
+        if self.sd_model is None:
+            return { 't2i': False, 'i2i': False, 'inpaint': False, 'instruct': False, 'modular': False }
+        cap_map = { 'TEXT_2_IMAGE': 't2i', 'IMAGE_2_IMAGE': 'i2i', 'INPAINTING': 'inpaint', 'INSTRUCT': 'instruct', 'MODULAR': 'modular' }
+        capabilities = { 't2i': False, 'i2i': False, 'inpaint': False, 'edit': False, 'video': False }
+        for task in DiffusersTaskType:
+            try:
+                task_class = get_task_class(self.sd_model, task)
+                if get_class_task(task_class) == task or pipe_serves_task(self.sd_model, task):
+                    if task.name in cap_map:
+                        capabilities[cap_map[task.name]] = True
+                    else:
+                        capabilities[task.name.lower()] = True
+            except Exception:
+                continue
+            if hasattr(self.sd_model, 'max_condition_images'):
+                capabilities['edit'] = True
+                capabilities['i2i'] = False
+                capabilities['inpaint'] = False
+            if hasattr(self.sd_model, 'is_video') and self.sd_model.is_video:
+                capabilities['video'] = True
+        return capabilities
+
 
 model_data = ModelData()
 
@@ -263,12 +287,8 @@ class Shared(ModuleType):
         model_data.set_sd_model(value)
 
     @property
-    def sd_refiner(self):
-        return model_data.get_sd_refiner()
-
-    @sd_refiner.setter
-    def sd_refiner(self, value):
-        model_data.set_sd_refiner(value)
+    def sd_model_name(self):
+        return model_data.sd_model_name
 
     @property
     def sd_model_type(self):
@@ -282,8 +302,26 @@ class Shared(ModuleType):
         return model_type
 
     @property
-    def sd_model_name(self):
-        return model_data.sd_model_name
+    def sd_model_capabilities(self):
+        try:
+            if model_data.sd_model is None:
+                return []
+            capabilities = model_data.get_model_capabilities()
+        except Exception:
+            capabilities = []
+        return capabilities
+
+    @property
+    def sd_refiner(self):
+        return model_data.get_sd_refiner()
+
+    @sd_refiner.setter
+    def sd_refiner(self, value):
+        model_data.set_sd_refiner(value)
+
+    @property
+    def sd_refiner_name(self):
+        return model_data.sd_refiner_name
 
     @property
     def sd_refiner_type(self):
@@ -295,10 +333,6 @@ class Shared(ModuleType):
         except Exception:
             model_type = 'unknown'
         return model_type
-
-    @property
-    def sd_refiner_name(self):
-        return model_data.sd_refiner_name
 
     @property
     def console(self):

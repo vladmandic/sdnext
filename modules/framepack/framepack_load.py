@@ -90,6 +90,8 @@ def load_model(variant: str | None = None, pipeline: str | None = None, text_enc
         from modules.framepack.pipeline.hunyuan_video_packed import HunyuanVideoTransformer3DModelPacked
 
         class FramepackHunyuanVideoPipeline(HunyuanVideoImageToVideoPipeline): # inherit and override
+            is_video = True
+
             def __init__(
                 self,
                 text_encoder: LlamaModel,

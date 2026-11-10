@@ -167,6 +167,8 @@ def load_model(selected: models_def.Model):
         log.error(msg)
         shared.state.end(jobid)
         return msg
+    else:
+        shared.sd_model.is_video = True
 
     t1 = time.time()
     cls_name = shared.sd_model.__class__.__name__

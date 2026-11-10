@@ -237,5 +237,6 @@ if TYPE_CHECKING:
     sd_model: DiffusionPipeline | None
     sd_refiner: DiffusionPipeline | None
     sd_model_type: str
+    sd_model_capabilities: dict
     sd_refiner_type: str
     sd_loaded: bool
