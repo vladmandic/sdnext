@@ -104,7 +104,8 @@ def create_models_table(rows: list | None = None):
             """
         except Exception as e:
             log.error(f'Model list: row={vars(row)} {e}')
-    log.info(f'Model stats: count={stats} sizes={sizes}')
+    if stats or sizes:
+        log.info(f'Model stats: count={stats} sizes={sizes}')
     return html.format(tbody=tbody)
 
 def create_ui():
