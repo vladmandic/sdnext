@@ -384,6 +384,21 @@ class torch_Generator(original_torch_Generator):
         else:
             return super().__new__(cls, device)
 
+original_torch_Stream = torch.Stream
+class torch_Stream(original_torch_Stream):
+    def __new__(cls, device=None, priority: int = 0, **kwargs):
+        if check_cuda(device):
+            device = return_xpu(device)
+        return super().__new__(cls, device=device, priority=priority, **kwargs)
+
+
+original_torch_xpu_Stream = torch.xpu.Stream
+class torch_xpu_Stream(original_torch_xpu_Stream):
+    def __new__(cls, device=None, priority: int = 0, **kwargs):
+        if check_cuda(device):
+            device = return_xpu(device)
+        return super().__new__(cls, device=device, priority=priority, **kwargs)
+
 
 # Hijack Functions:
 def ipex_hijacks():
@@ -423,6 +438,8 @@ def ipex_hijacks():
 
     torch.Generator = torch_Generator
     torch._C.Generator = torch_Generator
+    torch.Stream = torch_Stream
+    torch.cuda.Stream = torch_xpu_Stream
 
     torch.UntypedStorage.is_cuda = is_cuda
     torch.amp.autocast_mode.autocast.__init__ = autocast_init
