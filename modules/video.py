@@ -58,6 +58,8 @@ def save_video_atomic(images,
                       mp4_opt: str | None = None,
                       *,
                       fps: float | None = None,
+                      audio_rate: int | None = None,
+                      audio_layout: str = 'stereo',
                      ) -> VideoWriter | None:
     """Write the clip; with stream=True the open writer is returned for more frames.
 
@@ -93,7 +95,7 @@ def save_video_atomic(images,
             num_frames = frames_hint if frames_hint > 0 else len(frames)
             if fps is None:
                 fps = max(1.0, num_frames / duration) if duration > 0 else 30.0
-            writer = open_video_writer(filename, w, h, fps, mp4_codec, mp4_pix, mp4_opt, metadata)
+            writer = open_video_writer(filename, w, h, fps, mp4_codec, mp4_pix, mp4_opt, metadata, audio_rate=audio_rate, audio_layout=audio_layout)
             video_writer = writer
             save_video_frames(writer, frames)
             if not stream:
@@ -147,6 +149,8 @@ def save_video(p,
                *,
                source: str | None = None,
                fps: float | None = None,
+               audio_rate: int | None = None,
+               audio_layout: str = 'stereo',
               ):
     """Save frames as a video named by the output pattern.
 
@@ -156,9 +160,12 @@ def save_video(p,
     fps: output rate; None derives it from the frame count and duration.
     sync: returns the filename, or None when the save is refused or fails.
     stream: returns (filename, writer) for more frames, or raises VideoWriteError with the reason.
+    audio_rate/audio_layout: declare an audio stream on a synchronous streaming writer; call writer.write_audio() before release.
     otherwise: encodes in a thread and returns the filename at once; the file is registered before the thread runs and a failure is only logged.
     source: the input being processed; a save that would overwrite it is refused.
     """
+    if audio_rate is not None and not (sync and stream):
+        raise VideoWriteError('audio stream configuration requires sync=True and stream=True')
     target = resolve_video_type(video_type, mp4_codec, mp4_ext)
     if target.kind == 'none' or (images is None) or (len(images) < 1):
         return None
@@ -199,7 +206,7 @@ def save_video(p,
         threading.Thread(target=save_video_thread, args=(images, filename, video_type, duration, loop, interpolate, scale, pad, change), kwargs={'metadata': metadata, 'mp4_codec': mp4_codec, 'mp4_pix': mp4_pix, 'mp4_opt': mp4_opt, 'fps': fps}).start()
         return filename
     try:
-        video_writer = save_video_atomic(images, filename, video_type, duration, loop, interpolate, scale, pad, change, stream, frames_hint, metadata, mp4_codec, mp4_pix, mp4_opt, fps=fps)
+        video_writer = save_video_atomic(images, filename, video_type, duration, loop, interpolate, scale, pad, change, stream, frames_hint, metadata, mp4_codec, mp4_pix, mp4_opt, fps=fps, audio_rate=audio_rate, audio_layout=audio_layout)
     except VideoWriteError:
         if stream:
             raise
