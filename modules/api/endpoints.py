@@ -339,14 +339,17 @@ def get_file(file: str):
     fn = helpers.validate_path(file)
     return FileResponse(fn, media_type='application/octet-stream', filename=fn)
 
+
 def get_deletefile(file: str):
     import os
-    fn = helpers.validate_path(file)
+    fn = helpers.validate_path(file, allowed_folder=True)
     try:
         if os.path.isdir(fn):
-            log.warning(f'Delete: folder="{fn}"')
             import shutil
             shutil.rmtree(fn)
+            from modules.sd_hijack_hfhub import prune_hf_cache
+            prune_result = prune_hf_cache()
+            log.warning(f'Delete: folder="{fn}" prune="{prune_result}"')
         else:
             log.warning(f'Delete: file="{fn}"')
             os.remove(fn)

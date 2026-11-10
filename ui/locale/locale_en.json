@@ -719,7 +719,7 @@
     {"id": "", "label": "FG profile", "localized": "", "hint": "Quality and interpolation preset profile for <i>DLSS FrameGen</i>.", "ui": "control"},
     {"id": "", "label": "FG scene threshold", "localized": "", "hint": "Scene change detection sensitivity.<br>Prevents frame interpolation across hard scene cuts when difference exceeds this threshold.<br><br>Default is <b>0.40</b>.", "ui": "control"},
     {"id": "", "label": "File format", "localized": "", "hint": "Select file format for images", "ui": "settings_saving-images"},
-    {"id": "", "label": "File or Folder with user-defined styles", "localized": "", "hint": "Path to custom CSV or JSON file containing prompt style definitions", "ui": "settings_system-paths"},
+    {"id": "", "label": "Folder with user-defined styles", "localized": "", "hint": "Path to custom CSV or JSON file containing prompt style definitions", "ui": "settings_system-paths"},
     {"id": "", "label": "Filename", "localized": "", "hint": "Custom output filename prefix or template", "ui": "extras"},
     {"id": "", "label": "Files", "localized": "", "hint": "Directory or list of image files queued for batch captioning"},
     {"id": "", "label": "fill", "localized": "", "hint": "Resize the image so that entirety of image is inside target resolution. Fill empty space with image's colors", "ui": "settings_legacy_options"},

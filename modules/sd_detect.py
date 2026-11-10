@@ -219,6 +219,11 @@ def guess_by_model_index(fn: str, name: str, current_guess: str):
     if (index is None) or (not os.path.exists(index)) or (not os.path.isfile(index)):
         if name is not None and name.startswith('Diffusers/'):
             index = get_model_index(name)
+
+    is_quant = 'sdnq' in fn.lower()
+    if is_quant and ('sdnq' not in current_guess):
+        current_guess = f'{current_guess} SDNQ'
+
     if (index is None) or (not os.path.exists(index)) or (not os.path.isfile(index)):
         return current_guess, None
 
@@ -236,8 +241,7 @@ def guess_by_model_index(fn: str, name: str, current_guess: str):
         pipeline = getattr(diffusers, cls, None)
         if pipeline is None:
             pipeline = cls
-    if callable(pipeline):
-        is_quant = False
+    if not is_quant and callable(pipeline):
         for folder in os.listdir(fn):
             folder = os.path.join(fn, folder)
             if is_quant:
@@ -264,7 +268,7 @@ def guess_by_model_index(fn: str, name: str, current_guess: str):
         pipelines = shared_items.get_pipelines()
         for k, v in pipelines.items():
             if v is not None and v.__name__ == pipeline.__name__:
-                if is_quant:
+                if is_quant and ('SDNQ' not in k):
                     k = f'{k} SDNQ'
                 if debug_load:
                     log.trace(f'Autodetect: method=diffusers file="{fn}" previous="{current_guess}" current="{k}"')
@@ -300,7 +304,7 @@ def detect_pipeline(ckpt, op: str = 'model'):
     pipeline = None
     if guess == 'Autodetect':
         try:
-            guess = 'Stable Diffusion XL' if ('XL' in f.upper() or 'SDNQ' in f.upper()) else 'Stable Diffusion' # set default guess
+            guess = 'Stable Diffusion XL' # set default guess to SDXL
 
             guess = guess_by_size(f, guess)
             if debug_load:
@@ -318,8 +322,10 @@ def detect_pipeline(ckpt, op: str = 'model'):
             if debug_load:
                 log.trace(f'Autodetect: type=variant guess="{guess}" file="{f}"')
 
+            guess = guess.removesuffix('SDNQ').strip()
             pipeline = shared_items.get_pipelines().get(guess, None) if pipeline is None else pipeline
             log.info(f'Autodetect {op}: detect="{guess}" class={getattr(pipeline, "__name__", None)} file="{f}"')
+
             if debug_load is not None:
                 t0 = time.time()
                 keys = model_tools.get_safetensor_keys(f)
@@ -329,6 +335,7 @@ def detect_pipeline(ckpt, op: str = 'model'):
                     lst = model_tools.list_compact(keys)
                     t1 = time.time()
                     log.debug(f'Autodetect: modules={modules} list={lst} time={t1-t0:.2f}')
+
         except Exception as e:
             log.error(f'Autodetect {op}: file="{f}" {e}')
             if debug_load:
@@ -336,6 +343,7 @@ def detect_pipeline(ckpt, op: str = 'model'):
             return None, None
     else:
         try:
+            guess = guess.removesuffix('SDNQ').strip()
             pipeline = shared_items.get_pipelines().get(guess, None) if pipeline is None else pipeline
             log.info(f'Load {op}: detect="{guess}" class={getattr(pipeline, "__name__", None)} file="{f}"')
         except Exception as e:

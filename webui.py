@@ -381,6 +381,12 @@ def get_paths():
         allowed_paths = [f for f in folders if os.path.isdir(f)]
     if os.environ.get('SD_PATH_DEBUG', None):
         log.trace(f'Path allowed: why=opts allowed={shared.demo.allowed_paths}')
+    try:
+        from modules.ui_extra_networks import allowed_dirs
+        allowed_paths += allowed_dirs
+    except Exception:
+        pass
+    allowed_paths = list(set(allowed_paths))
     return allowed_paths
 
 

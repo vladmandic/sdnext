@@ -1,5 +1,6 @@
 import os
 import inspect
+from datetime import datetime
 from html import escape
 from typing import cast
 import gradio as gr
@@ -8,6 +9,7 @@ from modules.ui_components import ToolButton
 from modules.ui_common import create_refresh_button
 from modules.call_queue import wrap_gradio_gpu_call
 from modules.shared import opts, log
+from modules.sd_hijack_hfhub import prune_hf_cache
 
 
 extra_ui = []
@@ -23,10 +25,12 @@ def update_model_hashes():
 
 
 def create_models_table(rows: list | None = None):
+    from huggingface_hub import scan_cache_dir
     from modules import sd_detect
     if rows is None:
         rows = []
     rows = sorted(rows, key=lambda row: str(getattr(row, 'model_name', '')).lower())
+    hf_cache = {repo.repo_id: repo for repo in scan_cache_dir(cache_dir=shared.opts.hfcache_dir).repos}
     html = """
         <table class="simple-table sortable-table" data-sortable="true" data-default-sort-key="name" data-default-sort-order="asc" data-sort-key="name" data-sort-order="asc">
             <thead>
@@ -47,11 +51,23 @@ def create_models_table(rows: list | None = None):
         </table>
     """
     tbody = ''
+    stats = {}
+    sizes = {}
     for row in rows:
         try:
-            print('HERE', row)
             f = row.filename
-            size, mtime = modelstats.stat(f)
+            if f.endswith('.safetensors'):
+                size, mtime = modelstats.stat(f)
+            elif 'models--' in f:
+                repo = row.name.replace('Diffusers/', '')
+                repo = hf_cache.get(repo)
+                if repo:
+                    size = repo.size_on_disk
+                    mtime = datetime.fromtimestamp(repo.last_modified).replace(microsecond=0)
+                else:
+                    size, mtime = 0, 0
+            else:
+                size, mtime = 0, 0
             size = round(size / 1024 / 1024 / 1024, 3)
             if os.path.isfile(f):
                 typ = os.path.splitext(f)[1][1:]
@@ -59,16 +75,19 @@ def create_models_table(rows: list | None = None):
                 typ = 'diffusers'
             else:
                 typ = 'unknown'
-            guess = 'Stable Diffusion' # set default guess
+            stats[typ] = stats.get(typ, 0) + 1
+            sizes[typ] = sizes.get(typ, 0) + size
+            model_name = escape(str(row.model_name))
+            guess = 'Stable Diffusion XL' # set default guess
             guess = sd_detect.guess_by_size(f, guess)
             guess = sd_detect.guess_by_name(f, guess)
             guess, pipeline = sd_detect.guess_by_model_index(f, name=None, current_guess=guess)
             guess = sd_detect.guess_variant(f, guess)
+            guess_name = escape(str(guess))
+            guess = guess.removesuffix('SDNQ').strip()
             pipeline = sd_detect.shared_items.get_pipelines().get(guess, None) if pipeline is None else pipeline
-            model_name = escape(str(row.model_name))
             pipeline_name = escape(pipeline.__name__ if pipeline else '(unknown)')
             typ_name = escape(str(typ))
-            guess_name = escape(str(guess))
             hash_name = escape(str(row.shorthash))
             mtime_sort = mtime.timestamp() if hasattr(mtime, 'timestamp') else 0
             tbody += f"""
@@ -85,6 +104,7 @@ def create_models_table(rows: list | None = None):
             """
         except Exception as e:
             log.error(f'Model list: row={vars(row)} {e}')
+    log.info(f'Model stats: count={stats} sizes={sizes}')
     return html.format(tbody=tbody)
 
 def create_ui():
@@ -175,21 +195,25 @@ def create_ui():
                 with gr.Row():
                     model_list_btn = gr.Button(value="Refresh list", elem_id="model_list_btn", variant='primary')
                     model_checkhash_btn = gr.Button(value="Calculate hashes", elem_id="model_checkhash_btn", variant='secondary')
+                    model_list_prune_btn = gr.Button(value="Prune cache", elem_id="model_list_prune", variant='secondary')
                 with gr.Row():
                     model_table = gr.HTML(value=create_models_table(), elem_id="model_list_table", elem_classes="scroll-auto")
 
                 model_checkhash_btn.click(fn=update_model_hashes, inputs=[], outputs=[model_table])
                 model_list_btn.click(fn=lambda: create_models_table(list(sd_models.checkpoints_list.values())), inputs=[], outputs=[model_table])
+                model_list_prune_btn.click(fn=prune_hf_cache, inputs=[], outputs=[model_table])
 
             with gr.Tab(label="Cache List", elem_id="models_cache_tab"):
                 with gr.Row():
                     gr.HTML('<h2>List models in Hugging Face cache</h2><br>')
                 with gr.Row():
                     model_cache_btn = gr.Button(value="Refresh list", variant='primary')
+                    cache_list_prune_btn = gr.Button(value="Prune cache", elem_id="cache_list_prune", variant='secondary')
                 with gr.Row():
                     cache_table = gr.HTML(value=create_models_table(), elem_id="model_cache_table", elem_classes="scroll-auto")
 
                 model_cache_btn.click(fn=lambda: create_models_table(sd_models.list_hfcache()), inputs=[], outputs=[cache_table])
+                cache_list_prune_btn.click(fn=prune_hf_cache, inputs=[], outputs=[cache_table])
 
             with gr.Tab(label="Metadata", elem_id="models_metadata_tab"):
                 from modules.civitai.metadata_civitai import civit_search_metadata, civit_update_metadata

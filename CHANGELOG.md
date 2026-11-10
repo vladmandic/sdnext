@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-11-08
+## Update for 2026-11-10
 
 - **Chat**: New top-level interface  
   See [chat docs](https://vladmandic.github.io/sdnext-docs/Chat/) for more details as this is quite an extensive module  
@@ -13,6 +13,9 @@
   - [BluePixel-Turbo](https://huggingface.co/openvivo/BluePixel-Turbo)  
     BluePixel is retrained FLUX.2-Klein-9B with DCAE-F64 autoencoder and then distilled with four-step SATP  
     result is turbo-style 9B instruction-based image editing model with native 2K/4K outputs  
+- **Model Storage**:  
+  Huggingface has changed how model BLOBs are handled  
+  see [Model Storage](https://vladmandic.github.io/sdnext-docs/Model-Storage/) for details  
 - **Coding**  
   expand ai/ml instructions and skills  
   see [instructions](https://github.com/vladmandic/sdnext/blob/dev/AGENTS.md) and [skills](https://github.com/vladmandic/sdnext/blob/dev/.github/skills/README.md) for details  

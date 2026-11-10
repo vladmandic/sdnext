@@ -492,7 +492,7 @@ def create_settings(cmd_opts):
         "unet_dir": OptionInfo(os.path.join(paths.models_path, 'UNET'), "Folder with UNET files", folder=True),
         "te_dir": OptionInfo(os.path.join(paths.models_path, 'Text-encoder'), "Folder with Text encoder files", folder=True),
         "lora_dir": OptionInfo(os.path.join(paths.models_path, 'Lora'), "Folder with LoRA network(s)", folder=True),
-        "styles_dir": OptionInfo(os.path.join(paths.models_path, 'styles'), "File or Folder with user-defined styles", folder=True),
+        "styles_dir": OptionInfo(os.path.join(paths.models_path, 'styles'), "Folder with user-defined styles", folder=True),
         "wildcards_dir": OptionInfo(os.path.join(paths.models_path, 'wildcards'), "Folder with user-defined wildcards", folder=True),
         "autocomplete_dir": OptionInfo(os.path.join(paths.models_path, 'autocomplete'), "Folder with tag autocomplete files", folder=True),
         "embeddings_dir": OptionInfo(os.path.join(paths.models_path, 'embeddings'), "Folder with textual inversion embeddings", folder=True),

@@ -10,6 +10,42 @@ orig_xet_get = None
 orig_build_hf_headers = None
 
 
+def prune_hf_cache():
+    from modules import shared
+    from huggingface_hub import scan_cache_dir
+    from huggingface_hub.utils import _shared_blobs
+    try:
+        cache_info = scan_cache_dir(cache_dir=shared.opts.hfcache_dir)
+        revisions = sorted({
+            revision.commit_hash
+            for repo in cache_info.repos
+            for revision in repo.revisions
+            if not revision.refs
+        })
+        incomplete_files = cache_info.incomplete_files
+        unreferenced_blobs = _shared_blobs.unreferenced_shared_blobs(cache_info.cache_dir) if cache_info.cache_dir is not None else {}
+        if not revisions and not incomplete_files and not unreferenced_blobs:
+            return 'nothing to prune'
+
+        strategy = cache_info.delete_revisions(*revisions)
+        total_freed = strategy.expected_freed_size + cache_info.incomplete_size_on_disk + sum(unreferenced_blobs.values())
+        strategy.execute()
+        for incomplete_file in incomplete_files:
+            try:
+                incomplete_file.file_path.unlink()
+            except FileNotFoundError:
+                pass
+            except OSError as e:
+                log.warning(f'Hugging Face cache prune: incomplete file="{incomplete_file.file_path}" error: {e}')
+        if cache_info.cache_dir is not None:
+            for store_path in unreferenced_blobs:
+                _shared_blobs.sweep_shared_blob(store_path, cache_dir=cache_info.cache_dir)
+        return f'revisions={len(revisions)} incomplete={len(incomplete_files)} unreferenced={len(unreferenced_blobs)} freed={total_freed}'
+    except Exception as e:
+        log.error(f'HF cache prune: {e}')
+        return f'failed: {e}'
+
+
 def clean_user_agent(headers):
     ua = headers.get('user-agent', None)
     if ua is None:

@@ -530,7 +530,7 @@ def _execute_chat_operation(session_id: str, user_message: dict[str, Any], resul
                 if response_error:
                     errors.append(f'Run {run_index + 1}: {response_error}')
             if not responses:
-                if run_count == 1:
+                if run_count == 1 and first_exception is not None:
                     raise first_exception
                 raise RuntimeError('\n'.join(errors)) from first_exception
             images = [image for response in responses for image in (response.images or [])]

@@ -646,6 +646,8 @@ def register_pages():
     if shared.opts.diffusers_enable_embed:
         from modules.ui_extra_networks_textual_inversion import ExtraNetworksPageTextualInversion
         register_page(ExtraNetworksPageTextualInversion())
+    allowed_dirs.append(os.path.abspath(shared.opts.diffusers_dir))
+    allowed_dirs.append(os.path.abspath(shared.opts.hfcache_dir))
 
 
 def get_pages(title: str | None = None):
