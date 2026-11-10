@@ -122,10 +122,25 @@ def read_exif(filename: str):
         print('metadata error reading:', filename, e)
 
 
+def register_extensions():
+    try:
+        # latest pillow has built-in AVIF support, but we import pillow_avif as its just newer code from same contributor
+        import pillow_avif # pylint: disable=unused-import
+    except Exception:
+        pass
+    try:
+        import pillow_heif
+        pillow_heif.register_heif_opener()
+    except Exception:
+        pass
+
+
 if __name__ == '__main__':
     sys.argv.pop(0)
     if len(sys.argv) == 0:
         print('metadata:', 'no files specified')
+        sys.exit(0)
+    register_extensions()
     for fn in sys.argv:
         if os.path.isfile(fn):
             read_exif(fn)

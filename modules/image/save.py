@@ -6,7 +6,7 @@ import datetime as dt
 import threading
 import numpy as np
 import piexif.helper
-from PIL import Image, PngImagePlugin
+from PIL import Image, PngImagePlugin, ImageCms
 from modules import shared, script_callbacks, errors, paths
 from modules.logger import log
 from modules.image.grid import check_grid_size
@@ -142,12 +142,26 @@ def atomically_save_image():
                     debug_save(f'Save exif: {exifinfo}')
                     save_args['exif'] = piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: exifinfo_dump } })
             elif image_format == 'HEIF':
-                save_args = { 'quality': shared.opts.jpeg_quality }
+                save_args = {
+                    'quality': shared.opts.jpeg_quality,
+                    'lossless': shared.opts.webp_lossless,
+                }
                 if shared.opts.image_metadata:
                     debug_save(f'Save exif: {exifinfo}')
                     save_args['exif'] = piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: exifinfo_dump } })
             elif image_format == 'AVIF':
-                save_args = { 'quality': shared.opts.jpeg_quality }
+                # defaults: speed=6 subsampling 4:2:0 range=limited
+                # subsampling 4:4:4 has color shift
+                # plus explicit icc srgb profile
+                srgb_profile = ImageCms.createProfile("sRGB")
+                icc_profile = ImageCms.ImageCmsProfile(srgb_profile).tobytes()
+                save_args = {
+                    'quality': shared.opts.jpeg_quality,
+                    'range': 'full',
+                    'subsampling': '4:2:0',
+                    'speed': 4,
+                    'icc_profile': icc_profile,
+                }
                 if shared.opts.image_metadata:
                     debug_save(f'Save exif: {exifinfo}')
                     save_args['exif'] = piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: exifinfo_dump } })
@@ -167,7 +181,7 @@ def atomically_save_image():
                 errors.display(e, 'Image save')
             size = os.path.getsize(fn) if os.path.exists(fn) else 0
             what = 'grid' if is_grid else 'image'
-            log.info(f'Save: {what}="{fn}" type={image_format} width={image.width} height={image.height} size={size}')
+            log.info(f'Save: {what}="{fn}" type={image_format} width={image.width} height={image.height} size={size} quality={shared.opts.jpeg_quality}')
             savejob.outputs.append(fn)
 
             if shared.opts.save_log_fn != '' and len(exifinfo) > 0:
