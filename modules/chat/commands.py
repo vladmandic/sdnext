@@ -1745,8 +1745,8 @@ def _execute_command(session_id: str, text: str, image: str | list[str] | None =
         target = command.arguments['context']
         if target is None:
             return _command_result(f'Current context: {context}')
-        failures = _apply_saved_settings((session.get('drafts') or {}).get(target, {}))
         db.update_session(session_id, context=target)
+        failures = _apply_saved_settings((session.get('drafts') or {}).get(target, {}))
         message = f'Context set to {target}'
         if failures:
             message += '\n' + '\n'.join(failures)

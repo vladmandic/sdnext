@@ -38,6 +38,20 @@ class TestChatCommands(unittest.TestCase):
         self.assertEqual(saved['drafts']['image']['steps'], 30)
         self.assertEqual(saved['drafts']['video']['frames'], 24)
 
+    def test_context_is_updated_before_restoring_saved_settings(self):
+        session = self._create_session()
+
+        def restore_settings(_draft):
+            self.assertEqual(db.get_session(session['id'])['context'], 'video')
+            return []
+
+        with patch.object(db, '_db_path', return_value=self.db_path), \
+                patch.object(commands, '_apply_saved_settings', side_effect=restore_settings) as restore:
+            result = commands.execute_command(session['id'], 'context video')
+
+        self.assertEqual(result['text'], 'Context set to video')
+        restore.assert_called_once_with({})
+
     def test_help_returns_titled_sections_with_descriptions(self):
         session = self._create_session()
         with patch.object(db, '_db_path', return_value=self.db_path):

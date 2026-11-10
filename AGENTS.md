@@ -23,6 +23,7 @@ This file contains general guidelines for contributing to the SD.Next codebase, 
 - [UI And Frontend Guidelines](instructions/ui.instructions.md): Use when editing frontend UI code, JavaScript, HTML, CSS, localization files, or built-in UI extensions including modernui and kanvas.
 - [Hint Typography Guidelines](instructions/hints.instructions.md): Use when editing hint text or other UI strings in the English source file `ui/locale/locale_en.json`; manual locale overrides are out of scope.
 - [SDNQ Quantization Guidelines](instructions/sdnq.instructions.md): Use when changing SDNQ quantization, pre-quantized model loading, SDNQ attention, device placement, or quantized component behavior.
+- [Wiki Documentation Guidelines](instructions/wiki.instructions.md): Use when editing wiki Markdown or another Markdown file explicitly named by the user; the wiki is a separate Git submodule.
 
 ## Agent Guidelines
 

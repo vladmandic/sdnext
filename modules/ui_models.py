@@ -49,6 +49,7 @@ def create_models_table(rows: list | None = None):
     tbody = ''
     for row in rows:
         try:
+            print('HERE', row)
             f = row.filename
             size, mtime = modelstats.stat(f)
             size = round(size / 1024 / 1024 / 1024, 3)
@@ -172,8 +173,8 @@ def create_ui():
                 with gr.Row():
                     gr.HTML('<h2>List all locally available models</h2><br>')
                 with gr.Row():
-                    model_list_btn = gr.Button(value="Refresh list", variant='primary')
-                    model_checkhash_btn = gr.Button(value="Calculate hashes", variant='secondary')
+                    model_list_btn = gr.Button(value="Refresh list", elem_id="model_list_btn", variant='primary')
+                    model_checkhash_btn = gr.Button(value="Calculate hashes", elem_id="model_checkhash_btn", variant='secondary')
                 with gr.Row():
                     model_table = gr.HTML(value=create_models_table(), elem_id="model_list_table", elem_classes="scroll-auto")
 
