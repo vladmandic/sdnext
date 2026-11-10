@@ -524,7 +524,7 @@ def create_settings(cmd_opts):
     options_templates.update(options_section(('saving-images', "Media Options"), {
         "samples_save": OptionInfo(True, "Save all generated media"),
         "keep_incomplete": OptionInfo(True, "Save interrupted media"),
-        "samples_format": OptionInfo('jpg', 'Image file format', gr.Dropdown, {"choices": ["jpg", "png", "webp", "tiff", "jp2", "jxl", "heif"]}),
+        "samples_format": OptionInfo('jpg', 'Image file format', gr.Dropdown, {"choices": ["jpg", "png", "webp", "tiff", "jp2", "jxl", "heif", "avif", "exr"]}),
         "jpeg_quality": OptionInfo(90, "Image quality", gr.Slider, {"minimum": 1, "maximum": 100, "step": 1}),
         "img_max_size_mp": OptionInfo(1000, "Image maximum size (MP)", gr.Slider, {"minimum": 10, "maximum": 2000, "step": 1}),
         "ui_video_convert": OptionInfo(False, "Videos convert for UI playback"),
@@ -536,7 +536,7 @@ def create_settings(cmd_opts):
 
         "image_sep_grid": OptionInfo("<h2>Grid Options</h2>", "", gr.HTML),
         "grid_save": OptionInfo(True, "Save all generated image grids"),
-        "grid_format": OptionInfo('jpg', 'File format', gr.Dropdown, {"choices": ["jpg", "png", "webp", "tiff", "jp2", "jxl"]}),
+        "grid_format": OptionInfo('jpg', 'Grid file format', gr.Dropdown, {"choices": ["jpg", "png", "webp", "tiff", "jp2", "jxl"]}),
         "n_rows": OptionInfo(-1, "Grid max rows count", gr.Slider, {"minimum": -1, "maximum": 16, "step": 1}),
         "n_cols": OptionInfo(-1, "Grid max columns count", gr.Slider, {"minimum": -1, "maximum": 16, "step": 1}),
         "grid_background": OptionInfo("#000000", "Grid background color", gr.ColorPicker, {}),

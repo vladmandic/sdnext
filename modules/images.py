@@ -34,4 +34,14 @@ def register_heif():
     except Exception:
         pass
 
+def register_avif():
+    from installer import install
+    install('pillow-avif-plugin', quiet=True)
+    try:
+        import pillow_avif # pylint: disable=unused-import
+    except Exception:
+        pass
+
+
 register_heif()
+register_avif()

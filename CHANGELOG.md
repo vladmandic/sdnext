@@ -33,9 +33,15 @@
   - `bt.709` colour conversion with colour tags, fractional frame, clip rotation
   - `mkv` and `webm` frame counts read from each track
   - ltx condition video: skipping frames keeps the first frame
+- **Image**
+  - add support for AVIF and EXR image formats
+  - add HDR conversion support  
+    *note*: HDR conversion requires compatible image format: *settings -> media options -> image file format*  
+    supported: JPEG Gain Map, TIFF 16-bit, PNG with cICP, OpenEXR, AVIF, JPEG XL  
 - **Torch**
   - update cuda to `torch==2.15.0+cu132`
   - update rocm/linux to `torch==2.15.0+rocm10.0`
+  - update rocm/windows to `torch==2.16.0a0+rocm10.3.0a20261109`
 - **Other**
   - add env var `SD_STRICT` which will enable strict mode  
     in strict mode, read/parse/write errors will cause the application to exit immediately  
@@ -53,10 +59,11 @@
   - api: ts video files served as *video/mp2t*
   - autocomplete: *Keep @ on artist insert* applies after a page reload
   - dlss: use video codec defaults, slow-motion output plays slower
+  - dlss: re-apply original audio after video processing, thanks @resonantsky
   - gallery: thumbnails and previews for webm, mkv, mov, avi and ts videos
   - hdr: the 16-bit hdr image saves on windows paths with non-ascii characters
   - ideogram: a text encoder that fails to move to the gpu goes back to the cpu instead of staying partly on the gpu
-  - lora: *LoRA auto-apply tags* reach the first batch, keep their metadata order and are added when a tag is part of the lora file name; a lora without tags adds nothing, and later batches no longer append a bare comma
+  - lora: *LoRA auto-apply tags* reach the first batch, keep their metadata order and are added when a tag is part of the lora file name
   - ltx: *Tiny* live previews show the video instead of a placeholder
   - ltx: tab passes no longer run with the previous job's guidance end, sigma adjust and correction settings
   - minimax: quantized *H3* fix decode

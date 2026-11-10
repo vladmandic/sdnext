@@ -23,14 +23,14 @@ def save_hdr_png(fn: str, hdr) -> bool:
 
 class HDRScript(scripts_manager.Script):
     def title(self):
-        return "HDR: High Dynamic Range"
+        return "HDR: Triple Exposure"
 
     def show(self, _is_img2img):
         return True
 
     def ui(self, _is_img2img):
         with gr.Row():
-            gr.HTML("<span>&nbsp HDR: High Dynamic Range</span><br>")
+            gr.HTML("<span>&nbsp HDR: Triple Exposure</span><br>")
         with gr.Row():
             save_hdr = gr.Checkbox(label="Save HDR image", value=True)
             hdr_range = gr.Slider(minimum=0, maximum=1, step=0.05, value=0.65, label='HDR range')

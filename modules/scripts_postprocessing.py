@@ -5,12 +5,15 @@ from modules.logger import log
 
 
 class PostprocessedImage:
-    def __init__(self, image = None, video = None, info = None):
+    def __init__(self, image = None, video = None, info = None, output_dir = None, source_path = None, save_output = True):
         if info is None:
             info = {}
         self.image = image
         self.video = video
         self.info = info
+        self.output_dir = output_dir
+        self.source_path = source_path
+        self.save_output = save_output
 
     def __str__(self):
         return f'PostprocessedImage(image={self.image} video={self.video} info={self.info})'

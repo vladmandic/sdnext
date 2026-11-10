@@ -315,7 +315,7 @@ class StableDiffusionProcessing:
 
         # initializers
         self.prompt = prompt
-        self.seed = int(seed)
+        self.seed = int(seed) if seed is not None else -1
         self.batch_size = batch_size
         self.n_iter = n_iter
         self.steps = steps

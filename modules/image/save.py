@@ -4,6 +4,7 @@ import json
 import queue
 import datetime as dt
 import threading
+import numpy as np
 import piexif.helper
 from PIL import Image, PngImagePlugin
 from modules import shared, script_callbacks, errors, paths
@@ -78,7 +79,7 @@ def atomically_save_image():
             if extension[0] != '.': # add dot if missing
                 extension = '.' + extension
             try:
-                image_format = Image.registered_extensions()[extension]
+                image_format = 'OPENEXR' if extension.lower() == '.exr' else Image.registered_extensions()[extension]
             except Exception:
                 log.warning(f'Save: unknown image format: {extension}')
                 image_format = 'JPEG'
@@ -145,11 +146,22 @@ def atomically_save_image():
                 if shared.opts.image_metadata:
                     debug_save(f'Save exif: {exifinfo}')
                     save_args['exif'] = piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: exifinfo_dump } })
+            elif image_format == 'AVIF':
+                save_args = { 'quality': shared.opts.jpeg_quality }
+                if shared.opts.image_metadata:
+                    debug_save(f'Save exif: {exifinfo}')
+                    save_args['exif'] = piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: exifinfo_dump } })
             else:
                 save_args = { 'quality': shared.opts.jpeg_quality }
             try:
                 debug_save(f'Save args: {save_args}')
-                image.save(fn, format=image_format, **save_args)
+                if image_format == 'OPENEXR':
+                    from modules.image.exr import save_exr
+                    rgb = np.asarray(image.convert('RGB'), dtype=np.float32) / 255.0
+                    linear = np.where(rgb <= 0.04045, rgb / 12.92, ((rgb + 0.055) / 1.055) ** 2.4)
+                    save_exr(fn, linear, 'rec.709')
+                else:
+                    image.save(fn, format=image_format, **save_args)
             except Exception as e:
                 log.error(f'Save failed: file="{fn}" format={image_format} args={save_args} {e}')
                 errors.display(e, 'Image save')
