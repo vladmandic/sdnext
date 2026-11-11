@@ -521,7 +521,7 @@ def webui(restart=False, _exit=False, profiler=None):
     modules.scheduler.start_worker(shared.cmd_opts.test)
     mount_subpath(app)
     shared.demo.allowed_paths = resolve_paths(shared.demo.allowed_paths)
-    shared.opts.save()
+    shared.opts.save_atomic()
 
     if shared.cmd_opts.profile:
         for k, v in modules.script_callbacks.callback_map.items():
@@ -535,14 +535,14 @@ def webui(restart=False, _exit=False, profiler=None):
     modules.script_callbacks.print_timers()
 
     if shared.cmd_opts.profile:
-        log.info(f"Launch time: {timer.launch.summary(min_time=0)}")
-        log.info(f"Installer time: {timer.init.summary(min_time=0)}")
-        log.info(f"Startup time: {timer.startup.summary(min_time=0)}")
+        log.info(f"Server launch: {timer.launch.summary(min_time=0)}")
+        log.info(f"Server installer: {timer.init.summary(min_time=0)}")
+        log.info(f"Server startup: {timer.startup.summary(min_time=0)}")
         modules.errors._profiler = profiler # pylint: disable=protected-access
     else:
         timer.startup.add('launch', timer.launch.get_total())
         timer.startup.add('installer', timer.init.get_total())
-        log.info(f"Startup time: {timer.startup.summary()}")
+        log.info(f"Server startup: {timer.startup.summary()}")
     timer.startup.reset()
 
     if _exit:
@@ -564,6 +564,7 @@ def webui(restart=False, _exit=False, profiler=None):
         for module in [module for name, module in sys.modules.items() if name.startswith("modules.ui")]:
             importlib.reload(module)
 
+    log.info('Server: ready')
     return shared.demo.server
 
 

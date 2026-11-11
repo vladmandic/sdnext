@@ -25,10 +25,13 @@ jobs:
       - name: setup-python
         uses: actions/setup-python@v5
         with:
-          python-version: 3.12.3
+          python-version: 3.13.13
 
       - name: install-python-deps
-        run: uv pip install ruff pylint pre-commit --system
+        id: install-python-deps
+        run: |
+          uv venv venv --python 3.13.13
+          uv pip install --python venv/bin/python pre-commit ruff pylint codespell ty pyright
 
       - name: setup-node
         uses: actions/setup-node@v4
@@ -54,28 +57,53 @@ jobs:
             pnpm-store-
 
       - name: install-node-deps
+        id: install-node-deps
         run: pnpm install --frozen-lockfile --unsafe-perm
 
-      - name: pre-commit
-        uses: pre-commit-ci/lite-action@v1.1.0
-        if: always()
-        with:
-          msg: apply code formatting and linting auto-fixes
+      - name: lint:precomit
+        if: ${{ !cancelled() && steps.install-python-deps.outcome == 'success' && steps.install-node-deps.outcome == 'success' }}
+        run: time pnpm run lint:precomit
 
-      - name: ruff
-        run: uv run --active ruff check --extend-ignore EXE001
+      - name: lint:core
+        if: ${{ !cancelled() && steps.install-python-deps.outcome == 'success' && steps.install-node-deps.outcome == 'success' }}
+        run: time pnpm exec eslint
 
-      - name: pylint
-        run: uv run --active pylint --disable W0511 *.py modules/ pipelines/ scripts/ extensions-builtin/
+      - name: lint:modernui
+        if: ${{ !cancelled() && steps.install-python-deps.outcome == 'success' && steps.install-node-deps.outcome == 'success' }}
+        run: time pnpm run lint:modernui
 
-      - name: test-run
-        run: ./webui.sh --test --uv
+      - name: lint:kanvas
+        if: ${{ !cancelled() && steps.install-python-deps.outcome == 'success' && steps.install-node-deps.outcome == 'success' }}
+        run: time pnpm run lint:kanvas
 
-      - name: pre-commit-run
-        run: uv run --active pre-commit run --all-files
+      - name: tsc:modernui
+        if: ${{ !cancelled() && steps.install-python-deps.outcome == 'success' && steps.install-node-deps.outcome == 'success' }}
+        run: time pnpm run tsc:modernui
 
-      - name: eslint
-        run: pnpm run eslint:core
+      - name: tsc:kanvas
+        if: ${{ !cancelled() && steps.install-python-deps.outcome == 'success' && steps.install-node-deps.outcome == 'success' }}
+        run: time pnpm run tsc:kanvas
 
-      - name: tsc
-        run: pnpm run tsc:core
+      - name: tsc:core
+        if: ${{ !cancelled() && steps.install-python-deps.outcome == 'success' && steps.install-node-deps.outcome == 'success' }}
+        run: time pnpm run tsc:core
+
+      - name: lint:ruff
+        if: ${{ !cancelled() && steps.install-python-deps.outcome == 'success' && steps.install-node-deps.outcome == 'success' }}
+        run: time pnpm run lint:ruff
+
+      - name: lint:pylint
+        if: ${{ !cancelled() && steps.install-python-deps.outcome == 'success' && steps.install-node-deps.outcome == 'success' }}
+        run: time pnpm run lint:pylint
+
+      - name: lint:codespell
+        if: ${{ !cancelled() && steps.install-python-deps.outcome == 'success' && steps.install-node-deps.outcome == 'success' }}
+        run: time pnpm run lint:codespell
+
+      - name: lint:ty
+        if: ${{ !cancelled() && steps.install-python-deps.outcome == 'success' && steps.install-node-deps.outcome == 'success' }}
+        run: time pnpm run lint:ty
+
+      - name: lint:md
+        if: ${{ !cancelled() && steps.install-python-deps.outcome == 'success' && steps.install-node-deps.outcome == 'success' }}
+        run: time pnpm run lint:md

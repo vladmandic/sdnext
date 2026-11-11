@@ -192,6 +192,8 @@ def initialize(db_path=None):
             _initialized_paths.add(path)
         except Exception as exc:
             _initialization_failures[path] = exc
+            # from modules.errors import display
+            # display(exc, 'Scheduler')
             raise
     t1 = time.perf_counter()
     timer.startup.add('scheduler', t1 - t0)

@@ -45,6 +45,9 @@ typing-extensions==4.16.0
 sentencepiece==0.2.2
 
 # lint
+ty
 ruff
 pylint
+pyright
 pre-commit
+codespell
