@@ -15,7 +15,7 @@ jobs:
 
     steps:
       - name: checkout-code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: true
 
@@ -23,7 +23,7 @@ jobs:
         run: curl -LsSf https://astral.sh/uv/install.sh | sh
 
       - name: setup-python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: 3.13.13
 
@@ -34,7 +34,7 @@ jobs:
           uv pip install --python venv/bin/python pre-commit ruff pylint codespell ty pyright
 
       - name: setup-node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 24
 
@@ -49,7 +49,7 @@ jobs:
         run: echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
 
       - name: cache-pnpm-store
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ${{ steps.pnpm-store.outputs.STORE_PATH }}
           key: pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
