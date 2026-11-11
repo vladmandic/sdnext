@@ -55,6 +55,7 @@ ignore = [
     "E721",   # Do not compare types
     "E731",   # Do not assign a `lambda` expression
     "E741",   # Ambiguous variable name
+    "EXE001", # Executable file check
     "F401",   # Import unused
     "F403",   # Import star
     "I001",   # Import block is un-sorted
