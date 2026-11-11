@@ -1,6 +1,7 @@
 import os
 import time
 import logging
+import threading
 import torch
 import diffusers
 from modules.logger import log
@@ -162,6 +163,8 @@ def install_state_hook(pipe):
             raise AssertionError('Interrupted...')
 
     def _pre_vae_decode_hook(module, args): # pylint: disable=unused-argument
+        if shared.state.preview_thread == threading.get_ident(): # a preview decode runs beside the denoise: no phase change, no offload sweep
+            return
         new_phase = set_phase('Decode', module)
         attention_context.set_role('vae')
         if new_phase:

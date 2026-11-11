@@ -62,6 +62,7 @@
   - api: failed video return 500 with the error instead of 499
   - api: ts video files served as *video/mp2t*
   - live preview: *MiniMax-H3-Image* previews decode instead of logging an error per step
+  - live preview: *Full* preview no longer aborts a modular pipeline generation by offloading the transformer mid-denoise
   - autocomplete: *Keep @ on artist insert* applies after a page reload
   - dlss: use video codec defaults, slow-motion output plays slower
   - dlss: re-apply original audio after video processing, thanks @resonantsky

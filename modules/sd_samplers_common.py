@@ -77,7 +77,11 @@ def single_sample_to_image(sample, approximation=None):
                 from modules.vae import sd_vae_taesd
                 x_sample = sd_vae_taesd.decode(sample)
             elif approximation == "Full":
-                x_sample = processing.decode_first_stage(shared.sd_model, sample.unsqueeze(0), output_type='pil', use_job=False)[0]
+                shared.state.preview_thread = threading.get_ident()
+                try:
+                    x_sample = processing.decode_first_stage(shared.sd_model, sample.unsqueeze(0), output_type='pil', use_job=False)[0]
+                finally:
+                    shared.state.preview_thread = None
             else:
                 warn_once(f"method={approximation} unknown")
                 x_sample = get_missing_img('unknown method')

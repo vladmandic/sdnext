@@ -41,6 +41,7 @@ class State:
     current_sigma_next = None
     current_image = None
     current_image_sampling_step = -1
+    preview_thread = None # thread running a full vae preview decode, which is not a pipeline stage
     id_live_preview = 0
     textinfo = None
     prediction_type = "epsilon"
