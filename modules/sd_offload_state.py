@@ -30,6 +30,7 @@ no_split_module_classes = [
     "SDNQLinear", "SDNQConv1d", "SDNQConv2d", "SDNQConv3d", "SDNQConvTranspose1d", "SDNQConvTranspose2d", "SDNQConvTranspose3d", "SDNQEmbedding",
     "WanTransformerBlock",
     "MiniMaxH3TransformerBlock", "MiniMaxH3TokenRefinerBlock",
+    "MiniMaxH3ImageTransformerBlock", "MiniMaxH3ImageTokenRefinerBlock",
     "Flux3ModeTransformerBlock", "Flux3SingleTransformerBlock",
     "MOSSImageBlock", "MOSSImageTextBlock",
 ]

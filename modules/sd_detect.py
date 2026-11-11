@@ -119,6 +119,8 @@ def guess_by_name(fn, current_guess):
         new_guess = 'Cosmos'
     elif 'f-lite' in fn.lower():
         new_guess = 'FLite'
+    elif 'minimax-h3-image' in fn.lower():
+        new_guess = 'MiniMaxH3Image'
     elif 'minimax' in fn.lower():
         new_guess = 'MiniMaxH3'
     elif 'wan' in fn.lower():

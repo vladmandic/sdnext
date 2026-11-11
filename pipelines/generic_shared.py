@@ -118,6 +118,12 @@ shared_te_map = {
         'target_repo': 'Qwen/Qwen3-VL-8B-Instruct',
     },
 
+    'Qwen3-VL 32B Conditional Image SDNQ-UInt4': {
+        'cls': transformers.Qwen3VLForConditionalGeneration,
+        'target_repo': 'SD-Next/MiniMax-H3-Image-SDNQ-uint4-svd-hadamard-dynamic',
+        'identifier': ['MiniMax-H3-Image-SDNQ'],
+        'target_subfolder': 'text_encoder',
+    },
     'Qwen3-VL 32B Conditional': {
         'cls': transformers.Qwen3VLForConditionalGeneration,
         'target_repo': 'MiniMaxAI/MiniMax-H3',

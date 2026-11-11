@@ -25,6 +25,7 @@ vae_scale_override = {
     'ChronoEditPipeline': 16,
     'AutoencoderKLWan': 16,
     'AutoencoderKLMiniMaxH3': 16,
+    'AutoencoderKLMiniMaxH3Image': 16,
 }
 
 

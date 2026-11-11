@@ -310,6 +310,14 @@
     "size": 32.29,
     "date": "2026 August"
   },
+  "MiniMaxAI MiniMax-H3-Image sdnq-uint4": {
+    "path": "SD-Next/MiniMax-H3-Image-SDNQ-uint4-svd-hadamard-dynamic",
+    "preview": "MiniMaxAI--MiniMax-H3-Image.jpg",
+    "desc": "Quantization of MiniMaxAI/MiniMax-H3-Image using SDNQ: dynamic 4-bit uint with SVD rank 32 and Hadamard rotation, transformer and text encoder.",
+    "extras": "sampler: Default, steps: 6",
+    "size": 43.90,
+    "date": "2026 November"
+  },
   "Qwen-Image-2.1 sdnq-uint4": {
     "path": "OzzyGT/Qwen_Image_2_1_sdnq_dynamic_4bit",
     "preview": "Qwen--Qwen-Image-2.1.jpg",

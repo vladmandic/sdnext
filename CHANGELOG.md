@@ -13,6 +13,10 @@
   - [BluePixel-Turbo](https://huggingface.co/openvivo/BluePixel-Turbo)  
     BluePixel is retrained FLUX.2-Klein-9B with DCAE-F64 autoencoder and then distilled with four-step SATP  
     result is turbo-style 9B instruction-based image editing model with native 2K/4K outputs  
+  - [MiniMax-H3-Image](https://huggingface.co/MiniMaxAI/MiniMax-H3-Image)  
+    MiniMax-H3 33B transformer without audio layers, distilled to 6 steps without guidance, sharing the MiniMax-H3 text encoder  
+    text-to-image and editing with up to 16 reference images at 4 to 20 megapixels  
+    pre-quantized [SDNQ uint4](https://huggingface.co/SD-Next/MiniMax-H3-Image-SDNQ-uint4-svd-hadamard-dynamic) variant available in quantized references  
 - **Model Storage**:  
   Huggingface has changed how model BLOBs are handled  
   see [Model Storage](https://vladmandic.github.io/sdnext-docs/Model-Storage/) for details  

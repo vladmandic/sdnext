@@ -54,3 +54,31 @@ def load_minimax(checkpoint_info, diffusers_load_config = None, workflow: str | 
     pipe.custom_unpack_latents = unpack_latents # add a helper to unpack the video latents from the block state
     devices.torch_gc()
     return pipe
+
+
+def load_minimax_image(checkpoint_info, diffusers_load_config = None):
+    from modules.modular_load import load_modular_pipe
+    repo_id = sd_models.path_to_repo(checkpoint_info)
+    sd_models.hf_auth_check(checkpoint_info)
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
+
+    offline_args = {'local_files_only': True} if shared.opts.offline_mode else {}
+    log.debug(f'Load model: type=MiniMaxH3Image repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype}')
+    sd_models.warn_group_offload(min_vram=20)
+    pipe = load_modular_pipe(
+        diffusers.MiniMaxH3ImageModularPipeline,
+        repo_id,
+        offline_args=offline_args,
+        base=True,
+        load_config=diffusers_load_config,
+    )
+    if pipe is None:
+        return None
+
+    pipe.sd_checkpoint_info = checkpoint_info
+    pipe.sdnext_force_offload = True # very large model, so each stage ends with an on-demand offload sweep
+    pipe.num_timesteps = len(pipe.config.sample_sigmas) - 1 # the sampling grid is fixed, one output head per step
+    pipe.max_condition_images = 16 # references keep their own resolution, the request sets the output size
+    devices.torch_gc(force=True, reason='load')
+    return pipe
