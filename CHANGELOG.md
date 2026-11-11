@@ -61,6 +61,7 @@
   - api: *txt2img*, *img2img* and *control* responses carry an *error* field when a later batch fails after earlier batches returned images
   - api: failed video return 500 with the error instead of 499
   - api: ts video files served as *video/mp2t*
+  - live preview: *MiniMax-H3-Image* previews decode instead of logging an error per step
   - autocomplete: *Keep @ on artist insert* applies after a page reload
   - dlss: use video codec defaults, slow-motion output plays slower
   - dlss: re-apply original audio after video processing, thanks @resonantsky

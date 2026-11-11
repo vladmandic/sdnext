@@ -80,5 +80,7 @@ def load_minimax_image(checkpoint_info, diffusers_load_config = None):
     pipe.sdnext_force_offload = True # very large model, so each stage ends with an on-demand offload sweep
     pipe.num_timesteps = len(pipe.config.sample_sigmas) - 1 # the sampling grid is fixed, one output head per step
     pipe.max_condition_images = 16 # references keep their own resolution, the request sets the output size
+    from pipelines.minimax.minimax_latents import unpack_image_latents
+    pipe.custom_unpack_latents = unpack_image_latents # live previews need the packed rows back in latent shape
     devices.torch_gc(force=True, reason='load')
     return pipe

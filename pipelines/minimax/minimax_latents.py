@@ -48,3 +48,21 @@ def unpack_latents(latents, components: diffusers.modular_pipelines.ModularPipel
             warned = True
             log.warning(f'Video unpack latents: {e}')
     return latents
+
+
+def unpack_image_latents(latents, components: diffusers.modular_pipelines.ModularPipeline, state: diffusers.modular_pipelines.BlockState):
+    # based on MiniMaxH3ImageUnpackLatentsStep in diffusers/modular_pipelines/minimax_h3_image/decoders.py
+    from diffusers.modular_pipelines.minimax_h3_image.before_denoise import MiniMaxH3ImagePrepareCanvasStep, get_image_canvas_size
+    from modules import processing_callbacks, processing_helpers
+    width, height = processing_helpers.pass_size(processing_callbacks.p)
+    area = getattr(components, 'task_args', {}).get('min_generation_area', None)
+    if area is None:
+        area = next(param.default for param in MiniMaxH3ImagePrepareCanvasStep().inputs if param.name == 'min_generation_area')
+    canvas_height, canvas_width = get_image_canvas_size(height, width, area, components.canvas_multiple) # a request below the area floor is generated on a larger canvas
+    latent_height = canvas_height // components.vae_spatial_compression_ratio
+    latent_width = canvas_width // components.vae_spatial_compression_ratio
+    _, patch_h, patch_w = components.patch_size
+    channels = components.vae_latent_channels
+    rows = latents[state.num_reference_rows:] # reference rows lead the packed sequence
+    rows = rows.reshape(-1, latent_height // patch_h, latent_width // patch_w, channels, patch_h, patch_w)
+    return rows.permute(0, 3, 1, 4, 2, 5).reshape(-1, channels, latent_height, latent_width).contiguous()
