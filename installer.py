@@ -838,7 +838,7 @@ def install_rocm():
                 log.error('ROCm: no agent found - make sure that graphics driver is installed and up to date')
             if device is not None and device.therock is not None:
                 check_python(supported_minors=[11, 12, 13], reason='ROCm-Windows: python==3.11/3.12/3.13 required')
-                torch_command = os.environ.get('TORCH_COMMAND', f'"torch==2.12.0+rocm10.0.0" "amd-torch-device-{device.therock}" "torchvision==0.27.0+rocm10.0.0" "amd-torchvision-device-{device.therock}" "torchaudio" --extra-index-url https://stable.repo.amd.com/rocm/whl-next/')
+                torch_command = os.environ.get('TORCH_COMMAND', f'"torch==2.12.0+rocm10.0.0" "amd-torch-device-{device.therock}" "torchvision==0.27.0+rocm10.0.0" "amd-torchvision-device-{device.therock}" "torchaudio==2.11.0.2+rocm10.0.0" --extra-index-url https://stable.repo.amd.com/rocm/whl-next/')
             else:
                 check_python(supported_minors=[12], reason='ROCm-Windows: python==3.12 required')
                 # torch 2.8.0a0 is the last version with rocm 6.4 support
