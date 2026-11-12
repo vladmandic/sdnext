@@ -154,7 +154,11 @@ class Agent:
     def get_gfx_version(self) -> str | None:
         if self.gfx_version is None:
             return None
-        if self.gfx_version >= 0x1100 and self.gfx_version < 0x1200:
+        elif self.gfx_version >= 0x1201 and self.gfx_version < 0x1250:
+            return "12.5.0"
+        elif self.gfx_version >= 0x1200 and self.gfx_version < 0x1201:
+            return "12.0.1"
+        elif self.gfx_version >= 0x1100 and self.gfx_version < 0x1200:
             return "11.0.0"
         elif self.gfx_version == 0x1010:
             return "10.1.0"
@@ -250,7 +254,7 @@ def get_version() -> str | None:
 
 def get_flash_attention_command(agent: Agent) -> str:
     default = "git+https://github.com/ROCm/flash-attention"
-    if agent.gfx_version >= 0x1100 and agent.gfx_version < 0x1200 and os.environ.get("FLASH_ATTENTION_USE_TRITON_ROCM", "false").lower() != "true":
+    if agent.gfx_version >= 0x1100 and agent.gfx_version < 0x1250 and os.environ.get("FLASH_ATTENTION_USE_TRITON_ROCM", "false").lower() != "true":
         # use the navi_rotary_fix fork because the original doesn't support rotary_emb for transformers
         # original: "git+https://github.com/ROCm/flash-attention@howiejay/navi_support"
         default = "git+https://github.com/Disty0/flash-attention@navi_rotary_fix"
