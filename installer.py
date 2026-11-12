@@ -249,7 +249,10 @@ def uninstall(package, quiet = False):
         if installed(p, p, quiet=True):
             if not quiet:
                 log.warning(f'Package: {p} uninstall')
-            _result, _txt = pip(f"uninstall {p} --yes --quiet", ignore=True, quiet=True)
+            if args.uv:
+                _result, _txt = pip(f"uninstall {p} --quiet", ignore=True, quiet=True)
+            else:
+                _result, _txt = pip(f"uninstall {p} --yes --quiet", ignore=True, quiet=True)
             txt += _txt
     ts('uninstall', t_start)
     return txt
@@ -685,7 +688,7 @@ def check_diffusers():
             log.info(f'Install: package="diffusers" commit={diffusers_target}')
         else:
             log.info(f'Update: package="diffusers" current={pkg.version} commit={diffusers_commit} target={diffusers_target}')
-            pip('uninstall --yes diffusers', ignore=True, quiet=True)
+            uninstall('diffusers', quiet=True)
         if args.skip_git:
             log.warning('Git: marked as not available but required for diffusers installation')
         pip(f'install git+https://github.com/huggingface/diffusers@{diffusers_target}', ignore=False, quiet=True)
@@ -709,7 +712,7 @@ def check_transformers():
             log.info(f'Install: package="transformers" commit={transformers_target}')
         else:
             log.info(f'Update: package="transformers" current={pkg_transformers.version} commit={transformers_commit} target={transformers_target}')
-        pip('uninstall --yes transformers', ignore=True, quiet=True)
+        uninstall('transformers', quiet=True)
         pip(f'install tokenizers=={target_tokenizers}', ignore=False, quiet=True)
         pip(f'install git+https://github.com/huggingface/transformers@{transformers_target}', ignore=False, quiet=True)
         transformers_commit = transformers_target
@@ -2078,9 +2081,6 @@ def ensure_base_requirements():
 
 # startup
 ensure_base_requirements()
-from modules.logger import setup_logging # must be loaded after ensure_base_requirements
-from modules.logger import log as log_instance
-log = log_instance
 from modules.logger import setup_logging # must be loaded after ensure_base_requirements
 from modules.logger import log as log_instance
 log = log_instance
