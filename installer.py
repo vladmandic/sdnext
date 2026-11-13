@@ -28,7 +28,7 @@ class Torch(dict):
 
 
 # target commit hashes for specific packages
-diffusers_target = '8069682140c675652a886736121f4e3b86f4187c' # diffusers commit hash == 0.42.0.dev == 11-10-2026
+diffusers_target = '8069682140c675652a886736121f4e3b86f4187c' # diffusers commit hash == 0.42.0.dev == 10-27-2026
 transformers_target = 'c0d024fbc873ab0325e1b40fc1bd69069609de65' # transformers commit hash == 5.21.0.dev == 10-27-2026
 sdnq_target = '8bf23dffa1da84cbf1989bdec4a4fc2adc3e2e5f' # sdnq commit hash == 0.2.9.dev == 10-27-2026
 
@@ -803,7 +803,7 @@ def install_rocm():
 
     if sys.platform == "win32" and (not args.use_zluda) and (device is not None) and (device.therock is not None) and not installed("rocm"):
         check_python(supported_minors=[11, 12, 13], reason='ROCm-Windows: python==3.11/3.12/3.13 required')
-        install(f"rocm==10.3.0a20261109 rocm-sdk-core==10.3.0a20261109 rocm-sdk-devel==10.3.0a20261109 rocm-sdk-libraries==10.3.0a20261109 rocm-sdk-device-{device.therock}==10.3.0a20261109 --upgrade --pre --index-url https://nightly.repo.amd.com/rocm/whl-next/")
+        install(f"rocm==10.0.0 rocm-sdk-core rocm-sdk-devel rocm-sdk-libraries rocm-sdk-device-{device.therock} --index-url https://stable.repo.amd.com/rocm/whl-next/")
         rocm.refresh()
 
     msg = f'ROCm: version={rocm.version}'
@@ -838,7 +838,7 @@ def install_rocm():
                 log.error('ROCm: no agent found - make sure that graphics driver is installed and up to date')
             if device is not None and device.therock is not None:
                 check_python(supported_minors=[11, 12, 13], reason='ROCm-Windows: python==3.11/3.12/3.13 required')
-                torch_command = os.environ.get('TORCH_COMMAND', f'"torch==2.16.0a0+rocm10.3.0a20261109" "amd-torch-device-{device.therock}==2.16.0a0+rocm10.3.0a20261109" "torchvision==0.30.0a0+rocm10.3.0a20261109" "amd-torchvision-device-{device.therock}==0.30.0a0+rocm10.3.0a20261109" "torchaudio==2.11.1+rocm10.3.0a20261109" --upgrade --pre --extra-index-url https://nightly.repo.amd.com/rocm/pytorch/whl-next/')
+                torch_command = os.environ.get('TORCH_COMMAND', f'"torch==2.12.0+rocm10.0.0" "amd-torch-device-{device.therock}" "torchvision==0.27.0+rocm10.0.0" "amd-torchvision-device-{device.therock}" "torchaudio==2.11.0+rocm10.0.0" --extra-index-url https://stable.repo.amd.com/rocm/whl-next/')
             else:
                 check_python(supported_minors=[12], reason='ROCm-Windows: python==3.12 required')
                 # torch 2.8.0a0 is the last version with rocm 6.4 support
