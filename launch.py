@@ -247,6 +247,7 @@ def main():
     if args.skip_all:
         args.quick = True
     installer.check_python()
+    installer.check_git()
     if args.reset:
         installer.git_reset()
     if args.skip_git or args.skip_all:

@@ -62,6 +62,7 @@
   - api: *txt2img*, *img2img* and *control* responses carry an *error* field when a later batch fails after earlier batches returned images
   - api: failed video return 500 with the error instead of 499
   - api: ts video files served as *video/mp2t*
+  - installer: check minimum git version
   - live preview: *MiniMax-H3-Image* previews decode instead of logging an error per step
   - live preview: *Full* preview no longer aborts a modular pipeline generation by offloading the transformer mid-denoise
   - autocomplete: *Keep @ on artist insert* applies after a page reload

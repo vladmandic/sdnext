@@ -3,7 +3,6 @@ import sys
 import glob
 import ctypes
 import shutil
-import subprocess
 from types import ModuleType
 from typing import overload, TYPE_CHECKING
 from enum import Enum
@@ -12,6 +11,7 @@ if TYPE_CHECKING:
     import torch
 
 
+from installer import run
 from modules.logger import log
 
 
@@ -28,11 +28,6 @@ def dirname(path_: str, r: int = 1) -> str:
     for _ in range(0, r):
         path_ = os.path.dirname(path_)
     return path_
-
-
-def spawn(command: str | list[str], cwd: os.PathLike = '.', env: dict[str, str] | None = None) -> str:
-    process = subprocess.run(command, cwd=cwd, shell=isinstance(command, str), check=False, capture_output=True, text=True, env=env)
-    return process.stdout
 
 
 def load_library_global(path_: str):
@@ -237,7 +232,8 @@ def get_version() -> str | None:
                 # hipconfig requires Perl
                 return os.path.basename(environment.path) or os.path.basename(os.path.dirname(environment.path))
             else:
-                arr = spawn("hipconfig --version", cwd=os.path.join(environment.path, 'bin')).split(".")
+                result, _ = run(["hipconfig", "--version"], cwd=os.path.join(environment.path, 'bin'))
+                arr = result.stdout.split(".")
                 return f'{arr[0]}.{arr[1]}' if len(arr) >= 2 else None
         elif isinstance(environment, PythonPackageEnvironment):
             # If rocm-sdk package is installed, the hip library may be used by PyTorch.
@@ -278,7 +274,7 @@ def refresh():
         except Exception:
             rocblas_tensile_libpath = None
             blaslt_tensile_libpath = None
-        spawn(["rocm-sdk", "init"])
+        run(["rocm-sdk", "init"])
     except ImportError:
         rocm_sdk = None
         environment = find()
@@ -309,7 +305,7 @@ if sys.platform == "win32":
             env["PATH"] = os.pathsep.join((environment.path, env.get("PATH", "")))
         elif isinstance(environment, ROCmEnvironment):
             env["PATH"] = os.pathsep.join((os.path.join(environment.path, "bin"), env.get("PATH", "")))
-        out = spawn([sys.executable, name], env=env)
+        out = run([sys.executable, name], env=env)[0].stdout
         os.unlink(name)
         out = out.strip()
         if out == "":
@@ -381,15 +377,19 @@ if sys.platform == "win32":
         return True, None
 
     is_wsl: bool = False
-
 else: # sys.platform != "win32"
     def get_agents() -> list[Agent]:
-        try:
-            _agents = spawn("rocm_agent_enumerator").split("\n")
-            _agents = [x for x in _agents if x and x != 'gfx000']
-        except Exception: # old version of ROCm WSL doesn't have rocm_agent_enumerator
-            _agents = spawn("rocminfo").split("\n")
-            _agents = [x.strip().split(" ")[-1] for x in _agents if x.startswith('  Name:') and "CPU" not in x]
+        output: str | None = None
+        if shutil.which("rocm_agent_enumerator") is not None:
+            try:
+                output = run(["rocm_agent_enumerator"])[0].stdout
+            except FileNotFoundError:
+                pass
+        if output is None:
+            output = run(["rocminfo"])[0].stdout
+            _agents = [x.strip().split(" ")[-1] for x in output.split("\n") if x.startswith('  Name:') and "CPU" not in x]
+        else:
+            _agents = [x for x in output.split("\n") if x and x != 'gfx000']
         agents = [Agent(x) for x in _agents]
         configure_xnack(agents)
         return agents
@@ -416,7 +416,9 @@ else: # sys.platform != "win32"
             return False, e
         return True, None
 
-    is_wsl: bool = os.environ.get('WSL_DISTRO_NAME', 'unknown' if spawn('wslpath -w /') else None) is not None
+    is_wsl: bool = os.environ.get('WSL_DISTRO_NAME') is not None
+    if not is_wsl and shutil.which('wslpath') is not None:
+        is_wsl = bool(run(['wslpath', '-w', '/'])[0].stdout)
 
 
 environment: Environment | None = None

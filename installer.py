@@ -209,13 +209,17 @@ def installed(package, friendly: str | None = None, quiet = False): # pylint: di
             pkgs = [p for p in package.split() if not p.startswith('-') and not p.startswith('=') and not p.startswith('git+')]
             pkgs = [p.split('/')[-1] for p in pkgs] # get only package name if installing from url
         for pkg in pkgs:
-            if '!=' in pkg:
+            if pkg is None or pkg == '':
+                continue
+            elif '!=' in pkg:
                 p = pkg.split('!=')
                 return True # check for not equal always return true
             elif '>=' in pkg:
                 p = pkg.split('>=')
             else:
                 p = pkg.split('==')
+            if p[0] is None or p[0] == '':
+                continue
             spec = package_spec(p[0])
             ok = ok and spec is not None
             if ok:
@@ -297,18 +301,34 @@ def run(cmd: str | list[str], *nargs: str, **kwargs):
         "stderr": subprocess.PIPE,
     }
     options |= kwargs  # Override defaults with passed kwargs
-    if isinstance(cmd, list):
-        result = subprocess.run(cmd + list(nargs), **options, shell=False, text=True)
-    else:
-        argstr = " ".join(nargs)
-        result = subprocess.run(f'"{cmd}" {argstr}', **options, shell=True, text=True)
-    result.stdout = (result.stdout or '').strip()
-    result.stderr = (result.stderr or '').strip()
-    txt = result.stdout
-    if result.stderr:
-        # Put newline between outputs only if stdout isn't empty
-        txt += "\n" + result.stderr if txt else result.stderr
-    return result, txt
+    which = shutil.which(cmd if isinstance(cmd, str) else cmd[0])
+    if which is None:
+        log.warning(f'Run: command="{cmd}" not found in PATH')
+    if debug:
+        log.trace(f'Run: command="{cmd}" abs="{which}" nargs={nargs} kwargs={kwargs}')
+    try:
+        if isinstance(cmd, list):
+            result = subprocess.run(cmd + list(nargs), **options, shell=False, text=True)
+        else:
+            argstr = " ".join(nargs)
+            result = subprocess.run(f'"{cmd}" {argstr}', **options, shell=True, text=True)
+    except FileNotFoundError:
+        cwd = options.get("cwd")
+        if cwd is not None and not os.path.isdir(cwd):
+            message = f'Run: folder="{cwd}" not found'
+        else:
+            executable = cmd[0] if isinstance(cmd, list) and cmd else cmd
+            message = f'Run: executable="{executable}" not found'
+        log.error(message)
+        raise FileNotFoundError(message) from None
+    except Exception as e:
+        log.error(f'Run: command="{cmd}" abs="{which}" exception: {str(e)}')
+        raise
+    stdout = (result.stdout or '').strip()
+    stderr = (result.stderr or '').strip()
+    if stderr:
+        stdout += "\n" + stderr if stdout else stderr # Put newline between outputs only if stdout isn't empty
+    return result, stdout
 
 
 def cleanup_broken_packages():
@@ -469,6 +489,20 @@ def git(arg: str, folder: str | None= None, ignore: bool = False, optional: bool
     return txt
 
 
+def git_branch_commit(folder: str = ".") -> tuple[str, str]:
+    result, _ = run(["git", "status", "--porcelain=v2", "--branch", "--untracked-files=no"], check=True, cwd=folder)
+    branch = None
+    commit = None
+    for line in result.stdout.splitlines():
+        if line.startswith("# branch.head "):
+            branch = line.removeprefix("# branch.head ")
+        elif line.startswith("# branch.oid "):
+            commit = line.removeprefix("# branch.oid ")
+    if branch is None or commit is None or commit == "(initial)":
+        raise RuntimeError(f'Git: unable to read branch and commit: folder="{folder}"')
+    return ("HEAD" if branch in {"detached", "(detached)"} else branch), commit
+
+
 # reattach as needed as head can get detached
 def branch(folder=None):
     t_start = time.time()
@@ -570,6 +604,7 @@ def clone(url, folder, commithash=None):
     ts('clone', t_start)
 
 
+@lru_cache
 def get_platform():
     try:
         if platform.system() == 'Windows':
@@ -581,7 +616,8 @@ def get_platform():
             'cpu': f'"{platform.processor()}"',
             'system': f'"{platform.system()}"',
             'release': release,
-            'python': platform.python_version(),
+            'python': check_python(),
+            'git': check_git(),
             'locale': locale.getlocale(),
             'setuptools': package_version('setuptools'),
             'docker': os.environ.get('SD_DOCKER', None) is not None,
@@ -594,7 +630,40 @@ def get_platform():
         return { 'error': e }
 
 
+# check git version
+@lru_cache
+def check_git():
+    t_start = time.time()
+    if args.quick:
+        return
+    if args.skip_git:
+        return
+
+    git_cmd = os.environ.get('GIT', "git")
+    git_version = None
+    if shutil.which(git_cmd) is None:
+        log.error('Git: not found')
+        if not args.ignore:
+            sys.exit(1)
+    else:
+        git_version = git('--version', folder=None, ignore=False)
+        git_version = git_version.split()[-1].strip()
+        match = re.match(r'^(\d+)\.(\d+)', git_version)
+        if match is None:
+            log.error(f'Git: unable to parse version="{git_version}" minimum required=2.25')
+            if not args.ignore:
+                sys.exit(1)
+        elif tuple(map(int, match.groups())) < (2, 25):
+            log.error(f'Git: version={git_version} minimum required=2.25')
+            if not args.ignore:
+                sys.exit(1)
+        # log.debug(f'Git: version={git_version}')
+    ts('git', t_start)
+    return git_version
+
+
 # check python version
+@lru_cache
 def check_python(supported_minors=None, experimental_minors=None, reason=None):
     if experimental_minors is None:
         experimental_minors = []
@@ -606,17 +675,18 @@ def check_python(supported_minors=None, experimental_minors=None, reason=None):
     t_start = time.time()
     if args.quick:
         return
-    log.info(f'Python: version={platform.python_version()} platform={platform.system()} bin="{sys.executable}" venv="{sys.prefix}"')
+    ver = platform.python_version()
+    log.info(f'Python: version={ver} platform={platform.system()} bin="{sys.executable}" venv="{sys.prefix}"')
     if sys.prefix == getattr(sys, "base_prefix", sys.prefix) and 'venv' not in sys.prefix.lower():
         log.warning('Python: virtual environment not detected')
     if int(sys.version_info.minor) == 9:
-        log.error(f"Python: version={platform.python_version()} is end-of-life")
+        log.error(f"Python: version={ver} is end-of-life")
     if int(sys.version_info.minor) == 10:
-        log.warning(f"Python: version={platform.python_version()} is not actively supported")
+        log.warning(f"Python: version={ver} is not actively supported")
     if int(sys.version_info.minor) >= 12:
         os.environ.setdefault('SETUPTOOLS_USE_DISTUTILS', 'local') # hack for python 3.11 setuptools
     if int(sys.version_info.minor) >= 13:
-        # log.warning(f"Python: version={platform.python_version()} not all features are available")
+        # log.warning(f"Python: version={ver} not all features are available")
         pass
 
     if (int(sys.version_info.major) == 3 and int(sys.version_info.minor) in supported_minors):
@@ -635,18 +705,10 @@ def check_python(supported_minors=None, experimental_minors=None, reason=None):
             log.warning(f"Python: {reason}")
         sys.exit(1)
 
-    if not args.skip_git:
-        git_cmd = os.environ.get('GIT', "git")
-        if shutil.which(git_cmd) is None:
-            log.error('Git not found')
-            if not args.ignore:
-                sys.exit(1)
-    else:
-        git_version = git('--version', folder=None, ignore=False)
-        log.debug(f'Git: version={git_version.replace("git version", "").strip()}')
     if ' ' in sys.executable:
         log.warning(f'Python: path="{sys.executable}" contains spaces which may cause issues')
     ts('python', t_start)
+    return ver
 
 
 # register sdnq package from github submodule
@@ -1620,8 +1682,7 @@ def get_version(force=False):
 
         try:
             if os.path.exists('extensions-builtin/sdnext-modernui'):
-                branch_ui = run('git', 'rev-parse --abbrev-ref HEAD', check=True, cwd='extensions-builtin/sdnext-modernui')[0].stdout.strip()
-                commit_ui = run('git', 'rev-parse HEAD', check=True, cwd='extensions-builtin/sdnext-modernui')[0].stdout.strip()
+                branch_ui, commit_ui = git_branch_commit('extensions-builtin/sdnext-modernui')
                 version['ui'] = ('dev' if 'dev' in branch_ui else 'main') + '@' + commit_ui[:8]
             else:
                 version['ui'] = 'unavailable'
@@ -1633,8 +1694,7 @@ def get_version(force=False):
             if os.environ.get('SD_KANVAS_DISABLE', None) is not None:
                 version['kanvas'] = 'disabled'
             elif os.path.exists('extensions-builtin/sdnext-kanvas'):
-                branch_kanvas = run('git', 'rev-parse --abbrev-ref HEAD', check=True, cwd='extensions-builtin/sdnext-kanvas')[0].stdout.strip()
-                commit_kanvas = run('git', 'rev-parse HEAD', check=True, cwd='extensions-builtin/sdnext-kanvas')[0].stdout.strip()
+                branch_kanvas, commit_kanvas = git_branch_commit('extensions-builtin/sdnext-kanvas')
                 version['kanvas'] = ('dev' if 'dev' in branch_kanvas else 'main') + '@' + commit_kanvas[:8]
             else:
                 version['kanvas'] = 'unavailable'
@@ -1644,8 +1704,7 @@ def get_version(force=False):
 
         try:
             if os.path.exists('extensions-builtin/sdnq'):
-                branch_sdnq = run('git', 'rev-parse --abbrev-ref HEAD', check=True, cwd='extensions-builtin/sdnq')[0].stdout.strip()
-                commit_sdnq = run('git', 'rev-parse HEAD', check=True, cwd='extensions-builtin/sdnq')[0].stdout.strip()
+                branch_sdnq, commit_sdnq = git_branch_commit('extensions-builtin/sdnq')
                 version['sdnq'] = ('dev' if 'dev' in branch_sdnq else 'main') + '@' + commit_sdnq[:8]
             else:
                 version['sdnq'] = 'unavailable'
