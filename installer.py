@@ -615,19 +615,47 @@ def get_platform():
             'arch': platform.machine(),
             'cpu': f'"{platform.processor()}"',
             'system': f'"{platform.system()}"',
-            'release': release,
-            'python': check_python(),
-            'git': check_git(),
+            'release': f'"{release}"',
             'locale': locale.getlocale(),
-            'setuptools': package_version('setuptools'),
             'docker': os.environ.get('SD_DOCKER', None) is not None,
-            'pip': package_version('pip'),
-            'uv': package_version('uv'),
+            'wsl': os.environ.get('WSL_DISTRO_NAME', False),
             # 'host': platform.node(),
             # 'version': platform.version(),
         }
     except Exception as e:
         return { 'error': e }
+
+
+@lru_cache
+def get_tools():
+    try:
+        return {
+            'python': check_python(),
+            'git': check_git(),
+            'setuptools': package_version('setuptools'),
+            'pip': package_version('pip'),
+            'uv': check_uv(),
+        }
+    except Exception as e:
+        return { 'error': e }
+
+
+# check uv
+@lru_cache
+def check_uv():
+    t_start = time.time()
+    if args.quick:
+        return
+    uv_version = package_version('uv')
+    if uv_version is None:
+        uv_cmd = shutil.which('uv')
+        if uv_cmd is not None:
+            result, _ = run([uv_cmd, '--version'], check=True)
+            match = re.match(r'^\s*uv\s+(\d+(?:\.\d+)+(?:[A-Za-z0-9.+-]*))', result.stdout, re.IGNORECASE)
+            if match is not None:
+                uv_version = match.group(1)
+    ts('uv', t_start)
+    return uv_version
 
 
 # check git version

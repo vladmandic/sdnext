@@ -253,6 +253,7 @@ def main():
     if args.skip_git or args.skip_all:
         log.info('Skipping GIT operations')
     log.info(f'Platform: {installer.print_dict(installer.get_platform())}')
+    log.info(f'Toolkit: {installer.print_dict(installer.get_tools())}')
     installer.check_version()
     installer.check_venv()
     log.info(f'Args: {installer.mask_args(sys.argv[1:], args)}')
