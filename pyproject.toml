@@ -423,7 +423,7 @@ exclude = [
 [tool.ty.rules]
 abstract-class-instantiation = "ignore"
 call-non-callable = "ignore"
-call-top-callable = "ignore"
+call-to-function-with-unknown-signature = "ignore"
 deprecated = "ignore"
 import-not-found = "ignore"
 incompatible-method-override = "ignore"

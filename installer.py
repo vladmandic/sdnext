@@ -289,7 +289,7 @@ def uv_info():
     log.debug(f'Package manager: app=uv version="{uv_version}" folder="{uv_cache_dir}" dedup={uv_cache_active}')
 
 
-def run(cmd: str, *nargs: str, **kwargs):
+def run(cmd: str | list[str], *nargs: str, **kwargs):
     options = {
         "check": False,
         "env": os.environ,
@@ -297,8 +297,11 @@ def run(cmd: str, *nargs: str, **kwargs):
         "stderr": subprocess.PIPE,
     }
     options |= kwargs  # Override defaults with passed kwargs
-    argstr = " ".join(nargs)
-    result = subprocess.run(f'"{cmd}" {argstr}', **options, shell=True, text=True)
+    if isinstance(cmd, list):
+        result = subprocess.run(cmd + list(nargs), **options, shell=False, text=True)
+    else:
+        argstr = " ".join(nargs)
+        result = subprocess.run(f'"{cmd}" {argstr}', **options, shell=True, text=True)
     result.stdout = (result.stdout or '').strip()
     result.stderr = (result.stderr or '').strip()
     txt = result.stdout
@@ -490,9 +493,9 @@ def branch(folder=None):
     if args.experimental or args.skip_git or args.skip_all:
         return b
 
-    if 'main' in b:
+    if b == 'main':
         tgt = 'main'
-    elif 'master' in b:
+    elif b == 'master':
         tgt = 'master'
     else:
         tgt = b.split('\n')[0].replace('*', '').strip()
@@ -732,7 +735,12 @@ def check_onnx():
         install(os.environ.get('ONNXRUNTIME_COMMAND', 'onnxruntime'), ignore=True)
     else:
         onnx_version = package_version('onnxruntime') or ''
-        if onnx_version.startswith('1.1'):
+        try:
+            from packaging.version import InvalidVersion, Version
+            update_onnxruntime = Version(onnx_version) < Version('1.30.0')
+        except InvalidVersion:
+            update_onnxruntime = False
+        if update_onnxruntime:
             log.warning(f'ONNX: onnxruntime={onnx_version} upgrade required')
             uninstall('onnxruntime', quiet=True)
             install(os.environ.get('ONNXRUNTIME_COMMAND', 'onnxruntime'), ignore=True)
@@ -1223,7 +1231,7 @@ def run_extension_installer(folder):
             if os.environ.get('PYTHONPATH', None) is not None:
                 separator = ';' if sys.platform == 'win32' else ':'
                 env['PYTHONPATH'] += separator + os.environ.get('PYTHONPATH', None)
-            result, txt = run(sys.executable, path_installer, env=env, cwd=folder)
+            result, txt = run([sys.executable, path_installer], env=env, cwd=folder)
             debug(f'Extension installer: file="{path_installer}" {result.stdout}')
             if result.returncode != 0:
                 errors.append(f'ext: {os.path.basename(folder)}')
@@ -1335,8 +1343,8 @@ def install_submodules(force=True):
         txt = git('submodule')
         git_reset()
         log.info('Continuing setup')
-    git('submodule --quiet update --init --recursive')
     git('submodule --quiet sync --recursive')
+    git('submodule --quiet update --init --recursive')
     submodules = txt.splitlines()
     res = []
     for submodule in submodules:

@@ -217,15 +217,10 @@ def create_api(app):
 
 def verbose_task_factory(loop, coro, context=None):
     """Custom task factory that intercepts and logs every created task."""
-    # Retrieve the origin frame (where asyncio.create_task was called)
-    frame = coro.cr_frame if hasattr(coro, 'cr_frame') and coro.cr_frame else None
-    origin = f"{frame.f_code.co_filename}:{frame.f_lineno}" if frame else "unknown origin"
-
-    # Get the coroutine function name
     coro_name = getattr(coro, '__qualname__', str(coro))
-
-    print(f"[TASK CREATED] {coro_name} | Origin: {origin}")
-
+    # frame = coro.cr_frame if hasattr(coro, 'cr_frame') and coro.cr_frame else None
+    # origin = f"{frame.f_code.co_filename}:{frame.f_lineno}" if frame else "unknown origin"
+    # print(f"[TASK CREATED] {coro_name} | Origin: {origin}")
     # Fallback to the default Task creation (handles Python 3.11+ context kwargs)
     if context is not None:
         return asyncio.Task(coro, loop=loop, name=coro_name, context=context)

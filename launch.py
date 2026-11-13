@@ -90,7 +90,6 @@ def commit_hash(): # compatibility function
     return stored_commit_hash
 
 
-@lru_cache
 def run(command, desc=None, errdesc=None, custom_env=None, live=False): # compatibility function
     if desc is not None:
         log.info(desc)

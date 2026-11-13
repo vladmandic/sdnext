@@ -31,7 +31,7 @@ def dirname(path_: str, r: int = 1) -> str:
 
 
 def spawn(command: str | list[str], cwd: os.PathLike = '.', env: dict[str, str] | None = None) -> str:
-    process = subprocess.run(command, cwd=cwd, shell=True, check=False, capture_output=True, text=True, env=env)
+    process = subprocess.run(command, cwd=cwd, shell=isinstance(command, str), check=False, capture_output=True, text=True, env=env)
     return process.stdout
 
 
@@ -115,11 +115,11 @@ class Agent:
         self.gfx_version = Agent.parse_gfx_version(self.name)
         if self.gfx_version > 0x1000:
             self.arch = MicroArchitecture.RDNA
-        elif self.gfx_version in (0x908, 0x90a, 0x942,):
+        elif self.gfx_version in (0x908, 0x90a, 0x940, 0x941, 0x942, 0x950):
             self.arch = MicroArchitecture.CDNA
         else:
             self.arch = MicroArchitecture.GCN
-        self.is_apu = (self.gfx_version & 0xFFF0 == 0x1150) or self.gfx_version in (0x801, 0x902, 0x90c, 0x1013, 0x1033, 0x1035, 0x1036, 0x1103,)
+        self.is_apu = (self.gfx_version & 0xFFF0 == 0x1150) or self.gfx_version in (0x801, 0x902, 0x90c, 0x1013, 0x1033, 0x1035, 0x1036, 0x1103)
         blaslt_filename = f"TensileLibrary_lazy_{self.name}.dat"
 
         def has_tensile_library(path: str | None) -> bool:
@@ -175,6 +175,7 @@ def configure_xnack(agents: list[Agent]):
         os.environ.pop('HSA_XNACK', None)
         log.info(f'ROCm: XNACK is Null for unsupported {unsupported}')
 
+
 def find() -> ROCmEnvironment | None:
     hip_path = shutil.which("hipconfig")
     if hip_path is not None:
@@ -198,7 +199,7 @@ def find() -> ROCmEnvironment | None:
                 self.major, self.minor = [int(v) for v in string.strip().split(".")]
 
             def __gt__(self, other):
-                return self.major * 10 + other.minor > other.major * 10 + other.minor
+                return (self.major, self.minor) > (other.major, other.minor)
 
             def __str__(self):
                 return f"{self.major}.{self.minor}"
@@ -252,6 +253,7 @@ def get_version() -> str | None:
         log.error(f'ROCm: failed to get version: {e}')
         return None
 
+
 def get_flash_attention_command(agent: Agent) -> str:
     default = "git+https://github.com/ROCm/flash-attention"
     if agent.gfx_version >= 0x1100 and agent.gfx_version < 0x1250 and os.environ.get("FLASH_ATTENTION_USE_TRITON_ROCM", "false").lower() != "true":
@@ -304,9 +306,9 @@ if sys.platform == "win32":
         # newer drivers ship amdhip64 that depends on sdk dlls such as rocm_kpack.dll
         env = os.environ.copy()
         if isinstance(environment, PythonPackageEnvironment):
-            env["PATH"] = os.path.join(environment.path, env.get("PATH", ""))
+            env["PATH"] = os.pathsep.join((environment.path, env.get("PATH", "")))
         elif isinstance(environment, ROCmEnvironment):
-            env["PATH"] = os.path.join(environment.path, "bin", env.get("PATH", ""))
+            env["PATH"] = os.pathsep.join((os.path.join(environment.path, "bin"), env.get("PATH", "")))
         out = spawn([sys.executable, name], env=env)
         os.unlink(name)
         out = out.strip()
@@ -379,6 +381,7 @@ if sys.platform == "win32":
         return True, None
 
     is_wsl: bool = False
+
 else: # sys.platform != "win32"
     def get_agents() -> list[Agent]:
         try:
@@ -415,12 +418,14 @@ else: # sys.platform != "win32"
 
     is_wsl: bool = os.environ.get('WSL_DISTRO_NAME', 'unknown' if spawn('wslpath -w /') else None) is not None
 
+
 environment: Environment | None = None
 rocblas_tensile_libpath: str | None = None
 blaslt_tensile_libpath: str | None = None
 is_installed: bool = False
 version: str | None = None
 refresh()
+
 
 # amdgpu-arch.exe written in Python
 CODE_AMDGPU_ARCH = """
