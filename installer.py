@@ -936,14 +936,15 @@ def install_rocm():
         else:
             if device is None:
                 log.error('ROCm: no agent found - make sure that graphics driver is installed and up to date')
-            if device is not None and device.therock is not None:
-                check_python(supported_minors=(11, 12, 13), reason='ROCm-Windows: python==3.11/3.12/3.13 required')
+            elif device.therock is not None and args.use_nightly:
                 torch_command = os.environ.get('TORCH_COMMAND', f'"torch[device-{device.therock}]" "torchvision[{device.therock}]" "torchaudio" -U --index-url https://nightly.repo.amd.com/rocm/whl-next/')
+            elif device.therock is not None:
+                check_python(supported_minors=(11, 12, 13), reason='ROCm-Windows: python==3.11/3.12/3.13 required')
+                torch_command = os.environ.get('TORCH_COMMAND', f'"torch[device-{device.therock}]" "torchvision[{device.therock}]" "torchaudio" -U --index-url https://stable.repo.amd.com/rocm/whl-next/')
             else:
                 check_python(supported_minors=(12,), reason='ROCm-Windows: python==3.12 required')
                 # torch 2.8.0a0 is the last version with rocm 6.4 support
                 torch_command = os.environ.get('TORCH_COMMAND', '--no-cache-dir https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torch-2.8.0a0%2Bgitfc14c65-cp312-cp312-win_amd64.whl https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torchvision-0.24.0a0%2Bc85f008-cp312-cp312-win_amd64.whl')
-
 
     else: # linux
         rocm_major, rocm_minor = (int(x) for x in rocm.version.split('.')) if rocm.version is not None else (0, 0)
