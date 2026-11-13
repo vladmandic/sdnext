@@ -274,7 +274,10 @@ def refresh():
         except Exception:
             rocblas_tensile_libpath = None
             blaslt_tensile_libpath = None
+        """
+        rocm_sdk_devel is gone, not pulled any longer in this state.
         run(["rocm-sdk", "init"])
+        """
     except ImportError:
         rocm_sdk = None
         environment = find()
