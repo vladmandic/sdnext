@@ -940,7 +940,7 @@ def install_rocm():
                 torch_command = os.environ.get('TORCH_COMMAND', f'"torch[device-{device.therock}]" "torchvision[{device.therock}]" "torchaudio" -U --index-url https://nightly.repo.amd.com/rocm/whl-next/')
             elif device.therock is not None:
                 check_python(supported_minors=(11, 12, 13), reason='ROCm-Windows: python==3.11/3.12/3.13 required')
-                torch_command = os.environ.get('TORCH_COMMAND', f'"torch[device-{device.therock}]==2.14.0+rocm10.1.0" "torchvision[{device.therock}]==0.28.0+rocm10.1.0" "torchaudio==2.11.0.3+rocm10.1.0" -U --extra-index-url https://stable.repo.amd.com/rocm/pytorch/whl-next/')
+                torch_command = os.environ.get('TORCH_COMMAND', f'"torch[device-{device.therock}]==2.14.0+rocm10.1.0" "torchvision[{device.therock}]==0.29.0a0+rocm10.1.0" "torchaudio==2.11.0.3+rocm10.1.0" -U --extra-index-url https://stable.repo.amd.com/rocm/whl-next/')
             else:
                 check_python(supported_minors=(12,), reason='ROCm-Windows: python==3.12 required')
                 # torch 2.8.0a0 is the last version with rocm 6.4 support
