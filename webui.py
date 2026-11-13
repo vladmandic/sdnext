@@ -323,7 +323,8 @@ def resolve_paths(allowed_paths):
     folders = [modules.paths.resolve_output_path(f) for f in allowed_paths]
     folders = [f for f in folders if os.path.isdir(f)]
     folders = sorted(set(folders)) # remove duplicates
-    log.debug(f'Paths: {folders}')
+    if os.environ.get('SD_PATH_DEBUG', None) is not None:
+        log.debug(f'Paths: {folders}')
     return folders
 
 
@@ -369,12 +370,12 @@ def get_paths():
         allowed_paths.append(shared.cmd_opts.models_dir)
     if shared.cmd_opts.allowed_paths is not None:
         allowed_paths += [p for p in shared.cmd_opts.allowed_paths if os.path.isdir(p)]
-    if os.environ.get('SD_PATH_DEBUG', None):
+    if os.environ.get('SD_PATH_DEBUG', None) is not None:
         log.trace(f'Path allowed: why=args allowed={shared.demo.allowed_paths}')
     if shared.opts.allowed_paths:
         folders = [f.strip() for f in shared.opts.allowed_paths.split(',') if f.strip()]
         allowed_paths = [f for f in folders if os.path.isdir(f)]
-    if os.environ.get('SD_PATH_DEBUG', None):
+    if os.environ.get('SD_PATH_DEBUG', None) is not None:
         log.trace(f'Path allowed: why=opts allowed={shared.demo.allowed_paths}')
     try:
         from modules.ui_extra_networks import allowed_dirs

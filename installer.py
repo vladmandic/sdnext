@@ -304,8 +304,7 @@ def run(cmd: str | list[str], *nargs: str, **kwargs):
     which = shutil.which(cmd if isinstance(cmd, str) else cmd[0])
     if which is None:
         log.warning(f'Run: command="{cmd}" not found in PATH')
-    if debug:
-        log.trace(f'Run: command="{cmd}" abs="{which}" nargs={nargs} kwargs={kwargs}')
+    debug(f'Run: command="{cmd}" abs="{which}" nargs={nargs} kwargs={kwargs}')
     try:
         if isinstance(cmd, list):
             result = subprocess.run(cmd + list(nargs), **options, shell=False, text=True)
@@ -704,7 +703,7 @@ def check_python(supported_minors=None, experimental_minors=None, reason=None):
     if args.quick:
         return
     ver = platform.python_version()
-    log.info(f'Python: version={ver} platform={platform.system()} bin="{sys.executable}" venv="{sys.prefix}"')
+    log.info(f'Environment: python={ver} platform={platform.system()} bin="{sys.executable}" venv="{sys.prefix}"')
     if sys.prefix == getattr(sys, "base_prefix", sys.prefix) and 'venv' not in sys.prefix.lower():
         log.warning('Python: virtual environment not detected')
     if int(sys.version_info.minor) == 9:
@@ -1876,7 +1875,7 @@ def check_version(reset=True): # pylint: disable=unused-argument
             log.error(f'Repository: branches API returned {branches!r} from {api_base}')
             return
         branch_names = [b['name'] for b in branches if 'name' in b]
-        log.trace(f'Repository branches: active={branch_name} available={branch_names}')
+        debug(f'Branch: active={branch_name} available={branch_names}')
     except Exception as e:
         log.error(f'Repository: failed to get branches: {e}')
         return
