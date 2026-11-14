@@ -4,9 +4,7 @@ import base64
 from functools import lru_cache
 from pathlib import Path
 from urllib.parse import unquote
-from PIL import Image, PngImagePlugin
-import piexif
-import piexif.helper
+from PIL import Image
 from fastapi.exceptions import HTTPException
 from modules import shared, sd_samplers
 from modules.logger import log
@@ -82,17 +80,14 @@ def _resolve_upload_ref(encoding: str, quiet: bool = False):
 
 
 def encode_pil_to_base64(image, ext: str | None = None):
-    """
-    with io.BytesIO() as output_bytes:
-        images.save_image(image, output_bytes, shared.opts.samples_format)
-        bytes_data = output_bytes.getvalue()
-    return base64.b64encode(bytes_data)
-    """
     if not isinstance(image, Image.Image):
         log.error('API cannot encode image: not a PIL image')
         return ''
     buffered = io.BytesIO()
-    save_image(image, fn=buffered, ext=ext or shared.opts.samples_format)
+    from modules.image.save import save_image_to_file
+    extension = ext or shared.opts.samples_format
+    image_format = Image.registered_extensions()[f'.{extension.lower()}']
+    save_image_to_file(image, buffered, image_format, exifinfo=image.info.get('parameters', ''), pnginfo=image.info)
     b64 = base64.b64encode(buffered.getvalue())
     return b64
 
@@ -117,45 +112,6 @@ def upscaler_to_index(name: str):
         return [x.name.lower() for x in shared.sd_upscalers].index(name.lower())
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid upscaler, needs to be one of these: {' , '.join([x.name for x in shared.sd_upscalers])}") from e
-
-
-def save_image(image, fn, ext):
-    # actual save
-    parameters = image.info.get('parameters', None)
-    image_format = Image.registered_extensions()[f'.{ext.lower()}']
-    if image_format == 'PNG':
-        pnginfo_data = PngImagePlugin.PngInfo()
-        binary_keys = {'icc_profile', 'exif'} # written via dedicated PNG chunks, not as text metadata
-        for k, v in image.info.items():
-            if k in binary_keys:
-                continue
-            pnginfo_data.add_text(k, str(v))
-        image.save(fn, format=image_format, quality=shared.opts.jpeg_quality, pnginfo=pnginfo_data)
-    elif image_format == 'JPEG':
-        if image.mode == 'RGBA':
-            log.warning('Save: RGBA image as JPEG - removed alpha channel')
-            image = image.convert("RGB")
-        elif image.mode == 'I;16':
-            image = image.point(lambda p: p * 0.0038910505836576).convert("L")
-        elif image.mode == 'P':
-            image = image.convert("RGB")
-        exif_bytes = piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: piexif.helper.UserComment.dump(parameters or "", encoding="unicode") } })
-        image.save(fn, format=image_format, quality=shared.opts.jpeg_quality, exif=exif_bytes)
-    elif image_format == 'WEBP':
-        if image.mode == 'I;16':
-            image = image.point(lambda p: p * 0.0038910505836576).convert("RGB")
-        exif_bytes = piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: piexif.helper.UserComment.dump(parameters or "", encoding="unicode") } })
-        image.save(fn, format=image_format, quality=shared.opts.jpeg_quality, lossless=shared.opts.webp_lossless, exif=exif_bytes)
-    elif image_format == 'JXL':
-        if image.mode == 'I;16':
-            image = image.point(lambda p: p * 0.0038910505836576).convert("RGB")
-        elif image.mode not in {"RGB", "RGBA"}:
-            image = image.convert("RGBA")
-        exif_bytes = piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: piexif.helper.UserComment.dump(parameters or "", encoding="unicode") } })
-        image.save(fn, format=image_format, quality=shared.opts.jpeg_quality, lossless=shared.opts.webp_lossless, exif=exif_bytes)
-    else:
-        # log.warning(f'Unrecognized image format: {extension} attempting save as {image_format}')
-        image.save(fn, format=image_format, quality=shared.opts.jpeg_quality)
 
 
 def sanitize_filename(filename):

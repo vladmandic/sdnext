@@ -64,6 +64,70 @@ def append_save_log(filename: str, exifinfo: str):
     log.info(f'Save: json="{fn}" records={idx + 1}')
 
 
+def save_image_to_file(image, fn, image_format, exifinfo='', pnginfo=None, metadata=True):
+    exifinfo_dump = piexif.helper.UserComment.dump(exifinfo or '', encoding="unicode")
+    if image_format == 'PNG':
+        pnginfo_data = PngImagePlugin.PngInfo()
+        for key, value in (pnginfo or {}).items():
+            if key not in {'icc_profile', 'exif'}:
+                pnginfo_data.add_text(key, str(value))
+        save_args = {
+            'compress_level': 6,
+            'pnginfo': pnginfo_data if metadata else None,
+        }
+    elif image_format == 'JPEG':
+        if image.mode == 'RGBA':
+            log.warning('Save: removing alpha channel')
+            image = image.convert("RGB")
+        elif image.mode == 'I;16':
+            image = image.point(lambda p: p * 0.0038910505836576).convert("L")
+        elif image.mode == 'P':
+            image = image.convert("RGB")
+        save_args = {
+            'optimize': True,
+            'quality': shared.opts.jpeg_quality,
+        }
+        if metadata:
+            save_args['exif'] = piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: exifinfo_dump } })
+    elif image_format in ['WEBP', 'JXL']:
+        if image.mode == 'I;16':
+            image = image.point(lambda p: p * 0.0038910505836576).convert("RGB")
+        elif image_format == 'JXL' and image.mode not in {"RGB", "RGBA"}:
+            image = image.convert("RGBA")
+        save_args = {
+            'optimize': True,
+            'quality': shared.opts.jpeg_quality,
+            'lossless': shared.opts.webp_lossless,
+        }
+        if metadata:
+            save_args['exif'] = piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: exifinfo_dump } })
+    elif image_format == 'HEIF':
+        save_args = {
+            'quality': shared.opts.jpeg_quality,
+            'lossless': shared.opts.webp_lossless,
+        }
+        if metadata:
+            save_args['exif'] = piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: exifinfo_dump } })
+    elif image_format == 'AVIF':
+        # Use full-range 4:2:0 and explicit sRGB to avoid range and color shifts.
+        srgb_profile = ImageCms.createProfile("sRGB")
+        icc_profile = ImageCms.ImageCmsProfile(srgb_profile).tobytes()
+        save_args = {
+            'quality': shared.opts.jpeg_quality,
+            'range': 'full',
+            'subsampling': '4:2:0',
+            'speed': 4,
+            'icc_profile': icc_profile,
+        }
+        if metadata:
+            save_args['exif'] = piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: exifinfo_dump } })
+    else:
+        save_args = { 'quality': shared.opts.jpeg_quality }
+    debug_save(f'Save args: {save_args}')
+    image.save(fn, format=image_format, **save_args)
+    return image
+
+
 def atomically_save_image():
     Image.MAX_IMAGE_PIXELS = None # disable check in Pillow and rely on check below to allow large custom image sizes
     while True:
@@ -94,90 +158,16 @@ def atomically_save_image():
                     log.warning(f'Save failed: description={filename_txt} {e}')
 
             # actual save
-            exifinfo_dump = piexif.helper.UserComment.dump(exifinfo, encoding="unicode")
-            if image_format == 'PNG':
-                pnginfo_data = PngImagePlugin.PngInfo()
-                for k, v in params.pnginfo.items():
-                    pnginfo_data.add_text(k, str(v))
-                debug_save(f'Save pnginfo: {params.pnginfo.items()}')
-                save_args = {
-                    'compress_level': 6,
-                    'pnginfo': pnginfo_data if shared.opts.image_metadata else None,
-                }
-            elif image_format == 'JPEG':
-                if image.mode == 'RGBA':
-                    log.warning('Save: removing alpha channel')
-                    image = image.convert("RGB")
-                elif image.mode == 'I;16':
-                    image = image.point(lambda p: p * 0.0038910505836576).convert("L")
-                save_args = {
-                    'optimize': True,
-                    'quality': shared.opts.jpeg_quality,
-                }
-                if shared.opts.image_metadata:
-                    debug_save(f'Save exif: {exifinfo}')
-                    save_args['exif'] = piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: exifinfo_dump } })
-            elif image_format == 'WEBP':
-                if image.mode == 'I;16':
-                    image = image.point(lambda p: p * 0.0038910505836576).convert("RGB")
-                save_args = {
-                    'optimize': True,
-                    'quality': shared.opts.jpeg_quality,
-                    'lossless': shared.opts.webp_lossless,
-                }
-                if shared.opts.image_metadata:
-                    debug_save(f'Save exif: {exifinfo}')
-                    save_args['exif'] = piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: exifinfo_dump } })
-            elif image_format == 'JXL':
-                if image.mode == 'I;16':
-                    image = image.point(lambda p: p * 0.0038910505836576).convert("RGB")
-                elif image.mode not in {"RGB", "RGBA"}:
-                    image = image.convert("RGBA")
-                save_args = {
-                    'optimize': True,
-                    'quality': shared.opts.jpeg_quality,
-                    'lossless': shared.opts.webp_lossless,
-                }
-                if shared.opts.image_metadata:
-                    debug_save(f'Save exif: {exifinfo}')
-                    save_args['exif'] = piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: exifinfo_dump } })
-            elif image_format == 'HEIF':
-                save_args = {
-                    'quality': shared.opts.jpeg_quality,
-                    'lossless': shared.opts.webp_lossless,
-                }
-                if shared.opts.image_metadata:
-                    debug_save(f'Save exif: {exifinfo}')
-                    save_args['exif'] = piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: exifinfo_dump } })
-            elif image_format == 'AVIF':
-                # defaults: speed=6 subsampling 4:2:0 range=limited
-                # subsampling 4:4:4 has color shift
-                # plus explicit icc srgb profile
-                srgb_profile = ImageCms.createProfile("sRGB")
-                icc_profile = ImageCms.ImageCmsProfile(srgb_profile).tobytes()
-                save_args = {
-                    'quality': shared.opts.jpeg_quality,
-                    'range': 'full',
-                    'subsampling': '4:2:0',
-                    'speed': 4,
-                    'icc_profile': icc_profile,
-                }
-                if shared.opts.image_metadata:
-                    debug_save(f'Save exif: {exifinfo}')
-                    save_args['exif'] = piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: exifinfo_dump } })
-            else:
-                save_args = { 'quality': shared.opts.jpeg_quality }
             try:
-                debug_save(f'Save args: {save_args}')
                 if image_format == 'OPENEXR':
                     from modules.image.exr import save_exr
                     rgb = np.asarray(image.convert('RGB'), dtype=np.float32) / 255.0
                     linear = np.where(rgb <= 0.04045, rgb / 12.92, ((rgb + 0.055) / 1.055) ** 2.4)
                     save_exr(fn, linear, 'rec.709')
                 else:
-                    image.save(fn, format=image_format, **save_args)
+                    image = save_image_to_file(image, fn, image_format, exifinfo=exifinfo, pnginfo=params.pnginfo, metadata=shared.opts.image_metadata)
             except Exception as e:
-                log.error(f'Save failed: file="{fn}" format={image_format} args={save_args} {e}')
+                log.error(f'Save failed: file="{fn}" format={image_format} {e}')
                 errors.display(e, 'Image save')
             size = os.path.getsize(fn) if os.path.exists(fn) else 0
             what = 'grid' if is_grid else 'image'

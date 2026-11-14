@@ -45,7 +45,7 @@
 - **Torch**
   - update cuda to `torch==2.15.0+cu132`
   - update rocm/linux to `torch==2.15.0+rocm10.0`
-  - lock rocm/windows to `2.12.0+rocm10.0.0` as newer versions have compatibility issues and/or missing components  
+  - update rocm/windows to `torch==2.14.0+rocm10.1.0`  
 - **Other**
   - add env var `SD_STRICT` which will enable strict mode  
     in strict mode, read/parse/write errors will cause the application to exit immediately  
@@ -57,6 +57,7 @@
 - **Internal**
   - modernui css: use a build process for `/css` instead of monolithic single `style.css`
   - restructure `lint` workflows
+  - unify image save and metadata parsing between ui/cli/api  
 - **Fixes**
   - api: *txt2img*, *img2img* and *control* answer *500* with the error when the generation fails, instead of *200* with no images
   - api: *txt2img*, *img2img* and *control* responses carry an *error* field when a later batch fails after earlier batches returned images

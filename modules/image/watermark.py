@@ -2,13 +2,13 @@ import time
 import random
 import numpy as np
 from PIL import Image
-from modules import shared
 from modules.logger import log
 from modules.api.helpers import decode_base64_to_image, encode_pil_to_base64
 from installer import install
 
 
 def set_image_watermark(image: Image.Image, wm_image: Image.Image | None = None, position: str | None = None, quiet: bool = False):
+    from modules import shared
     position = (position or shared.opts.image_watermark_position).lower()
     if (position != 'none') and (wm_image is not None): # visible watermark
         t0 = time.perf_counter()

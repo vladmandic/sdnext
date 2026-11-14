@@ -1046,8 +1046,6 @@ def install_torch_addons():
         install('DeepCache')
     if opts.get('cuda_compile_backend', '') == 'olive-ai':
         install('olive-ai')
-    if opts.get('samples_format', 'jpg') == 'jxl' or opts.get('grid_format', 'jpg') == 'jxl':
-        install('pillow-jxl-plugin==1.3.7', 'pillow-jxl-plugin')
     if not args.experimental:
         uninstall('wandb', quiet=True)
         uninstall('pynvml', quiet=True)
@@ -1538,7 +1536,7 @@ def install_optional():
     install('hf_transfer', ignore=True, quiet=True)
     install('nvidia-ml-py', ignore=True, quiet=True)
     install('pillow-heif')
-    install('pillow-jxl-plugin==1.3.7', ignore=True, quiet=True)
+    install('pillow-jxl-plugin==1.3.8', ignore=True, quiet=True)
     install('ultralytics==8.4.67', ignore=True, quiet=True)
     install('open-clip-torch', no_deps=True, quiet=True)
     install('runai_model_streamer', ignore=True, quiet=True)

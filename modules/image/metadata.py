@@ -1,15 +1,7 @@
 import io
-import os
 import re
 import json
-import piexif
 from PIL import Image, ExifTags
-from modules import sd_samplers
-from modules.logger import log
-from modules.image.watermark import get_watermark
-
-
-debug = log.trace if os.environ.get("SD_METADATA_DEBUG", None) is not None else lambda *args, **kwargs: None
 
 
 def safe_decode_string(s: bytes):
@@ -26,7 +18,7 @@ def safe_decode_string(s: bytes):
             val = re.sub(r'[\x00-\x09]', '', val).strip() # remove remaining special characters
             if len(val) == 0: # remove empty strings
                 val = None
-            debug(f'Metadata: decode="{val}" encoding="{encoding}"')
+            # debug(f'Metadata: decode="{val}" encoding="{encoding}"')
             return val
         except Exception:
             pass
@@ -66,8 +58,8 @@ def parse_comfy_metadata(data: dict):
     prompt = parse_prompt()
     if len(workflow) > 0 or len(prompt) > 0:
         parsed = f'App: ComfyUI{workflow}{prompt}'
-        log.info(f'Image metadata: {parsed}')
-        debug(f'Metadata: comfy="{parsed}"')
+        # log.info(f'Image metadata: {parsed}')
+        # debug(f'Metadata: comfy="{parsed}"')
         return parsed
     return ''
 
@@ -89,8 +81,8 @@ def parse_invoke_metadata(data: dict):
     metadata = parse_metadata()
     if len(metadata) > 0:
         parsed = f'App: InvokeAI{metadata}'
-        log.info(f'Image metadata: {parsed}')
-        debug(f'Metadata: invoke="{parsed}"')
+        # log.info(f'Image metadata: {parsed}')
+        # debug(f'Metadata: invoke="{parsed}"')
         return parsed
     return ''
 
@@ -100,9 +92,10 @@ def parse_novelai_metadata(data: dict):
     if data.get("Software", None) == "NovelAI":
         try:
             dct = json.loads(data["Comment"])
+            from modules import sd_samplers
             sampler = sd_samplers.samplers_map.get(dct["sampler"], "Euler a")
             geninfo = f'{data["Description"]} Negative prompt: {dct["uc"]} Steps: {dct["steps"]}, Sampler: {sampler}, CFG scale: {dct["scale"]}, Seed: {dct["seed"]}, CLiP-skip: 2, ENSD: 31337'
-            debug(f'Metadata: novelai="{geninfo}"')
+            # debug(f'Metadata: novelai="{geninfo}"')
             return geninfo
         except Exception:
             pass
@@ -118,12 +111,12 @@ def parse_xmp_metadata(data: dict):
         xmp_tags = re.findall(r"<rdf:li>([^<]+)</rdf:li>", xmp_str)
         if xmp_tags:
             geninfo = f"XMP Tags: {', '.join(xmp_tags)}"
-            debug(f'Metadata: xmp="{geninfo}"')
+            # debug(f'Metadata: xmp="{geninfo}"')
             return geninfo
     return ''
 
 
-def read_info_from_image(image: Image.Image, watermark: bool = False) -> tuple[str, dict]:
+def read_info_from_image(image: Image.Image | str, watermark: bool = False) -> tuple[str, dict]:
     if image is None:
         return '', {}
     if isinstance(image, str):
@@ -143,12 +136,12 @@ def read_info_from_image(image: Image.Image, watermark: bool = False) -> tuple[s
 
     if "exif" in items:
         try:
+            import piexif
             exif = piexif.load(items["exif"])
-        except Exception as e:
-            log.error(f'Error loading EXIF data: {e}')
+        except Exception:
             exif = {}
         for _key, subkey in exif.items():
-            debug(f'Metadata EXIF: key="{_key}" subkey="{subkey}" type="{type(subkey)}"')
+            # debug(f'Metadata EXIF: key="{_key}" subkey="{subkey}" type="{type(subkey)}"')
             if isinstance(subkey, dict):
                 for key, val in subkey.items():
                     if isinstance(val, bytes): # decode bytestring
@@ -165,16 +158,17 @@ def read_info_from_image(image: Image.Image, watermark: bool = False) -> tuple[s
                         items[ExifTags.GPSTAGS[key]] = val
 
     if watermark:
+        from modules.image.watermark import get_watermark
         wm = get_watermark(image)
         if wm != '':
-            debug(f'Metadata: watermark="{wm}"')
+            # debug(f'Metadata: watermark="{wm}"')
             # geninfo += f' Watermark: {wm}'
             items['watermark'] = wm
 
     for key, val in items.items():
         if isinstance(val, bytes): # decode bytestring
             items[key] = safe_decode_string(val)
-            debug(f'Metadata: key="{key}" value="{items[key]}"')
+            # debug(f'Metadata: key="{key}" value="{items[key]}"')
 
     geninfo += parse_comfy_metadata(items)
     geninfo += parse_invoke_metadata(items)
@@ -187,12 +181,13 @@ def read_info_from_image(image: Image.Image, watermark: bool = False) -> tuple[s
     if geninfo and 'parameters' not in items: # restore so callers re-stamping items preserve original generation params
         items['parameters'] = geninfo
 
-    debug(f'Metadata geninfoi: "{geninfo}"')
-    debug(f'Metadata items: "{items}"')
+    # debug(f'Metadata geninfoi: "{geninfo}"')
+    # debug(f'Metadata items: "{items}"')
     return geninfo, items
 
 
 def image_data(data):
+    from modules.logger import log
     import gradio as gr
     if data is None:
         return gr.update(), None
