@@ -211,7 +211,7 @@ def installed(package, friendly: str | None = None, quiet = False): # pylint: di
         for pkg in pkgs:
             if pkg is None or pkg == '':
                 continue
-            elif '!=' in pkg:
+            if '!=' in pkg:
                 p = pkg.split('!=')
                 return True # check for not equal always return true
             elif '>=' in pkg:
@@ -490,16 +490,16 @@ def git(arg: str, folder: str | None= None, ignore: bool = False, optional: bool
 
 def git_branch_commit(folder: str = ".") -> tuple[str, str]:
     result, _ = run(["git", "status", "--porcelain=v2", "--branch", "--untracked-files=no"], check=True, cwd=folder)
-    branch = None
-    commit = None
+    branch_name = None
+    commit_hash = None
     for line in result.stdout.splitlines():
         if line.startswith("# branch.head "):
-            branch = line.removeprefix("# branch.head ")
+            branch_name = line.removeprefix("# branch.head ")
         elif line.startswith("# branch.oid "):
-            commit = line.removeprefix("# branch.oid ")
-    if branch is None or commit is None or commit == "(initial)":
+            commit_hash = line.removeprefix("# branch.oid ")
+    if branch_name is None or commit_hash is None or commit_hash == "(initial)":
         raise RuntimeError(f'Git: unable to read branch and commit: folder="{folder}"')
-    return ("HEAD" if branch in {"detached", "(detached)"} else branch), commit
+    return ("HEAD" if branch_name in {"detached", "(detached)"} else branch_name), commit_hash
 
 
 # reattach as needed as head can get detached
@@ -644,7 +644,7 @@ def get_tools():
 def check_uv():
     t_start = time.time()
     if args.quick:
-        return
+        return None
     uv_version = package_version('uv')
     if uv_version is None:
         uv_cmd = shutil.which('uv')
@@ -662,9 +662,9 @@ def check_uv():
 def check_git():
     t_start = time.time()
     if args.quick:
-        return
+        return None
     if args.skip_git:
-        return
+        return None
 
     git_cmd = os.environ.get('GIT', "git")
     git_version = None
@@ -700,10 +700,10 @@ def check_python(supported_minors=None, experimental_minors=None, reason=None):
         supported_minors = (10, 11, 12, 13)
         experimental_minors = (14,)
     t_start = time.time()
-    if args.quick:
-        return
     ver = platform.python_version()
     log.info(f'Environment: python={ver} platform={platform.system()} bin="{sys.executable}" venv="{sys.prefix}"')
+    if args.quick:
+        return ver
     if sys.prefix == getattr(sys, "base_prefix", sys.prefix) and 'venv' not in sys.prefix.lower():
         log.warning('Python: virtual environment not detected')
     if int(sys.version_info.minor) == 9:
