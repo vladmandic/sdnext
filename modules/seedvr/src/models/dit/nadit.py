@@ -165,6 +165,7 @@ class NaDiT(nn.Module):
 
         # Video input.
         # Sequence parallel slicing is done inside patching class.
+        vid_shape_before_patchify = vid_shape
         vid, vid_shape = self.vid_in(vid, vid_shape)
 
         # Embedding input.
@@ -184,7 +185,7 @@ class NaDiT(nn.Module):
                 cache=cache,
             )
 
-        vid, vid_shape = self.vid_out(vid, vid_shape, cache)
+        vid, vid_shape = self.vid_out(vid, vid_shape, vid_shape_before_patchify, cache)
         return NaDiTOutput(vid_sample=vid)
 
 
@@ -325,6 +326,7 @@ class NaDiTUpscaler(nn.Module):
 
         # Video input.
         # Sequence parallel slicing is done inside patching class.
+        vid_shape_before_patchify = vid_shape
         vid, vid_shape = self.vid_in(vid, vid_shape)
 
         # Embedding input.
@@ -346,5 +348,5 @@ class NaDiTUpscaler(nn.Module):
                 cache=cache,
             )
 
-        vid, vid_shape = self.vid_out(vid, vid_shape, cache)
+        vid, vid_shape = self.vid_out(vid, vid_shape, vid_shape_before_patchify, cache)
         return NaDiTOutput(vid_sample=vid)
