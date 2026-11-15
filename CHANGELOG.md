@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-11-13
+## Update for 2026-11-15
 
 - **Chat**: New top-level interface  
   See [chat docs](https://vladmandic.github.io/sdnext-docs/Chat/) for more details as this is quite an extensive module  
@@ -46,6 +46,12 @@
   - update cuda to `torch==2.15.0+cu132`
   - update rocm/linux to `torch==2.15.0+rocm10.0`
   - update rocm/windows to `torch==2.14.0+rocm10.1.0`  
+- **Docs**
+  - new [Model Storage](https://vladmandic.github.io/sdnext-docs/Model-Storage)
+  - new [Image Formats](https://vladmandic.github.io/sdnext-docs/Image-Formats)
+  - rewritten [AMD ROCm](https://vladmandic.github.io/sdnext-docs/AMD-ROCm)
+  - rewritten [AMD ROCm for Windows](https://vladmandic.github.io/sdnext-docs/AMD-ROCm-Windows)
+  - rewritten [AMD ROCm for Linux](https://vladmandic.github.io/sdnext-docs/AMD-ROCm-Linux)
 - **Other**
   - add env var `SD_STRICT` which will enable strict mode  
     in strict mode, read/parse/write errors will cause the application to exit immediately  
