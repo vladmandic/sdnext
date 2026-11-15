@@ -34,18 +34,17 @@ def is_thinking_model(model_name: str) -> bool:
     """Check if model supports thinking/reasoning mode."""
     if not model_name:
         return False
-    model_lower = model_name.lower().replace('-', '')
+    model_lower = model_name.lower().replace('-', '').replace(' ', '')
     # Match VQA's detection patterns for consistency
     thinking_indicators = [
         'thinking',      # Qwen3-VL-*-Thinking models
         'reasoning',     # Ministral-3-*-Reasoning models
         'moondream3',    # Moondream 3 supports thinking
-        'moondream 3',
         'moondream2',    # Moondream 2 supports reasoning mode
-        'moondream 2',
         'mimo',          # XiaomiMiMo models
-        'qwen3.5',      # Qwen3.5 native thinking (repo names)
-        'qwen 3.5',     # Qwen3.5 native thinking (display names)
+        'qwen3.5',       # Qwen3.5 native thinking
+        'granite4.2',    # IBM Granite 4.2 models
+        ''
     ]
     return any(indicator in model_lower for indicator in thinking_indicators)
 

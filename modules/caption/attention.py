@@ -1,3 +1,4 @@
+import torch
 from modules.logger import log
 
 
@@ -20,26 +21,38 @@ def get_first_attention_block(model): # for models still using transformers==4 i
     return None
 
 
-def set_attention(model):
+def get_attention(model: torch.nn.Module):
+    if hasattr(model, "config") and hasattr(model.config, "_attn_implementation"):
+        return model.config._attn_implementation # pylint: disable=protected-access
+    if hasattr(model, "_attn_implementation"):
+        return model._attn_implementation # pylint: disable=protected-access
+    if hasattr(model, "_get_attn_implementation"):
+        return model._get_attn_implementation() # pylint: disable=protected-access
+    first_block = get_first_attention_block(model)
+    return first_block.__class__.__name__ if getattr(first_block, "__class__", None) else first_block
+
+
+def set_attention(model: torch.nn.Module, attention: str|None = None, verify: bool = False):
     if not hasattr(model, 'set_attn_implementation'):
-        return
+        return None
     supported = []
     unsupported = []
-    if hasattr(model, "_attn_implementation"):
-        default = model._attn_implementation # pylint: disable=protected-access
-    elif hasattr(model, "_get_attn_implementation"):
-        default = model._get_attn_implementation() # pylint: disable=protected-access
-    else:
-        default = get_first_attention_block(model)
-        default = default.__class__.__name__ if getattr(default, "__class__", None) else default
-        log.debug(f"LLM attention: cls={model.__class__.__name__} default={default} fixed")
-        return
+    default = get_attention(model)
+    desired = attention or default
 
-    for name in ATTENTIONS: # type: ignore
+    if verify:
+        for name in ATTENTIONS: # type: ignore
+            try:
+                model.set_attn_implementation(name)
+                supported.append(name)
+            except Exception:
+                unsupported.append(name)
+        log.debug(f"LLM attention: cls={model.__class__.__name__} attention={desired} default={default} supported={supported} unsupported={unsupported}")
+    else:
+        log.debug(f"LLM attention: cls={model.__class__.__name__} attention={desired} default={default}")
+    if desired != default:
         try:
-            model.set_attn_implementation(name)
-            supported.append(name)
+            model.set_attn_implementation(desired) # restore default or set specified attention
         except Exception:
-            unsupported.append(name)
-    log.debug(f"LLM attention: cls={model.__class__.__name__} default={default} supported={supported} unsupported={unsupported}")
-    model.set_attn_implementation(default) # restore default
+            pass
+    return desired

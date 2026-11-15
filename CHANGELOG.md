@@ -53,13 +53,15 @@
   - rewritten [AMD ROCm for Windows](https://vladmandic.github.io/sdnext-docs/AMD-ROCm-Windows)
   - rewritten [AMD ROCm for Linux](https://vladmandic.github.io/sdnext-docs/AMD-ROCm-Linux)
 - **Other**
-  - add env var `SD_STRICT` which will enable strict mode  
-    in strict mode, read/parse/write errors will cause the application to exit immediately  
+  - updates to *prompt enhance* and *story mode*  
+    including new [ibm-granite-4.2](https://huggingface.co/ibm-granite/granite-4.2-3b) model support  
   - improved handling of HuggingFace mirror settings
     *note*: `hf-mirror.com` does not actually mirror entire huggingface, only some  
     the rest are redirected back to `huggingface.co` which is still under standard access control operations  
   - log model capabilities on load  
     example: `{'t2i': True, 'i2i': False, 'inpaint': False, 'edit': True, 'video': False}`  
+  - add env var `SD_STRICT` which will enable strict mode  
+    in strict mode, read/parse/write errors will cause the application to exit immediately  
 - **Internal**
   - modernui css: use a build process for `/css` instead of monolithic single `style.css`
   - restructure `lint` workflows

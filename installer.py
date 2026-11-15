@@ -1586,7 +1586,6 @@ def install_requirements():
 
 # set environment variables controlling the behavior of various libraries
 def set_environment():
-
     log.debug('Setting environment tuning')
     from modules.logger import console
     log.debug(f'Console: terminal={console.is_terminal} width={console.width} height={console.height} color={console.color_system} legacy={console.legacy_windows}')
@@ -1606,7 +1605,6 @@ def set_environment():
     os.environ.setdefault('KINETO_LOG_LEVEL', '3')
     os.environ.setdefault('NEOReadDebugKeys', '1')
     os.environ.setdefault('NUMEXPR_MAX_THREADS', '16')
-    os.environ.setdefault('PYTHONHTTPSVERIFY', '0')
     os.environ.setdefault('PYTORCH_ENABLE_MPS_FALLBACK', '1')
     os.environ.setdefault('PYTORCH_ENABLE_XPU_FALLBACK', '1')
     os.environ.setdefault('RUNAI_STREAMER_CHUNK_BYTESIZE', '2097152')
@@ -1619,6 +1617,7 @@ def set_environment():
     os.environ.setdefault('TOKENIZERS_PARALLELISM', '0')
     os.environ.setdefault('TORCH_CUDNN_V8_API_ENABLED', '1')
     os.environ.setdefault('TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD', '1')
+    os.environ.setdefault('TRITON_DEFAULT_FP_FUSION', '1')
     os.environ.setdefault('MIOPEN_FIND_MODE', '2')
     os.environ.setdefault('UR_L0_ENABLE_RELAXED_ALLOCATION_LIMITS', '1')
     os.environ.setdefault('USE_TORCH', '1')

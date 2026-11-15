@@ -11,10 +11,9 @@ from modules import ui_control_helpers
 from modules.sd_offload_aux import register_aux, deregister_aux, move_aux_to_gpu, offload_aux
 from modules.logger import log
 from modules.caption.logits import LogitsParser
-from modules.caption.attention import set_attention
 from modules.caption import helpers
 from scripts.prompt_enhance.options import Options
-from scripts.prompt_enhance.helpers import is_cloud_model, is_vision_model, is_thinking_model, get_model_repo_from_display
+from scripts.prompt_enhance.helpers import is_cloud_model, is_vision_model, get_model_repo_from_display
 from scripts.prompt_enhance.template import set_template, get_system_prompt
 
 
@@ -128,6 +127,7 @@ class PromptEnhanceScript(scripts_manager.Script):
                     low_cpu_mem_usage=True,
                     cache_dir=shared.opts.hfcache_dir,
                     **gguf_args,
+                    # **attn_args,
                     **quant_args,
                 )
             finally:
@@ -135,7 +135,6 @@ class PromptEnhanceScript(scripts_manager.Script):
 
             self.llm.eval()
             register_aux('prompt_enhance', self.llm)
-            set_attention(self.model)
             tokenizer_args = { 'pretrained_model_name_or_path': model_repo }
             if model_tokenizer:
                 tokenizer_args['subfolder'] = model_tokenizer
@@ -485,20 +484,19 @@ class PromptEnhanceScript(scripts_manager.Script):
             thinking=thinking,
         )
 
+        apply_fn = self.processor if self.processor is not None else self.tokenizer
         use_prefill = len(prefill_text) > 0
-        is_thinking = is_thinking_model(model)
+        is_thinking = hasattr(apply_fn, 'chat_template') and 'enable_thinking' in apply_fn.chat_template
         effective_max_tokens = int(max_tokens) * (8 if thinking and is_thinking else 1)
         debug_log(f'Prompt enhance: system="{system}"')
         debug_log(f'Prompt enhance: prompt="{prompt_text}"')
         debug_log(f'Prompt template: roles={[msg["role"] for msg in chat_template]} thinking={is_thinking}:{thinking} prefill={use_prefill} style={prompt_style} max={effective_max_tokens}')
 
         try:
-            # Qwen3.5 uses native enable_thinking parameter in the chat template
-            is_qwen35 = 'qwen3.5' in model.lower().replace('-', '')
-            template_kwargs = {'enable_thinking': thinking} if is_qwen35 else {}
-
             # Generate text prompt using template
-            apply_fn = self.processor if self.processor is not None else self.tokenizer
+            template_kwargs = {}
+            if is_thinking:
+                template_kwargs['enable_thinking'] = thinking
             try:
                 text_prompt = apply_fn.apply_chat_template(
                     chat_template,
@@ -512,24 +510,8 @@ class PromptEnhanceScript(scripts_manager.Script):
                     tokenize=False,
                 )
 
-            # Manual think handling - skip for Qwen3.5 (template handles it natively)
-            if is_thinking and not is_qwen35:
-                if not thinking:
-                    # User wants to SKIP thinking
-                    # Template opened the block with <think>, close it immediately
-                    text_prompt += "</think>\n"
-                    if use_prefill:
-                        text_prompt += prefill_text
-                    debug_log('Prompt enhance: forced thinking off, appended </think>')
-                else:
-                    # User wants thinking - prefill becomes part of thought process
-                    if use_prefill:
-                        text_prompt += prefill_text
-                    debug_log('Prompt enhance: thinking enabled, prefill inside think block')
-            else:
-                # Standard model or Qwen3.5 (no manual <think> manipulation needed)
-                if use_prefill:
-                    text_prompt += prefill_text
+            if use_prefill:
+                text_prompt += prefill_text
 
             # debug_log(f'Prompt enhance: template="{text_prompt}"')
 
@@ -569,6 +551,17 @@ class PromptEnhanceScript(scripts_manager.Script):
                     gen_kwargs['top_k'] = int(top_k)
                 if top_p > 0:
                     gen_kwargs['top_p'] = float(top_p)
+                gen_kwargs['cache_implementation'] = 'static'
+                """
+                kv_cache = transformers.StaticCache(
+                    config=self.llm.config,
+                    max_batch_size=1,
+                    max_cache_len=4096,
+                    device=self.llm.device,
+                    dtype=self.llm.dtype
+                )
+                gen_kwargs['past_key_values'] = kv_cache
+                """
 
                 logits_processor = None
                 if process_words is not None and len(process_words.strip()) > 0 and self.tokenizer is not None:

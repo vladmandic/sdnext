@@ -55,7 +55,7 @@ class Options:
         # Default
         'SD-Next/Qwen-3.5-4B': {},
         'SD-Next/Qwen-3.5-4B-sdnq-uint8': {},
-        'SD-Next/Qwen-3.5-4B-sdnq-uint4': {},
+        'SD-Next/Granite-4.2-3b-sdnq-uint8': {},
         # Gemma
         'google/gemma-3-1b-it': {},
         'google/gemma-3-4b-it': {},
@@ -64,6 +64,9 @@ class Options:
         'google/gemma-4-E2B-it': {},
         'google/gemma-4-E4B-it': {},
         'google/gemma-4-12B-it-qat-w4a16-ct': {}, # compressed-tensor model
+        # IBM Granite
+        'ibm-granite/granite-4.2-3b': {},
+        'ibm-granite/granite-4.2-8b': {},
         # Qwen3.5
         'Qwen/Qwen3.5-0.8B': {},
         'Qwen/Qwen3.5-2B': {},
