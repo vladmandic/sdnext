@@ -1,4 +1,3 @@
-import os
 import sys
 import copy
 import time
@@ -92,10 +91,6 @@ def load_model(selected: models_def.Model):
     offline_args = {}
     if shared.opts.offline_mode:
         offline_args["local_files_only"] = True
-        os.environ['HF_HUB_OFFLINE'] = '1'
-    else:
-        os.environ.pop('HF_HUB_OFFLINE', None)
-        os.unsetenv('HF_HUB_OFFLINE')
 
     kwargs = video_overrides.load_override(selected, **offline_args)
     sd_models.hf_auth_check(selected.repo)

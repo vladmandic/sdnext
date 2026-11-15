@@ -225,10 +225,6 @@ class ControlNet():
             self.load_config.update(load_config)
         if opts.offline_mode:
             self.load_config["local_files_only"] = True
-            os.environ['HF_HUB_OFFLINE'] = '1'
-        else:
-            os.environ.pop('HF_HUB_OFFLINE', None)
-            os.unsetenv('HF_HUB_OFFLINE')
         if model_id is not None:
             self.load()
 

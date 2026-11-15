@@ -1,4 +1,3 @@
-import os
 import time
 from modules import shared, devices, errors, sd_models, sd_checkpoint, model_quant
 from modules.logger import log
@@ -136,10 +135,6 @@ def load_model(variant: str | None = None, pipeline: str | None = None, text_enc
         offline_config = {}
         if shared.opts.offline_mode:
             offline_config["local_files_only"] = True
-            os.environ['HF_HUB_OFFLINE'] = '1'
-        else:
-            os.environ.pop('HF_HUB_OFFLINE', None)
-            os.unsetenv('HF_HUB_OFFLINE')
 
         log.debug(f'FramePack load: module=llm {model["text_encoder"]}')
         load_args, quant_args = model_quant.get_dit_args({}, module='TE', device_map=True)

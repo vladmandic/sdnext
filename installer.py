@@ -58,6 +58,7 @@ first_call = True
 quick_allowed = True
 errors = []
 opts = {}
+hf_offline_environment = {key: os.environ.get(key) for key in ('HF_HUB_OFFLINE', 'TRANSFORMERS_OFFLINE')}
 args = Dot({
     'debug': False,
     'reset': False,
@@ -552,6 +553,13 @@ def restart(argv: list | None = None):
     argv = argv if isinstance(argv, list) else sys.argv
     log.critical('Restarting process...')
     executable = 'python' if sys.platform == 'win32' else sys.executable # posix python locates its venv from argv[0]; windows execv does not quote a path with spaces
+    # Do not inherit flags set by our startup policy when the next process rereads config.
+    # Preserve offline flags supplied by the user before launch.
+    for key, value in hf_offline_environment.items():
+        if value is None:
+            os.environ.pop(key, None)
+        else:
+            os.environ[key] = value
     os.execv(sys.executable, [executable] + argv)
 
 
@@ -2108,6 +2116,18 @@ def git_reset(folder='.'):
     git('submodule sync --recursive')
     log.info('GIT reset complete')
     ts('reset', t_start)
+
+
+def set_offline_mode():
+    """Set Hugging Face's process-wide policy before any model libraries are imported.
+
+    These libraries cache offline settings at import time, so changing the option
+    requires a process restart. Online mode preserves user-supplied offline flags.
+    """
+    if opts.get('offline_mode', False):
+        for key in hf_offline_environment:
+            os.environ[key] = '1'
+        log.info('Offline mode: Hugging Face network access disabled until restart')
 
 
 def read_options():
