@@ -969,7 +969,7 @@ def load_diffuser(checkpoint_info: CheckpointInfo | None = None, op='model', rev
         diffusers_load_config['offload_folder'] = paths.temp_dir
     if revision is not None:
         diffusers_load_config['revision'] = revision
-    if shared.opts.diffusers_model_load_variant != 'default':
+    if shared.opts.diffusers_model_load_variant != 'default' and len(shared.opts.diffusers_model_load_variant) > 0:
         diffusers_load_config['variant'] = shared.opts.diffusers_model_load_variant
     if shared.opts.diffusers_pipeline == 'Custom Diffusers Pipeline' and len(shared.opts.custom_diffusers_pipeline) > 0:
         log.debug(f'Model pipeline: pipeline="{shared.opts.custom_diffusers_pipeline}"')
