@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2026-11-15
+## Update for 2026-11-16
 
-- **Chat**: New top-level interface  
+- [Chat](https://vladmandic.github.io/sdnext-docs/Chat/): New top-level interface  
   See [chat docs](https://vladmandic.github.io/sdnext-docs/Chat/) for more details as this is quite an extensive module  
   - Can be used as an interactive interface for generating, editing and processing images and videos through conversational prompts  
   - Can be used for advanced scripting and automation within SD.Next  
@@ -17,6 +17,13 @@
   - [BluePixel-Turbo](https://huggingface.co/openvivo/BluePixel-Turbo)  
     BluePixel is retrained FLUX.2-Klein-9B with DCAE-F64 autoencoder and then distilled with four-step SATP  
     result is turbo-style 9B instruction-based image editing model with native 2K/4K outputs  
+- [SD.Next Launcher](https://github.com/vladmandic/sdnext-launcher) updates
+  - compatibility with latest server version
+  - allow switching branches on-the-fly
+  - autodetect of VS build tools installation
+  - improved path handling
+  - improved upgrade procedure
+  - update tools and dependencies
 - **Model Storage**:  
   Huggingface has changed how model BLOBs are handled  
   see [Model Storage](https://vladmandic.github.io/sdnext-docs/Model-Storage/) for details  
@@ -38,7 +45,8 @@
   - `mkv` and `webm` frame counts read from each track
   - ltx condition video: skipping frames keeps the first frame
 - **Image**
-  - add support for AVIF and EXR image formats
+  - add support for `AVIF` and `EXR` image formats
+  - improve metadata handling for all advanced image formats
   - add HDR conversion support  
     *note*: HDR conversion requires compatible image format: *settings -> media options -> image file format*  
     supported: JPEG Gain Map, TIFF 16-bit, PNG with cICP, OpenEXR, AVIF, JPEG XL  
