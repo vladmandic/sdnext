@@ -185,6 +185,8 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
                 log.debug(f'Local model: name="{checkpoint.name}" version="{version}"')
             else:
                 log.warning(f'Local model: name="{checkpoint.name}" version="{version}"')
+                log.warning(f'Local model: checkpoint="{checkpoint}"')
+                log.warning(f'Local model: record="{record}"')
         return version
 
     def create_item(self, name):

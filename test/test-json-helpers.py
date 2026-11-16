@@ -285,6 +285,15 @@ def test_empty_file_is_reported(folder):
     assert jh.log.errors == [], jh.log.errors
 
 
+def test_mfsymlink_is_reported(folder):
+    jh = fresh_helper()
+    target = os.path.join(folder, 'model_index.json')
+    with open(target, 'wb') as f:
+        f.write(b'XSym\n0052\n')
+    assert jh.readfile(target, as_type='dict') == {}
+    assert len(jh.log.errors) == 1 and 'SMB mfsymlink (XSym)' in jh.log.errors[0], jh.log.errors
+
+
 def test_hash_cache_saves_under_concurrent_adds(folder, adders=4, per_adder=200):
     jh = fresh_helper()
     from modules import hashes  # pylint: disable=import-outside-toplevel
@@ -351,6 +360,7 @@ def run_all():
         test_atomic_write_keeps_symlink,
         test_read_waits_out_refused_open,
         test_empty_file_is_reported,
+        test_mfsymlink_is_reported,
         test_hash_cache_saves_under_concurrent_adds,
         test_roundtrip,
     ]

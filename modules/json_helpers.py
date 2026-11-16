@@ -8,6 +8,7 @@ from typing import overload, Literal
 import orjson
 from modules.logger import log
 
+
 path_locks: dict[str, threading.RLock] = {}
 path_locks_guard = threading.Lock()
 strict_mode = os.environ.get('SD_STRICT', None) is not None
@@ -51,12 +52,12 @@ def replace_file(source: str, target: str, attempts: int = 10, delay: float = 0.
 
 
 @overload
-def readfile(filename: str | os.PathLike[str], silent: bool = False, lock: bool = False, *, as_type: Literal["dict"]) -> dict: ...
+def readfile(filename: str | os.PathLike[str], silent: bool = False, error: bool = False, lock: bool = False, *, as_type: Literal["dict"]) -> dict: ...
 @overload
-def readfile(filename: str | os.PathLike[str], silent: bool = False, lock: bool = False, *, as_type: Literal["list"]) -> list: ...
+def readfile(filename: str | os.PathLike[str], silent: bool = False, error: bool = False, lock: bool = False, *, as_type: Literal["list"]) -> list: ...
 @overload
-def readfile(filename: str | os.PathLike[str], silent: bool = False, lock: bool = False) -> dict | list: ...
-def readfile(filename: str | os.PathLike[str], silent: bool = False, lock: bool = False, *, as_type="") -> dict | list:
+def readfile(filename: str | os.PathLike[str], silent: bool = False, error: bool = False, lock: bool = False) -> dict | list: ...
+def readfile(filename: str | os.PathLike[str], silent: bool = False, error: bool = False, lock: bool = False, *, as_type="") -> dict | list:
     """Read a JSON file; lock=True serializes with writers of the same path in this process."""
     data = {} if as_type == "dict" else []
 
@@ -68,7 +69,10 @@ def readfile(filename: str | os.PathLike[str], silent: bool = False, lock: bool 
                 if not silent:
                     log.warning(f'Read: file="{filename}" empty')
                 return {} if as_type == "dict" else []
-            data = orjson.loads(b)  # pylint: disable=no-member
+            if b.startswith(b"XSym\n"):
+                log.error(f'Read failed: file="{filename}" type=mfsymlink/xsym')
+            else:
+                data = orjson.loads(b)  # pylint: disable=no-member
             t1 = time.time()
             if not silent:
                 fn = f"{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}"  # pylint: disable=protected-access
@@ -77,7 +81,7 @@ def readfile(filename: str | os.PathLike[str], silent: bool = False, lock: bool 
             if not silent:
                 log.debug(f'Read failed: file="{filename}" {err}')
         except Exception as err:
-            if not silent:
+            if not silent or error:
                 log.error(f'Read failed: file="{filename}" {err}')
             if strict_mode:
                 os._exit(1)
