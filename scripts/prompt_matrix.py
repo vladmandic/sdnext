@@ -69,7 +69,7 @@ class PromptMatrixScript(scripts_manager.Script):
         processed = process_images(p)
 
         if images.check_grid_size(processed.images):
-            grid = images.image_grid(processed.images, p.batch_size, rows=1 << ((len(prompt_matrix_parts) - 1) // 2))
+            grid = images.image_grid(processed.images, rows=1 << ((len(prompt_matrix_parts) - 1) // 2))
             grid = images.draw_prompt_matrix(grid, processed.images[0].width, processed.images[0].height, prompt_matrix_parts, margin_size)
             processed.images.insert(0, grid)
             processed.index_of_first_image = 1

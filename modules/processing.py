@@ -591,16 +591,17 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
         _grid_save = get_opt(p, 'grid_save')
         if (_return_grid or _grid_save) and (not p.do_not_save_grid) and (len(output_images) > 1):
             if images.check_grid_size(output_images):
-                r, c = images.get_grid_size(output_images, p.batch_size)
-                grid = images.image_grid(output_images, p.batch_size)
-                grid_text = f'{r}x{c}'
-                grid_info = create_infotext(p, p.all_prompts, p.all_seeds, index=0, grid=grid_text)
-                if _return_grid:
-                    infotexts.insert(0, grid_info)
-                    output_images.insert(0, grid)
-                    index_of_first_image = 1
-                if _grid_save:
-                    images.save_image(grid, p.outpath_grids, "", p.all_seeds[0], p.all_prompts[0], get_opt(p, 'grid_format'), info=grid_info, p=p, grid=True) # main save grid
+                r, c = images.get_grid_size(output_images)
+                if r > 0 and c > 0:
+                    grid = images.image_grid(output_images)
+                    grid_text = f'{r}x{c}'
+                    grid_info = create_infotext(p, p.all_prompts, p.all_seeds, index=0, grid=grid_text)
+                    if _return_grid:
+                        infotexts.insert(0, grid_info)
+                        output_images.insert(0, grid)
+                        index_of_first_image = 1
+                    if _grid_save:
+                        images.save_image(grid, p.outpath_grids, "", p.all_seeds[0], p.all_prompts[0], get_opt(p, 'grid_format'), info=grid_info, p=p, grid=True) # main save grid
 
     results = get_processed(
         p,

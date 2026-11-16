@@ -36,32 +36,28 @@ def check_grid_size(imgs: list[Image.Image] | list[list[Image.Image]] | None):
     return ok
 
 
-def get_grid_size(imgs: list, batch_size=1, rows: int | None = None, cols: int | None = None):
-    rows_int, cols_int = len(imgs), len(imgs)
-    if rows is None and cols is None:
-        n_rows, n_cols = shared.opts.n_rows, shared.opts.n_cols
-        if n_rows >= 0:
-            rows_int: int = batch_size if n_rows == 0 else n_rows
-            cols_int = math.ceil(len(imgs) / rows_int)
-        elif n_cols >= 0:
-            cols_int: int = batch_size if n_cols == 0 else n_cols
-            rows_int = math.ceil(len(imgs) / cols_int)
-        else:
-            rows_int = math.floor(math.sqrt(len(imgs)))
-            while len(imgs) % rows_int != 0:
-                rows_int -= 1
-            cols_int = math.ceil(len(imgs) / rows_int)
-        return rows_int, cols_int
-    # Set limits
-    if rows is not None:
-        rows_int = max(min(rows, len(imgs)), 1)
-    if cols is not None:
-        cols_int = max(min(cols, len(imgs)), 1)
-    # Calculate
-    if rows is None:
-        rows_int = math.ceil(len(imgs) / cols_int)
-    if cols is None:
-        cols_int = math.ceil(len(imgs) / rows_int)
+def get_grid_size(imgs: list, rows: int | None = None, cols: int | None = None):
+    image_count = len(imgs)
+    if image_count == 0:
+        return 0, 0
+    n_rows = rows if rows is not None else shared.opts.n_rows
+    n_cols = cols if cols is not None else shared.opts.n_cols
+    if n_rows == 0 or n_cols == 0:
+        return 0, 0
+    if n_rows == -1 and n_cols == -1:
+        rows_int = round(math.sqrt(image_count))
+        cols_int = math.ceil(image_count / rows_int)
+    elif n_rows == -1:
+        cols_int = min(n_cols, image_count)
+        rows_int = math.ceil(image_count / cols_int)
+    elif n_cols == -1:
+        rows_int = min(n_rows, image_count)
+        cols_int = math.ceil(image_count / rows_int)
+    else:
+        if image_count > n_rows * n_cols:
+            return 0, 0
+        rows_int = min(n_rows, image_count)
+        cols_int = math.ceil(image_count / rows_int)
     return rows_int, cols_int
 
 
@@ -69,14 +65,16 @@ def has_alpha(image: Image.Image) -> bool:
     return image.mode in ('RGBA', 'LA', 'PA') or (image.mode == 'P' and 'transparency' in image.info)
 
 
-def image_grid(imgs: list, batch_size=1, rows: int | None = None, cols: int | None = None):
+def image_grid(imgs: list, rows: int | None = None, cols: int | None = None):
     if isinstance(imgs, Image.Image):
         return imgs
     imgs = [i for i in imgs if i is not None] if imgs is not None and isinstance(imgs, list) else []
     if len(imgs) == 0:
         return None
     try:
-        rows, cols = get_grid_size(imgs, batch_size, rows=rows, cols=cols)
+        rows, cols = get_grid_size(imgs, rows=rows, cols=cols)
+        if rows == 0 or cols == 0:
+            return None
         params = script_callbacks.ImageGridLoopParams(imgs, cols, rows)
         script_callbacks.image_grid_callback(params)
         w, h = max(i.width for i in imgs if i is not None), max(i.height for i in imgs if i is not None)
