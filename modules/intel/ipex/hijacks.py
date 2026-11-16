@@ -359,6 +359,8 @@ def get_device_properties(device=None):
 original_torch_xpu_get_device_index = torch.xpu._get_device_index
 @wraps(torch.cuda._get_device_index)
 def get_device_index(device: torch.device, *args, **kwargs):
+    if device is None or torch.device(device).index is None:
+        return torch.xpu.current_device()
     if check_cuda(device):
         return original_torch_xpu_get_device_index(return_xpu(device), *args, **kwargs)
     else:

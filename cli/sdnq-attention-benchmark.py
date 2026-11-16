@@ -1027,7 +1027,7 @@ def print_environment(fp8_result, prep_status, prep_detail, weight_dequant_resul
     emit(Panel("\n".join(lines), title="environment", box=ROUNDED_BOX))
     report["environment"] = dict(
         device=torch_device_module.get_device_name(device),
-        capability=f"{capability[0]}.{capability[1]}",
+        capability=capability, # non cuda returns a dict here
         python=sys.version.split()[0],
         platform=sys.platform,
         backend=str(getattr(devices, "backend", None)),
