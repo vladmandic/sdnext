@@ -229,8 +229,8 @@ block_configs = [
     ("uint4-mm-atten", dict(weights_dtype="uint4"), True, "atten int8"),
     ("fp8sdnq", dict(weights_dtype="float8_e4m3fn_sdnq"), False, "sdpa"),
     ("fp8sdnq-atten", dict(weights_dtype="float8_e4m3fn_sdnq"), False, "atten int8"),
-    ("nvfp4", dict(weights_dtype="float4_e2m1fn", group_size=16), False, "sdpa"),
-    ("nvfp4-atten", dict(weights_dtype="float4_e2m1fn", group_size=16), False, "atten int8"),
+    ("nvfp4", dict(weights_dtype="float4_e2m1fn", group_size=16, scale_dtype="float8_e4m3fn"), False, "sdpa"),
+    ("nvfp4-atten", dict(weights_dtype="float4_e2m1fn", group_size=16, scale_dtype="float8_e4m3fn"), False, "atten int8"),
 ]
 
 # benchmark configs: id, label, kwargs for sdnq_triton_atten (None = external baseline);
@@ -305,7 +305,7 @@ dequant_dtype_configs = [
     ("uint2", "uint2", dict(weights_dtype="uint2")),
     ("fp8", "float8_e4m3fn", dict(weights_dtype="float8_e4m3fn")),
     ("fp8sdnq", "float8_e4m3fn_sdnq", dict(weights_dtype="float8_e4m3fn_sdnq")),
-    ("nvfp4", "float4_e2m1fn g16", dict(weights_dtype="float4_e2m1fn", group_size=16)),
+    ("nvfp4", "float4_e2m1fn g16", dict(weights_dtype="float4_e2m1fn", group_size=16, scale_dtype="float8_e4m3fn")),
 ]
 # svd/hadamard variants measured on top of these dtypes at the first dequant shape; low bits are
 # where rotation is expected to pay, int8 is the control
@@ -1294,8 +1294,9 @@ def make_quantized_linear(weight, weights_dtype, group_size=0, use_quantized_mat
 def layer_storage_bytes(layer):
     # measured storage of everything the quantized layer keeps: packed weights, scales,
     # zero points and svd factors; sizes on disk and in vram follow this, not the nominal bits
+    from sdnq.common import sdnq_keys
     total = 0
-    for name in ("weight", "scale", "zero_point", "svd_up", "svd_down"):
+    for name in sdnq_keys:
         tensor = getattr(layer, name, None)
         if isinstance(tensor, (torch.Tensor, torch.nn.Parameter)):
             total += tensor.numel() * tensor.element_size()
@@ -1315,20 +1316,40 @@ def dequant_args(layer, upcast_fp8=True):
     # the same graph the instance would compile, including the e4m3 upcast sdnq applies before
     # the compiled dequant on gpus where triton cannot convert it (pre sm_89).
     # upcast_fp8=False keeps the hardware probe honest: it must compile the raw e4m3 weight
+    from sdnq.utils import get_sdnq_params
+    from sdnq.quant_utils import get_hadamard
+
     deq = layer.sdnq_dequantizer
-    weight = layer.weight
-    if upcast_fp8 and weight.dtype == torch.float8_e4m3fn and fp8_compile_gate_flag() is False:
-        weight = weight.to(dtype=layer.scale.dtype)
-    kwargs = dict(
-        zero_point=getattr(layer, "zero_point", None),
-        svd_up=getattr(layer, "svd_up", None),
-        svd_down=getattr(layer, "svd_down", None),
-        dtype=deq.result_dtype,
-        result_shape=deq.result_shape,
-        quantized_weight_shape=deq.quantized_weight_shape,
-        re_quantize_for_matmul=deq.re_quantize_for_matmul or deq.is_packed,
-    )
-    return (deq.weights_dtype, weight, layer.scale), kwargs
+    sdnq_params = get_sdnq_params(layer)
+
+    if deq.use_hadamard:
+        hadamard = get_hadamard(deq.hadamard_group_size, dtype=deq.result_dtype, device=weight.device)
+    else:
+        hadamard = None
+    if upcast_fp8 and fp8_compile_gate_flag() is False:
+        if sdnq_params["scale"].dtype == torch.float8_e4m3fn:
+            sdnq_params["scale"] = sdnq_params["scale"].to(dtype=sdnq_params["scale_2"].dtype if sdnq_params["scale_2"] is not None else deq.result_dtype)
+        if sdnq_params["zero_point"] is not None and sdnq_params["zero_point"].dtype == torch.float8_e4m3fn:
+            sdnq_params["zero_point"] = sdnq_params["zero_point"].to(dtype=sdnq_params["zero_point_scale"].dtype if sdnq_params["zero_point_scale"] is not None else deq.result_dtype)
+        if sdnq_params["weight"].dtype == torch.float8_e4m3fn:
+            sdnq_params["weight"] = sdnq_params["weight"].to(dtype=sdnq_params["scale"].dtype)
+
+    weight = sdnq_params.pop("weight")
+    scale = sdnq_params.pop("scale")
+
+    sdnq_params["hadamard"] = hadamard
+    sdnq_params["use_codebook"] = deq.use_codebook
+    sdnq_params["use_codebook_scale"] = deq.use_codebook_scale
+    sdnq_params["group_size"] = deq.group_size
+    sdnq_params["result_shape"] = deq.result_shape
+    sdnq_params["quantized_weight_shape"] = deq.quantized_weight_shape
+    sdnq_params["quantized_scale_shape"] = deq.quantized_scale_shape
+    sdnq_params["quantized_zero_point_shape"] = deq.quantized_zero_point_shape
+    sdnq_params["re_quantize_for_matmul"] = deq.re_quantize_for_matmul or deq.is_packed
+    sdnq_params["layer_class_name"] = deq.layer_class_name
+    sdnq_params["dtype"] = deq.result_dtype
+
+    return (deq.weights_dtype, weight, scale), sdnq_params
 
 
 def get_compiled_dequantize_weight():
@@ -1687,6 +1708,7 @@ def bench_shape(preset, iters, warmup, position=None, config_timeout=None, fp8_r
 
 def bench_dequant_shape(shape_label, out_features, in_features, iters, warmup, position=None, config_timeout=300, selected_dtypes=None):
     from sdnq.common import check_torch_compile
+    from sdnq.utils import get_sdnq_params
     compile_on = check_torch_compile()
     dtype_configs = [(dtype_id, label, cfg) for dtype_id, label, cfg in dequant_dtype_configs if selected_dtypes is None or dtype_id in selected_dtypes]
 
@@ -1751,12 +1773,7 @@ def bench_dequant_shape(shape_label, out_features, in_features, iters, warmup, p
                 continue
 
             def eager_fn(current=layer):
-                return current.sdnq_dequantizer(
-                    current.weight, current.scale,
-                    zero_point=getattr(current, "zero_point", None),
-                    svd_up=getattr(current, "svd_up", None), svd_down=getattr(current, "svd_down", None),
-                    skip_compile=True,
-                )
+                return current.sdnq_dequantizer(**get_sdnq_params(current), skip_compile=True)
 
             try:
                 phase("timing eager dequant")
@@ -1873,6 +1890,7 @@ def bench_dequant_shape(shape_label, out_features, in_features, iters, warmup, p
 def bench_dequant_variants(shape_label, out_features, in_features, plain_results, selected_dtypes, selected_variants, iters, warmup, config_timeout=300):
     # svd and hadamard on top of the base dtypes: the quantize-time, size and error cost of
     # each option, benched through the production dequantizer path at one layer shape
+    from sdnq.utils import get_sdnq_params
     variant_configs = [(variant_id, cfg) for variant_id, cfg in dequant_variant_configs if variant_id in selected_variants]
     dtype_configs = [(dtype_id, label, cfg) for dtype_id, label, cfg in dequant_dtype_configs if dtype_id in dequant_variant_dtypes and (selected_dtypes is None or dtype_id in selected_dtypes)]
     if not variant_configs or not dtype_configs:
@@ -1928,11 +1946,7 @@ def bench_dequant_variants(shape_label, out_features, in_features, plain_results
                 continue
 
             def deq_fn(current=layer):
-                return current.sdnq_dequantizer(
-                    current.weight, current.scale,
-                    zero_point=getattr(current, "zero_point", None),
-                    svd_up=getattr(current, "svd_up", None), svd_down=getattr(current, "svd_down", None),
-                )
+                return current.sdnq_dequantizer(**get_sdnq_params(current))
 
             def fwd_fn(current=layer):
                 return current(x)
@@ -2221,18 +2235,24 @@ def bench_mm_backends(shape_label, out_features, in_features, selected_dtypes, b
 def resolved_group_label(layer, in_features):
     # infer the group size sdnq actually used from the stored scale shape: grouped scales are
     # [out, groups, 1], row-wise scales collapse the group axis
-    scale = getattr(layer, "scale", None)
-    if scale is None:
+    sdnq_dequantizer = getattr(layer, "sdnq_dequantizer", None)
+    if sdnq_dequantizer is None:
         return "-"
-    if scale.ndim >= 3 and scale.shape[1] > 1:
-        return f"g{in_features // scale.shape[1]}"
-    return "row"
+    group_size = getattr(sdnq_dequantizer, "group_size", None)
+    if group_size > 0:
+        return f"g{group_size}"
+    if group_size == -1:
+        return "row"
+    if group_size == -2:
+        return "tensor"
+    return group_size
 
 
 def bench_group_sizes(shape_label, out_features, in_features, plain_results, selected_dtypes, iters, warmup, config_timeout=300): # pylint: disable=unused-argument
     # the Group size setting: 0 = auto, -1 = row-wise, explicit values snap to a divisor of
     # in_features; grouping forces a per-forward re-quantize when quantized matmul is on, so
     # the mm cells price that cost alongside the accuracy gain
+    from sdnq.utils import get_sdnq_params
     dtype_configs = [(dtype_id, label, cfg) for dtype_id, label, cfg in dequant_dtype_configs if dtype_id in group_sweep_dtypes and (selected_dtypes is None or dtype_id in selected_dtypes)]
     if not dtype_configs:
         return {}
@@ -2281,11 +2301,7 @@ def bench_group_sizes(shape_label, out_features, in_features, plain_results, sel
             try:
                 phase("timing dequant and forward")
                 with time_limit(config_timeout, row_label):
-                    deq_out = layer.sdnq_dequantizer(
-                        layer.weight, layer.scale,
-                        zero_point=getattr(layer, "zero_point", None),
-                        svd_up=getattr(layer, "svd_up", None), svd_down=getattr(layer, "svd_down", None),
-                    ).to(torch.float32)
+                    deq_out = layer.sdnq_dequantizer(**get_sdnq_params(layer)).to(torch.float32)
                     fwd_fn()
                     torch_device_module.synchronize()
                 entry["weight_err"] = rel_err(deq_out, weight_fp32)
@@ -2334,6 +2350,7 @@ def bench_group_sizes(shape_label, out_features, in_features, plain_results, sel
 def bench_svd_ranks(shape_label, out_features, in_features, plain_results, selected_dtypes, iters, warmup, config_timeout=300):
     # the SVD rank size setting: rank drives both outlier absorption and the rank x (in + out)
     # fp16 size overhead; plain no-svd rows repeated dimmed for comparison
+    from sdnq.utils import get_sdnq_params
     dtype_configs = [(dtype_id, label, cfg) for dtype_id, label, cfg in dequant_dtype_configs if dtype_id in svd_rank_sweep_dtypes and (selected_dtypes is None or dtype_id in selected_dtypes)]
     if not dtype_configs:
         return {}
@@ -2377,11 +2394,7 @@ def bench_svd_ranks(shape_label, out_features, in_features, plain_results, selec
                     return current(x)
                 phase("timing dequant and forward")
                 with time_limit(config_timeout, row_label):
-                    deq_out = layer.sdnq_dequantizer(
-                        layer.weight, layer.scale,
-                        zero_point=getattr(layer, "zero_point", None),
-                        svd_up=getattr(layer, "svd_up", None), svd_down=getattr(layer, "svd_down", None),
-                    ).to(torch.float32)
+                    deq_out = layer.sdnq_dequantizer(**get_sdnq_params(layer)).to(torch.float32)
                     fwd_fn()
                     torch_device_module.synchronize()
                 entry["weight_err"] = rel_err(deq_out, weight_fp32)
@@ -2406,6 +2419,7 @@ def bench_svd_ranks(shape_label, out_features, in_features, plain_results, selec
 def bench_hadamard_groups(shape_label, out_features, in_features, plain_results, selected_dtypes, iters, warmup, config_timeout=300):
     # the weight-side Hadamard group size setting, swept on int8 where rotation measured the
     # largest gain; unlike the attention slider it is not clamped to head dim
+    from sdnq.utils import get_sdnq_params
     if selected_dtypes is not None and "int8" not in selected_dtypes:
         return {}
 
@@ -2444,11 +2458,7 @@ def bench_hadamard_groups(shape_label, out_features, in_features, plain_results,
                     return current(x)
                 phase("timing dequant and forward")
                 with time_limit(config_timeout, row_label):
-                    deq_out = layer.sdnq_dequantizer(
-                        layer.weight, layer.scale,
-                        zero_point=getattr(layer, "zero_point", None),
-                        svd_up=getattr(layer, "svd_up", None), svd_down=getattr(layer, "svd_down", None),
-                    ).to(torch.float32)
+                    deq_out = layer.sdnq_dequantizer(**get_sdnq_params(layer)).to(torch.float32)
                     fwd_fn()
                     torch_device_module.synchronize()
                 entry["weight_err"] = rel_err(deq_out, weight_fp32)
@@ -2474,6 +2484,7 @@ def bench_quant_toggles(shape_label, out_features, in_features, plain_results, s
     # remaining checkbox-level settings: Dequantize using full precision off (scales kept in
     # the model dtype instead of fp32), Dynamic quantization (per-layer dtype escalation until
     # the loss threshold passes), and Quantize using GPU (quantization wall time on cpu)
+    from sdnq.utils import get_sdnq_params
     fp32_dtypes = [(dtype_id, label, cfg) for dtype_id, label, cfg in dequant_dtype_configs if dtype_id in toggle_dtypes and (selected_dtypes is None or dtype_id in selected_dtypes)]
     results = dict(fp32_off={}, dynamic={}, cpu_quant_s=None, gpu_quant_s=None)
 
@@ -2509,11 +2520,7 @@ def bench_quant_toggles(shape_label, out_features, in_features, plain_results, s
                     return current(x)
                 phase("timing dequant and forward")
                 with time_limit(config_timeout, row_label):
-                    deq_out = layer.sdnq_dequantizer(
-                        layer.weight, layer.scale,
-                        zero_point=getattr(layer, "zero_point", None),
-                        svd_up=getattr(layer, "svd_up", None), svd_down=getattr(layer, "svd_down", None),
-                    ).to(torch.float32)
+                    deq_out = layer.sdnq_dequantizer(**get_sdnq_params(layer)).to(torch.float32)
                     fwd_fn()
                     torch_device_module.synchronize()
                 entry["weight_err"] = rel_err(deq_out, weight_fp32)
@@ -2549,12 +2556,7 @@ def bench_quant_toggles(shape_label, out_features, in_features, plain_results, s
                 layer, entry["quant_s"] = make_quantized_linear(weight, requested, use_dynamic_quantization=True)
                 entry["chosen"] = layer.sdnq_dequantizer.weights_dtype
                 entry["size_bytes"] = layer_storage_bytes(layer)
-                deq_out = layer.sdnq_dequantizer(
-                    layer.weight, layer.scale,
-                    zero_point=getattr(layer, "zero_point", None),
-                    svd_up=getattr(layer, "svd_up", None), svd_down=getattr(layer, "svd_down", None),
-                    skip_compile=True,
-                ).to(torch.float32)
+                deq_out = layer.sdnq_dequantizer(**get_sdnq_params(layer), skip_compile=True).to(torch.float32)
                 entry["weight_err"] = rel_err(deq_out, weight_fp32)
                 del deq_out, layer
                 chosen_cell = entry["chosen"] if entry["chosen"] == requested else f"[yellow]{entry['chosen']}[/yellow]"
@@ -2621,6 +2623,7 @@ def make_quantized_conv(weight, weights_dtype, use_quantized_matmul=False):
 def bench_conv_section(iters, warmup, config_timeout=300):
     # the Quantize convolutional layers and Use quantized MatMul with conv settings, measured
     # on real Conv2d layers; dit models have no convs, this is for unet and vae model classes
+    from sdnq.utils import get_sdnq_params
     all_results = {}
     for shape_label, out_channels, in_channels, kernel, px in conv_shapes:
         table = Table(box=box.SIMPLE_HEAVY)
@@ -2660,12 +2663,7 @@ def bench_conv_section(iters, warmup, config_timeout=300):
                         phase("quantizing")
                         layer, entry["quant_s"] = make_quantized_conv(weight, use_quantized_matmul=use_mm, **weights_cfg)
                         entry["size_bytes"] = layer_storage_bytes(layer)
-                        deq_out = layer.sdnq_dequantizer(
-                            layer.weight, layer.scale,
-                            zero_point=getattr(layer, "zero_point", None),
-                            svd_up=getattr(layer, "svd_up", None), svd_down=getattr(layer, "svd_down", None),
-                            skip_quantized_matmul=use_mm, skip_compile=True,
-                        ).to(torch.float32)
+                        deq_out = layer.sdnq_dequantizer(**get_sdnq_params(layer), skip_quantized_matmul=use_mm, skip_compile=True).to(torch.float32)
                         entry["weight_err"] = rel_err(deq_out, weight_fp32)
                         weight_err_cell = err_cell(entry["weight_err"])
                         del deq_out
