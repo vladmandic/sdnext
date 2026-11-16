@@ -622,14 +622,15 @@ def sage_kernel_label():
     except Exception:
         return "sageattention"
     fp8_accum = "fp32+fp16" if cuda_version >= (12, 8) else "fp32+fp32" # sageattention2++ needs cuda 12.8
-    if capability == (7, 5):
-        return "sage int8 qk + fp16 pv, triton"
-    if capability in {(8, 0), (8, 6), (8, 7)}:
-        return "sage int8 qk + fp16 pv, fp32 accum"
-    if capability == (9, 0):
-        return "sage int8 qk + fp8 pv, fp32+fp32 accum"
-    if capability in {(8, 9), (10, 0), (12, 0), (12, 1)}:
-        return f"sage int8 qk + fp8 pv, {fp8_accum} accum"
+    if isinstance(capability, (tuple, list)): # capability is an unhashable dict for non cuda
+        if capability == (7, 5):
+            return "sage int8 qk + fp16 pv, triton"
+        if capability in {(8, 0), (8, 6), (8, 7)}:
+            return "sage int8 qk + fp16 pv, fp32 accum"
+        if capability == (9, 0):
+            return "sage int8 qk + fp8 pv, fp32+fp32 accum"
+        if capability in {(8, 9), (10, 0), (12, 0), (12, 1)}:
+            return f"sage int8 qk + fp8 pv, {fp8_accum} accum"
     return "sageattention"
 
 
