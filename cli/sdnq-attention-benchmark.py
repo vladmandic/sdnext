@@ -1323,9 +1323,10 @@ def dequant_args(layer, upcast_fp8=True):
     sdnq_params = get_sdnq_params(layer)
 
     if deq.use_hadamard:
-        hadamard = get_hadamard(deq.hadamard_group_size, dtype=deq.result_dtype, device=weight.device)
+        hadamard = get_hadamard(deq.hadamard_group_size, dtype=deq.result_dtype, device=sdnq_params["weight"].device)
     else:
         hadamard = None
+
     if upcast_fp8 and fp8_compile_gate_flag() is False:
         if sdnq_params["scale"].dtype == torch.float8_e4m3fn:
             sdnq_params["scale"] = sdnq_params["scale"].to(dtype=sdnq_params["scale_2"].dtype if sdnq_params["scale_2"] is not None else deq.result_dtype)
