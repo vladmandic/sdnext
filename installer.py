@@ -477,13 +477,17 @@ def git(arg: str, folder: str | None= None, ignore: bool = False, optional: bool
             folder = 'root'
         if "couldn't find remote ref" in txt: # not a git repo
             log.error(f'Git: folder="{folder}" could not identify repository')
+            errors.append(f'git: {folder}')
         elif "no submodule mapping found" in txt:
             log.warning(f'Git: folder="{folder}" submodules changed')
+            errors.append(f'git: {folder}')
         elif 'or stash them' in txt:
             log.warning(f'Git: folder="{folder}" local changes detected')
+            if folder != '.':
+                errors.append(f'git: {folder}')
         else:
             log.error(f'Git: folder="{folder}" arg="{arg}" output={txt}')
-        errors.append(f'git: {folder}')
+            errors.append(f'git: {folder}')
     ts('git', t_start)
     return txt
 
