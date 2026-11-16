@@ -18,6 +18,7 @@ from modules.chat import artifacts, commands
 from modules.chat import api as chat_api
 from modules.chat import db
 from modules import progress, shared
+from modules.api import options as options_api
 
 
 class TestChatArtifactService(unittest.TestCase):
@@ -1428,15 +1429,22 @@ class TestChatApiRegistration(unittest.TestCase):
         self.assertEqual(diagnostics['user_version'], db.SCHEMA_VERSION)
         self.assertTrue(diagnostics['ok'])
 
-    def test_database_initialization_failure_disables_chat_without_routes(self):
+    def test_database_initialization_failure_disables_chat_without_session_routes(self):
         app = FastAPI()
-        with patch.dict(shared.opts.data, {'chat_enabled': True}), \
+        with patch.dict(chat_api._session_state, {'initialization_failed': False}), \
+                patch.dict(shared.opts.data, {'chat_enabled': True}), \
                 patch.object(db, 'initialize', side_effect=sqlite3.OperationalError('database is locked')), \
                 patch.object(chat_api.log, 'error'):
             self.assertFalse(chat_api.register_api(app))
-            self.assertFalse(shared.opts.data['chat_enabled'])
+            self.assertTrue(shared.opts.data['chat_enabled'])
+            self.assertFalse(chat_api.is_enabled())
+            self.assertTrue(options_api.get_options()['chat_enabled'])
+            self.assertFalse(chat_api.get_chat_status().available)
+            self.assertTrue(shared.opts.data['chat_enabled'])
 
-        self.assertFalse(any(route.path.startswith('/sdapi/v1/chat/') for route in app.routes))
+        paths = {route.path for route in app.routes}
+        self.assertIn('/sdapi/v1/chat/status', paths)
+        self.assertNotIn('/sdapi/v1/chat/sessions', paths)
 
     def test_help_sections_are_persisted_in_assistant_message(self):
         with tempfile.TemporaryDirectory() as temp_dir:

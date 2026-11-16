@@ -34,6 +34,9 @@ def _chat_import_default(component):
 def init_chat_send(control_import_fields, input_script_args):
     if not shared.opts.chat_enabled:
         return
+    from modules.chat import api as chat_api
+    if not chat_api.is_enabled():
+        return
     chat_session_id = gr.Textbox(value='', elem_id='control-chat-session-id', elem_classes='chat-control-capture')
     chat_import_result = gr.JSON(value={}, elem_id='control-chat-import-result', elem_classes='chat-control-capture')
     chat_import_button = gr.Button(value='Import Control settings', elem_id='control-chat-import', elem_classes='chat-control-capture')

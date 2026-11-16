@@ -506,12 +506,12 @@ def create_sampler_options(tabname):
     def set_sampler_defaults(name):
         if name == 'Default':
             values = {
-                field[0]: saved_defaults.get(field[0], shared.opts.get_default(field[0]))
+                field[0]: shared.opts.get_default(field[0])
                 for field in ui_fields
                 if field[0] not in {'sampler_presets', 'sampler_options'}
             }
             values.update({
-                key: saved_defaults.get(key, shared.opts.get_default(key))
+                key: shared.opts.get_default(key)
                 for key in (
                     'schedulers_use_loworder',
                     'schedulers_use_thresholding',
@@ -519,7 +519,9 @@ def create_sampler_options(tabname):
                     'schedulers_rescale_betas',
                 )
             })
-            shared.opts.schedulers_beta_schedule = values['schedulers_beta_schedule']
+            for key, value in values.items():
+                shared.opts.data[key] = value
+            save_with_debounce()
         else:
             values = sampler_ui_defaults(name)
             if values is None:

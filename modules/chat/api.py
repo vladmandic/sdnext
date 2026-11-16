@@ -30,6 +30,20 @@ ServerEndpointAlias = Literal[
 ]
 OperationStatus = Literal['running', 'completed', 'failed', 'cancelled']
 
+_session_state = {'initialization_failed': False}
+
+
+def is_enabled():
+    return shared.opts.chat_enabled and not _session_state['initialization_failed']
+
+
+class ResChatStatus(BaseModel):
+    available: bool
+
+
+def get_chat_status():
+    return ResChatStatus(available=is_enabled())
+
 
 class ReqSessionCreate(BaseModel):
     title: str | None = Field(default=None, title='Title')
@@ -1238,10 +1252,11 @@ def delete_session(session_id: str):
 
 
 def register_api(api, diag: bool = False):
+    api.add_api_route('/sdapi/v1/chat/status', get_chat_status, methods=['GET'], response_model=ResChatStatus, tags=['Chat'])
     try:
         db.initialize()
     except (sqlite3.Error, OSError) as exc:
-        shared.opts.chat_enabled = False
+        _session_state['initialization_failed'] = True
         log.error(f'Chat disabled: {exc}')
         return False
     if diag:
