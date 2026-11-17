@@ -50,6 +50,7 @@
   - add HDR conversion support  
     *note*: HDR conversion requires compatible image format: *settings -> media options -> image file format*  
     supported: JPEG Gain Map, TIFF 16-bit, PNG with cICP, OpenEXR, AVIF, JPEG XL  
+  - hdr: conversion step for callers that save their own outputs, returns the written file or the reason nothing is written  
 - **Torch**
   - update cuda to `torch==2.15.0+cu132`
   - update rocm/linux to `torch==2.15.0+rocm10.0`

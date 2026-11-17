@@ -1,10 +1,12 @@
 import importlib
+import importlib.util
 import os
 import shutil
 import struct
 import subprocess
 import tempfile
 import zlib
+from dataclasses import dataclass
 
 import numpy as np
 from modules.logger import log
@@ -203,3 +205,87 @@ def save_hdr_image(path: str, hdr: np.ndarray, image, hdr_format: str, target_pe
         save_exr(path, hdr, target_gamut)
         return True
     return False
+
+
+HDR_METHODS = ('Algorithmic',)
+HDR_EXTENSIONS = {
+    'jpeg-gain-map': 'jpg',
+    'png-cicp': 'png',
+    'tiff16': 'tiff',
+    'avif': 'avif',
+    'jxl': 'jxl',
+    'exr': 'exr',
+}
+HDR_ENCODERS = { # hdr format: (encoder, python module or None for an executable, installed on first use)
+    'jpeg-gain-map': ('ultrahdr_app', None, False),
+    'png-cicp': ('opencv', 'cv2', False),
+    'tiff16': ('tifffile', 'tifffile', False),
+    'avif': ('imagecodecs', 'imagecodecs', True),
+    'jxl': ('imagecodecs', 'imagecodecs', True),
+    'exr': ('OpenEXR', 'OpenEXR', True),
+}
+
+
+class HDRUnavailable(RuntimeError):
+    """HDR conversion that writes no file; code is one of format-unsupported, encoder-missing, encoder-install-failed."""
+    def __init__(self, code: str, reason: str):
+        super().__init__(reason)
+        self.code = code
+        self.reason = reason
+
+
+@dataclass(frozen=True)
+class HDRSupport:
+    samples_format: str | None # image file format the answer is for
+    hdr_format: str | None # hdr encoding of that format
+    extension: str | None # extension of the hdr file, without the dot
+    encoder: str | None # executable or python package that writes it
+    available: bool # an hdr file is written
+    installs: bool # encoder package is installed by the first conversion
+    replaces_output: bool # sdnext's own flows write the hdr file instead of the normal output
+    code: str | None = None # set when not available, as HDRUnavailable.code
+    reason: str | None = None
+
+
+def hdr_support(samples_format: str | None = None) -> HDRSupport:
+    """What an HDR conversion writes for an image file format (default: the samples_format setting), or why it writes nothing."""
+    if samples_format is None:
+        from modules import shared
+        samples_format = shared.opts.samples_format
+    hdr_format = resolve_hdr_format(samples_format)
+    if hdr_format is None:
+        reason = f'image file format "{samples_format}" is not a supported HDR format'
+        return HDRSupport(samples_format, None, None, None, False, False, False, 'format-unsupported', reason)
+    encoder, module, installable = HDR_ENCODERS[hdr_format]
+    present = shutil.which(encoder) is not None if module is None else importlib.util.find_spec(module) is not None
+    extension = HDR_EXTENSIONS[hdr_format]
+    replaces_output = hdr_format == 'exr'
+    if not present and not installable:
+        return HDRSupport(samples_format, hdr_format, extension, encoder, False, False, replaces_output, 'encoder-missing', f'{encoder} is not installed')
+    return HDRSupport(samples_format, hdr_format, extension, encoder, True, not present, replaces_output)
+
+
+def hdr_filename(output: str, extension: str) -> str:
+    """HDR file for an output path: same folder and name with an -hdr suffix."""
+    return f'{os.path.splitext(output)[0]}-hdr.{extension}'
+
+
+def convert_hdr(image, output: str, method: str = 'Algorithmic', peak: float = 1000, gamut: str = 'Rec.2020', samples_format: str | None = None) -> str:
+    """Write the HDR version of an image beside the output path its caller saved and return the written path."""
+    if image is None:
+        raise ValueError('HDR: no image')
+    if method not in HDR_METHODS:
+        raise ValueError(f'HDR: method={method} unsupported')
+    support = hdr_support(samples_format)
+    if not support.available:
+        raise HDRUnavailable(support.code, support.reason)
+    hdr = algorithmic_hdr(image, peak, gamut)
+    filename = hdr_filename(output, support.extension)
+    try:
+        saved = save_hdr_image(filename, hdr, image, support.hdr_format, peak, gamut)
+    except ImportError as e:
+        raise HDRUnavailable('encoder-install-failed', f'{support.encoder} could not be installed: {e}') from e
+    if not saved:
+        raise HDRUnavailable('encoder-missing', f'{support.encoder} is not installed')
+    log.info(f'HDR: saved="{filename}" method={method} peak={peak} gamut={gamut}')
+    return filename
