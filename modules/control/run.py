@@ -331,7 +331,10 @@ def control_process(p: StableDiffusionProcessingControl,
     info = None
     if processed is not None and processed.images is not None:
         output = processed.images
-        info = [processed.infotext(p, i) for i in range(len(output))]
+        if len(processed.infotexts) == len(output): # already one per image, a leading grid included
+            info = processed.infotexts
+        else:
+            info = [processed.infotext(p, i) for i in range(len(output))]
 
     # output = pipe(**vars(p)).images # debug: direct pipe exec call
     return output, info, script_run
