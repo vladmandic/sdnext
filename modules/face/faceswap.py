@@ -17,7 +17,7 @@ def face_swap(p: processing.StableDiffusionProcessing, app, input_images: list[I
     if swapper is None:
         import insightface.model_zoo
         repo_id = 'ezioruan/inswapper_128.onnx'
-        model_path = hf.hf_hub_download(repo_id=repo_id, filename='inswapper_128.onnx', cache_dir=shared.opts.hfcache_dir)
+        model_path = hf.hf_hub_download(repo_id=repo_id, filename='inswapper_128.onnx', cache_dir=shared.opts.hfcache_dir, local_files_only=shared.opts.offline_mode)
         log.debug(f'FaceSwap load: repo="{repo_id}" path="{model_path}"')
         # model_path = hf.hf_hub_download(repo_id='somanchiu/reswapper', filename='reswapper_256-1567500_originalInswapperClassCompatible.onnx', cache_dir=shared.opts.hfcache_dir)
         try:

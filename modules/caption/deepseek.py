@@ -49,12 +49,13 @@ def load(repo: str):
         modeling_llama.LlamaFlashAttention2 = modeling_llama.LlamaAttention
         importlib.import_module('repositories.deepseek-vl2.deepseek_vl2')
         deekseek_vl_models = importlib.import_module('repositories.deepseek-vl2.deepseek_vl2.models')
-        vl_chat_processor = deekseek_vl_models.DeepseekVLV2Processor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
+        vl_chat_processor = deekseek_vl_models.DeepseekVLV2Processor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir, local_files_only=shared.opts.offline_mode)
         vl_gpt = AutoModelForCausalLM.from_pretrained(
             repo,
             trust_remote_code=True,
             use_safetensors=True,
             cache_dir=shared.opts.hfcache_dir,
+            local_files_only=shared.opts.offline_mode,
         )
         vl_gpt.to(dtype=devices.dtype)
         vl_gpt.eval()  # required: trust_remote_code model

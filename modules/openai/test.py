@@ -4,6 +4,7 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from .serve import OpenAIServer
 from modules import logger
+from modules.shared import opts
 
 
 logger.setup_logging(debug=True)
@@ -22,6 +23,7 @@ model = AutoModelForCausalLM.from_pretrained(
     attn_implementation="sdpa",
     # attn_implementation="eager",
     # attn_implementation="flash_attention_2",
+    local_files_only=opts.offline_mode,
 )
 model.config.use_flash_attention = True
 
@@ -29,7 +31,8 @@ logger.log.info("OpenAI: eval model...")
 model.eval()
 tokenizer = AutoTokenizer.from_pretrained(
     "Qwen/Qwen3-0.6B",
-    trust_remote_code=True
+    trust_remote_code=True,
+    local_files_only=opts.offline_mode,
 )
 
 logger.log.info("OpenAI: create server...")

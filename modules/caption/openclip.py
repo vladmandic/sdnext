@@ -117,12 +117,12 @@ def _load_blip_model(blip_model: str, device):
     cache_dir = shared.opts.clip_models_path
     dtype = devices.dtype
     if blip_model.startswith('git-'):
-        caption_model = transformers.AutoModelForCausalLM.from_pretrained(model_path, torch_dtype=dtype, cache_dir=cache_dir)
+        caption_model = transformers.AutoModelForCausalLM.from_pretrained(model_path, torch_dtype=dtype, cache_dir=cache_dir, local_files_only=shared.opts.offline_mode)
     elif blip_model.startswith('blip2-'):
-        caption_model = transformers.Blip2ForConditionalGeneration.from_pretrained(model_path, torch_dtype=dtype, cache_dir=cache_dir)
+        caption_model = transformers.Blip2ForConditionalGeneration.from_pretrained(model_path, torch_dtype=dtype, cache_dir=cache_dir, local_files_only=shared.opts.offline_mode)
     else:
-        caption_model = transformers.BlipForConditionalGeneration.from_pretrained(model_path, torch_dtype=dtype, cache_dir=cache_dir)
-    caption_processor = transformers.AutoProcessor.from_pretrained(model_path, cache_dir=cache_dir)
+        caption_model = transformers.BlipForConditionalGeneration.from_pretrained(model_path, torch_dtype=dtype, cache_dir=cache_dir, local_files_only=shared.opts.offline_mode)
+    caption_processor = transformers.AutoProcessor.from_pretrained(model_path, cache_dir=cache_dir, local_files_only=shared.opts.offline_mode)
     caption_model.eval()
     if not shared.opts.caption_offload:
         caption_model = caption_model.to(device)

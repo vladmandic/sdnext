@@ -67,6 +67,8 @@ def load(self, model_name: str | None = None) -> tuple[str | None, transformers.
         'cache_dir': shared.opts.hfcache_dir,
         'torch_dtype': devices.dtype,
     }
+    if shared.opts.offline_mode:
+        load_kwargs['local_files_only'] = True
     quant_args = model_quant.create_config(module='LLM', modules_to_not_convert=['conv1d', 'linear_attn.conv1d'])
     model = transformers.Qwen3VLForConditionalGeneration.from_pretrained(**load_kwargs, **quant_args, attn_implementation="sdpa")
     model = model.eval()

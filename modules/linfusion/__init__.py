@@ -32,7 +32,7 @@ def apply(pipeline, pretrained: bool = True):
         if model_path is None:
             log.error('LinFusion: unsupported model type')
             return
-        applied = LinFusion.from_pretrained(model_path, cache_dir=shared.opts.hfcache_dir).to(device=pipeline.unet.device, dtype=pipeline.unet.dtype)
+        applied = LinFusion.from_pretrained(model_path, cache_dir=shared.opts.hfcache_dir, local_files_only=shared.opts.offline_mode).to(device=pipeline.unet.device, dtype=pipeline.unet.dtype)
         applied.mount_to(unet=pipeline.unet)
     log.info(f'Applying LinFusion: class={applied.__class__.__name__} model="{model_path}" modules={len(applied.modules_dict)}')
 

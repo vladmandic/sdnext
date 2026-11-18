@@ -20,7 +20,7 @@ class UpscalerAuraSR(Upscaler):
     def do_upscale(self, img: Image.Image, selected_model): # pylint: disable=arguments-differ
         from modules.postprocess.aurasr_arch import AuraSR
         if self.model is None:
-            self.model = AuraSR.from_pretrained("vladmandic/aurasr", use_safetensors=False)
+            self.model = AuraSR.from_pretrained("vladmandic/aurasr", use_safetensors=False, local_files_only=shared.opts.offline_mode)
         devices.torch_gc()
 
         self.model.upsampler.to(devices.device)

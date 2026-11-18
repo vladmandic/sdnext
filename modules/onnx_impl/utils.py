@@ -86,6 +86,8 @@ def load_init_dict(cls: type[diffusers.DiffusionPipeline], path: os.PathLike):
 
 
 def load_submodel(path: os.PathLike, is_sdxl: bool, submodel_name: str, item: list[str | None], **kwargs_ort):
+    from modules.shared import opts
+
     lib, atr = item
 
     if lib is None or atr is None:
@@ -96,15 +98,16 @@ def load_submodel(path: os.PathLike, is_sdxl: bool, submodel_name: str, item: li
     path = os.path.join(path, submodel_name)
 
     if issubclass(attribute, diffusers.OnnxRuntimeModel):
-        return diffusers.OnnxRuntimeModel.load_model(
-            os.path.join(path, "model.onnx"),
-            **kwargs_ort,
-        ) if is_sdxl else diffusers.OnnxRuntimeModel.from_pretrained(
-            path,
-            **kwargs_ort,
-        )
+        if is_sdxl:
+            return diffusers.OnnxRuntimeModel.load_model(
+                os.path.join(path, "model.onnx"),
+                **kwargs_ort,
+            )
+        if opts.offline_mode:
+            kwargs_ort['local_files_only'] = True
+        return diffusers.OnnxRuntimeModel.from_pretrained(path, **kwargs_ort)
 
-    return attribute.from_pretrained(path)
+    return attribute.from_pretrained(path, local_files_only=opts.offline_mode)
 
 
 def load_submodels(path: os.PathLike, is_sdxl: bool, init_dict: dict[str, type], **kwargs_ort):

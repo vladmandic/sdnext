@@ -72,7 +72,7 @@ def load_base(override: str | None = None):
     if os.path.isfile(fn):
         pipeline = diffusers.StableDiffusionXLPipeline.from_single_file(fn, cache_dir=shared.opts.diffusers_dir, torch_dtype=recipe.dtype, add_watermarker=False)
     elif os.path.isdir(fn):
-        pipeline = diffusers.StableDiffusionXLPipeline.from_pretrained(fn, cache_dir=shared.opts.diffusers_dir, torch_dtype=recipe.dtype, add_watermarker=False)
+        pipeline = diffusers.StableDiffusionXLPipeline.from_pretrained(fn, cache_dir=shared.opts.diffusers_dir, torch_dtype=recipe.dtype, add_watermarker=False, local_files_only=shared.opts.offline_mode)
     else:
         yield msg('base: not found')
         return
@@ -150,7 +150,7 @@ def load_te1(pipe: diffusers.StableDiffusionXLPipeline, override: str | None = N
         yield msg(f'config={config}')
     try:
         state_dict = load_file(fn)
-        te1 = transformers.CLIPTextModel.from_pretrained(pretrained_model_name_or_path=None, state_dict=state_dict, config=pretrained_config, cache_dir=shared.opts.hfcache_dir)
+        te1 = transformers.CLIPTextModel.from_pretrained(pretrained_model_name_or_path=None, state_dict=state_dict, config=pretrained_config, cache_dir=shared.opts.hfcache_dir, local_files_only=shared.opts.offline_mode)
         pipe.text_encoder = te1.to(device=devices.device, dtype=recipe.dtype)
     except Exception as e:
         yield msg(f'te1: {e}')
@@ -171,7 +171,7 @@ def load_te2(pipe: diffusers.StableDiffusionXLPipeline, override: str | None = N
         yield msg(f'config={config}')
     try:
         state_dict = load_file(fn)
-        te2 = transformers.CLIPTextModelWithProjection.from_pretrained(pretrained_model_name_or_path=None, state_dict=state_dict, config=pretrained_config, cache_dir=shared.opts.hfcache_dir)
+        te2 = transformers.CLIPTextModelWithProjection.from_pretrained(pretrained_model_name_or_path=None, state_dict=state_dict, config=pretrained_config, cache_dir=shared.opts.hfcache_dir, local_files_only=shared.opts.offline_mode)
         pipe.text_encoder_2 = te2.to(device=devices.device, dtype=recipe.dtype)
     except Exception as e:
         yield msg(f'te2: {e}')

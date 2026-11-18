@@ -66,13 +66,14 @@ def load(repo: str | None = None):
         opts.repo = repo
         llava_model = None
         log.info(f'LLM: type=vlm model="JoyCaption" {str(opts)}')
-        processor = AutoProcessor.from_pretrained(repo, max_pixels=1024*1024, cache_dir=shared.opts.hfcache_dir)
+        processor = AutoProcessor.from_pretrained(repo, max_pixels=1024*1024, cache_dir=shared.opts.hfcache_dir, local_files_only=shared.opts.offline_mode)
         quant_args = model_quant.create_config(module='LLM')
         llava_model = LlavaForConditionalGeneration.from_pretrained(
             repo,
             torch_dtype=devices.dtype,
             use_safetensors=True,
             cache_dir=shared.opts.hfcache_dir,
+            local_files_only=shared.opts.offline_mode,
             **quant_args,
         )
         register_aux('joycaption', llava_model)

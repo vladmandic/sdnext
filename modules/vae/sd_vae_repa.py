@@ -28,6 +28,7 @@ def repa_load(latents):
             config['repo_id'],
             torch_dtype=latents.dtype,
             cache_dir=shared.opts.hfcache_dir,
+            local_files_only=shared.opts.offline_mode,
             )
         loaded_cls = cls
     return loaded_vae

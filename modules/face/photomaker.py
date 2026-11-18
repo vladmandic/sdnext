@@ -70,7 +70,7 @@ def photo_maker(p: processing.StableDiffusionProcessing, app, model: str, input_
     else:
         repo_id, fn = 'TencentARC/PhotoMaker', 'photomaker-v1.bin'
 
-    photomaker_path = hf.hf_hub_download(repo_id=repo_id, filename=fn, repo_type="model", cache_dir=shared.opts.hfcache_dir)
+    photomaker_path = hf.hf_hub_download(repo_id=repo_id, filename=fn, repo_type="model", cache_dir=shared.opts.hfcache_dir, local_files_only=shared.opts.offline_mode)
     log.debug(f'PhotoMaker: model="{model}" uri="{repo_id}/{fn}" images={len(input_images)} trigger={trigger} args={p.task_args}')
 
     # load photomaker adapter

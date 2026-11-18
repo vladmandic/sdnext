@@ -1,12 +1,13 @@
 # Change Log for SD.Next
 
-## Update for 2026-11-16
+## Update for 2026-11-18
 
 - [Chat](https://vladmandic.github.io/sdnext-docs/Chat/): New top-level interface  
   See [chat docs](https://vladmandic.github.io/sdnext-docs/Chat/) for more details as this is quite an extensive module  
   - Can be used as an interactive interface for generating, editing and processing images and videos through conversational prompts  
   - Can be used for advanced scripting and automation within SD.Next  
-  - Chat supports all *text2image, image2image, image-edit, processing workflows*
+  - Chat supports all *text2image, image2image, image-edit, processing* workflows  
+  - Chat supports limited *video* workflows  
   - Allows for full control of SD.Next generation parameters and settings  
   - Allows for persistent context across interactions  
 - **Models**:
@@ -62,6 +63,9 @@
   - rewritten [AMD ROCm for Windows](https://vladmandic.github.io/sdnext-docs/AMD-ROCm-Windows)
   - rewritten [AMD ROCm for Linux](https://vladmandic.github.io/sdnext-docs/AMD-ROCm-Linux)
 - **Other**
+  - stricter **offline mode** enforcement  
+    set via *settings -> model loading* or via cmd arg `--offline`  
+    offline mode now disables *reference* models and also applies to *auxiliary* models  
   - updates to *prompt enhance* and *story mode*  
     including new [ibm-granite-4.2](https://huggingface.co/ibm-granite/granite-4.2-3b) model support  
   - improved handling of HuggingFace mirror settings

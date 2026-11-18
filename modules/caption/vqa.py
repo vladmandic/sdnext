@@ -490,7 +490,12 @@ class VQA:
             log.debug(f'LLM load: vlm="{repo}"')
             self._unload_current()
             quant_args = model_quant.create_config(module='LLM')
-            self.processor = transformers.AutoTokenizer.from_pretrained(repo, trust_remote_code=True, cache_dir=shared.opts.hfcache_dir)
+            self.processor = transformers.AutoTokenizer.from_pretrained(
+                repo,
+                trust_remote_code=True,
+                cache_dir=shared.opts.hfcache_dir,
+                local_files_only=shared.opts.offline_mode,
+            )
             self.model = transformers.AutoModelForCausalLM.from_pretrained(
                 repo,
                 torch_dtype=devices.dtype,
@@ -498,6 +503,7 @@ class VQA:
                 use_safetensors=True,
                 low_cpu_mem_usage=True,
                 cache_dir=shared.opts.hfcache_dir,
+                local_files_only=shared.opts.offline_mode,
                 **quant_args,
             )
             self.model.eval()
@@ -562,7 +568,7 @@ class VQA:
             else:
                 # Fine-tunes (e.g. ToriiGate) may not have "Qwen" in the repo name.
                 # Detect the correct class from the config's model_type.
-                config = transformers.AutoConfig.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
+                config = transformers.AutoConfig.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir, local_files_only=shared.opts.offline_mode)
                 model_type = getattr(config, 'model_type', '')
                 cls_attr = self._QWEN_VL_MODEL_TYPE_MAP.get(model_type)
                 cls_name = getattr(transformers, cls_attr) if cls_attr else transformers.AutoModelForCausalLM
@@ -573,10 +579,16 @@ class VQA:
                 use_safetensors=True,
                 low_cpu_mem_usage=True,
                 cache_dir=shared.opts.hfcache_dir,
+                local_files_only=shared.opts.offline_mode,
                 **quant_args,
             )
             self.model.eval()
-            self.processor = transformers.AutoProcessor.from_pretrained(repo, max_pixels=1024*1024, cache_dir=shared.opts.hfcache_dir)
+            self.processor = transformers.AutoProcessor.from_pretrained(
+                repo,
+                max_pixels=1024*1024,
+                cache_dir=shared.opts.hfcache_dir,
+                local_files_only=shared.opts.offline_mode
+            )
             if 'LLM' in shared.opts.cuda_compile:
                 self.model = sd_models_compile.compile_torch(self.model, apply_to_components=False, op="VQA")
             register_aux('vqa', self.model)
@@ -723,12 +735,17 @@ class VQA:
                 use_safetensors=True,
                 low_cpu_mem_usage=True,
                 cache_dir=shared.opts.hfcache_dir,
+                local_files_only=shared.opts.offline_mode,
                 **quant_args,
             )
             self.model.eval()
             if 'LLM' in shared.opts.cuda_compile:
                 self.model = sd_models_compile.compile_torch(self.model, apply_to_components=False, op="VQA")
-            self.processor = transformers.AutoProcessor.from_pretrained(repo, max_pixels=1024*1024, cache_dir=shared.opts.hfcache_dir)
+            self.processor = transformers.AutoProcessor.from_pretrained(
+                repo, max_pixels=1024*1024,
+                cache_dir=shared.opts.hfcache_dir,
+                local_files_only=shared.opts.offline_mode
+            )
             register_aux('vqa', self.model)
             set_attention(self.model)
             self.loaded = repo
@@ -844,12 +861,17 @@ class VQA:
                 use_safetensors=True,
                 low_cpu_mem_usage=True,
                 cache_dir=shared.opts.hfcache_dir,
+                local_files_only=shared.opts.offline_mode,
                 **quant_args,
             )
             self.model.eval()
             if 'LLM' in shared.opts.cuda_compile:
                 self.model = sd_models_compile.compile_torch(self.model, apply_to_components=False, op="VQA")
-            self.processor = transformers.AutoProcessor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
+            self.processor = transformers.AutoProcessor.from_pretrained(
+                repo,
+                cache_dir=shared.opts.hfcache_dir,
+                local_files_only=shared.opts.offline_mode
+            )
             register_aux('vqa', self.model)
             set_attention(self.model)
             set_attention(self.model)
@@ -918,13 +940,14 @@ class VQA:
         if self.model is None or self.loaded != repo:
             log.debug(f'LLM load: vlm="{repo}"')
             self._unload_current()
-            self.processor = transformers.PaliGemmaProcessor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
+            self.processor = transformers.PaliGemmaProcessor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir, local_files_only=shared.opts.offline_mode)
             self.model = transformers.PaliGemmaForConditionalGeneration.from_pretrained(
                 repo,
                 cache_dir=shared.opts.hfcache_dir,
                 torch_dtype=devices.dtype,
                 use_safetensors=True,
                 low_cpu_mem_usage=True,
+                local_files_only=shared.opts.offline_mode,
             )
             self.model.eval()
             register_aux('vqa', self.model)
@@ -966,6 +989,7 @@ class VQA:
                     use_safetensors=True,
                     low_cpu_mem_usage=True,
                     cache_dir=shared.opts.hfcache_dir,
+                    local_files_only=shared.opts.offline_mode,
                 )
             finally:
                 transformers.AutoConfig.register = _orig
@@ -1020,10 +1044,16 @@ class VQA:
                 torch_dtype=devices.dtype,
                 use_safetensors=True,
                 low_cpu_mem_usage=True,
+                local_files_only=shared.opts.offline_mode,
                 **quant_args,
             )
             self.model.eval()
-            self.processor = transformers.AutoProcessor.from_pretrained(repo, max_pixels=1024*1024, cache_dir=shared.opts.hfcache_dir)
+            self.processor = transformers.AutoProcessor.from_pretrained(
+                repo,
+                max_pixels=1024*1024,
+                cache_dir=shared.opts.hfcache_dir,
+                local_files_only=shared.opts.offline_mode
+            )
             if 'LLM' in shared.opts.cuda_compile:
                 self.model = sd_models_compile.compile_torch(self.model, apply_to_components=False, op="VQA")
             register_aux('vqa', self.model)
@@ -1122,9 +1152,14 @@ class VQA:
                 use_safetensors=True,
                 low_cpu_mem_usage=True,
                 cache_dir=shared.opts.hfcache_dir,
+                local_files_only=shared.opts.offline_mode,
             )
             self.model.eval()
-            self.processor = transformers.GitProcessor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
+            self.processor = transformers.GitProcessor.from_pretrained(
+                repo,
+                cache_dir=shared.opts.hfcache_dir,
+                local_files_only=shared.opts.offline_mode
+            )
             register_aux('vqa', self.model)
             set_attention(self.model)
             self.loaded = repo
@@ -1157,9 +1192,14 @@ class VQA:
                 use_safetensors=True,
                 low_cpu_mem_usage=True,
                 cache_dir=shared.opts.hfcache_dir,
+                local_files_only=shared.opts.offline_mode,
             )
             self.model.eval()
-            self.processor = transformers.BlipProcessor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
+            self.processor = transformers.BlipProcessor.from_pretrained(
+                repo,
+                cache_dir=shared.opts.hfcache_dir,
+                local_files_only=shared.opts.offline_mode
+            )
             register_aux('vqa', self.model)
             set_attention(self.model)
             self.loaded = repo
@@ -1186,9 +1226,14 @@ class VQA:
                 use_safetensors=True,
                 low_cpu_mem_usage=True,
                 cache_dir=shared.opts.hfcache_dir,
+                local_files_only=shared.opts.offline_mode,
             )
             self.model.eval()
-            self.processor = transformers.ViltProcessor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
+            self.processor = transformers.ViltProcessor.from_pretrained(
+                repo,
+                cache_dir=shared.opts.hfcache_dir,
+                local_files_only=shared.opts.offline_mode
+            )
             register_aux('vqa', self.model)
             set_attention(self.model)
             self.loaded = repo
@@ -1217,9 +1262,14 @@ class VQA:
                 use_safetensors=True,
                 low_cpu_mem_usage=True,
                 cache_dir=shared.opts.hfcache_dir,
+                local_files_only=shared.opts.offline_mode,
             )
             self.model.eval()
-            self.processor = transformers.Pix2StructProcessor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
+            self.processor = transformers.Pix2StructProcessor.from_pretrained(
+                repo,
+                cache_dir=shared.opts.hfcache_dir,
+                local_files_only=shared.opts.offline_mode
+            )
             register_aux('vqa', self.model)
             set_attention(self.model)
             self.loaded = repo
@@ -1251,8 +1301,13 @@ class VQA:
                 use_safetensors=True,
                 low_cpu_mem_usage=True,
                 cache_dir=shared.opts.hfcache_dir,
+                local_files_only=shared.opts.offline_mode,
             )
-            self.processor = transformers.AutoTokenizer.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
+            self.processor = transformers.AutoTokenizer.from_pretrained(
+                repo,
+                cache_dir=shared.opts.hfcache_dir,
+                local_files_only=shared.opts.offline_mode
+            )
             self.loaded = repo
             self.model.eval()  # required: trust_remote_code model
             register_aux('vqa', self.model)
@@ -1353,10 +1408,18 @@ class VQA:
                 use_safetensors=True,
                 low_cpu_mem_usage=True,
                 cache_dir=shared.opts.hfcache_dir,
+                local_files_only=shared.opts.offline_mode,
                 **quant_args,
             )
             self.model.eval()
-            self.processor = transformers.AutoProcessor.from_pretrained(repo_name, max_pixels=1024*1024, trust_remote_code=True, revision=effective_revision, cache_dir=shared.opts.hfcache_dir)
+            self.processor = transformers.AutoProcessor.from_pretrained(
+                repo_name,
+                max_pixels=1024*1024,
+                trust_remote_code=True,
+                revision=effective_revision,
+                cache_dir=shared.opts.hfcache_dir,
+                local_files_only=shared.opts.offline_mode
+            )
             transformers.dynamic_module_utils.get_imports = _get_imports
             register_aux('vqa', self.model)
             set_attention(self.model)
@@ -1410,13 +1473,15 @@ class VQA:
                 use_flash_attn=False,
                 use_safetensors=True,
                 trust_remote_code=True,
-                cache_dir=shared.opts.hfcache_dir)
+                cache_dir=shared.opts.hfcache_dir,
+                local_files_only=shared.opts.offline_mode)
             self.model = self.model.eval()  # required: trust_remote_code model
             self.processor = transformers.AutoTokenizer.from_pretrained(
                 repo,
                 trust_remote_code=True,
                 use_fast=False,
                 cache_dir=shared.opts.hfcache_dir,
+                local_files_only=shared.opts.offline_mode,
             )
             register_aux('vqa', self.model)
             set_attention(self.model)

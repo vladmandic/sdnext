@@ -84,6 +84,8 @@ class LinFusion(ModelMixin, ConfigMixin):
         assert unet is not None or pipeline.unet is not None
         unet = unet or pipeline.unet
         if load_pretrained:
+            from modules.shared import opts
+
             # Load from pretrained
             if not pretrained_model_name_or_path:
                 pipe_name_path = pipe_name_path or pipeline._internal_dict._name_or_path # pylint: disable=protected-access
@@ -95,7 +97,7 @@ class LinFusion(ModelMixin, ConfigMixin):
                         f"LinFusion not found for pipeline [{pipe_name_path}], please provide the path."
                     )
             linfusion = (
-                LinFusion.from_pretrained(pretrained_model_name_or_path)
+                LinFusion.from_pretrained(pretrained_model_name_or_path, local_files_only=opts.offline_mode)
                 .to(unet.device)
                 .to(unet.dtype)
             )

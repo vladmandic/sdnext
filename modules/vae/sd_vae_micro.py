@@ -65,7 +65,7 @@ def decode(latents: torch.Tensor) -> torch.Tensor:
             model_path = os.path.join(model_folder, model_file)
         else:
             try:
-                model_path = hf.hf_hub_download(repo_id=repo_id, filename=model_file, local_dir=model_folder)
+                model_path = hf.hf_hub_download(repo_id=repo_id, filename=model_file, local_dir=model_folder, local_files_only=shared.opts.offline_mode)
             except Exception as e:
                 warn_once(e)
                 return latents

@@ -12,7 +12,8 @@ def remove(image, refine: bool = True):
         model_file = hf_hub_download(
             repo_id='PramaLLC/BEN2',
             filename='BEN2_Base.pth',
-            cache_dir=shared.opts.hfcache_dir)
+            cache_dir=shared.opts.hfcache_dir,
+            local_files_only=shared.opts.offline_mode)
         model.loadcheckpoints(model_file)
         model = model.to(device=devices.device, dtype=devices.dtype).eval()
 

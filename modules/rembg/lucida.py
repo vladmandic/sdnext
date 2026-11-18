@@ -8,6 +8,7 @@ def remove(image):
     from torchvision import transforms
     from transformers import AutoModelForImageSegmentation
     from modules import devices
+    from modules.shared import opts
 
     global model # pylint: disable=global-statement
 
@@ -15,6 +16,7 @@ def remove(image):
         model = AutoModelForImageSegmentation.from_pretrained(repo_id,
                                                               trust_remote_code=True,
                                                               dtype=torch.float32,
+                                                              local_files_only=opts.offline_mode,
                                                              )
         model.eval()
 

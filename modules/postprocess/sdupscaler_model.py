@@ -31,7 +31,7 @@ class UpscalerDiffusion(Upscaler):
             log.debug(f"Upscaler cached: type={scaler.name} model={path}")
             return self.models[path]
         else:
-            model = diffusers.DiffusionPipeline.from_pretrained(scaler.data_path, cache_dir=shared.opts.diffusers_dir, torch_dtype=devices.dtype)
+            model = diffusers.DiffusionPipeline.from_pretrained(scaler.data_path, cache_dir=shared.opts.diffusers_dir, torch_dtype=devices.dtype, local_files_only=shared.opts.offline_mode)
             if hasattr(model, "set_progress_bar_config"):
                 model.set_progress_bar_config(bar_format='Progress {rate_fmt}{postfix} {bar:15} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining} ' + '\x1b[38;5;71m' + 'Upscale', ncols=120, colour='#327fba')
             set_diffuser_options(model, vae=None, op='upscaler')

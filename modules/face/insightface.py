@@ -34,7 +34,8 @@ def get_app(mp_name, threshold=0.5, resolution=640):
                 repo_id='vladmandic/insightface-faceanalysis',
                 filename=f'{mp_name}.zip',
                 cache_dir=opts.hfcache_dir,
-                local_dir=local_dir
+                local_dir=local_dir,
+                local_files_only=opts.offline_mode,
             )
         if not os.path.exists(extract_dir):
             log.debug(f'InsightFace extract: folder="{extract_dir}"')

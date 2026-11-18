@@ -79,7 +79,7 @@ def face_id(
             ip_ckpt = FACEID_MODELS[model]
             folder, filename = os.path.split(ip_ckpt)
             basename, _ext = os.path.splitext(filename)
-            model_path = hf.hf_hub_download(repo_id=folder, filename=filename, cache_dir=shared.opts.hfcache_dir)
+            model_path = hf.hf_hub_download(repo_id=folder, filename=filename, cache_dir=shared.opts.hfcache_dir, local_files_only=shared.opts.offline_mode)
             if model_path is None:
                 log.error(f'FaceID download failed: model={model} file="{ip_ckpt}"')
                 return None

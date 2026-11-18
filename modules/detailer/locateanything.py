@@ -22,6 +22,8 @@ def load(self, model_name: str | None = None):
         'cache_dir': shared.opts.hfcache_dir,
         'trust_remote_code': True,
     }
+    if shared.opts.offline_mode:
+        load_kwargs['local_files_only'] = True
     dependencies()
     tokenizer = transformers.AutoTokenizer.from_pretrained(**load_kwargs)
     processor = transformers.AutoProcessor.from_pretrained(**load_kwargs)

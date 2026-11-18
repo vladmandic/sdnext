@@ -17,6 +17,8 @@ def load(self, model_name: str | None = None) -> tuple[str | None, transformers.
         'cache_dir': shared.opts.hfcache_dir,
         'torch_dtype': devices.dtype,
     }
+    if shared.opts.offline_mode:
+        load_kwargs['local_files_only'] = True
     model = transformers.Sam3Model.from_pretrained(**load_kwargs)
     model = model.eval()
     model.processor = transformers.Sam3Processor.from_pretrained(**load_kwargs)

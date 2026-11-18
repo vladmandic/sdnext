@@ -52,6 +52,8 @@ def load(self, model_name: str | None = None) -> tuple[str | None, transformers.
         'torch_dtype': devices.dtype,
         'trust_remote_code': True,
     }
+    if shared.opts.offline_mode:
+        load_kwargs['local_files_only'] = True
     quant_args = model_quant.create_config(module='LLM', modules_to_not_convert=['conv1d'])
     model = transformers.Florence2ForConditionalGeneration.from_pretrained(
         **load_kwargs,

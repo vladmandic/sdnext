@@ -39,9 +39,9 @@ def instant_id(p: processing.StableDiffusionProcessing, app, source_images, stre
         log.debug(f'InstantID face: score={face.det_score:.2f} gender={"female" if face.gender==0 else "male"} age={face.age} bbox={face.bbox}')
 
     log.debug(f'InstantID loading: model={REPO_ID}')
-    face_adapter = hf.hf_hub_download(repo_id=REPO_ID, filename="ip-adapter.bin")
+    face_adapter = hf.hf_hub_download(repo_id=REPO_ID, filename="ip-adapter.bin", local_files_only=shared.opts.offline_mode)
     if controlnet_model is None or not cache:
-        controlnet_model = ControlNetModel.from_pretrained(REPO_ID, subfolder="ControlNetModel", torch_dtype=devices.dtype, cache_dir=shared.opts.diffusers_dir)
+        controlnet_model = ControlNetModel.from_pretrained(REPO_ID, subfolder="ControlNetModel", torch_dtype=devices.dtype, cache_dir=shared.opts.diffusers_dir, local_files_only=shared.opts.offline_mode)
         sd_models.move_model(controlnet_model, devices.device)
 
     # create new pipeline

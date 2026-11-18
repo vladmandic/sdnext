@@ -24,7 +24,7 @@ def get_model(model_name: str):
     if reswapper_model is None or reswapper_name != model_name:
         try:
             fn = RESWAPPER_MODELS.get(model_name)
-            url = hf.hf_hub_download(repo_id=RESWAPPER_REPO, filename=fn, repo_type="model", cache_dir=shared.opts.hfcache_dir)
+            url = hf.hf_hub_download(repo_id=RESWAPPER_REPO, filename=fn, repo_type="model", cache_dir=shared.opts.hfcache_dir, local_files_only=shared.opts.offline_mode)
             from modules.face.reswapper_model import ReSwapperModel
             reswapper_model = ReSwapperModel()
             reswapper_model.load_state_dict(torch.load(url, map_location='cpu'), strict=False)

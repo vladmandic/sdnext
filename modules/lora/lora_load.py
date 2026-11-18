@@ -167,7 +167,7 @@ def network_download(name):
     if len(parts) >= 5 and parts[1] == 'huggingface.co':
         repo_id = f'{parts[2]}/{parts[3]}'
         filename = '/'.join(parts[4:])
-        fn = hf_hub_download(repo_id=repo_id, filename=filename, cache_dir=shared.opts.hfcache_dir)
+        fn = hf_hub_download(repo_id=repo_id, filename=filename, cache_dir=shared.opts.hfcache_dir, local_files_only=shared.opts.offline_mode)
         return network.NetworkOnDisk(name, fn)
     return None
 

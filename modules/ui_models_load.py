@@ -168,8 +168,6 @@ class Component:
             load_args['revision'] = self.revision
         if self.dtype is not None:
             load_args['torch_dtype'] = getattr(torch, self.dtype)
-        if shared.opts.offline_mode:
-            load_args['local_files_only'] = True
         if not hasattr(self.cls, 'from_pretrained'):
             debug_log(f'Model load component: name="{self.name}" cls={self.cls} not loadable')
             return None
@@ -201,12 +199,18 @@ class Component:
                     return ggml.load_gguf_diffusers(self.local, cls=self.cls, compute_dtype=self.dtype)
                 else:
                     debug_log(f'Model load component: local="{self.local}" type=folder args={load_args} quant={quant_type}')
+                    if shared.opts.offline_mode:
+                        load_args['local_files_only'] = True
                     return self.cls.from_pretrained(self.local, **load_args, **quant_args, cache_dir=shared.opts.hfcache_dir)
             elif self.repo is not None and len(self.repo) > 0:
                 debug_log(f'Model load component: repo="{self.repo}" args={load_args} quant={quant_type}')
+                if shared.opts.offline_mode:
+                    load_args['local_files_only'] = True
                 return self.cls.from_pretrained(self.repo, **load_args, **quant_args, cache_dir=shared.opts.hfcache_dir)
             elif self.val is not None and len(self.val) > 0:
                 debug_log(f'Model load component: default="{self.val}" args={load_args} quant={quant_type}')
+                if shared.opts.offline_mode:
+                    load_args['local_files_only'] = True
                 return self.cls.from_pretrained(self.val, **load_args, **quant_args, cache_dir=shared.opts.hfcache_dir)
             else:
                 debug_log(f'Model load component: name="{self.name}" cls={self.cls} no handler')

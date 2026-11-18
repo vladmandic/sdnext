@@ -58,6 +58,7 @@ def load_model(repo: str):
             torch_dtype=devices.dtype,
             use_safetensors=True,
             cache_dir=shared.opts.hfcache_dir,
+            local_files_only=shared.opts.offline_mode,
         )
 
         moondream3_model.eval()  # required: trust_remote_code model

@@ -30,6 +30,8 @@ def load(self, model_name: str | None = None) -> tuple[str | None, transformers.
         'torch_dtype': devices.dtype,
         'trust_remote_code': True,
     }
+    if shared.opts.offline_mode:
+        load_kwargs['local_files_only'] = True
     quant_args = model_quant.create_config(module='LLM', modules_to_not_convert=['conv1d', 'linear_attn.conv1d', 'embed_tokens', 'lm_head'])
     model = transformers.Qwen2_5_VLForConditionalGeneration.from_pretrained(
         **load_kwargs,
@@ -40,7 +42,8 @@ def load(self, model_name: str | None = None) -> tuple[str | None, transformers.
     model.processor = transformers.AutoProcessor.from_pretrained(
         repo_id,
         cache_dir=shared.opts.hfcache_dir,
-        trust_remote_code=True
+        trust_remote_code=True,
+        local_files_only=shared.opts.offline_mode,
     )
 
     sd_offload_aux.register_aux(model_name, model)
