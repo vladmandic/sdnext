@@ -501,6 +501,10 @@ def network_deactivate(include=None, exclude=None):
                         if task is not None:
                             pbar.update(task, advance=1)
                         continue
+                    if not getattr(module, 'network_current_names', ()): # no set on the layer: a pass after the job-end removal would subtract the delta again
+                        if task is not None:
+                            pbar.update(task, advance=1)
+                        continue
                     batch_updown, batch_ex_bias = network_calc_weights(module, network_layer_name, use_previous=True, elimit=elimit)
                     if fuse:
                         weight_written, bias_written = network_apply_direct(module, batch_updown, batch_ex_bias, device=device, deactivate=True)

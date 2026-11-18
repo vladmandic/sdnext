@@ -731,6 +731,26 @@ def test_fuse_change_then_remove_restores_pristine():
     return True
 
 
+def test_fuse_removal_twice_subtracts_once():
+    """LoRA force reload removes the fused set when a job ends and the next activation removes
+    the previous set again before applying: the second pass finds no set on the layer."""
+    lin, net, D = fuse_fixture(te0=1.0)
+    with mock_model(lin=lin):
+        shared.opts.lora_fuse_native = True
+        W0 = lin.weight.detach().float().clone()
+        activate(net)
+        for _job in range(3):
+            networks.network_deactivate() # job end
+            l_common.previously_loaded_networks[:] = l_common.loaded_networks
+            networks.network_deactivate() # next job, before it applies
+            rho = rho_of(lin.weight.detach().float() - W0, D)
+            assert abs(rho) < 0.05, f'rho={rho:.3f} the removed set was subtracted again'
+            networks.network_activate()
+            rho = rho_of(lin.weight.detach().float() - W0, D)
+            assert abs(rho - 1.0) < 0.05, f'rho={rho:.3f} expected the set applied once'
+    return True
+
+
 # ============================================================
 # Tests - the pristine base of weight-dependent deltas
 # ============================================================
@@ -3613,7 +3633,7 @@ def run_tests():
         run_test(CAT_E2E, fn)
     log.warning('=== Set transitions ===')
     for fn in [test_mixed_family_transition_restores_base, test_partial_coverage_layers_stay_independent, test_dropped_factors_do_not_count_as_applied, test_component_filter_leaves_other_layers_untouched,
-               test_apply_restore_preserves_weight_storage, test_fuse_promote_applies_new_multiplier, test_fuse_change_then_remove_restores_pristine,
+               test_apply_restore_preserves_weight_storage, test_fuse_promote_applies_new_multiplier, test_fuse_change_then_remove_restores_pristine, test_fuse_removal_twice_subtracts_once,
                test_mechanism_gate_declines_candidates, test_requantize_option_routes_to_legacy_path,
                test_mechanism_flip_strips_attached_factors, test_mechanism_flip_restore_pass_strips,
                test_fuse_set_removed_after_switch_to_backup, test_fuse_set_removed_before_backup_set,
