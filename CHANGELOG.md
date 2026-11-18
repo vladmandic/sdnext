@@ -122,6 +122,7 @@ Plus [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) bel
   - ideogram: a text encoder that fails to move to the gpu goes back to the cpu instead of staying partly on the gpu
   - lora: *LoRA auto-apply tags* reach the first batch, keep their metadata order and are added when a tag is part of the lora file name
   - lora: *LoRA force reload always* with native fuse no longer removes the lora twice per batch, which pushed every later image further from the lora
+  - lora: *LoRA force reload always* with native fuse off keeps the auto-apply tags and the lora metadata on every job, not only the first
   - dlss: batch images keep their own seed and prompt in saved metadata, resize and grading are no longer applied twice, the grid is not saved as an extra image
   - scripts: *Prompt matrix* runs again instead of failing with an index error before generating
   - control: image metadata is no longer shifted by one when a grid leads the returned images

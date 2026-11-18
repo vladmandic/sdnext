@@ -950,6 +950,36 @@ def test_method_switch_ignores_a_model_change():
     return True
 
 
+def test_forced_activation_reports_a_set_already_on_the_model():
+    """LoRA force reload runs a pass on every job; one that finds each layer carrying the set writes nothing and still reports it."""
+    import types
+    from modules import extra_networks
+    from modules.lora import extra_networks_lora, lora_load, lora_overrides
+    saved = lora_load.network_load, lora_overrides.get_method, extra_networks_lora.infotext, extra_networks_lora.prompt, shared.opts.lora_force_reload
+    try:
+        for fuse in (False, True):
+            lin, w0 = plain_fixture()
+            net = small_net('forced', lin)
+            reported = []
+            lora_load.network_load = lambda *args, net=net, **kwargs: l_common.loaded_networks.__setitem__(slice(None), [net])
+            lora_overrides.get_method = lambda shorthash='': ('native', 'test')
+            extra_networks_lora.infotext = lambda p, reported=reported: reported.append('infotext')
+            extra_networks_lora.prompt = lambda p, reported=reported: reported.append('prompt')
+            with mock_model(lin=lin):
+                shared.opts.lora_fuse_native = fuse
+                shared.opts.lora_force_reload = True
+                handler = extra_networks_lora.ExtraNetworkLora()
+                p = types.SimpleNamespace(steps=20)
+                for job in range(3):
+                    handler.activate(p, [extra_networks.ExtraNetworkParams(['forced', '1.0'])])
+                    assert reported == ['infotext', 'prompt'] * (job + 1), f'fuse={fuse} job={job} reported={reported}'
+                    assert float((lin.weight.detach() - w0).abs().max()) > 0.1, f'fuse={fuse} job={job} the set must be on the weight'
+                    handler.deactivate(p, force=True)
+    finally:
+        lora_load.network_load, lora_overrides.get_method, extra_networks_lora.infotext, extra_networks_lora.prompt, shared.opts.lora_force_reload = saved
+    return True
+
+
 def split_dora_net(name, layers, magnitude):
     """One per-input DoRA over the fused weight of ``layers``, split in equal chunks that share the column norm."""
     net = network.Network(name, MockNOD(name))
@@ -3639,7 +3669,7 @@ def run_tests():
                test_fuse_set_removed_after_switch_to_backup, test_fuse_set_removed_before_backup_set,
                test_fuse_weight_dependent_set_removed_after_switch_to_backup, test_backup_set_removed_after_switch_to_fuse,
                test_remove_takes_every_native_set_off, test_remove_runs_with_force_diffusers_on, test_method_switch_removes_native_sets,
-               test_method_switch_unloads_diffusers_adapters, test_method_switch_ignores_a_model_change]:
+               test_method_switch_unloads_diffusers_adapters, test_method_switch_ignores_a_model_change, test_forced_activation_reports_a_set_already_on_the_model]:
         run_test(CAT_TRANS, fn)
     log.warning('=== Pristine base ===')
     for fn in [test_backup_mode_computes_dora_on_the_pristine_weight, test_fuse_mode_restores_a_weight_dependent_set_from_its_copy,

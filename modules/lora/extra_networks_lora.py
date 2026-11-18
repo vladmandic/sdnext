@@ -359,7 +359,8 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
         if has_changed:
             sd_hijack_te.prompt_cache.cache.clear()
 
-        if len(l.loaded_networks) > 0 and (len(networks.applied_layers) > 0 or load_method=='diffusers' or load_method=='nunchaku') and step == 0:
+        bound = load_method in ('diffusers', 'nunchaku') or any(len(n.modules) > 0 for n in l.loaded_networks) # not applied_layers: a pass over layers already carrying the set writes none
+        if len(l.loaded_networks) > 0 and bound and step == 0:
             infotext(p)
             prompt(p)
             sd_model = shared.sd_model.pipe if hasattr(shared.sd_model, 'pipe') else shared.sd_model
