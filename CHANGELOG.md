@@ -123,6 +123,7 @@ Plus [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) bel
   - lora: *LoRA auto-apply tags* reach the first batch, keep their metadata order and are added when a tag is part of the lora file name
   - lora: *LoRA force reload always* with native fuse no longer removes the lora twice per batch, which pushed every later image further from the lora
   - dlss: batch images keep their own seed and prompt in saved metadata, resize and grading are no longer applied twice, the grid is not saved as an extra image
+  - scripts: *Prompt matrix* runs again instead of failing with an index error before generating
   - ltx: *Tiny* live previews show the video instead of a placeholder
   - ltx: tab passes no longer run with the previous job's guidance end, sigma adjust and correction settings
   - minimax: quantized *H3* fix decode

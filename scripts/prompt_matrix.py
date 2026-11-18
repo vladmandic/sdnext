@@ -65,6 +65,7 @@ class PromptMatrixScript(scripts_manager.Script):
         else:
             p.negative_prompt = all_prompts
         p.seed = [int(p.seed + (i if different_seeds else 0)) for i in range(len(all_prompts))]
+        p.all_prompts, p.all_negative_prompts, p.all_seeds = [], [], [] # rebuilt from the lists above; fix_seed left one seed
         p.prompt_for_display = positive_prompt
         processed = process_images(p)
 
