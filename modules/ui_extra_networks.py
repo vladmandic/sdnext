@@ -328,7 +328,7 @@ class ExtraNetworksPage:
                 subdirs[subdir] = 1
         debug(f'Networks: page="{self.name}" subfolders={list(subdirs)}')
         subdirs = OrderedDict(sorted(subdirs.items()))
-        if self.name == 'model' and shared.opts.extra_network_reference_enable:
+        if (self.name == 'model') and shared.opts.extra_network_reference_enable and not shared.opts.offline_mode:
             subdirs['Local'] = 1
             subdirs['Base'] = 1
             subdirs['Distilled'] = 1

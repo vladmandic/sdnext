@@ -60,8 +60,8 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
             url = url.split('+')[0] if '+' in url else url
             return any(model.endswith(url) for model in existing)
 
-        if not shared.opts.sd_checkpoint_autodownload or not shared.opts.extra_network_reference_enable:
-            log.debug(f'Networks: type="reference" autodownload={shared.opts.sd_checkpoint_autodownload} enable={shared.opts.extra_network_reference_enable}')
+        if not shared.opts.sd_checkpoint_autodownload or not shared.opts.extra_network_reference_enable or shared.opts.offline_mode:
+            log.warning(f'Networks: type="reference" autodownload={shared.opts.sd_checkpoint_autodownload} enable={shared.opts.extra_network_reference_enable} online={not shared.opts.offline_mode}')
             return []
         count = { 'total': 0, 'ready': 0, 'hidden': 0, 'experimental': 0, 'base': 0, 'quantized': 0, 'distilled': 0, 'community': 0, 'cloud': 0, 'nunchaku': 0 }
 
