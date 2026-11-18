@@ -2,6 +2,28 @@
 
 ## Update for 2026-11-18
 
+### Highlights for 2026-11-18
+
+Slighly longer release cycle resulted in quite large set of updates:
+- New top-level interface: [Chat](https://vladmandic.github.io/sdnext-docs/Chat/)!  
+  Allows both interactive and automated conversational workflows for generating, editing, and processing images and videos  
+- New models: **MiniMax-H3-Image**, **BluePixel-Turbo**
+- Larger updates to:
+  - [SD.Next Launcher](https://github.com/vladmandic/sdnext-launcher)
+  - **Detailer** (add *LocateAnything* model), **Prompt-Enhance** and **Script-Mode** (improvements plus add *Granite* model)
+  - **Video encoding**, including codec improvements, color-space handling and overall quality
+- Plus tons of minor improvements and bug fixes  
+  For example, improved *offline* mode, *hf mirror* handling, *model storage* consolidation, new *strict mode*, *image metadata* handling, new *image formats*, etc.  
+
+From **user docs** side, check out rewritten [AMD ROCm](https://vladmandic.github.io/sdnext-docs/AMD-ROCm) guide, new [Model Storage](https://vladmandic.github.io/sdnext-docs/Model-Storage) notes  
+And for **AI docs**, see [instructions](https://github.com/vladmandic/sdnext/blob/dev/AGENTS.md) and [skills](https://github.com/vladmandic/sdnext/blob/dev/.github/skills/README.md)  
+
+Plus [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) below for full details...
+
+[Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
+
+### Details for 2026-11-18
+
 - [Chat](https://vladmandic.github.io/sdnext-docs/Chat/): New top-level interface  
   See [chat docs](https://vladmandic.github.io/sdnext-docs/Chat/) for more details as this is quite an extensive module  
   - Can be used as an interactive interface for generating, editing and processing images and videos through conversational prompts  
