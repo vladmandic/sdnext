@@ -4,7 +4,7 @@
 
 ### Highlights for 2026-11-18
 
-Slighly longer release cycle resulted in quite large set of updates:
+Slightly longer release cycle resulted in quite large set of updates:
 - New top-level interface: [Chat](https://vladmandic.github.io/sdnext-docs/Chat/)!  
   Allows both interactive and automated conversational workflows for generating, editing, and processing images and videos  
 - New models: **MiniMax-H3-Image**, **BluePixel-Turbo**
