@@ -375,6 +375,9 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
             unload_diffusers()
         if force:
             networks.network_deactivate()
+            sd_model = getattr(shared.sd_model, 'pipe', shared.sd_model)
+            if sd_model is not None and hasattr(sd_model, 'loaded_loras'):
+                sd_model.loaded_loras.clear() # the sets came off: the same tags without force reload must apply again
         if self.active and l.debug:
             log.debug(f"Network end: type=LoRA time={l.timer.summary}")
         if self.errors:
