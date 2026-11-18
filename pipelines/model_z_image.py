@@ -17,11 +17,12 @@ def init_nunchaku():
     nunchaku_repo = f"nunchaku-ai/nunchaku-z-image-turbo/svdq-{nunchaku_precision}_r{nunchaku_rank}-z-image-turbo.safetensors"
     repo_id, filename = nunchaku_repo.rsplit('/', 1)
     log.debug(f'Load module: quant=Nunchaku module=transformer repo="{nunchaku_repo}" attention={shared.opts.nunchaku_attention}')
-    local_path = hf_hub_download(repo_id=repo_id, filename=filename, cache_dir=shared.opts.hfcache_dir)
+    local_path = hf_hub_download(repo_id=repo_id, filename=filename, cache_dir=shared.opts.hfcache_dir, local_files_only=shared.opts.offline_mode)
     transformer = nunchaku.NunchakuZImageTransformer2DModel.from_pretrained( # pylint: disable=no-member
         local_path,
         cache_dir=shared.opts.hfcache_dir,
         torch_dtype=devices.dtype,
+        local_files_only=shared.opts.offline_mode,
     )
     return transformer
 

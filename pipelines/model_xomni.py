@@ -26,12 +26,16 @@ class XOmniPipeline(diffusers.DiffusionPipeline):
             load_config: dict = {},
         ):
         from pipelines.xomni import modeling_xomni
+        load_config = load_config.copy()
+        if shared.opts.offline_mode:
+            load_config['local_files_only'] = True
         load_args, quant_args = model_quant.get_dit_args(load_config, module='Model', device_map=True)
         log.debug(f'Load model: cls=XOmniPipeline module=tokenizer repo_id="{repo_id}"')
         self.tokenizer = transformers.AutoTokenizer.from_pretrained(
             repo_id,
             cache_dir=shared.opts.hfcache_dir,
             use_fast=True,
+            local_files_only=shared.opts.offline_mode,
         )
         log.debug(f'Load model: cls=XOmniPipeline module=transformer repo_id="{repo_id}" args={load_args}')
         # self.model = transformers.AutoModelForCausalLM.from_pretrained(

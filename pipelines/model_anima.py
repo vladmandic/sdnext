@@ -30,16 +30,23 @@ def _load_text_conditioner(repo_id: str, adapter_cls):
     if config.get('use_layer_norm', False) or config.get('min_sequence_length', 512) != 512:
         raise ValueError(f'text_conditioner use_layer_norm={config.get("use_layer_norm")} min_sequence_length={config.get("min_sequence_length")} not supported')
     renamed = {new: config[old] for old, new in TEXT_CONDITIONER_KEYS.items() if old in config}
-    return adapter_cls.from_pretrained(repo_id, subfolder='text_conditioner', cache_dir=shared.opts.hfcache_dir, torch_dtype=devices.dtype, **renamed)
+    return adapter_cls.from_pretrained(
+        repo_id,
+        subfolder='text_conditioner',
+        cache_dir=shared.opts.hfcache_dir,
+        torch_dtype=devices.dtype,
+        local_files_only=shared.opts.offline_mode,
+        **renamed,
+    )
 
 
 def build_modular_pipeline(cls, repo_id: str, load_args: dict, **components):
     """Assemble the pipeline from a modular repo, which has no model_index.json for from_pretrained to read."""
     pipe = cls(
-        tokenizer=transformers.Qwen2Tokenizer.from_pretrained(repo_id, subfolder='tokenizer', cache_dir=shared.opts.diffusers_dir),
-        t5_tokenizer=transformers.T5Tokenizer.from_pretrained(repo_id, subfolder='t5_tokenizer', cache_dir=shared.opts.diffusers_dir),
+        tokenizer=transformers.Qwen2Tokenizer.from_pretrained(repo_id, subfolder='tokenizer', cache_dir=shared.opts.diffusers_dir, local_files_only=shared.opts.offline_mode),
+        t5_tokenizer=transformers.T5Tokenizer.from_pretrained(repo_id, subfolder='t5_tokenizer', cache_dir=shared.opts.diffusers_dir, local_files_only=shared.opts.offline_mode),
         vae=diffusers.AutoencoderKLWan.from_pretrained(repo_id, subfolder='vae', cache_dir=shared.opts.diffusers_dir, **load_args),
-        scheduler=diffusers.FlowMatchEulerDiscreteScheduler.from_pretrained(repo_id, subfolder='scheduler', cache_dir=shared.opts.diffusers_dir),
+        scheduler=diffusers.FlowMatchEulerDiscreteScheduler.from_pretrained(repo_id, subfolder='scheduler', cache_dir=shared.opts.diffusers_dir, local_files_only=shared.opts.offline_mode),
         **components,
     )
     pipe.register_to_config(_name_or_path=repo_id)
@@ -95,6 +102,8 @@ def load_anima(checkpoint_info, diffusers_load_config=None):
 
     modular = local_file is None and is_modular_layout(checkpoint_info.path)
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, allow_quant=False)
+    if shared.opts.offline_mode:
+        load_args['local_files_only'] = True
     load_args.pop('cache_dir', None)
     log.debug(f'Load model: type=Anima repo="{repo_id}" file="{local_file}" modular={modular} config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
@@ -134,6 +143,7 @@ def load_anima(checkpoint_info, diffusers_load_config=None):
                     subfolder="llm_adapter",
                     cache_dir=shared.opts.hfcache_dir,
                     torch_dtype=devices.dtype,
+                    local_files_only=shared.opts.offline_mode,
                 )
         except Exception as e:
             log.error(f'Load model: type=Anima adapter: {e}')

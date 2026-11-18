@@ -12,6 +12,8 @@ def init_llama(diffusers_load_config=None):
     llama_repo = shared.opts.model_h1_llama_repo if shared.opts.model_h1_llama_repo != 'Default' else 'meta-llama/Meta-Llama-3.1-8B-Instruct'
     log.debug(f'Load model: type=HiDream te4="{llama_repo}" quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')
     sd_models.hf_auth_check(llama_repo)
+    if shared.opts.offline_mode:
+        load_args['local_files_only'] = True
 
     text_encoder_4 = transformers.LlamaForCausalLM.from_pretrained(
         llama_repo,
@@ -51,6 +53,8 @@ def load_hidream_o1(checkpoint_info, diffusers_load_config=None):
     o1_load_config['trust_remote_code'] = True
 
     path_args = {}
+    if shared.opts.offline_mode:
+        path_args['local_files_only'] = True
     if 'vladmandic' in repo_id.lower():
         path_args['subfolder'] = 'transformer'
     transformer = HiDreamO1Qwen3VLTransformer.from_pretrained(

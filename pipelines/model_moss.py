@@ -60,9 +60,9 @@ def load_moss_image(checkpoint_info, diffusers_load_config=None):
     pipe = MOSSImagePipeline(
         transformer=transformer,
         text_encoder=text_encoder,
-        tokenizer=transformers.Qwen2Tokenizer.from_pretrained(repo_id, subfolder='tokenizer', cache_dir=shared.opts.diffusers_dir),
+        tokenizer=transformers.Qwen2Tokenizer.from_pretrained(repo_id, subfolder='tokenizer', cache_dir=shared.opts.diffusers_dir, local_files_only=shared.opts.offline_mode),
         vae=diffusers.AutoencoderKLFlux2.from_pretrained(repo_id, subfolder='vae', cache_dir=shared.opts.diffusers_dir, **load_args),
-        scheduler=MOSSImageFlowMatchScheduler.from_pretrained(repo_id, subfolder='scheduler', cache_dir=shared.opts.diffusers_dir),
+        scheduler=MOSSImageFlowMatchScheduler.from_pretrained(repo_id, subfolder='scheduler', cache_dir=shared.opts.diffusers_dir, local_files_only=shared.opts.offline_mode),
     )
     pipe.register_to_config(_name_or_path=repo_id)
     generic.load_vae_override(pipe, diffusers_load_config)

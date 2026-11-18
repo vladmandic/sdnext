@@ -40,6 +40,7 @@ def load_zetachroma(checkpoint_info, diffusers_load_config=None):
         subfolder="tokenizer",
         cache_dir=shared.opts.hfcache_dir,
         trust_remote_code=True,
+        local_files_only=shared.opts.offline_mode,
     )
 
     pipe = zetachroma.ZetaChromaPipeline.from_pretrained(

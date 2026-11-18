@@ -14,7 +14,7 @@ def fibo2_fonts(repo_id):
     """Paths of the repo's fallback fonts the pipeline draws caption text with; empty when they cannot be fetched."""
     from huggingface_hub import hf_hub_download
     try:
-        return [hf_hub_download(repo_id, name, subfolder='fonts', cache_dir=shared.opts.diffusers_dir) for name in FIBO2_FONTS]
+        return [hf_hub_download(repo_id, name, subfolder='fonts', cache_dir=shared.opts.diffusers_dir, local_files_only=shared.opts.offline_mode) for name in FIBO2_FONTS]
     except Exception as e:
         log.warning(f'Load model: type=BriaFibo2 fonts="{repo_id}/fonts" {e}')
         return []

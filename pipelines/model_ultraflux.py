@@ -32,6 +32,7 @@ def load_ultraflux(checkpoint_info, diffusers_load_config=None):
         subfolder='vae',
         cache_dir=shared.opts.hfcache_dir,
         torch_dtype=devices.dtype,
+        local_files_only=shared.opts.offline_mode,
     )
     pipe = UltraFluxPipeline.from_pretrained(
         repo_id,

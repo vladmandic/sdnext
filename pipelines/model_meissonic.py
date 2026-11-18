@@ -16,6 +16,8 @@ def load_meissonic(checkpoint_info, diffusers_load_config=None):
         diffusers_load_config = {}
     diffusers_load_config = diffusers_load_config.copy()
     diffusers_load_config.pop('cache_dir', None)
+    if shared.opts.offline_mode:
+        diffusers_load_config['local_files_only'] = True
     repo_id = sd_models.path_to_repo(checkpoint_info)
     sd_models.hf_auth_check(checkpoint_info)
 
@@ -41,16 +43,19 @@ def load_meissonic(checkpoint_info, diffusers_load_config=None):
         repo_id,
         subfolder="text_encoder",
         cache_dir=shared.opts.hfcache_dir,
+        local_files_only=shared.opts.offline_mode,
     )
     tokenizer = transformers.CLIPTokenizer.from_pretrained(
         repo_id,
         subfolder="tokenizer",
         cache_dir=shared.opts.hfcache_dir,
+        local_files_only=shared.opts.offline_mode,
     )
     scheduler = MeissonicScheduler.from_pretrained(
         repo_id,
         subfolder="scheduler",
         cache_dir=shared.opts.hfcache_dir,
+        local_files_only=shared.opts.offline_mode,
     )
     pipe = MeissonicPipeline(
             vqvae=vqvae.to(devices.dtype),

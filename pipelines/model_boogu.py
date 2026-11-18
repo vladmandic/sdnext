@@ -29,7 +29,7 @@ def load_boogu(checkpoint_info, diffusers_load_config=None):
 
     mllm = generic.load_text_encoder(repo_id, cls_name=transformers.Qwen3VLForConditionalGeneration, load_config=diffusers_load_config, subfolder='mllm')
     transformer = generic.load_transformer(repo_id, cls_name=BooguImageTransformer2DModel, load_config=diffusers_load_config)
-    scheduler = scheduling_flow_match_euler_discrete_time_shifting.FlowMatchEulerDiscreteScheduler.from_pretrained(repo_id, subfolder='scheduler', cache_dir=shared.opts.diffusers_dir)
+    scheduler = scheduling_flow_match_euler_discrete_time_shifting.FlowMatchEulerDiscreteScheduler.from_pretrained(repo_id, subfolder='scheduler', cache_dir=shared.opts.diffusers_dir, local_files_only=shared.opts.offline_mode)
 
     if 'turbo' in repo_id.lower():
         cls = BooguImageTurboPipeline

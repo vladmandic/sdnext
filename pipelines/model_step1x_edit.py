@@ -26,7 +26,7 @@ def load_step1x_edit(checkpoint_info, diffusers_load_config=None):
     transformer = generic.load_transformer(repo_id, cls_name=Step1XEditTransformer2DModel, load_config=diffusers_load_config, native_spec=STEP1X_SPEC)
     if repo_id is None or repo_id.lower() == 'none':
         return None
-    processor = transformers.Qwen2_5_VLProcessor.from_pretrained(repo_id, cache_dir=shared.opts.hfcache_dir, subfolder='processor')
+    processor = transformers.Qwen2_5_VLProcessor.from_pretrained(repo_id, cache_dir=shared.opts.hfcache_dir, subfolder='processor', local_files_only=shared.opts.offline_mode)
 
     pipe = Step1XEditPipeline.from_pretrained(
         repo_id,

@@ -44,6 +44,7 @@ def load_vibe(checkpoint_info, diffusers_load_config=None):
         repo_id,
         subfolder='tokenizer',
         cache_dir=shared.opts.hfcache_dir,
+        local_files_only=shared.opts.offline_mode,
     )
 
     pipe = VIBESanaEditingPipeline.from_pretrained(

@@ -12,7 +12,7 @@ def init_quants(kwargs, repo_id, cache_dir):
         nunchaku_precision = nunchaku.utils.get_precision()
         nunchaku_repo = "nunchaku-ai/nunchaku-sana/svdq-int4_r32-sana1.6b.safetensors"
         log.debug(f'Load module: quant=Nunchaku module=transformer repo="{nunchaku_repo}" precision={nunchaku_precision} attention={shared.opts.nunchaku_attention}')
-        kwargs['transformer'] = nunchaku.NunchakuSanaTransformer2DModel.from_pretrained(nunchaku_repo, torch_dtype=devices.dtype, cache_dir=cache_dir)
+        kwargs['transformer'] = nunchaku.NunchakuSanaTransformer2DModel.from_pretrained(nunchaku_repo, torch_dtype=devices.dtype, cache_dir=cache_dir, local_files_only=shared.opts.offline_mode)
     elif model_quant.check_quant('Model'):
         load_args, quant_args = model_quant.get_dit_args(kwargs_copy, module='Model')
         load_args.pop('cache_dir', None)
@@ -36,6 +36,8 @@ def load_sana(checkpoint_info, kwargs=None):
     kwargs.pop('safety_checker', None)
     kwargs.pop('requires_safety_checker', None)
     kwargs.pop('torch_dtype', None)
+    if shared.opts.offline_mode:
+        kwargs['local_files_only'] = True
 
     # set variant since hf repos are a mess
     log.debug(f'Load model: type=Sana repo="{repo_id}" args={list(kwargs)}')

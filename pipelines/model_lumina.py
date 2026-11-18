@@ -95,6 +95,7 @@ def load_lumina_dimoo(checkpoint_info, diffusers_load_config=None):
         cache_dir=shared.opts.hfcache_dir,
         trust_remote_code=True,
         use_fast=False,
+        local_files_only=shared.opts.offline_mode,
     )
 
     pipe = LuminaDiMOOTextPipeline.from_pretrained(

@@ -21,7 +21,7 @@ def load_longcat(checkpoint_info, diffusers_load_config=None):
     if repo_id is None or repo_id.lower() == 'none':
         return None
 
-    text_processor = transformers.Qwen2VLProcessor.from_pretrained(repo_id, subfolder='tokenizer', cache_dir=shared.opts.hfcache_dir)
+    text_processor = transformers.Qwen2VLProcessor.from_pretrained(repo_id, subfolder='tokenizer', cache_dir=shared.opts.hfcache_dir, local_files_only=shared.opts.offline_mode)
 
     if 'edit' in repo_id.lower():
         cls = diffusers.LongCatImageEditPipeline

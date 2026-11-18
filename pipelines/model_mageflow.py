@@ -89,7 +89,7 @@ def load_mageflow(checkpoint_info, diffusers_load_config=None):
 
     transformer = generic.load_transformer(repo_id, cls_name=MageFlowLowRankTransformer2DModel, load_config=diffusers_load_config, native_spec=MAGEFLOW_SPEC)
     text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.Qwen3VLForConditionalGeneration, load_config=diffusers_load_config)
-    tokenizer = transformers.Qwen2Tokenizer.from_pretrained(repo_id, subfolder="text_encoder", cache_dir=shared.opts.diffusers_dir)
+    tokenizer = transformers.Qwen2Tokenizer.from_pretrained(repo_id, subfolder="text_encoder", cache_dir=shared.opts.diffusers_dir, local_files_only=shared.opts.offline_mode)
 
     diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING['mageflow'] = MageFlowPipeline
     diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING['mageflow'] = MageFlowPipeline

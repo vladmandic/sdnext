@@ -85,7 +85,10 @@ def load_local_file(local_file, cls_name, quant_type, repo_id=None, dtype=None, 
         state_dict = load_file(local_file)
         # pass quant_args so SDNQ quantizes during load, same as the repo/default path; a bare
         # module cannot be post-load quantized (do_post_load_quant operates on a pipeline)
-        text_encoder, info = cls_name.from_pretrained(None, state_dict=state_dict, config=config, cache_dir=shared.opts.hfcache_dir, torch_dtype=dtype or devices.dtype, output_loading_info=True, **(quant_args or {}))
+        local_args = (quant_args or {}).copy()
+        if shared.opts.offline_mode:
+            local_args['local_files_only'] = True
+        text_encoder, info = cls_name.from_pretrained(None, state_dict=state_dict, config=config, cache_dir=shared.opts.hfcache_dir, torch_dtype=dtype or devices.dtype, output_loading_info=True, **local_args)
         del state_dict
         missing, unexpected = info.get('missing_keys') or [], info.get('unexpected_keys') or []
         if missing or unexpected:

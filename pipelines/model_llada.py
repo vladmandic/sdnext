@@ -72,6 +72,7 @@ def load_llada_image(checkpoint_info, diffusers_load_config=None):
         torch_dtype=devices.dtype,
         transformer=transformer,
         text_encoder=text_encoder,
+        local_files_only=shared.opts.offline_mode,
     )
     pipe.task_args = {
         'output_type': 'np',

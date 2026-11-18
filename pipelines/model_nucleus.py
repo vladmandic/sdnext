@@ -32,6 +32,7 @@ def load_nucleus(checkpoint_info, diffusers_load_config=None):
         repo_id,
         subfolder='processor',
         cache_dir=shared.opts.hfcache_dir,
+        local_files_only=shared.opts.offline_mode,
     )
 
     pipe = diffusers.NucleusMoEImagePipeline.from_pretrained(
