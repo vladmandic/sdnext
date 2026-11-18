@@ -14,11 +14,10 @@ def generate_prompt_local(prompt, image=None):
 
     if model is None:
         from diffusers.modular_pipelines import ModularPipelineBlocks
-        model = ModularPipelineBlocks.from_pretrained(repo_id_15,
-                                                      trust_remote_code=True,
-                                                      # torch_dtype=devices.dtype,
-                                                      cache_dir=shared.opts.hfcache_dir,
-                                                     )
+        load_args = {}
+        if shared.opts.offline_mode:
+            load_args['local_files_only'] = True
+        model = ModularPipelineBlocks.from_pretrained(repo_id_15, trust_remote_code=True, cache_dir=shared.opts.hfcache_dir, **load_args)
         model = model.init_pipeline()
         log.debug(f'JSONEncode loaded: model={model} cls={model.__class__}')
 
@@ -38,7 +37,11 @@ def generate_prompt_gemini(prompt, image=None):
     from diffusers.modular_pipelines import ModularPipelineBlocks
 
     if model is None:
-        model = ModularPipelineBlocks.from_pretrained("briaai/FIBO-gemini-prompt-to-JSON", trust_remote_code=True)
+        load_args = {}
+        from modules import shared
+        if shared.opts.offline_mode:
+            load_args['local_files_only'] = True
+        model = ModularPipelineBlocks.from_pretrained("briaai/FIBO-gemini-prompt-to-JSON", trust_remote_code=True, cache_dir=shared.opts.hfcache_dir, **load_args)
         model = model.init_pipeline()
 
     output = model(prompt=prompt, image=image)

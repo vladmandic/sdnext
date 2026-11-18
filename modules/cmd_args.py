@@ -49,7 +49,8 @@ def add_ui_args(p):
     p.add_argument("--enso", default=env_flag("SD_ENSO", False), action="store_true", help="Enable Enso frontend, default: %(default)s")
 
 
-def add_http_args(p):
+def add_network_args(p):
+    p.add_argument("--offline", default=env_flag("SD_OFFLINE", False), action='store_true', help="Enable offline mode, default: %(default)s")
     p.add_argument("--server-name", type=str, default=os.environ.get("SD_SERVERNAME", None), help="Sets hostname of server, default: %(default)s")
     p.add_argument("--tls-keyfile", type=str, default=os.environ.get("SD_TLSKEYFILE", None), help="Enable TLS and specify key file, default: %(default)s")
     p.add_argument("--tls-certfile", type=str, default=os.environ.get("SD_TLSCERTFILE", None), help="Enable TLS and specify cert file, default: %(default)s")
@@ -119,8 +120,8 @@ def main_args():
     group_ui = parser.add_argument_group('UI')
     add_ui_args(group_ui)
 
-    group_http = parser.add_argument_group('HTTP')
-    add_http_args(group_http)
+    group_network = parser.add_argument_group('Network')
+    add_network_args(group_network)
 
     group_diag = parser.add_argument_group('Diagnostics')
     add_diag_args(group_diag)

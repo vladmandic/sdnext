@@ -165,6 +165,8 @@ cmd_opts = cmd_args.settings_args(opts, cmd_opts)
 cmd_opts = cmd_args.override_args(opts, cmd_opts)
 if cmd_opts.locale is not None:
     opts.data['ui_locale'] = cmd_opts.locale
+if cmd_opts.offline:
+    opts.data['offline_mode'] = True
 
 log.debug('Initializing: backend')
 if cmd_opts.use_xformers:

@@ -356,6 +356,8 @@ class ControlNet():
                         kwargs['subfolder'] = subfolders[model_id]
                     if remote_code.get(model_id, None) is not None:
                         kwargs['trust_remote_code'] = remote_code[model_id]
+                    if opts.offline_mode:
+                        kwargs['local_files_only'] = True
                     try:
                         self.model = cls.from_pretrained(model_path, **self.load_config, **kwargs)
                     except Exception as e:
