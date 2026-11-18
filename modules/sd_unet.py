@@ -33,6 +33,7 @@ def load_unet_sdxl_nunchaku(repo_id):
         nunchaku_repo,
         torch_dtype=devices.dtype,
         cache_dir=shared.opts.hfcache_dir,
+        local_files_only=shared.opts.offline_mode,
     )
     unet.quantization_method = 'SVDQuant'
     return unet

@@ -183,8 +183,8 @@ def init_model(selected_model: str):
         busy = True
         t0 = time.time()
         log.debug(f'Mask segment loading: model="{selected_model}" path={model_path}')
-        model = SamModel.from_pretrained(model_path, cache_dir=cache_dir).to(device=devices.device)
-        processor = SamImageProcessor.from_pretrained(model_path, cache_dir=cache_dir)
+        model = SamModel.from_pretrained(model_path, cache_dir=cache_dir, local_files_only=shared.opts.offline_mode).to(device=devices.device)
+        processor = SamImageProcessor.from_pretrained(model_path, cache_dir=cache_dir, local_files_only=shared.opts.offline_mode)
         generator = MaskGenerationPipeline(
             model=model,
             image_processor=processor,

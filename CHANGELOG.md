@@ -1619,7 +1619,7 @@ Just how big? Some stats: *~530 commits over 880 files*
     you can re-enable them in *settings -> ui -> hide legacy tabs*  
   - new panel: **Server Info** with detailed runtime information  
   - rename **Scripts** to **Extras** and reorganize to split internal functionality vs external extensions  
-  - **Networks** add **UNet/DiT**  
+  - **Networks** add **Finetune**  
   - **Localization** improved translation quality and new translations locales:  
     *en, en1, en2, en3, en4, hr, es, it, fr, de, pt, ru, zh, ja, ko, hi, ar, bn, ur, id, vi, tr, sr, po, he, xx, yy, qq, tlh*  
     yes, this now includes stuff like *latin, esperanto, arabic, hebrew, klingon* and a lot more!  

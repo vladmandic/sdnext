@@ -207,7 +207,7 @@ def get_model_index(name: str):
     fn = None
     try:
         from huggingface_hub import hf_hub_download
-        fn = hf_hub_download(repo_id, filename='model_index.json', cache_dir=shared.opts.diffusers_dir)
+        fn = hf_hub_download(repo_id, filename='model_index.json', cache_dir=shared.opts.diffusers_dir, local_files_only=shared.opts.offline_mode)
         log.debug(f'Autodetect model: repo="{repo_id}" index="{fn}"')
         return fn
     except Exception:

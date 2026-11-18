@@ -26,7 +26,7 @@ class UpscalerAsymmetricVAE(Upscaler):
                 repo_id = 'Heasterian/AsymmetricAutoencoderKLUpscaler'
             else:
                 repo_id = 'Heasterian/AsymmetricAutoencoderKLUpscaler_v2'
-            self.vae = diffusers.AsymmetricAutoencoderKL.from_pretrained(repo_id, cache_dir=shared.opts.hfcache_dir)
+            self.vae = diffusers.AsymmetricAutoencoderKL.from_pretrained(repo_id, cache_dir=shared.opts.hfcache_dir, local_files_only=shared.opts.offline_mode)
             self.vae.requires_grad_(False)
             self.vae = self.vae.to(device=devices.device, dtype=devices.dtype)
             self.vae.eval()
@@ -65,13 +65,13 @@ class UpscalerWanUpscale(Upscaler):
         if (self.vae_encode is None) or (self.vae_decode is None) or (selected_model != self.selected):
             repo_encode = 'Qwen/Qwen-Image-Edit-2509'
             subfolder_encode = 'vae'
-            self.vae_encode = diffusers.AutoencoderKLWan.from_pretrained(repo_encode, subfolder=subfolder_encode, cache_dir=shared.opts.hfcache_dir)
+            self.vae_encode = diffusers.AutoencoderKLWan.from_pretrained(repo_encode, subfolder=subfolder_encode, cache_dir=shared.opts.hfcache_dir, local_files_only=shared.opts.offline_mode)
             self.vae_encode.requires_grad_(False)
             self.vae_encode = self.vae_encode.to(device=devices.device, dtype=devices.dtype)
             self.vae_encode.eval()
             repo_decode = 'spacepxl/Wan2.1-VAE-upscale2x'
             subfolder_decode = "diffusers/Wan2.1_VAE_upscale2x_imageonly_real_v1"
-            self.vae_decode = diffusers.AutoencoderKLWan.from_pretrained(repo_decode, subfolder=subfolder_decode, cache_dir=shared.opts.hfcache_dir)
+            self.vae_decode = diffusers.AutoencoderKLWan.from_pretrained(repo_decode, subfolder=subfolder_decode, cache_dir=shared.opts.hfcache_dir, local_files_only=shared.opts.offline_mode)
             self.vae_decode.requires_grad_(False)
             self.vae_decode = self.vae_decode.to(device=devices.device, dtype=devices.dtype)
             self.vae_decode.eval()

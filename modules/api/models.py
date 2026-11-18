@@ -148,8 +148,8 @@ class ItemStyle(BaseModel):
     preview: str | None = Field(title="Preview", description="URL to the style preview image")
 
 class ItemUNet(BaseModel):
-    name: str = Field(title="Name", description="UNet/DiT name")
-    filename: str | None = Field(title="Filename", description="Path to the UNet/DiT file")
+    name: str = Field(title="Name", description="Finetune name")
+    filename: str | None = Field(title="Filename", description="Path to the Finetune file")
 
 class ItemExtraNetwork(BaseModel):
     name: str = Field(title="Name", description="Network short name")

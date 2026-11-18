@@ -32,7 +32,7 @@ def load_t5(name=None, cache_dir=None):
         ggml.install_gguf()
         with open(os.path.join('configs', 'flux', 'text_encoder_2', 'config.json'), encoding='utf8') as f:
             t5_config = transformers.T5Config(**json.load(f))
-        t5 = transformers.T5EncoderModel.from_pretrained(None, gguf_file=fn, config=t5_config, device_map="auto", cache_dir=cache_dir, torch_dtype=devices.dtype)
+        t5 = transformers.T5EncoderModel.from_pretrained(None, gguf_file=fn, config=t5_config, device_map="auto", cache_dir=cache_dir, torch_dtype=devices.dtype, **offline_args)
 
     elif fn is not None and 'fp8' in name.lower():
         from accelerate.utils import set_module_tensor_to_device
@@ -59,7 +59,7 @@ def load_t5(name=None, cache_dir=None):
         with open(os.path.join('configs', 'flux', 'text_encoder_2', 'config.json'), encoding='utf8') as f:
             t5_config = transformers.T5Config(**json.load(f))
         state_dict = load_file(fn)
-        t5 = transformers.T5EncoderModel.from_pretrained(None, state_dict=state_dict, config=t5_config, cache_dir=cache_dir, torch_dtype=devices.dtype)
+        t5 = transformers.T5EncoderModel.from_pretrained(None, state_dict=state_dict, config=t5_config, cache_dir=cache_dir, torch_dtype=devices.dtype, **offline_args)
 
     elif 'fp16' in name.lower():
         t5 = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder='text_encoder_3', cache_dir=cache_dir, torch_dtype=devices.dtype, **offline_args)
@@ -124,7 +124,7 @@ def load_vit_l():
     global loaded_te # pylint: disable=global-statement
     config = transformers.PretrainedConfig.from_json_file('configs/sdxl/text_encoder/config.json')
     state_dict = load_file(os.path.join(shared.opts.te_dir, f'{shared.opts.sd_text_encoder}.safetensors'))
-    te = transformers.CLIPTextModel.from_pretrained(pretrained_model_name_or_path=None, state_dict=state_dict, config=config, cache_dir=shared.opts.hfcache_dir)
+    te = transformers.CLIPTextModel.from_pretrained(pretrained_model_name_or_path=None, state_dict=state_dict, config=config, cache_dir=shared.opts.hfcache_dir, local_files_only=shared.opts.offline_mode)
     te = te.to(dtype=devices.dtype)
     loaded_te = shared.opts.sd_text_encoder
     del state_dict
@@ -135,7 +135,7 @@ def load_vit_g():
     global loaded_te # pylint: disable=global-statement
     config = transformers.PretrainedConfig.from_json_file('configs/sdxl/text_encoder_2/config.json')
     state_dict = load_file(os.path.join(shared.opts.te_dir, f'{shared.opts.sd_text_encoder}.safetensors'))
-    te = transformers.CLIPTextModelWithProjection.from_pretrained(pretrained_model_name_or_path=None, state_dict=state_dict, config=config, cache_dir=shared.opts.hfcache_dir)
+    te = transformers.CLIPTextModelWithProjection.from_pretrained(pretrained_model_name_or_path=None, state_dict=state_dict, config=config, cache_dir=shared.opts.hfcache_dir, local_files_only=shared.opts.offline_mode)
     te = te.to(dtype=devices.dtype)
     loaded_te = shared.opts.sd_text_encoder
     del state_dict

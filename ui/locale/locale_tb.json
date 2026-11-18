@@ -10411,8 +10411,8 @@
     },
     {
       "id": 8,
-      "label": "UNet/DiT",
-      "localized": "UNet/DiT Architecture",
+      "label": "Finetune",
+      "localized": "Finetune Architecture",
       "reload": "null",
       "hint": "Specify structural parameters for the denoising diffusion processing engine"
     },

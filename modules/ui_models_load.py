@@ -59,6 +59,7 @@ def load_model(model: str, cls: str, repo: str, dataframes: list):
                 repo,
                 dtype=devices.dtype,
                 cache_dir=shared.opts.diffusers_dir,
+                local_files_only=shared.opts.offline_mode,
                 **kwargs,
             )
         except Exception as e:
@@ -167,6 +168,8 @@ class Component:
             load_args['revision'] = self.revision
         if self.dtype is not None:
             load_args['torch_dtype'] = getattr(torch, self.dtype)
+        if shared.opts.offline_mode:
+            load_args['local_files_only'] = True
         if not hasattr(self.cls, 'from_pretrained'):
             debug_log(f'Model load component: name="{self.name}" cls={self.cls} not loadable')
             return None
@@ -182,6 +185,7 @@ class Component:
                     filename=self.local,
                     revision=self.revision,
                     cache_dir=shared.opts.hfcache_dir,
+                    local_files_only=shared.opts.offline_mode,
                 )
                 if os.path.exists(self.local):
                     self.download = False

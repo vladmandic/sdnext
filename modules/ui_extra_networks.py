@@ -655,7 +655,7 @@ def get_pages(title: str | None = None):
     visible = shared.opts.extra_networks
     pages: list[ExtraNetworksPage] = []
     if 'All' in visible or visible == []: # default en sort order
-        visible = ['Model', 'Lora', 'UNet/DiT', 'Style', 'Wildcards', 'Embedding', 'VAE', 'History', 'Hypernetwork']
+        visible = ['Model', 'Lora', 'Finetune', 'Style', 'Wildcards', 'Embedding', 'VAE', 'History', 'Hypernetwork']
 
     titles = [page.title for page in shared.extra_networks]
     if title is None:
@@ -802,9 +802,9 @@ def create_ui(container, button_parent: gr.Button, tabname: str, skip_indexing =
 
     with ui.tabs:
         def ui_tab_change(page):
-            scan_visible = page in ['Model', 'Lora', 'VAE', 'UNet/DiT', 'Hypernetwork', 'Embedding']
+            scan_visible = page in ['Model', 'Lora', 'VAE', 'Finetune', 'Hypernetwork', 'Embedding']
             save_visible = page in ['Style']
-            model_visible = page in ['Model', 'UNet/DiT']
+            model_visible = page in ['Model', 'Finetune']
             return [gr.update(visible=scan_visible), gr.update(visible=save_visible), gr.update(visible=model_visible)]
 
         ui.button_refresh = ui_components.ToolButton(ui_symbols.refresh, elem_id=f"{tabname}_extra_refresh")

@@ -346,6 +346,8 @@ def move_base(model, device):
 def load_diffuser_initial(diffusers_load_config: dict, op='model'):
     sd_model = None
     checkpoint_info = None
+    if shared.opts.offline_mode:
+        diffusers_load_config["local_files_only"] = True
     ckpt_basename = os.path.basename(shared.cmd_opts.ckpt)
     model_name = modelloader.find_diffuser(ckpt_basename)
     if model_name is not None:

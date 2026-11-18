@@ -7,7 +7,7 @@ from modules.logger import log
 
 class ExtraNetworksPageUNets(ui_extra_networks.ExtraNetworksPage):
     def __init__(self):
-        super().__init__('UNet/DiT')
+        super().__init__('Finetune')
 
     def refresh(self):
         return sd_unet.refresh_unet_list()
@@ -20,7 +20,7 @@ class ExtraNetworksPageUNets(ui_extra_networks.ExtraNetworksPage):
                 info = self.find_info(filename)
                 version = self.find_version(None, info)
                 record = {
-                    "type": 'UNet/DiT',
+                    "type": 'Finetune',
                     "name": name,
                     "alias": os.path.splitext(os.path.basename(filename))[0],
                     "title": name,

@@ -91,10 +91,14 @@ def get_loader_arguments(no_variant: bool = False):
 
 T = TypeVar("T")
 def from_pretrained(cls: type[T], pretrained_model_name_or_path: os.PathLike, *args, no_variant: bool = False, **kwargs) -> T:
+    from modules.shared import opts
+
     pretrained_model_name_or_path = str(pretrained_model_name_or_path)
     if pretrained_model_name_or_path.endswith(".onnx"):
         cls = diffusers.OnnxRuntimeModel
         pretrained_model_name_or_path = os.path.dirname(pretrained_model_name_or_path)
+    if opts.offline_mode:
+        kwargs["local_files_only"] = True
     return cls.from_pretrained(pretrained_model_name_or_path, *args, **kwargs, **get_loader_arguments(no_variant))
 
 

@@ -10411,10 +10411,10 @@
     },
     {
       "id": 0,
-      "label": "UNet/DiT",
-      "localized": "UNet/DiT",
+      "label": "Finetune",
+      "localized": "Finetune",
       "reload": "",
-      "hint": "UNet/DiT"
+      "hint": "Finetune"
     },
     {
       "id": 0,

@@ -78,6 +78,8 @@ def load_modules(repo_id: str, params: dict):
             kwargs = model_quant.create_config(kwargs)
         if subfolder is None:
             continue
+        if shared.opts.offline_mode:
+            kwargs['local_files_only'] = True
         log.debug(f'Load: module={name} class={cls.__name__} repo={repo_id} location={subfolder}')
         modules[name] = cls.from_pretrained(repo_id, subfolder=subfolder, cache_dir=cache_dir, torch_dtype=devices.dtype, **kwargs)
     return modules

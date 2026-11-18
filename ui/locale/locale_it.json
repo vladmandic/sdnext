@@ -10411,8 +10411,8 @@
     },
     {
       "id": 7,
-      "label": "UNet/DiT",
-      "localized": "UNet/DiT",
+      "label": "Finetune",
+      "localized": "Finetune",
       "reload": "false",
       "hint": ""
     },
