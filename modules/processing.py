@@ -301,7 +301,8 @@ def apply_request_options(p):
             p.override_settings.setdefault(key, value)
 
 
-def process_samples(p: StableDiffusionProcessing, samples, skip_postprocess_image: bool = False):
+def process_samples(p: StableDiffusionProcessing, samples, skip_postprocess_image: bool = False, save_only: bool = False):
+    """Finish a batch of samples: detailer, corrections, script hooks, grading, resize, infotext and save; `save_only` is for images that already went through it once."""
     out_images = []
     out_infotexts = []
     if not isinstance(samples, list):
@@ -321,7 +322,7 @@ def process_samples(p: StableDiffusionProcessing, samples, skip_postprocess_imag
                 log.warning(f'Processing: images={image} contains multiple images using first one only')
             image = image[0]
 
-        if not shared.state.interrupted and not shared.state.skipped:
+        if not shared.state.interrupted and not shared.state.skipped and not save_only:
 
             if p.detailer_enabled:
                 p.ops.append('detailer')

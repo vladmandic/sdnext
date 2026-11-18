@@ -151,15 +151,18 @@ class DLSSScript(scripts_manager.Script):
         if _pp is not None and hasattr(_pp, 'images') and _pp.images is not None:
             pp = _pp
             orig_infos = pp.infotexts if hasattr(pp, 'infotexts') else []
-            detailer_enabled = p.detailer_enabled
-            p.detailer_enabled = False
+            first = getattr(pp, 'index_of_first_image', 0) # the grid keeps its own infotext and is not saved as a sample
+            batch = p.prompts, p.negative_prompts, p.seeds
+            p.prompts, p.negative_prompts, p.seeds = list(p.all_prompts), list(p.all_negative_prompts), list(p.all_seeds) # samples span every batch of the job
             p.ops.append('dlss')
             try:
-                out_images, out_infos = processing.process_samples(p, pp.images, skip_postprocess_image=True)
+                out_images, out_infos = processing.process_samples(p, pp.images[first:], save_only=True)
             finally:
-                p.detailer_enabled = detailer_enabled
-            pp.images = out_images
-            pp.infotexts = out_infos
+                p.prompts, p.negative_prompts, p.seeds = batch
+            for image, info in zip(pp.images[:first], orig_infos[:first], strict=False):
+                image.info['parameters'] = info
+            pp.images = pp.images[:first] + out_images
+            pp.infotexts = orig_infos[:first] + out_infos
             if hasattr(pp, 'originals') and pp.originals is not None and len(pp.originals) > 0:
                 pp.infotexts = orig_infos + pp.infotexts
                 pp.images = pp.originals + pp.images
