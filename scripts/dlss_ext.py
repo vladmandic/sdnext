@@ -146,12 +146,19 @@ class DLSSScript(scripts_manager.Script):
             return pp
         if hasattr(p, 'dlss_do_not_save'):
             p.do_not_save_samples = p.dlss_do_not_save
-        _pp = dlss_run(p, pp, *args, **kwargs)
+        first = getattr(pp, 'index_of_first_image', 0)
+        grid = []
+        if first > 0: # the grid was built from the samples and saved before this pass; it is returned as saved
+            grid, pp.images = pp.images[:first], pp.images[first:]
+        try:
+            _pp = dlss_run(p, pp, *args, **kwargs)
+        finally:
+            if grid:
+                pp.images = grid + pp.images
         # postprocess triggers after initial images have already been saved
         if _pp is not None and hasattr(_pp, 'images') and _pp.images is not None:
             pp = _pp
             orig_infos = pp.infotexts if hasattr(pp, 'infotexts') else []
-            first = getattr(pp, 'index_of_first_image', 0) # the grid keeps its own infotext and is not saved as a sample
             batch = p.prompts, p.negative_prompts, p.seeds
             p.prompts, p.negative_prompts, p.seeds = list(p.all_prompts), list(p.all_negative_prompts), list(p.all_seeds) # samples span every batch of the job
             p.ops.append('dlss')
@@ -159,8 +166,6 @@ class DLSSScript(scripts_manager.Script):
                 out_images, out_infos = processing.process_samples(p, pp.images[first:], save_only=True)
             finally:
                 p.prompts, p.negative_prompts, p.seeds = batch
-            for image, info in zip(pp.images[:first], orig_infos[:first], strict=False):
-                image.info['parameters'] = info
             pp.images = pp.images[:first] + out_images
             pp.infotexts = orig_infos[:first] + out_infos
             if hasattr(pp, 'originals') and pp.originals is not None and len(pp.originals) > 0:
