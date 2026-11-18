@@ -47,9 +47,9 @@ class ResAdapterScript(scripts_manager.Script):
                 return None
 
         old_pipe = shared.sd_model
-        shared.sd_model.load_lora_weights(hf_hub_download(repo_id=repo, subfolder=models[model], filename="pytorch_lora_weights.safetensors"), adapter_name="res_adapter")
+        shared.sd_model.load_lora_weights(hf_hub_download(repo_id=repo, subfolder=models[model], filename="pytorch_lora_weights.safetensors", local_files_only=shared.opts.offline_mode), adapter_name="res_adapter")
         shared.sd_model.set_adapters(["res_adapter"], adapter_weights=[weight])
-        shared.sd_model.unet.load_state_dict(load_file(hf_hub_download(repo_id=repo, subfolder=models[model], filename="diffusion_pytorch_model.safetensors")), strict=False)
+        shared.sd_model.unet.load_state_dict(load_file(hf_hub_download(repo_id=repo, subfolder=models[model], filename="diffusion_pytorch_model.safetensors", local_files_only=shared.opts.offline_mode)), strict=False)
         sd_models.move_model(shared.sd_model, devices.device) # move pipeline to device
         sd_models.set_diffuser_options(shared.sd_model, vae=None, op='model')
         log.debug(f'ResAdapter: pipeline={shared.sd_model.__class__.__name__} model="{model}" weight={weight} file="{models[model]}"')

@@ -17,12 +17,13 @@ LATENT_RESOLUTIONS = [32, 64]
 
 
 def load_pipeline(gpu_id=0):
+    from modules.shared import opts
     float_type = torch.float16
     sd_id = "stabilityai/stable-diffusion-xl-base-1.0"
     device = torch.device(f'cuda:{gpu_id}') if torch.cuda.is_available() else torch.device('cpu')
-    unet = ConsistorySDXLUNet2DConditionModel.from_pretrained(sd_id, subfolder="unet", torch_dtype=float_type)
-    scheduler = DDIMScheduler.from_pretrained(sd_id, subfolder="scheduler")
-    story_pipeline = ConsistoryExtendAttnSDXLPipeline.from_pretrained(sd_id, unet=unet, torch_dtype=float_type, variant="fp16", use_safetensors=True, scheduler=scheduler).to(device)
+    unet = ConsistorySDXLUNet2DConditionModel.from_pretrained(sd_id, subfolder="unet", torch_dtype=float_type, local_files_only=opts.offline_mode)
+    scheduler = DDIMScheduler.from_pretrained(sd_id, subfolder="scheduler", local_files_only=opts.offline_mode)
+    story_pipeline = ConsistoryExtendAttnSDXLPipeline.from_pretrained(sd_id, unet=unet, torch_dtype=float_type, variant="fp16", use_safetensors=True, scheduler=scheduler, local_files_only=opts.offline_mode).to(device)
     story_pipeline.enable_freeu(s1=0.6, s2=0.4, b1=1.1, b2=1.2)
     return story_pipeline
 

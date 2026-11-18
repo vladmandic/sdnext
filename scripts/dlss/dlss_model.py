@@ -12,6 +12,7 @@ debug = os.environ.get('SD_DLSS_DEBUG', None) is not None
 
 
 def _resolve_model_path(filename: str) -> str:
+    from modules.shared import opts
     base_path = os.path.join(paths.models_path, 'DLSS')
     os.makedirs(base_path, exist_ok=True)
     file_path = os.path.join(base_path, filename)
@@ -19,13 +20,13 @@ def _resolve_model_path(filename: str) -> str:
         return file_path
     try:
         log.info(f'DLSS download: model="{filename}"')
-        file_path = hf_hub_download(repo_id=REPO_ID, filename=filename, local_dir=base_path, force_download=False)
+        file_path = hf_hub_download(repo_id=REPO_ID, filename=filename, local_dir=base_path, force_download=False, local_files_only=opts.offline_mode)
         if os.path.exists(file_path):
             return file_path
     except Exception as e:
         log.error(f'DLSS download: model="{filename}" error={e}')
         return None
-    file_path = hf_hub_download(repo_id=REPO_ID, filename=filename, local_dir=base_path, force_download=False)
+    file_path = hf_hub_download(repo_id=REPO_ID, filename=filename, local_dir=base_path, force_download=False, local_files_only=opts.offline_mode)
     log.error(f'DLSS: model="{filename}" not found')
     return None
 

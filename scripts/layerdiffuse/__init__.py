@@ -9,18 +9,18 @@ from .layerdiffuse_loader import load_lora_to_unet, merge_delta_weights_into_une
 
 
 def apply_layerdiffuse_sd15(pipeline):
-    vae_model_path = hf_hub_download('LayerDiffusion/layerdiffusion-v1', 'layer_sd15_vae_transparent_decoder.safetensors', cache_dir=shared.opts.hfcache_dir)
+    vae_model_path = hf_hub_download('LayerDiffusion/layerdiffusion-v1', 'layer_sd15_vae_transparent_decoder.safetensors', cache_dir=shared.opts.hfcache_dir, local_files_only=shared.opts.offline_mode)
     transparent_vae = pipeline.vae
     transparent_vae.__class__ = TransparentVAEDecoder
     transparent_vae.set_transparent_decoder(load_file(vae_model_path))
     pipeline.vae = transparent_vae
 
-    lora_model_path = hf_hub_download('LayerDiffusion/layerdiffusion-v1','layer_sd15_transparent_attn.safetensors', cache_dir=shared.opts.hfcache_dir)
+    lora_model_path = hf_hub_download('LayerDiffusion/layerdiffusion-v1','layer_sd15_transparent_attn.safetensors', cache_dir=shared.opts.hfcache_dir, local_files_only=shared.opts.offline_mode)
     load_lora_to_unet(pipeline.unet, lora_model_path, frames=1, device=devices.device, dtype=devices.dtype)
 
 
 def apply_layerdiffuse_sdxl_attn(pipeline):
-    vae_model_path = hf_hub_download('LayerDiffusion/layerdiffusion-v1', 'vae_transparent_decoder.safetensors', cache_dir=shared.opts.hfcache_dir)
+    vae_model_path = hf_hub_download('LayerDiffusion/layerdiffusion-v1', 'vae_transparent_decoder.safetensors', cache_dir=shared.opts.hfcache_dir, local_files_only=shared.opts.offline_mode)
     transparent_vae = pipeline.vae
     transparent_vae.__class__ = TransparentVAEDecoder
     transparent_vae.set_transparent_decoder(load_file(vae_model_path))
@@ -30,13 +30,13 @@ def apply_layerdiffuse_sdxl_attn(pipeline):
 
 
 def apply_layerdiffuse_sdxl_conv(pipeline):
-    model_path = hf_hub_download('LayerDiffusion/layerdiffusion-v1', 'vae_transparent_decoder.safetensors', cache_dir=shared.opts.hfcache_dir)
+    model_path = hf_hub_download('LayerDiffusion/layerdiffusion-v1', 'vae_transparent_decoder.safetensors', cache_dir=shared.opts.hfcache_dir, local_files_only=shared.opts.offline_mode)
     transparent_vae = pipeline.vae
     transparent_vae.__class__ = TransparentVAEDecoder
     transparent_vae.set_transparent_decoder(load_file(model_path))
     pipeline.vae = transparent_vae
 
-    lora_model_path = hf_hub_download('rootonchair/diffuser_layerdiffuse', 'diffuser_layer_xl_transparent_conv.safetensors', cache_dir=shared.opts.hfcache_dir)
+    lora_model_path = hf_hub_download('rootonchair/diffuser_layerdiffuse', 'diffuser_layer_xl_transparent_conv.safetensors', cache_dir=shared.opts.hfcache_dir, local_files_only=shared.opts.offline_mode)
     lora_state_dict = load_file(lora_model_path)
     merge_delta_weights_into_unet(pipeline, lora_state_dict)
 

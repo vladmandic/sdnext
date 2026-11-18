@@ -104,7 +104,6 @@ def _get_model_from_config(
     torch_dtype: torch.dtype = torch.bfloat16,
     **kwargs,
 ):
-
     conditioners = []
 
     denoiser = DiffusersUNet2DCondWrapper(

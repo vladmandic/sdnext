@@ -48,9 +48,9 @@ class InstantIRScript(scripts_manager.Script):
             if shared.sd_model.__class__.__name__ != "InstantIRPipeline":
                 self.orig_pipe = shared.sd_model
                 self.orig_ip_unapply = ipadapter.unapply
-                adapter_file = hf_hub_download('InstantX/InstantIR', subfolder='models', filename='adapter.pt', cache_dir=shared.opts.hfcache_dir)
-                aggregator_file = hf_hub_download('InstantX/InstantIR', subfolder='models', filename='aggregator.pt', cache_dir=shared.opts.hfcache_dir)
-                previewer_file = hf_hub_download('InstantX/InstantIR', subfolder='models', filename='previewer_lora_weights.bin', cache_dir=shared.opts.hfcache_dir)
+                adapter_file = hf_hub_download('InstantX/InstantIR', subfolder='models', filename='adapter.pt', cache_dir=shared.opts.hfcache_dir, local_files_only=shared.opts.offline_mode)
+                aggregator_file = hf_hub_download('InstantX/InstantIR', subfolder='models', filename='aggregator.pt', cache_dir=shared.opts.hfcache_dir, local_files_only=shared.opts.offline_mode)
+                previewer_file = hf_hub_download('InstantX/InstantIR', subfolder='models', filename='previewer_lora_weights.bin', cache_dir=shared.opts.hfcache_dir, local_files_only=shared.opts.offline_mode)
                 log.debug(f'InstantIR: adapter="{adapter_file}" aggregator="{aggregator_file}" previewer="{previewer_file}"')
                 shared.sd_model = sd_models.switch_pipe(instantir.InstantIRPipeline, shared.sd_model)
                 instantir.load_adapter_to_pipe(
@@ -61,7 +61,7 @@ class InstantIRScript(scripts_manager.Script):
                     use_adaln=True,
                     )
                 shared.sd_model.prepare_previewers(previewer_file)
-                shared.sd_model.scheduler = diffusers.DDPMScheduler.from_pretrained('stabilityai/stable-diffusion-xl-base-1.0', subfolder="scheduler")
+                shared.sd_model.scheduler = diffusers.DDPMScheduler.from_pretrained('stabilityai/stable-diffusion-xl-base-1.0', subfolder="scheduler", local_files_only=shared.opts.offline_mode)
                 pretrained_state_dict = torch.load(aggregator_file)
                 shared.sd_model.aggregator.load_state_dict(pretrained_state_dict)
                 shared.sd_model.aggregator.to(device=devices.device, dtype=devices.dtype)

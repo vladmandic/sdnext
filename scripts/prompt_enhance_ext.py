@@ -97,8 +97,15 @@ class PromptEnhanceScript(scripts_manager.Script):
             load_args = { 'pretrained_model_name_or_path': model_repo if not gguf_args else model_gguf }
             if model_subfolder:
                 load_args['subfolder'] = model_subfolder # Comma was incorrect here
+            if shared.opts.offline_mode:
+                load_args['local_files_only'] = True
 
-            model_config = transformers.AutoConfig.from_pretrained(load_args['pretrained_model_name_or_path'], trust_remote_code=True, cache_dir=shared.opts.hfcache_dir)
+            model_config = transformers.AutoConfig.from_pretrained(
+                load_args['pretrained_model_name_or_path'],
+                trust_remote_code=True,
+                cache_dir=shared.opts.hfcache_dir,
+                local_files_only=shared.opts.offline_mode,
+            )
             model_type = getattr(model_config, 'model_type', '')
             cls_name = transformers.AutoModelForCausalLM
             custom_cls_name = self.options.models_cls.get(model_type, None)
@@ -138,6 +145,8 @@ class PromptEnhanceScript(scripts_manager.Script):
             tokenizer_args = { 'pretrained_model_name_or_path': model_repo }
             if model_tokenizer:
                 tokenizer_args['subfolder'] = model_tokenizer
+            if shared.opts.offline_mode:
+                tokenizer_args['local_files_only'] = True
             self.tokenizer = transformers.AutoTokenizer.from_pretrained(**tokenizer_args, cache_dir=shared.opts.hfcache_dir)
             if model_repo in self.options.img2img:
                 self.processor = transformers.AutoProcessor.from_pretrained(**tokenizer_args, cache_dir=shared.opts.hfcache_dir)

@@ -59,6 +59,7 @@ class LBMScript(scripts_manager.Script):
                 "ZhengPeng7/BiRefNet",
                 trust_remote_code=True,
                 torch_dtype=torch.float32,
+                local_files_only=shared.opts.offline_mode,
             ).to(dtype=torch.float32, device=devices.device)
         if model is None or model_type != method:
             repo_id = repos.get(method, None)

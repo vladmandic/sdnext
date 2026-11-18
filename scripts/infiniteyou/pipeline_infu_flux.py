@@ -157,6 +157,7 @@ class InfUFluxPipeline:
         infusenet = FluxControlNetModel.from_pretrained(
             infusenet_path,
             torch_dtype=devices.dtype,
+            local_files_only=shared.opts.offline_mode,
             **quant_args,
         )
         infusenet.offload_never = True

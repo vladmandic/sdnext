@@ -80,6 +80,7 @@ def load_adapter_to_pipe(
         use_lcm=False,
         use_adaln=True,
     ):
+    from modules.shared import opts
     if not isinstance(pretrained_model_path_or_dict, dict):
         if pretrained_model_path_or_dict.endswith(".safetensors"):
             state_dict = {"image_proj": {}, "ip_adapter": {}}
@@ -104,16 +105,20 @@ def load_adapter_to_pipe(
 
             image_encoder_or_path = (
                 CLIPVisionModelWithProjection.from_pretrained(
-                    image_encoder_or_path
+                    image_encoder_or_path,
+                    local_files_only=opts.offline_mode,
                 ) if use_clip_encoder else
-                AutoModel.from_pretrained(image_encoder_or_path)
+                AutoModel.from_pretrained(image_encoder_or_path, local_files_only=opts.offline_mode)
             )
 
     if feature_extractor_or_path is not None:
         if isinstance(feature_extractor_or_path, str):
             feature_extractor_or_path = (
                 CLIPImageProcessor() if use_clip_encoder else
-                AutoImageProcessor.from_pretrained(feature_extractor_or_path)
+                AutoImageProcessor.from_pretrained(
+                    feature_extractor_or_path,
+                    local_files_only=opts.offline_mode,
+                )
             )
 
     # create image encoder if it has not been registered to the pipeline yet

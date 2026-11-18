@@ -68,7 +68,8 @@ class FluxToolsScript(scripts_manager.Script):
                     "black-forest-labs/FLUX.1-Redux-dev",
                     revision="refs/pr/8",
                     torch_dtype=devices.dtype,
-                    cache_dir=shared.opts.hfcache_dir
+                    cache_dir=shared.opts.hfcache_dir,
+                    local_files_only=shared.opts.offline_mode,
                 ).to(devices.device)
             if prompt > 0:
                 log.info(f'{title}: tool={tool} load text encoder')
@@ -137,7 +138,7 @@ class FluxToolsScript(scripts_manager.Script):
                 sd_models.reload_model_weights(op='model', revision="refs/pr/1")
             if processor_depth is None:
                 from image_gen_aux import DepthPreprocessor
-                processor_depth = DepthPreprocessor.from_pretrained("LiheYoung/depth-anything-large-hf")
+                processor_depth = DepthPreprocessor.from_pretrained("LiheYoung/depth-anything-large-hf", local_files_only=shared.opts.offline_mode)
             if process:
                 control_image = processor_depth(image)[0].convert("RGB")
                 p.task_args['control_image'] = control_image

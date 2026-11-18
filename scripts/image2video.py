@@ -70,7 +70,7 @@ class VGenI2VScript(scripts_manager.Script):
                 log.error('Image2Video PIA: base model must be SD15')
                 return None
             log.info(f'Image2Video PIA load: model={repo_id}')
-            motion_adapter = diffusers.MotionAdapter.from_pretrained(repo_id)
+            motion_adapter = diffusers.MotionAdapter.from_pretrained(repo_id, local_files_only=shared.opts.offline_mode)
             sd_models.move_model(motion_adapter, devices.device)
             shared.sd_model = sd_models.switch_pipe(diffusers.PIAPipeline, shared.sd_model, { 'motion_adapter': motion_adapter })
             sd_models.move_model(shared.sd_model, devices.device, force=True) # move pipeline to device
@@ -94,7 +94,7 @@ class VGenI2VScript(scripts_manager.Script):
         if model_name == 'VGen':
             if not isinstance(shared.sd_model, diffusers.I2VGenXLPipeline):
                 log.info(f'Image2Video VGen load: model={repo_id}')
-                pipe = diffusers.I2VGenXLPipeline.from_pretrained(repo_id, torch_dtype=devices.dtype, cache_dir=shared.opts.diffusers_dir)
+                pipe = diffusers.I2VGenXLPipeline.from_pretrained(repo_id, torch_dtype=devices.dtype, cache_dir=shared.opts.diffusers_dir, local_files_only=shared.opts.offline_mode)
                 sd_models.copy_diffuser_options(pipe, shared.sd_model)
                 sd_models.set_diffuser_options(pipe)
                 shared.sd_model = pipe

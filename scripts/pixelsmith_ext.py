@@ -51,7 +51,7 @@ class PixelSmithScript(scripts_manager.Script):
         self.orig_pipe = shared.sd_model
         self.orig_vae = shared.sd_model.vae
         if self.vae is None:
-            self.vae = PixelSmithVAE.from_pretrained("madebyollin/sdxl-vae-fp16-fix", torch_dtype=devices.dtype).to(devices.device)
+            self.vae = PixelSmithVAE.from_pretrained("madebyollin/sdxl-vae-fp16-fix", torch_dtype=devices.dtype, local_files_only=shared.opts.offline_mode).to(devices.device)
         shared.sd_model = sd_models.switch_pipe(PixelSmithXLPipeline, shared.sd_model)
         shared.sd_model.vae = self.vae
         shared.sd_model.vae.enable_tiling()

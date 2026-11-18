@@ -81,7 +81,7 @@ class IPInstructScript(scripts_manager.Script):
         shared.sd_model = sd_models.switch_pipe(pipe, shared.sd_model)
 
         import huggingface_hub as hf
-        ip_ckpt = hf.hf_hub_download(repo_id=repo_id, filename=ckpt, cache_dir=shared.opts.hfcache_dir)
+        ip_ckpt = hf.hf_hub_download(repo_id=repo_id, filename=ckpt, cache_dir=shared.opts.hfcache_dir, local_files_only=shared.opts.offline_mode)
         ip_model = cls(shared.sd_model, encoder, ip_ckpt, device=devices.device, dtypein=devices.dtype, num_tokens=tokens)
         processing.fix_seed(p)
         log.debug(f'IP-Instruct: class={shared.sd_model.__class__.__name__} wrapper={ip_model.__class__.__name__} encoder={encoder} adapter={ckpt}')

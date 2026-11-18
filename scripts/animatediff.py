@@ -68,7 +68,7 @@ def set_adapter(adapter_name: str = 'None'):
     if adapter_name.endswith('.ckpt') or adapter_name.endswith('.safetensors'):
         import huggingface_hub as hf
         folder, filename = os.path.split(adapter_name)
-        adapter_name = hf.hf_hub_download(repo_id=folder, filename=filename, cache_dir=shared.opts.diffusers_dir)
+        adapter_name = hf.hf_hub_download(repo_id=folder, filename=filename, cache_dir=shared.opts.diffusers_dir, local_files_only=shared.opts.offline_mode)
     try:
         log.info(f'AnimateDiff load: adapter="{adapter_name}"')
         motion_adapter = None
@@ -76,9 +76,9 @@ def set_adapter(adapter_name: str = 'None'):
             motion_adapter = diffusers.MotionAdapter().to(shared.device, devices.dtype)
             motion_adapter.load_state_dict(load_file(adapter_name))
         elif shared.sd_model_type == 'sd':
-            motion_adapter = diffusers.MotionAdapter.from_pretrained(adapter_name, cache_dir=shared.opts.diffusers_dir, torch_dtype=devices.dtype, low_cpu_mem_usage=False, device_map=None)
+            motion_adapter = diffusers.MotionAdapter.from_pretrained(adapter_name, cache_dir=shared.opts.diffusers_dir, torch_dtype=devices.dtype, low_cpu_mem_usage=False, device_map=None, local_files_only=shared.opts.offline_mode)
         elif shared.sd_model_type == 'sdxl':
-            motion_adapter = diffusers.MotionAdapter.from_pretrained(adapter_name, cache_dir=shared.opts.diffusers_dir, torch_dtype=devices.dtype, low_cpu_mem_usage=False, device_map=None, variant='fp16')
+            motion_adapter = diffusers.MotionAdapter.from_pretrained(adapter_name, cache_dir=shared.opts.diffusers_dir, torch_dtype=devices.dtype, low_cpu_mem_usage=False, device_map=None, variant='fp16', local_files_only=shared.opts.offline_mode)
         sd_models.move_model(motion_adapter, devices.device) # move pipeline to device
         sd_models.set_diffuser_options(motion_adapter, vae=None, op='adapter')
         loaded_adapter = adapter_name
