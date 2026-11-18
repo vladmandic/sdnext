@@ -17,6 +17,5 @@ detailer_models = [ # <https://huggingface.co/SD-Next/YOLO-Detectors/tree/main>
     'Grounding-DINO-tiny',
     'Grounding-DINO-base',
     'Facebook-SAM3',
-    # 'Rex-Omni', # not compatible with transformers==5
-    # 'nvidia-LocateAnything-3B', # not compatible with transformers==5
+    'nvidia-LocateAnything-3B', # not compatible with transformers==5
 ]

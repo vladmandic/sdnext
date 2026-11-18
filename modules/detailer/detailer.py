@@ -6,7 +6,7 @@ import numpy as np
 import gradio as gr
 from PIL import Image, ImageDraw
 from modules.logger import log
-from modules import shared, processing, devices, processing_class, ui_common, ui_components, ui_symbols, images, extra_networks, sd_models
+from modules import shared, processing, devices, processing_class, ui_common, ui_components, ui_symbols, images, extra_networks, sd_models, modelloader
 from modules.detailer import DetailerResult, detailer_opt, assign_prompts, parse_prompt_lines, split_skip_classes
 
 
@@ -115,6 +115,7 @@ class Detailer():
 
     def load(self, model_name: str | None = None):
         jobid = shared.state.begin('Load detailer')
+        modelloader.hf_login()
         if 'LocateAnything' in model_name:
             from modules.detailer import locateanything
             model_name, model = locateanything.load(self, model_name=model_name)

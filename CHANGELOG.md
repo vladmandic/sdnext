@@ -68,6 +68,9 @@
     offline mode now disables *reference* models and also applies to *auxiliary* models  
   - updates to **prompt enhance** and **story mode**  
     including new [ibm-granite-4.2](https://huggingface.co/ibm-granite/granite-4.2-3b) model support  
+  - updates to **detailer**  
+    add support for <https://huggingface.co/nvidia/LocateAnything-3B>  
+    *hint*: add *locate* or *detect* before specifying object(s) to find  
   - improved handling of **HuggingFace mirror** settings
     *note*: `hf-mirror.com` does not actually mirror entire huggingface, only some  
     the rest are redirected back to `huggingface.co` which is still under standard access control operations  
