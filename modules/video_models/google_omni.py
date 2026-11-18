@@ -91,7 +91,7 @@ class GoogleOmniVideoPipeline:
             args = self.get_args()
             if args is None:
                 return None
-            from google import genai # pylint: disable=no-name-in-module
+            from google import genai # pylint: disable=no-name-in-module # type: ignore
             self.client = genai.Client(**args)
 
         resolution, aspect_ratio = get_size_buckets(width, height)

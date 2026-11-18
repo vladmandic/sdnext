@@ -13,7 +13,7 @@ class GoogleGeminiPipeline():
         self.model = model_name.split(' (')[0]
         from installer import install
         install('google-genai==2.22.0')
-        from google import genai # pylint: disable=no-name-in-module
+        from google import genai # pylint: disable=no-name-in-module # type: ignore
         args = self.get_args()
         self.client = genai.Client(**args)
         log.debug(f'Load model: type=GoogleGemini model="{self.model}"')

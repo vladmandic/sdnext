@@ -61,7 +61,7 @@ class GoogleNanoBananaPipeline():
         )
 
     def img2img(self, prompt, images):
-        from google import genai # pylint: disable=no-name-in-module
+        from google import genai # pylint: disable=no-name-in-module # type: ignore
         image_bytes_list = []
         for image in images:
             image_bytes = io.BytesIO()
@@ -117,7 +117,7 @@ class GoogleNanoBananaPipeline():
         return args
 
     def __call__(self, prompt: list[str], width: int, height: int, images: list[Image.Image] | None = None):
-        from google import genai # pylint: disable=no-name-in-module
+        from google import genai # pylint: disable=no-name-in-module # type: ignore
         if self.client is None:
             args = self.get_args()
             if args is None:

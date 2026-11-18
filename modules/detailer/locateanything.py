@@ -9,11 +9,6 @@ processor = None
 tokenizer = None
 
 
-def dependencies():
-    from installer import install
-    install('decord')
-
-
 def load(self, model_name: str | None = None):
     import transformers
     global tokenizer, processor # pylint: disable=global-statement
@@ -24,7 +19,6 @@ def load(self, model_name: str | None = None):
     }
     if shared.opts.offline_mode:
         load_kwargs['local_files_only'] = True
-    dependencies()
     tokenizer = transformers.AutoTokenizer.from_pretrained(**load_kwargs)
     processor = transformers.AutoProcessor.from_pretrained(**load_kwargs)
     model = transformers.AutoModel.from_pretrained(**load_kwargs, torch_dtype=devices.dtype)

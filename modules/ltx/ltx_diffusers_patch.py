@@ -110,15 +110,18 @@ def reroute_connector_keys(state_dict):
 
 def apply_connectors_forward_patch():
     try:
-        from diffusers.pipelines.ltx2.connectors import LTX2ConnectorTransformer1d
+        from diffusers.pipelines.ltx2 import connectors
     except ImportError:
         return
+    connector_cls = getattr(connectors, 'LTX2ConnectorTransformer1d', None)
+    if connector_cls is None:
+        return
     try:
-        source = inspect.getsource(LTX2ConnectorTransformer1d.forward)
+        source = inspect.getsource(connector_cls.forward)
     except (OSError, TypeError):
         source = ''
     if BROKEN_MARKER in source:
-        LTX2ConnectorTransformer1d.forward = patched_connector_forward # TODO ltx: patched diffusers connectors padding to fix audio token order (upstream #13564 regression)
+        connector_cls.forward = patched_connector_forward # TODO ltx: patched diffusers connectors padding to fix audio token order (upstream #13564 regression)
 
 
 def apply_lora_patch():

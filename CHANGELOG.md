@@ -66,15 +66,16 @@
   - stricter **offline mode** enforcement  
     set via *settings -> model loading* or via cmd arg `--offline`  
     offline mode now disables *reference* models and also applies to *auxiliary* models  
-  - updates to *prompt enhance* and *story mode*  
+  - updates to **prompt enhance** and **story mode**  
     including new [ibm-granite-4.2](https://huggingface.co/ibm-granite/granite-4.2-3b) model support  
-  - improved handling of HuggingFace mirror settings
+  - improved handling of **HuggingFace mirror** settings
     *note*: `hf-mirror.com` does not actually mirror entire huggingface, only some  
     the rest are redirected back to `huggingface.co` which is still under standard access control operations  
-  - log model capabilities on load  
+  - log **model capabilities** on load  
     example: `{'t2i': True, 'i2i': False, 'inpaint': False, 'edit': True, 'video': False}`  
   - add env var `SD_STRICT` which will enable strict mode  
     in strict mode, read/parse/write errors will cause the application to exit immediately  
+  - networks **UNet/DiT** has been renamed to **Finetune**
 - **Internal**
   - modernui css: use a build process for `/css` instead of monolithic single `style.css`
   - restructure `lint` workflows
