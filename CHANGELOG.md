@@ -10,7 +10,8 @@ Slightly longer release cycle resulted in quite large set of updates:
 - New models: **MiniMax-H3-Image**, **BluePixel-Turbo**
 - Larger updates to:
   - [SD.Next Launcher](https://github.com/vladmandic/sdnext-launcher)
-  - **Detailer** (add *LocateAnything* model), **Prompt-Enhance** and **Script-Mode** (improvements plus add *Granite* model)
+  - New **Watermark** module
+  - **Detailer** (add *LocateAnything* model), **Prompt-Enhance** and **Script-Mode** (improvements plus add *Granite* model), **Remove Background** (postprocessing mode)
   - **Video encoding**, including codec improvements, color-space handling and overall quality
 - Plus tons of minor improvements and bug fixes  
   For example, improved *offline* mode, *hf mirror* handling, *model storage* consolidation, new *strict mode*, *image metadata* handling, new *image formats*, etc.  
@@ -70,10 +71,15 @@ Plus [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) bel
 - **Image**
   - add support for `AVIF` and `EXR` image formats
   - improve metadata handling for all advanced image formats
-  - add HDR conversion support  
+  - hdr: conversion step for callers that save their own outputs, returns the written file or the reason nothing is written  
+- **Scripts/Postprocessing**
+  - new **Watermark** processing and post-processing workflow
+  - updates to **Prompt enhance** and **Story mode**  
+    including new [ibm-granite-4.2](https://huggingface.co/ibm-granite/granite-4.2-3b) model support  
+  - allow **Remove background** as post-processing task
+  - add **HDR convert** process-task which converts regular SDR image to HDR  
     *note*: HDR conversion requires compatible image format: *settings -> media options -> image file format*  
     supported: JPEG Gain Map, TIFF 16-bit, PNG with cICP, OpenEXR, AVIF, JPEG XL  
-  - hdr: conversion step for callers that save their own outputs, returns the written file or the reason nothing is written  
 - **Torch**
   - update cuda to `torch==2.15.0+cu132`
   - update rocm/linux to `torch==2.15.0+rocm10.0`
@@ -88,8 +94,6 @@ Plus [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) bel
   - stricter **offline mode** enforcement  
     set via *settings -> model loading* or via cmd arg `--offline`  
     offline mode now disables *reference* models and also applies to *auxiliary* models  
-  - updates to **prompt enhance** and **story mode**  
-    including new [ibm-granite-4.2](https://huggingface.co/ibm-granite/granite-4.2-3b) model support  
   - updates to **detailer**  
     add support for <https://huggingface.co/nvidia/LocateAnything-3B>  
     *hint*: add *locate* or *detect* before specifying object(s) to find  
