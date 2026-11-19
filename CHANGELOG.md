@@ -1,12 +1,12 @@
 # Change Log for SD.Next
 
-## Update for 2026-11-18
+## Update for 2026-11-19
 
-### Highlights for 2026-11-18
+### Highlights for 2026-11-19
 
 Slightly longer release cycle resulted in quite large set of updates:
 - New top-level interface: [Chat](https://vladmandic.github.io/sdnext-docs/Chat/)!  
-  Allows both interactive and automated conversational workflows for generating, editing, and processing images and videos  
+  Allows both interactive and automated (scripted) conversational workflows for generating, editing, and processing images and videos  
 - New models: **MiniMax-H3-Image**, **BluePixel-Turbo**
 - Larger updates to:
   - [SD.Next Launcher](https://github.com/vladmandic/sdnext-launcher)
@@ -22,7 +22,7 @@ Plus [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) bel
 
 [Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-11-18
+### Details for 2026-11-19
 
 - [Chat](https://vladmandic.github.io/sdnext-docs/Chat/): New top-level interface  
   See [chat docs](https://vladmandic.github.io/sdnext-docs/Chat/) for more details as this is quite an extensive module  
