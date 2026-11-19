@@ -394,6 +394,40 @@ def test_lora_tag_write_stays_in_its_cell():
     assert p.all_prompts == base, f'base all_prompts={p.all_prompts}'
 
 
+def lora_metadata_by_cell(run_grid) -> tuple[list[dict], dict]:
+    """Each cell's metadata as its generation starts, and the grid's own afterwards; the cell whose prompt names the lora writes its key as extra_networks_lora.infotext does."""
+    seen = []
+
+    def metadata_writer(pc):
+        processing.process_init(pc)
+        seen.append(dict(pc.extra_generation_params))
+        if 'lora' in pc.all_prompts[0]:
+            pc.extra_generation_params['LoRA networks'] = 'style-lora'
+    p = make_p('a cat, lora')
+    with recorded_grid():
+        processing.process_images = metadata_writer
+        run_grid(p)
+    return seen, dict(p.extra_generation_params)
+
+
+def test_script_grid_cell_metadata_stays_in_its_cell():
+    seen, grid = lora_metadata_by_cell(lambda p: script_grid.run(p, *grid_args('[Prompt] Search & replace', 'lora, plain')))
+    assert len(seen) == 2, f'cells={len(seen)}'
+    assert 'LoRA networks' not in seen[1], f'the second cell starts with the first cell\'s keys: {seen[1]}'
+    assert 'LoRA networks' not in grid, f'a cell wrote into the grid\'s own metadata: {grid}'
+
+
+def test_always_on_cell_metadata_stays_in_its_cell():
+    def run_grid(p):
+        processing.process_init(p)
+        grid_on.active = False
+        always_on_grid.process(p, True, *grid_args('[Prompt] Search & replace all', 'lora, plain'))
+    seen, grid = lora_metadata_by_cell(run_grid)
+    assert len(seen) == 2, f'cells={len(seen)}'
+    assert 'LoRA networks' not in seen[1], f'the second cell starts with the first cell\'s keys: {seen[1]}'
+    assert 'LoRA networks' not in grid, f'a cell wrote into the job\'s own metadata: {grid}'
+
+
 def run_all():
     global script_grid, always_on_grid # pylint: disable=global-statement
     script_grid = make_script(grid_script)
@@ -451,6 +485,8 @@ def run_all():
         test_always_on_styles_axis_reaches_the_encode,
         test_always_on_cells_keep_the_base_negative_and_styles,
         test_lora_tag_write_stays_in_its_cell,
+        test_script_grid_cell_metadata_stays_in_its_cell,
+        test_always_on_cell_metadata_stays_in_its_cell,
     ]:
         run_test(cat, fn)
 

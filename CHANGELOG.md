@@ -128,6 +128,7 @@ Plus [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) bel
   - scripts: *Prompt matrix* runs again instead of failing with an index error before generating
   - control: image metadata is no longer shifted by one when a grid leads the returned images
   - dlss: the returned grid is no longer enhanced as an extra frame and matches the saved grid
+  - xyz grid: lora metadata of one cell no longer appears in the images of later cells
   - ltx: *Tiny* live previews show the video instead of a placeholder
   - ltx: tab passes no longer run with the previous job's guidance end, sigma adjust and correction settings
   - minimax: quantized *H3* fix decode

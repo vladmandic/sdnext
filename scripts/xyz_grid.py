@@ -335,6 +335,7 @@ class XYZGridScript(scripts_manager.Script):
             pc.network_data = None
             pc.override_settings_restore_afterwards = False
             pc.styles = pc.styles[:]
+            pc.extra_generation_params = copy(p.extra_generation_params) # processing writes per-image keys, such as the loaded loras, into it
             x_opt.apply(pc, x, xs)
             y_opt.apply(pc, y, ys)
             z_opt.apply(pc, z, zs)
