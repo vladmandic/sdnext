@@ -121,6 +121,7 @@ Plus [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) bel
   - live preview: *MiniMax-H3-Image* previews decode instead of logging an error per step
   - live preview: *Full* preview no longer aborts a modular pipeline generation by offloading the transformer mid-denoise
   - autocomplete: *Keep @ on artist insert* applies after a page reload
+  - cloud: update google veo and omni endpoints
   - dlss: use video codec defaults, slow-motion output plays slower
   - dlss: re-apply original audio after video processing, thanks @resonantsky
   - gallery: thumbnails and previews for webm, mkv, mov, avi and ts videos
