@@ -306,3 +306,22 @@ def get_video_metadata(video):
     except Exception as e:
         log.warning(f'Video metadata: file="{video}" {e}')
         return {}
+
+
+def write_video_audio(filepath: str, writer) -> bool:
+    from modules.video_models.video_utils import check_av
+    av = check_av()
+    if av is None:
+        return False
+    try:
+        with av.open(filepath) as container:
+            if not container.streams.audio:
+                return False
+            stream = container.streams.audio[0]
+            sample_rate = stream.codec_context.sample_rate
+            layout = stream.layout.name if stream.layout is not None else 'stereo'
+            writer.write_audio({'sr': sample_rate, 'layout': layout, 'frames': container.decode(stream)}, sample_rate)
+        return True
+    except Exception as e:
+        log.error(f'Audio: file="{filepath}" mux failed: {e}')
+        return False

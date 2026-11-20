@@ -11,11 +11,15 @@ from modules import shared, script_callbacks, errors, paths
 from modules.logger import log
 from modules.image.grid import check_grid_size
 from modules.image.namegen import FilenameGenerator
-from modules.image.watermark import set_watermark
 
 
 debug = log.trace if os.environ.get('SD_PATH_DEBUG', None) is not None else lambda *args, **kwargs: None
 debug_save = log.trace if os.environ.get('SD_SAVE_DEBUG', None) is not None else lambda *args, **kwargs: None
+
+
+# monkey-patch pil so it works with lru_cache
+if getattr(Image.Image, "__hash__", None) is None:
+    Image.Image.__hash__ = lambda self: id(self)
 
 
 def sanitize_filename_part(text, replace_spaces=True):
@@ -250,10 +254,6 @@ def save_image(image,
         info = image.info.get(pnginfo_section_name, '')
     if info is not None:
         pnginfo[pnginfo_section_name] = info
-
-    wm_text = getattr(p, 'watermark_text', shared.opts.image_watermark)
-    wm_image = getattr(p, 'watermark_image', shared.opts.image_watermark_image)
-    image = set_watermark(image, wm_text, wm_image)
 
     params = script_callbacks.ImageSaveParams(image, p, filename, pnginfo)
     params.filename = namegen.sanitize(filename, base=base)

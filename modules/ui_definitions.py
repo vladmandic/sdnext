@@ -557,11 +557,6 @@ def create_settings(cmd_opts):
         "save_images_before_detailer": OptionInfo(False, "Save image before detailer"),
         "save_images_before_color_correction": OptionInfo(False, "Save image before color correction"),
         "gradio_skip_video": OptionInfo(False, "Do not display video output in UI"),
-
-        "image_sep_watermark": OptionInfo("<h2>Watermarking</h2>", "", gr.HTML),
-        "image_watermark": OptionInfo('', "Invisible watermark string"),
-        "image_watermark_position": OptionInfo('none', 'Image watermark position', gr.Dropdown, {"choices": ["none", "top/left", "top/center", "top/right", "bottom/left", "bottom/center", "bottom/right", "center", "random"]}),
-        "image_watermark_image": OptionInfo('', "Image watermark file"),
     }))
 
     # --- Media Paths ---

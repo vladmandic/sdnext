@@ -516,11 +516,18 @@ class ResPreprocess(BaseModel):
     info: str = Field(title="Preprocess info", description="Response string from preprocessing task.")
 
 class ReqWatermark(BaseModel):
-    image: str = Field(title="Image", description="Base64-encoded image to apply or retrieve watermark")
-    wm_text: str | None = Field(default=None, title="Watermark Text", description="Text to use for the watermark")
+    image: str | None = Field(default=None, title="Image", description="Base64-encoded image to apply or retrieve watermark")
+    video: str | None = Field(default=None, title="Video", description="Base64-encoded video to apply a visible watermark to")
+    wm_text: str | None = Field(default=None, title="Watermark Text", description="Text to use for the invisiblewatermark")
     wm_image: str | None = Field(default=None, title="Watermark Image", description="Base64-encoded image to use as the watermark")
-    position: str = Field(default="none", title="Position", description="Position of the watermark on the image")
-    fmt: str = Field(default="PNG", title="Format", description="Output image format for the watermarked image")
+    position: str = Field(default="none", title="Position", description="Position of the watermark")
+    mask: bool = Field(default=False, title="Mask", description="Remove the background from the watermark image before applying it")
+    scale: float = Field(default=1.0, gt=0, title="Scale", description="Scale factor for the watermark image")
+    opacity: float = Field(default=1.0, ge=0, le=1, title="Opacity", description="Opacity of the watermark image")
+    pad: int = Field(default=0, ge=0, title="Padding", description="Padding from the selected position")
+    verify: bool = Field(default=False, title="Verify", description="Verify the invisible text watermark after embedding")
+    video_format: str | None = Field(default=None, title="Video format", description="Video container extension when video is supplied as raw base64; defaults to mp4")
+    image_format: str = Field(default="PNG", title="Image format", description="Output image format for the watermarked image; defaults to PNG")
 
 
 fields = {}

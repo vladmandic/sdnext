@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2026-11-19
+## Update for 2026-11-20
 
-### Highlights for 2026-11-19
+### Highlights for 2026-11-20
 
 Slightly longer release cycle resulted in quite large set of updates:
 - New top-level interface: [Chat](https://vladmandic.github.io/sdnext-docs/Chat/)!  
@@ -73,7 +73,9 @@ Plus [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) bel
   - improve metadata handling for all advanced image formats
   - hdr: conversion step for callers that save their own outputs, returns the written file or the reason nothing is written  
 - **Scripts/Postprocessing**
-  - new **Watermark** processing and post-processing workflow
+  - new **Watermark** processing and post-processing workflow  
+    adds *mask, scale, opacity, padding* options, compatible with both images and videos  
+    add `cli/api-watermark.py` as command-line interface and example for watermark processing using api  
   - updates to **Prompt enhance** and **Story mode**  
     including new [ibm-granite-4.2](https://huggingface.co/ibm-granite/granite-4.2-3b) model support  
   - allow **Remove background** as post-processing task

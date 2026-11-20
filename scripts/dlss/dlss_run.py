@@ -81,26 +81,6 @@ def probe_video_audio(filepath: str) -> tuple[int | None, str]:
         return None, 'stereo'
 
 
-def write_video_audio(filepath: str, writer) -> bool:
-    from modules.video_models.video_utils import check_av
-    av = check_av()
-    if av is None:
-        return False
-    try:
-        with av.open(filepath) as container:
-            if not container.streams.audio:
-                log.error(f'DLSS audio: file="{filepath}" source audio stream is missing')
-                return False
-            stream = container.streams.audio[0]
-            sample_rate = stream.codec_context.sample_rate
-            layout = stream.layout.name if stream.layout is not None else 'stereo'
-            writer.write_audio({'sr': sample_rate, 'layout': layout, 'frames': container.decode(stream)}, sample_rate)
-        return True
-    except Exception as e:
-        log.error(f'DLSS audio: file="{filepath}" mux failed: {e}')
-        return False
-
-
 def dlss_output_fps(fps_in: float, framegen_factor: int, fg_mode: str) -> float:
     """Output frame rate: FrameGen in fps mode multiplies the input rate, slow motion keeps it so the clip plays longer."""
     if framegen_factor > 1 and fg_mode == 'fps':
@@ -396,7 +376,7 @@ def dlss_run(p: StableDiffusionProcessing | None,
                 if reader is not None:
                     reader.close()
                     reader = None
-                write_video_audio(video_input, video_writter)
+                video.write_video_audio(video_input, video_writter)
             video_writter.release()
         elif has_images:
             pp.images = output_images.copy()

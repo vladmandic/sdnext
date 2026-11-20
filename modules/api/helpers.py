@@ -11,7 +11,7 @@ from modules.logger import log
 
 
 _upload_store_getter = None
-MAX_B64_BYTES = 256 * 1024 * 1024 # base64 expands ~4/3 and the response is built in memory; larger artifacts are fetched by path instead
+MAX_B64_BYTES = 512 * 1024 * 1024 # base64 expands ~4/3 and the response is built in memory; larger artifacts are fetched by path instead
 debug = os.environ.get('SD_PATH_DEBUG', None) is not None
 
 
@@ -35,7 +35,7 @@ def validate_sampler_name(name):
     raise HTTPException(status_code=404, detail="Sampler not found")
 
 
-def decode_base64_to_image(encoding, quiet=False, keep_alpha=False):
+def decode_base64_to_image(encoding, quiet=False, keep_alpha=False, preserve_mode=False):
     if encoding is None:
         return None
     if isinstance(encoding, str) and encoding.startswith("upload:"):
@@ -49,6 +49,9 @@ def decode_base64_to_image(encoding, quiet=False, keep_alpha=False):
         decoded = base64.b64decode(encoding)
         data = io.BytesIO(decoded)
         image = Image.open(data)
+        if preserve_mode:
+            image.load()
+            return image.copy()
         image = image.convert('RGBA') if keep_alpha else image.convert('RGB')
         return image
     except Exception as e:

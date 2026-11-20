@@ -465,19 +465,28 @@ def post_latent_history(req: models.ReqLatentHistory):
     return shared.history.index
 
 def post_watermark(req: models.ReqWatermark):
-    """Apply a watermark to an image."""
+    """Apply a watermark to an image or visible image watermark to a video."""
     from modules.image import watermark
     return watermark.post_watermark(
         image=req.image,
+        video=req.video,
+        video_format=req.video_format,
         wm_text=req.wm_text,
         wm_image=req.wm_image,
         position=req.position,
-        fmt=req.fmt,
+        fmt=req.image_format,
+        mask=req.mask,
+        scale=req.scale,
+        opacity=req.opacity,
+        pad=req.pad,
+        verify=req.verify,
         quiet=True,
     )
 
 def get_watermark(req: models.ReqWatermark):
     """Retrieve the watermark from an image."""
+    if req.image is None or req.video is not None:
+        raise HTTPException(status_code=400, detail="An image is required")
     from modules.image import watermark
     return watermark.get_watermark(
         image=req.image,
