@@ -17,6 +17,7 @@ toml
 voluptuous
 limits
 orjson
+json_repair
 ftfy
 websockets
 httptools

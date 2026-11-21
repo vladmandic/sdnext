@@ -1,19 +1,19 @@
-import ast
-import json
 import os
-import re
 import time
 import copy
 from collections import defaultdict
 import gradio as gr
 from PIL import Image
 from modules import scripts_manager, shared, processing, extra_networks
+from modules.ui_components import DropdownEditable
 from modules.logger import log
 from scripts.prompt_enhance.options import Options
 from scripts.prompt_enhance.helpers import is_vision_model, get_model_repo_from_display
+from scripts.story import prompting
 
 
-debug_log = log.trace if os.environ.get('SD_STORY_DEBUG', None) is not None else lambda *args, **kwargs: None
+debug = os.environ.get('SD_STORY_DEBUG', None) is not None
+debug_log = log.trace if debug else lambda *args, **kwargs: None
 
 
 class StoryScript(scripts_manager.Script):
@@ -34,12 +34,16 @@ class StoryScript(scripts_manager.Script):
             with gr.Row():
                 llm_model = gr.Dropdown(label='LLM model', choices=vision_models, value=default_model)
             with gr.Row():
+                style = DropdownEditable(label='Story style', choices=list(prompting.STORY_STYLE_GUIDANCE.keys()), value='Default')
+            with gr.Row():
                 with gr.Group():
                     slide_count = gr.Slider(label='Number of slides', value=4, minimum=2, maximum=99, step=1, elem_id='story_slide_count')
                     use_enhance = gr.Checkbox(label='Enhance slide prompts', value=False, elem_id='story_use_enhance')
                     use_captions = gr.Checkbox(label='Use image caption', value=False, elem_id='story_use_captions')
                     use_reference = gr.Checkbox(label='Use image as reference', value=False, elem_id='story_use_reference')
-        return [enabled, slide_count, llm_model, use_enhance, use_captions, use_reference]
+            with gr.Row():
+                frame_prompts = gr.Textbox(label='Frame prompts', value='', elem_id='story_frame_prompt', lines=4)
+        return [enabled, slide_count, llm_model, use_enhance, use_captions, use_reference, frame_prompts, style]
 
     def get_enhancer(self, p):
         runner = getattr(p, 'scripts', None)
@@ -59,70 +63,11 @@ class StoryScript(scripts_manager.Script):
                 return image.copy()
         return None
 
-    def parse_json(self, response):
-        response = re.sub(r'^\s*```(?:json)?\s*|\s*```\s*$', '', response.strip(), flags=re.IGNORECASE)
-        last_error = None
-        for match in re.finditer(r'[\[{]', response):
-            start = match.start()
-            stack = []
-            quote = None
-            escaped = False
-            for index in range(start, len(response)):
-                char = response[index]
-                if quote is not None:
-                    if escaped:
-                        escaped = False
-                    elif char == '\\':
-                        escaped = True
-                    elif char == quote:
-                        quote = None
-                elif char in ('"', "'"):
-                    quote = char
-                elif char in '[{':
-                    stack.append(']' if char == '[' else '}')
-                elif char in ']}':
-                    if not stack or char != stack.pop():
-                        break
-                    if not stack:
-                        candidate = response[start:index + 1]
-                        try:
-                            return json.loads(candidate)
-                        except json.JSONDecodeError as e:
-                            last_error = e
-                        try:
-                            return ast.literal_eval(candidate)
-                        except (SyntaxError, ValueError) as e:
-                            last_error = e
-                        break
-        if last_error is not None:
-            raise ValueError(f'Story: LLM response did not contain valid JSON or a Python literal: {last_error}') from last_error
-        raise ValueError('Story: LLM response did not contain a JSON value')
-
-    def parse_frame_prompts(self, response, slide_count):
-        data = self.parse_json(response)
-        if isinstance(data, dict):
-            data = data.get('prompts', data.get('frames'))
-        if not isinstance(data, list):
-            raise ValueError('Story: LLM response must contain a list of frame prompts')
-        prompts = []
-        for item in data:
-            if isinstance(item, str):
-                prompt = item
-            elif isinstance(item, dict):
-                prompt = item.get('prompt')
-            else:
-                continue
-            if isinstance(prompt, str) and prompt.strip():
-                prompts.append(prompt.strip())
-        if len(prompts) != slide_count:
-            raise ValueError(f'Story: LLM returned {len(prompts)} frame prompts; expected {slide_count}')
-        return prompts
-
     def process(self, p, *args, **kwargs): # pylint: disable=arguments-differ,unused-argument
         # called before actual processing and initializes all story mode related attributes
         if getattr(p, 'story_mode_processing', False):
             return
-        enabled, slide_count, llm_model, use_enhance, use_captions, use_reference = args
+        enabled, slide_count, llm_model, use_enhance, use_captions, use_reference, frame_prompts, story_style = args
         if not enabled:
             return
 
@@ -147,6 +92,10 @@ class StoryScript(scripts_manager.Script):
             enhancer = self.get_enhancer(p)
             if enhancer is None:
                 raise RuntimeError('Story: Prompt enhance script is unavailable')
+
+            frame_prompts = [fp.strip() for fp in frame_prompts.split('\n')]
+            frame_networks = [[match.group(0) for match in extra_networks.re_extra_net.finditer(fp)] for fp in frame_prompts]
+            frame_prompts = [extra_networks.re_extra_net.sub('', fp).strip(', ') for fp in frame_prompts]
 
             model = get_model_repo_from_display(llm_model) if llm_model else enhancer.model or enhancer.options.default
             control_image = self.get_control_image(p)
@@ -192,55 +141,61 @@ class StoryScript(scripts_manager.Script):
             # generate story prompts
             stage = 'story'
             is_edit_model = getattr(shared.sd_model, 'max_condition_images', None) is not None
+            has_control_image = control_image is not None
+            """
             # prefix
             story_system = (
-                    f'Define overall story structure and key moments before detailing individual frames. '
-                    f'Define overall story style as <style>. '
-                    f'Identify key subject of the story as <subject>. Entire description of the subject should be self-contained. '
-                    f'Break this story into exactly {slide_count} ordered consecutive frames. '
-                    f'Preserve identifiable subjects, style, artistic medium, and rendering details across all {slide_count} frame prompts. '
+                    f'Instructions:\n'
+                    f'- Define overall story structure and key moments before detailing individual frames.\n'
+                    f'- Define overall story style.\n'
+                    f'- Identify key subject of the story. Entire description of the subject should be self-contained.\n'
+                    f'- Break this story into exactly {slide_count} ordered consecutive frames.\n'
+                    f'- Preserve identifiable subjects, style, artistic medium, and rendering details across all {slide_count} frame prompts.\n'
             )
             # mode: edit vs img2img vs txt2img
             if is_edit_model and use_reference and control_image is not None:
                 story_system += (
-                    'For each frame, write one concise, fully standalone image-edit instruction describing only the changes needed to show that story moment in the supplied reference image. '
+                    '\nFor each frame, write one concise, fully standalone image-edit instruction describing only the changes needed to show that story moment in the supplied reference image. '
                     'Treat the supplied image as the visual baseline. Identify existing subjects unambiguously, but do not restate their unchanged appearance, clothing, setting, or style in detail. '
                     'Focus on relevant changes to action, pose, expression, interaction, or visible objects. Preserve all unmentioned content and the source image\'s artistic medium and rendering style. '
                     'Each instruction is applied independently to the original reference image, not to a previous slide. '
                 )
             elif not is_edit_model and use_reference and control_image is not None:
                 story_system += (
-                    'Use the supplied reference image as visual context for the story. '
+                    '\nUse the supplied reference image as visual context for the story. '
                     'For each frame, write one short, fully standalone image-generation prompt describing the main visible moment. '
                     'Preserve continuity by explicitly repeating each visible subject\'s identity, defining physical appearance, clothing, and other relevant traits in every prompt. '
                 )
             else:
                 story_system += (
-                    'For each frame, write one short, fully standalone image-generation prompt describing the main visible moment. '
+                    '\nFor each frame, write one short, fully standalone image-generation prompt describing the main visible moment. '
                     'Preserve continuity by explicitly repeating each visible subject\'s identity, defining physical appearance, clothing, and other relevant traits in every prompt. '
                 )
             # have image
             if use_reference:
                 story_system += (
-                    'Preserve artistic medium and rendering style found in reference image in every frame. '
+                    '\nPreserve artistic medium and rendering style found in reference image in every frame. '
                 )
             # suffix
             story_system += (
                     f'Append overall story style to each frame. '
-                    f'Do not refer to other frames or previous prompts. '
-                    f'Do not use shorthand such as "the same person", "same character", "again", "still", "as before", "she", "previous frame" or similar. '
-                    f'Do not include temporal terms like "now", "progresses", "transitions", "conclusion" or similar. '
-                    f'Do not use pronouns or vague phrases in place of explicitly describing the subject. '
-                    f'Restate the subject description and story style for each frame explicitly. '
-                    f'Return only a JSON array of {slide_count} strings, with no titles, descriptions, markdown, or commentary. '
+                    f'Rules:\n'
+                    f'- Do not refer to other frames or previous prompts.\n'
+                    f'- Do not use shorthand such as "the same", "same character", "again", "still", "as before", "previous frame" or similar.\n'
+                    f'- Do not include temporal terms like "now", "progresses", "transitions", "conclusion" or similar.\n'
+                    f'- Do not use pronouns or vague phrases in place of explicitly describing the subject.\n'
+                    f'- Restate the main story concept and style for each frame explicitly.\n'
+                    f'- Return only a JSON array of {slide_count} strings, with no titles, descriptions, markdown, or commentary.\n'
             )
             story_system += (
-                'Example output format: ["subject description, action description, frame description, style description"] '
+                'Example output format:\n["subject description, action description, frame description, style description"]\n'
             )
-
+            """
+            story_system, is_instruct_edit = prompting.build_story_prompt(slide_count, is_edit_model, use_reference, has_control_image, story_style)
             debug_log(f'Story: system="{story_system}"')
+
             story_max_tokens = min(8192, 256 + slide_count * 128)
-            enhanced_story = enhancer.enhance(
+            story_raw = enhancer.enhance(
                 prompt=story_context,
                 model=model,
                 system=story_system,
@@ -249,17 +204,22 @@ class StoryScript(scripts_manager.Script):
                 use_vision=bool(use_reference and control_image is not None),
                 prompt_style='None',
             )
-            if not isinstance(enhanced_story, str) or not enhanced_story.strip() or enhanced_story.startswith('Error:'):
-                raise RuntimeError(f'story enhancement failed: {enhanced_story}')
-            enhanced_story = enhanced_story.strip()
-            debug_log(f'Story: enhanced="{enhanced_story}"')
+            if not isinstance(story_raw, str) or not story_raw.strip() or story_raw.startswith('Error:'):
+                raise RuntimeError(f'story enhancement failed: {story_raw}')
 
-            story_prompts = self.parse_frame_prompts(enhanced_story, slide_count)
+            # story_prompts = prompting.parse_frame_prompts(story_raw, slide_count)
+            debug_log(f'Story: raw={story_raw}')
+            story_prompts = prompting.assemble_story_prompts(story_raw, is_instruct_edit)
             debug_log(f'Story: story={story_prompts}')
+
+            if len(story_prompts) != slide_count:
+                log.warning(f'Story: requested={slide_count} received={len(story_prompts)} llm prompts')
 
             # enhance each story prompt
             prompts = []
             for index, frame_prompt in enumerate(story_prompts, start=1):
+                if frame_prompts and len(frame_prompts[(index-1) % len(frame_prompts)]) > 0:
+                    frame_prompt = frame_prompts[(index-1) % len(frame_prompts)] + '\n' + frame_prompt
                 if use_enhance:
                     stage = f'prompt-{index}'
                     debug_log(f'Story: enhancing frame={index}/{slide_count} prompt="{frame_prompt}"')
@@ -286,6 +246,9 @@ class StoryScript(scripts_manager.Script):
                     prompt = frame_prompt
                 if story_networks:
                     prompt = f'{prompt} {" ".join(story_networks)}'.strip()
+                if frame_networks:
+                    if frame_networks:
+                        prompt = f'{prompt} {" ".join(frame_networks[(index-1) % len(frame_networks)])}'.strip()
                 prompts.append(prompt)
                 debug_log(f'Story: slide={index} total={slide_count} prompt="{prompt}"')
         except Exception as e:
@@ -293,6 +256,9 @@ class StoryScript(scripts_manager.Script):
             p.n_iter = 1
             shared.state.end(task_id)
             log.error(f'Story: failed stage={stage} {e}')
+            if debug:
+                from modules import errors
+                errors.display(e, 'story')
             return
 
         seed = processing.get_fixed_seed(p.seed)
@@ -360,6 +326,7 @@ class StoryScript(scripts_manager.Script):
                     slide_p.init_images = []
 
                 try:
+                    debug_log(f'Story: slide={index + 1} prompt="{slide_p.prompt}"')
                     slide = processing.process_images(slide_p)
                     if slide is None or not slide.images:
                         if shared.state.interrupted:

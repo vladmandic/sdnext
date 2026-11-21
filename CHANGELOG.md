@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2026-11-20
+## Update for 2026-11-21
 
-### Highlights for 2026-11-20
+### Highlights for 2026-11-21
 
 Slightly longer release cycle resulted in quite large set of updates:
 - New top-level interface: [Chat](https://vladmandic.github.io/sdnext-docs/Chat/)!  
@@ -11,7 +11,7 @@ Slightly longer release cycle resulted in quite large set of updates:
 - Larger updates to:
   - [SD.Next Launcher](https://github.com/vladmandic/sdnext-launcher)
   - New **Watermark** module
-  - **Detailer** (add *LocateAnything* model), **Prompt-Enhance** and **Script-Mode** (improvements plus add *Granite* model), **Remove Background** (postprocessing mode)
+  - **Detailer** (add *LocateAnything* model), **Prompt-Enhance** (add *Granite* model) and **Story-Mode** (story style guidance, per-frame prompting), **Remove Background** (postprocessing mode)
   - **Video encoding**, including codec improvements, color-space handling and overall quality
 - Plus tons of minor improvements and bug fixes  
   For example, improved *offline* mode, *hf mirror* handling, *model storage* consolidation, new *strict mode*, *image metadata* handling, new *image formats*, etc.  
@@ -23,7 +23,7 @@ Plus [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) bel
 
 [Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-11-19
+### Details for 2026-11-21
 
 - [Chat](https://vladmandic.github.io/sdnext-docs/Chat/): New top-level interface  
   See [chat docs](https://vladmandic.github.io/sdnext-docs/Chat/) for more details as this is quite an extensive module  
@@ -76,7 +76,12 @@ Plus [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) bel
   - new **Watermark** processing and post-processing workflow  
     adds *mask, scale, opacity, padding* options, compatible with both images and videos  
     add `cli/api-watermark.py` as command-line interface and example for watermark processing using api  
-  - updates to **Prompt enhance** and **Story mode**  
+  - updates to **Story mode**  
+    add story style guidance options  
+    add frame-prompt as a way to manually specify per-frame overrides  
+    much stronger story continuity and cohesion  
+    improved llm parsing  
+  - updates to **Prompt enhance**
     including new [ibm-granite-4.2](https://huggingface.co/ibm-granite/granite-4.2-3b) model support  
   - allow **Remove background** as post-processing task
   - add **HDR convert** process-task which converts regular SDR image to HDR  
@@ -85,7 +90,7 @@ Plus [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) bel
 - **Torch**
   - update cuda to `torch==2.15.0+cu132`
   - update rocm/linux to `torch==2.15.0+rocm10.0`
-  - update rocm/windows to `torch==2.14.0+rocm10.1.0`  
+  - update rocm/windows to `torch==2.15.0+rocm10.2.0`  
 - **Docs**
   - new [Model Storage](https://vladmandic.github.io/sdnext-docs/Model-Storage)
   - new [Image Formats](https://vladmandic.github.io/sdnext-docs/Image-Formats)

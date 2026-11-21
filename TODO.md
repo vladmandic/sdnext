@@ -8,7 +8,6 @@ None
 
 ### Roadmap
 
-- StoryMode add custom per-frame prompt overrides, @vladmandic
 - OpenAI API interface for image generation, @vladmandic
 - Integrate natural language image search: [ImageDB](https://github.com/vladmandic/imagedb), @vladmandic
 - Support cloud providers, @CalamitousFelicitousness
