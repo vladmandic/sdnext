@@ -912,7 +912,7 @@ def install_rocm():
         rocm.refresh()
     elif sys.platform == "win32" and (not args.use_zluda) and (device is not None) and (device.therock is not None) and not installed("rocm"):
         check_python(supported_minors=(11, 12, 13), reason='ROCm-Windows: python==3.11/3.12/3.13 required')
-        install(f"rocm[libraries,device-{device.therock}] --index-url https://stable.repo.amd.com/rocm/whl-next/")
+        install(f"rocm[libraries,device-{device.therock}]==10.2.0 --index-url https://stable.repo.amd.com/rocm/whl-next/")
         rocm.refresh()
 
     msg = f'ROCm: version={rocm.version}'
@@ -949,7 +949,7 @@ def install_rocm():
                 torch_command = os.environ.get('TORCH_COMMAND', f"torch[device-{device.therock}] torchvision[device-{device.therock}] torchaudio --index-url https://nightly.repo.amd.com/rocm/whl-next/")
             elif device.therock is not None:
                 check_python(supported_minors=(11, 12, 13), reason='ROCm-Windows: python==3.11/3.12/3.13 required')
-                torch_command = os.environ.get('TORCH_COMMAND', f"torch[device-{device.therock}] torchvision[device-{device.therock}] torchaudio --index-url https://stable.repo.amd.com/rocm/whl-next/")
+                torch_command = os.environ.get('TORCH_COMMAND', f"torch[device-{device.therock}]==2.15.0+rocm10.2.0 torchvision[device-{device.therock}]==0.29.2+rocm10.2.0 --index-url https://stable.repo.amd.com/rocm/whl-next/")
             else:
                 check_python(supported_minors=(12,), reason='ROCm-Windows: python==3.12 required')
                 # torch 2.8.0a0 is the last version with rocm 6.4 support
