@@ -10,11 +10,11 @@ Slightly longer release cycle resulted in quite large set of updates:
 - New models: **MiniMax-H3-Image**, **BluePixel-Turbo**
 - Larger updates to:
   - [SD.Next Launcher](https://github.com/vladmandic/sdnext-launcher)
-  - New **Watermark** module
-  - **Detailer** (add *LocateAnything* model), **Prompt-Enhance** (add *Granite* model) and **Story-Mode** (story style guidance, per-frame prompting), **Remove Background** (postprocessing mode)
+  - New **Watermark** module for both images and videos
+  - **Detailer** (add *LocateAnything* model), **Story-Mode** (story style guidance, per-frame prompting), **Remove Background** (postprocessing mode)
   - **Video encoding**, including codec improvements, color-space handling and overall quality
 - Plus tons of minor improvements and bug fixes  
-  For example, improved *offline* mode, *hf mirror* handling, *model storage* consolidation, new *strict mode*, *image metadata* handling, new *image formats*, etc.  
+  For example, improved *offline* mode, *hf mirror* handling, *model storage* consolidation, new *strict mode*, *image metadata* handling, new *image formats*, additional *prompt enhance* models, etc.  
 
 From **user docs** side, check out rewritten [AMD ROCm](https://vladmandic.github.io/sdnext-docs/AMD-ROCm) guide, new [Model Storage](https://vladmandic.github.io/sdnext-docs/Model-Storage) notes  
 And for **AI docs**, see [instructions](https://github.com/vladmandic/sdnext/blob/dev/AGENTS.md) and [skills](https://github.com/vladmandic/sdnext/blob/dev/.github/skills/README.md)  
