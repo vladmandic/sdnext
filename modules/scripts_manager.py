@@ -26,15 +26,16 @@ debug = log.trace if os.environ.get('SD_SCRIPT_DEBUG', None) is not None else la
 
 
 class PostprocessImageArgs:
-    def __init__(self, image):
+    def __init__(self, image = None, video = None):
         self.image = image
+        self.video = video
 
     def __str__(self):
-        return f'PostprocessImageArgs(image={self.image})'
+        return f'PostprocessImageArgs(image={self.image} video={self.video})'
 
 
 class PostprocessBatchListArgs:
-    def __init__(self, images):
+    def __init__(self, images = []):
         self.images = images
 
 
