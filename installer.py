@@ -946,7 +946,7 @@ def install_rocm():
             if device is None:
                 log.error('ROCm: no agent found - make sure that graphics driver is installed and up to date')
             elif device.therock is not None and args.use_nightly:
-                torch_command = os.environ.get('TORCH_COMMAND', f"torch[device-{device.therock}] torchvision[device-{device.therock}] torchaudio --index-url https://nightly.repo.amd.com/rocm/whl-next/")
+                torch_command = os.environ.get('TORCH_COMMAND', f"torch[device-{device.therock}] torchvision[device-{device.therock}] --index-url https://nightly.repo.amd.com/rocm/whl-next/")
             elif device.therock is not None:
                 check_python(supported_minors=(11, 12, 13), reason='ROCm-Windows: python==3.11/3.12/3.13 required')
                 torch_command = os.environ.get('TORCH_COMMAND', f"torch[device-{device.therock}]==2.15.0+rocm10.2.0 torchvision[device-{device.therock}]==0.29.2+rocm10.2.0 --index-url https://stable.repo.amd.com/rocm/whl-next/")
