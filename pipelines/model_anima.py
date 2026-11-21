@@ -15,10 +15,6 @@ def _import_from_file(module_name, file_path):
     return mod
 
 
-# diffusers AnimaTextConditioner config keys that AnimaLLMAdapter names differently; the weights are identical
-TEXT_CONDITIONER_KEYS = {'num_attention_heads': 'num_heads', 'use_self_attention': 'use_self_attn', 'target_vocab_size': 'vocab_size'}
-
-
 def is_modular_layout(path: str | None) -> bool:
     """True for a diffusers modular repo folder, which has modular_model_index.json and no model_index.json."""
     return path is not None and os.path.isdir(path) and os.path.isfile(os.path.join(path, 'modular_model_index.json')) and not os.path.isfile(os.path.join(path, 'model_index.json'))
@@ -26,10 +22,9 @@ def is_modular_layout(path: str | None) -> bool:
 
 def _load_text_conditioner(repo_id: str, adapter_cls):
     """Load the text_conditioner of a diffusers modular Anima repo as an AnimaLLMAdapter."""
-    config = adapter_cls.load_config(repo_id, subfolder='text_conditioner', cache_dir=shared.opts.hfcache_dir)
-    if config.get('use_layer_norm', False) or config.get('min_sequence_length', 512) != 512:
-        raise ValueError(f'text_conditioner use_layer_norm={config.get("use_layer_norm")} min_sequence_length={config.get("min_sequence_length")} not supported')
-    renamed = {new: config[old] for old, new in TEXT_CONDITIONER_KEYS.items() if old in config}
+    from pipelines.anima import TEXT_CONDITIONER_KEYS, text_conditioner_config
+    config = text_conditioner_config(adapter_cls.load_config(repo_id, subfolder='text_conditioner', cache_dir=shared.opts.hfcache_dir))
+    renamed = {key: config[key] for key in TEXT_CONDITIONER_KEYS.values() if key in config}
     return adapter_cls.from_pretrained(
         repo_id,
         subfolder='text_conditioner',
@@ -53,7 +48,7 @@ def build_modular_pipeline(cls, repo_id: str, load_args: dict, **components):
     return pipe
 
 
-def init_transformer_component(repo_id, diffusers_load_config, adapter_cls, local_file=None):
+def init_transformer_component(repo_id, diffusers_load_config, adapter_cls, local_file=None, modular=False):
     """Load (transformer, llm_adapter_or_none).
 
     A UNET dropdown selection, else ``local_file`` (a single-file checkpoint),
@@ -66,10 +61,10 @@ def init_transformer_component(repo_id, diffusers_load_config, adapter_cls, loca
     override = native_transformer.resolve_path()
     local_file = override or local_file
     if local_file is not None:
-        from pipelines.anima import ANIMA_SPEC
+        from pipelines.anima import ANIMA_SPEC, ANIMA_MODULAR_SPEC
         try:
             transformer, siblings = native_transformer.load(
-                local_file, repo_id, ANIMA_SPEC, diffusers_load_config,
+                local_file, repo_id, ANIMA_MODULAR_SPEC if modular else ANIMA_SPEC, diffusers_load_config,
                 sibling_classes={'llm_adapter': adapter_cls},
             )
         except Exception as e:
@@ -122,7 +117,7 @@ def load_anima(checkpoint_info, diffusers_load_config=None):
         return None
 
     # UNET dropdown or single-file checkpoint may bundle transformer and llm_adapter
-    transformer, llm_adapter = init_transformer_component(repo_id, diffusers_load_config, modeling_llm_adapter.AnimaLLMAdapter, local_file=local_file)
+    transformer, llm_adapter = init_transformer_component(repo_id, diffusers_load_config, modeling_llm_adapter.AnimaLLMAdapter, local_file=local_file, modular=modular)
     if transformer is None:
         return None
     text_encoder = generic.load_text_encoder(

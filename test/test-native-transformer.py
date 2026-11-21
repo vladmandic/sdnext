@@ -1146,6 +1146,64 @@ def test_load_end_to_end_with_sibling_partition():
             os.unlink(path)
 
 
+def test_load_sibling_config_transform():
+    """A sibling whose base repo stores it under another class: the spec's
+    config_transform maps the fetched config before the sibling is built."""
+    fd, path = tempfile.mkstemp(suffix='.safetensors')
+    try:
+        dim = 8
+        sibling_dim = 4
+        raw = {
+            'model.diffusion_model.in_proj.weight': torch.randn(dim, dim),
+            'model.diffusion_model.in_proj.bias': torch.zeros(dim),
+            'model.diffusion_model.out_proj.weight': torch.randn(dim, dim),
+            'model.diffusion_model.out_proj.bias': torch.zeros(dim),
+            'model.diffusion_model.sibling.in_proj.weight': torch.randn(sibling_dim, sibling_dim),
+            'model.diffusion_model.sibling.in_proj.bias': torch.zeros(sibling_dim),
+            'model.diffusion_model.sibling.out_proj.weight': torch.randn(sibling_dim, sibling_dim),
+            'model.diffusion_model.sibling.out_proj.bias': torch.zeros(sibling_dim),
+        }
+        write_fixture(raw, fd, path)
+        fetched = []
+
+        def patched_fetch(_repo, sub):
+            fetched.append(sub)
+            return {'dim': dim} if sub == 'transformer' else {'width': sibling_dim}
+
+        orig_fetch = nt.fetch_component_config
+        nt.fetch_component_config = patched_fetch
+        from modules import model_quant
+        orig_get_dit = model_quant.get_dit_args
+        orig_get_qtype = model_quant.get_quant_type
+        orig_do_post = model_quant.do_post_load_quant
+        model_quant.get_dit_args = lambda *a, **k: ({}, {})
+        model_quant.get_quant_type = lambda *a, **k: None
+        model_quant.do_post_load_quant = lambda *a, **k: None
+        try:
+            spec = nt.TransformerSpec(
+                cls=MockMiniTransformer,
+                siblings={
+                    'sibling': nt.SiblingSpec(
+                        subfolder='conditioner',
+                        inline_prefix='sibling.',
+                        acceptable_missing=('rope.',),
+                        config_transform=lambda config: {'dim': config['width']},
+                    ),
+                },
+            )
+            _transformer, siblings = nt.load(local_file=path, repo_id='fake/repo', spec=spec, diffusers_cfg={}, sibling_classes={'sibling': MockMiniTransformer})
+        finally:
+            nt.fetch_component_config = orig_fetch
+            model_quant.get_dit_args = orig_get_dit
+            model_quant.get_quant_type = orig_get_qtype
+            model_quant.do_post_load_quant = orig_do_post
+        assert fetched == ['transformer', 'conditioner'], fetched
+        assert siblings['sibling'].in_proj.weight.shape == (sibling_dim, sibling_dim)
+    finally:
+        if os.path.exists(path):
+            os.unlink(path)
+
+
 def test_load_raises_on_missing_sibling_class():
     """Sibling keys present in file but caller forgot to supply the class."""
     fd, path = tempfile.mkstemp(suffix='.safetensors')
@@ -2632,6 +2690,38 @@ def test_anima_spec_registers_infer_config():
     assert anima.ANIMA_SPEC.infer_config is anima.infer_config
 
 
+# circlestone-labs/Anima-Base-v1.0-Diffusers text_conditioner/config.json and vladmandic/Anima-1.0-Base llm_adapter/config.json
+TEXT_CONDITIONER_CONFIG = {
+    '_class_name': 'AnimaTextConditioner', '_diffusers_version': '0.39.0.dev0', 'min_sequence_length': 512, 'mlp_ratio': 4.0, 'model_dim': 1024,
+    'num_attention_heads': 16, 'num_layers': 6, 'source_dim': 1024, 'target_dim': 1024, 'target_vocab_size': 32128, 'use_layer_norm': False, 'use_self_attention': True,
+}
+LLM_ADAPTER_CONFIG = {
+    'mlp_ratio': 4.0, 'model_dim': 1024, 'num_heads': 16, 'num_layers': 6, 'source_dim': 1024, 'target_dim': 1024, 'use_self_attn': True, 'vocab_size': 32128,
+}
+
+
+def test_anima_modular_spec_reads_text_conditioner():
+    """A modular base repo keeps the adapter in text_conditioner; a bundled adapter takes its config from there, in AnimaLLMAdapter's key names."""
+    from pipelines import anima
+    sibling = anima.ANIMA_MODULAR_SPEC.siblings['llm_adapter']
+    assert sibling.subfolder == 'text_conditioner'
+    assert sibling.inline_prefix == anima.ANIMA_SPEC.siblings['llm_adapter'].inline_prefix
+    converted = {k: v for k, v in sibling.config_transform(dict(TEXT_CONDITIONER_CONFIG)).items() if not k.startswith('_')}
+    assert converted == LLM_ADAPTER_CONFIG, converted
+    assert anima.ANIMA_MODULAR_SPEC.infer_config is anima.infer_config
+    assert anima.ANIMA_SPEC.siblings['llm_adapter'].config_transform is None
+
+
+def test_anima_text_conditioner_unsupported_settings_raise():
+    from pipelines import anima
+    for key, value in (('use_layer_norm', True), ('min_sequence_length', 256)):
+        try:
+            anima.text_conditioner_config({**TEXT_CONDITIONER_CONFIG, key: value})
+        except ValueError:
+            continue
+        raise AssertionError(f'{key}={value} accepted')
+
+
 # ============================================================
 # Run
 # ============================================================
@@ -2783,6 +2873,7 @@ def run_all():
         test_load_forwards_kwargs_to_from_config,
         test_load_infer_config_sizes_module_to_file,
         test_load_end_to_end_with_sibling_partition,
+        test_load_sibling_config_transform,
         test_load_raises_on_missing_sibling_class,
         test_load_rejects_non_safetensors,
         test_build_component_converter_crash_raises_mismatch,
@@ -2857,6 +2948,8 @@ def run_all():
     for fn in [
         test_anima_infer_config_counts_cosmos_blocks,
         test_anima_infer_config_matches_base_depth,
+        test_anima_modular_spec_reads_text_conditioner,
+        test_anima_text_conditioner_unsupported_settings_raise,
         test_anima_infer_config_diffusers_layout,
         test_anima_infer_config_comfy_sidecars_do_not_inflate,
         test_anima_infer_config_no_blocks_returns_empty,

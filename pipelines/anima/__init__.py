@@ -16,8 +16,12 @@ knobs that differ from the native-loader defaults:
   finetunes (Anima-2.9B: 40 blocks) load against the 28-layer base config.
 - All other knobs (prefixes, ``acceptable_missing`` buffers) use the defaults
   from :mod:`pipelines.native_transformer`.
+
+:data:`ANIMA_MODULAR_SPEC` is the same spec for a base repo in the diffusers
+modular layout, which keeps the adapter as ``text_conditioner``.
 """
 
+import dataclasses
 import re
 
 import diffusers
@@ -37,6 +41,17 @@ def infer_config(state_dict: dict) -> dict:
     return {'num_layers': max(indices) + 1}
 
 
+# diffusers AnimaTextConditioner config keys that AnimaLLMAdapter names differently; the weights are identical
+TEXT_CONDITIONER_KEYS = {'num_attention_heads': 'num_heads', 'use_self_attention': 'use_self_attn', 'target_vocab_size': 'vocab_size'}
+
+
+def text_conditioner_config(config: dict) -> dict:
+    """An AnimaTextConditioner config under AnimaLLMAdapter's keys; raises on the conditioner options the adapter does not implement."""
+    if config.get('use_layer_norm', False) or config.get('min_sequence_length', 512) != 512:
+        raise ValueError(f'text_conditioner use_layer_norm={config.get("use_layer_norm")} min_sequence_length={config.get("min_sequence_length")} not supported')
+    return {TEXT_CONDITIONER_KEYS.get(key, key): value for key, value in config.items() if key not in ('use_layer_norm', 'min_sequence_length')}
+
+
 ANIMA_SPEC = TransformerSpec(
     cls=diffusers.CosmosTransformer3DModel,
     converter=convert_cosmos_transformer_checkpoint_to_diffusers,
@@ -53,4 +68,15 @@ ANIMA_SPEC = TransformerSpec(
         ),
     ),
     infer_config=infer_config,
+)
+
+ANIMA_MODULAR_SPEC = dataclasses.replace(
+    ANIMA_SPEC,
+    siblings={
+        'llm_adapter': SiblingSpec(
+            subfolder='text_conditioner',
+            inline_prefix='llm_adapter.',
+            config_transform=text_conditioner_config,
+        ),
+    },
 )

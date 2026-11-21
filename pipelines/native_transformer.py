@@ -105,11 +105,15 @@ class SiblingSpec:
     weights when the sibling is NOT bundled inline; ``inline_prefix`` is the
     key prefix that identifies the sibling's weights within the bundled file
     (after the transformer's prefix has already been stripped).
+    ``config_transform`` maps the config read from ``subfolder`` onto the
+    sibling class's keys, for a base repo that stores the component under
+    another class.
     """
 
     subfolder: str
     inline_prefix: str
     acceptable_missing: tuple[str, ...] = ()
+    config_transform: Callable[[dict], dict] | None = None
 
 
 @dataclass(frozen=True)
@@ -341,6 +345,8 @@ def load(
                 f"file but no class was supplied via sibling_classes"
             )
         sibling_cfg = fetch_component_config(repo_id, sibling_spec.subfolder)
+        if sibling_spec.config_transform is not None:
+            sibling_cfg = sibling_spec.config_transform(sibling_cfg)
         loaded_siblings[name] = build_component(
             component_name=name,
             state_dict=sibling_sd,
