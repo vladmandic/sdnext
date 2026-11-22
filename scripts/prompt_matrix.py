@@ -1,7 +1,7 @@
 import math
 import gradio as gr
 from modules import images, scripts_manager
-from modules.processing import process_images
+from modules.processing import process_images, fix_seed
 from modules.shared import opts, log
 import modules.sd_samplers
 
@@ -28,7 +28,7 @@ class PromptMatrixScript(scripts_manager.Script):
         return [put_at_start, different_seeds, prompt_type, variations_delimiter, margin_size]
 
     def run(self, p, put_at_start, different_seeds, prompt_type, variations_delimiter, margin_size): # pylint: disable=arguments-differ
-        modules.processing.fix_seed(p)
+        fix_seed(p)
         # Raise error if promp type is not positive or negative
         if prompt_type not in ["positive", "negative"]:
             raise ValueError(f"Unknown prompt type {prompt_type}")

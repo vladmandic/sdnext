@@ -7,6 +7,7 @@ from modules.logger import log
 def create_ui():
     log.debug('UI initialize: tab=txt2img')
     import modules.txt2img # pylint: disable=redefined-outer-name
+    import modules.scripts_manager
     modules.scripts_manager.scripts_current = modules.scripts_manager.scripts_txt2img
     modules.scripts_manager.scripts_txt2img.initialize_scripts(is_img2img=False, is_control=False)
     with gr.Blocks(analytics_enabled=False) as _txt2img_interface:

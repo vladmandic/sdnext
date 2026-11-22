@@ -240,7 +240,7 @@ def installed(package, friendly: str | None = None, quiet = False): # pylint: di
         ts('installed', t_start)
         return ok
     except Exception as e:
-        log.error(f'Install: package="{pkgs}" {e}')
+        log.error(f'Install: package="{package}" {e}')
         ts('installed', t_start)
         return False
 
@@ -828,8 +828,8 @@ def check_onnx():
         install(os.environ.get('ONNXRUNTIME_COMMAND', 'onnxruntime'), ignore=True)
     else:
         onnx_version = package_version('onnxruntime') or ''
+        from packaging.version import InvalidVersion, Version
         try:
-            from packaging.version import InvalidVersion, Version
             update_onnxruntime = Version(onnx_version) < Version('1.30.0')
         except InvalidVersion:
             update_onnxruntime = False
@@ -1116,6 +1116,7 @@ def check_torch():
     if args.skip_torch:
         log.info('Torch: skip tests')
         return
+    pr = None
     if args.profile:
         pr = cProfile.Profile()
         pr.enable()
@@ -1179,8 +1180,8 @@ def check_torch():
     try:
         try:
             # import torch pulls torch.distributed immediately which is slow and unnecessary
-            import torch.distributed.tensor._ops as dtensor_ops
-            dtensor_ops.single_dim_strategy._resolve_foreach_elementwise_overload = lambda *a, **kw: None # pylint: disable=protected-access
+            from torch.distributed.tensor._ops import single_dim_strategy
+            single_dim_strategy._resolve_foreach_elementwise_overload = lambda *a, **kw: None # pylint: disable=protected-access
         except Exception:
             pass
         import torch
@@ -1281,11 +1282,12 @@ def check_torch():
             sys.exit(1)
 
     if is_rocm_available:
+        from modules import rocm
         rocm.postinstall()
     if not args.skip_all:
         install_torch_addons()
     check_cudnn()
-    if args.profile:
+    if args.profile and pr:
         pr.disable()
         print_profile(pr, 'Torch')
     ts('torch', t_start)
@@ -1330,7 +1332,7 @@ def run_extension_installer(folder):
             env['PYTHONPATH'] = os.path.abspath(".")
             if os.environ.get('PYTHONPATH', None) is not None:
                 separator = ';' if sys.platform == 'win32' else ':'
-                env['PYTHONPATH'] += separator + os.environ.get('PYTHONPATH', None)
+                env['PYTHONPATH'] += separator + os.environ.get('PYTHONPATH', '')
             result, txt = run([sys.executable, path_installer], env=env, cwd=folder)
             debug(f'Extension installer: file="{path_installer}" {result.stdout}')
             if result.returncode != 0:
@@ -1369,6 +1371,7 @@ def install_extensions(force=False):
         'sd-extension-promptgen',
         'sd-extension-system-info',
     ]
+    pr = None
     if args.profile:
         pr = cProfile.Profile()
         pr.enable()
@@ -1423,7 +1426,7 @@ def install_extensions(force=False):
     log.info(f'Extensions enabled: {extensions_enabled}')
     if len(extensions_duplicates) > 0:
         log.warning(f'Extensions duplicates: {extensions_duplicates}')
-    if args.profile:
+    if args.profile and pr:
         pr.disable()
         print_profile(pr, 'Extensions')
     # ts('extensions', t_start)
@@ -1433,6 +1436,7 @@ def install_extensions(force=False):
 # initialize and optionally update submodules
 def install_submodules(force=True):
     t_start = time.time()
+    pr = None
     if args.profile:
         pr = cProfile.Profile()
         pr.enable()
@@ -1460,7 +1464,7 @@ def install_submodules(force=True):
         except Exception:
             log.error(f'Submodule update error: {submodule}')
     setup_logging()
-    if args.profile:
+    if args.profile and pr:
         pr.disable()
         print_profile(pr, 'Submodule')
     ts('submodules', t_start)
@@ -1560,6 +1564,7 @@ def install_requirements():
     t_start = time.time()
     if args.skip_requirements and not args.requirements:
         return
+    pr = None
     if args.profile:
         pr = cProfile.Profile()
         pr.enable()
@@ -1587,7 +1592,7 @@ def install_requirements():
     install_compel()
     install_pydantic()
     install_opencv()
-    if args.profile:
+    if args.profile and pr:
         pr.disable()
         print_profile(pr, 'Requirements')
     ts('requirements', t_start)
@@ -2058,6 +2063,7 @@ def parse_args(parser):
 
 def extensions_preload(parser):
     t_start = time.time()
+    pr = None
     if args.profile:
         pr = cProfile.Profile()
         pr.enable()
@@ -2076,7 +2082,7 @@ def extensions_preload(parser):
         log.debug(f'Extension preload: {preload_time}')
     except Exception:
         log.error('Error running extension preloading')
-    if args.profile:
+    if args.profile and pr:
         pr.disable()
         print_profile(pr, 'Preload')
     ts('preload', t_start)
@@ -2105,7 +2111,7 @@ def git_reset(folder='.'):
 def read_options():
     t_start = time.time()
     global opts # pylint: disable=global-statement
-    if os.path.isfile(args.config):
+    if args.config and os.path.isfile(args.config):
         with open(args.config, encoding="utf8") as file:
             try:
                 opts = json.load(file)
@@ -2113,7 +2119,7 @@ def read_options():
                     opts = json.loads(opts)
             except Exception as e:
                 log.error(f'Error reading options file: {file} {e}')
-    if os.path.isfile(args.secrets):
+    if args.secrets and os.path.isfile(args.secrets):
         with open(args.secrets, encoding="utf8") as file:
             try:
                 secrets = json.load(file)

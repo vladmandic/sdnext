@@ -177,6 +177,7 @@ class StableCascadeDecoderPipelineFixed(diffusers.StableCascadeDecoderPipeline):
     def guidance_scale(self): # pylint: disable=invalid-overridden-method,method-hidden
         return self._guidance_scale
 
+    @property
     def do_classifier_free_guidance(self): # pylint: disable=invalid-overridden-method,method-hidden
         return self._guidance_scale > 1
 
@@ -204,7 +205,6 @@ class StableCascadeDecoderPipelineFixed(diffusers.StableCascadeDecoderPipeline):
         # 0. Define commonly used variables
         guidance_scale = guidance_scale or 0.0
         self.guidance_scale = guidance_scale
-        self.do_classifier_free_guidance = self.guidance_scale > 1
         device = self._execution_device
         dtype = self.decoder.dtype
 

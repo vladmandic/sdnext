@@ -37,13 +37,14 @@ except Exception:
 
 
 def init_args():
-    global parser, args # pylint: disable=global-statement
+    global parser # pylint: disable=global-statement
     import modules.cmd_args
     modules.cmd_args.parse_args()
     parser = modules.cmd_args.parser
     installer.add_args(parser)
-    args, _ = parser.parse_known_args()
+    _args, _ = parser.parse_known_args()
     rec('args')
+    return _args
 
 
 def init_paths():
@@ -192,6 +193,7 @@ def clean_server():
 
 
 def start_server(immediate=True, server=None):
+    profiler = None
     if args.profile:
         import cProfile
         profiler = cProfile.Profile()
@@ -223,7 +225,7 @@ def start_server(immediate=True, server=None):
         uvicorn = server.webui(restart=not immediate, _exit=True)
     else:
         uvicorn = server.webui(restart=not immediate, profiler=profiler if args.profile else None)
-    if args.profile:
+    if args.profile and profiler is not None:
         profiler.disable()
         installer.print_profile(profiler, 'WebUI')
         profiler.clear()
@@ -234,7 +236,7 @@ def start_server(immediate=True, server=None):
 
 def main():
     global args # pylint: disable=global-statement
-    init_args() # setup argparser and default folders
+    args = init_args() # setup argparser and default folders
     installer.args = args
     installer.setup_logging(debug=args.debug, trace=args.trace, filename=args.log)
     log.info('Starting: [bold cyan]SD.Next[/]')

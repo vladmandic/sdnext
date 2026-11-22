@@ -452,3 +452,45 @@ ignore-words-list = [
   "te", "nd", "TE", "padd", "inpt", "thw", "thre", "tipe", "ACI", "Foto", "CNA", "LAMA", "lama", "LaMa", "SOM", "COO", "trU", "PatchIn", "AllTime",
   "youre", "thats", "dont", "whats", "havent", "isnt", "doesnt", "cant", "theres", "receipe", "splitted", "spacial", "patchs",
 ]
+
+[tool.pyrefly]
+project-includes = [
+    "*.py",
+    "cli/**/*.py",
+    "modules/**/*.py",
+    "pipelines/**/*.py",
+    "scripts/**/*.py",
+    "extensions-builtin/**/*.py",
+]
+project-excludes = [
+    "**/.*",
+    ".git/",
+    "**/node_modules",
+    "**/__pycache__",
+    "venv",
+    "modules/caption/deepbooru_model.py",
+]
+python-platform = "all"
+python-version = "3.11.0"
+preset = "default"
+infer-with-first-use = false
+
+[tool.pyrefly.errors]
+attribute-assign-on-never = "ignore"
+bad-argument-type = "ignore"
+bad-assignment = "ignore"
+bad-function-definition = "ignore"
+bad-index = "ignore"
+bad-override = "ignore"
+bad-unpacking = "ignore"
+deprecated = "ignore"
+invalid-inheritance = "ignore"
+missing-attribute = "ignore"
+missing-import = "ignore"
+no-matching-overload = "ignore"
+not-callable = "ignore"
+unexpected-keyword = "ignore"
+unnecessary-type-conversion = "ignore"
+unsupported-operation = "ignore"
+untyped-import = "ignore"
+unbound-name = "ignore"

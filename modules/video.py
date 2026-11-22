@@ -33,7 +33,7 @@ def save_video_frames(video_writer: VideoWriter, frames):
         video_writer.write(frame)
 
 
-def resolve_codec(video_type: str, mp4_codec: str | None, mp4_opt: str | None) -> tuple[str, str]:
+def resolve_codec(video_type: str, mp4_codec: str | None, mp4_opt: str | None) -> tuple[str, str | None]:
     """Encoder and options for a save: an explicit codec wins over the label; unset options take the codec's preset, '' means none."""
     codec = mp4_codec if mp4_codec is not None else codec_from_video_type(video_type)
     if mp4_opt is None:

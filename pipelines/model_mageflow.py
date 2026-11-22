@@ -46,7 +46,7 @@ class MageFlowLowRankTransformer2DModel(MageFlowTransformer2DModel):
                 mod[0] = torch.nn.Identity()
                 mod[1] = MageFlowFP32Linear(modulation_rank, 6 * hidden_size, dtype=torch.float32)
 
-    def forward(self, hidden_states: torch.Tensor, encoder_hidden_states: torch.Tensor = None, timestep: torch.Tensor = None, img_ids: torch.Tensor = None, joint_attention_kwargs: dict | None = None, return_dict: bool = True):
+    def forward(self, hidden_states: torch.Tensor, encoder_hidden_states: torch.Tensor = None, timestep: torch.Tensor | None = None, img_ids: torch.Tensor | None = None, joint_attention_kwargs: dict | None = None, return_dict: bool = True):
         if not self.modulation_rank:
             return super().forward(hidden_states, encoder_hidden_states=encoder_hidden_states, timestep=timestep, img_ids=img_ids, joint_attention_kwargs=joint_attention_kwargs, return_dict=return_dict)
         hidden_states = self.x_embedder(hidden_states)

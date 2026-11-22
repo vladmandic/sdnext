@@ -274,6 +274,7 @@ def compile_torch(sd_model, apply_to_components=True, op="Model"):
 
         # configure torch.inductor
         try:
+            import torch._inductor.config
             torch._inductor.config.conv_1x1_as_mm = True # pylint: disable=protected-access
             torch._inductor.config.coordinate_descent_tuning = True # pylint: disable=protected-access
             torch._inductor.config.epilogue_fusion = False # pylint: disable=protected-access

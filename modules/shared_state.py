@@ -210,7 +210,7 @@ class State:
         self.paused = False
         self.results = []
 
-    def begin(self, title="", task_id=0, api=None) -> str:
+    def begin(self, title="", task_id=0, api=None) -> int:
         import modules.devices
         self.clear()
         self.interrupted = False

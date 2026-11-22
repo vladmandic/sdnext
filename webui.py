@@ -25,6 +25,7 @@ import modules.gr_tempdir
 import modules.modeldata
 import modules.extensions
 import modules.modelloader
+import modules.sd_offload_state
 import modules.sd_checkpoint
 import modules.sd_samplers
 import modules.scripts_manager

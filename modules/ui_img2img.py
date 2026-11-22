@@ -40,6 +40,8 @@ def process_caption(mode, ii_input_files, ii_input_dir, ii_output_dir, *ii_singl
 def create_ui():
     log.debug('UI initialize: tab=img2img')
     import modules.img2img # pylint: disable=redefined-outer-name
+    import modules.images
+    import modules.scripts_manager
     modules.scripts_manager.scripts_current = modules.scripts_manager.scripts_img2img
     modules.scripts_manager.scripts_img2img.initialize_scripts(is_img2img=True, is_control=False)
     with gr.Blocks(analytics_enabled=False) as _img2img_interface:
