@@ -26,7 +26,6 @@ None
 
 ### OnHold
 
-- [QuantFunc](https://huggingface.co/QuantFunc/Klein-9B-Series): once its released as sdk
 - LoRA add OMI format support for SD35/FLUX.1
 - Remote Text-Encoder support, sidelined for the moment
 - Auto handle scheduler `prediction_type`
@@ -45,6 +44,10 @@ None
 
 ### Video
 
+- [Kandinski 6.0](https://huggingface.co/collections/kandinskylab/kandinsky-60-diffusers)
+- [Bernini-R](https://huggingface.co/ByteDance/Bernini-R-Diffusers)
+- [Bernini-R 1.3B](https://huggingface.co/ByteDance/Bernini-R-1.3B-Diffusers)
+- [PAN2](https://huggingface.co/IFM/PAN2)
 - [ByteDance Lance](https://github.com/bytedance/Lance)
 - [HY-OmniWeaving](https://huggingface.co/tencent/HY-OmniWeaving)
 - [OpenMOSS MOVA](https://huggingface.co/OpenMOSS-Team/MOVA-720p)
@@ -72,86 +75,59 @@ None
 
 ### Other/Unsorted
 
-- [TryOnDiffusion](https://github.com/fashn-AI/tryondiffusion)
 - [GPEN Face Restoration](https://github.com/yangxy/GPEN)
 - [ByteDance DreamO](https://github.com/bytedance/DreamO)
   - Unified image customization framework combining face identity preservation, virtual try-on, style transfer, etc.
   - Created: 2025-05 | Updated: 2025-08 | Stars: 1,700
-- [ControlNeXt](https://github.com/dvlab-research/ControlNeXt/)
-  - Lightweight controllable generation framework for images and videos (SD1.5, SDXL, SVD) that uses up to 90% fewer trainable parameters than ControlNet
-  - Created: 2024-08 | Updated: 2024-08 | Stars: 1,600
 - [ByteDance USO](https://github.com/bytedance/USO)
   - Unified model for both style-transfer and subject-driven image generation from one or two reference images
   - Created: 2025-08 | Updated: 2025-09 | Stars: 1,200
 - [TwinFlow](https://github.com/inclusionAI/TwinFlow)
   - Distillation technique that converts large image generation models into 1–2 step generators without requiring a separate teacher model
   - Created: 2025-12 | Updated: 2026-02 | Stars: 506
-- [FlashFace](https://github.com/ali-vilab/FlashFace)
-  - Zero-shot face personalization method that generates images of a specific person from one or a few reference photos
-  - Created: 2024-03 | Updated: 2024-05 | Stars: 436
-- [DiffSynth-Engine](https://github.com/modelscope/DiffSynth-Engine)
-  - Alternative to diffusers library that unlocks some diffsynth specific capabilities
-  - Created: 2024-05 | Updated: 2026-03 | Stars: 393
-- [MS-Diffusion](https://github.com/MS-Diffusion/MS-Diffusion)
-  - Multi-subject image personalization framework that uses layout guidance to place multiple reference subjects in a single generated image without identity confusion
-  - Created: 2024-04 | Updated: 2025-07 | Stars: 309
-- [RamTorch](https://github.com/lodestone-rock/ramtorch)
-  - Alternative memory management and offloading library
-  - Created: 2025-09 | Updated: 2026-04 | Stars: 266
-- [UniRef](https://github.com/FoundationVision/UniRef)
-  - Unified segmentation model that handles referring image segmentation and few-shot segmentation
-  - Created: 2023-04 | Updated: 2025-04 | Stars: 238
 - [FreeFuse](https://github.com/yaoliliu/FreeFuse)
   - Training-free method to combine multiple subject LoRAs in one image generation without conflicts, by automatically routing each LoRA's influence to its target spatial region.
   - Created: 2026-01 | Updated: 2026-03 | Stars: 178
-- [mmgp](https://github.com/deepbeepmeep/mmgp)
-  - Alternative memory management and offloading library
-  - Created: 2024-03 | Updated: 2026-02 | Stars: 175
-- [ReNO](https://github.com/ExplainableML/ReNO)
-  - Inference-time technique that improves one-step text-to-image models by iteratively optimizing the initial noise using reward model signals, boosting prompt accuracy in 20–50 seconds
-  - Created: 2024-06 | Updated: 2025-09 | Stars: 166
 - [RegionE](https://github.com/Peyton-Chen/RegionE)
   - Speeds up instruction-based image editing by skipping redundant computation in image regions that are not being changed.
   - Created: 2025-10 | Updated: 2026-02 | Stars: 98
-- [Make-It-Count](https://github.com/Litalby1/make-it-count)
-  - Method that reliably generates the exact number of objects requested by tracking instance identities during denoising
-  - Created: 2024-04 | Updated: 2025-04 | Stars: 96
 - [FaceClip](https://huggingface.co/ByteDance/FaceCLIP)
   - Identity-preserving image generation model that jointly encodes a face and a text prompt into a shared embedding to produce portraits matching both the subject's appearance and the scene description
   - Created: 2025-04 | Updated: 2025-04 | Likes: 88
-- [T5Gemma Adapter](https://github.com/NeuroSenko/ComfyUI_LLM_SDXL_Adapter)
-  - Experiment that replaces the SDXL text encoder with a T5Gemma LLM via a trained adapter for richer prompt understanding
-  - Created: 2025-07 | Updated: 2025-10 | Stars: 67
 - [Sonic Inpaint](https://github.com/ubc-vision/sonic)
   - Image inpainting method that optimizes for better masked-region filling
   - Created: 2025-11 | Updated: 2026-01 | Stars: 23
 - [SEVA](https://github.com/Stability-AI/stable-virtual-camera)
   - Model that generates novel-view images of a scene from a single input photo.
   - Created: 2025-04 | Updated: 2025-06 | Stars: N/A (draft PR)
-- [Bria FIBO RMBG](https://huggingface.co/briaai/RMBG-2.0)
-  - Background removal model trained on Bria FIBO dataset
-  - Created: 2025-08 | Updated: 2025-09 | Stars: N/A (private model)
+
+### Tech
+
+- [DiffSynth-Engine](https://github.com/modelscope/DiffSynth-Engine) Alternative to diffusers library that unlocks some diffsynth specific capabilities
+- [RamTorch](https://github.com/lodestone-rock/ramtorch)
+- [mmgp](https://github.com/deepbeepmeep/mmgp)
+- [DDO](https://github.com/DEVAIEXP/diffusers-dynamic-offloader)
+- [QuantFunc](https://github.com/QuantFunc/ComfyUI-QuantFunc)
 
 ### Rejected
 
 - [Mugen](https://huggingface.co/CabalResearch/Mugen) (sdxl with flux vae experiment, not clean)
 - [Liquid](https://github.com/FoundationVision/Liquid) (autoregressive, not clean)
+- [SenseNova-U1.5](https://huggingface.co/sensenova/SenseNova-U1.5-8B-MoT) (custom multi-modal)
+- [Iris-3B](https://huggingface.co/speridlabs/iris-3b)
 
 ## Code TODO
 
 > pnpm run todo
 
 ```code
-installer.py:652:15: W0511: TODO rocm: switch to pytorch source when it becomes available (fixme)
-modules/sd_models_compile.py:90:5: W0511: TODO pruna: enable when it supports transformers==5.5 (fixme)
-modules/transformer_cache.py:29:61: W0511: TODO fc: autodetect tensor format based on model (fixme)
-modules/transformer_cache.py:30:50: W0511: TODO fc: autodetect distilled based on model (fixme)
-modules/processing_class.py:406:32: W0511: TODO processing: remove duplicate mask params (fixme)
-modules/sd_samplers_diffusers.py:370:31: W0511: TODO enso-required (fixme)
-modules/sd_models.py:1424:5: W0511: TODO model load: implement model in-memory caching (fixme)
-modules/ui_models_load.py:257:5: W0511: TODO loader: load receipe (fixme)
-modules/ui_models_load.py:264:5: W0511: TODO loader: save receipe (fixme)
-modules/sd_hijack_hypertile.py:123:17: W0511: TODO hypertile: vae breaks when using non-standard sizes (fixme)
-modules/sd_unet.py:77:39: W0511: TODO model load: force-reloading entire model as loading transformers only leads to massive memory usage (fixme)
-modules/modular_guiders.py:66:51: W0511: TODO: guiders (fixme)
+modules/caption/vqa.py:TODO vqa: implement handling of custom args # pylint: disable=unused-argument
+modules/control/run.py:TODO modernui: monkey-patch for missing tabs.select event
+modules/history.py:TODO: apply metadata, preview, load/save
+modules/processing_class.py:TODO processing: remove duplicate mask params
+modules/sd_hijack_hypertile.py:TODO hypertile: vae breaks when using non-standard sizes
+modules/sd_samplers_diffusers.py:TODO enso-required
+modules/ui_models_load.py:TODO loader: load receipe
+modules/ui_models_load.py:TODO loader: save receipe
+pipelines/objectclear/pipeline_objectclear.py:TODO: Logic should ideally just be moved out of the pipeline
 ```

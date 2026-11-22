@@ -121,7 +121,7 @@ def apply_connectors_forward_patch():
     except (OSError, TypeError):
         source = ''
     if BROKEN_MARKER in source:
-        connector_cls.forward = patched_connector_forward # TODO ltx: patched diffusers connectors padding to fix audio token order (upstream #13564 regression)
+        connector_cls.forward = patched_connector_forward
 
 
 def apply_lora_patch():
@@ -132,7 +132,7 @@ def apply_lora_patch():
     original = LTX2LoraLoaderMixin.lora_state_dict.__func__
 
     @functools.wraps(original)
-    def lora_state_dict(cls, *args, **kwargs): # TODO ltx: diffusers routes 2.5 stage-2 lora connector keys into the transformer namespace
+    def lora_state_dict(cls, *args, **kwargs):
         loaded = original(cls, *args, **kwargs)
         if isinstance(loaded, tuple):
             return (reroute_connector_keys(loaded[0]), *loaded[1:])
