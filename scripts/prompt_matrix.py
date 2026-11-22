@@ -3,7 +3,6 @@ import gradio as gr
 from modules import images, scripts_manager
 from modules.processing import process_images, fix_seed
 from modules.shared import opts, log
-import modules.sd_samplers
 
 
 class PromptMatrixScript(scripts_manager.Script):
