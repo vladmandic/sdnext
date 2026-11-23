@@ -183,11 +183,6 @@ def clean_server():
                     pass
     collected = gc.collect() # python gc
     modules_cleaned = sorted(sys.modules.keys())
-    # modules_keys = [m.split('.')[0] for m in modules_cleaned if not m.startswith('_')]
-    # modules_sorted = {}
-    # for module_key in modules_keys:
-    #     modules_sorted[module_key] = len([m for m in modules_cleaned if m.startswith(module_key)])
-    # log.trace(f'Server modules: {modules_sorted}')
     t1 = time.time()
     log.trace(f'Server modules: total={len(modules_loaded)} unloaded={len(removed_removed)} remaining={len(modules_cleaned)} gc={collected} time={t1-t0:.2f}')
 
@@ -217,9 +212,6 @@ def start_server(immediate=True, server=None):
     if args.test:
         from pipelines.generic_test import test_pipelines
         test_pipelines()
-        # log.info("Console test: \033[31m ANSI color red \033[0m")
-        # log.info("Console test: \033[34m ANSI color blue \033[0m")
-        # log.info("Console test: \033[33m ANSI color yellow \033[0m")
         log.info("Test only: exiting...")
         server.wants_restart = False
         uvicorn = server.webui(restart=not immediate, _exit=True)
@@ -343,10 +335,6 @@ def main():
         if float(monitor_rate) > 0 and t_current - t_monitor > float(monitor_rate):
             log.trace(f'Monitor: {get_memory_stats(detailed=True)}')
             t_monitor = t_current
-            # from modules.api.validate import get_api_stats
-            # get_api_stats()
-            # from modules import memstats
-            # memstats.get_objects()
         if not alive:
             if uv is not None and uv.wants_restart:
                 clean_server()

@@ -51,6 +51,7 @@ import modules.textual_inversion
 import modules.script_callbacks
 import modules.api.middleware
 import modules.scheduler
+import modules.onnx_impl
 
 
 if not modules.loader.initialized:
@@ -125,6 +126,9 @@ def initialize():
 
     modules.detailer.initialize()
     timer.startup.record("detailer")
+
+    modules.onnx_impl.initialize_onnx()
+    timer.startup.record("onnx")
 
     modules.extensions.list_extensions()
     timer.startup.record("extensions")

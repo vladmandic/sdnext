@@ -8,18 +8,14 @@ from modules.loader import _onnx
 
 
 initialized = False
-
-
 if _onnx:
     try:
         import onnxruntime as ort
     except Exception as e:
         log.error(f'ONNX import error: {e}')
         ort = None
-        initialized = True
 else:
     ort = None
-    initialized = True
 
 
 class DynamicSessionOptions(ort.SessionOptions if ort is not None else object):
@@ -95,7 +91,7 @@ class TemporalModule(TorchCompatibleModule):
         return self
 
 
-class OnnxRuntimeModel(TorchCompatibleModule, diffusers.OnnxRuntimeModel if ort is not None else object):
+class OnnxRuntimeModel(TorchCompatibleModule, getattr(diffusers, "OnnxRuntimeModel", object)):
     config = {} # dummy
 
     def to(self, *args, **kwargs):
@@ -104,7 +100,7 @@ class OnnxRuntimeModel(TorchCompatibleModule, diffusers.OnnxRuntimeModel if ort 
         device = extract_device(args, kwargs)
         if device is not None:
             self.device = device
-            self.model = move_inference_session(self.model, device)
+            self.model = move_inference_session(self.model, device) # pylint: disable=attribute-defined-outside-init
         return self
 
 
@@ -206,21 +202,17 @@ def ORTPipelinePart_to(self, *args, **kwargs):
 
 def initialize_onnx():
     global initialized # pylint: disable=global-statement
-    if initialized:
+    if initialized or not installed('onnx', quiet=True) or not ort:
         return
     from modules import devices
-    if not installed('onnx', quiet=True):
-        return
     try: # may fail on onnx import
         import onnx # pylint: disable=unused-import
         from .execution_providers import ExecutionProvider, TORCH_DEVICE_TO_EP, available_execution_providers
         if devices.backend == "rocm":
             TORCH_DEVICE_TO_EP["cuda"] = ExecutionProvider.ROCm
-        log.debug(f'ONNX: version={ort.__version__}, available={available_execution_providers}')
-
+        log.debug(f'ONNX: version={ort.__version__} available={available_execution_providers}')
     except Exception as e:
         log.error(f'ONNX initialization: {e}')
-
     initialized = True
 
 
