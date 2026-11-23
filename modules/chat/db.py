@@ -143,6 +143,7 @@ def initialize(db_path=None):
         if path in _initialization_failures:
             failure = _initialization_failures[path]
             raise sqlite3.OperationalError(f'Chat database initialization previously failed: {failure}') from failure
+        log.info("Initializing: chat")
         try:
             for attempt in range(10):
                 try:

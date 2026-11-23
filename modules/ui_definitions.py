@@ -471,7 +471,6 @@ def create_settings(cmd_opts):
     # --- Server Settings ---
     options_templates.update(options_section(('server', "Server Settings"), {
         "server_listen": OptionInfo(False, "Listen on all interfaces", gr.Checkbox),
-        "chat_enabled": OptionInfo(True, "Enable Chat feature", gr.Checkbox),
         "scheduler_state": OptionInfo("Paused", "Scheduler state", gr.Dropdown, {"choices": ["Active", "Paused", "Auto", "Stopped"]}),
         "server_status": OptionInfo(120, "Automatic server status monitor rate", gr.Number, {"minimum": 0, "maximum": 1000, "step": 1}),
         "server_monitor": OptionInfo(0, "Automatic server memory monitor rate", gr.Number, {"minimum": 0, "maximum": 1000, "step": 1}),

@@ -1,7 +1,6 @@
 import os
 import time
 import copy
-from collections import defaultdict
 import gradio as gr
 from PIL import Image
 from modules import scripts_manager, shared, processing, extra_networks
@@ -247,8 +246,7 @@ class StoryScript(scripts_manager.Script):
                 if story_networks:
                     prompt = f'{prompt} {" ".join(story_networks)}'.strip()
                 if frame_networks:
-                    if frame_networks:
-                        prompt = f'{prompt} {" ".join(frame_networks[(index-1) % len(frame_networks)])}'.strip()
+                    prompt = f'{prompt} {" ".join(frame_networks[(index-1) % len(frame_networks)])}'.strip()
                 prompts.append(prompt)
                 debug_log(f'Story: slide={index} total={slide_count} prompt="{prompt}"')
         except Exception as e:
@@ -307,6 +305,7 @@ class StoryScript(scripts_manager.Script):
                 log.info(f'Story: slide={index + 1} total={len(p.story_mode_prompts)}')
                 slide_p = copy.copy(p)
                 slide_p.prompt = p.story_mode_prompts[index]
+                slide_p.prompts = [slide_p.prompt]
                 slide_p.seed = seed
                 slide_p.denoising_strength = 0.80 # high value so normal img2img models also have a chance
                 slide_p.n_iter = 1
@@ -317,7 +316,8 @@ class StoryScript(scripts_manager.Script):
                 slide_p.all_templates = []
                 slide_p.all_negative_templates = []
                 slide_p.extra_generation_params = copy.deepcopy(p.extra_generation_params)
-                slide_p.network_data = defaultdict(list, copy.deepcopy(p.network_data))
+                # slide_p.network_data = defaultdict(list, copy.deepcopy(p.network_data))
+                slide_p.network_data = None # will be re-parsed
                 slide_p.do_not_save_samples = True
                 slide_p.do_not_save_grid = True
                 if p.story_mode_reference is not None:

@@ -34,7 +34,7 @@ _session_state = {'initialization_failed': False}
 
 
 def is_enabled():
-    return shared.opts.chat_enabled and not _session_state['initialization_failed']
+    return not _session_state['initialization_failed']
 
 
 class ResChatStatus(BaseModel):

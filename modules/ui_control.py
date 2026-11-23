@@ -32,8 +32,6 @@ def _chat_import_default(component):
 
 
 def init_chat_send(control_import_fields, input_script_args):
-    if not shared.opts.chat_enabled:
-        return
     from modules.chat import api as chat_api
     if not chat_api.is_enabled():
         return

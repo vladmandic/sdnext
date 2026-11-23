@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2026-11-22
+## Update for 2026-11-23
 
-### Highlights for 2026-11-22
+### Highlights for 2026-11-23
 
 Slightly longer release cycle resulted in quite large set of updates:
 - New top-level interface: [Chat](https://vladmandic.github.io/sdnext-docs/Chat/)!  
@@ -23,7 +23,7 @@ Plus [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) bel
 
 [Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-11-22
+### Details for 2026-11-23
 
 - [Chat](https://vladmandic.github.io/sdnext-docs/Chat/): New top-level interface  
   See [chat docs](https://vladmandic.github.io/sdnext-docs/Chat/) for more details as this is quite an extensive module  
@@ -174,6 +174,7 @@ Plus [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) bel
   - settings: a new data folder receives *config.json* and *secrets.json* on the first save
   - settings: *Expandable segments* sets the allocator to expandable segments alone, large vae decodes no longer run out of memory or fail an allocator assert
   - settings: improve settings parsing and validation to prevent corruption
+  - story: allow per-frame lora overrides
   - ui: refresh buttons call their method once per click
   - xyz: a blank value after a trailing comma is dropped instead of *Search & replace* inserting the replacement between every character of the prompt
   - xyz: *Search & replace* warns when none of its values occurs in the prompts it searches

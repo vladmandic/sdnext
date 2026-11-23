@@ -103,6 +103,7 @@ _COMMAND_ALIASES = {
     'p': 'last',
     'exif': 'meta',
     'metadata': 'meta',
+    'hello': 'ping', 'hi': 'ping', 'ping': 'ping', 'test': 'ping',
 }
 _PARAMETER_ALIASES = {
     'sampler': 'sampler_name', 'prompt': 'prompt', 'negative': 'negative_prompt', 'style': 'styles',
@@ -278,6 +279,9 @@ def parse_command(text: str) -> ParsedCommand:
         return ParsedCommand('endpoint', {'alias': command, 'endpoints': descriptors})
 
     command = _COMMAND_ALIASES.get(command, command)
+    if command == 'ping':
+        value = raw_arguments.strip()
+        return ParsedCommand('ping', {'args': value})
     if command == 'session':
         value = raw_arguments.strip()
         action = value.casefold()
@@ -2048,6 +2052,8 @@ def _execute_command(session_id: str, text: str, image: str | list[str] | None =
         return _command_result(_reset_context(session_id, session))
     if command.name == 'clear':
         return _command_result(_clear_parameter(session_id, session, command.arguments['name']))
+    if command.name == 'ping':
+        return _command_result('Hello from SD.Next chat', data={'args': command.arguments})
     return _command_error(f'Unsupported command: {command.name}')
 
 
