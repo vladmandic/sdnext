@@ -71,7 +71,7 @@ restricted_opts = {
     "outdir_init_images"
 }
 resize_modes = ["None", "Fixed", "Crop", "Fill", "Outpaint", "Context aware"]
-max_workers = 12
+max_workers = int(os.environ.get("SD_THREADS", 8))
 default_hfcache_dir = os.environ.get("SD_HFCACHEDIR", None) or os.path.join(paths.models_path, 'huggingface')
 state = shared_state.State()
 models_path = paths.models_path

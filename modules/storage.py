@@ -163,8 +163,9 @@ def check_storage(folders: str | list[str] | None = None, types: list[str] | Non
         return location
 
     t0 = time.time()
-    from concurrent.futures import ThreadPoolExecutor, as_completed
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+    from concurrent.futures import as_completed
+    from modules.concurrency import get_executor
+    with get_executor(max_workers=max_workers) as executor:
         future_items = {executor.submit(update_stats, location): location for location in locations}
         for future in as_completed(future_items):
             location = future.result()

@@ -1,10 +1,10 @@
 import os
-from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 import safetensors.torch
 import torch
 import modules.memstats
 import modules.devices as devices
+from modules.concurrency import get_executor
 from modules.logger import console
 from modules.logger import log
 from modules.sd_models import read_state_dict
@@ -193,7 +193,7 @@ def simple_merge(
     import rich.progress as p
     with p.Progress(p.TextColumn('[cyan]{task.description}'), p.BarColumn(), p.TaskProgressColumn(), p.TimeRemainingColumn(), p.TimeElapsedColumn(), p.TextColumn('[cyan]keys={task.fields[keys]}'), console=console) as progress:
         task = progress.add_task(description="Merging", total=len(thetas["model_a"].keys()), keys=len(thetas["model_a"].keys()))
-        with ThreadPoolExecutor(max_workers=threads) as executor:
+        with get_executor(max_workers=threads) as executor:
             for key in thetas["model_a"].keys():
                 future = executor.submit(
                     simple_merge_key,

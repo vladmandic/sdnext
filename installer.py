@@ -1969,7 +1969,7 @@ def get_state():
     except Exception:
         pass
     try:
-        from concurrent.futures.thread import ThreadPoolExecutor
+        from modules.concurrency import get_executor
         from modules.paths import extensions_builtin_dir, extensions_dir
         extension_folders = [extensions_builtin_dir] if args.safe else [extensions_builtin_dir, extensions_dir]
         ext_dirs = []
@@ -1986,7 +1986,7 @@ def get_state():
             except Exception:
                 return ext, ''
 
-        with ThreadPoolExecutor(max_workers=min(len(ext_dirs), 8), thread_name_prefix='sdnext-git') as pool:
+        with get_executor(max_workers=min(len(ext_dirs), 8), thread_name_prefix='sdnext-git') as pool:
             for ext, commit in pool.map(_get_commit, ext_dirs):
                 if commit:
                     state['extensions'][ext] = commit

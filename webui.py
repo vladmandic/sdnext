@@ -79,7 +79,8 @@ fastapi_args = {
 
 def initialize():
     log.debug('Initializing: modules')
-    from concurrent.futures import ThreadPoolExecutor, as_completed
+    from concurrent.futures import as_completed
+    from modules.concurrency import get_executor
     from modules.models_hf import hf_init
     hf_init()
 
@@ -108,7 +109,7 @@ def initialize():
         modules.modelloader.load_upscalers()
 
     scans = [_scan_vae, _scan_unet, _scan_te, _scan_models, _scan_lora, _scan_upscalers]
-    with ThreadPoolExecutor(max_workers=len(scans), thread_name_prefix='sdnext-scan') as pool:
+    with get_executor(max_workers=len(scans), thread_name_prefix='sdnext-scan') as pool:
         futures = {pool.submit(fn): fn.__name__ for fn in scans}
         for future in as_completed(futures):
             name = futures[future]
@@ -392,6 +393,7 @@ def get_paths():
 
 
 def start_ui():
+    log.debug(f'Server scan: threads={shared.max_workers}')
     log.debug('UI start sequence')
     log.debug(f'UI image support: kanvas={version.get("kanvas", "unknown")}')
     modules.script_callbacks.before_ui_callback()

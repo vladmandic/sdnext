@@ -3,6 +3,7 @@ import re
 import json
 import concurrent.futures
 from modules import shared, ui_extra_networks, modelstats
+from modules.concurrency import get_executor
 from modules.logger import log
 from modules.lora import lora_load
 
@@ -114,7 +115,7 @@ class ExtraNetworksPageLora(ui_extra_networks.ExtraNetworksPage):
         try:
             # path, _ext = os.path.splitext(l.filename)
             name = os.path.splitext(os.path.relpath(l.filename, shared.cmd_opts.lora_dir))[0]
-            size, mtime = modelstats.stat(l.filename)
+            size, mtime = modelstats.stat_cached(l.filename)
             info = self.find_info(l.filename)
             ver_dct = self.find_version(l, info)
             item = {
@@ -142,7 +143,7 @@ class ExtraNetworksPageLora(ui_extra_networks.ExtraNetworksPage):
 
     def list_items(self):
         items = []
-        with concurrent.futures.ThreadPoolExecutor(max_workers=shared.max_workers) as executor:
+        with get_executor(max_workers=shared.max_workers) as executor:
             future_items = {executor.submit(self.create_item, net): net for net in lora_load.available_networks}
             for future in concurrent.futures.as_completed(future_items):
                 item = future.result()

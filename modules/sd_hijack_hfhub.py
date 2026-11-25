@@ -1,3 +1,4 @@
+from functools import lru_cache
 import os
 import time
 import tqdm
@@ -8,6 +9,16 @@ debug = log.trace if os.environ.get('SD_DOWNLOAD_DEBUG', None) is not None else 
 orig_http_get = None
 orig_xet_get = None
 orig_build_hf_headers = None
+
+
+@lru_cache(maxsize=2)
+def scan_hf_cache(cache_dir: str):
+    from huggingface_hub import scan_cache_dir
+    return scan_cache_dir(cache_dir=cache_dir)
+
+
+def clear_hf_cache_scan():
+    scan_hf_cache.cache_clear()
 
 
 def prune_hf_cache():
@@ -40,8 +51,10 @@ def prune_hf_cache():
         if cache_info.cache_dir is not None:
             for store_path in unreferenced_blobs:
                 _shared_blobs.sweep_shared_blob(store_path, cache_dir=cache_info.cache_dir)
+        clear_hf_cache_scan()
         return f'revisions={len(revisions)} incomplete={len(incomplete_files)} unreferenced={len(unreferenced_blobs)} freed={total_freed}'
     except Exception as e:
+        clear_hf_cache_scan()
         log.error(f'HF cache prune: {e}')
         return f'failed: {e}'
 

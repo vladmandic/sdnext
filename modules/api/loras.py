@@ -34,7 +34,8 @@ def get_loaded():
 
 def _invalidate_extra_networks():
     """Reset extra-networks page caches so the v2 API picks up changes."""
-    from modules import shared
+    from modules import shared, ui_extra_networks
+    ui_extra_networks.clear_extra_network_caches()
     for page in shared.extra_networks:
         page.refresh_time = 0
         page.create_items('txt2img')

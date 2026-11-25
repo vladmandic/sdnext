@@ -78,8 +78,8 @@ def setup_middleware(app: FastAPI, cmd_opts):
     app.user_middleware = [x for x in app.user_middleware if x.cls.__name__ != 'CORSMiddleware']
     app.middleware_stack = None # reset current middleware to allow modifying user provided list
     app.add_middleware(GZipMiddleware, minimum_size=2048)
-    if cmd_opts.profile:
-        app.add_middleware(LoopInstrumentorMiddleware)
+    # if cmd_opts.profile:
+    #     app.add_middleware(LoopInstrumentorMiddleware)
     origins = [x.strip() for x in (cmd_opts.cors_origins or '').split(',') if x.strip()] # starlette compares origins verbatim
     if origins and cmd_opts.cors_regex:
         app.add_middleware(CORSMiddleware, allow_origins=origins, allow_origin_regex=cmd_opts.cors_regex, allow_methods=['*'], allow_credentials=True, allow_headers=['*'])

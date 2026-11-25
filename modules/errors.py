@@ -81,6 +81,7 @@ def profile_print(msg: str='', n: int = 16, local_profiler=None):
     # p.print_callers(10)
     lines = stream.getvalue().split('\n')
     lines = [x for x in lines if '<frozen' not in x
+             and 'asyncio' not in x
              and '{built-in' not in x
              and '/logging' not in x
              and 'Ordered by' not in x

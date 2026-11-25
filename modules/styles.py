@@ -7,6 +7,7 @@ import json
 import time
 import random
 from modules import files_cache, shared, infotext, sd_models, sd_vae
+from modules.concurrency import get_executor
 from modules.logger import log
 
 if TYPE_CHECKING:
@@ -377,7 +378,7 @@ class StyleDatabase:
             import concurrent.futures
             future_items = {}
             style_files = list(files_cache.list_files(folder, ext_filter=['.json'], recursive=files_cache.not_hidden))
-            with concurrent.futures.ThreadPoolExecutor(max_workers=shared.max_workers) as executor:
+            with get_executor(max_workers=shared.max_workers) as executor:
                 for fn in style_files:
                     future_items[executor.submit(self.load_style, fn, None)] = fn
                 if self.built_in:

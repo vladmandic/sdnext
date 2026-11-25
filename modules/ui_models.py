@@ -9,7 +9,7 @@ from modules.ui_components import ToolButton
 from modules.ui_common import create_refresh_button
 from modules.call_queue import wrap_gradio_gpu_call
 from modules.shared import opts, log
-from modules.sd_hijack_hfhub import prune_hf_cache
+from modules.sd_hijack_hfhub import prune_hf_cache, scan_hf_cache, clear_hf_cache_scan
 
 
 extra_ui = []
@@ -25,12 +25,13 @@ def update_model_hashes():
 
 
 def create_models_table(rows: list | None = None):
-    from huggingface_hub import scan_cache_dir
     from modules import sd_detect
     if rows is None:
         rows = []
     rows = sorted(rows, key=lambda row: str(getattr(row, 'model_name', '')).lower())
-    hf_cache = {repo.repo_id: repo for repo in scan_cache_dir(cache_dir=shared.opts.hfcache_dir).repos}
+    hf_cache = {}
+    if any('models--' in row.filename for row in rows):
+        hf_cache = {repo.repo_id: repo for repo in scan_hf_cache(shared.opts.hfcache_dir).repos}
     html = """
         <table class="simple-table sortable-table" data-sortable="true" data-default-sort-key="name" data-default-sort-order="asc" data-sort-key="name" data-sort-order="asc">
             <thead>
@@ -57,7 +58,7 @@ def create_models_table(rows: list | None = None):
         try:
             f = row.filename
             if f.endswith('.safetensors'):
-                size, mtime = modelstats.stat(f)
+                size, mtime = modelstats.stat_cached(f)
             elif 'models--' in f:
                 repo = row.name.replace('Diffusers/', '')
                 repo = hf_cache.get(repo)
@@ -110,6 +111,16 @@ def create_models_table(rows: list | None = None):
 
 def create_ui():
     log.debug('UI initialize: tab=models')
+
+    def refresh_models_table():
+        modelstats.clear_stat_cache()
+        clear_hf_cache_scan()
+        return create_models_table(list(sd_models.checkpoints_list.values()))
+
+    def refresh_hf_cache_table():
+        clear_hf_cache_scan()
+        return create_models_table(sd_models.list_hfcache())
+
     dummy_component = gr.Label(visible=False)
     with gr.Row(elem_id="models_tab"):
         with gr.Column(elem_id='models_output_container', scale=1):
@@ -201,7 +212,7 @@ def create_ui():
                     model_table = gr.HTML(value=create_models_table(), elem_id="model_list_table", elem_classes="scroll-auto")
 
                 model_checkhash_btn.click(fn=update_model_hashes, inputs=[], outputs=[model_table])
-                model_list_btn.click(fn=lambda: create_models_table(list(sd_models.checkpoints_list.values())), inputs=[], outputs=[model_table])
+                model_list_btn.click(fn=refresh_models_table, inputs=[], outputs=[model_table])
                 model_list_prune_btn.click(fn=prune_hf_cache, inputs=[], outputs=[model_table])
 
             with gr.Tab(label="Cache List", elem_id="models_cache_tab"):
@@ -213,7 +224,7 @@ def create_ui():
                 with gr.Row():
                     cache_table = gr.HTML(value=create_models_table(), elem_id="model_cache_table", elem_classes="scroll-auto")
 
-                model_cache_btn.click(fn=lambda: create_models_table(sd_models.list_hfcache()), inputs=[], outputs=[cache_table])
+                model_cache_btn.click(fn=refresh_hf_cache_table, inputs=[], outputs=[cache_table])
                 cache_list_prune_btn.click(fn=prune_hf_cache, inputs=[], outputs=[cache_table])
 
             with gr.Tab(label="Metadata", elem_id="models_metadata_tab"):

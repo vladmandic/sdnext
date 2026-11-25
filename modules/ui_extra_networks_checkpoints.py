@@ -4,6 +4,7 @@ import json
 import concurrent.futures
 from datetime import datetime
 from modules import shared, ui_extra_networks, sd_models, modelstats, paths, devices
+from modules.concurrency import get_executor
 from modules.logger import log
 from modules.json_helpers import readfile
 
@@ -96,7 +97,7 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
             name = os.path.normpath(os.path.join(paths.reference_path, k)).replace('\\', '/')
             size = int(float(v.get('size', 0)) * 1024 * 1024 * 1024)
             mtime = v.get('date', None)
-            _size, _mtime = modelstats.stat(preview_file)
+            _size, _mtime = modelstats.stat_cached(preview_file)
             if mtime is None:
                 mtime = _mtime
             else:
@@ -193,7 +194,7 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
         record = None
         try:
             checkpoint: sd_models.CheckpointInfo = sd_models.checkpoints_list.get(name)
-            size, mtime = modelstats.stat(checkpoint.filename)
+            size, mtime = modelstats.stat_cached(checkpoint.filename)
             record = {
                 "type": 'Model',
                 "name": checkpoint.name,
@@ -217,7 +218,7 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
 
     def list_items(self):
         items = []
-        with concurrent.futures.ThreadPoolExecutor(max_workers=shared.max_workers) as executor:
+        with get_executor(max_workers=shared.max_workers) as executor:
             future_items = {executor.submit(self.create_item, cp): cp for cp in list(sd_models.checkpoints_list.copy())}
             for future in concurrent.futures.as_completed(future_items):
                 item = future.result()

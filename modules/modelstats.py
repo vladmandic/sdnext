@@ -1,5 +1,6 @@
 import os
 from datetime import datetime
+from functools import lru_cache
 import torch
 from modules import shared, sd_models
 from modules.logger import log
@@ -69,6 +70,19 @@ def stat(folder: str, follow: bool = False, extended: bool = False, exclude: lis
     if extended:
         return _size, _datetime, _files, _folders, _symlinks, _errors
     return _size, _datetime
+
+
+@lru_cache(maxsize=4096)
+def _stat_cached(folder: str, follow: bool, extended: bool, exclude: tuple[str, ...]):
+    return stat(folder, follow=follow, extended=extended, exclude=list(exclude))
+
+
+def stat_cached(folder: str, follow: bool = False, extended: bool = False, exclude: list[str] | None = None):
+    return _stat_cached(folder, follow, extended, tuple(exclude or ()))
+
+
+def clear_stat_cache():
+    _stat_cached.cache_clear()
 
 
 class Module:

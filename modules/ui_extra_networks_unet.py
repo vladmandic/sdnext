@@ -16,7 +16,7 @@ class ExtraNetworksPageUNets(ui_extra_networks.ExtraNetworksPage):
         results = []
         for name, filename in sd_unet.unet_dict.items():
             try:
-                size, mtime = modelstats.stat(filename)
+                size, mtime = modelstats.stat_cached(filename)
                 info = self.find_info(filename)
                 version = self.find_version(None, info)
                 record = {

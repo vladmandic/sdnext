@@ -24,7 +24,7 @@ class ExtraNetworksPageTextualInversion(ui_extra_networks.ExtraNetworksPage):
             if embedding.tag is not None:
                 tags[embedding.tag]=1
             name = os.path.splitext(embedding.basename)[0]
-            size, mtime = modelstats.stat(embedding.filename)
+            size, mtime = modelstats.stat_cached(embedding.filename)
             info = self.find_info(embedding.filename)
             record = {
                 "type": 'Embedding',

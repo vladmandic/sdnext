@@ -143,7 +143,7 @@ def create_ui(startup_timer = None) -> gr.Blocks:
         global ui_system_tabs # pylint: disable=global-statement
         ui_system_tabs = ui_settings.ui_system_tabs
         shared.opts.reorder()
-        timer.startup.record("ui-extensions")
+        timer.startup.record("ui-settings")
         interfaces += [(settings_interface, "System", "system")]
 
     interfaces += script_callbacks.ui_tabs_callback()

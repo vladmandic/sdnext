@@ -209,7 +209,7 @@ def peek_file(name: str, url: str, file_id: int = 0) -> dict:
 
 def peek_headers(files: list) -> dict[int, dict]:
     """Probe several CivitFile entries concurrently; failed probes log and yield an error dict."""
-    from concurrent.futures import ThreadPoolExecutor
+    from modules.concurrency import get_executor
     if not files:
         return {}
 
@@ -219,7 +219,7 @@ def peek_headers(files: list) -> dict[int, dict]:
         except Exception as e:
             return {"metadata": None, "error": str(e)}
 
-    with ThreadPoolExecutor(max_workers=min(4, len(files))) as pool:
+    with get_executor(max_workers=min(4, len(files))) as pool:
         results = dict(zip([f.id for f in files], pool.map(probe, files)))
     for f in files:
         error = results[f.id].get('error')

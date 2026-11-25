@@ -53,6 +53,27 @@ card_list = '''
 preview_map = None
 
 
+@lru_cache(maxsize=4096)
+def _read_info_file_cached(path: str, _mtime_ns: int, _size: int, _inode: int, error: bool): # pylint: disable=unused-argument
+    return shared.readfile(path, silent=True, error=error, as_type="dict")
+
+
+@lru_cache(maxsize=4096)
+def _read_description_file_cached(path: str, _mtime_ns: int, _size: int, _inode: int): # pylint: disable=unused-argument
+    with open(path, encoding="utf-8", errors="replace") as f:
+        return f.read()
+
+
+def clear_extra_network_caches():
+    modelstats.clear_stat_cache()
+    _read_info_file_cached.cache_clear()
+    _read_description_file_cached.cache_clear()
+    for page in shared.extra_networks:
+        file_cache = getattr(page, '_info_dir_files', None)
+        if file_cache is not None:
+            file_cache.clear()
+
+
 def init_api():
 
     def get_thumb(filename: str = ""):
@@ -140,7 +161,8 @@ class ExtraNetworksPage:
         self.info = {}
         self.html = ''
         self.items = []
-        self.missing_thumbs = []
+        self.missing_thumbs: set[str] = set()
+        self.missing_thumbs_lock = threading.Lock()
         self.refresh_time = 0
         self.page_time = 0
         self.list_time = 0
@@ -148,6 +170,7 @@ class ExtraNetworksPage:
         self.desc_time = 0
         self.preview_time = 0
         self.dirs = {}
+        self._info_dir_files: dict[str, set[str]] = {}
         self.view = shared.opts.extra_networks_view
         self.card = card_full if shared.opts.extra_networks_view == 'gallery' else card_list
 
@@ -166,6 +189,16 @@ class ExtraNetworksPage:
 
     def refresh(self):
         pass
+
+    def has_file(self, path: str):
+        path = files_cache.real_path(path)
+        if path is None:
+            return False
+        directory = os.path.dirname(path)
+        if directory not in self._info_dir_files:
+            cached_directory = files_cache.get_directory(directory)
+            self._info_dir_files[directory] = set(cached_directory.files) if cached_directory else set()
+        return path in self._info_dir_files[directory]
 
     def patch(self, text: str, tabname: str):
         return text.replace('~tabname', tabname).replace('txt2img', tabname)
@@ -246,10 +279,17 @@ class ExtraNetworksPage:
                 pass
         return piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: piexif.helper.UserComment.dump(parameters, encoding="unicode") } })
 
+    def _queue_missing_thumb(self, filename: str):
+        with self.missing_thumbs_lock:
+            self.missing_thumbs.add(filename)
+
     def create_thumb(self):
         debug(f'EN create-thumb: {self.name}')
         created = 0
-        for f in self.missing_thumbs:
+        with self.missing_thumbs_lock:
+            files = self.missing_thumbs
+            self.missing_thumbs = set()
+        for f in files:
             if os.path.join('models', 'Reference') in f or not os.path.exists(f):
                 continue
             fn = os.path.splitext(f)[0].replace('.preview', '')
@@ -258,7 +298,11 @@ class ExtraNetworksPage:
                 continue
             img = None
             try:
+                size = os.path.getsize(f)
                 img = Image.open(f)
+                if img.width <= 1024 and img.height <= 1024 and size <= 65536:
+                    img.close()
+                    continue
                 img.load()
             except Exception as e:
                 img = None
@@ -267,7 +311,7 @@ class ExtraNetworksPage:
                 if img is None:
                     img = None
                     os.remove(f)
-                elif (img.width > 1024) or (img.height > 1024) or (os.path.getsize(f) > 65536):
+                else:
                     exif = self.get_exif(img)
                     img = img.convert('RGB')
                     img.thumbnail((512, 512), Image.Resampling.HAMMING)
@@ -279,12 +323,12 @@ class ExtraNetworksPage:
                 errors.display(e, 'thumbnail')
         if created > 0:
             log.info(f'Network thumbnails: type={self.name} created={created}')
-            self.missing_thumbs.clear()
 
     def create_items(self, tabname: str):
         if self.refresh_time is not None and self.refresh_time > refresh_time: # cached results
             return
         t0 = time.time()
+        self._info_dir_files.clear()
         try:
             self.items = list(self.list_items())
             self.refresh_time = time.time()
@@ -498,7 +542,7 @@ class ExtraNetworksPage:
         for file in [f'{fn}{mid}{ext}' for ext in exts for mid in ['.thumb.', '.', '.preview.']]:
             if file in files:
                 if '.thumb.' not in file:
-                    self.missing_thumbs.append(file)
+                    self._queue_missing_thumb(file)
                 return file
         return 'ui/assets/missing.png'
 
@@ -543,7 +587,7 @@ class ExtraNetworksPage:
                 if file in all_previews_fn:
                     file_idx = all_previews_fn.index(os.path.basename(file))
                     if '.thumb.' not in file:
-                        self.missing_thumbs.append(all_previews[file_idx])
+                        self._queue_missing_thumb(all_previews[file_idx])
                     item['preview'] = self.link_preview(all_previews[file_idx])
                     break
             if item.get('preview', None) is None or 'missing.png' in item.get('preview', ''):
@@ -568,12 +612,11 @@ class ExtraNetworksPage:
 
         if path is not None:
             fn = os.path.splitext(path)[0] + '.txt'
-            if os.path.exists(fn):
+            if self.has_file(fn):
                 try:
-                    with open(fn, encoding="utf-8", errors="replace") as f:
-                        txt = f.read()
-                        txt = re.sub('[<>]', '', txt)
-                        return txt
+                    status = os.stat(fn)
+                    txt = _read_description_file_cached(fn, status.st_mtime_ns, status.st_size, status.st_ino)
+                    return re.sub('[<>]', '', txt)
                 except OSError:
                     pass
             if info is None:
@@ -595,15 +638,21 @@ class ExtraNetworksPage:
         error = not shared.cmd_opts.test
         if path is not None:
             t0 = time.time()
-            fn = os.path.splitext(path)[0] + '.json'
-            if not data and os.path.exists(fn):
-                data = shared.readfile(fn, silent=True, error=error, as_type="dict")
-            fn = os.path.join(path, 'model_index.json')
-            if not data and os.path.exists(fn):
-                data = shared.readfile(fn, silent=True, error=error, as_type="dict")
-            fn = os.path.join(path, 'modular_model_index.json')
-            if not data and os.path.exists(fn):
-                data = shared.readfile(fn, silent=True, error=error, as_type="dict")
+            candidates = [os.path.splitext(path)[0] + '.json']
+            if os.path.isdir(path):
+                candidates.extend((
+                    os.path.join(path, 'model_index.json'),
+                    os.path.join(path, 'modular_model_index.json'),
+                ))
+            for fn in candidates:
+                if data:
+                    break
+                if self.has_file(fn):
+                    try:
+                        status = os.stat(fn)
+                    except OSError:
+                        continue
+                    data = dict(_read_info_file_cached(fn, status.st_mtime_ns, status.st_size, status.st_ino, error))
             t1 = time.time()
             self.info_time += t1-t0
         return data
@@ -821,9 +870,10 @@ def create_ui(container, button_parent: gr.Button, tabname: str, skip_indexing =
         if ui.tabname == 'txt2img': # refresh only once
             global refresh_time # pylint: disable=global-statement
             refresh_time = time.time()
+            clear_extra_network_caches()
         if not skip_indexing:
-            import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor(max_workers=shared.max_workers) as executor:
+            from modules.concurrency import get_executor
+            with get_executor(max_workers=shared.max_workers) as executor:
                 for page in get_pages():
                     executor.submit(page.create_items, ui.tabname)
         for page in get_pages():
@@ -877,6 +927,7 @@ def create_ui(container, button_parent: gr.Button, tabname: str, skip_indexing =
             fn = os.path.splitext(ui.last_item.filename)[0] + '.txt'
             with open(fn, 'w', encoding='utf-8') as f:
                 f.write(desc)
+            clear_extra_network_caches()
             log.debug(f'Network save desc: item="{ui.last_item.name}" filename="{fn}"')
         return desc
 
@@ -894,11 +945,13 @@ def create_ui(container, button_parent: gr.Button, tabname: str, skip_indexing =
         log.debug(msg)
         for fn in candidates:
             os.remove(fn)
+        clear_extra_network_caches()
         return msg
 
     def fn_save_info(info):
         fn = os.path.splitext(ui.last_item.filename)[0] + '.json'
         writefile(info, fn, silent=True)
+        clear_extra_network_caches()
         log.debug(f'Network save info: item="{ui.last_item.name}" filename="{fn}"')
         return info
 
@@ -912,6 +965,7 @@ def create_ui(container, button_parent: gr.Button, tabname: str, skip_indexing =
         if hasattr(ui.last_item, 'type') and ui.last_item.type == 'Style':
             info.update(**{ 'description': description, 'prompt': prompt, 'negative': negative, 'extra': extra, 'wildcards': wildcards })
             writefile(info, fn, silent=True)
+            clear_extra_network_caches()
             log.debug(f'Network save style: item="{ui.last_item.name}" filename="{fn}"')
         return info
 
@@ -922,6 +976,7 @@ def create_ui(container, button_parent: gr.Button, tabname: str, skip_indexing =
         if os.path.exists(fn):
             log.debug(f'Network delete style: item="{ui.last_item.name}" filename="{fn}"')
             os.remove(fn)
+            clear_extra_network_caches()
             return {}
         return info
 
@@ -942,7 +997,10 @@ def create_ui(container, button_parent: gr.Button, tabname: str, skip_indexing =
 
         if (item is not None) and hasattr(item, 'name') and hasattr(item, 'filename'):
             is_valid = True
-            stat_size, stat_mtime = modelstats.stat(item.filename)
+            stat_size = getattr(item, 'size', 0)
+            stat_mtime = getattr(item, 'mtime', None)
+            if not stat_size or stat_mtime is None:
+                stat_size, stat_mtime = modelstats.stat_cached(item.filename)
             if hasattr(item, 'size') and item.size > 0:
                 stat_size = item.size
             if hasattr(item, 'mtime') and item.mtime is not None:
@@ -1076,6 +1134,7 @@ def create_ui(container, button_parent: gr.Button, tabname: str, skip_indexing =
     def ui_refresh_click(title):
         ExtraNetworksPage.find_preview.cache_clear()
         ExtraNetworksPage.find_preview_file.cache_clear()
+        clear_extra_network_caches()
         pages = []
         for page in get_pages():
             if page.title != title:

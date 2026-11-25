@@ -1,7 +1,7 @@
 import os
 import time
-import concurrent.futures
 from modules import shared, errors, sd_models, sd_models_compile, files_cache
+from modules.concurrency import get_executor
 from modules.logger import log
 from modules.lora import network, lora_overrides, lora_convert, lora_diffusers
 from modules.lora import lora_common as l
@@ -150,7 +150,7 @@ def list_available_networks():
         log.warning(f'LoRA directory not found: path="{shared.cmd_opts.lora_dir}"')
 
     candidates = sorted(files_cache.list_files(shared.cmd_opts.lora_dir, ext_filter=[".pt", ".ckpt", ".safetensors"]))
-    with concurrent.futures.ThreadPoolExecutor(max_workers=shared.max_workers) as executor:
+    with get_executor(max_workers=shared.max_workers) as executor:
         for fn in candidates:
             executor.submit(add_network, fn)
     t1 = time.time()

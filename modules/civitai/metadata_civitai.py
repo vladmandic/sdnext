@@ -3,7 +3,9 @@ import re
 import time
 import threading
 import concurrent.futures
+from collections.abc import Callable
 from modules.shared import log, opts, max_workers, state, cmd_opts
+from modules.concurrency import get_executor
 from modules.civitai.client_civitai import client
 from modules.civitai.filemanage_civitai import hash_cache_title
 
@@ -74,30 +76,38 @@ def resolve_sha256(entries: list[tuple[str, dict]], size_limit: int | None = Non
     def hash_file(fn: str) -> str | None:
         return None if state.interrupted else hashes.calculate_sha256(fn, quiet=True)
 
+    def process_hash(fn: str, title: str | None, get_sha: Callable[[], str | None]):
+        nonlocal cached
+        state.job_no += 1
+        state.textinfo = os.path.basename(fn)
+        try:
+            sha = get_sha()
+        except Exception as e:
+            log.error(f'CivitAI metadata hash: file="{fn}" {e}')
+            notes[fn] = 'not hashed: unreadable'
+            return
+        if sha is None:
+            notes[fn] = 'not hashed: interrupted'
+            return
+        resolved[fn] = sha.lower()
+        if title is not None:
+            hashes.cache().add_hash(title, os.path.getmtime(fn), resolved[fn])
+            cached += 1
+
     log.info(f'CivitAI metadata: hashing files={len(todo)} size={sum(os.path.getsize(fn) for fn, _title in todo) / GIB:.1f}GB')
     jobid = state.begin('CivitAI hash')
     state.job_count = len(todo)
     cached = 0
     try:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = {executor.submit(hash_file, fn): (fn, title) for fn, title in todo}
-            for future in concurrent.futures.as_completed(futures):
-                fn, title = futures[future]
-                state.job_no += 1
-                state.textinfo = os.path.basename(fn)
-                try:
-                    sha = future.result()
-                except Exception as e:
-                    log.error(f'CivitAI metadata hash: file="{fn}" {e}')
-                    notes[fn] = 'not hashed: unreadable'
-                    continue
-                if sha is None:
-                    notes[fn] = 'not hashed: interrupted'
-                    continue
-                resolved[fn] = sha.lower()
-                if title is not None:
-                    hashes.cache().add_hash(title, os.path.getmtime(fn), resolved[fn])
-                    cached += 1
+        if max_workers == 0:
+            for fn, title in todo:
+                process_hash(fn, title, lambda fn=fn: hash_file(fn))
+        else:
+            with get_executor(max_workers=max_workers) as executor:
+                futures = {executor.submit(hash_file, fn): (fn, title) for fn, title in todo}
+                for future in concurrent.futures.as_completed(futures):
+                    fn, title = futures[future]
+                    process_hash(fn, title, future.result)
     finally:
         if cached > 0:
             hashes.save_cache()
@@ -288,7 +298,7 @@ def civit_search_metadata(title: str | None = None, raw: bool = False):
                 scanned += 1
                 entries.append((page.name, item))
         log.debug(f'CivitAI search metadata: type={title if isinstance(title, str) else "all"} workers={max_workers} skip={len(re_skip)} items={len(entries)}')
-        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        with get_executor(max_workers=max_workers) as executor:
             flags = list(executor.map(lambda entry: needs_metadata(entry[1]), entries))
         entries = [entry for entry, flag in zip(entries, flags) if flag]
         shas, notes = resolve_sha256(entries, size_limit=GIB)
@@ -321,11 +331,16 @@ def civit_search_metadata(title: str | None = None, raw: bool = False):
             log.info(f'CivitAI download: id={version.model_id} file="{meta_fn}"')
             results.append({**result, 'type': 'metadata', 'code': 200, 'size': len(meta)})
         yield results if raw else create_search_metadata_table(results)
-        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = [executor.submit(download_previews, fn, version, result) for fn, (version, result) in matched.items()]
-            for future in concurrent.futures.as_completed(futures):
-                results.extend(future.result())
+        if max_workers == 0:
+            for fn, (version, result) in matched.items():
+                results.extend(download_previews(fn, version, result))
                 yield results if raw else create_search_metadata_table(results)
+        else:
+            with get_executor(max_workers=max_workers) as executor:
+                futures = [executor.submit(download_previews, fn, version, result) for fn, (version, result) in matched.items()]
+                for future in concurrent.futures.as_completed(futures):
+                    results.extend(future.result())
+                    yield results if raw else create_search_metadata_table(results)
         t1 = time.time()
         log.debug(f'CivitAI search metadata: scanned={scanned} skipped={skipped} pending={len(entries)} hashed={len(shas)} matched={len(matched)} time={t1 - t0:.2f}')
         yield results if raw else create_search_metadata_table(results)

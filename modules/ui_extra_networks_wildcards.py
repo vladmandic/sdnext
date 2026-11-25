@@ -44,7 +44,7 @@ class ExtraNetworksPageWildcards(ui_extra_networks.ExtraNetworksPage):
         for filename in wildcards_list:
             relname = os.path.relpath(filename, shared.opts.wildcards_dir)
             name = os.path.splitext(relname)[0]
-            size, mtime = modelstats.stat(filename)
+            size, mtime = modelstats.stat_cached(filename)
             try:
                 record = {
                     "type": 'Wildcard',
