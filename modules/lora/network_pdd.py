@@ -299,8 +299,11 @@ def target_shape(module):
     return tuple(weight.shape) if weight is not None else None
 
 
-def undo(modules, replaced):
+def undo(modules, replaced, component=None):
     """Put back swapped projections and replaced parameter values."""
+    if component is not None:
+        from modules.sd_offload_balanced_pin import invalidate_cpu_master
+        invalidate_cpu_master(component)
     for parent, attr, original in modules.values():
         setattr(parent, attr, original)
     for parameter, original in replaced.values():
@@ -309,6 +312,8 @@ def undo(modules, replaced):
 
 def replace_parameters(net, heads, component, strength):
     """Set every parameter the file replaces, blended toward the loaded value by strength; None on a missing or misshapen target."""
+    from modules.sd_offload_balanced_pin import invalidate_cpu_master
+    invalidate_cpu_master(component)
     replaced = {}
     for path, value in heads.replaced.items():
         try:
@@ -317,7 +322,7 @@ def replace_parameters(net, heads, component, strength):
             parameter = None
         if parameter is None or tuple(parameter.shape) != tuple(value.shape):
             log.error(f'Network load: type=PDD name="{net.name}" parameter={path} shape={list(value.shape)} module={None if parameter is None else list(parameter.shape)} no matching parameter')
-            undo({}, replaced)
+            undo({}, replaced, component)
             return None
         original = parameter.data
         target = value.to(device=original.device, dtype=torch.float32)
@@ -334,6 +339,8 @@ def install(pipe, net, heads, spec, components):
     if component is None:
         log.error(f'Network load: type=PDD name="{net.name}" heads={list(heads.heads)} no loaded component holds these projections')
         return False
+    from modules.sd_offload_balanced_pin import invalidate_cpu_master
+    invalidate_cpu_master(component)
     strength = float(net.te_multiplier) # transformer-keyed layers scale by the te multiplier, see network.NetworkModule.multiplier
     pipe_ref = weakref.ref(pipe)
     modules = {}
@@ -342,14 +349,14 @@ def install(pipe, net, heads, spec, components):
         shape = target_shape(module)
         if shape != tuple(weight.shape[1:]):
             log.error(f'Network load: type=PDD name="{net.name}" head={path} shape={list(weight.shape[1:])} module={list(shape) if shape else None} shape mismatch')
-            undo(modules, {})
+            undo(modules, {}, component)
             return False
         scheduler_name = spec.scheduler_name(path)
         scheduler = getattr(pipe, scheduler_name, None)
         intervals = grid_intervals(scheduler, heads.num_steps, spec, heads.sigmas) if scheduler is not None or heads.sigmas is not None else None
         if intervals is None:
             log.error(f'Network load: type=PDD name="{net.name}" head={path} scheduler={scheduler.__class__.__name__} cannot build a {heads.num_steps}-interval grid')
-            undo(modules, {})
+            undo(modules, {}, component)
             return False
         def get_scheduler(name=scheduler_name):
             owner_pipe = pipe_ref()
@@ -363,7 +370,7 @@ def install(pipe, net, heads, spec, components):
         modules[path] = (parent, attr, module)
     replaced = replace_parameters(net, heads, component, strength)
     if replaced is None:
-        undo(modules, {})
+        undo(modules, {}, component)
         return False
     pipe.sdnext_pdd = Installed(net.name, strength, component_name, modules, heads, spec, replaced)
     log.info(f'Network load: type=PDD name="{net.name}" component={component_name} heads={list(modules)} grid={heads.num_steps} block={heads.block_size} nfe={heads.nfe} steps={pipe.sdnext_pdd.steps} replaced={len(replaced)} strength={strength}')
@@ -375,7 +382,8 @@ def restore(pipe):
     state = getattr(pipe, 'sdnext_pdd', None)
     if state is None:
         return False
-    undo(state.modules, state.replaced)
+    component = getattr(pipe, state.component, None)
+    undo(state.modules, state.replaced, component)
     del pipe.sdnext_pdd
     log.info(f'Network unload: type=PDD name="{state.name}" component={state.component} heads={list(state.modules)} replaced={len(state.replaced)}')
     return True

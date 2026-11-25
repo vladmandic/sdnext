@@ -6,7 +6,7 @@ import torch
 import accelerate.hooks
 import accelerate.utils.modeling
 from modules.logger import log
-from modules import shared, devices, errors, model_quant, sd_models, sd_offload_aux
+from modules import shared, devices, errors, model_quant, sd_models, sd_offload_aux, sd_offload_balanced_pin
 from modules.timer import process as process_timer
 from modules.sd_offload_utils import offload_list, offload_matches, offload_model_types, get_pipe_variants, get_module_names, get_module_size, set_accelerate, report_model_stats
 from modules.sd_offload_group import remove_group_offload
@@ -34,7 +34,7 @@ class OffloadHook(accelerate.hooks.ModelHook):
         self.last_cls = None
         if not silent:
             gpu = f'{(shared.gpu_memory * shared.opts.diffusers_offload_min_gpu_memory):.2f}-{(shared.gpu_memory * shared.opts.diffusers_offload_max_gpu_memory):.2f}:{shared.gpu_memory:.2f}'
-            log.info(f'Offload: type=balanced op=init watermark={self.min_watermark}-{self.max_watermark} gpu={gpu} cpu={shared.cpu_memory:.3f} limit={shared.opts.cuda_mem_fraction:.2f} always={self.offload_always} never={self.offload_never} pre={shared.opts.diffusers_offload_pre} streams={shared.opts.diffusers_offload_streams}')
+            log.info(f'Offload: type=balanced op=init watermark={self.min_watermark}-{self.max_watermark} gpu={gpu} cpu={shared.cpu_memory:.3f} limit={shared.opts.cuda_mem_fraction:.2f} always={self.offload_always} never={self.offload_never} pre={shared.opts.diffusers_offload_pre} streams={shared.opts.diffusers_offload_streams} blocking={not shared.opts.diffusers_offload_nonblocking} pin={shared.opts.diffusers_offload_pin}')
         self.validate()
         super().__init__()
 
@@ -111,10 +111,12 @@ class OffloadHook(accelerate.hooks.ModelHook):
             offload_dir = getattr(module, "offload_dir", os.path.join(shared.opts.accelerate_offload_path, module.__class__.__name__))
             if s.debug:
                 log.trace(f'Offload: type=balanced op=dispatch map={device_map}')
+            pin_eligible = False
             if device_map is not None:
                 skip_keys = getattr(module, "_skip_keys", None)
                 try:
                     module, align_hook = _dispatch_balanced_module(module, device_map, torch.device(devices.device), offload_dir, skip_keys)
+                    pin_eligible = align_hook is not None
                     if align_hook is not None:
                         args, kwargs = align_hook.pre_forward(module, *args, **kwargs)
                 except Exception as e: # reapply hook
@@ -126,6 +128,7 @@ class OffloadHook(accelerate.hooks.ModelHook):
             module._hf_hook.execution_device = torch.device(devices.device) # pylint: disable=protected-access
             module.balanced_offload_device_map = device_map
             module.balanced_offload_max_memory = max_memory
+            sd_offload_balanced_pin.record_onload(module, pin_eligible)
             process_timer.add('onload', time.time() - t0)
 
         if s.debug:
@@ -193,6 +196,8 @@ def move_module_to_cpu(module, op='unk', force:bool=False) -> bool:
     from modules import memstats
 
     def do_move(module):
+        if shared.opts.diffusers_offload_pin and sd_offload_balanced_pin.restore_cpu_master(module):
+            return module
         if shared.opts.diffusers_offload_streams:
             if s.move_stream is None:
                 s.move_stream = devices.create_stream(devices.device)
@@ -204,6 +209,8 @@ def move_module_to_cpu(module, op='unk', force:bool=False) -> bool:
 
     moved = False
     try:
+        if not shared.opts.diffusers_offload_pin:
+            sd_offload_balanced_pin.invalidate_cpu_master(module)
         module_name = getattr(module, "module_name", module.__class__.__name__)
         module_size = s.offload_hook_instance.offload_map.get(module_name)
         if module_size is None:
@@ -272,6 +279,8 @@ def apply_balanced_offload_to_module(module, op="apply", force:bool=False):
         model_quant.apply_layerwise(module, quiet=True) # need to reapply since hooks were removed/re-added
     if moved:
         devices.torch_gc(fast=True, force=True, reason='offload')
+    if shared.opts.diffusers_offload_pin and (moved or sd_offload_balanced_pin.module_is_cpu(module)):
+        sd_offload_balanced_pin.pin_cpu_master(module)
 
 
 def apply_balanced_offload(sd_model=None, exclude: list[str] | None = None, force: bool = False, silent: bool = False):

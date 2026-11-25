@@ -44,16 +44,12 @@ class ENVStore:
 
 class OliveOptimizerConfig(ENVStore):
     from_diffusers_cache: bool
-
     is_sdxl: bool
-
     vae: str
     vae_sdxl_fp16_fix: bool
-
     width: int
     height: int
     batch_size: int
-
     cross_attention_dim: int
     time_ids_size: int
 
@@ -66,10 +62,8 @@ def get_variant():
 
     if opts.diffusers_model_load_variant == 'default':
         from modules import devices
-
         if devices.dtype == torch.float16:
             return 'fp16'
-
         return None
     elif opts.diffusers_model_load_variant == 'fp32':
         return None
@@ -79,7 +73,6 @@ def get_variant():
 
 def get_loader_arguments(no_variant: bool = False):
     kwargs = {}
-
     if config.from_diffusers_cache:
         from modules.shared import opts
         kwargs["cache_dir"] = opts.diffusers_dir
@@ -92,10 +85,11 @@ def get_loader_arguments(no_variant: bool = False):
 T = TypeVar("T")
 def from_pretrained(cls: type[T], pretrained_model_name_or_path: os.PathLike, *args, no_variant: bool = False, **kwargs) -> T:
     from modules.shared import opts
-
     pretrained_model_name_or_path = str(pretrained_model_name_or_path)
     if pretrained_model_name_or_path.endswith(".onnx"):
-        cls = diffusers.OnnxRuntimeModel
+        cls = getattr(diffusers, "OnnxRuntimeModel", None)
+        if cls is None:
+            raise RuntimeError("OnnxRuntimeModel is not available")
         pretrained_model_name_or_path = os.path.dirname(pretrained_model_name_or_path)
     if opts.offline_mode:
         kwargs["local_files_only"] = True

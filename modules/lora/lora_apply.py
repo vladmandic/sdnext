@@ -167,6 +167,8 @@ def assign_weight(self: torch.nn.Module, new_weight: torch.Tensor, device: torch
     """
     target = self.bias if bias else self.weight
     new_weight = new_weight.to(device)
+    from modules.sd_offload_balanced_pin import invalidate_cpu_master
+    invalidate_cpu_master(self)
     if isinstance(target, torch.nn.Parameter) and target.shape == new_weight.shape and target.dtype == new_weight.dtype and target.device == new_weight.device:
         target.data.copy_(new_weight)
     elif bias:

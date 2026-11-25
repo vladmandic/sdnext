@@ -13,6 +13,7 @@ Slightly longer release cycle resulted in quite large set of updates:
   - New **Watermark** module for both images and videos
   - **Detailer** (add *LocateAnything* model), **Story-Mode** (story style guidance, per-frame prompting), **Remove Background** (postprocessing mode)
   - **Video encoding**, including codec improvements, color-space handling and overall quality
+  - **Offloading** improvements (pinning, streams, etc.)  
 - Plus tons of minor improvements and bug fixes  
   For example, faster server startup, improved *offline* mode, *hf mirror* handling, *model storage* consolidation, new *strict mode*, *image metadata* handling, new *image formats*, additional *prompt enhance* models, etc.  
 
@@ -97,6 +98,17 @@ Plus [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) bel
   - rewritten [AMD ROCm](https://vladmandic.github.io/sdnext-docs/AMD-ROCm)
   - rewritten [AMD ROCm for Windows](https://vladmandic.github.io/sdnext-docs/AMD-ROCm-Windows)
   - rewritten [AMD ROCm for Linux](https://vladmandic.github.io/sdnext-docs/AMD-ROCm-Linux)
+- **Model Offloading**
+  - balanced offload now considers vram available to sdnext, not total gpu vram
+  - new pinned offload option  
+    instead of running onload (cpu-to-gpu) and offload (gpu-to-cpu),  
+    it keeps cpu-resident tensors and runs onload-only with gpu-copy dispose instead of offload  
+    uses slightly more system ram (e.g. 1gb on krea2), but eliminates the need for offload operations  
+    *settings -> model offloading -> pin offload memory*  
+  - configurable use of non-blocking moves  
+    *settings -> model offloading -> non-blocking move operations*  
+  - improved use of torch-streams  
+    *settings -> model offloading -> Offload using streams*  
 - **Other**
   - stricter **offline mode** enforcement  
     set via *settings -> model loading* or via cmd arg `--offline`  
