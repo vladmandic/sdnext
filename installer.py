@@ -1250,11 +1250,13 @@ def check_torch():
                     torch_info.set(type='rocm', hip=torch.version.hip)
                 else:
                     log.warning('Torch backend: cannot detect type')
-                for device in [torch.cuda.device(i) for i in range(torch.cuda.device_count())]:
+                for device in range(torch.cuda.device_count()):
                     props = torch.cuda.get_device_properties(device)
+                    available, _total = torch.cuda.mem_get_info(device)
                     gpu = {
                         'gpu': torch.cuda.get_device_name(device),
                         'vram': round(props.total_memory / 1024 / 1024),
+                        'available': round(available / 1024 / 1024),
                         'arch': get_cuda_arch(torch.cuda.get_device_capability(device)),
                         'cores': props.multi_processor_count,
                     }

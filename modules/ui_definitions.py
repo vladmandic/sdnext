@@ -155,6 +155,7 @@ def create_settings(cmd_opts):
         "offload_balanced_sep": OptionInfo("<h2>Balanced Offload</h2>", "", gr.HTML),
         "diffusers_offload_pre": OptionInfo(True, "Offload during pre-forward", gr.Checkbox, {"visible": False}),
         "diffusers_offload_streams": OptionInfo(False, "Offload using streams"),
+        "diffusers_offload_pin": OptionInfo(False, "Pin offload memory"),
         "diffusers_offload_min_gpu_memory": OptionInfo(startup_offload_min_gpu, "Offload low watermark", gr.Slider, {"minimum": 0, "maximum": 1, "step": 0.01 }),
         "diffusers_offload_max_gpu_memory": OptionInfo(startup_offload_max_gpu, "Offload GPU high watermark", gr.Slider, {"minimum": 0.1, "maximum": 1, "step": 0.01 }),
         "diffusers_offload_max_cpu_memory": OptionInfo(0.90, "Offload CPU high watermark", gr.Slider, {"minimum": 0, "maximum": 1, "step": 0.01, "visible": False }),

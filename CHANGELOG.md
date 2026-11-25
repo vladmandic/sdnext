@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2026-11-23
+## Update for 2026-11-25
 
-### Highlights for 2026-11-23
+### Highlights for 2026-11-25
 
 Slightly longer release cycle resulted in quite large set of updates:
 - New top-level interface: [Chat](https://vladmandic.github.io/sdnext-docs/Chat/)!  
@@ -14,7 +14,7 @@ Slightly longer release cycle resulted in quite large set of updates:
   - **Detailer** (add *LocateAnything* model), **Story-Mode** (story style guidance, per-frame prompting), **Remove Background** (postprocessing mode)
   - **Video encoding**, including codec improvements, color-space handling and overall quality
 - Plus tons of minor improvements and bug fixes  
-  For example, improved *offline* mode, *hf mirror* handling, *model storage* consolidation, new *strict mode*, *image metadata* handling, new *image formats*, additional *prompt enhance* models, etc.  
+  For example, faster server startup, improved *offline* mode, *hf mirror* handling, *model storage* consolidation, new *strict mode*, *image metadata* handling, new *image formats*, additional *prompt enhance* models, etc.  
 
 From **user docs** side, check out rewritten [AMD ROCm](https://vladmandic.github.io/sdnext-docs/AMD-ROCm) guide, new [Model Storage](https://vladmandic.github.io/sdnext-docs/Model-Storage) notes  
 And for **AI docs**, see [instructions](https://github.com/vladmandic/sdnext/blob/dev/AGENTS.md) and [skills](https://github.com/vladmandic/sdnext/blob/dev/.github/skills/README.md)  
@@ -117,7 +117,8 @@ Plus [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) bel
   - restructure `lint` workflows
   - unify image save and metadata parsing between ui/cli/api  
   - remove *xyz-grid* selectable-script (always-on is primary choice)
-  - remove 
+  - faster server startup
+  - unified threading for scan operations
 - **Fixes**
   - api: *txt2img*, *img2img* and *control* answer *500* with the error when the generation fails, instead of *200* with no images
   - api: *txt2img*, *img2img* and *control* responses carry an *error* field when a later batch fails after earlier batches returned images

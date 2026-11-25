@@ -114,13 +114,9 @@ class OffloadHook(accelerate.hooks.ModelHook):
             if device_map is not None:
                 skip_keys = getattr(module, "_skip_keys", None)
                 try:
-                    module = accelerate.dispatch_model(module,
-                                                       main_device=torch.device(devices.device),
-                                                       device_map=device_map,
-                                                       offload_dir=offload_dir,
-                                                       skip_keys=skip_keys,
-                                                       force_hooks=True,
-                                                      )
+                    module, align_hook = _dispatch_balanced_module(module, device_map, torch.device(devices.device), offload_dir, skip_keys)
+                    if align_hook is not None:
+                        args, kwargs = align_hook.pre_forward(module, *args, **kwargs)
                 except Exception as e: # reapply hook
                     log.warning(f'Offload: type=balanced op=dispatch module={module.__class__.__name__} {e}')
                     module = accelerate.hooks.remove_hook_from_module(module, recurse=True)
@@ -168,21 +164,53 @@ def get_module_sizes(pipe=None, exclude=None):
     return modules
 
 
-def move_module_to_cpu(module, op='unk', force:bool=False):
+def _dispatch_balanced_module(module, device_map, main_device, offload_dir, skip_keys=None):
+    split_map = any(
+        str(device) == 'disk' or (str(device) == 'cpu' and main_device.type != 'cpu')
+        for device in device_map.values()
+    )
+    force_hooks = split_map or getattr(module, 'is_loaded_in_4bit', False) or getattr(module, 'is_loaded_in_8bit', False)
+    module = accelerate.dispatch_model(
+        module,
+        main_device=main_device,
+        device_map=device_map,
+        offload_dir=offload_dir,
+        skip_keys=skip_keys,
+        force_hooks=force_hooks,
+    )
+    if not force_hooks:
+        align_hook = accelerate.hooks.AlignDevicesHook(
+            execution_device=main_device,
+            io_same_device=True,
+            skip_keys=skip_keys,
+        )
+        module = accelerate.hooks.add_hook_to_module(module, align_hook, append=True)
+        return module, align_hook
+    return module, None
+
+
+def move_module_to_cpu(module, op='unk', force:bool=False) -> bool:
+    from modules import memstats
+
     def do_move(module):
         if shared.opts.diffusers_offload_streams:
             if s.move_stream is None:
                 s.move_stream = devices.create_stream(devices.device)
             with s.move_stream:
-                module = module.to(devices.cpu)
+                module = module.to(devices.cpu, non_blocking=shared.opts.diffusers_offload_nonblocking)
         else:
             module = module.to(devices.cpu)
         return module
 
+    moved = False
     try:
         module_name = getattr(module, "module_name", module.__class__.__name__)
-        module_size = s.offload_hook_instance.offload_map.get(module_name, s.offload_hook_instance.model_size())
-        used_gpu, used_ram = devices.torch_gc(fast=True)
+        module_size = s.offload_hook_instance.offload_map.get(module_name)
+        if module_size is None:
+            module_size = s.offload_hook_instance.model_size()
+        stats = memstats.memory_stats()
+        used_gpu = stats.get('gpu', {}).get('used', 0)
+        used_ram = stats.get('ram', {}).get('used', 0)
         perc_gpu = used_gpu / shared.gpu_memory
         prev_gpu = used_gpu
         module_cls = module.__class__.__name__
@@ -190,16 +218,19 @@ def move_module_to_cpu(module, op='unk', force:bool=False):
         if force:
             op = f'{op}:force'
             module = do_move(module)
+            moved = True
             used_gpu -= module_size
         elif s.offload_hook_instance.matches(module, s.offload_hook_instance.offload_never, module_name):
             op = f'{op}:never'
         elif s.offload_hook_instance.matches(module, s.offload_hook_instance.offload_always, module_name):
             op = f'{op}:always'
             module = do_move(module)
+            moved = True
             used_gpu -= module_size
         elif perc_gpu > shared.opts.diffusers_offload_min_gpu_memory:
             op = f'{op}:mem'
             module = do_move(module)
+            moved = True
             used_gpu -= module_size
         if s.debug:
             quant = getattr(module, "quantization_method", None)
@@ -213,6 +244,7 @@ def move_module_to_cpu(module, op='unk', force:bool=False):
             log.error(f'Offload: type=balanced op=apply module={getattr(module, "__name__", None)} cls={module.__class__ if inspect.isclass(module) else None} {e}')
         if os.environ.get('SD_MOVE_DEBUG', None):
             errors.display(e, f'Offload: type=balanced op=apply module={getattr(module, "__name__", None)}')
+    return moved
 
 
 def apply_balanced_offload_to_module(module, op="apply", force:bool=False):
@@ -224,7 +256,7 @@ def apply_balanced_offload_to_module(module, op="apply", force:bool=False):
         module = accelerate.hooks.remove_hook_from_module(module, recurse=True)
     except Exception as e:
         log.warning(f'Offload remove hook: module={module_name} {e}')
-    move_module_to_cpu(module, op=op, force=force)
+    moved = move_module_to_cpu(module, op=op, force=force)
     try:
         module = accelerate.hooks.add_hook_to_module(module, s.offload_hook_instance, append=True)
     except Exception as e:
@@ -238,7 +270,8 @@ def apply_balanced_offload_to_module(module, op="apply", force:bool=False):
     module.offload_post = shared.sd_model_type in s.offload_post and module_name.startswith("text_encoder")
     if shared.opts.layerwise_quantization or getattr(module, 'quantization_method', None) == 'LayerWise':
         model_quant.apply_layerwise(module, quiet=True) # need to reapply since hooks were removed/re-added
-    devices.torch_gc(fast=True, force=True, reason='offload')
+    if moved:
+        devices.torch_gc(fast=True, force=True, reason='offload')
 
 
 def apply_balanced_offload(sd_model=None, exclude: list[str] | None = None, force: bool = False, silent: bool = False):

@@ -102,7 +102,7 @@ devices.backend = devices.get_backend(cmd_opts)
 devices.device = devices.get_optimal_device()
 mem_stat = memory_stats()
 cpu_memory = round(mem_stat['ram']['total'] if "ram" in mem_stat else 0)
-gpu_memory = round(mem_stat['gpu']['total'] if "gpu" in mem_stat else 0)
+gpu_memory = round(mem_stat['gpu']['available'] if "gpu" in mem_stat else 0)
 if gpu_memory == 0:
     gpu_memory = cpu_memory
 native = backend == Backend.DIFFUSERS

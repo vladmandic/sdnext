@@ -97,6 +97,7 @@ def gpu_stats():
         free, total = torch.cuda.mem_get_info()
         gpu['used'] = gb(total - free)
         gpu['total'] = gb(total)
+        gpu['available'] = gb(free)
         stats = dict(torch.cuda.memory_stats())
         if stats.get('num_ooms', 0) > 0:
             shared.state.oom = True
@@ -107,6 +108,7 @@ def gpu_stats():
     except Exception as e:
         gpu['total'] = 0
         gpu['used'] = 0
+        gpu['available'] = 0
         gpu['error'] = str(e)
         if not fail_once:
             # log.warning(f'GPU stats: {e}')
