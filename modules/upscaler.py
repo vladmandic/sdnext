@@ -26,6 +26,7 @@ class Upscaler:
     user_path = None
     scalers = []
     tile = True
+    enabled = True
 
     def __init__(self, create_dirs=True):
         global models # pylint: disable=global-statement
@@ -58,7 +59,7 @@ class Upscaler:
             pass
 
     def __str__(self):
-        return f"Upscaler(name={self.name}, model_path={self.model_path}, user_path={self.user_path})"
+        return f"Upscaler(name={self.name} enabled={self.enabled} model_path={self.model_path} user_path={self.user_path})"
 
     def find_folder(self, folder, scalers, loaded):
         for fn in os.listdir(folder): # from folder
@@ -102,6 +103,9 @@ class Upscaler:
         return img
 
     def upscale(self, img: Image.Image | Tensor, scale, selected_model: str | None = None):
+        if not self.enabled:
+            log.warning(f'Upscaler: type={self.name} disabled')
+            return img
         jobid = shared.state.begin('Upscale')
         self.scale = scale
         if isinstance(img, Image.Image):

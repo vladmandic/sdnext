@@ -182,6 +182,7 @@ Plus [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) bel
   - processing: hires on modular pipelines that take condition images (*FLUX.3 Klein*) runs at the hires size instead of the base size
   - processing: negative prompt the pipeline takes no input for is reported once per job
   - processing: text encoder failure fails the job with its own error instead of a misleading *not enough values to unpack* from the pipeline
+  - progress: ui separate active vs queued task, thanks @ryanmeador
   - prompt: cached prompt encodings stay in system memory and follow *Text encoder cache size*
   - prompt: the prompt cache keys on every encode argument and skips calls with images
   - samplers: *Euler SGM* and *DC Solver* use the model's prediction type
@@ -196,6 +197,7 @@ Plus [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) bel
   - story: allow per-frame lora overrides
   - ui: refresh buttons call their method once per click
   - upscale: fix seedvr2 shape throughout the pipeline, thanks @ryanmeador
+  - upscale: handle missing `basicsr` inside realesrgan models gracefully
   - vae: improve requested vae upcast handling, thanks @ryanmeador
   - xyz grid: lora metadata of one cell no longer appears in the images of later cells
   - xyz: *Search & replace* replaces one value per cell, the first value or, when it is absent, the longest one found

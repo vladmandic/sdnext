@@ -22,9 +22,9 @@ If rules conflict, prioritize earlier rules over later ones unless explicitly st
 - Core UI source: `ui/`
 - Core build config: `ui/.build.json`
 - ModernUI source: `extensions-builtin/sdnext-modernui/src/`
-- Kanvas source: `extensions-builtin/sdnext-kanvas/src/`
-- ModernUI built output: `extensions-builtin/sdnext-modernui/javascript/`
-- Kanvas built output: `extensions-builtin/sdnext-kanvas/javascript/` and `extensions-builtin/sdnext-kanvas/dist/`
+- Kanvas source: `extensions-builtin/sdnext-kanvas/src/` and `extensions-builtin/sdnext-kanvas/javascript/`
+- ModernUI built output: `extensions-builtin/sdnext-modernui/dist/`
+- Kanvas built output: `extensions-builtin/sdnext-kanvas/dist/`
 - Core built output: `ui/dist/`
 
 > Do not edit built files directly. Always change source files and use the build commands to regenerate UI artifacts.

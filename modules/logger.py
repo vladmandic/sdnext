@@ -301,7 +301,7 @@ def setup_logging(debug=None, trace=None, filename=None):
     # handlers
     rh = TqdmRichHandler(show_time=True, omit_repeated_times=False, show_level=True, show_path=False, markup=True, rich_tracebacks=True, log_time_format='%H:%M:%S-%f', level=level, console=console)
     if trace:
-        rh.formatter = logging.Formatter('[%(module)s][%(pathname)s:%(lineno)d]  %(message)s')
+        rh.setFormatter(logging.Formatter('[%(module)s][%(pathname)s:%(lineno)d]  %(message)s'))
     rh.addFilter(log_filter)
     rh.setLevel(level)
     log.addHandler(rh)

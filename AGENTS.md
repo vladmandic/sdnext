@@ -66,7 +66,7 @@ SDNext initialization and startup is tested using `./webui.sh --test`.
 - Install: `installer.py` takes care of installing dependencies and setting up the environment.
 - Core runtime state is centralized in `modules/shared.py` (shared.opts, model state, backend/device state).
 - API/server routes are under `modules/api/`.
-- UI codebase is split between base JS in `javascript/` and actual UI in `extensions-builtin/sdnext-modernui/`.
+- UI codebase is split between base JS in `ui/` and actual UI in `extensions-builtin/sdnext-modernui/`.
 - Model and pipeline logic is split between `modules/sd_*` and `pipelines/`.
 - Additional plug-ins live in `scripts/` and are used only when specified.
 - Extensions live in `extensions-builtin/` and `extensions/` and are loaded dynamically.
