@@ -17,7 +17,7 @@ def caption_wrapper(tab, image,
     if tab <= 0:
         log.debug('Caption: mode="VLM Caption"')
         from modules.caption import vqa
-        answer = vqa.caption(vlm_question, vlm_system, vlm_prompt, image, vlm_model, vlm_prefill, vlm_thinking_mode, vlm_custom_args)
+        answer = vqa.caption(vlm_question, vlm_system, vlm_prompt, image, vlm_model, prefill=vlm_prefill, thinking_mode=vlm_thinking_mode, custom_args=vlm_custom_args)
         annotated_image = vqa.get_last_annotated_image()
         if annotated_image is not None:
             return answer, gr.update(value=annotated_image, visible=True)
@@ -25,7 +25,7 @@ def caption_wrapper(tab, image,
     elif tab == 1:
         log.debug('Caption: mode="VLM Analyze"')
         from modules.caption import vqa
-        answer = vqa.analyze(analyze_question, analyze_system, analyze_prompt, image, analyze_model, vlm_thinking_mode, vlm_custom_args)
+        answer = vqa.analyze(analyze_question, analyze_system, analyze_prompt, image, analyze_model, thinking_mode=vlm_thinking_mode, custom_args=vlm_custom_args)
         return answer, gr.update(visible=False)
     elif tab == 2:
         log.debug('Caption: mode="OpenCLIP"')
