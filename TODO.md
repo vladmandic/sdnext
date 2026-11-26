@@ -19,9 +19,7 @@ None
 - Video: upscaling LTX-Upscaler
 - Video: upscaling [MiniMax-Upscaler](https://huggingface.co/LBH-123-AI/Minimax_h3_latent_Upscaler)
 - Video: capabilities to processing tab, add RIFE, upscaling (once available)
-- UI distraction-free mode with prompt-only, chat-based interface
 - UI Lite vs Expert mode, @vladmandic
-- Remove obsolete code:  `olive-ai`, @vladmandic
 - Incorporate [prompting guides](https://github.com/CalamitousFelicitousness/ai-prompting-guides)
 
 ### OnHold
@@ -40,7 +38,7 @@ None
 
 ### Image
 
-None
+- [Nemotron-Labs-Image-30B-A3B](https://huggingface.co/nvidia/Nemotron-Labs-Image-30B-A3B)
 
 ### Video
 

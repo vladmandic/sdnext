@@ -13,7 +13,7 @@ Slightly longer release cycle resulted in quite large set of updates:
   - New **Watermark** module for both images and videos
   - **Detailer** (add *LocateAnything* model), **Story-Mode** (story style guidance, per-frame prompting), **Remove Background** (postprocessing mode)
   - **Video encoding**, including codec improvements, color-space handling and overall quality
-  - **Offloading** improvements (pinning, streams, etc.)  
+  - **Offloading** improvements (*pinning*, *streams*, etc.)  
 - Plus tons of minor improvements and bug fixes  
   For example, faster server startup, improved *offline* mode, *hf mirror* handling, *model storage* consolidation, new *strict mode*, *image metadata* handling, new *image formats*, additional *prompt enhance* models, etc.  
 
@@ -193,7 +193,7 @@ Plus [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) bel
   - settings: improve settings parsing and validation to prevent corruption
   - story: allow per-frame lora overrides
   - ui: refresh buttons call their method once per click
-  - upscale: fix seedvr2 shape thoughout the pipeline, thanks @ryanmeador
+  - upscale: fix seedvr2 shape throughout the pipeline, thanks @ryanmeador
   - vae: improve requested vae upcast handling, thanks @ryanmeador
   - xyz grid: lora metadata of one cell no longer appears in the images of later cells
   - xyz: *Search & replace* replaces one value per cell, the first value or, when it is absent, the longest one found
