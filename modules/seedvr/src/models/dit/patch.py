@@ -103,6 +103,7 @@ class NaPatchOut(PatchOut):
         self,
         vid: torch.FloatTensor,  # l c
         vid_shape: torch.LongTensor,
+        vid_shape_before_patchify: torch.LongTensor,
         cache: Cache = Cache(disable=True),
     ) -> Tuple[
         torch.FloatTensor,
@@ -124,11 +125,11 @@ class NaPatchOut(PatchOut):
             vid = na.unflatten(vid, vid_shape)
             for i in range(len(vid)):
                 vid[i] = rearrange(vid[i], "T H W (t h w c) -> (T t) (H h) (W w) c", t=t, h=h, w=w)
-                if t > 1 and vid_shape[i, 0] % t != 0:
-                    vid[i] = vid[i][(t - vid_shape[i, 0] % t) :]
-                if h > 1 and vid_shape[i, 1] % h != 0:
-                    vid[i] = vid[i][:, (h - vid_shape[i, 1] % h) :]
-                if w > 1 and vid_shape[i, 2] % w != 0:
-                    vid[i] = vid[i][:, :, (w - vid_shape[i, 2] % w) :]
+                if t > 1 and vid_shape_before_patchify[i, 0] % t != 0:
+                    vid[i] = vid[i][(t - vid_shape_before_patchify[i, 0] % t) :]
+                if h > 1 and vid_shape_before_patchify[i, 1] % h != 0:
+                    vid[i] = vid[i][:, (h - vid_shape_before_patchify[i, 1] % h) :]
+                if w > 1 and vid_shape_before_patchify[i, 2] % w != 0:
+                    vid[i] = vid[i][:, :, (w - vid_shape_before_patchify[i, 2] % w) :]
             vid, vid_shape = na.flatten(vid)
         return vid, vid_shape
