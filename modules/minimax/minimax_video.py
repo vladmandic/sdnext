@@ -251,7 +251,7 @@ def generate(task_id, _ui_state,
         memory = shared.mem_mon.summary()
         total_time = max(t1 - t0, 1e-6)
         timer.video.merge(timer.process)
-        timer.video.set('wall', total_time)
+        timer.video.set('wall', total_time, include_total=False)
         log.debug(f'Video: timers={timer.video.dct(no_total=True)}')
         fps = f'{num_frames/total_time:.2f}'
         its = f'{(steps)/total_time:.3f}'

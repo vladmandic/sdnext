@@ -18,12 +18,35 @@ from rich import print as rprint
 from rich.pretty import install as pretty_install
 from rich.traceback import install as traceback_install
 
+
 # Global logger and console instances
 log = logging.getLogger("sd")
 console = None
 log_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'sdnext.log') # adjusted path relative to modules/
 hostname = socket.gethostname()
 log_rolled = False
+
+
+class TqdmRichHandler(RichHandler):
+    def emit(self, record):
+        try:
+            from tqdm import tqdm
+        except ImportError:
+            super().emit(record)
+            return
+        lock = getattr(tqdm, '_lock', None)
+        if lock is None and not getattr(tqdm, '_instances', None):
+            super().emit(record)
+            return
+        if lock is None:
+            lock = tqdm.get_lock()
+        with lock:
+            # tqdm registers instances under this lock, so the empty fast path cannot race with bar creation.
+            if not getattr(tqdm, '_instances', None):
+                super().emit(record)
+            else:
+                with tqdm.external_write_mode(file=self.console.file, nolock=True):
+                    super().emit(record)
 
 
 def str_to_bool(val: str | bool | None) -> bool | None:
@@ -276,7 +299,7 @@ def setup_logging(debug=None, trace=None, filename=None):
 
     log_filter = LogFilter()
     # handlers
-    rh = RichHandler(show_time=True, omit_repeated_times=False, show_level=True, show_path=False, markup=True, rich_tracebacks=True, log_time_format='%H:%M:%S-%f', level=level, console=console)
+    rh = TqdmRichHandler(show_time=True, omit_repeated_times=False, show_level=True, show_path=False, markup=True, rich_tracebacks=True, log_time_format='%H:%M:%S-%f', level=level, console=console)
     if trace:
         rh.formatter = logging.Formatter('[%(module)s][%(pathname)s:%(lineno)d]  %(message)s')
     rh.addFilter(log_filter)

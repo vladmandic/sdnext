@@ -543,8 +543,8 @@ def webui(restart=False, _exit=False, profiler=None):
         log.info(f"Server startup: {timer.startup.summary(min_time=0)}")
         modules.errors._profiler = profiler # pylint: disable=protected-access
     else:
-        timer.startup.add('launch', timer.launch.get_total())
-        timer.startup.add('installer', timer.init.get_total())
+        timer.startup.add('launch', timer.launch.get_total(), include_total=False)
+        timer.startup.add('installer', timer.init.get_total(), include_total=False)
         log.info(f"Server startup: {timer.startup.summary()}")
     timer.startup.reset()
 

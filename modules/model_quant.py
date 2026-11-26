@@ -458,7 +458,7 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weigh
     )
 
     t1 = time.time()
-    timer.load.add('sdnq', t1 - t0)
+    timer.load.add('sdnq', t1 - t0, include_total=False)
 
     if op is not None and shared.opts.sdnq_quantize_shuffle_weights:
         if quant_last_model_name is not None:

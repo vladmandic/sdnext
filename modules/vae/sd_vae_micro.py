@@ -79,7 +79,7 @@ def decode(latents: torch.Tensor) -> torch.Tensor:
         num_up = sum(1 for k in state_dict if k.startswith("up_blocks.") and k.endswith(".conv.weight"))
         chk_scale = (2 ** num_up) if num_up > 0 else 1
         decoder = MicroDecoder(in_channels=in_ch, hidden_dim=hidden_dim, scale_factor=chk_scale).to(device=devices.device, dtype=devices.dtype)
-        log.info(f'\nDecode: type=Micro file="{model_path}" target={vae_cls} channels={in_ch} dim={hidden_dim} scale={chk_scale} latents={list(latents.shape)}')
+        log.info(f'Decode: type=Micro file="{model_path}" target={vae_cls} channels={in_ch} dim={hidden_dim} scale={chk_scale} latents={list(latents.shape)}')
         decoder.load_state_dict(state_dict)
         decoder.to(device=devices.device, dtype=devices.dtype)
         decoder.eval()

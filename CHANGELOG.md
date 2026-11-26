@@ -131,6 +131,7 @@ Plus [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) bel
   - remove *xyz-grid* selectable-script (always-on is primary choice)
   - faster server startup
   - unified threading for scan operations
+  - capture additional timing/profiling info
 - **Fixes**
   - api: *txt2img*, *img2img* and *control* answer *500* with the error when the generation fails, instead of *200* with no images
   - api: *txt2img*, *img2img* and *control* responses carry an *error* field when a later batch fails after earlier batches returned images
@@ -150,6 +151,7 @@ Plus [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) bel
   - installer: check minimum git version
   - live preview: *Full* preview no longer aborts a modular pipeline generation by offloading the transformer mid-denoise
   - live preview: *MiniMax-H3-Image* previews decode instead of logging an error per step
+  - logging: handle overlapped progress bars and log entries
   - lora: *LoRA auto-apply tags* reach the first batch, keep their metadata order and are added when a tag is part of the lora file name
   - lora: *LoRA force reload always* with native fuse no longer removes the lora twice per batch, which pushed every later image further from the lora
   - lora: *LoRA force reload always* with native fuse off keeps the auto-apply tags and the lora metadata on every job, not only the first

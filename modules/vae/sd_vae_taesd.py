@@ -106,7 +106,7 @@ def decode(latents):
             latents = latents.unsqueeze(0)
         latents = latents.to(devices.device, dtype=dtype)
         if debug:
-            log.trace(f'\nDecode: type=Tiny model={loaded_type} cls={loaded_vae.__class__.__name__} group={loaded_cls} shape={latents.shape}')
+            log.trace(f'Decode: type=Tiny model={loaded_type} cls={loaded_vae.__class__.__name__} group={loaded_cls} shape={latents.shape}')
         if loaded_type == 'f2' and (len(latents.shape) == 4) and (latents.shape[1] == 128):
             b, _c, h, w = latents.shape
             latents = latents.reshape(b, 32, h * 2, w * 2)

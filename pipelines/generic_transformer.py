@@ -1,6 +1,6 @@
 import os
 import torch
-from modules import shared, devices, errors, sd_models, sd_offload, model_quant, hashes
+from modules import shared, devices, errors, sd_models, sd_offload, model_quant, hashes, timer
 from modules.logger import log
 from pipelines.generic_util import get_loader
 from pipelines.generic_map import transformers_map
@@ -47,6 +47,7 @@ def load_transformer(
         modules_to_not_convert = []
     if modules_dtype_dict is None:
         modules_dtype_dict = {}
+    t0 = timer.now()
     if cls_name is None:
         from diffusers import AutoModel
         cls_name = AutoModel
@@ -196,7 +197,9 @@ def load_transformer(
     if transformer is not None:
         module_size, param_num = sd_offload.get_module_size(transformer)
         module_memory = sd_offload.get_module_memory(transformer)
-        log.debug(f'Load model: transformer="{repo_id}" quant="{quant_type}" size={module_size:.3f} params={param_num:.3f} memory={module_memory}')
+        t1 = timer.now()
+        log.debug(f'Load model: transformer="{repo_id}" quant="{quant_type}" size={module_size:.3f} params={param_num:.3f} memory={module_memory} time={t1-t0:.3f}')
+        timer.load.add('transformer', t1-t0, include_total=False)
 
     try:
         # quantized models legitimately report the storage dtype (e.g. fp8 comfy_quant adopted via SDNQ); the compute dtype lives in the dequantizers, not the params

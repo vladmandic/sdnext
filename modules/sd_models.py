@@ -236,14 +236,7 @@ def move_model(model, device=None, force=False):
             return
         if hasattr(module, "_hf_hook") and hasattr(module._hf_hook, "execution_device"): # pylint: disable=protected-access
             try:
-                """
-                for k, v in module.named_parameters(recurse=True):
-                    if v.device == torch.device('meta'):
-                        from accelerate.utils import set_module_tensor_to_device
-                        set_module_tensor_to_device(module, k, device, tied_params_map=module._hf_hook.tied_params_map)
-                """
                 module._hf_hook.execution_device = device # pylint: disable=protected-access
-                # module._hf_hook.offload = True
             except Exception as e:
                 if os.environ.get('SD_MOVE_DEBUG', None):
                     log.error(f'Model move execution device: device={device} {e}')
@@ -292,6 +285,8 @@ def move_model(model, device=None, force=False):
                 model.prior_pipe.to(device)
             if device == devices.device:
                 offload_ondemand(model) # a bulk move must not strand on-demand components on the accelerator; their entry points onload them when needed
+            t1 = timer.now()
+            timer.process.add('offload', t1-t0)
         except Exception as e0:
             if 'Cannot copy out of meta tensor' in str(e0) or 'must be Tensor, not NoneType' in str(e0):
                 if hasattr(model, "components"):
@@ -316,13 +311,11 @@ def move_model(model, device=None, force=False):
                 pass # ignore errors on quantized models
             else:
                 raise e0
-        t1 = time.time()
+            t1 = timer.now()
+            timer.process.add('move', t1-t0)
     except Exception as e1:
-        t1 = time.time()
+        t1 = timer.now()
         log.warning(f'Model move: device={device} {e1}')
-    if 'move' not in timer.process.records:
-        timer.process.records['move'] = 0
-    timer.process.records['move'] += t1 - t0
     if os.environ.get('SD_MOVE_DEBUG', None) is not None or (t1-t0) > 2:
         log.debug(f'Model move: device={device} class={model.__class__.__name__} accelerate={getattr(model, "has_accelerate", False)} fn={fn} time={t1-t0:.2f}') # pylint: disable=protected-access
     devices.torch_gc()
@@ -1112,7 +1105,7 @@ def load_diffuser(checkpoint_info: CheckpointInfo | None = None, op='model', rev
             if getattr(shared.sd_model, 'sd_checkpoint_info', None) is not None and vae_file is not None:
                 sd_vae.apply_vae_config(shared.sd_model.sd_checkpoint_info.filename, vae_file, sd_model)
         # move_model(sd_model, devices.device)
-        timer.load.record("move")
+        timer.load.record("offload")
 
     except Exception as e:
         log.error(f"Load {op}: {e}")
@@ -1144,10 +1137,10 @@ def load_diffuser(checkpoint_info: CheckpointInfo | None = None, op='model', rev
                     if hasattr(sd_model, "vae"):
                         sd_model.vae = sd_models_compile.compile_diffusers(sd_model.vae, apply_to_components=False)
 
-        timer.load.record("compile")
     except Exception as e:
         log.error(f"Compile {op}: {e}")
         errors.display(e, "Compile")
+    timer.load.record("compile")
 
     if shared.opts.diffusers_offload_mode != 'balanced':
         devices.torch_gc(force=True, reason='load')
@@ -1159,11 +1152,12 @@ def load_diffuser(checkpoint_info: CheckpointInfo | None = None, op='model', rev
         from modules import modelstats
         modelstats.analyze()
 
-    log.info(f'Model capabilities: {shared.sd_model_capabilities}')
-    log.info(f"Load {op}: type={shared.sd_model_type} time={timer.load.dct()} native={get_native(sd_model)} memory={memory_stats()}")
-
     from modules.platform import cleanup
     cleanup()
+    timer.load.record('post')
+
+    log.info(f'Model capabilities: {shared.sd_model_capabilities}')
+    log.info(f"Load {op}: type={shared.sd_model_type} time={timer.load.dct()} memory={memory_stats()}")
 
     shared.opts.save(silent=True)
 

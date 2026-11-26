@@ -584,7 +584,7 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
             shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.TEXT_2_IMAGE)
 
         t2 = time.time()
-        timer.process.add('process', t2 - t1)
+        timer.process.add('process', t2 - t1, include_total=False)
 
         p.color_corrections = None
         index_of_first_image = 0
@@ -622,7 +622,9 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
     timer.process.record('post')
     p.ops = list(set(p.ops))
     t3 = time.time()
-    timer.process.add('wall', t3 - t0)
+    wall_time = t3 - t0
+    timer.process.add('wall', wall_time, include_total=False)
+    timer.process.set_total(wall_time)
 
     if not p.disable_extra_networks:
         its = (p.steps * len(output_images)) / (t2 - t1)

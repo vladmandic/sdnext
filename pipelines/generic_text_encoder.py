@@ -2,7 +2,7 @@ import os
 import json
 import torch
 import transformers
-from modules import shared, devices, errors, sd_models, sd_offload, model_quant, sd_hijack_te
+from modules import shared, devices, errors, sd_models, sd_offload, model_quant, sd_hijack_te, timer
 from modules.logger import log
 from pipelines.generic_util import get_loader
 from pipelines.generic_shared import shared_te_map
@@ -120,6 +120,7 @@ def load_text_encoder(
         return None
     if repo_id is None or repo_id.lower() == 'none':
         return None
+    t0 = timer.now()
     sd_hijack_te.prompt_cache.cache.clear()
     text_encoder = None
     allow_shared = allow_shared and shared.opts.te_shared_te
@@ -225,7 +226,9 @@ def load_text_encoder(
     if text_encoder is not None:
         module_size, param_num = sd_offload.get_module_size(text_encoder)
         module_memory = sd_offload.get_module_memory(text_encoder)
-        log.debug(f'Load model: text_encoder="{repo_id}" quant="{quant_type}" size={module_size:.3f} params={param_num:.3f} memory={module_memory}')
+        t1 = timer.now()
+        log.debug(f'Load model: text_encoder="{repo_id}" quant="{quant_type}" size={module_size:.3f} params={param_num:.3f} memory={module_memory} time={t1-t0:.3f}')
+        timer.load.add('te', t1-t0, include_total=False)
 
     try:
         actual_dtype = text_encoder.dtype
