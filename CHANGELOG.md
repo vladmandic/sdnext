@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2026-11-25
+## Update for 2026-11-26
 
-### Highlights for 2026-11-25
+### Highlights for 2026-11-26
 
 Slightly longer release cycle resulted in quite large set of updates:
 - New top-level interface: [Chat](https://vladmandic.github.io/sdnext-docs/Chat/)!  
@@ -24,7 +24,7 @@ Plus [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) bel
 
 [Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-11-23
+### Details for 2026-11-26
 
 - [Chat](https://vladmandic.github.io/sdnext-docs/Chat/): New top-level interface  
   See [chat docs](https://vladmandic.github.io/sdnext-docs/Chat/) for more details as this is quite an extensive module  
@@ -132,31 +132,30 @@ Plus [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) bel
   - faster server startup
   - unified threading for scan operations
 - **Fixes**
+  - anima: finetunes from the *Finetune* dropdown load on base models in the diffusers modular layout
   - api: *txt2img*, *img2img* and *control* answer *500* with the error when the generation fails, instead of *200* with no images
   - api: *txt2img*, *img2img* and *control* responses carry an *error* field when a later batch fails after earlier batches returned images
   - api: failed video return 500 with the error instead of 499
   - api: ts video files served as *video/mp2t*
-  - image grid: improved calculation of rows and columns, set either to 0 to disable grid or -1 to auto-calculate
-  - installer: check minimum git version
-  - live preview: *MiniMax-H3-Image* previews decode instead of logging an error per step
-  - live preview: *Full* preview no longer aborts a modular pipeline generation by offloading the transformer mid-denoise
   - autocomplete: *Keep @ on artist insert* applies after a page reload
+  - caption: pass args by name, thanks @ryanmeador
   - cloud: update google veo and omni endpoints
-  - dlss: use video codec defaults, slow-motion output plays slower
+  - control: image metadata is no longer shifted by one when a grid leads the returned images
+  - dlss: batch images keep their own seed and prompt in saved metadata, resize and grading are no longer applied twice, the grid is not saved as an extra image
   - dlss: re-apply original audio after video processing, thanks @resonantsky
+  - dlss: the returned grid is no longer enhanced as an extra frame and matches the saved grid
+  - dlss: use video codec defaults, slow-motion output plays slower
   - gallery: thumbnails and previews for webm, mkv, mov, avi and ts videos
   - hdr: the 16-bit hdr image saves on windows paths with non-ascii characters
   - ideogram: a text encoder that fails to move to the gpu goes back to the cpu instead of staying partly on the gpu
+  - image grid: improved calculation of rows and columns, set either to 0 to disable grid or -1 to auto-calculate
+  - installer: check minimum git version
+  - live preview: *Full* preview no longer aborts a modular pipeline generation by offloading the transformer mid-denoise
+  - live preview: *MiniMax-H3-Image* previews decode instead of logging an error per step
   - lora: *LoRA auto-apply tags* reach the first batch, keep their metadata order and are added when a tag is part of the lora file name
   - lora: *LoRA force reload always* with native fuse no longer removes the lora twice per batch, which pushed every later image further from the lora
   - lora: *LoRA force reload always* with native fuse off keeps the auto-apply tags and the lora metadata on every job, not only the first
   - lora: a lora used with *LoRA force reload always* is applied again when the next job runs without the option, instead of only being reported
-  - dlss: batch images keep their own seed and prompt in saved metadata, resize and grading are no longer applied twice, the grid is not saved as an extra image
-  - scripts: *Prompt matrix* runs again instead of failing with an index error before generating
-  - control: image metadata is no longer shifted by one when a grid leads the returned images
-  - dlss: the returned grid is no longer enhanced as an extra frame and matches the saved grid
-  - xyz grid: lora metadata of one cell no longer appears in the images of later cells
-  - anima: finetunes from the *Finetune* dropdown load on base models in the diffusers modular layout
   - ltx: *Tiny* live previews show the video instead of a placeholder
   - ltx: tab passes no longer run with the previous job's guidance end, sigma adjust and correction settings
   - minimax: quantized *H3* fix decode
@@ -164,11 +163,12 @@ Plus [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) bel
   - models: *FLUX.3*, *MiniMax-H3* and modular video models fail the load when a component the workflow requires does not load
   - models: gated repo access check sends the token stored by *hf auth login*
   - models: unloading a model returns the host memory it freed to the system on linux
+  - namegen: add `opts`, `wildcards` as allowed templates
   - namegen: prevent filename collisions
   - namegen: sanitize and check length per path component
-  - namegen: add `opts`, `wildcards` as allowed templates
-  - offload: a job that fails inside the vae no longer leaves the vae on the gpu
+  - offline: apply env vars once, thanks @ryanmeador
   - offload: *TeaCache* runs under block level group offload, *FramePack*'s first job after a load no longer fails with tensors on two devices
+  - offload: a job that fails inside the vae no longer leaves the vae on the gpu
   - preview: live previews of v-prediction models use the v-prediction estimate
   - preview: live previews of video and *Qwen-Image 2.1* latents
   - preview: remove *Tiny: decode layers*, which no longer changed the decoder and only enlarged *Tiny* previews; use *Micro* when *Tiny* is too heavy
@@ -177,24 +177,28 @@ Plus [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) bel
   - processing: hires on modular pipelines that take condition images (*FLUX.3 Klein*) runs at the hires size instead of the base size
   - processing: negative prompt the pipeline takes no input for is reported once per job
   - processing: text encoder failure fails the job with its own error instead of a misleading *not enough values to unpack* from the pipeline
-  - prompt: the prompt cache keys on every encode argument and skips calls with images, *Ideogram 4* no longer fails at a new size with the same prompt and edit models encode each new input image
-  - prompt: cached prompt encodings stay in system memory and follow *Text encoder cache size*, *Ideogram 4* no longer fills the gpu with one 1.2 GB entry per prompt until its text encoder fails to load
+  - prompt: cached prompt encodings stay in system memory and follow *Text encoder cache size*
+  - prompt: the prompt cache keys on every encode argument and skips calls with images
+  - qwen-image-2.1: use correct shared te
   - samplers: *Euler SGM* and *DC Solver* use the model's prediction type
-  - save: `[datetime<format>]` and `[hasprompt<...>]` filename tokens apply args
   - save: *Save metadata to JSON file* appends one line per image to a `jsonl`
+  - save: `[datetime<format>]` and `[hasprompt<...>]` filename tokens apply args
   - save: an image save that fails no longer stops every later save
-  - settings: extension settings are checked once extensions add them, instead of reported as unknown at startup
-  - settings: a new data folder receives *config.json* and *secrets.json* on the first save
+  - scripts: *Prompt matrix* runs again instead of failing with an index error before generating
   - settings: *Expandable segments* sets the allocator to expandable segments alone, large vae decodes no longer run out of memory or fail an allocator assert
+  - settings: a new data folder receives *config.json* and *secrets.json* on the first save
+  - settings: extension settings are checked once extensions add them, instead of reported as unknown at startup
   - settings: improve settings parsing and validation to prevent corruption
   - story: allow per-frame lora overrides
   - ui: refresh buttons call their method once per click
-  - xyz: a blank value after a trailing comma is dropped instead of *Search & replace* inserting the replacement between every character of the prompt
+  - upscale: fix seedvr2 shape thoughout the pipeline, thanks @ryanmeador
+  - vae: improve requested vae upcast handling, thanks @ryanmeador
+  - xyz grid: lora metadata of one cell no longer appears in the images of later cells
+  - xyz: *Search & replace* replaces one value per cell, the first value or, when it is absent, the longest one found
   - xyz: *Search & replace* warns when none of its values occurs in the prompts it searches
-  - xyz: restoring a grid image sets dropdown axes, such as sampler, model or lora, to the values the grid used
+  - xyz: a blank value after a trailing comma is dropped instead of *Search & replace* inserting the replacement between every character of the prompt
   - xyz: in the always-on grid, *Search & replace all*, *Prompt order* and *Styles* change the prompt of each cell, and lora tags no longer pile up across cells
-  - xyz: *Search & replace* replaces one value per cell, the first value or, when it is absent, the longest one found, so `woman,man` no longer renders `wowoman` and `0.8,1,1.2` no longer renders `1.2.2`
-  - qwen-image-2.1: use correct shared te
+  - xyz: restoring a grid image sets dropdown axes, such as sampler, model or lora, to the values the grid used
 
 ## Update for 2026-10-29
 
