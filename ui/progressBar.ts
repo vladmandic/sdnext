@@ -6,6 +6,7 @@ let lastState: any = {};
 let refreshInterval = 10000;
 const progressTimeout = 600;
 const startTimeout = 5;
+const progressTasks = new Map<object, any>();
 
 export function setRefreshInterval() {
   refreshInterval = window.opts.live_preview_refresh_period || 500;
@@ -106,6 +107,13 @@ export function setProgress(res?: any) {
   }
 }
 
+function renderTaskProgress() {
+  const states = Array.from(progressTasks.values()).filter(Boolean);
+  const active = states.find((state) => state.active);
+  const queued = states.find((state) => state.queued);
+  setProgress(active || queued || states.at(-1));
+}
+
 export function requestInterrupt() {
   setProgress();
 }
@@ -118,6 +126,9 @@ export function randomId() {
 // Cleans up all created stuff when the task is over and calls atEnd. calls onProgress every time there is a progress update
 export function requestProgress(id_task = 'undefined', progressEl = null, galleryEl = null, atEnd = null, onProgress = null, once = false) {
   if (id_task) localStorage.setItem('task', id_task);
+  const progressKey = {};
+  progressTasks.set(progressKey, null);
+  let stopped = false;
   let hasStarted = false;
   let dateStart = Date.now();
   let prevProgress: any = null;
@@ -156,9 +167,12 @@ export function requestProgress(id_task = 'undefined', progressEl = null, galler
   };
 
   const removeLivePreview = (useImage = false) => {
+    if (stopped) return;
+    stopped = true;
+    progressTasks.delete(progressKey);
     debug('taskEnd:', id_task);
-    localStorage.removeItem('task');
-    setProgress();
+    if (localStorage.getItem('task') === id_task) localStorage.removeItem('task');
+    renderTaskProgress();
     const footers = Array.from<any>(gradioApp().querySelectorAll('.gallery_footer'));
     for (const footer of footers) footer.style.display = 'flex'; // restore all footers
     const galleries = Array.from<any>(gradioApp().querySelectorAll('.gallery_main'));
@@ -193,6 +207,7 @@ export function requestProgress(id_task = 'undefined', progressEl = null, galler
   };
 
   const onProgressDataHandler = async (res, caller) => {
+    if (stopped) return;
     if (res?.debug) debug('progress:', { start: dateStart, res });
     lastState = res;
     const elapsedFromStart = (Date.now() - dateStart) / 1000;
@@ -217,7 +232,8 @@ export function requestProgress(id_task = 'undefined', progressEl = null, galler
       dateStart = Date.now();
       prevProgress = res.progress;
     }
-    setProgress(res);
+    progressTasks.set(progressKey, res);
+    renderTaskProgress();
     if (res.live_preview && !livePreview) initLivePreview();
     let id_live_preview = res.id_live_preview;
     if (res.live_preview && galleryEl) {
@@ -232,11 +248,13 @@ export function requestProgress(id_task = 'undefined', progressEl = null, galler
   };
 
   const onProgressErrorHandler = (err) => {
+    if (stopped) return;
     error('progress', { error: err });
     removeLivePreview();
   };
 
   const startLivePreview = (taskId: string, id_live_preview: number) => {
+    if (stopped) return;
     const hidden = document.hidden || !previewVisible();
     let request_id = id_live_preview;
     if (hidden) {
@@ -249,6 +267,7 @@ export function requestProgress(id_task = 'undefined', progressEl = null, galler
   };
 
   const startProgress = (taskId: string, id_live_preview: number) => {
+    if (stopped) return;
     // eslint-disable-next-line @typescript-eslint/no-use-before-define
     xhrPost('./internal/progress', { id_task, id_live_preview: -1 }, onProgressHandler, onProgressErrorHandler, false, 30000); // poll for progress
   };
