@@ -176,10 +176,25 @@ class LastLayer(nn.Module):
         self.modulation = SimpleModulation(features)
         self.down = nn.Linear(features, features, bias=False)
         self.up = nn.Linear(features, features, bias=False)
+        self._residual_is_dormant: bool | None = None
 
     def forward(self, x: torch.Tensor, tvec: torch.Tensor) -> torch.Tensor:
         scale, shift = self.modulation(tvec)
-        x = (1 + scale) * self.norm(x) + shift + self.up(self.down(x))
+        # x = (1 + scale) * self.norm(x) + shift + self.up(self.down(x))
+        skip_residual = (
+            not self.training
+            and not torch.is_grad_enabled()
+            and not torch.compiler.is_compiling()
+            and type(self.up) is nn.Linear
+            and not self.up.weight.is_meta
+            and getattr(self.up, "lora_layer", None) is None
+        )
+        if (self._residual_is_dormant is None) and skip_residual:
+            self._residual_is_dormant = torch.count_nonzero(self.up.weight).item() == 0
+        if not (skip_residual and self._residual_is_dormant):
+            x = (1 + scale) * self.norm(x) + shift + self.up(self.down(x)) # orig code
+        else:
+            x = (1 + scale) * self.norm(x) + shift # skip the residual branch leading to inf/nan
         return self.linear(x)
 
 

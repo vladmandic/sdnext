@@ -132,7 +132,6 @@ Plus [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) bel
   - faster server startup
   - unified threading for scan operations
 - **Fixes**
-  - anima: finetunes from the *Finetune* dropdown load on base models in the diffusers modular layout
   - api: *txt2img*, *img2img* and *control* answer *500* with the error when the generation fails, instead of *200* with no images
   - api: *txt2img*, *img2img* and *control* responses carry an *error* field when a later batch fails after earlier batches returned images
   - api: failed video return 500 with the error instead of 499
@@ -147,7 +146,6 @@ Plus [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) bel
   - dlss: use video codec defaults, slow-motion output plays slower
   - gallery: thumbnails and previews for webm, mkv, mov, avi and ts videos
   - hdr: the 16-bit hdr image saves on windows paths with non-ascii characters
-  - ideogram: a text encoder that fails to move to the gpu goes back to the cpu instead of staying partly on the gpu
   - image grid: improved calculation of rows and columns, set either to 0 to disable grid or -1 to auto-calculate
   - installer: check minimum git version
   - live preview: *Full* preview no longer aborts a modular pipeline generation by offloading the transformer mid-denoise
@@ -155,12 +153,17 @@ Plus [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) bel
   - lora: *LoRA auto-apply tags* reach the first batch, keep their metadata order and are added when a tag is part of the lora file name
   - lora: *LoRA force reload always* with native fuse no longer removes the lora twice per batch, which pushed every later image further from the lora
   - lora: *LoRA force reload always* with native fuse off keeps the auto-apply tags and the lora metadata on every job, not only the first
-  - lora: a lora used with *LoRA force reload always* is applied again when the next job runs without the option, instead of only being reported
-  - ltx: *Tiny* live previews show the video instead of a placeholder
-  - ltx: tab passes no longer run with the previous job's guidance end, sigma adjust and correction settings
-  - minimax: quantized *H3* fix decode
-  - minimax: webm, mkv and ts files accepted as reference videos
-  - models: *FLUX.3*, *MiniMax-H3* and modular video models fail the load when a component the workflow requires does not load
+  - lora: *LoRA force reload always* is applied again when the next job runs without the option, instead of only being reported
+  - model: *flux.3*, *minimax-h3* and modular video models fail the load when a component the workflow requires does not load
+  - model: *anima* finetunes from the *Finetune* dropdown load on base models in the diffusers modular layout
+  - model: *ideogram* text encoder that fails to move to the gpu goes back to the cpu instead of staying partly on the gpu
+  - model: *krea2* handle invalid residual in last-layer, thanks @vincentwrusch
+  - model: *ltx* *Tiny* live previews show the video instead of a placeholder
+  - model: *ltx* tab passes no longer run with the previous job's guidance end, sigma adjust and correction settings
+  - model: *minimax* quantized *H3* fix decode
+  - model: *minimax* webm, mkv and ts files accepted as reference videos
+  - model: *mosss-image* use correct vae-upsample, thanks @ryanmeador
+  - model: *qwen-image-2.1* use correct shared text encoder
   - models: gated repo access check sends the token stored by *hf auth login*
   - models: unloading a model returns the host memory it freed to the system on linux
   - namegen: add `opts`, `wildcards` as allowed templates
@@ -179,7 +182,6 @@ Plus [changelog](https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md) bel
   - processing: text encoder failure fails the job with its own error instead of a misleading *not enough values to unpack* from the pipeline
   - prompt: cached prompt encodings stay in system memory and follow *Text encoder cache size*
   - prompt: the prompt cache keys on every encode argument and skips calls with images
-  - qwen-image-2.1: use correct shared te
   - samplers: *Euler SGM* and *DC Solver* use the model's prediction type
   - save: *Save metadata to JSON file* appends one line per image to a `jsonl`
   - save: `[datetime<format>]` and `[hasprompt<...>]` filename tokens apply args

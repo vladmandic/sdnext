@@ -252,6 +252,33 @@ def run_zero_init_regression(port):
     print("ZERO-INIT OK")
 
 
+def run_fp16_dormant_residual_test(port):
+    """A zero up-projection must not turn an overflowing down-projection into NaNs."""
+    layer = port.LastLayer(features=4, patch=1, channels=1).half().eval()
+    with torch.no_grad():
+        layer.down.weight.fill_(1)
+        layer.up.weight.zero_()
+        layer.linear.weight.zero_()
+        layer.linear.bias.fill_(1)
+        x = torch.full((1, 1, 4), 60000, dtype=torch.float16)
+        tvec = torch.zeros((1, 4), dtype=torch.float16)
+        assert torch.isinf(layer.down(x)).all(), "test input must overflow the down-projection"
+        output = layer(x, tvec)
+    assert torch.isfinite(output).all(), f"dormant residual produced non-finite output: {output}"
+    assert torch.equal(output, torch.ones_like(output)), f"unexpected dormant residual output: {output}"
+
+    active = port.LastLayer(features=4, patch=1, channels=1).float().eval()
+    with torch.no_grad():
+        active.down.weight.copy_(torch.eye(4))
+        active.up.weight.copy_(torch.eye(4))
+        active.linear.weight.zero_()
+        active.linear.weight[0, 0] = 1
+        active.linear.bias.zero_()
+        active_output = active(torch.ones((1, 1, 4)), torch.zeros((1, 4)))
+    assert torch.allclose(active_output, torch.tensor([[[2.0]]]), atol=1e-5), f"nonzero residual was skipped: {active_output}"
+    print("FP16 DORMANT RESIDUAL OK")
+
+
 def run_comfy_quant_real_file():
     """Opt-in end-to-end check against a real ComfyUI int8_tensorwise Krea2 file: the native
     loader must adopt every marked linear as an SDNQ int8 layer and produce a finite output on
