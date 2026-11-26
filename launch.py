@@ -238,6 +238,7 @@ def main():
     except Exception:
         pass
     installer.read_options()
+    installer.set_offline_mode() # before dependency checks, extension preloads, and model-library imports; even with --skip-env
     if args.skip_all:
         args.quick = True
     installer.check_python()

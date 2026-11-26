@@ -102,10 +102,6 @@ class ControlNetXS():
                 self.load_config['time_embedding_mix'] = time_embedding_mix
                 if opts.offline_mode:
                     self.load_config["local_files_only"] = True
-                    os.environ['HF_HUB_OFFLINE'] = '1'
-                else:
-                    os.environ.pop('HF_HUB_OFFLINE', None)
-                    os.unsetenv('HF_HUB_OFFLINE')
                 log.debug(f'Control {what} model loading: id="{model_id}" path="{model_path}" {self.load_config}')
                 if model_path.endswith('.safetensors'):
                     self.model = ControlNetXSModel.from_single_file(model_path, **self.load_config)

@@ -1004,10 +1004,6 @@ def load_diffuser(checkpoint_info: CheckpointInfo | None = None, op='model', rev
         if shared.opts.offline_mode:
             log.info(f'Load {op}: offline=True')
             diffusers_load_config["local_files_only"] = True
-            os.environ['HF_HUB_OFFLINE'] = '1'
-        else:
-            os.environ.pop('HF_HUB_OFFLINE', None)
-            os.unsetenv('HF_HUB_OFFLINE')
 
         # detect pipeline
         pipeline, model_type = sd_detect.detect_pipeline(checkpoint_info, op)
