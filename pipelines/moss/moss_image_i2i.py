@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from diffusers.image_processor import PipelineImageInput, VaeImageProcessor
 from diffusers.utils.torch_utils import randn_tensor
 
-from pipelines.moss.moss_image import MOSSImagePipeline
+from pipelines.moss.moss_image import MOSSImagePipeline, vae_precision
 
 
 def _pack_latents(latents: torch.Tensor) -> torch.Tensor:
@@ -34,8 +34,9 @@ def _encode_image(pipe, image, height, width, device, generator) -> torch.Tensor
     if pipe.vae is None:
         raise ValueError("A FLUX.2 VAE is required for image-to-image workflows.")
     image_processor = VaeImageProcessor(vae_scale_factor=pipe.vae_scale_factor // pipe.patch_size)
-    pixels = image_processor.preprocess(image, height=height, width=width).to(device=device, dtype=pipe.vae.dtype)
-    latents = pipe.vae.encode(pixels).latent_dist.sample(generator=generator)
+    with vae_precision(pipe.vae):
+        pixels = image_processor.preprocess(image, height=height, width=width).to(device=device, dtype=pipe.vae.dtype)
+        latents = pipe.vae.encode(pixels).latent_dist.sample(generator=generator)
     packed = _pack_latents(latents)
     bn = pipe.vae.bn
     mean = bn.running_mean.view(1, -1, 1, 1).to(device=device, dtype=torch.float32)

@@ -3,6 +3,7 @@
 # interrupt, per-step guidance and returns decoder-ready latents like Flux2KleinPipeline.
 import math
 from collections.abc import Callable
+from contextlib import contextmanager
 import torch
 from torch import nn
 from torch.nn import functional as F
@@ -13,6 +14,20 @@ from diffusers.models.modeling_utils import ModelMixin
 from diffusers.models.modeling_outputs import Transformer2DModelOutput
 from diffusers.pipelines.pipeline_utils import ImagePipelineOutput
 from diffusers.utils.torch_utils import randn_tensor
+
+
+@contextmanager
+def vae_precision(vae):
+    """Honor force_upcast for both half precisions and restore the VAE after use."""
+    dtype = vae.dtype
+    upcast = dtype in (torch.float16, torch.bfloat16) and getattr(vae.config, 'force_upcast', False)
+    try:
+        if upcast:
+            vae.to(dtype=torch.float32)
+        yield
+    finally:
+        if upcast:
+            vae.to(dtype=dtype)
 
 
 def situ(hidden: torch.Tensor, gate: torch.Tensor) -> torch.Tensor:
@@ -401,7 +416,8 @@ class MOSSImagePipeline(DiffusionPipeline):
         else:
             if self.vae is None:
                 raise ValueError('A FLUX.2 VAE is required for decoded output.')
-            images = self.vae.decode(latents.to(dtype=self.vae.dtype), return_dict=False)[0].clamp(-1, 1)
+            with vae_precision(self.vae):
+                images = self.vae.decode(latents.to(dtype=self.vae.dtype), return_dict=False)[0].clamp(-1, 1)
             images = self.image_processor.postprocess(images, output_type=output_type)
         self.maybe_free_model_hooks()
         return ImagePipelineOutput(images=images) if return_dict else (images,)
